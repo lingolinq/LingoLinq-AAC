@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_09_08_180000) do
+ActiveRecord::Schema[7.2].define(version: 2026_10_13_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "plpgsql"
@@ -786,6 +786,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_09_08_180000) do
     t.index ["next_notification_at"], name: "index_users_on_next_notification_at"
     t.index ["possibly_full_premium"], name: "index_users_on_possibly_full_premium"
     t.index ["schedule_deletion_at"], name: "index_users_on_schedule_deletion_at"
+    t.index ["updated_at", "id"], name: "index_users_on_updated_at_and_id"
     t.index ["user_name"], name: "index_users_on_user_name", unique: true
   end
 

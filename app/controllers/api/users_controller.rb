@@ -770,18 +770,77 @@ class Api::UsersController < ApplicationController
       roots += Board.find_all_by_path(user.settings['starred_board_ids'] || [])
     end
     all_ids = []
+    disclosed_ids = Set.new
+    support_caller = @api_user.allows?(@api_user, 'admin_support_actions')
     roots.compact.each do |root|
       all_ids << root.global_id
       all_ids += root.downstream_board_ids
+      disclosed_ids |= [root.global_id] + ((support_caller || root.user_id == @api_user.id || root.allows?(@api_user, 'delete')) ? root.downstream_board_ids : [])
     end
     all_ids.uniq!
+    include_revoked = params['include_revoked'] == '1' || params['include_revoked'] == 'true'
+    # Only boards the synced user can still view get a revision (and key). revoked_ids lists only ids
+    # board JSON already sends the caller: the roots, the downstream_board_ids of roots it may delete
+    # (or of any root, for admin support), and boards linked from a tree board the user can view; one
+    # reached only through boards the user cannot view stays hidden. check_ids are ignored.
     res = {}
-    Board.select('id, current_revision, key').find_all_by_global_id(all_ids).each do |brd|
-      res[brd.global_id] = brd.current_revision
-      res[brd.key] = brd.current_revision
+    revoked_ids = []
+    viewable_ids, undisclosed_ids = [], []
+    boards = Board.select('id, key, current_revision, public, user_id, updated_at').find_all_by_global_id(all_ids)
+    ActiveRecord::Associations::Preloader.new(records: boards.reject{|b| b.public }, associations: :user).call
+    boards.each do |brd|
+      shallow = !!brd.instance_variable_get('@sub_id')
+      # Own boards first (the owner always views them, board.rb:84-100). Another user's private
+      # board is decided by its current shares and owner, not allows?, whose cached list lags an
+      # unshare. A shallow clone keeps allows? (its sub-user's list decides) and is never revoked.
+      viewable = (brd.public && !shallow) || (!shallow && brd.user_id == user.id) || (shallow ? brd.allows?(user, 'view') : board_viewable_now?(brd, user))
+      if viewable
+        viewable_ids << brd.global_id
+        res[brd.global_id] = brd.current_revision
+        res[brd.key] = brd.current_revision
+      elsif !shallow
+        (disclosed_ids.include?(brd.global_id) ? revoked_ids : undisclosed_ids) << brd.global_id
+      end
     end
-    render json: res
+    revoked_ids += BoardRevisionsAccess.linked_from(viewable_ids, undisclosed_ids)
+    # Older clients read the flat id => revision map, so the revoked list is
+    # only sent, in a wrapped shape, to clients that ask for it.
+    if include_revoked
+      # Board revocation is a fix with no off switch (owner decision, 2026-10-13):
+      # the revoked list is always sent to clients that ask for it. A client build
+      # that still reads revocation_enabled treats its absence as on. The
+      # environment variable the removed switch read, BOARD_REVOCATION_DISABLED,
+      # is no longer consulted. Kept at seven lines so the line numbers cited
+      # below this point do not move.
+      render json: {revisions: res, revoked_ids: revoked_ids.uniq}
+    else
+      render json: res
+    end
   end
+
+  # allows?(user, 'view') reads the user's cached available_private_board_ids and a 30-minute
+  # permission cache, both rebuilt lazily (minutes to hours after a share change), so a board just
+  # shared reads as hidden and one just unshared as viewable. Another user's private board is
+  # decided instead by BoardRevisionsAccess (app/services/board_revisions_access.rb): owned by or
+  # shared with anyone in the user's supervision chain (board_caching#update_available_boards), or
+  # its owner grants the user model or edit permission (board.rb add_permissions).
+  #
+  # It is read-only. This is a sync GET that every device calls on every sync, so it takes no
+  # row lock and writes no settings version for the user or anyone in their caseload: a stale
+  # shared-board set is rebuilt in memory and left for the regenerate job the link change queued
+  # (user_link.rb touch_connections) to store.
+  #
+  # One instance per request: each user's shared-board set is computed once (a per-board
+  # shared_with? would rebuild it once per board while it is stale), and the owner fallback is
+  # checked once per owner, however many boards of the tree that owner has.
+  #
+  # The fallback runs only for boards that neither the caseload owns nor a share covers. Shallow
+  # clones never reach this method (their sub-user's cached list also decides). board_revisions
+  # and this method keep a fixed line count, so the line numbers cited below do not move.
+  def board_viewable_now?(board, user)
+    (@board_revisions_access ||= BoardRevisionsAccess.new(user)).viewable?(board)
+  end
+  private :board_viewable_now?
 
   def boards
     user = User.find_by_path(params['user_id'])

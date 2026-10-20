@@ -296,15 +296,24 @@ export default Component.extend({
       // cannot repaint its picker CTAs during the hand-off.
       app_state.set('tour_board_picker_active', false);
       /* BASIC (2026-09-30): the tried board opens on the Basic board page in normal mode, which
-         offers "Set as Home Board" for it (components/basic-try-home-button.js) for the user the
+         offers "Use this board" for it (components/trial-bar.js) for the user the
          picker is choosing for -- the communicator when an SLP opened it for one. The picker
          forgets that user once left, so it rides with the marker. Modern keeps its Back
          control on board-detail. */
+      // The picker's place and "Recently tried" (utils/board_picker_trials.js), for "Try another", in both views.
+      remember_trial(app_state, board, document.getElementById('content') || document.scrollingElement);
       var basic = is_classic(app_state.get('effective_view_user'));
       if (basic) {
-        mark_basic_try(app_state, key, app_state.get('setup_user') || app_state.get('currentUser'));
+        mark_basic_try(app_state, key, app_state.get('setup_user') || app_state.get('currentUser'), board.get ? board.get('name') : board.name);
+        if (typeof app_state.set_history === 'function') { app_state.set_history([]); } // the trial's own trail (utils/board_picker_landing.js#basic_try_for)
       } else {
-        app_state.set('board_detail_try_origin', { key: key, from: 'board_picker' });
+        // Who it is for rides along (2026-10-12), as Basic's marker does: the trial bar's "Use this board"
+        // makes it THAT user's home board (components/trial-bar.js).
+        var tryFor = app_state.get('setup_user') || app_state.get('currentUser');
+        // `name` so the bar names the tried board even inside one of its folders, and a fresh trail so the
+        // trial's folders are recognised by it (controllers/user/board-detail.js#try_origin_board, 2026-10-13).
+        app_state.set('board_detail_try_origin', { key: key, name: board.get ? board.get('name') : board.name, from: 'board_picker', user_id: tryFor && tryFor.get('id'), user_name: tryFor && tryFor.get('user_name') });
+        app_state.set('board_detail_nav_history', []);
       }
 
       modal.close_board_preview();
@@ -505,3 +514,6 @@ export default Component.extend({
     } catch(e) { /* DOM may be unavailable; ignore */ }
   }
 });
+
+// Imported last so the .eslint-todo rows above keep their lines.
+import { remember_trial } from '../utils/board_picker_trials';

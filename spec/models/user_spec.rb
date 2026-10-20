@@ -770,37 +770,19 @@ describe User, :type => :model do
       end
     end
 
-  describe "compressed_view preference" do
-    # Compressed View is a per-user display choice read with `=== true` on the client
-    # (utils/compressed_view_state.js). Stored only as a real boolean, so a string or number
-    # sent by an old or hand-built client can never compress someone's page.
-    def stored_compressed(value)
+  describe "compressed_view preference (removed 2026-10-10)" do
+    # Compressed View was removed from the project, so its preference is no longer accepted: an
+    # old or cached client that still sends it must not store it. (Its earlier tests, for the
+    # boolean coercion, went with the feature; approved 2026-10-10.)
+    it "is not an accepted preference" do
+      expect(User::PREFERENCE_PARAMS).not_to include('compressed_view')
+    end
+
+    it "is not stored when a client sends it" do
       u = User.create
-      u.process({'preferences' => {'compressed_view' => value}}, {})
+      u.process({'preferences' => {'compressed_view' => true}}, {})
       u.save
-      u.reload.settings['preferences']['compressed_view']
-    end
-
-    it "is an accepted preference" do
-      expect(User::PREFERENCE_PARAMS).to include('compressed_view')
-    end
-
-    it "stores true and false as booleans, including their string forms" do
-      expect(stored_compressed(true)).to eq(true)
-      expect(stored_compressed('true')).to eq(true)
-      expect(stored_compressed(false)).to eq(false)
-      expect(stored_compressed('false')).to eq(false)
-    end
-
-    it "stores anything else as off" do
-      expect(stored_compressed(1)).to eq(false)
-      expect(stored_compressed('yes')).to eq(false)
-      expect(stored_compressed({'a' => 1})).to eq(false)
-    end
-
-    it "has no server default, so existing users are not backfilled" do
-      expect(User.preference_defaults['any_user']).not_to have_key('compressed_view')
-      expect(User.create.settings['preferences']).not_to have_key('compressed_view')
+      expect(u.reload.settings['preferences']).not_to have_key('compressed_view')
     end
   end
 
@@ -837,6 +819,112 @@ describe User, :type => :model do
       expect(Worker.scheduled_for?(:slow, User, :perform_action, {'id' => u.id, 'method' => 'track_boards', 'arguments' => [true, 123]})).to eq(true)
     end
     
+    it "should skip a queued track that is older than the last completed one" do
+      u = User.create
+      u.settings['tracked_boards_at'] = 1_800_000_100
+      u.save
+      expect(UserBoardConnection).not_to receive(:where)
+      expect(u.track_boards(true, 1_800_000_050)).to eq(false)
+      expect(u.reload.settings['tracked_boards_at']).to eq(1_800_000_100)
+    end
+
+    # The job stamps tracked_boards_at as it starts, on the copy the worker loaded. Saving that copy
+    # wrote the whole settings column back over anything saved since it was loaded.
+    it "stamps tracked_boards_at without reverting settings saved after the user was loaded" do
+      u = User.create
+      Worker.flush_queues
+      loaded = User.find(u.id)
+      other = User.find(u.id)
+      other.settings['preferences']['spec_marker'] = 'normal save'
+      other.save
+      quiet = User.find(u.id)
+      quiet.settings['spec_quiet'] = 'touch false'
+      quiet.save(touch: false)
+
+      loaded.track_boards(true, Time.now.to_i)
+
+      stored = User.find(u.id)
+      expect(stored.settings['preferences']['spec_marker']).to eq('normal save')
+      expect(stored.settings['spec_quiet']).to eq('touch false')
+      expect(stored.settings['tracked_boards_at']).to be >= 1.minute.ago.to_i
+    end
+
+    # The final save clears the changed flags. It used to save the copy loaded when the job
+    # started, writing the whole settings column back over anything saved during the run.
+    describe "clearing the changed flags" do
+      def user_with_new_home_board
+        u = User.create
+        b = Board.create(:user => u)
+        u.settings['preferences']['home_board'] = {'id' => b.global_id, 'key' => b.key}
+        u.save
+        Worker.flush_queues
+        expect(u.settings['home_board_changed']).to eq(true)
+        [User.find(u.id), b]
+      end
+
+      # Runs the block once, inside the run's slow step, after the boards were walked.
+      def during_track(&block)
+        ran = false
+        allow(Board).to receive(:process_lumped_triggers).and_wrap_original do |original, *args|
+          unless ran
+            ran = true
+            block.call
+          end
+          original.call(*args)
+        end
+      end
+
+      it "keeps settings saved by another process while the boards were being tracked" do
+        u, b = user_with_new_home_board
+        during_track do
+          other = User.find(u.id)
+          other.settings['preferences']['spec_marker'] = 'normal save'
+          other.save
+          quiet = User.find(u.id)
+          quiet.settings['spec_quiet'] = 'touch false'
+          quiet.save(touch: false)
+        end
+
+        u.track_boards(true)
+
+        stored = User.find(u.id)
+        expect(stored.settings['preferences']['spec_marker']).to eq('normal save')
+        expect(stored.settings['spec_quiet']).to eq('touch false')
+        expect(stored.settings['home_board_changed']).to eq(nil)
+      end
+
+      # The helper skips the save when its block returns false; a block ending in
+      # settings.delete returned the deleted value, so a stored false skipped the whole save.
+      it "clears the flags when sidebar_changed is stored as false" do
+        u, b = user_with_new_home_board
+        User.where(id: u.id).first.tap { |x| x.settings['sidebar_changed'] = false; x.save(touch: false) }
+        u = User.find(u.id)
+        expect(u.settings['home_board_changed']).to eq(true)
+        expect(u.settings['sidebar_changed']).to eq(false)
+
+        u.track_boards(true)
+
+        stored = User.find(u.id)
+        expect(stored.settings['home_board_changed']).to eq(nil)
+        expect(stored.settings.key?('sidebar_changed')).to eq(false)
+      end
+
+      it "keeps a flag set by a home board change made during the run" do
+        u, b = user_with_new_home_board
+        b2 = Board.create(:user => u)
+        during_track do
+          other = User.find(u.id)
+          other.settings['preferences']['home_board'] = {'id' => b2.global_id, 'key' => b2.key}
+          other.save
+          expect(other.settings['home_board_changed']).to eq(true)
+        end
+
+        u.track_boards(true)
+
+        expect(User.find(u.id).settings['home_board_changed']).to eq(true)
+      end
+    end
+
     it "should delete orphan connections" do
       u = User.create
       b = Board.create(:user => u)
@@ -2467,7 +2555,7 @@ describe User, :type => :model do
 
       u.settings['preferences'] = {'home_board' => {'id' => b.global_id, 'key' => b.key}}
       u.save
-      expect(u.reload.board_set_ids.sort).to eq([b.global_id, b2.global_id])
+      expect(u.reload.board_set_ids).to match_array([b.global_id, b2.global_id])
     end
     
     it "should include supervisee board ids if specified" do
@@ -2489,7 +2577,7 @@ describe User, :type => :model do
       u.save
       u2.settings['preferences'] = {'home_board' => {'id' => b4.global_id, 'key' => b4.key}}
       u2.save
-      expect(u.reload.board_set_ids(:include_supervisees => true).sort).to eq([b.global_id, b2.global_id, b4.global_id])
+      expect(u.reload.board_set_ids(:include_supervisees => true)).to match_array([b.global_id, b2.global_id, b4.global_id])
     end
     
     it "should include starred board ids if specified" do
@@ -2534,7 +2622,7 @@ describe User, :type => :model do
       u.save
       u2.settings['preferences'] = {'home_board' => {'id' => b4.global_id, 'key' => b4.key}}
       u2.save
-      expect(u.reload.board_set_ids(false).sort).to eq([b.global_id, b2.global_id])
+      expect(u.reload.board_set_ids(false)).to match_array([b.global_id, b2.global_id])
     end
     
   end
@@ -4084,8 +4172,28 @@ describe User, :type => :model do
       Worker.process_queues
       expect(u.reload.settings['asdf']).to eq('bacon')
     end
+
+    # The stash and its job are one unit: a transaction that rolls back the stash must not leave
+    # its job queued (the job would fail on the missing stash).
+    it "queues the deferred update only once its transaction commits" do
+      u = User.create
+      User.where(:id => u.id).update_all(:updated_at => 1.hour.from_now)
+      Worker.flush_queues
+      User.transaction do
+        expect(u.update_setting('asdf', 'bacon')).to eq('pending')
+        raise ActiveRecord::Rollback
+      end
+      expect(Worker.scheduled_actions.select{|a| a['args'].to_s.include?('job_stash') }).to eq([])
+
+      User.transaction do
+        expect(u.update_setting('asdf', 'bacon')).to eq('pending')
+        expect(Worker.scheduled_actions.select{|a| a['args'].to_s.include?('job_stash') }).to eq([])
+      end
+      s = JobStash.last
+      expect(Worker.scheduled?(User, :perform_action, {'id' => u.id, 'method' => 'update_setting', 'arguments' => ['job_stash', s.global_id]})).to eq(true)
+    end
   end
-  
+
   describe "external_email_allowed?" do
     it "should return the correct values" do
       u = User.new
@@ -4556,6 +4664,13 @@ describe User, :type => :model do
     end
   
     describe "valid_2fa?" do
+      include ActiveSupport::Testing::TimeHelpers
+      # valid_2fa? accepts a code from the previous 30 s window for up to 15 s (drift_behind) and
+      # returns that window's start, so a window ending between making the code and checking it made
+      # `ts > 30.seconds.ago` fail. Examples that compare against the clock run at a fixed instant in
+      # the middle of a window.
+      let(:mid_window) { Time.at(1_800_000_015) }
+
       it "should return false without 2fa settings" do
         u = User.new
         expect(u.valid_2fa?('asdf')).to eq(false)
@@ -4566,15 +4681,17 @@ describe User, :type => :model do
       end
 
       it "should return true for a valid code" do
-        u = User.create(settings: {'2fa' => {'secret' => 'asdf'}})
-        totp = ROTP::TOTP.new('asdf', issuer: "LingoLinq")  
-        code = totp.at(Time.now)
-        expect(u.settings['2fa']['last_otp']).to eq(nil)
-        ts = u.valid_2fa?(code)
-        expect(ts).to_not eq(false)
-        expect(ts).to be > 30.seconds.ago.to_i
-        expect(ts).to be < 30.seconds.from_now.to_i
-        expect(u.settings['2fa']['last_otp']).to_not eq(nil)
+        travel_to(mid_window) do
+          u = User.create(settings: {'2fa' => {'secret' => 'asdf'}})
+          totp = ROTP::TOTP.new('asdf', issuer: "LingoLinq")
+          code = totp.at(Time.now)
+          expect(u.settings['2fa']['last_otp']).to eq(nil)
+          ts = u.valid_2fa?(code)
+          expect(ts).to_not eq(false)
+          expect(ts).to be > 30.seconds.ago.to_i
+          expect(ts).to be < 30.seconds.from_now.to_i
+          expect(u.settings['2fa']['last_otp']).to_not eq(nil)
+        end
       end
 
       it "should return false for an old code" do
@@ -4594,15 +4711,17 @@ describe User, :type => :model do
       end
 
       it "should return false for a replayed code" do
-        u = User.create(settings: {'2fa' => {'secret' => 'asdf'}})
-        totp = ROTP::TOTP.new('asdf', issuer: "LingoLinq")  
-        code = totp.at(Time.now)
-        ts = u.valid_2fa?(code)
-        expect(ts).to_not eq(false)
-        expect(ts).to be > 30.seconds.ago.to_i
-        expect(ts).to be < 30.seconds.from_now.to_i
-        ts = u.valid_2fa?(code)
-        expect(ts).to eq(false)
+        travel_to(mid_window) do
+          u = User.create(settings: {'2fa' => {'secret' => 'asdf'}})
+          totp = ROTP::TOTP.new('asdf', issuer: "LingoLinq")
+          code = totp.at(Time.now)
+          ts = u.valid_2fa?(code)
+          expect(ts).to_not eq(false)
+          expect(ts).to be > 30.seconds.ago.to_i
+          expect(ts).to be < 30.seconds.from_now.to_i
+          ts = u.valid_2fa?(code)
+          expect(ts).to eq(false)
+        end
       end
     end
   end
@@ -4789,6 +4908,22 @@ describe User, :type => :model do
       u1.settings['preferences']['home_board'] = {'id' => 1, 'a' => 1}
       expect(u1).to receive(:copy_to_home_board).with({'id' => b.global_id, 'copy' => true}, u2.global_id, nil)
       u1.process_home_board({'id' => b.global_id, 'copy' => true}, {'updater' => u2})
+    end
+
+    # users#update copies the home board synchronously inside process_params (no 'async'), and the
+    # copy ends in update_available_boards (relinking.rb copy_for). The other edits in the same
+    # request are still unsaved on the user then and must be saved with it.
+    it "keeps the other edits of the same update when the home board is copied synchronously" do
+      u1 = User.create
+      u2 = User.create
+      b = Board.create(user: u2, public: true)
+      res = u1.process({'name' => 'Spec Renamed', 'preferences' => {'home_board' => {'id' => b.global_id, 'key' => b.key, 'copy' => true}}}, {'updater' => u2})
+      expect(res).to eq(true)
+
+      stored = User.find(u1.id)
+      expect(stored.settings['name']).to eq('Spec Renamed')
+      home = Board.find_by_path(stored.settings['preferences']['home_board']['id'])
+      expect(home.parent_board).to eq(b)
     end
 
     it "should schedule copying if async" do
@@ -5021,6 +5156,130 @@ describe User, :type => :model do
       expect(u).to receive(:supervisors).and_return([u2])
       expect(u2).to receive(:save_with_sync).with('supervisee update')
       u.save_sync_supervisors(true)
+    end
+  end
+
+  describe "update_settings_locked" do
+    include ActiveSupport::Testing::TimeHelpers
+
+    def users_sql
+      sql = []
+      record = ->(*, payload) { sql << payload[:sql] if payload[:sql] =~ /\bFROM "users"|\AUPDATE "users"/ }
+      ActiveSupport::Notifications.subscribed(record, 'sql.active_record') { yield }
+      sql
+    end
+
+    it "changes only the keys the block sets, keeping a write made since this copy was loaded" do
+      u = User.create
+      stale = User.find(u.id)
+      other = User.find(u.id)
+      other.settings['preferences']['spec_marker'] = 'normal save'
+      other.save
+      quiet = User.find(u.id)
+      quiet.settings['spec_quiet'] = 'touch false'
+      quiet.save(touch: false)
+
+      stale.update_settings_locked { |fresh| fresh.settings['spec_owned'] = 'mine' }
+
+      stored = User.find(u.id)
+      expect(stored.settings['preferences']['spec_marker']).to eq('normal save')
+      expect(stored.settings['spec_quiet']).to eq('touch false')
+      expect(stored.settings['spec_owned']).to eq('mine')
+      # the caller's copy gets only what the block wrote (it is not reloaded)
+      expect(stale.settings['spec_owned']).to eq('mine')
+      expect(stale.settings['spec_quiet']).to eq(nil)
+    end
+
+    # A synchronous caller can hold unsaved changes on the object (reset_eval's settings wipe
+    # before the home board copy calls update_available_boards); they must survive the helper.
+    it "keeps the caller's unsaved changes and copies back only what it wrote" do
+      u = User.create
+      User.where(id: u.id).update_all(sync_stamp: 6.hours.ago)
+      caller_copy = User.find(u.id)
+      caller_copy.settings['email'] = 'pending@example.com'
+      caller_copy.settings['preferences'] = nil
+      caller_copy.boards_updated_at = 1.day.ago
+
+      caller_copy.update_settings_locked(save_method: :save_with_sync, save_args: ['spec_reason']) do |fresh|
+        fresh.settings['spec_owned'] = 'mine'
+        fresh.boards_updated_at = Time.now
+        fresh.schedule_deletion_at = 2.days.from_now
+      end
+
+      expect(caller_copy.settings['email']).to eq('pending@example.com')
+      expect(caller_copy.settings['preferences']).to eq(nil)
+      expect(caller_copy.settings['spec_owned']).to eq('mine')
+      # a column the caller changed itself stays as the caller set it; the others follow the save
+      expect(caller_copy.boards_updated_at).to be < 1.hour.ago
+      expect(caller_copy.schedule_deletion_at).to be > 1.day.from_now
+      expect(caller_copy.sync_stamp).to be > 5.minutes.ago
+      expect(caller_copy.updated_at).to be_within(0.001).of(User.find(u.id).updated_at)
+      expect(caller_copy.changed).to include('boards_updated_at')
+      expect(caller_copy.changed).not_to include('schedule_deletion_at')
+      expect(User.find(u.id).settings['email']).not_to eq('pending@example.com')
+    end
+
+    # Copying the saved updated_at onto a copy loaded before another save made that stale copy look
+    # current to assert_current_record! (processable.rb) and to board_caching's stale_after.
+    it "leaves a stale copy's updated_at, so it still reads as stale" do
+      u = User.create
+      stale = User.find(u.id)
+      travel(1.minute) do
+        other = User.find(u.id)
+        other.settings['spec_other'] = 'saved since'
+        other.save
+      end
+      travel(2.minutes) do
+        stale.update_settings_locked { |fresh| fresh.settings['spec_owned'] = 'mine' }
+      end
+      expect(stale.settings['spec_owned']).to eq('mine')
+      expect { stale.assert_current_record! }.to raise_error(ActiveRecord::StaleObjectError)
+    end
+
+    it "gives a current copy the saved updated_at" do
+      u = User.create
+      current = User.find(u.id)
+      travel(2.minutes) do
+        current.update_settings_locked { |fresh| fresh.settings['spec_owned'] = 'mine' }
+      end
+      expect(current.updated_at).to be_within(0.001).of(User.find(u.id).updated_at)
+      expect(current.updated_at).to be > u.updated_at + 1.minute
+      expect { current.assert_current_record! }.not_to raise_error
+    end
+
+    it "reads the copy it saves under a row lock" do
+      u = User.create
+      sql = users_sql { User.update_settings_locked(u.id) { |fresh| fresh.settings['spec_owned'] = 1 } }
+      locked = sql.index { |q| q =~ /FOR UPDATE/ }
+      updated = sql.index { |q| q.start_with?('UPDATE "users"') }
+      expect(locked).not_to be_nil
+      expect(updated).not_to be_nil
+      expect(locked).to be < updated
+    end
+
+    it "keeps updated_at with touch: false" do
+      u = User.create
+      User.where(id: u.id).update_all(updated_at: 2.days.ago)
+      before = User.find(u.id).updated_at
+      User.update_settings_locked(u.id, touch: false) { |fresh| fresh.settings['spec_owned'] = 1 }
+      expect(User.find(u.id).updated_at).to eq(before)
+      expect(User.find(u.id).settings['spec_owned']).to eq(1)
+    end
+
+    it "uses the given save method" do
+      u = User.create(sync_stamp: 6.hours.ago)
+      User.update_settings_locked(u.id, save_method: :save_with_sync, save_args: ['spec_reason']) { |fresh| fresh.settings['spec_owned'] = 1 }
+      stored = User.find(u.id)
+      expect(stored.sync_stamp).to be > 5.minutes.ago
+      expect(stored.settings['sync_stamp_reason']).to eq('spec_reason')
+    end
+
+    it "does not save when the block returns false, and returns nil for a missing user" do
+      u = User.create
+      sql = users_sql { expect(User.update_settings_locked(u.id) { |fresh| fresh.settings['spec_owned'] = 1; false }).to eq(false) }
+      expect(sql.none? { |q| q.start_with?('UPDATE "users"') }).to eq(true)
+      expect(User.find(u.id).settings['spec_owned']).to eq(nil)
+      expect(User.update_settings_locked(0) { |fresh| raise "not called" }).to eq(nil)
     end
   end
 

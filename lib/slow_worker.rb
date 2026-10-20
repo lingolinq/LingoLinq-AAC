@@ -9,5 +9,6 @@ module SlowWorker
     Worker.perform_at(:slow, *args)
   ensure
     Worker.clear_request_thread_caches
+    Worker.clear_scheduled_stamp(args)
   end
 end

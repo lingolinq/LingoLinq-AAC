@@ -46,4 +46,21 @@ module('Unit | Utility | board_picker_landing', function() {
     clear_basic_try(s);
     assert.strictEqual(basic_try_for(s, 'public/core-60'), null, 'gone once cleared');
   });
+
+  /* BASIC: A TRIAL LASTS THROUGH THE TRIED BOARD'S FOLDERS (2026-10-13), as Modern's does. A Basic trial browses
+     in normal mode, whose trail is app-state's `browse_history` (get_history); the trial covers the tried board
+     and any board whose trail contains it. */
+  test('basic_try_for: the tried board, and its folders', function(assert) {
+    var history = [];
+    var appState = EmberObject.create({
+      basic_try_home: { key: 'lingolinq/vocal-flair-40', user_id: '1_3' },
+      get_history: function() { return history; }
+    });
+    assert.ok(basic_try_for(appState, 'lingolinq/vocal-flair-40'), 'the tried board');
+    assert.notOk(basic_try_for(appState, 'lingolinq/vocal-flair-40-places_2'), 'a folder, before it was reached from the trial');
+    history = [{ key: 'lingolinq/vocal-flair-40', id: '1_40' }];
+    assert.ok(basic_try_for(appState, 'lingolinq/vocal-flair-40-places_2'), 'a folder reached from it');
+    history = [{ key: 'lingolinq/quick-core-60', id: '1_61' }];
+    assert.notOk(basic_try_for(appState, 'aiden/core'), 'CONTROL: a board the trial never led to');
+  });
 });

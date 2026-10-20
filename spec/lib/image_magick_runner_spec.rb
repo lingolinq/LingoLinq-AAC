@@ -44,12 +44,13 @@ describe ImageMagickRunner do
       # Tempfile-length paths is ~1.8MB of argv, past ARG_MAX. Measured: system returns nil,
       # and a raise here would be a permanent, attacker-triggerable failure loop from one POST.
       path = '/tmp/image_stash20260905-1467643-wb5rbv.png.jpg'
-      argv = ['/bin/true'] + Array.new(30_000) {|i| ['-label', "word#{i}", path] }.flatten
+      # /usr/bin, not /bin: macOS has no /bin/true or /bin/false; both systems have /usr/bin's.
+      argv = ['/usr/bin/true'] + Array.new(30_000) {|i| ['-label', "word#{i}", path] }.flatten
       expect { ImageMagickRunner.run(*argv) }.not_to raise_error
     end
 
     it "returns false, without raising, when the binary runs and fails" do
-      expect(ImageMagickRunner.run('/bin/false', 'x')).to eq(false)
+      expect(ImageMagickRunner.run('/usr/bin/false', 'x')).to eq(false)
     end
   end
 

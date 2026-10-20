@@ -38,6 +38,24 @@ describe Worker do
       expect(Worker.scheduled?(User, :bacon, 12)).to be_truthy
     end
 
+    # Resque forks a process per job, so in production a job's class never keeps the stamp
+    # BoyBand sets (boy_band.rb:155). In-process runs must match: a stale Board stamp made a
+    # later save in the same example skip its downstream track (upstream_downstream.rb:382-386).
+    it "leaves no scheduled stamp on the job's class after the job, as a forked worker would" do
+      # instance jobs carry a 'scheduled' stamp in their first (hash) argument, as real ones do
+      expect(Board).to receive(:halo) { expect(Board.last_scheduled_stamp).to eq(123) }
+      Worker.schedule(Board, :halo, {'scheduled' => 123})
+      Worker.process_queues
+      expect(Board.last_scheduled_stamp).to eq(nil)
+    end
+
+    it "leaves no scheduled stamp after a slow-queue job either" do
+      expect(Board).to receive(:halo) { expect(Board.last_scheduled_stamp).to eq(124) }
+      Worker.schedule_for(:slow, Board, :halo, {'scheduled' => 124})
+      Worker.process_queues
+      expect(Board.last_scheduled_stamp).to eq(nil)
+    end
+
     it "should load the domain override if set" do
       JsonApi::Json.set_host("https://whatever.com:1234")
       Worker.schedule(User, :last)

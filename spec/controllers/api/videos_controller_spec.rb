@@ -110,4 +110,39 @@ describe Api::VideosController, type: :controller do
       expect(json).to eq({'confirmed' => true, 'url' => v.url})
     end
   end
+
+  # No upload form can be issued: a create that needs a client upload must not leave a pending
+  # record behind, and reading a pending record must still work, just without the form.
+  describe "without S3 configured" do
+    before(:each) { allow(Uploader).to receive(:client_uploads_configured?).and_return(false) }
+
+    it "should answer 503 and keep no record when the create needs a client upload" do
+      token_user
+      expect {
+        post :create, params: {:video => {'url' => 'https://www.example.com/file.mp4', 'content_type' => 'video/mp4'}}
+      }.to_not change(UserVideo, :count)
+      assert_error('File uploads are not available right now', 503)
+    end
+
+    it "should still create a record that needs no client upload" do
+      token_user
+      allow(Uploader).to receive(:valid_remote_url?).and_return(true)
+      post :create, params: {:video => {'url' => 'https://www.example.com/file.mp4', 'content_type' => 'video/mp4'}}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['video']['pending']).to eq(false)
+      expect(json['meta']).to eq(nil)
+    end
+
+    it "should show a pending record without upload params" do
+      token_user
+      record = UserVideo.create!(user: @user, settings: {'pending' => true, 'content_type' => 'video/mp4'})
+      get :show, params: {:id => record.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['video']['id']).to eq(record.global_id)
+      expect(json['video']['pending']).to eq(true)
+      expect(json['meta']).to eq(nil)
+    end
+  end
 end

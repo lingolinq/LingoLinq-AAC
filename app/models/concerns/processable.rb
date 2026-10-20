@@ -87,7 +87,7 @@ module Processable
       stash = JobStash.create
       stash.data = {'key' => key, 'value' => value, 'save_method' => save_method}
       stash.save
-      schedule(:update_setting, 'job_stash', stash.global_id)
+      ActiveRecord.after_all_transactions_commit { schedule(:update_setting, 'job_stash', stash.global_id) } # once the stash commits
       'pending'
     end
   end

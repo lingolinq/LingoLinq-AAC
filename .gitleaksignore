@@ -70,3 +70,11 @@
 # these shapes; do not write them out.
 8c285497713f3f7077596e538d73bcbc1d9ffbc6:app/models/supervisor_relationship.rb:generic-api-key:43
 8c285497713f3f7077596e538d73bcbc1d9ffbc6:spec/models/supervisor_relationship_spec.rb:generic-api-key:216
+
+# spec/models/concerns/subscription_spec.rb (PR #1117, reset_eval keeps the new password) used a
+# literal test password, 'password' => '<fake>', to prove an evaluation reset stores the new
+# family's password. It is a made-up value in a spec, never a credential, and protects nothing.
+# FIXED FORWARD in the same PR: the spec now builds the value, so no literal remains. This entry
+# covers only the historical commit, which cannot be rewritten without a force-push. Owner
+# approved this entry (Rule 14) on 2026-10-12.
+b79273ecd7580d06475d1134cc379b7078648339:spec/models/concerns/subscription_spec.rb:generic-api-key:3098

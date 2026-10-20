@@ -39,6 +39,12 @@ include children and clinical patients; FERPA, HIPAA, GDPR and COPPA apply.
   Secret Manager.
 - **Console access** in any deployed environment goes through `bin/audit_console`.
 - No em dashes in user-facing prose.
+- **Never add the `synthetic-data` label.** It is a person's statement that they read
+  every changed data file and none of it is real, and the `data-bearing-paths` check
+  cannot tell an agent from the person whose GitHub account it runs under. Never add it
+  (including `gh pr create --label` or `gh pr edit --add-label`), never post a
+  `data-bearing-approval/*` status, and never ask for either on your behalf. Say the PR
+  needs it and let the reviewer add it after reading the data.
 - **Never edit a test to make a check pass.** A failing test, lint rule or snapshot is
   the finding; report it. Without explicit human approval, never delete, rename or weaken
   an existing test, add `skip`/`xit`/`pending`/`this.skip()`, loosen an assertion, narrow
@@ -67,7 +73,9 @@ include children and clinical patients; FERPA, HIPAA, GDPR and COPPA apply.
 Work through the checklist in `.claude/skills/pr-preflight/SKILL.md` (claim
 verification against HEAD, entry-point enumeration for access changes,
 `scripts/regenerate-register.sh --check` for compliance paths, the status block the PR
-template expects). Tests: `bundle exec rspec` and `cd app/frontend && ember test`.
+template expects). Tests: `bundle exec rspec` and `cd app/frontend && ember test`. Testing
+standards (which kind of test, red-then-falsify, test isolation enforced by the frontend leak
+check, Playwright e2e is not in CI, the CI gates) are in `.claude/rules/testing-frontend.md`.
 
 Two independent reviews then gate the PR: a senior-dev pass and an adversarial red-team
 pass. A Critical or High finding from either blocks the PR; this is a blocking gate, not
@@ -127,6 +135,9 @@ fixtures, factories, cassettes, seeds, migrations, `db/language/` or `lib/tasks/
 `.claude/rules/data-bearing-paths.md` (the Tier 1 data boundary); before touching the
 deploy workflow, `Dockerfile`, `config/environments/production.rb`,
 `config/initializers/resque.rb` or `scripts/gcp/` read `.claude/rules/deploy.md`;
+before touching `spec/**`, `.rspec`, `config/application.rb`, `.env.op.template` or
+`.github/workflows/ci.yml` read `.claude/rules/testing.md` (specs never reach the network; outside services start unconfigured, and a spec that tests one sets fake
+values itself);
 before opening or updating a pull request read `.claude/rules/github-pr.md` (the `gh`
 CLI is not installed and the MCP GitHub server's credentials are rejected, so the route
 is the git credential helper's OAuth token, which must never be echoed or written to a

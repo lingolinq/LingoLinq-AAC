@@ -252,15 +252,11 @@
         <hr class="la-about-hero-separator" aria-hidden="true">
       </div>
       <form {{on "submit" this.onAuthenticateSubmit}} autocomplete="off" id="login_form">
-          {{#unless this.prompt}}
-          {{#unless this.force_logout}}
-            {{#if this.app_state.feature_flags.emergency_boards}}
+          {{#if this.showBasicAccess}}
               <div style='font-size: 14px; text-align: right; margin-bottom: 10px; margin-top: -10px;'>
                 <LinkTo @route="offline_boards"><span style='color: #3d8053;'>{{t "basic access" key="critical_access_lower"}}</span></LinkTo>
               </div>
-            {{/if}}
-          {{/unless}}
-        {{/unless}}
+          {{/if}}
         <div class="form-group">
           <label for="identification">{{t "Username" key="username"}}</label>
           <LowercaseTextField @id="identification" @class="form-control input-lg touchy" @value={{this.identification}} @onChange={{set-value this "identification"}} @placeholder="username" @autocomplete="username" />

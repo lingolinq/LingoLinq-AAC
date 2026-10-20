@@ -4,6 +4,7 @@ import LingoLinq from 'frontend/app';
 import persistence from 'frontend/utils/persistence';
 import { findExistingUserCopy } from 'frontend/utils/board-copy';
 import { saveHomeBoard } from 'frontend/utils/home_board';
+import { standInGlobals } from 'frontend/tests/helpers/stand-in-globals';
 
 /* Regression cover for the two defects behind "Quick Assign didn't copy":
    1. the owned-copy lookup answered from the offline cache, so a board deleted
@@ -43,25 +44,19 @@ function fake_user(user_name, save_result) {
 }
 
 module('Unit | Utility | home board assignment', function(hooks) {
-  var original_find, original_force_reload, created_store;
+  var original_force_reload;
+
+  /* board-copy.js reads `LingoLinq.store` at call time, so this is the seam. It is assigned when
+     an application boots, which a unit test does not do; but an earlier test that did boot one
+     leaves it pointing at that app's DESTROYED store. Each test therefore gets its own stand-in
+     (the tests below give it `findRecord`) rather than stubbing onto whatever store is left. */
+  standInGlobals(hooks, { store: () => ({}) });
 
   hooks.beforeEach(function() {
-    /* `LingoLinq.store` is assigned when the application boots, which a unit test
-       does not do — so stand one up when it is absent, and put things back
-       exactly as they were either way. board-copy.js reads `LingoLinq.store` at
-       call time, so this is the seam. */
-    created_store = !LingoLinq.store;
-    if(created_store) { LingoLinq.store = {}; }
-    original_find = LingoLinq.store.findRecord;
     original_force_reload = persistence.force_reload;
   });
 
   hooks.afterEach(function() {
-    if(created_store) {
-      delete LingoLinq.store;
-    } else {
-      LingoLinq.store.findRecord = original_find;
-    }
     persistence.force_reload = original_force_reload;
   });
 

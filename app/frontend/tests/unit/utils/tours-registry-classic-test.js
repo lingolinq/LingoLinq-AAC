@@ -20,7 +20,7 @@ module('Unit | Utility | tours registry — classic branch', function() {
   // Safe without a DOM: the interior steps resolve targets via visibleEl() and are all
   // skipped here, but the centered welcome step has no target and is always present.
   test('a classic user on the home route gets the CLASSIC steps', function(assert) {
-    var classicSteps = tourBuilderFor('user.home', 'gentle', false, true)();
+    var classicSteps = tourBuilderFor('user.home', 'gentle', false, true)({ supporter: true }); // supporter: since 2026-10-12 (approved) a communicator's home tour is the shared welcome card
     var modernSteps = tourBuilderFor('user.home', 'gentle', false, false)();
     assert.strictEqual(classicSteps[0].id, 'classic_tour_welcome',
       'classic tour leads with its own welcome step');
@@ -51,7 +51,7 @@ module('Unit | Utility | tours registry — classic branch', function() {
     // The four existing tours call this with three arguments. The fourth must be
     // optional-and-falsy, not required.
     assert.strictEqual(tourKeyFor('user.home', 'focused'), 'home_focused', 'home focused');
-    assert.strictEqual(tourKeyFor('caseload', 'gentle'), 'caseload_gentle', 'caseload');
+    assert.strictEqual(tourKeyFor('caseload', 'gentle'), null, 'caseload has no tour (removed 2026-10-12, approved)');
     assert.strictEqual(typeof tourBuilderFor('board-picker', 'gentle'), 'function', 'board picker');
   });
 });

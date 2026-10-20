@@ -132,21 +132,29 @@ export default Component.extend({
     return this.appState.get('sessionUser.preferences.dashboard_layout') === 'focused';
   }),
 
-  // Compressed View (flag `compressed_view`). Offered only with the flag; reads and writes the
-  // SESSION user for the same reason as `isFocused`: `sync_density_scope` in
-  // services/app-state.js watches that record. Only an exact `true` is on
-  // (utils/compressed_view_state.js), matching the server's coercion.
-  compressedAvailable: computed('appState.feature_flags.compressed_view', function() {
-    return this.appState.get('feature_flags.compressed_view') === true;
-  }),
-
-  isCompressed: computed('appState.sessionUser.preferences.compressed_view', function() {
-    return this.appState.get('sessionUser.preferences.compressed_view') === true;
+  // The DISPLAY group's Display Style item (requested 2026-10-13: moved here from its own navbar button).
+  // Offered where that button was: wherever the mounted display-style component has registered its
+  // opener (Modern, on the home and caseload pages; app-navbar-authenticated-inner.hbs).
+  canDisplayStyle: computed('appState.dashboard_design_opener', function() {
+    return typeof this.get('appState.dashboard_design_opener') === 'function';
   }),
 
   actions: {
     toggleMenu: function() {
       this.toggleProperty('menu_open');
+    },
+
+    // Opens the page the old button opened, through the same opener as the phone drawer
+    // (app-navbar-authenticated-inner.js#openDisplayStyle).
+    // DORMANT (2026-10-13): the Display Design item is a disabled "Coming Soon" placeholder in
+    // view-switcher.hbs, so this action and `canDisplayStyle` are intentionally not wired to a
+    // control right now. They are retained (with coverage in view-switcher-display-style-test.js) as
+    // the re-enable path for when Display Design ships. Disable the orphaned-action rule for this one.
+    // eslint-disable-next-line lingolinq/no-orphaned-action
+    open_display_style: function() {
+      this.set('menu_open', false);
+      var opener = this.get('appState.dashboard_design_opener');
+      if (typeof opener === 'function') { opener('display_style_layout'); }
     },
 
     // Select Gentle or Focused. No navigation: unlike the Layout switch below, both
@@ -175,19 +183,6 @@ export default Component.extend({
       // poked or the PUT can be skipped and the choice would not survive a reload.
       // CREATE the container first: `set('preferences.device.updated')` THROWS on a
       // record whose preferences carry no `device` key (components/boards-layout-toggle.js:166-172).
-      if(!user.get('preferences.device')) { user.set('preferences.device', {}); }
-      user.set('preferences.device.updated', true);
-      if(user.save) { user.save().then(null, function() { }); }
-    },
-
-    // Flip Compressed View. Unlike the radio groups this leaves the menu OPEN: it is a switch,
-    // and closing the menu would hide the state it just changed. Same save shape as
-    // select_layout (create the device container, mark it dirty, save).
-    toggle_compressed: function() {
-      if(!this.get('compressedAvailable')) { return; }
-      var user = this.appState.get('sessionUser');
-      if(!user || !user.set) { return; }
-      user.set('preferences.compressed_view', !this.get('isCompressed'));
       if(!user.get('preferences.device')) { user.set('preferences.device', {}); }
       user.set('preferences.device.updated', true);
       if(user.save) { user.save().then(null, function() { }); }

@@ -6,7 +6,7 @@ import { basic_try_target } from 'frontend/utils/board_picker_landing';
 
 /* ONE HOME BUTTON PER SITUATION AFTER A BASIC "TRY" (requested 2026-10-01). After "Try this
  * Board" the board header showed the legacy grey "Set as Home" (when the user had no home board)
- * beside the blue "Set as Home Board [for X]" (components/basic-try-home-button.js).
+ * beside the blue "Set as Home Board [for X]" (now the trial bar, components/trial-bar.js).
  *   - a try for SOMEONE ELSE (an SLP choosing for a communicator): only the blue button, which
  *     names them; the grey one, and the board menu's home item, would set the SLP's own home.
  *   - a try for YOURSELF: only the grey button, even if you already have a home board.

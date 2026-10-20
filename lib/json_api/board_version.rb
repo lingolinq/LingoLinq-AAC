@@ -57,7 +57,8 @@ module JsonApi::BoardVersion
       end
       if obj && obj.settings
         if json['action'] == 'updated' && obj.settings['edit_description'] && obj.settings['edit_description']['notes'] && obj.settings['edit_description']['notes'].length > 0
-          json['action'] = obj.settings['edit_description']['notes'].join(', ')
+          # Array(): versions saved by update_privacy before 2026-10 hold notes as a single String
+          json['action'] = Array(obj.settings['edit_description']['notes']).join(', ')
         end
         json['name'] = obj.settings['name']
         json['button_labels'] = (obj.buttons || []).map{|b| b['label'] || b['vocalization'] }

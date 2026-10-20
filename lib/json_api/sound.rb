@@ -32,7 +32,8 @@ module JsonApi::Sound
   
   def self.meta(sound)
     json = {}
-    if sound.pending_upload? && !sound.destroyed?
+    # no upload form when S3 is not configured (see JsonApi::Image.meta)
+    if sound.pending_upload? && !sound.destroyed? && Uploader.client_uploads_configured?
       params = sound.remote_upload_params
       json = {'remote_upload' => params}
     end

@@ -1,0 +1,50 @@
+// =============================================================================
+// Caseload page header, Modern view + Focused style (templates/caseload.hbs, `focusedCaseload`)
+// =============================================================================
+//
+// The title, the communicator count and the read-only "Needs attention" count. Kept from the Compact
+// Caseload stylesheet (_caseload-compact.scss) when Compressed View, and the compact work list it
+// drove, were removed (2026-10-10): this header shows in Modern + Focused with or without it.
+// =============================================================================
+
+// ---- Page header: title, count, and the read-only Needs attention count ----------------------
+.md-cl-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin: 0 0 14px;
+}
+
+// Two-tone page icon before the title, the same icon idiom as the other Focused page labels.
+.md-cl-head__icon {
+  flex: 0 0 auto;
+}
+
+// The title's font is the other pages' label (app.scss `.md-compact-head__title`, which it joins);
+// only its line box is set here.
+.md-cl-head__title {
+  line-height: 1.2;
+}
+
+.md-cl-head__count {
+  font-size: 16px;
+  font-weight: 500;
+  color: rgba(27, 54, 93, 0.72);
+}
+
+// A read-only count chip (the filter toggle was removed 2026-10-13): keeps the label, divider and
+// count in the same pill, right-aligned, but no longer interactive (no cursor, no pressed state).
+.md-cl-head__filter {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(27, 54, 93, 0.14);
+  background: rgba(27, 54, 93, 0.06);
+  color: #1b365d;
+  font-size: 15px;
+  font-weight: 650;
+}

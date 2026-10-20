@@ -61,6 +61,10 @@ function welcomeStep() {
 // flips automatically if there isn't room). `padded` marks square-cornered
 // REGIONS (the board grid) that want a roomy rounded cutout.
 function interiorSteps() {
+  /* FOUR STEPS IN ALL (requested 2026-10-12: "the board page speak tour should be only 4 steps total"):
+     welcome, these two spotlights, finish. It walked one step per control (grid, message, speak,
+     tools, home, more options); the message bar's five now share one step on the row that holds
+     them, as the home and board-picker tours were consolidated. */
   return [
     {
       id: 'board_detail_speak_tour_grid',
@@ -78,59 +82,18 @@ function interiorSteps() {
       ])
     },
     {
-      id: 'board_detail_speak_tour_message',
-      sel: '.md-board-detail-sentence-bar__text',
-      on: 'bottom',
-      title: i18n.t('board_detail_speak_tour_message_title', "Your message"),
-      text: tourChecklist([
-        i18n.t('board_detail_speak_tour_message_b1', "Words you choose appear here"),
-        i18n.t('board_detail_speak_tour_message_b2', "Read it back before speaking")
-      ])
-    },
-    {
-      id: 'board_detail_speak_tour_speak',
-      sel: '.md-board-detail-sentence-bar__btn--speak',
-      on: 'bottom',
-      title: i18n.t('board_detail_speak_tour_speak_title', "Speak it aloud"),
-      text: tourChecklist([
-        i18n.t('board_detail_speak_tour_speak_b1', "Tap to say your message out loud"),
-        i18n.t('board_detail_speak_tour_speak_b2', "Your device reads it back")
-      ])
-    },
-    {
-      // The backspace / clear / more-options controls (the group right of the mic).
-      // On narrow "immersive" widths these collapse into the chevron quick-actions
-      // menu, so the group selector still resolves to that single control.
-      id: 'board_detail_speak_tour_tools',
-      sel: '.md-board-detail-sentence-bar__tools',
+      // The whole sentence row (templates/user/board-detail.hbs `#speak`): Home on the left, the message
+      // with Speak and the backspace / clear tools, and the More options menu.
+      id: 'board_detail_speak_tour_bar',
+      sel: '.md-board-detail-sentence-row',
       on: 'bottom',
       padded: true,
-      title: i18n.t('board_detail_speak_tour_tools_title', "Fix or clear your message"),
+      title: i18n.t('board_detail_speak_tour_bar_title', "Your message bar"),
       text: tourChecklist([
-        i18n.t('board_detail_speak_tour_tools_b1', "Backspace removes the last word"),
-        i18n.t('board_detail_speak_tour_tools_b2', "Clear empties the whole message"),
-        i18n.t('board_detail_speak_tour_tools_b3', "More options for speaking")
-      ])
-    },
-    {
-      id: 'board_detail_speak_tour_home',
-      sel: '.md-board-detail-home-btn',
-      on: 'bottom',
-      title: i18n.t('board_detail_speak_tour_home_title', "Back to your home board"),
-      text: tourChecklist([
-        i18n.t('board_detail_speak_tour_home_b1', "Tap home to return anytime"),
-        i18n.t('board_detail_speak_tour_home_b2', "Never get lost in folders")
-      ])
-    },
-    {
-      id: 'board_detail_speak_tour_actions',
-      sel: '.md-board-detail-actions-toggle',
-      on: 'bottom',
-      title: i18n.t('board_detail_speak_tour_actions_title', "More options"),
-      text: tourChecklist([
-        i18n.t('board_detail_speak_tour_actions_b1', "Edit this board"),
-        i18n.t('board_detail_speak_tour_actions_b2', "Open settings"),
-        i18n.t('board_detail_speak_tour_actions_b3', "Manage your boards")
+        i18n.t('board_detail_speak_tour_message_b1', "Words you choose appear here"),
+        i18n.t('board_detail_speak_tour_speak_b1', "Tap to say your message out loud"),
+        i18n.t('board_detail_speak_tour_bar_fix', "Backspace or clear to fix your message"),
+        i18n.t('board_detail_speak_tour_bar_more', "Home takes you back; the menu has more options")
       ])
     }
   ];
@@ -200,6 +163,9 @@ function doneStep() {
 // it always builds the linear walkthrough.
 // eslint-disable-next-line no-unused-vars
 function buildBoardDetailSpeakSteps(layout, options) {
+  // A COMMUNICATOR (guided-tour.js passes `supporter: false`) gets the 5-step communicator board tour
+  // (2026-10-12 redesign, communicator-board.js); a supporter, or a caller that does not say, keeps this one.
+  if (options && options.supporter === false) { return buildCommunicatorBoardSteps('modern', layout); }
   var steps = [];
   steps.push(welcomeStep());
   pushInteriorSteps(steps);
@@ -214,3 +180,6 @@ function buildBoardDetailSpeakSteps(layout, options) {
 
 export { buildBoardDetailSpeakSteps };
 export default buildBoardDetailSpeakSteps;
+
+// Imported last, as the other late imports in these modules.
+import { buildCommunicatorBoardSteps } from './communicator-board';

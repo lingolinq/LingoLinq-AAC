@@ -1087,7 +1087,76 @@ module Subscription
     AuditEvent.where(event_type: 'subscription_event', record_id: self.record_code).order('id ASC').map{|e| e.data }
   end
       
+  # How many inactive accounts one sweep acts on (check_for_subscription_updates), and how many
+  # rows it may read to find them.
+  INACTIVITY_SWEEP_WINDOW = 500
+  INACTIVITY_SWEEP_TRIAL_WINDOW = 200
+  INACTIVITY_SWEEP_SCAN_LIMIT = 10_000
+  INACTIVITY_SWEEP_PAGE = 100
+
+  # Accounts the inactivity sweep never deletes: marked never-delete, or allowing anonymized log
+  # reports and active within 36 months.
+  def inactivity_deletion_exempt?
+    prefs = (self.settings || {})['preferences'] || {}
+    !!prefs['never_delete'] || !!(prefs['allow_log_reports'] && self.updated_at > 36.months.ago)
+  end
+
   module ClassMethods  
+    # Ids of up to `window` accounts in `scope`, oldest updated_at first, that the block (default:
+    # not exempt and an inactivity step due, so recently warned accounts do not fill it) accepts. A plain order(updated_at).limit(window) let accounts the sweep always
+    # skips fill the window on every run, so nobody behind them was ever reached. Skipped rows are
+    # walked past by (updated_at, id) rather than restamped: updated_at keys cached permissions
+    # and is the 36-month clock for log-report accounts. At most INACTIVITY_SWEEP_SCAN_LIMIT rows.
+    #
+    # cursor_key: a Redis key holding the (updated_at, id) the next run resumes after: the last row
+    # scanned when the scan limit cut a run short, or the last account returned when a run filled
+    # its window, so exempt rows at the head are not walked every cycle nor starve the sweep. It is
+    # cleared only when a run reaches the end of the scope, so the next run starts from the oldest.
+    #
+    # Each page is found by its keyset columns alone; the rows are then loaded only with the
+    # columns the check needs: id, updated_at and settings for the default exemption check
+    # (inactivity_deletion_exempt?), and full rows for a custom accept block (billing_state reads
+    # several columns and may save).
+    def inactive_deletion_candidate_ids(scope, window, cursor_key=nil, stats: nil, &accept)
+      columns = accept ? nil : [:id, :updated_at, :settings]
+      accept ||= lambda{|u| !u.inactivity_deletion_exempt? && !inactivity_deletion_attempt(u).nil? }
+      accepted = {}
+      scanned = 0
+      last_at, last_id = inactivity_sweep_cursor(cursor_key)
+      while accepted.length < window && scanned < INACTIVITY_SWEEP_SCAN_LIMIT
+        page = scope.order(:updated_at, :id).limit(INACTIVITY_SWEEP_PAGE)
+        page = page.where('(updated_at, id) > (?, ?)', last_at, last_id) if last_id
+        keys = page.pluck(:id, :updated_at)
+        break if keys.empty?
+        rows = User.where(id: keys.map(&:first))
+        rows = rows.select(*columns) if columns
+        by_id = rows.index_by(&:id)
+        keys.each do |id, at|
+          u = by_id[id]
+          accepted[id] = at if u && accept.call(u)
+        end
+        scanned += keys.length
+        last_id, last_at = keys[-1]
+      end
+      ids = accepted.keys.first(window)
+      # stats (optional Hash): counts only, for the sweep's log line
+      stats.merge!('scanned' => scanned, 'accepted' => ids.length) if stats
+      stop_at, stop_id = cursor_key && inactivity_sweep_stop(scope, accepted, ids, window, scanned, last_at, last_id)
+      # resume point, or none so the next run starts from the oldest
+      Permissions.setex(RedisInit.default, cursor_key, 30.days.to_i, "#{stop_at.utc.iso8601(6)}|#{stop_id}") if stop_id
+      RedisInit.default.del(cursor_key) if cursor_key && !stop_id
+      ids
+    end
+
+    def inactivity_sweep_cursor(cursor_key)
+      raw = cursor_key && RedisInit.default.get(cursor_key)
+      at, id = raw.to_s.split('|', 2)
+      return [nil, nil] unless at && id
+      [Time.iso8601(at), id.to_i]
+    rescue ArgumentError
+      [nil, nil]
+    end
+
     def check_for_subscription_updates
       alerts = {:approaching => 0, :approaching_emailed => 0, :upcoming => 0, :upcoming_emailed => 0, :expired => 0, :expired_emailed => 0, :expired_follow_up => 0, :recent_less_active => 0, :pending_deletes => 0}
       
@@ -1186,14 +1255,17 @@ module Subscription
 
       # send out a two and one-month warning when account is 
       # going to be deleted for inactivity (after 12 months of non-use)
-      to_be_deleted_ids = User.where(['updated_at < ?', 12.months.ago]).order('updated_at ASC').limit(500).map(&:id)
+      # Accounts already scheduled for deletion are left out of both lists: their schedule stands.
+      inactive_stats, trial_stats = {}, {}
+      to_be_deleted_ids = inactive_deletion_candidate_ids(User.where(['updated_at < ?', 12.months.ago]).where(schedule_deletion_at: nil), INACTIVITY_SWEEP_WINDOW, 'inactivity_sweep_cursor/inactive', stats: inactive_stats)
       non_expired_ids = []
       # if users are on an expired free trial, we can delete them much sooner
-      trial_to_be_deleted_ids = []
-      User.where(["expires_at < ? AND updated_at < ? AND updated_at != DATE_TRUNC('hour', updated_at)", 1.week.ago, 4.weeks.ago]).order('updated_at ASC').limit(200).select do |u|
+      # Accounts that are not expired communicators are set aside (hour-truncated below, which the
+      # query excludes); exempt expired trials are walked past.
+      trial_scope = User.where(["expires_at < ? AND updated_at < ? AND updated_at != DATE_TRUNC('hour', updated_at)", 1.week.ago, 4.weeks.ago]).where(schedule_deletion_at: nil)
+      trial_to_be_deleted_ids = inactive_deletion_candidate_ids(trial_scope, INACTIVITY_SWEEP_TRIAL_WINDOW, 'inactivity_sweep_cursor/trial', stats: trial_stats) do |u|
         if u.billing_state == :expired_communicator
-          trial_to_be_deleted_ids << u.id
-          true
+          !u.inactivity_deletion_exempt? && !inactivity_deletion_attempt(u).nil?
         else
           non_expired_ids << u.id
           false
@@ -1218,9 +1290,28 @@ module Subscription
       #   puts exp_ids.length
       # end;
 
-      User.where(id: non_expired_ids).update_all("updated_at = DATE_TRUNC('hour', updated_at)")
+      # Set aside in statements of at most a page of rows, not one statement over the whole scan.
+      set_aside = 0
+      non_expired_ids.each_slice(INACTIVITY_SWEEP_PAGE) do |slice|
+        set_aside += User.where(id: slice).update_all("updated_at = DATE_TRUNC('hour', updated_at)")
+      end
+      Rails.logger.info("[inactivity sweep] inactive scanned=#{inactive_stats['scanned']} accepted=#{inactive_stats['accepted']}; trial scanned=#{trial_stats['scanned']} accepted=#{trial_stats['accepted']} set_aside=#{set_aside}")
+      # Which candidate list each id came from, so the locked step can re-apply that list's rule.
+      inactive_id_set = to_be_deleted_ids.to_set
+      trial_id_set = trial_to_be_deleted_ids.to_set
       to_be_deleted = User.where(id: (to_be_deleted_ids + trial_to_be_deleted_ids).uniq)
+      mail_stopped = false
+      # Until a mail is accepted, rejections are held so they can be taken back if SES turns out
+      # to be refusing every message: [user id, previous fields, fields after, kept audit or nil].
+      mail_accepted = false
+      other_errors = 0
+      held_rejections = []
+      release_held = lambda do
+        held_rejections.each { |*, kept| AuditEvent.log_command('system', kept) if kept }
+        held_rejections.clear
+      end
       to_be_deleted.find_in_batches(batch_size: 25) do |batch|
+        break if mail_stopped
         batch.each do |user|
           if user.user_name.match(/^testing/) && user.settings['email'] == 'testing@example.com'
             user.touch
@@ -1228,34 +1319,315 @@ module Subscription
           end
           # Don't delete communicators marked as never-delete or who allow
           # anonymized reports for tracking
-          next if user.settings['preferences']['allow_log_reports'] && user.updated_at > 36.months.ago
-          next if user.settings['preferences']['never_delete']
-          user.settings['subscription'] ||= {}
-          last_warning = Time.parse(user.settings['subscription']['last_deletion_warning']) rescue Time.at(0)
-          if last_warning < 3.weeks.ago
-            attempts = 1
-            if last_warning > 20.weeks.ago
-              attempts = (user.settings['subscription']['last_deletion_attempts'] || 0) + 1
-            end
+          next if user.inactivity_deletion_exempt?
+          next unless inactivity_deletion_attempt(user)
+          # Decided and saved on a locked fresh copy (User#update_settings_locked): `user` was
+          # loaded with its batch, before mail went out for the accounts ahead of it, so its
+          # never_delete, warning record and activity time may be stale, and saving it reverted
+          # settings saved meanwhile. An account whose updated_at moved since the batch loaded it
+          # was used and is left for the next run; the rest is re-read from the fresh copy. The
+          # activity time moves to the retry point in the same save, only when the step is taken.
+          # Batches load after both scans and earlier batches' mail, so an account used before its
+          # batch loaded matches its batch copy: the candidate list's own rule is re-applied to the
+          # fresh row as well.
+          attempts = nil
+          step = nil
+          taken = user.update_settings_locked(touch: false) do |fresh|
+            next false if fresh.updated_at != user.updated_at || fresh.inactivity_deletion_exempt?
+            next false if fresh.schedule_deletion_at
+            next false unless inactivity_candidate_still_due?(fresh, inactive_id_set.include?(fresh.id), trial_id_set.include?(fresh.id))
+            attempts = inactivity_deletion_attempt(fresh)
+            next false unless attempts
+            retry_point = 12.months.ago + 3.weeks
+            fresh.settings['subscription'] ||= {}
+            previous = inactivity_step_fields(fresh)
+            # a mail that goes out ends a run of failures; a failed one puts the count back
+            fresh.settings['subscription'].delete('inactivity_mail_failures')
             if attempts > 2
-              user.schedule_deletion_at = 36.hours.from_now
-              user.save(touch: false)
+              fresh.schedule_deletion_at = 36.hours.from_now
+              # Marks this schedule as the sweep's, so use of the account cancels it (Flusher).
+              fresh.settings['subscription']['inactivity_deletion'] = inactivity_deletion_record(fresh.schedule_deletion_at, retry_point)
+            else
+              fresh.settings['subscription']['last_deletion_warning'] = Time.now.iso8601
+              fresh.settings['subscription']['last_deletion_attempts'] = attempts
+            end
+            fresh.updated_at = retry_point
+            step = [previous, inactivity_step_fields(fresh)]
+            true
+          end
+          next unless taken
+          # The step is saved before its mail goes out. When the mail fails (production raises
+          # delivery errors), the step is undone so the account is not counted as warned or left
+          # scheduled without being told, and the run goes on to the next account. After repeated
+          # failures over a week the step is kept without the notice (settle_failed_inactivity_step).
+          begin
+            if attempts > 2
               SubscriptionMailer.deliver_message(:account_deleted, user.global_id)
             else
               SubscriptionMailer.deliver_message(:deletion_warning, user.global_id, attempts)
-              alerts[:pending_deletes] += 1
-              user.update_setting({
-                'subscription' => {
-                  'last_deletion_warning' => Time.now.iso8601,
-                  'last_deletion_attempts' => attempts
-                }
-              })
             end
-            User.where(id: user.id).update_all(updated_at: 12.months.ago + 3.weeks)
+          rescue StandardError => e
+            mail = attempts > 2 ? 'account_deleted' : 'deletion_warning'
+            kind = inactivity_mail_error_kind(e)
+            reason = nil
+            # only a rejection of this one message counts against the account
+            outcome, failures, after = settle_failed_inactivity_step(user.id, *step, count_failure: kind == :message)
+            if kind == :message
+              Rails.logger.error("[inactivity sweep] #{mail} mail rejected (#{e.class}); step #{outcome}#{failures ? " after #{failures} failures" : ''}")
+            end
+            if outcome == :undone
+              # put it back in front of the cursor, so the next run retries it
+              at = Time.iso8601(step[0]['updated_at'])
+              rewind_inactivity_sweep_cursor('inactivity_sweep_cursor/inactive', at, user.id) if inactive_id_set.include?(user.id)
+              rewind_inactivity_sweep_cursor('inactivity_sweep_cursor/trial', at, user.id) if trial_id_set.include?(user.id)
+            end
+            kept = outcome == :kept_without_notice ? {'type' => 'inactivity_step_kept_without_notice', 'user_id' => user.global_id, 'step' => mail, 'mail_failures' => failures} : nil
+            if kind == :message
+              if mail_accepted
+                AuditEvent.log_command('system', kept) if kept
+                next
+              end
+              held_rejections << [user.id, step[0], after, kept] if after
+              next if held_rejections.length < INACTIVITY_MAIL_REJECTION_LIMIT
+              # Every message so far rejected: SES is refusing all mail (a pause, a suspension or
+              # a limit in words not recognised). Take back what these rejections counted or kept.
+              held_rejections.each { |id, previous, held_after, _| settle_failed_inactivity_step(id, previous, held_after, count_failure: false) }
+              reason = "; #{held_rejections.length} messages rejected and none accepted"
+              held_rejections.clear
+              kind = :setup
+            end
+            if kind == :other
+              other_errors += 1
+              Rails.logger.error("[inactivity sweep] #{mail} mail failed (#{e.class}); step #{outcome}")
+              next if other_errors < INACTIVITY_MAIL_OTHER_ERROR_LIMIT
+              reason = "; #{other_errors} accounts failed with errors outside SES"
+            end
+            # An outage, throttling or a setup problem would fail for every account: send no more
+            # inactivity mail this run, and start the next run from the oldest account, since the
+            # accounts left unprocessed here sit anywhere relative to the cursors.
+            RedisInit.default.del('inactivity_sweep_cursor/inactive')
+            RedisInit.default.del('inactivity_sweep_cursor/trial')
+            note = kind == :setup ? '; sending is misconfigured and needs an operator' : ''
+            Rails.logger.error("[inactivity sweep] mail stopped for this run: #{kind} error (#{e.class}#{e.respond_to?(:code) ? " #{e.code}" : ''}#{reason})#{note}")
+            mail_stopped = true
+            break
           end
+          unless mail_accepted
+            mail_accepted = true
+            release_held.call
+          end
+          alerts[:pending_deletes] += 1 unless attempts > 2
         end
       end
+      # the run did not stop on its rejections: they stand
+      release_held.call
       alerts
+    end
+
+    # Whether `fresh` (a locked, freshly read row) still matches the rule of a candidate list it
+    # came from: the 12-month inactivity list, or the expired-trial list (the trial scope in
+    # check_for_subscription_updates plus its expired-communicator check).
+    def inactivity_candidate_still_due?(fresh, from_inactive, from_trial)
+      at = fresh.updated_at
+      return true if from_inactive && at < 12.months.ago
+      return false unless from_trial
+      !!(fresh.expires_at && fresh.expires_at < 1.week.ago && at < 4.weeks.ago &&
+        at != at.beginning_of_hour && fresh.billing_state == :expired_communicator)
+    end
+
+    # The inactivity deletion step due for `user` now: nil while its last warning is under
+    # 3 weeks old, else the attempt number (1 after 20 weeks without a warning; above 2 means the
+    # account is scheduled for deletion rather than warned again).
+    def inactivity_deletion_attempt(user)
+      sub = (user.settings || {})['subscription'] || {}
+      last_warning = Time.parse(sub['last_deletion_warning']) rescue Time.at(0)
+      return nil unless last_warning < 3.weeks.ago
+      return 1 unless last_warning > 20.weeks.ago
+      (sub['last_deletion_attempts'] || 0) + 1
+    end
+
+    # The fields an inactivity step writes, as stored (times to the microsecond), so a step can be
+    # compared with the row and undone.
+    def inactivity_step_fields(user)
+      sub = (user.settings || {})['subscription'] || {}
+      {
+        'last_deletion_warning' => sub['last_deletion_warning'],
+        'last_deletion_attempts' => sub['last_deletion_attempts'],
+        'inactivity_deletion' => sub['inactivity_deletion'],
+        'inactivity_mail_failures' => sub['inactivity_mail_failures'],
+        'schedule_deletion_at' => user.schedule_deletion_at&.utc&.iso8601(6),
+        'updated_at' => user.updated_at&.utc&.iso8601(6)
+      }
+    end
+
+    # How a mail error raised by the :ses delivery method (Aws::Rails::SesMailer, SES v1
+    # SendRawEmail) bears on the sweep:
+    # - :message, SES rejected this one message (MessageRejected): counted against the account.
+    # - :setup, sending is misconfigured for every account (paused sending, configuration set,
+    #   MAIL FROM domain, an unverified identity, credentials or permissions): needs an operator.
+    # - :transient, any other AWS or SDK error (throttling, ServiceUnavailable, InternalFailure,
+    #   codes not seen before), network errors and timeouts.
+    # - :other, anything else (a code or template failure for this account): undone and the run
+    #   goes on, until INACTIVITY_MAIL_OTHER_ERROR_LIMIT of them stop it.
+    # A dead mailbox or a suppressed address does not raise here: SES accepts the message and
+    # reports a bounce later. InvalidParameterValue never reaches the sweep: deliver_message
+    # (app/mailers/concerns/general.rb) logs it and returns, so the step is kept as if sent.
+    INACTIVITY_MAIL_SETUP_ERRORS = %w(
+      AccountSendingPausedException ConfigurationSetDoesNotExist ConfigurationSetDoesNotExistException
+      ConfigurationSetSendingPausedException MailFromDomainNotVerifiedException
+      AccessDenied AccessDeniedException NotAuthorized OptInRequired ExpiredToken ExpiredTokenException
+      IncompleteSignature InvalidClientTokenId SignatureDoesNotMatch MissingAuthenticationToken
+      UnrecognizedClientException RequestExpired InvalidAccessKeyId
+    ).freeze
+
+    INACTIVITY_MAIL_SETUP_REJECTION = /not verified|paused|suspended|sandbox/i
+
+    # Network failures reaching SES: transient, like an SES outage.
+    INACTIVITY_MAIL_NETWORK_ERRORS = [
+      Seahorse::Client::NetworkingError, Net::OpenTimeout, Net::ReadTimeout, Net::WriteTimeout,
+      Timeout::Error, SocketError, OpenSSL::SSL::SSLError, Errno::ECONNREFUSED, Errno::ECONNRESET,
+      Errno::ETIMEDOUT, Errno::EHOSTUNREACH, Errno::ENETUNREACH
+    ].freeze
+
+    # Errors from outside SES and the network (:other, a code or template failure for one
+    # account) in one run after which the sweep stops the run rather than repeat it for everyone.
+    INACTIVITY_MAIL_OTHER_ERROR_LIMIT = 3
+
+    # Rejections in one run, with no mail accepted before them, after which the sweep takes SES
+    # to be refusing all mail whatever the wording: the run stops and its counts are taken back.
+    INACTIVITY_MAIL_REJECTION_LIMIT = 3
+
+    def inactivity_mail_error_kind(error)
+      if error.is_a?(Aws::Errors::ServiceError)
+        names = [error.class.name.to_s.split('::').last, error.code.to_s]
+        return :setup if (names & INACTIVITY_MAIL_SETUP_ERRORS).any?
+        if names.include?('MessageRejected')
+          # SES words an unverified identity (sender, or recipient in the sandbox), an account
+          # pause ("Account is paused", "Sending paused for this account") or suspension this way
+          return error.message.to_s =~ INACTIVITY_MAIL_SETUP_REJECTION ? :setup : :message
+        end
+        return :transient
+      end
+      return :setup if error.is_a?(Aws::Errors::MissingCredentialsError) || error.is_a?(Aws::Errors::MissingRegionError) || error.is_a?(Aws::Errors::NoSuchProfileError)
+      return :transient if INACTIVITY_MAIL_NETWORK_ERRORS.any? { |klass| error.is_a?(klass) }
+      return :transient if error.class.name.to_s.start_with?('Aws::', 'Seahorse::')
+      :other
+    end
+
+    # Consecutive inactivity mails that may fail for an account, over at least the period, before
+    # its step is kept without the notice. The sweep runs daily, so this is three or more failed
+    # runs spread over a week: long enough to ride out a delivery outage (which an admin sees in
+    # the error log meanwhile), short enough that a dead address cannot hold off the retention
+    # rule. An account with no address already gets no mail and proceeds the same way.
+    INACTIVITY_MAIL_FAILURE_LIMIT = 3
+    INACTIVITY_MAIL_FAILURE_PERIOD = 1.week
+    # Failures further apart than this do not add up. An undone step is retried on the next daily
+    # run, and the next warning comes 3 weeks after a kept one, so failures in one run of them are
+    # at most about 3 weeks apart; a count left from an earlier inactivity period (12 months or
+    # more ago) starts again.
+    INACTIVITY_MAIL_FAILURE_GAP = 30.days
+
+    # Settles an inactivity step whose mail failed, under a row lock, only while the row still
+    # holds what the step wrote (an account used or changed since keeps its newer state). With
+    # count_failure (SES rejected this one message), counts the failure in
+    # settings['subscription']['inactivity_mail_failures'] ({'count', 'first_at', 'last_at'}) and, once the
+    # failures reach the limit over the period, keeps the step; otherwise, and for any other
+    # error, puts back the fields the step changed (the count as it was). Returns
+    # [outcome, failure count, the row's step fields after this write]: outcome is :undone,
+    # :kept_without_notice, or :left_as_changed. Calling it again with the step's previous fields,
+    # those after-fields and no count_failure takes this settlement back.
+    def settle_failed_inactivity_step(user_id, previous, written, count_failure: true)
+      outcome, count, after = :left_as_changed, nil, nil
+      User.update_settings_locked(user_id, touch: false) do |fresh|
+        next false unless inactivity_step_fields(fresh) == written
+        sub = fresh.settings['subscription'] ||= {}
+        outcome = :undone
+        if count_failure
+          prior = previous['inactivity_mail_failures'].is_a?(Hash) ? previous['inactivity_mail_failures'] : {}
+          last_at = (Time.iso8601((prior['last_at'] || prior['first_at']).to_s) rescue nil)
+          # a count whose last failure is older than the gap is not part of this run of failures
+          prior = {} unless last_at && last_at > INACTIVITY_MAIL_FAILURE_GAP.ago
+          count = prior['count'].to_i + 1
+          first_at = (Time.iso8601(prior['first_at'].to_s) rescue nil) || Time.now
+          sub['inactivity_mail_failures'] = {'count' => count, 'first_at' => first_at.utc.iso8601, 'last_at' => Time.now.utc.iso8601}
+          outcome = :kept_without_notice if count >= INACTIVITY_MAIL_FAILURE_LIMIT && first_at <= INACTIVITY_MAIL_FAILURE_PERIOD.ago
+        end
+        if outcome == :undone
+          restored = %w(last_deletion_warning last_deletion_attempts inactivity_deletion)
+          restored << 'inactivity_mail_failures' unless count_failure
+          restored.each do |key|
+            previous[key].nil? ? sub.delete(key) : sub[key] = previous[key]
+          end
+          fresh.schedule_deletion_at = previous['schedule_deletion_at'] && Time.iso8601(previous['schedule_deletion_at'])
+          fresh.updated_at = Time.iso8601(previous['updated_at'])
+        end
+        after = inactivity_step_fields(fresh)
+        true
+      end
+      [outcome, count, after]
+    end
+
+    # Where the next run of inactive_deletion_candidate_ids resumes, as [updated_at, id], or nil to
+    # start from the oldest: after the last account returned when the window filled (unless that
+    # was the last row in the scope), after the last row scanned when the scan limit was reached.
+    def inactivity_sweep_stop(scope, accepted, ids, window, scanned, last_at, last_id)
+      if ids.length >= window && ids.any?
+        stop_at = accepted[ids[-1]]
+        return nil unless scope.where('(updated_at, id) > (?, ?)', stop_at, ids[-1]).exists?
+        [stop_at, ids[-1]]
+      elsif scanned >= INACTIVITY_SWEEP_SCAN_LIMIT && last_id
+        [last_at, last_id]
+      end
+    end
+
+    # Moves a sweep cursor back so the next run resumes at (updated_at, id) inclusive, when it is
+    # set and past that row; an unset cursor already starts the next run from the oldest.
+    def rewind_inactivity_sweep_cursor(cursor_key, at, id)
+      cur_at, cur_id = inactivity_sweep_cursor(cursor_key)
+      return unless cur_id
+      return if at.utc.iso8601(6) > cur_at.utc.iso8601(6) || (at.utc.iso8601(6) == cur_at.utc.iso8601(6) && id > cur_id)
+      # the cursor is exclusive ((updated_at, id) > cursor) and ids are integers
+      Permissions.setex(RedisInit.default, cursor_key, 30.days.to_i, "#{at.utc.iso8601(6)}|#{id - 1}")
+    end
+
+    # Recorded under settings['subscription']['inactivity_deletion'] when the inactivity sweep
+    # schedules a deletion: the schedule it set and the activity time (updated_at) it set.
+    def inactivity_deletion_record(scheduled_for, activity_at)
+      {'scheduled_for' => scheduled_for.utc.iso8601(6), 'activity_at' => activity_at.utc.iso8601(6)}
+    end
+
+    # Whether the scheduled deletion of the account with this id may go ahead now. Checked by
+    # Flusher when it enqueues the flush and again when the flush runs.
+    #
+    # A deletion the inactivity sweep scheduled (its record is present and schedule_deletion_at is
+    # still the time it recorded) is cancelled under a row lock when the account was used since
+    # (updated_at moved past the time the sweep set it to: token, SSO or password use), as the
+    # "Account Deleted" mail promises; the cancellation is audited. With the record present the
+    # flush also needs a schedule that is still set and due, since a password sign-in clears it.
+    # Deletions without the record, or rescheduled since (requested by the user or a supervisor,
+    # COPPA declines and offboarding), and accounts COPPA consent blocks from use, go ahead.
+    def scheduled_deletion_proceeds?(user_id)
+      cancelled = nil
+      proceeds = User.transaction do
+        user = User.lock.find_by(id: user_id)
+        next false unless user
+        record = ((user.settings || {})['subscription'] || {})['inactivity_deletion']
+        next true unless record.is_a?(Hash)
+        at = user.schedule_deletion_at
+        next false unless at && at <= Time.now
+        # exact to the microsecond: any later schedule (another path's) is a different time
+        next true unless at.utc.iso8601(6) == record['scheduled_for']
+        activity_at = Time.iso8601(record['activity_at'].to_s) rescue nil
+        next true if user.coppa_parental_consent_blocks_access?
+        next true unless activity_at && user.updated_at > activity_at + 1.second
+        user.schedule_deletion_at = nil
+        user.settings['subscription'].delete('inactivity_deletion')
+        user.save(touch: false)
+        cancelled = user.global_id
+        false
+      end
+      AuditEvent.log_command('system', {'type' => 'inactivity_deletion_cancelled', 'user_id' => cancelled}) if cancelled
+      proceeds
     end
 
     def default_eval_duration
