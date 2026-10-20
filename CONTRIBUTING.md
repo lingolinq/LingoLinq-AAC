@@ -136,8 +136,7 @@ After staging has been validated:
   opened under Scot's account, Traci approves it, and Scot records his
   agreement by merging it himself after her approval, on the head she approved.
   For a release opened under Scot's account, if Traci is unavailable, the
-  release waits for her. If Traci is unavailable and the release is an
-  emergency, Scot may override (see "Emergency override" below).
+  release waits for her, unless it is an emergency (see "Emergencies" below).
 - Agreement needs explicit human intent on the PR itself: opening it by hand,
   an approving GitHub review on the head being merged, or, for Scot, merging
   it. A release PR that an agent opens does not count as the opener's
@@ -156,27 +155,12 @@ After staging has been validated:
 - Use a **merge commit** (not squash).
 - `main` auto-deploys to lingolinq-prod.
 
-**Emergency override.** `main` needs an approving review from someone other
-than the PR's author, and that applies to admins too. When Scot needs to merge
-his own PR in an emergency and Traci is unavailable:
-
-1. If Melissa is available, she approves it, and the merge goes ahead normally.
-2. Otherwise, before changing anything, Scot checks that no other PR targeting
-   `main` is open with auto-merge on, and turns it off on any that is. He saves
-   a copy of `main`'s current branch protection settings.
-3. He temporarily lowers the review requirement in `main`'s branch protection
-   (required approvals and code-owner review). He leaves admin enforcement and
-   every required status check on, so CI still has to pass. While it is
-   lowered, he merges only the emergency PR, and nobody else merges to `main`
-   or turns on auto-merge there until the settings are restored and checked.
-4. As soon as the merge completes, or the attempt is abandoned for any reason,
-   he restores the saved settings, then reads them back and confirms they
-   match the saved copy.
-5. He records the emergency, the reason, and both protection changes in the PR.
-
-Scot makes these protection changes himself. An agent changes branch
-protection only when Scot explicitly asks for that specific change, never on
-its own initiative.
+**Emergencies.** If production is down or people can't get to their boards,
+fix it and merge it right away. Scot calls it, or Traci or Melissa if he's
+away. Let the others know what's going on, but don't wait for the usual
+approvals. If nobody else can approve, an admin lowers `main`'s review
+requirement for the merge and puts it back afterwards. Note in the PR what
+happened.
 
 ### 7. Hotfixes
 
@@ -184,9 +168,8 @@ For urgent production issues:
 
 1. Branch from `main`: `hotfix/yourname-description` or `yourname/hotfix/description`
 2. Open a PR directly against `main`. **Approval from any one senior dev**
-   (Traci, Scot or Melissa) is required. For a hotfix Scot opens, if it is an
-   emergency and neither Traci nor Melissa can approve it, he may use the
-   emergency override in section 6.
+   (Traci, Scot or Melissa) is required. In an emergency, see "Emergencies"
+   in section 6.
 3. After merging to `main`, immediately cherry-pick or merge back to `develop`
    so the fix is not lost. Note: The `staging` branch will receive this fix during the next promotion from `develop`.
 
@@ -196,8 +179,8 @@ For urgent production issues:
 |---|---|---|
 | `develop` | Any team member | Squash merge |
 | `staging` | Any one senior dev: Traci (primary), Scot (secondary), Melissa (backup); a senior dev who opened it may merge it alone when necessary, once required checks pass | Merge commit |
-| `main` | Scot + Melissa or Traci (Traci when Scot opens; Melissa in an emergency); no merge without another person's approval except the emergency override (section 6) | Merge commit |
-| `main` (hotfix) | Any one senior dev: Traci, Scot or Melissa; emergency override (section 6) for a hotfix Scot opens | Merge commit |
+| `main` | Scot + Melissa or Traci (Traci when Scot opens); emergencies: section 6 | Merge commit |
+| `main` (hotfix) | Any one senior dev: Traci, Scot or Melissa; emergencies: section 6 | Merge commit |
 
 ## Branch Protection Rules
 
@@ -209,9 +192,8 @@ everyone, including admins:
 - **`develop`**: Requires PR, no direct pushes
 
 The approval summary above is team policy, and everyone is expected to follow it
-even where GitHub would allow the merge without it. The emergency override in
-section 6 is the one documented exception: it lowers `main`'s review
-requirement for a single merge.
+even where GitHub would allow the merge without it. Emergencies (section 6)
+are the one exception.
 
 ## Dual-Reviewer Policy (Phase 1)
 
