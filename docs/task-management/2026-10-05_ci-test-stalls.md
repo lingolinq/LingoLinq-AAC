@@ -896,7 +896,7 @@ already-fixed parallel-pool-filter). Local shard-main at 8ace0b34e (`--query
   online pollers + communicator board tour 4 / 0; tour offer alone 1 / 0.
 - `npm run lint:js:ci`: new=0 (findings = baseline = 1,556); `npm run lint:hbs`: exit 0.
 
-### Not fixed: `Unit | Utility | button timer action` (needs the owner)
+### Not fixed at the time: `Unit | Utility | button timer action` (needs the owner; fixed later, see 2026-10-20)
 
 Fails in the fixed shard-main run (one or two of its three tests) and ALONE, in both modes, in 3 of
 4 runs; passed in CI only in full order. Not caused by these edits (nothing it imports changed). An
@@ -921,3 +921,28 @@ change on a test: stopped for approval (Rule 14).
 - Without them, after the timeout fixes: local shard-main 728 s of tests (2,022), local pool 479 s
   (1,679). CI estimate: shard-main test step ~11 min (1,415 s minus ~750 s of 15 s timeouts), pool
   6.5 min, so both jobs would be ~12 and ~8 min end to end; moving the three would make it ~9 and ~9.
+
+## 2026-10-20: the shards become the required Ember run
+
+- **Button timer** (owner-approved): `2b34920b4` replaced the fixed 1.7 s waits with waiting for the
+  owner guard to skip. The review of that commit found it no longer caught a timer that keeps
+  polling after its app is gone, so `913911225` waits one more tick and re-checks the count. A
+  keep-polling mutant now fails the test.
+- **Measured before switching:** five consecutive CI runs on `2b34920b4`, every one counted. All
+  green: shard-main 11.7 to 12.8 min, pool 7.4 to 8.0 min, coverage green, and the shards matched
+  the full serial run every time.
+- **Step 2:** `f9c5b6f25` dropped the full serial run and `ember-shard-compare`. Its review found two
+  problems:
+  - an apostrophe inside a single-quoted echo, so every shard step failed to parse (exit 2);
+  - classic branch protection requires `build-and-test` by name, so no required check would have
+    run the Ember tests.
+  `913911225` fixed both: the old job became `lint-and-build`, and a new `build-and-test` gate job
+  (`if: always()`) passes only when lint-and-build, both shards and coverage passed, or the scope
+  job said docs-only. No protection change is needed. Every inline `run:` script now passes
+  `bash -n`.
+- **Final whole-PR review** (three reviewers, 2026-10-20): ship, nothing blocking. Fixed in this
+  entry's commit: coverage looks up each job's latest attempt (`filter=latest`, so "Re-run failed
+  jobs" works), a bounded retry on the log fetch, and stale comments. Other follow-ups are in #1150.
+- **Lesson:** syntax-check every inline workflow script (`bash -n`) before pushing a workflow
+  change. A YAML parse does not catch shell quoting.
+

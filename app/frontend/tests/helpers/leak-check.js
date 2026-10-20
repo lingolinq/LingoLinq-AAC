@@ -14,8 +14,8 @@
  *     run (the Ember shard jobs; tests/helpers/fetch-probe.js timingStrict) and is logged as a
  *     `[late-read]` line otherwise (a plain local run).
  *  2. Stubs left on singletons. A function on a util singleton that differs after the test from
- *     before it, unless it is the inherited method itself (restoreStubs puts originals back as own
- *     properties).
+ *     before it, unless it is the inherited method itself (restoreStubs deletes an own property the
+ *     stub created, so the inherited method shows through again).
  *  3. DOM left under <body>, outside the testing containers.
  *
  * Mode, from the `leakcheck` query param (`ember test --query leakcheck=report`): `fail` (default)

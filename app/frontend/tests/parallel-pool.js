@@ -8,7 +8,7 @@
  * safe there. If a listed module fails only in the pool, remove it from this list rather than
  * retrying. A renamed module silently drops out of the pool into main, which is the safe side.
  *
- * Seeded 2026-10-06 from PR #1110's first shadow run: the 288 modules whose tests all passed in
+ * Seeded 2026-10-06 from PR #1110's first shadow run (279 listed now): the 288 modules whose tests all passed in
  * shard A (`/^[bhinpu]/i`) without the other modules before them. Not listed (order-dependent
  * there): Button, pictureGrabber, persistence, Unit | Route | terms-agree gate (index + bento),
  * Unit | Service | app-state effective view, Unit | Service | app-state modelling ends with

@@ -421,7 +421,8 @@ jobs:
   # same registered total, their selections add up to it, and no test ran in more than one shard.
   # Required through the build-and-test gate, because no job runs the whole suite any more (a shard
   # only checks itself, so two shards mis-wired to the same half each pass). It runs unless the scope
-  # job SAID to skip: a failed scope job leaves the output empty, and the gate then fails.
+  # job SAID to skip: a failed scope job leaves the output empty, so the shards and this job still
+  # run (fail toward running), and the gate passes only if they pass.
   # The shards stay timing-strict: a timing finding from an earlier test can fail an
   # unrelated PR (testing-frontend.md section 5), which is the point of running them strict.
   ember-shard-coverage:
@@ -445,14 +446,21 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          jobs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/attempts/${GITHUB_RUN_ATTEMPT}/jobs" --paginate --jq '.jobs[] | [.id, .name] | @tsv')"
+          # filter=latest: each job's most recent attempt, so after "Re-run failed jobs" a shard that
+          # passed earlier and was not re-run is still found.
+          jobs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs?filter=latest" --paginate --jq '.jobs[] | [.id, .name] | @tsv')"
           for name in ember-shard-pool ember-shard-main; do
             id="$(printf '%s\n' "$jobs" | awk -F'\t' -v n="$name" '$2 == n { print $1 }')"
             if [ -z "$id" ]; then
               echo "::error::job ${name} not found in this run"
               exit 1
             fi
-            gh api --allow-escape-sequences "repos/${GITHUB_REPOSITORY}/actions/jobs/${id}/logs" > "${name}.log"
+            # A job's log can 404 for a short while after the job completes: retry the fetch only.
+            for try in 1 2 3; do
+              if gh api --allow-escape-sequences "repos/${GITHUB_REPOSITORY}/actions/jobs/${id}/logs" > "${name}.log"; then break; fi
+              if [ "$try" -eq 3 ]; then echo "::error::could not fetch the ${name} log"; exit 1; fi
+              sleep 15
+            done
           done
           python3 scripts/ci-shard-compare.py --coverage ember-shard-pool.log ember-shard-main.log
 
