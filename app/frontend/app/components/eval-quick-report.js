@@ -9,6 +9,7 @@ import eval_board_builder from '../utils/eval_board_builder';
 import goals_grid from '../utils/eval_goals_grid';
 import { vocalFlairButtonsForGrid } from '../utils/recommended_home_board';
 import { board_view_route } from '../utils/board_view';
+import apiErrorMessage from '../utils/api_error_message';
 
 /*
  * eval-quick-report — final summary card.
@@ -264,7 +265,7 @@ export default Component.extend({
         }
       }, function(err) {
         _this.set('buildingBoard', false);
-        const msg = (err && err.error) || i18n.t('eval_build_board_failed', "Could not build the starter board. Please try again.");
+        const msg = apiErrorMessage(err, i18n.t('eval_build_board_failed', "Could not build the starter board. Please try again."));
         _this.set('buildError', msg);
       });
     }
