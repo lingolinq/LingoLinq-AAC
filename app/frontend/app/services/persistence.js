@@ -4264,7 +4264,7 @@ var persistence = Service.extend({
       if(_this.isDestroyed || _this.isDestroying) { return; }
       _this.set('online', false);
     });
-    setInterval(function() {
+    this._online_check_interval = setInterval(function() { // handle kept so the test harness can stop this wall-clock poller
       try {
         // Guard: ensure service is still valid before accessing properties
         if(!_this || typeof _this.get !== 'function' || _this.isDestroyed || _this.isDestroying) {

@@ -11,7 +11,7 @@ Check the PR's **Checks** section for the current required set.
 
 | Job | What it runs |
 |-----|--------------|
-| `build-and-test` | For application-relevant PRs and protected-branch pushes: Ember lint, build, and the full Chrome Headless suite. For PRs whose changes are entirely under `docs/**` and/or `audit-reports/**`: reports success after classification without installing Node dependencies, linting, installing Chrome, building Ember, or running browser tests. |
+| `build-and-test` | A gate job. For application-relevant PRs and protected-branch pushes it passes only when `lint-and-build` (Ember lint and build) and the full Chrome Headless suite, run as the `ember-shard-main` and `ember-shard-pool` jobs plus `ember-shard-coverage`, all passed. For PRs whose changes are entirely under `docs/**` and/or `audit-reports/**`: reports success after classification without installing Node dependencies, linting, installing Chrome, building Ember, or running browser tests. |
 | `rspec` | `rails db:create db:schema:load`, repository guards, then `bundle exec rspec` (Postgres 15 + Redis 7, `RAILS_ENV=test`) |
 | `audit-artifacts-integrity` | Compliance register, publication, naming, attestation, capability, and consumer-integrity guards |
 | `codex-review-tests` | Codex review envelope, evidence-builder, and chunk-runner unit tests |

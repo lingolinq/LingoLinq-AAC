@@ -145,7 +145,7 @@ export default Service.extend({
     }
     if(this.get('user_name')) {
       runLater(() => {
-        if(this.get('user_name') && window.kvstash && window.kvstash.store) {
+        if(!this.isDestroyed && !this.isDestroying && this.get('user_name') && window.kvstash && window.kvstash.store) {
           window.kvstash.store('user_name', this.get('user_name'));
         }
       }, 5000);

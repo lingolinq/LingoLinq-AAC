@@ -71,3 +71,8 @@ New user-facing features MUST be behind a feature flag in `lib/feature_flags.rb`
 - **Backend**: RSpec (`bundle exec rspec`).
   - Specs never reach the network: WebMock blocks every outside host. Give a call a test double (`stub_request`, or stub the method that makes it); never allow a host. Outside services start unconfigured in tests; a spec that tests a configured path sets fake values itself (`env_wrap`). Full rule: `.claude/rules/testing.md`.
 - **Frontend**: QUnit (`ember test`).
+- **Standards**: `.claude/rules/testing-frontend.md`. New frontend test files use plain QUnit (`module`/`test`), not the
+  legacy Jasmine-style harness. Every test is isolated: `tests/helpers/leak-check.js` fails a test that leaves a
+  stub on a shared util or DOM behind, and logs a read or write on an earlier test's destroyed service
+  (`[late-read]`; it fails only in the timing-strict shard runs); restore with `stub()` or
+  a matching `afterEach`, never `delete` on an accessor. Each new test must be shown to fail without its fix.

@@ -133,9 +133,12 @@ describe('soundGrabber', function() {
         }
       });
       soundGrabber.record_sound();
-      waitsFor(function() { return called; });
+      // Wait for the whole async setup (stream_ready builds the MediaRecorder), not just the
+      // getUserMedia call, so it cannot run after this test restores the MediaRecorder stub.
+      waitsFor(function() { return called && controller.get('sound_recording.media_recorder'); });
       runs(function() {
         expect(called).toEqual(true);
+        expect(!!controller.get('sound_recording.media_recorder')).toEqual(true);
       });
     });
     it('should toggle recording on and off', function() {
