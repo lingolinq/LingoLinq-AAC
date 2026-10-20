@@ -40,7 +40,7 @@ module('Unit | Utility | cancelling a home board copy', function(hooks) {
   hooks.beforeEach(function() {
     // A store of this module's own, swapped in for the global and swapped back after. Whatever
     // LingoLinq.store holds here belongs to an earlier test's app, which is torn down by now;
-    // stubbing findRecord on it read and wrote a destroyed service (tests/helpers/leak-check.js).
+    // stubbing findRecord on it read and wrote a destroyed service (the leak check added in #1118).
     had_store = Object.prototype.hasOwnProperty.call(LingoLinq, 'store');
     original_store = LingoLinq.store;
     LingoLinq.store = {};
