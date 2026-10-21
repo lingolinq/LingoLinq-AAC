@@ -1508,7 +1508,34 @@ class Organization < ApplicationRecord
         raise ArgumentError, 'offboarding birth month and year required'
       end
     end
-    
+
+    # The hand-back runs BEFORE the detach. The detach removes the seat and link that
+    # sponsors_student? reads, so if the hand-back ran after it and failed, a retry would find no
+    # sponsor and skip it for good. In this order a failure leaves the student attached and the
+    # retry starts over; a hand-back that succeeded is not repeated, because it removed
+    # school_authorization. License.sponsored_elsewhere? never counts this organization here (a
+    # manager's removal does not count its own leftover seat; only seat expiry passes
+    # departing_had_link).
+    if !sponsoring
+      # Not a hand-back, but keep an age the manager entered: License.expire_stale_licenses! reads
+      # it when a remaining seat elsewhere expires, and without it assumes under 13.
+      user.record_offboarding_age_attestation!(birth_month: birth_month, birth_year: birth_year, org: self)
+    elsif License.sponsored_elsewhere?(user, self)
+      # Another organization still sponsors the student, so this is not a hand-back to the
+      # family: no offboarding, and school_authorization is left as it is. The manager's age
+      # attestation is still recorded, because License.expire_stale_licenses! reads it when that
+      # last seat expires.
+      user.record_offboarding_age_attestation!(birth_month: birth_month, birth_year: birth_year, org: self)
+    else
+      user.begin_family_offboarding_consents!(
+        org: self,
+        actor: actor,
+        birth_month: birth_month,
+        birth_year: birth_year,
+        skip_if_supported_elsewhere: true
+      )
+    end
+
     # Release formal license if exists
     license = self.licenses.find_by(user_id: user.id, status: 'active')
     if license
@@ -1527,25 +1554,6 @@ class Organization < ApplicationRecord
     end
     
     self.remove_extras_from_user(user.user_name)
-    user.reload
-    return true unless sponsoring
-    # A manager's removal does not count this organization's own leftover seat (it releases one
-    # seat above), so departing_had_link is left false here; only seat expiry passes it.
-    if License.sponsored_elsewhere?(user, self)
-      # Another organization still sponsors the student, so this is not a hand-back to the
-      # family: no offboarding, and school_authorization is left as it is. The manager's age
-      # attestation is still recorded, because License.expire_stale_licenses! reads it when that
-      # last seat expires.
-      user.record_offboarding_age_attestation!(birth_month: birth_month, birth_year: birth_year, org: self)
-    else
-      user.begin_family_offboarding_consents!(
-        org: self,
-        actor: actor,
-        birth_month: birth_month,
-        birth_year: birth_year,
-        skip_if_supported_elsewhere: true
-      )
-    end
     true
   end
 

@@ -334,8 +334,8 @@ describe 'School-authorized hand-back to the family (#1063)', type: :model do
     end
   end
 
-  describe 'a claim that lands after the caller checked but before the lock' do
-    it 'is seen by the check under the user lock' do
+  describe 'a claim that completes after the caller checked but before the lock' do
+    it 'is seen by the check under the user lock once the claim has finished' do
       departing = Organization.create
       claiming = licensed_org
       u = school_authorized_user!(suffix: 'race')
@@ -389,6 +389,20 @@ describe 'School-authorized hand-back to the family (#1063)', type: :model do
       User::EU_AI_PREF_KEYS.each { |k| expect(u.settings['preferences'][k]).to eq(true) }
       expect(AuditEvent.where(user_key: u.global_id, event_type: 'eu_ai_parental_consent_offboarding_reset').count).to eq(0)
     end
+
+    it 'keeps the birth date the manager entered, for a later seat expiry elsewhere' do
+      o = Organization.create(settings: {'total_licenses' => 1})
+      u = school_authorized_user!(suffix: 'never_sponsored_birth')
+      o.add_user(u.user_name, false, false)
+      b = under16_over13_birth
+
+      o.remove_user(u.user_name, birth_month: b[:month], birth_year: b[:year])
+
+      u.reload
+      expect(u.settings['registration']['offboarding_birth_month']).to eq(b[:month])
+      expect(u.settings['registration']['offboarding_birth_year']).to eq(b[:year])
+      expect(u.settings['school_authorization']).to be_present
+    end
   end
 
   describe 'the organization that authorized the account' do
@@ -436,6 +450,48 @@ describe 'School-authorized hand-back to the family (#1063)', type: :model do
 
       expect(handoff_events(u).count).to eq(1)
       expect(handoff_notices(u, o).count).to eq(1)
+    end
+
+    it 'can be retried after the hand-back fails' do
+      # The hand-back runs before the detach, so a failure leaves the student attached and a
+      # retry still finds the sponsor (Organization#remove_user).
+      o = licensed_org
+      u = school_authorized_user!(suffix: 'retry')
+      o.claim_user(u)
+      b = under13_birth
+      calls = 0
+      allow(RemoteAction).to receive(:create!).and_wrap_original do |orig, *args, **kwargs|
+        calls += 1
+        raise ActiveRecord::StatementInvalid, 'simulated write failure' if calls == 1
+        orig.call(*args, **kwargs)
+      end
+
+      expect {
+        o.remove_user(u.user_name, birth_month: b[:month], birth_year: b[:year])
+      }.to raise_error(ActiveRecord::StatementInvalid)
+      expect(u.reload.settings['school_authorization']).to be_present
+      expect(o.managed_user?(u)).to eq(true)
+
+      o.remove_user(u.user_name, birth_month: b[:month], birth_year: b[:year])
+
+      expect(handed_off?(u)).to eq(true)
+      expect(handoff_notices(u, o).count).to eq(1)
+      expect(o.managed_user?(u.reload)).to eq(false)
+    end
+
+    it 'sends the legacy unassigned mail for a later, separate removal by the same organization' do
+      o = Organization.create(settings: {'total_licenses' => 1})
+      u = school_authorized_user!(suffix: 'reattach')
+      o.add_user(u.user_name, false, true)
+      b = under13_birth
+      o.remove_user(u.user_name, birth_month: b[:month], birth_year: b[:year])
+      expect(UserMailer.organization_unassigned(u.global_id, o.global_id).to).to be_blank
+
+      o.add_user(u.user_name, false, true)
+      o.remove_user(u.user_name, birth_month: b[:month], birth_year: b[:year])
+
+      expect(UserMailer.organization_unassigned(u.global_id, o.global_id).to).to eq([u.reload.settings['email']])
+      expect(handoff_events(u).count).to eq(1)
     end
 
     it "hands back when another organization's link outlived its expired seat" do

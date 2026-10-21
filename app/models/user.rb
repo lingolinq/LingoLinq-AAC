@@ -563,11 +563,12 @@ class User < ApplicationRecord
   # school_authorization is still on file; recorded as age_basis 'unknown_assumed_under_13'.
   # skip_if_supported_elsewhere: re-check, under this method's user lock, that no organization
   # still sponsors the student (License.sponsored_elsewhere?, with departing_had_link passed
-  # through). The callers check before calling, but a claim can seat the student between that
-  # check and this lock; Organization#claim_user takes the same user lock to seat them, so the
-  # seat is visible here (its link is written after that lock, organization.rb claim_user). When
-  # an organization does sponsor them, only the age attestation is recorded and nothing else
-  # changes; the method returns false.
+  # through). The callers check before calling, and this re-check sees any claim that finished
+  # before the lock. It does not close the window while a claim is in flight:
+  # Organization#claim_user writes the seat under the same user lock but the link after it, and
+  # a seat without its link does not count (accepted, #1063 Q2). When an organization does
+  # sponsor them, only the age attestation is recorded and nothing else changes; the method
+  # returns false.
   def begin_family_offboarding_consents!(org: nil, actor: nil, birth_month: nil, birth_year: nil, force_under_13: false, skip_if_supported_elsewhere: false, departing_had_link: false)
     attested_under_13 = self.class.age_under_threshold?(
       birth_month: birth_month, birth_year: birth_year, age: 13
