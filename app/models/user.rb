@@ -713,6 +713,10 @@ class User < ApplicationRecord
   # birth date on file as under 13. Writes nothing else (no COPPA, no AI reset, no under_16).
   def record_offboarding_age_attestation!(birth_month: nil, birth_year: nil, org: nil)
     return false unless birth_month.present? && birth_year.present?
+    # A non-sponsoring removal reaches here without Organization#remove_user's date check. A date
+    # age_under_threshold? cannot classify would otherwise count as an age on file for
+    # License.expire_stale_licenses! and stop the assumed-under-13 hand-back.
+    return false if self.class.age_under_threshold?(birth_month: birth_month, birth_year: birth_year, age: 13).nil?
     org_jurisdiction = org.respond_to?(:jurisdiction) ? org.jurisdiction : nil
     self.with_lock(requires_new: true) do
       self.settings ||= {}

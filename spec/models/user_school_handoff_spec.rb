@@ -260,6 +260,22 @@ describe 'School-authorized hand-back to the family (#1063)', type: :model do
       expect(FeatureFlags.eu_under16_blocks_ai_for?(u)).to eq(true)
     end
 
+    it 'falls back to the registration country when the organization has no jurisdiction' do
+      o = Organization.create(settings: {'total_licenses' => 1})
+      u = school_authorized_user!(suffix: 'eu_country_fallback', ai_on: true)
+      u.settings['country'] = 'FR'
+      u.save!
+      License.create!(organization: o, seat_type: 'student', status: 'active', user: u, expires_at: 1.day.ago)
+      u.update!(managing_organization_id: o.id)
+
+      License.expire_stale_licenses!
+
+      u.reload
+      expect(o.jurisdiction).to be_nil
+      expect(handoff_events(u).first.data['age_basis']).to eq('unknown_assumed_under_13')
+      expect(u.eu_under_16?).to eq(true)
+    end
+
     it 'does not set the EU flag after an assumed-under-13 expiry at a US organization' do
       u = expire_seat_with_unknown_age!('US', suffix: 'us_unknown_age')
 
@@ -448,6 +464,25 @@ describe 'School-authorized hand-back to the family (#1063)', type: :model do
       u.reload
       User::EU_AI_PREF_KEYS.each { |k| expect(u.settings['preferences'][k]).to eq(true) }
       expect(AuditEvent.where(user_key: u.global_id, event_type: 'eu_ai_parental_consent_offboarding_reset').count).to eq(0)
+    end
+
+    it 'does not store a birth date that cannot be classified' do
+      # The sponsoring path rejects such a date (Organization#remove_user); a non-sponsoring
+      # removal must not store one either, or a later expiry elsewhere reads it as an age on file
+      # and skips the assumed-under-13 hand-back.
+      other = licensed_org
+      nonsponsor = Organization.create(settings: {'total_licenses' => 1})
+      u = school_authorized_user!(suffix: 'bad_birth')
+      other.claim_user(u)
+      nonsponsor.add_user(u.user_name, false, false)
+
+      nonsponsor.remove_user(u.user_name, birth_month: 13, birth_year: Time.now.utc.year - 10)
+
+      expect((u.reload.settings['registration'] || {})['offboarding_birth_month']).to be_nil
+      License.where(organization_id: other.id, user_id: u.id).update_all(expires_at: 1.day.ago)
+      License.expire_stale_licenses!
+      expect(handed_off?(u)).to eq(true)
+      expect(handoff_events(u).first.data['age_basis']).to eq('unknown_assumed_under_13')
     end
 
     it 'keeps the birth date the manager entered, for a later seat expiry elsewhere' do
