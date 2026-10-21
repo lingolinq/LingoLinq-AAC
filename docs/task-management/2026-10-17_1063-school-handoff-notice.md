@@ -355,7 +355,9 @@ Departures from section 3, with reasons:
 ### Test environment incident (reported to Scot)
 
 Before 2026-10-18 the RSpec runs used the host cluster on port 5432 (socket): `lingolinq-test`
-via `DB_USER=scotw` (6 runs, the first failing at boot on the encryption key) and a database I
+via `DB_USER=scotw` (5 invocations, none of which ran an example: two stopped in Bundler on
+missing gems before connecting, and three connected and failed at boot reading `Setting`, the
+encryption-key mismatch; corrected 2026-10-20 from "6 runs") and a database I
 created, `lingolinq-test-1063` (`rails db:create db:schema:load`, then 3 runs). Nothing was
 dropped. From 2026-10-18 all runs used containers `ll-spec-pg-7b6bd0` / `ll-spec-redis-7b6bd0`,
 removed with their volumes at the end.
@@ -379,6 +381,21 @@ The 44 failures were exactly groups A and B (base-commit line numbers): offboard
 parental consents :48, :273, :297, :328, :339, :377, :391, :403; session :583; users controller
 :2139, :2174, :2208 (the examples holding the approved :2154/:2189/:2223 calls). No group C
 example failed. `lint:js:ci`: new=0. `ember-template-lint` on the changed template: clean.
+
+### The 5 new examples added after the base red run (2026-10-20)
+
+Run in containers with the application files at `117a81238` and the specs at `d8ecfcc66`:
+- "hands back when it removes an unsponsored student it authorized": fails on base. Base runs the
+  old gate (authorization ends, pending consent, old event), so it fails on the new event, not on
+  whether the hand-back happens.
+- "still needs the birth date for that removal": passes on base (base asks for a birth date on
+  every removal). A guard on unchanged behaviour.
+- "records one hand-back when the same removal is sent twice": fails on base, which offboards on
+  both removals and writes two old events.
+- "hands back when another organization's link outlived its expired seat": fails on base only on
+  the new event (base also hands back, through the gate).
+- "leaves other organizations' queued notices alone": fails on base only on the new event (base
+  also hands back and keeps the other row).
 
 ### Mutations (one at a time, restored from a private copy, tree verified clean after)
 
