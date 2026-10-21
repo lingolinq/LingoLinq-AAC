@@ -90,8 +90,9 @@ CI_MARKER_RE = re.compile(r"<!--\s*/?\s*CI_INJECT:[A-Z_]+\s*-->")
 # disable the control it protects is worth less than the control.
 #
 # If terra itself ever becomes unusable, the levers that remain are
-# CODEX_REVIEW_EVIDENCE_MODE=bounded, CODEX_REVIEW_CHUNKED_SCOPE=none, and the
-# documented admin exception. Changing a reviewer model stays a reviewed change.
+# CODEX_REVIEW_CHUNKED_SCOPE=none (which also stops the large-PR switch to chunked
+# evidence; CODEX_REVIEW_EVIDENCE_MODE=bounded alone does not) and the documented
+# admin exception. Changing a reviewer model stays a reviewed change.
 DEFAULT_CHUNK_MODEL = "gpt-5.6-terra"
 DEFAULT_SYNTHESIS_MODEL = "gpt-5.6-terra"
 

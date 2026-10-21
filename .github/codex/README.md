@@ -73,8 +73,10 @@ through the gate the pin was breaking. Review rejected that: a repo variable is
 settable with no PR and no review, so the hatch let anyone move the code-reading
 leg onto a weaker model silently, which is the exact thing the pin exists to
 prevent. Changing a reviewer model is a reviewed change. If terra itself becomes
-unusable, the remaining levers are `CODEX_REVIEW_EVIDENCE_MODE=bounded`,
-`CODEX_REVIEW_CHUNKED_SCOPE=none`, and the documented admin exception.
+unusable, the remaining levers are `CODEX_REVIEW_CHUNKED_SCOPE=none` (which
+also stops the large-PR switch to chunked evidence;
+`CODEX_REVIEW_EVIDENCE_MODE=bounded` alone does not) and the documented admin
+exception.
 
 The models actually used are recorded in the W2 envelope as `chunk_model` /
 `synthesis_model`, so the audit artifact names the reviewer.
@@ -97,9 +99,11 @@ author's PRs.
 - `all` enables chunked evidence for every Codex-routed PR.
 - `scot` enables chunked evidence only when the PR author is `swahlquist` or the
   head branch is Scot-owned: `<type>/scot-<slug>` (the form since 2026-09-16) or the
-  older `scot/<type>/<slug>`.
-- `none`, `off`, or `bounded` force the bounded path.
-- any unknown value fails safe to the bounded path.
+  older `scot/<type>/<slug>`. Under `scot`, any other PR over the size cap is still
+  switched by the large-PR fallback below.
+- `none`, `off`, or `bounded` force the bounded path, and also turn the large-PR
+  fallback off.
+- any unknown value fails safe to the bounded path, with the fallback off too.
 
 ### Large-PR fallback (bounded to chunked)
 
@@ -111,6 +115,7 @@ evidence for the diff size" in `codex-review.yml` therefore switches a run to
 chunked evidence when all of these hold:
 
 - the effective mode after the variables above is `bounded`;
+- `CODEX_REVIEW_CHUNKED_SCOPE` is `all` or `scot` (empty or unset means `all`);
 - the CI path classifier routed the PR to `codex` (`claude-deep` and `blocked`
   are never switched);
 - the full `BASE...HEAD` diff, sized by CI from the git objects exactly as

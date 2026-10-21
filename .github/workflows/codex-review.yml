@@ -330,6 +330,17 @@ jobs:
             echo "evidence mode ${CODEX_REVIEW_EVIDENCE_MODE} on route ${REVIEWER_ROUTE}: no size check needed"
             exit 0
           fi
+          # CODEX_REVIEW_CHUNKED_SCOPE none, off or bounded turns chunked evidence off, and the resolve
+          # step reads any value it does not know as bounded; only the scopes that allow chunked
+          # evidence allow this switch. Empty means the default, as in the job env. Staying bounded
+          # fails closed: a cut diff cannot be approved.
+          case "${CODEX_REVIEW_CHUNKED_SCOPE:-all}" in
+            all|scot) ;;
+            *)
+              echo "chunked scope ${CODEX_REVIEW_CHUNKED_SCOPE}: staying on bounded evidence (an APPROVE over a cut diff is withheld)"
+              exit 0
+              ;;
+          esac
           # The same cap Gather PR diff cuts at, from the trusted policy file. An unreadable cap fails
           # the step: it is a configuration error, and Gather PR diff would fail on the same read.
           MAX_BYTES="$(python3 -I "$GITHUB_WORKSPACE/scripts/codex-review-bounded-cap.py" "$GITHUB_WORKSPACE/.github/codex/evidence-policy.json")"

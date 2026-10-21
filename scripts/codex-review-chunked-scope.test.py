@@ -1470,7 +1470,7 @@ def bounded_cap():
 
 
 class LargePrFallbackTest(unittest.TestCase):
-    def decide(self, tmp, mode, route, size=100, policy=None, git_fail=False):
+    def decide(self, tmp, mode, route, size=100, policy=None, git_fail=False, scope=None):
         bin_dir = pathlib.Path(tmp) / "bin"
         bin_dir.mkdir(exist_ok=True)
         install_fake(bin_dir, "git", EXACT_DIFF_GIT)
@@ -1484,6 +1484,8 @@ class LargePrFallbackTest(unittest.TestCase):
                  "CODEX_REVIEW_EVIDENCE_MODE": mode, "REVIEWER_ROUTE": route, "FAKE_DIFF_SIZE": str(size)}
         if git_fail:
             extra["FAKE_GIT_FAIL"] = "1"
+        if scope is not None:
+            extra["CODEX_REVIEW_CHUNKED_SCOPE"] = scope
         result = run_step(script, tmp, bin_dir, extra_env=extra)
         reason = pathlib.Path(tmp) / REASON_FILE
         return result, env_file.read_text(), (reason.read_text().strip() if reason.exists() else None)
@@ -1518,6 +1520,25 @@ class LargePrFallbackTest(unittest.TestCase):
                 self.assertEqual(env, "CODEX_REVIEW_EVIDENCE_MODE=chunked\n")
                 self.assertEqual(reason, "size")
                 self.assertIn(f"diff {size} bytes > cap {cap}: using chunked evidence", result.stdout)
+
+    # CODEX_REVIEW_CHUNKED_SCOPE none, off or bounded is the documented off switch for chunked
+    # evidence, and any value the resolve step does not know means bounded; the size switch must
+    # obey both (2026-10-20 review of #1120). A cut bounded diff cannot be approved, so staying
+    # bounded fails closed.
+    def test_the_size_switch_obeys_the_chunked_scope_off_switch(self):
+        for scope in ("none", "off", "bounded", "None", "disabled"):
+            with self.subTest(scope=scope), tempfile.TemporaryDirectory() as tmp:
+                result, env, reason = self.decide(tmp, "bounded", "codex", bounded_cap() * 3, scope=scope)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(env, "")
+                self.assertIsNone(reason)
+        # Empty is the default, as in the workflow (`vars.CODEX_REVIEW_CHUNKED_SCOPE || 'all'`).
+        for scope in ("all", "scot", ""):
+            with self.subTest(scope=scope), tempfile.TemporaryDirectory() as tmp:
+                result, env, reason = self.decide(tmp, "bounded", "codex", bounded_cap() * 3, scope=scope)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(env, "CODEX_REVIEW_EVIDENCE_MODE=chunked\n")
+                self.assertEqual(reason, "size")
 
     def test_other_routes_are_never_switched(self):
         for route in ("claude-deep", "blocked", ""):
