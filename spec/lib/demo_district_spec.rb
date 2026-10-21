@@ -102,6 +102,26 @@ describe DemoDistrict do
     end
   end
 
+  describe "absences" do
+    it "does not fill an absent last day on a rerun" do
+      o = org_with('demo_data' => true)
+      demo = member(o, 'kid@demoschooldistrict.org')
+      gen = DemoDistrict::UsageGenerator.new(student: demo, profile: DemoDistrict::UsageGenerator::DEFAULT_PROFILE,
+                                             index: 0, author: demo, board: {}, device: nil)
+      # The first weekday from 2026-10-20 back that this communicator is absent on
+      absent_day = (0..200).map { |i| Date.new(2026, 10, 20) - i }.detect { |d| !d.saturday? && !d.sunday? && gen.absent?(d) }
+      run_at = ActiveSupport::TimeZone['America/Los_Angeles'].local(absent_day.year, absent_day.month, absent_day.day, 13) + 1.day
+      prior_session(demo, (absent_day - 7).in_time_zone('America/Los_Angeles').change(hour: 10).utc)
+
+      travel_to(run_at) { DemoDistrict.refresh!(organization: o.reload, now: run_at) }
+      first = rolling_sessions(demo).length
+      expect(rolling_sessions(demo).map { |s| s.started_at.in_time_zone('America/Los_Angeles').to_date }).not_to include(absent_day)
+      res = travel_to(run_at) { DemoDistrict.refresh!(organization: o.reload, now: run_at) }
+      expect(res[:sessions_created]).to eq(0)
+      expect(rolling_sessions(demo).length).to eq(first)
+    end
+  end
+
   describe "interrupted runs" do
     it "rebuilds the latest week for a caught-up user, so a run killed before its summary is repaired by a rerun" do
       o = org_with('demo_data' => true)

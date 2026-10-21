@@ -184,7 +184,7 @@ module DemoDistrict
         latest_created_at = [latest_created_at, s.started_at].compact.max
       end
       if date == yesterday || weekyear_for(date + 1) != weekyear_for(date)
-        flush_summaries(user, pending_weeks, result) if latest_created_at
+        flush_summaries(user, pending_weeks, result)
       end
     end
     result[:communicators] += 1

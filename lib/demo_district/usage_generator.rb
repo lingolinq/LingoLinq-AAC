@@ -190,8 +190,7 @@ module DemoDistrict
       base_sessions_per_day = @vocab[:sessions_per_day][profile[:freq]]
       sessions_today = [(base_sessions_per_day * day_variability * growth_factor).round, 1].max
 
-      # Occasional absences (roughly 1 in 10 school days)
-      return [] if rand(10) == 0
+      return [] if absent?(date)
 
       created = []
       sessions_today.times do
@@ -207,6 +206,13 @@ module DemoDistrict
         end
       end
       created
+    end
+
+    # Occasional absences (roughly 1 in 10 school days). Decided per student and date rather
+    # than by rand, so a rerun over the same day reaches the same answer: an absent day leaves
+    # no session to mark it done, and DemoDistrict.refresh! would otherwise fill it on retry.
+    def absent?(date)
+      Random.new(Zlib.crc32("#{student.id}:#{date.iso8601}")).rand(10) == 0
     end
 
     private
