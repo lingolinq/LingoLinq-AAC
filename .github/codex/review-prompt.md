@@ -76,7 +76,7 @@ The unified diff of the changed files.
 ## Injected memory
 
 <!-- CI_INJECT:REVIEW_MEMORY -->
-Contents of `.github/codex/REVIEW-MEMORY.md` at HEAD, verbatim.
+Contents of `.github/codex/REVIEW-MEMORY.md` from the trusted workflow ref (not from the PR), verbatim.
 <!-- /CI_INJECT:REVIEW_MEMORY -->
 
 ## Mandated checklist
