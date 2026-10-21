@@ -104,6 +104,16 @@ run_check 3 'APPROVED that is not true or false fails closed'        "$FIX"  yes
 run_check 3 'APPROVED in another letter case fails closed'           "$FIX"  TRUE
 run_check 3 'APPROVED empty fails closed'                            "$FIX"  ''
 
+# A name that is not UTF-8 is judged on its path like any other: the classifier's UTF-8
+# check protects the reviewer steps only, and this check sends nothing to a reviewer.
+L1CODE="$(commit_change latin1-code bash -c "mkdir -p app/models && printf 'class C; end\n' > \$'app/models/caf\\351.rb'")"
+L1FIX="$(commit_change latin1-fixture bash -c "printf 'name: x\n' > \$'spec/fixtures/caf\\351.yml'")"
+run_check 0 'a Latin-1 code name passes with no approval'           "$L1CODE" false
+run_check 1 'a Latin-1 fixture name with no approval fails'         "$L1FIX"  false
+run_check 0 'a Latin-1 fixture name with an approval passes'        "$L1FIX"  true
+run_check 0 'PR to staging: a Latin-1 code name passes'             "$L1CODE" false PR_BASE_REF=staging DEVELOP_SHA="$BASE"
+run_check 1 'PR to staging: a Latin-1 fixture name fails'           "$L1FIX"  false PR_BASE_REF=staging DEVELOP_SHA="$BASE"
+
 # A classifier that cannot decide must stop the check, label or not.
 STUB="$WORK/classifier-exit3.sh"
 printf '#!/usr/bin/env bash\nexit 3\n' > "$STUB"

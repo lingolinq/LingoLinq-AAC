@@ -406,6 +406,42 @@ list_case ERR3    'path list: a git-quoted path fails closed'          $'README.
 classify --paths-from ''
 report ERR3 'path list: an empty file name fails closed'
 
+echo "== data-bearing-only mode (--data-bearing-only), used by data-bearing-path-check.sh =="
+# The gate sends nothing to a reviewer, so a name that is not UTF-8 is not a reason to stop
+# it: without this mode such a name failed the required check with no approval route. The
+# mode writes only data_bearing, so a reviewer step that passed it would find no route and
+# never run. Without the flag the UTF-8 check stays (the Latin-1 ERR3 cases above).
+# db_only <label> <expect: true|false|ERR3> <classifier args...>
+db_only() {
+  local label="$1" expect="$2" out="$WORK/github_output" rc=0 data
+  shift 2
+  : > "$out"
+  (cd "$REPO" && env GITHUB_OUTPUT="$out" bash "$CLASSIFIER" --data-bearing-only "$@") >/dev/null 2>&1 || rc=$?
+  data="$(sed -n 's/^data_bearing=//p' "$out")"
+  if [ "$rc" = 3 ]; then
+    if [ -s "$out" ]; then RESULT="BAD:exit3-but-output-written"; else RESULT=ERR3; fi
+  elif [ "$rc" != 0 ]; then
+    RESULT="BAD:exit$rc"
+  elif grep -q -E '^(reviewer_route|compliance_path)=' "$out"; then
+    RESULT="BAD:route-written"
+  elif [ "$data" = true ] || [ "$data" = false ]; then
+    RESULT="$data"
+  else
+    RESULT="BAD:data_bearing=$data"
+  fi
+  report "$expect" "data-bearing-only: $label"
+}
+head="$(commit_paths $'app/models/caf\351.rb')"
+db_only 'diff: a Latin-1 code name is not data-bearing' false "$BASE" "$head"
+head="$(commit_paths $'spec/fixtures/caf\351.yml')"
+db_only 'diff: a Latin-1 fixture is data-bearing' true "$BASE" "$head"
+db_only 'diff: an empty diff fails closed' ERR3 "$BASE" "$BASE"
+printf 'app/models/caf\351.rb\n' > "$WORK/paths-list"
+db_only 'path list: a Latin-1 code name is not data-bearing' false --paths-from "$WORK/paths-list"
+printf 'README.md\nspec/fixtures/caf\351.yml\n' > "$WORK/paths-list"
+db_only 'path list: a Latin-1 fixture is data-bearing' true --paths-from "$WORK/paths-list"
+db_only 'path list: a missing file fails closed' ERR3 --paths-from "$WORK/no-such-list"
+
 echo
 if [ "$fails" -eq 0 ]; then
   echo "codex-review-path-classifier-test: OK ($total cases)"

@@ -98,11 +98,13 @@ LIST="$(mktemp)" || die3 "mktemp failed"
 trap 'rm -f "$OUT" "$LIST"' EXIT
 
 # classify <classifier args...>: run the classifier and print true or false. Any
-# classifier failure or a missing verdict stops the script (exit 3).
+# classifier failure or a missing verdict stops the script (exit 3). --data-bearing-only:
+# this check sends nothing to a reviewer, so the classifier's reviewer-only UTF-8 check
+# does not apply here, and no route is written.
 classify() {
   local rc=0 v
   : > "$OUT"
-  GITHUB_OUTPUT="$OUT" bash "$CLASSIFIER" "$@" || rc=$?
+  GITHUB_OUTPUT="$OUT" bash "$CLASSIFIER" --data-bearing-only "$@" || rc=$?
   [ "$rc" = 0 ] || die3 "the path classifier exited $rc on $*"
   v="$(sed -n 's/^data_bearing=//p' "$OUT")"
   case "$v" in

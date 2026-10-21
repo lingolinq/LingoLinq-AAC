@@ -591,6 +591,13 @@ class WorkflowLogExposureTest(unittest.TestCase):
         source = (REPO_ROOT / "scripts/codex-review-run-chunks.py").read_text()
         self.assertIn('synthesis_prompt = out_dir / "synthesis-prompt.md"', source)
 
+    # --data-bearing-only skips the UTF-8 check the reviewer steps rely on and writes no route; only
+    # the data-bearing check passes it (2026-10-20 review of #1120).
+    def test_the_review_classifies_without_the_data_bearing_only_flag(self):
+        script = extract_step_run("Re-classify paths in CI")
+        self.assertIn("scripts/codex-review-path-classifier.sh", script)
+        self.assertNotIn("--data-bearing-only", WORKFLOW.read_text())
+
     def test_run_blocks_parses_every_scalar_form(self):
         for header in ("run: |", "run: |-", "run: |+", "run: >", "run: >-", "run: >+"):
             with self.subTest(header=header):

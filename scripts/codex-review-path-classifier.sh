@@ -25,6 +25,10 @@
 #   (path-list mode: classify the newline-separated paths in <file> instead of a git
 #   diff; scripts/data-bearing-path-check.sh uses it for a merge commit's combined
 #   diff. The same exit-3 rules apply: an empty list or a git-quoted path fails.)
+#   scripts/codex-review-path-classifier.sh --data-bearing-only <either form above>
+#   (for scripts/data-bearing-path-check.sh, which sends nothing to a reviewer: skips the
+#   UTF-8 check that only protects the reviewer steps, and writes only data_bearing, so a
+#   reviewer step given this flag finds no route and never runs.)
 #
 # OUTPUT
 #   Writes these `key=value` lines to $GITHUB_OUTPUT (with GITHUB_OUTPUT unset they
@@ -51,6 +55,11 @@
 #
 set -euo pipefail
 
+DATA_BEARING_ONLY=false
+if [ "${1:-}" = --data-bearing-only ]; then
+  DATA_BEARING_ONLY=true
+  shift
+fi
 PATHS_FROM=""
 if [ "${1:-}" = --paths-from ]; then
   PATHS_FROM="${2:-}"
@@ -179,11 +188,17 @@ fi
 # is the one the reviewer steps use; glibc iconv also accepts sequences that are not UTF-8
 # (past U+10FFFF, the old 5-byte form), so it is not enough alone. Either checker failing
 # for any reason, missing included, fails closed too.
-if [ "$reviewer_route" != "blocked" ]; then
+if [ "$reviewer_route" != "blocked" ] && [ "$DATA_BEARING_ONLY" = false ]; then
   printf '%s\n' "$paths" | iconv -f UTF-8 -t UTF-8 >/dev/null 2>&1 \
     || die3 "a path in the diff is not valid UTF-8, or the UTF-8 check failed"
   printf '%s\n' "$paths" | python3 -I -c 'import sys; sys.stdin.buffer.read().decode("utf-8")' >/dev/null 2>&1 \
     || die3 "a path in the diff is not valid UTF-8, or the UTF-8 check failed"
+fi
+
+if [ "$DATA_BEARING_ONLY" = true ]; then
+  echo "data_bearing=$data_bearing" | tee -a "${GITHUB_OUTPUT:-/dev/stdout}" >/dev/null
+  echo "classifier: data_bearing=$data_bearing (data-bearing-only: no route written)" >&2
+  exit 0
 fi
 
 {
