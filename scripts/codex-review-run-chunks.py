@@ -338,6 +338,10 @@ def write_skipped_run(manifest, out_dir, head_sha):
         chunk_paths.append(path)
     synthesis = out_dir / "synthesis-1.json"
     write_invalid_review(synthesis, head_sha, reason=reason, description=description)
+    # The envelope step always scans synthesis-prompt.md (codex-review.yml "Build W2 envelope") and
+    # fails on a missing file. No model was sent anything, so the file says so; the coverage error
+    # already decides the outcome (build-envelope.py validate_chunked_evidence).
+    (out_dir / "synthesis-prompt.md").write_text(COVERAGE_INCOMPLETE_LOG + "\n")
     summary = {
         # No model produced anything, so none is named as the reviewer.
         "chunk_model": "",

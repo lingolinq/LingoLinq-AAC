@@ -804,11 +804,43 @@ class IncompleteCoverageEarlyStopTest(unittest.TestCase):
             self.assertEqual(result["status"]["state"], "failure")
             self.assertEqual(result["review_outcome"]["kind"], "incomplete_evidence")
 
+    def test_the_workflow_envelope_step_succeeds_on_the_placeholders(self):
+        # The workflow's own "Build W2 envelope" step, not a copy of its flags: a hand-built call left
+        # out --injection-scan, so the step crashed on every incomplete-coverage run while the test
+        # above passed (2026-10-20 review of #1120, F3).
+        scope_test = importlib.util.spec_from_file_location(
+            "codex_review_chunked_scope_test", MODULE_PATH.with_name("codex-review-chunked-scope.test.py"))
+        helpers = importlib.util.module_from_spec(scope_test)
+        scope_test.loader.exec_module(helpers)
+        repo = MODULE_PATH.resolve().parents[1]
+        own = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, check=True,
+                             capture_output=True, text=True).stdout.strip()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            _result, _calls, out_dir = self.run_with_manifest(root, dict(self.INCOMPLETE, head_sha=own, base_sha=own), 2)
+            # Where the step reads them once /tmp/ is localized to this directory.
+            (root / "evidence").rename(root / "codex-review-evidence")
+            out_dir.rename(root / "codex-review-results")
+            (root / "codex-review-evidence/full.diff").write_text("")
+            script = helpers.localize(helpers.extract_step_run("Build W2 envelope"), tmp)
+            env = dict(os.environ, PR_NUMBER="7", HEAD_SHA=own, BASE_SHA=own, LOOP_N="0", RUN_ID="1",
+                       REVIEWER_ROUTE="codex", CODEX_REVIEW_EVIDENCE_MODE="chunked", GITHUB_WORKSPACE=str(repo))
+            built = subprocess.run(["bash", "-e", "-c", script], cwd=repo, env=env, capture_output=True, text=True)
+            self.assertEqual(built.returncode, 0, built.stderr)
+            result = json.loads((root / "envelope.json").read_text())
+            self.assertEqual(result["status"]["state"], "failure")
+            self.assertEqual(result["review_outcome"]["kind"], "incomplete_evidence")
+
     def test_complete_coverage_still_runs_the_models(self):
         with tempfile.TemporaryDirectory() as tmp:
             result, calls, _out_dir = self.run_with_manifest(pathlib.Path(tmp), {"coverage_complete": True, "incomplete_coverage": []}, 1)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(calls, 2, "one chunk call and one synthesis call (block mode)")
+            # A complete run's synthesis prompt is the real one (it carries the PR body), never the
+            # skip path's placeholder, which would leave the title and body unscanned.
+            prompt = (_out_dir / "synthesis-prompt.md").read_text()
+            self.assertIn(BODY_CANARY, prompt)
+            self.assertNotIn(run_chunks.COVERAGE_INCOMPLETE_LOG, prompt)
 
 
 if __name__ == "__main__":
