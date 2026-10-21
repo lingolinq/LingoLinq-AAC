@@ -732,7 +732,9 @@ jobs:
             "https://github.com/zizmorcore/zizmor/releases/download/v${ZIZMOR_VERSION}/zizmor-x86_64-unknown-linux-gnu.tar.gz"
           echo "${ZIZMOR_SHA256}  $RUNNER_TEMP/zizmor.tgz" | sha256sum -c -
           tar -xzf "$RUNNER_TEMP/zizmor.tgz" -C "$RUNNER_TEMP" zizmor
-          "$RUNNER_TEMP/zizmor" --offline --persona auditor --min-severity medium .github/workflows/codex-review.yml
+          # --no-config and --no-ignores: a zizmor.yml or an inline `# zizmor: ignore[...]` added by a later
+          # PR cannot silence the scan.
+          "$RUNNER_TEMP/zizmor" --offline --no-config --no-ignores --persona auditor --min-severity medium .github/workflows/codex-review.yml
 
 
   security-scan:

@@ -598,6 +598,16 @@ class WorkflowLogExposureTest(unittest.TestCase):
         self.assertIn("scripts/codex-review-path-classifier.sh", script)
         self.assertNotIn("--data-bearing-only", WORKFLOW.read_text())
 
+    # zizmor reads .github/zizmor.yml or zizmor.yml and honours inline `# zizmor: ignore[...]`
+    # comments, so a later PR could silence the scan without touching this workflow's gate. Both
+    # are turned off on the line that runs it (2026-10-20 review of #1120).
+    def test_the_zizmor_scan_ignores_config_files_and_inline_ignores(self):
+        ci = (REPO_ROOT / ".github/workflows/ci.yml").read_text()
+        runs = [line.split() for line in ci.splitlines() if line.strip().startswith('"$RUNNER_TEMP/zizmor"')]
+        self.assertEqual(len(runs), 1, "expected exactly one zizmor scan in ci.yml")
+        self.assertIn("--no-config", runs[0])
+        self.assertIn("--no-ignores", runs[0])
+
     def test_run_blocks_parses_every_scalar_form(self):
         for header in ("run: |", "run: |-", "run: |+", "run: >", "run: >-", "run: >+"):
             with self.subTest(header=header):
