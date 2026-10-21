@@ -232,13 +232,26 @@ type's magic and header fields, plus:
   bytes or by the binary comment line the PDF spec recommends (`%` and four
   bytes of 128 or more; both PDFs in this repo have one).
 
-So a `.png` that is plain code, a "PDF" that is a CSV, and a script that opens
-with a format's magic (`GIF89a=1;system(...)`, or the same with a control byte
-in a string literal or comment) are withheld. This is a heuristic, not a
-parser, and these still pass:
+For every type but PDF, the bytes before that NUL must also hold none of
+`# " ' \` / % < ? =`. Ruby and node stop at a NUL only in token position: a NUL
+inside a comment, string, regex, `%` literal, heredoc, `?` char literal or
+`=begin` block is read past, and the code after it runs at any length
+(`GIF89a=1#` then a NUL, a newline and code). Those characters open each of
+those constructs. A real file whose header bytes happen to include one is
+withheld (a human look); in this repo that is 4 of 483 media files, all webp
+images whose RIFF size bytes include `%` or `"`.
 
-- Ruby (or another language that stops at a NUL) whose code, magic included,
-  fits in the 19 bytes before the NUL, for example `GIF89a=`id`` then a NUL;
+So a `.png` that is plain code, a "PDF" that is a CSV, and a script that opens
+with a format's magic (`GIF89a=1;system(...)`, the same with a control byte in
+a string literal, or with the NUL inside a comment or string) are withheld.
+This is a heuristic, not a parser, and these still pass:
+
+- Ruby or node code that, magic included, fits in the bytes before the first
+  NUL (at most 19) and uses none of the characters above (no assignment, so it
+  must run with the magic as its first token). The opener list is specific to
+  ruby and node:
+  perl's `q()` family opens a string with none of them (no perl shape that runs
+  was found, but it is not excluded);
 - any expected-type file run by a shell (`bash x.gif`, `sh x.pdf`): bash skips
   a NUL that is not on the first line and treats `%PDF-1.7` as a failed job
   reference, so code of any length after the first line runs;

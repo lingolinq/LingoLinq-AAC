@@ -332,6 +332,38 @@ class BinaryContentTest(unittest.TestCase):
                 with self.subTest(disguise=name, extension=extension):
                     self.assertFalse(signature(disguise[:1024]))
 
+    # Ruby 3.4 and Node stop at a NUL only in token position. A NUL inside a comment, a string, a regex,
+    # a %-literal, a heredoc, a char literal or an =begin block is read past, so the code after it runs
+    # however long it is (2026-10-20 review of #1120, F1; each shape below ran under ruby 3.4.4 or
+    # node 16 in that review).
+    AFTER_NUL = b"\nsystem('echo pwned')\n"
+    NUL_IN_LITERAL = {
+        "comment": b"=1#\x00", "double quotes": b'="\x00"', "single quotes": b"='\x00'",
+        "backticks": b"=`\x00`", "regex": b"=/\x00/", "percent literal": b"=%q(\x00)",
+        "heredoc": b"=<<A\n\x00\nA", "char literal": b"=?\x00", "begin block": b"=1\n=begin\x00\n=end",
+        "symbol": b'=:"\x00"', "js line comment": b"=1//\x00", "js block comment": b"=1/*\x00*/",
+    }
+
+    def test_no_type_accepts_code_after_a_nul_inside_a_literal(self):
+        disguises = {}
+        for extension, starts in self.GENUINE.items():
+            for start in starts:
+                magic = self._textified(start, b"\x00").split(b"\x00", 1)[0]
+                for name, literal in self.NUL_IN_LITERAL.items():
+                    disguises[f"{extension} magic {magic!r} + {name}"] = magic + literal + self.AFTER_NUL
+        # Formats whose check needs zero bytes at fixed offsets, with the literal opened before them.
+        disguises["bmp reserved zeros in a comment"] = b"BM=1;#\x00\x00\x00\x00" + self.AFTER_NUL
+        disguises["eot zeros in a comment"] = b"#" + b"\x00" * 33 + b"LP" + b"\x00" * 4 + self.AFTER_NUL
+        # PDF is not asserted here: it has its own check (_pdf_binary_line), and a file that passes it
+        # starts with a `%PDF-d.d` line, which ruby and node reject before reaching any NUL (each
+        # shape above behind each genuine PDF start ran nothing under ruby 3.4.4 or node 16).
+        for name, disguise in disguises.items():
+            for extension, signature in build_envelope.BINARY_SIGNATURES.items():
+                if extension == "pdf":
+                    continue
+                with self.subTest(disguise=name, extension=extension):
+                    self.assertFalse(signature(disguise[:1024]))
+
     # Formats that share a container must still tell each other apart.
     def test_a_container_holding_another_format_is_not_accepted(self):
         # An MP3 opens with the same ID3 tag a FLAC may carry; only fLaC after the tag makes it FLAC.
