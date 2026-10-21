@@ -26,6 +26,9 @@ module DemoDistrict
   GOAL_CADENCE_DAYS = (3..10).freeze
 
   class RefusedError < StandardError; end
+  # Raised at the end of a refresh that could not finish some user's sessions or summaries,
+  # after every other user has been processed, so the scheduler run is recorded as failed.
+  class RefreshError < StandardError; end
 
   module_function
 
@@ -85,7 +88,7 @@ module DemoDistrict
     result = {
       organization: org.global_id, through: yesterday.iso8601, communicators: 0,
       sessions_created: 0, summaries_updated: 0, goals_tracked: 0, profiles_refreshed: 0,
-      skipped_users: []
+      skipped_users: [], failures: []
     }
 
     communicators = org.approved_users(false)
@@ -106,7 +109,11 @@ module DemoDistrict
     result[:profiles_refreshed] += refresh_profiles(org, 'communicator', demo_communicators, now)
     result[:profiles_refreshed] += refresh_profiles(org, 'supervisor', supervisors, now)
 
-    log("refreshed #{org.global_id} through #{yesterday}: #{result.except(:skipped_users).inspect}, skipped #{result[:skipped_users].length}")
+    log("refreshed #{org.global_id} through #{yesterday}: #{result.except(:skipped_users, :failures).inspect}, skipped #{result[:skipped_users].length}")
+    if result[:failures].any?
+      result[:failures].each { |f| log("FAILED #{f}") }
+      raise RefreshError, "#{result[:failures].length} failure(s): #{result[:failures].first(5).join('; ')}"
+    end
     result
   end
 
@@ -121,7 +128,11 @@ module DemoDistrict
       # Already caught up. Still rebuild the latest week: a run killed after its last
       # session but before that week's summary would otherwise leave Reports stale until
       # the next school day adds a session.
-      flush_summaries(user, Set[weekyear_for(latest.started_at)], result) if latest
+      if latest
+        weeks = Set[weekyear_for(latest.started_at)]
+        flush_summaries(user, weeks, result)
+        result[:failures] << "#{user.user_name} weekly summaries #{weeks.to_a.join(', ')}" if weeks.any?
+      end
       return
     end
 
@@ -156,6 +167,17 @@ module DemoDistrict
     (start_date..yesterday).each do |date|
       next if marked_days.include?(date)
       made = generator.generate_day(date)
+      if generator.errors.any?
+        # Stop at a failed day so the next run, which starts after the latest saved
+        # session, retries it instead of leaving a permanent gap.
+        made.each { |s| pending_weeks << weekyear_for(s.started_at) }
+        latest_created_at = [latest_created_at, *made.map(&:started_at)].compact.max
+        result[:sessions_created] += made.length
+        failed_date, message = generator.errors.first
+        result[:failures] << "#{user.user_name} sessions on #{failed_date}: #{message}"
+        flush_summaries(user, pending_weeks, result)
+        break
+      end
       result[:sessions_created] += made.length
       made.each do |s|
         pending_weeks << weekyear_for(s.started_at)
@@ -166,6 +188,9 @@ module DemoDistrict
       end
     end
     result[:communicators] += 1
+    if pending_weeks.any?
+      result[:failures] << "#{user.user_name} weekly summaries #{pending_weeks.to_a.sort.join(', ')}"
+    end
     return unless latest_created_at
 
     result[:goals_tracked] += 1 if track_goal(user, latest_created_at)
@@ -176,16 +201,18 @@ module DemoDistrict
     WeeklyStatsSummary.date_to_weekyear(date)
   end
 
+  # Rebuilds each week and removes it from the set. A week that fails stays in the set, so
+  # the next flush retries it and refresh_communicator reports whatever is still left.
   def flush_summaries(user, weekyears, result)
     weekyears.to_a.sort.each do |weekyear|
       begin
         WeeklyStatsSummary.update_now(user.id, weekyear)
         result[:summaries_updated] += 1
+        weekyears.delete(weekyear)
       rescue => e
         log("WARN #{user.user_name} weekyear #{weekyear}: #{e.class}: #{e.message}")
       end
     end
-    weekyears.clear
   end
 
   # Bump primary_goal last_tracked when the user's goal is due on their cadence. Users with

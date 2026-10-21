@@ -152,7 +152,7 @@ module DemoDistrict
       device
     end
 
-    attr_reader :student, :profile, :index, :author, :board, :device, :seed_marker
+    attr_reader :student, :profile, :index, :author, :board, :device, :seed_marker, :errors
 
     # board is a {'id' => ..., 'key' => ...} reference. seed_marker, when set, is written to
     # data['seed_marker'] on every session so the rows can be found (and skipped) later.
@@ -164,6 +164,7 @@ module DemoDistrict
       @board = board
       @device = device
       @seed_marker = seed_marker
+      @errors = []
       @skill = profile[:skill]
       @vocab = CORE_VOCAB[@skill]
       @dev_profile = DEVICE_PROFILES[index % DEVICE_PROFILES.length]
@@ -199,7 +200,9 @@ module DemoDistrict
         begin
           created << create_session!(events)
         rescue => e
-          # Skip individual session errors, keep generating
+          # Skip individual session errors and keep generating, but record them so a caller
+          # that must not advance past a failed day (DemoDistrict.refresh!) can stop.
+          errors << [date, "#{e.class}: #{e.message}"]
           Rails.logger.warn("[DemoDistrict] skipped session for #{student.user_name} on #{date}: #{e.message}")
         end
       end

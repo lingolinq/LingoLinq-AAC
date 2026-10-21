@@ -117,6 +117,33 @@ describe DemoDistrict do
     end
   end
 
+  describe "failures" do
+    it "stops at a day whose sessions failed, so the next run retries it, and fails the refresh" do
+      o = org_with('demo_data' => true)
+      demo = member(o, 'kid@demoschooldistrict.org')
+      prior_session(demo, Time.utc(2026, 10, 15, 18, 0, 0))
+      allow(LogSession).to receive(:process_new).and_raise(StandardError, 'boom')
+
+      expect {
+        travel_to(now) { DemoDistrict.refresh!(organization: o.reload, now: now) }
+      }.to raise_error(DemoDistrict::RefreshError, /#{demo.user_name} sessions on 2026-10-1[69]: StandardError: boom/)
+      # The cursor did not move past the failed day.
+      expect(LogSession.where(user_id: demo.id).maximum(:started_at)).to eq(Time.utc(2026, 10, 15, 18, 0, 0))
+    end
+
+    it "retries a failed weekly summary and fails the refresh if it never builds" do
+      srand(20261021)
+      o = org_with('demo_data' => true)
+      demo = member(o, 'kid@demoschooldistrict.org')
+      prior_session(demo, Time.utc(2026, 10, 15, 18, 0, 0))
+      allow(WeeklyStatsSummary).to receive(:update_now).and_raise(StandardError, 'db blip')
+
+      expect {
+        travel_to(now) { DemoDistrict.refresh!(organization: o.reload, now: now) }
+      }.to raise_error(DemoDistrict::RefreshError, /#{demo.user_name} weekly summaries/)
+    end
+  end
+
   describe "default profile setting" do
     it "does not report a refresh the org stats endpoint cannot see" do
       o = org_with('demo_data' => true, 'communicator_profile' => { 'profile_id' => 'default' })

@@ -1,3 +1,5 @@
+# Named *_backfill.rake so scripts/codex-review-path-classifier.sh treats it as a data task
+# (it writes synthetic rows for demo users); see .claude/rules/data-bearing-paths.md.
 namespace :demo do
   # Manual run of the daily Demo School District refresh (scheduler:dispatch runs it at 6 AM
   # UTC). Safe to repeat: days that already hold a rolling session are skipped.
