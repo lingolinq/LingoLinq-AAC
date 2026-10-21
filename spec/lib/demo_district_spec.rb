@@ -102,6 +102,35 @@ describe DemoDistrict do
     end
   end
 
+  describe "interrupted runs" do
+    it "rebuilds the latest week for a caught-up user, so a run killed before its summary is repaired by a rerun" do
+      o = org_with('demo_data' => true)
+      demo = member(o, 'kid@demoschooldistrict.org')
+      # Yesterday's session exists (an earlier run saved it) but its week was never summarised.
+      last = prior_session(demo, Time.utc(2026, 10, 20, 18, 0, 0))
+      week = WeeklyStatsSummary.date_to_weekyear(last.started_at.utc.to_date)
+      expect(WeeklyStatsSummary).to receive(:update_now).with(demo.id, week)
+
+      res = travel_to(now) { DemoDistrict.refresh!(organization: o.reload, now: now) }
+      expect(res[:sessions_created]).to eq(0)
+      expect(res[:summaries_updated]).to eq(1)
+    end
+  end
+
+  describe "default profile setting" do
+    it "does not report a refresh the org stats endpoint cannot see" do
+      o = org_with('demo_data' => true, 'communicator_profile' => { 'profile_id' => 'default' })
+      demo = member(o, 'kid@demoschooldistrict.org')
+      allow(ProfileTemplate).to receive(:default_profile_id).and_return('concrete-default')
+      UserExtra.create!(user: demo, settings: { 'recent_profiles' => { 'concrete-default' => [
+        { 'template_id' => 't1', 'summary' => 4, 'log_id' => '1_5', 'added' => (now - 11.months).to_i }
+      ] } })
+
+      res = travel_to(now) { DemoDistrict.refresh!(organization: o.reload, now: now) }
+      expect(res[:profiles_refreshed]).to eq(0)
+    end
+  end
+
   describe "goal and profile freshness" do
     it "bumps a stale primary goal and a due recent profile so the org tiles count them" do
       srand(20261021)

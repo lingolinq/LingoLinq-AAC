@@ -117,7 +117,13 @@ module DemoDistrict
 
     start_date = latest ? latest.started_at.in_time_zone(tz).to_date + 1 : yesterday - (INITIAL_HISTORY_DAYS - 1)
     start_date = [start_date, yesterday - (MAX_BACKFILL_DAYS - 1)].max
-    return if start_date > yesterday
+    if start_date > yesterday
+      # Already caught up. Still rebuild the latest week: a run killed after its last
+      # session but before that week's summary would otherwise leave Reports stale until
+      # the next school day adds a session.
+      flush_summaries(user, Set[weekyear_for(latest.started_at)], result) if latest
+      return
+    end
 
     board = board_for(user, latest)
     unless board
@@ -207,8 +213,10 @@ module DemoDistrict
   def refresh_profiles(org, type, users, now)
     settings = org.settings["#{type}_profile"]
     return 0 unless settings.is_a?(Hash)
+    # The literal configured id, because that is the bucket the org stats endpoint reads
+    # (organizations_controller#stats). For 'default' that bucket is never written by
+    # UserExtra#process_profile, so those users are skipped below as having no history.
     profile_id = settings['profile_id']
-    profile_id = ProfileTemplate.default_profile_id(type) if profile_id == 'default'
     return 0 if profile_id.blank? || %w[none blank].include?(profile_id)
     frequency = org.profile_frequency(type).to_i
     return 0 unless frequency > 0
