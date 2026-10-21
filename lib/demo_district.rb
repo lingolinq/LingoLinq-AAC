@@ -83,8 +83,7 @@ module DemoDistrict
       end
     end
 
-    tz = UsageGenerator.time_zone
-    yesterday = now.in_time_zone(tz).to_date - 1
+    yesterday = last_school_day_ended(now)
     result = {
       organization: org.global_id, through: yesterday.iso8601, communicators: 0,
       sessions_created: 0, summaries_updated: 0, goals_tracked: 0, profiles_refreshed: 0,
@@ -290,8 +289,17 @@ module DemoDistrict
     supervisor || user
   end
 
+  # "Yesterday" means the latest LA date whose school window (8am to 3pm) has closed. The
+  # scheduler runs at 06:00 UTC, which is still the previous evening in Los Angeles, so a
+  # plain LA date - 1 would always lag a school day.
+  def last_school_day_ended(now)
+    local = now.in_time_zone(UsageGenerator.time_zone)
+    school_out = UsageGenerator::FIRST_HOUR + UsageGenerator::HOUR_SPAN
+    local.hour >= school_out ? local.to_date : local.to_date - 1
+  end
+
   def last_weekday_before(now)
-    date = now.in_time_zone(UsageGenerator.time_zone).to_date - 1
+    date = last_school_day_ended(now)
     date -= 1 while date.saturday? || date.sunday?
     date
   end

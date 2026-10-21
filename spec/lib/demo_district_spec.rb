@@ -122,6 +122,21 @@ describe DemoDistrict do
     end
   end
 
+  describe "scheduled run time" do
+    it "counts the LA school day that just ended when run at 06:00 UTC (the previous LA evening)" do
+      o = org_with('demo_data' => true)
+      demo = member(o, 'kid@demoschooldistrict.org')
+      prior_session(demo, Time.utc(2026, 10, 16, 18, 0, 0))
+      # Tuesday 2026-10-20 06:00 UTC is Monday 23:00 in Los Angeles; Monday's school day is over.
+      run_at = Time.utc(2026, 10, 20, 6, 0, 0)
+      res = travel_to(run_at) { DemoDistrict.refresh!(organization: o.reload, now: run_at) }
+      expect(res[:through]).to eq('2026-10-19')
+      # An LA afternoon before 3pm still stops at the day before.
+      expect(DemoDistrict.send(:last_school_day_ended, Time.utc(2026, 10, 20, 21, 0, 0))).to eq(Date.new(2026, 10, 19))
+      expect(DemoDistrict.send(:last_school_day_ended, Time.utc(2026, 10, 20, 22, 0, 0))).to eq(Date.new(2026, 10, 20))
+    end
+  end
+
   describe "interrupted runs" do
     it "rebuilds the latest week for a caught-up user, so a run killed before its summary is repaired by a rerun" do
       o = org_with('demo_data' => true)
