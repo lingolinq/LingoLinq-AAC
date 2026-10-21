@@ -21,6 +21,10 @@
 read-only
 -c
 web_search="disabled"
+# codex reports usage to its analytics host after each turn; the review sends nothing but the
+# review (scripts/codex-review-codex-args.test.py NoOutboundTelemetryTest).
+-c
+analytics.enabled=false
 -c
 features.shell_tool=false
 -c
