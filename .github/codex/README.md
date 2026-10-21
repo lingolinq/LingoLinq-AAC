@@ -345,7 +345,11 @@ or main (read 2026-10-20). Revisit this before making it one.
 For a PR the path classifier routes to `codex`, the external reviewer receives
 the diff (added and removed lines), the PR title and body, the file names and
 their `git ls-tree` entries, the author's login, the head branch name, and the
-names and results of the PR's checks. Commit messages are not sent. Only file paths are classified; nothing scans the
+names and results of the PR's checks. Commit messages are not sent. Before the
+large-PR fallback, a PR over the 60,000-byte cap sent only its first 60,000
+bytes; it now sends the whole diff in up to 16 chunks (about 640 KB), so a large
+PR exposes up to roughly ten times as much text. `CODEX_REVIEW_CHUNKED_SCOPE=none`
+keeps every run on the cut bounded diff. Only file paths are classified; nothing scans the
 content before it is sent. The secret scan runs on the envelope after the model
 call, before the W2 POST, so it does not cover the outgoing prompt.
 
