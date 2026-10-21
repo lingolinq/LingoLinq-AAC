@@ -20,7 +20,6 @@ import socketserver
 import subprocess
 import tempfile
 import threading
-import time
 import unittest
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -204,6 +203,7 @@ class _RecordingProxy(socketserver.StreamRequestHandler):
 
     def handle(self):
         self.server.seen.append(self.rfile.readline().decode(errors="replace").strip())
+        self.server.arrived.set()
         try:
             self.wfile.write(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n")
         except OSError:
@@ -251,10 +251,16 @@ class NoOutboundTelemetryTest(unittest.TestCase):
 
     ANALYTICS = ["-c", "analytics.enabled=false"]
 
+    # How long to wait, once codex has exited, for a request still on its way to the proxy. A request
+    # that arrives sets `arrived`, so the wait ends early when there is one; a fixed sleep could read
+    # `seen` before a slow runner's handler had recorded it.
+    GRACE_SECONDS = 15
+
     def outbound(self, args):
         catalog = load_catalog_module()
         proxy = _ThreadingTCP(("127.0.0.1", 0), _RecordingProxy)
         proxy.seen = []
+        proxy.arrived = threading.Event()
         api = http.server.HTTPServer(("127.0.0.1", 0), _CompletingResponses)
         for server in (proxy, api):
             threading.Thread(target=server.serve_forever, daemon=True).start()
@@ -276,7 +282,7 @@ class NoOutboundTelemetryTest(unittest.TestCase):
                 subprocess.run(["codex", "exec", *args, *overrides, *local, "-C", str(workdir),
                                 "-m", catalog.APPROVED_MODELS[0]],
                                input="review this", capture_output=True, text=True, env=env, timeout=120)
-                time.sleep(2)  # a report sent as the process exits
+                proxy.arrived.wait(self.GRACE_SECONDS)
         finally:
             proxy.shutdown()
             api.shutdown()
