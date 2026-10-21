@@ -127,6 +127,29 @@ describe DemoDistrict do
     end
   end
 
+  describe "profile tail" do
+    # The org stats endpoint reads profs[-1] (the oldest kept entry) against the frequency
+    # window, so an old tail must be dropped before it expires even when the newest entry
+    # is not yet due for a refresh.
+    it "drops an entry about to leave the window so the entry the stats endpoint reads stays fresh" do
+      srand(20261021)
+      o = org_with('demo_data' => true, 'communicator_profile' => { 'profile_id' => 'spec-profile', 'frequency' => 6.months.to_i })
+      demo = member(o, 'kid@demoschooldistrict.org')
+      fresh = (now - 1.month).to_i
+      UserExtra.create!(user: demo, settings: { 'recent_profiles' => { 'spec-profile' => [
+        { 'template_id' => 't1', 'summary' => 4, 'log_id' => '1_6', 'added' => fresh },
+        { 'template_id' => 't1', 'summary' => 3, 'log_id' => '1_5', 'added' => (now - 6.months + 3.days).to_i }
+      ] } })
+      prior_session(demo, Time.utc(2026, 10, 15, 18, 0, 0))
+
+      travel_to(now) { DemoDistrict.refresh!(organization: o.reload, now: now) }
+
+      recents = UserExtra.find_by(user_id: demo.id).settings['recent_profiles']['spec-profile']
+      expect(recents.map { |r| r['log_id'] }).to eq(['1_6'])
+      expect(recents[-1]['added']).to eq(fresh)
+    end
+  end
+
   describe "flag_organization!" do
     it "flags the single matching organization" do
       o = org_with('name' => 'Demo School District')

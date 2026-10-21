@@ -195,11 +195,15 @@ module DemoDistrict
     true
   end
 
-  # Extend each user's recent_profiles for the org's configured profile once the newest
-  # entry is due again (half the org's profile frequency). The new entry repeats the newest
-  # real one with a fresh 'added', so it still points at a real profile session. Entries
-  # older than the frequency window are dropped, matching how the org stats endpoint reads
-  # the list. Users with no profile history are left alone.
+  # Keep each user's recent_profiles for the org's configured profile counting on the
+  # Profiles tile. The org stats endpoint reads only the LAST entry (profs[-1]) against the
+  # frequency window, while the list is stored newest first, so two things are maintained:
+  #   * once the newest entry is half a frequency old, a new entry is prepended. It repeats
+  #     the newest real one with a fresh 'added', so it still points at a real profile session.
+  #   * entries within a week (or a quarter frequency, if shorter) of leaving the window are
+  #     dropped before they do, so the tail the stats endpoint reads never goes stale between
+  #     refreshes while the daily run keeps going.
+  # Users with no profile history are left alone.
   def refresh_profiles(org, type, users, now)
     settings = org.settings["#{type}_profile"]
     return 0 unless settings.is_a?(Hash)
@@ -208,6 +212,7 @@ module DemoDistrict
     return 0 if profile_id.blank? || %w[none blank].include?(profile_id)
     frequency = org.profile_frequency(type).to_i
     return 0 unless frequency > 0
+    expiring_cutoff = (now - frequency + [7.days.to_i, frequency / 4].min).to_i
 
     refreshed = 0
     users.each do |user|
@@ -215,13 +220,17 @@ module DemoDistrict
       recents = extra && (extra.settings['recent_profiles'] || {})[profile_id]
       next if recents.blank?
       newest = recents.max_by { |r| r['added'].to_i }
-      next if newest['added'].to_i > (now - (frequency / 2)).to_i
+      due = newest['added'].to_i <= (now - (frequency / 2)).to_i
+      kept = recents.select { |r| r['added'].to_i > expiring_cutoff }
+      next unless due || kept.length < recents.length
 
-      added = school_time_on(last_weekday_before(now), user).to_i
-      entry = newest.merge('added' => added)
-      entry['expected'] = added + frequency if newest.key?('expected')
-      kept = recents.select { |r| r['added'].to_i > (now - frequency).to_i }
-      extra.settings['recent_profiles'][profile_id] = ([entry] + kept).first(10)
+      if due || kept.empty?
+        added = school_time_on(last_weekday_before(now), user).to_i
+        entry = newest.merge('added' => added)
+        entry['expected'] = added + frequency if newest.key?('expected')
+        kept = [entry] + kept
+      end
+      extra.settings['recent_profiles'][profile_id] = kept.first(10)
       extra.save!
       refreshed += 1
     end
