@@ -744,11 +744,19 @@ jobs:
         run: |
           # The review text is model output over PR-authored text. Refuse to send it anywhere if
           # it carries anything shaped like a credential, or this step's own secret values.
-          if ! python3 -I "$GITHUB_WORKSPACE/scripts/codex-review-secret-scan.py" /tmp/envelope.json; then
+          # Exit 1: something matched. Exit 2: the envelope could not be read. Either way nothing is sent.
+          SCAN_RC=0
+          python3 -I "$GITHUB_WORKSPACE/scripts/codex-review-secret-scan.py" /tmp/envelope.json || SCAN_RC=$?
+          if [ "$SCAN_RC" != 0 ]; then
+            if [ "$SCAN_RC" = 1 ]; then
+              WHY="Review withheld: its text matched a credential pattern (needs human)"
+            else
+              WHY="Review withheld: the review envelope could not be read for the credential scan (needs human)"
+            fi
             gh api "repos/${GITHUB_REPOSITORY}/statuses/${HEAD_SHA}" \
               -f state=failure \
               -f context=codex-review/deep-pass \
-              -f description="Review withheld: its text matched a credential pattern (needs human)" \
+              -f description="$WHY" \
               -f target_url="${RUN_URL}" || true
             exit 1
           fi

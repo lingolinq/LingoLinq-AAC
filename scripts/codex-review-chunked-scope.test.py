@@ -1296,6 +1296,24 @@ class WorkflowLogExposureTest(unittest.TestCase):
                 self.assertIn("state=failure", posted, "no specific failure status was posted")
                 self.assertIn("credential pattern", posted)
 
+    # Exit 2 from the scan means the envelope could not be read, not that it matched; the status must
+    # say which, or triage chases a credential that is not there (2026-10-21 senior-dev review).
+    def test_w2_post_names_an_unreadable_envelope_as_unreadable(self):
+        script = extract_step_run("POST result to n8n W2 and resolve status")
+        with tempfile.TemporaryDirectory() as tmp:
+            bin_dir = pathlib.Path(tmp) / "bin"
+            bin_dir.mkdir()
+            install_fake(bin_dir, "curl", FAKE_CURL)
+            install_fake(bin_dir, "gh", RECORDING_GH)
+            (pathlib.Path(tmp) / "calls").write_text("0")
+            result = run_step(localize(script, tmp), tmp, bin_dir, extra_env=W2_ENV)
+            self.assertNotEqual(result.returncode, 0, "a missing envelope was not refused")
+            self.assertEqual((pathlib.Path(tmp) / "calls").read_text(), "0", "curl ran")
+            posted = (pathlib.Path(tmp) / "gh-calls").read_text()
+            self.assertIn("state=failure", posted)
+            self.assertIn("could not be read", posted)
+            self.assertNotIn("credential pattern", posted)
+
     def test_bounded_reviewer_refuses_to_run_without_hardening_arguments(self):
         script = extract_step_run("Run reviewer (codex exec, converge across runs)")
         with tempfile.TemporaryDirectory() as tmp:
