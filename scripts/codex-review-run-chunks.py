@@ -89,10 +89,10 @@ CI_MARKER_RE = re.compile(r"<!--\s*/?\s*CI_INJECT:[A-Z_]+\s*-->")
 # the exact defect this file exists to prevent. A convenience lever that can
 # disable the control it protects is worth less than the control.
 #
-# If terra itself ever becomes unusable, the levers that remain are
-# CODEX_REVIEW_CHUNKED_SCOPE=none (which also stops the large-PR switch to chunked
-# evidence; CODEX_REVIEW_EVIDENCE_MODE=bounded alone does not) and the documented
-# admin exception. Changing a reviewer model stays a reviewed change.
+# If terra itself ever becomes unusable, the only lever is the documented admin
+# exception: the bounded reviewer (codex-review.yml) runs on terra too, so
+# CODEX_REVIEW_CHUNKED_SCOPE=none, which keeps every run bounded, does not move the
+# review off it. Changing a reviewer model stays a reviewed change.
 DEFAULT_CHUNK_MODEL = "gpt-5.6-terra"
 DEFAULT_SYNTHESIS_MODEL = "gpt-5.6-terra"
 

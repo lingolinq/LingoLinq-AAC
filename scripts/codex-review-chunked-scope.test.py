@@ -603,7 +603,9 @@ class WorkflowLogExposureTest(unittest.TestCase):
     # are turned off on the line that runs it (2026-10-20 review of #1120).
     def test_the_zizmor_scan_ignores_config_files_and_inline_ignores(self):
         ci = (REPO_ROOT / ".github/workflows/ci.yml").read_text()
-        runs = [line.split() for line in ci.splitlines() if line.strip().startswith('"$RUNNER_TEMP/zizmor"')]
+        # Up to a shell comment: flags after `#` are not passed.
+        runs = [line.split(" #", 1)[0].split() for line in ci.splitlines()
+                if line.strip().startswith('"$RUNNER_TEMP/zizmor"')]
         self.assertEqual(len(runs), 1, "expected exactly one zizmor scan in ci.yml")
         self.assertIn("--no-config", runs[0])
         self.assertIn("--no-ignores", runs[0])
@@ -849,10 +851,15 @@ class WorkflowLogExposureTest(unittest.TestCase):
     def test_the_review_job_first_refuses_an_attempt_its_guards_did_not_run_in(self):
         text = WORKFLOW.read_text()
         job = text.split("\n  codex-review:\n", 1)[1].split("\n  status-final:\n", 1)[0]
-        steps = re.findall(r"^      - name: (.+)$", job, re.M)
-        self.assertTrue(steps and steps[0].startswith(self.ATTEMPT_STEP), steps[:2])
-        block = job.split("      - name: " + steps[0], 1)[1].split("\n      - name: ", 1)[0]
-        keys = re.findall(r"^        ['\"]?([A-Za-z_-]+)['\"]?:", block, re.M)
+        steps_text = job.split("\n    steps:\n", 1)[1]
+        # Every step start, named or not (`- uses:` with no name is a step too).
+        starts = [m.start() for m in re.finditer(r"^      - ", steps_text, re.M)]
+        self.assertTrue(starts, "no steps found in the codex-review job")
+        first = steps_text[starts[0]:starts[1] if len(starts) > 1 else len(steps_text)]
+        self.assertTrue(first.startswith("      - name: " + self.ATTEMPT_STEP), first.split("\n", 1)[0])
+        block = "\n" + first.split("\n", 1)[1]
+        self.assertNotRegex(block, GUARD_IF_RE)
+        keys = re.findall(r"^        ['\"]?([A-Za-z_-]+)['\"]?[ \t]*:", block, re.M)
         self.assertLessEqual(set(keys), self.GUARD_STEP_KEYS, keys)
         self.assertIn("BOUND_ATTEMPT: ${{ needs.status-pending.outputs.bound_attempt }}", block)
         script = extract_step_run(self.ATTEMPT_STEP)

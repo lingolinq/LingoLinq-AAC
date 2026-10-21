@@ -73,10 +73,10 @@ through the gate the pin was breaking. Review rejected that: a repo variable is
 settable with no PR and no review, so the hatch let anyone move the code-reading
 leg onto a weaker model silently, which is the exact thing the pin exists to
 prevent. Changing a reviewer model is a reviewed change. If terra itself becomes
-unusable, the remaining levers are `CODEX_REVIEW_CHUNKED_SCOPE=none` (which
-also stops the large-PR switch to chunked evidence;
-`CODEX_REVIEW_EVIDENCE_MODE=bounded` alone does not) and the documented admin
-exception.
+unusable, the only lever is the documented admin exception: the bounded
+reviewer runs on terra too, so `CODEX_REVIEW_CHUNKED_SCOPE=none` (which keeps
+every run on bounded evidence, the large-PR switch included) does not move the
+review off it.
 
 The models actually used are recorded in the W2 envelope as `chunk_model` /
 `synthesis_model`, so the audit artifact names the reviewer.
@@ -343,8 +343,9 @@ or main (read 2026-10-20). Revisit this before making it one.
 ## Caution: personal data in PR text
 
 For a PR the path classifier routes to `codex`, the external reviewer receives
-the diff (added and removed lines), the PR title and body, and the file names.
-Commit messages are not sent. Only file paths are classified; nothing scans the
+the diff (added and removed lines), the PR title and body, the file names and
+their `git ls-tree` entries, the author's login, the head branch name, and the
+names and results of the PR's checks. Commit messages are not sent. Only file paths are classified; nothing scans the
 content before it is sent. The secret scan runs on the envelope after the model
 call, before the W2 POST, so it does not cover the outgoing prompt.
 
@@ -367,9 +368,9 @@ review runs. The `data-bearing-paths` check and this classifier keep the data
 folders and file types (fixtures, seeds, migrations, cassettes, `db/language/`,
 `.csv`, `.sql` and the rest) away from the external reviewer.
 
-Caution for everyone opening a PR while this workflow is enabled: never paste
-real user, student or patient details into a PR title, body or file. Use
-made-up names and values in tests and examples.
+Caution for everyone opening a PR while this workflow is enabled: never put
+real user, student or patient details into a PR title, body, branch name or
+file. Use made-up names and values in tests and examples.
 
 ## Execution isolation
 
