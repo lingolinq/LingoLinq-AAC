@@ -138,6 +138,27 @@ describe DemoDistrict do
   end
 
   describe "interrupted runs" do
+    it "redoes a day that a killed run left half written" do
+      o = org_with('demo_data' => true)
+      demo = member(o, 'kid@demoschooldistrict.org')
+      prior_session(demo, Time.utc(2026, 10, 16, 18, 0, 0))
+      # Monday's first session was saved with the rolling marker, then the process died.
+      orphan = prior_session(demo, Time.utc(2026, 10, 19, 17, 0, 0))
+      orphan.data['seed_marker'] = DemoDistrict::SEED_MARKER
+      orphan.save!
+      orphan.update_columns(started_at: Time.utc(2026, 10, 19, 17, 0, 0), log_type: 'session')
+      expect(rolling_sessions(demo).map(&:id)).to eq([orphan.id])
+
+      travel_to(now) { DemoDistrict.refresh!(organization: o.reload, now: now) }
+      expect(LogSession.find_by(id: orphan.id)).to be_nil
+      by_day = rolling_sessions(demo).group_by { |s| s.started_at.in_time_zone('America/Los_Angeles').to_date }
+      expect(by_day.keys).to include(Date.new(2026, 10, 20))
+      by_day.each_value { |day| expect(day.count { |s| s.data[DemoDistrict::DAY_COMPLETE] }).to eq(1) }
+
+      res = travel_to(now) { DemoDistrict.refresh!(organization: o.reload, now: now) }
+      expect(res[:sessions_created]).to eq(0)
+    end
+
     it "rebuilds the latest week for a caught-up user, so a run killed before its summary is repaired by a rerun" do
       o = org_with('demo_data' => true)
       demo = member(o, 'kid@demoschooldistrict.org')

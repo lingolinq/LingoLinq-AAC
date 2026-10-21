@@ -17,6 +17,9 @@ module DemoDistrict
   FLAG = 'demo_data'.freeze
   EMAIL_DOMAIN = '@demoschooldistrict.org'.freeze
   SEED_MARKER = 'DEMO_DISTRICT_ROLLING'.freeze
+  # Set on the last session of each finished day, so a rerun can tell a day that a killed
+  # process left half written from one that is done.
+  DAY_COMPLETE = 'seed_day_complete'.freeze
   # A communicator with no sessions at all starts this many days back, matching the seed.
   INITIAL_HISTORY_DAYS = 90
   # Upper bound on one run's backfill, so a long outage cannot turn into an unbounded write.
@@ -120,6 +123,7 @@ module DemoDistrict
     tz = UsageGenerator.time_zone
     sessions = LogSession.where(user_id: user.id, log_type: 'session')
     latest = sessions.order('started_at DESC').where('started_at IS NOT NULL').first
+    latest = discard_unfinished_day(user, sessions, latest, tz) if latest
 
     start_date = latest ? latest.started_at.in_time_zone(tz).to_date + 1 : yesterday - (INITIAL_HISTORY_DAYS - 1)
     start_date = [start_date, yesterday - (MAX_BACKFILL_DAYS - 1)].max
@@ -176,6 +180,13 @@ module DemoDistrict
         flush_summaries(user, pending_weeks, result)
         break
       end
+      if made.any? && !mark_day_complete(made.last)
+        # Without the mark the next run would discard the day anyway; do it now and retry.
+        made.each(&:destroy)
+        result[:failures] << "#{user.user_name} sessions on #{date}: could not mark the day complete"
+        flush_summaries(user, pending_weeks, result)
+        break
+      end
       result[:sessions_created] += made.length
       made.each do |s|
         pending_weeks << weekyear_for(s.started_at)
@@ -192,6 +203,30 @@ module DemoDistrict
     return unless latest_created_at
 
     result[:goals_tracked] += 1 if track_goal(user, latest_created_at)
+  end
+
+  # A process killed part way through a day leaves some of its sessions behind with no
+  # exception handler to clean them up. Only the latest day can be in that state (days are
+  # written in order), so if it holds rolling sessions but none carries the completion mark,
+  # remove them and return the new latest session so the run redoes that day in full.
+  def discard_unfinished_day(user, sessions, latest, tz)
+    return latest unless (latest.data || {})['seed_marker'] == SEED_MARKER
+    date = latest.started_at.in_time_zone(tz).to_date
+    day = sessions.where(started_at: tz.local(date.year, date.month, date.day)..tz.local(date.year, date.month, date.day).end_of_day)
+                  .select { |s| (s.data || {})['seed_marker'] == SEED_MARKER }
+    return latest if day.any? { |s| s.data[DAY_COMPLETE] }
+    log("#{user.user_name}: discarding #{day.length} session(s) from unfinished day #{date}")
+    day.each(&:destroy)
+    sessions.order('started_at DESC').where('started_at IS NOT NULL').first
+  end
+
+  def mark_day_complete(session)
+    session.data[DAY_COMPLETE] = true
+    session.save!
+    true
+  rescue => e
+    log("WARN could not mark #{session.global_id} complete: #{e.class}: #{e.message}")
+    false
   end
 
   def weekyear_for(time_or_date)
