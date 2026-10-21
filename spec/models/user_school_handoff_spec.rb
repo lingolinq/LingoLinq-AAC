@@ -539,6 +539,57 @@ describe 'School-authorized hand-back to the family (#1063)', type: :model do
       expect(o.managed_user?(u.reload)).to eq(false)
     end
 
+    it 'hands back when two organizations remove the student at the same time' do
+      # Both removals check for another sponsor before either detaches, so each sees the other.
+      # Modelled by running the second removal inside the first, just before the first releases
+      # its seat (the first has already checked and seen the second still sponsoring).
+      morning = licensed_org
+      afternoon = licensed_org
+      u = school_authorized_user!(suffix: 'concurrent')
+      morning.claim_user(u)
+      afternoon.claim_user(u.reload)
+      b = under13_birth
+      morning_seat = License.where(organization_id: morning.id, user_id: u.id).first
+      interleaved = false
+      allow_any_instance_of(License).to receive(:release_user!).and_wrap_original do |orig, *args|
+        if !interleaved && orig.receiver.id == morning_seat.id
+          interleaved = true
+          afternoon.remove_user(u.user_name, birth_month: b[:month], birth_year: b[:year])
+        end
+        orig.call(*args)
+      end
+
+      morning.remove_user(u.user_name, birth_month: b[:month], birth_year: b[:year])
+
+      expect(interleaved).to eq(true)
+      expect(handed_off?(u)).to eq(true)
+      expect(handoff_events(u).count).to eq(1)
+    end
+
+    it 'completes on retry when the seat release fails after the hand-back' do
+      o = licensed_org
+      u = school_authorized_user!(suffix: 'release_fails')
+      o.claim_user(u)
+      b = under13_birth
+      failed = false
+      allow_any_instance_of(License).to receive(:release_user!).and_wrap_original do |orig, *args|
+        unless failed
+          failed = true
+          raise ActiveRecord::StatementInvalid, 'simulated release failure'
+        end
+        orig.call(*args)
+      end
+
+      expect {
+        o.remove_user(u.user_name, birth_month: b[:month], birth_year: b[:year])
+      }.to raise_error(ActiveRecord::StatementInvalid)
+      o.remove_user(u.user_name, birth_month: b[:month], birth_year: b[:year])
+
+      expect(handed_off?(u)).to eq(true)
+      expect(handoff_notices(u, o).count).to eq(1)
+      expect(o.managed_user?(u.reload)).to eq(false)
+    end
+
     it 'sends the legacy unassigned mail for a later, separate removal by the same organization' do
       o = Organization.create(settings: {'total_licenses' => 1})
       u = school_authorized_user!(suffix: 'reattach')

@@ -1516,11 +1516,13 @@ class Organization < ApplicationRecord
     # school_authorization. License.sponsored_elsewhere? never counts this organization here (a
     # manager's removal does not count its own leftover seat; only seat expiry passes
     # departing_had_link).
+    recheck_after_detach = false
     if !sponsoring
       # Not a hand-back, but keep an age the manager entered: License.expire_stale_licenses! reads
       # it when a remaining seat elsewhere expires, and without it assumes under 13.
       user.record_offboarding_age_attestation!(birth_month: birth_month, birth_year: birth_year, org: self)
     elsif License.sponsored_elsewhere?(user, self)
+      recheck_after_detach = true
       # Another organization still sponsors the student, so this is not a hand-back to the
       # family: no offboarding, and school_authorization is left as it is. The manager's age
       # attestation is still recorded, because License.expire_stale_licenses! reads it when that
@@ -1554,6 +1556,22 @@ class Organization < ApplicationRecord
     end
     
     self.remove_extras_from_user(user.user_name)
+    if recheck_after_detach
+      # The other sponsor seen above may have been removed at the same moment: each removal then
+      # saw the other and neither handed back. Check again now that this detach has committed,
+      # under the user lock (begin_family_offboarding_consents!'s re-check). Two such removals
+      # take that lock in turn, and the second sees both detaches, so one of them hands back.
+      # When the other organization is still there, this records the attestation again and
+      # nothing else.
+      user.reload
+      user.begin_family_offboarding_consents!(
+        org: self,
+        actor: actor,
+        birth_month: birth_month,
+        birth_year: birth_year,
+        skip_if_supported_elsewhere: true
+      )
+    end
     true
   end
 
