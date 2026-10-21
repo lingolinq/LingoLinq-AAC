@@ -458,7 +458,13 @@ The review job runs PR content only as data:
   resolves deep-pass from the review job's result. The two status jobs hold no
   environment and no secret, so a run the environment refuses still gets a
   terminal status.
-- `zizmor` scans this workflow in CI (`--persona auditor`, medium and above).
+- Re-runs: "Re-run failed jobs" reuses a `status-pending` that succeeded
+  earlier, so none of its guards run for the new attempt. `status-pending`
+  records the attempt it ran in (`bound_attempt`), and the review job's first
+  step fails unless that is the current attempt; `status-final` then posts a
+  failure. Use "Re-run all jobs".
+- `zizmor` scans this workflow in CI (`--persona auditor`, medium and above,
+  `--no-config --no-ignores`).
 
 ## Watchdog and heartbeat
 

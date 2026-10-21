@@ -79,6 +79,10 @@ jobs:
   status-pending:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # The attempt these guards ran in. "Re-run failed jobs" reuses this job and its outputs without
+    # re-running it, so the review job compares this with its own attempt before doing anything.
+    outputs:
+      bound_attempt: ${{ github.run_attempt }}
     permissions:
       statuses: write
       pull-requests: read
@@ -240,6 +244,18 @@ jobs:
       statuses: write
       pull-requests: read
     steps:
+      - name: Require the guards to have run in this attempt (a partial re-run skips status-pending)
+        # "Re-run failed jobs" starts this job again but reuses a status-pending that succeeded in an
+        # earlier attempt, so the environment, head and base checks did not run for this one. Fail
+        # closed: status-final then posts a failure. "Re-run all jobs" runs every guard again.
+        env:
+          BOUND_ATTEMPT: ${{ needs.status-pending.outputs.bound_attempt }}
+        run: |
+          if [ -z "$BOUND_ATTEMPT" ] || [ -z "$GITHUB_RUN_ATTEMPT" ] || [ "$BOUND_ATTEMPT" != "$GITHUB_RUN_ATTEMPT" ]; then
+            echo "::error::the guards ran in attempt '${BOUND_ATTEMPT}', not this attempt '${GITHUB_RUN_ATTEMPT}': re-run all jobs instead of only the failed ones" >&2
+            exit 1
+          fi
+
       - name: Resolve Codex review evidence mode
         env:
           GH_TOKEN: ${{ github.token }}

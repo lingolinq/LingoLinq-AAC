@@ -811,7 +811,9 @@ class WorkflowLogExposureTest(unittest.TestCase):
     # status-pending job is allowlisted instead: exactly these job keys, exactly these six guard
     # steps in order, and on each step only keys that cannot skip it or let it fail softly. Every
     # line the YAML could read as a job or step key must match (round 3b, 2026-10-10).
-    STATUS_PENDING_JOB_KEYS = ["runs-on", "timeout-minutes", "permissions", "steps"]
+    # outputs carries bound_attempt for the review job's attempt check; it cannot skip a step
+    # (approved 2026-10-20, Traci, #1120 item 8).
+    STATUS_PENDING_JOB_KEYS = ["runs-on", "timeout-minutes", "outputs", "permissions", "steps"]
     STATUS_PENDING_STEPS = [
         "Validate head_sha", "Set codex-review/deep-pass = pending", "Validate remaining inputs",
         "Require the codex-review environment to restrict deployment branches",
@@ -832,6 +834,36 @@ class WorkflowLogExposureTest(unittest.TestCase):
             key, _, value = line.strip().partition(":")
             permissions[key] = value.split("#", 1)[0].strip()  # values carry inline comments
         self.assertEqual(permissions, {"statuses": "write", "pull-requests": "read", "actions": "read", "contents": "read"})
+
+    # "Re-run failed jobs" reuses a succeeded status-pending (its outputs included) and skips every
+    # guard in it, so the review job must refuse an attempt its guards did not run in: status-pending
+    # records the attempt it ran in, and the review job's first step compares (2026-10-20 review of
+    # #1120, item 8).
+    ATTEMPT_STEP = "Require the guards to have run in this attempt"
+
+    def test_status_pending_records_the_attempt_its_guards_ran_in(self):
+        text = WORKFLOW.read_text()
+        job = text.split("\n  status-pending:\n", 1)[1].split("\n  codex-review:\n", 1)[0]
+        self.assertIn("\n    outputs:\n      bound_attempt: ${{ github.run_attempt }}\n", job)
+
+    def test_the_review_job_first_refuses_an_attempt_its_guards_did_not_run_in(self):
+        text = WORKFLOW.read_text()
+        job = text.split("\n  codex-review:\n", 1)[1].split("\n  status-final:\n", 1)[0]
+        steps = re.findall(r"^      - name: (.+)$", job, re.M)
+        self.assertTrue(steps and steps[0].startswith(self.ATTEMPT_STEP), steps[:2])
+        block = job.split("      - name: " + steps[0], 1)[1].split("\n      - name: ", 1)[0]
+        keys = re.findall(r"^        ['\"]?([A-Za-z_-]+)['\"]?:", block, re.M)
+        self.assertLessEqual(set(keys), self.GUARD_STEP_KEYS, keys)
+        self.assertIn("BOUND_ATTEMPT: ${{ needs.status-pending.outputs.bound_attempt }}", block)
+        script = extract_step_run(self.ATTEMPT_STEP)
+        cases = {"same attempt": ("2", "2", 0), "a re-run reusing attempt 1": ("1", "2", 1),
+                 "no recorded attempt": ("", "1", 1), "no current attempt": ("1", "", 1)}
+        for why, (bound, current, expected) in cases.items():
+            with self.subTest(why), tempfile.TemporaryDirectory() as tmp:
+                bin_dir = pathlib.Path(tmp) / "bin"
+                bin_dir.mkdir()
+                result = run_step(script, tmp, bin_dir, extra_env={"BOUND_ATTEMPT": bound, "GITHUB_RUN_ATTEMPT": current})
+                self.assertEqual(result.returncode != 0, expected == 1, result.stdout + result.stderr)
 
     def test_status_pending_holds_exactly_its_guard_steps_with_allowlisted_keys(self):
         text = WORKFLOW.read_text()
