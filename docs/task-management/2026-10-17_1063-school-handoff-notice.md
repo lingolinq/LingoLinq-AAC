@@ -424,3 +424,32 @@ not set `eu_under_16`; the approved compliance overview still describes the cons
 Lows: the dedupe marker is the queue time, not delivery; older builds delete unknown RemoteAction
 rows. After the fixes: 1700 examples, 0 failures, 6 pending (containers). No existing test changed
 beyond the 44 approved.
+
+## 8. Scot's decisions on the open review findings (2026-10-21)
+
+- **Finding 3: fixed in `e9fe9b884`.** This updates D3, which predates Q6 coming back. While the
+  organization that authorized the account has an accepted `org_user` link, sponsored or not,
+  `License.sponsored_elsewhere?` counts it as remaining support when a different organization
+  leaves. Its authorization therefore no longer ends while it is still attached.
+  - "does not hand back while the authorizing organization is still attached" fails on the head
+    before the fix.
+  - "hands back when the authorizing organization's link is still pending" passes there, and
+    guards the "accepted" condition.
+  - Mutations: M14 (drop the rule) and M15 (drop "accepted") each turn their test red.
+- **Finding 4: fixed in `e9fe9b884`.** An assumed under-13 on seat expiry sets `eu_under_16`, using
+  the same jurisdiction rule as the known-age branch: EU organization, otherwise non-US
+  organization with an EU registration country. Turning AI back on then goes through EU parental
+  consent.
+  - "requires EU parental consent to turn AI back on" fails before the fix.
+  - The US-organization guard passes there.
+  - Mutation M16 turns it red.
+- **Finding 5:** a release blocker in the PR body, not a code change. The compliance overview is
+  untouched here.
+
+All 16 mutations were rerun on the new code. Each target goes red except M7's second test, the
+known case. The tree matched HEAD after every restore.
+
+One full run had a single failure: `users_controller_spec.rb:3513` (board revisions, which this
+branch does not touch). It passed alone three times out of three and in a full run of its file.
+It also passed at the base commit and in the two earlier full runs. Treated as flaky, not a
+regression.
