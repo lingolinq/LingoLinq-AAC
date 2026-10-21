@@ -308,6 +308,37 @@ Raw diff hashes identify the exact Git evidence. Prompt hashes identify the
 defanged bytes sent to the model. `CI_INJECT` markers in diff or model-authored
 chunk findings are defanged before prompt assembly.
 
+## Caution: personal data in PR text
+
+For a PR the path classifier routes to `codex`, the external reviewer receives
+the diff (added and removed lines), the PR title and body, and the file names.
+Commit messages are not sent. Only file paths are classified; nothing scans the
+content before it is sent. The secret scan runs on the envelope after the model
+call, before the W2 POST, so it does not cover the outgoing prompt.
+
+So real personal data typed into a PR title or body, or present in a file
+outside the data-bearing paths (a test using a real name, a pasted log line or
+support email), reaches OpenAI, which has no BAA with LingoLinq. Deleting such
+a line sends it too, as a removed line.
+
+This is not fixed with a content scanner (decision 2026-10-20). The patterns
+that would catch it are noisy in this codebase: example emails in specs,
+`127.0.0.1` in config, test values shaped like a global id, and the
+`lib/pii_scrubber.rb` first-name list, which matches the fake names used across
+the specs. Every exception added to quiet them is a gap. And the case that
+matters most, a sentence about a child with no email or id in it, has no
+pattern at all.
+
+The control is upstream: real user data never goes into this repository. It is
+public, so data in a PR is already published when it is pushed, before any
+review runs. The `data-bearing-paths` check and this classifier keep the data
+folders and file types (fixtures, seeds, migrations, cassettes, `db/language/`,
+`.csv`, `.sql` and the rest) away from the external reviewer.
+
+Caution for everyone opening a PR while this workflow is enabled: never paste
+real user, student or patient details into a PR title, body or file. Use
+made-up names and values in tests and examples.
+
 ## Execution isolation
 
 The review job runs PR content only as data:
