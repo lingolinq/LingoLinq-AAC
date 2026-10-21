@@ -151,6 +151,25 @@ describe DemoDistrict do
       expect(LogSession.where(user_id: demo.id).maximum(:started_at)).to eq(Time.utc(2026, 10, 15, 18, 0, 0))
     end
 
+    it "removes a partly written day so the cursor stays before it and the next run redoes the whole day" do
+      o = org_with('demo_data' => true)
+      demo = member(o, 'kid@demoschooldistrict.org')
+      prior = Time.utc(2026, 10, 15, 18, 0, 0)
+      prior_session(demo, prior)
+      calls = 0
+      allow(LogSession).to receive(:process_new).and_wrap_original do |orig, *args|
+        calls += 1
+        raise StandardError, 'second write fails' if calls == 2
+        orig.call(*args)
+      end
+
+      expect {
+        travel_to(now) { DemoDistrict.refresh!(organization: o.reload, now: now) }
+      }.to raise_error(DemoDistrict::RefreshError, /second write fails/)
+      expect(rolling_sessions(demo)).to eq([])
+      expect(LogSession.where(user_id: demo.id, log_type: 'session').maximum(:started_at)).to eq(prior)
+    end
+
     it "retries a failed weekly summary and fails the refresh if it never builds" do
       srand(20261021)
       o = org_with('demo_data' => true)

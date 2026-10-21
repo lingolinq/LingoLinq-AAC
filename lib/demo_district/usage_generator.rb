@@ -328,7 +328,13 @@ module DemoDistrict
       raise "session not saved: #{session.errors.full_messages.join(', ')}" unless session.persisted?
       if seed_marker
         session.data['seed_marker'] = seed_marker
-        session.save!
+        begin
+          session.save!
+        rescue
+          # An unmarked session would look like real history and move refresh!'s cursor.
+          session.destroy
+          raise
+        end
       end
       session
     end

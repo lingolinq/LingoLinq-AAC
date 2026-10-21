@@ -169,10 +169,9 @@ module DemoDistrict
       made = generator.generate_day(date)
       if generator.errors.any?
         # Stop at a failed day so the next run, which starts after the latest saved
-        # session, retries it instead of leaving a permanent gap.
-        made.each { |s| pending_weeks << weekyear_for(s.started_at) }
-        latest_created_at = [latest_created_at, *made.map(&:started_at)].compact.max
-        result[:sessions_created] += made.length
+        # session, retries it instead of leaving a permanent gap. Remove the day's partial
+        # sessions first: left in place they would move that cursor past the failed day.
+        made.each(&:destroy)
         failed_date, message = generator.errors.first
         result[:failures] << "#{user.user_name} sessions on #{failed_date}: #{message}"
         flush_summaries(user, pending_weeks, result)
