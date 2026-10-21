@@ -453,3 +453,25 @@ One full run had a single failure: `users_controller_spec.rb:3513` (board revisi
 branch does not touch). It passed alone three times out of three and in a full run of its file.
 It also passed at the base commit and in the two earlier full runs. Treated as flaky, not a
 regression.
+
+## 9. Second dual review (2026-10-21), head `db6d3e7ed`
+
+Preflight exit 0. Codex `gpt-6.1-sol` (high) asked for changes; the adversary approved
+`ec28a0edf` with conditions.
+- **Fixed in `ec28a0edf`** (both reviewers): two organizations removing the student at the same
+  moment each saw the other as remaining support, so neither handed back. Running the hand-back
+  before the detach opened this. `remove_user` now checks again under the user lock after its
+  detach when it had seen another sponsor. Red test plus mutation M17. A seat release that fails
+  after the hand-back is completed by a retry (guard test).
+- **Fixed in `63e275c4e`** (adversary): a non-sponsoring removal stored an attested birth date
+  without validation. It now stores only a date `age_under_threshold?` can classify. Red test
+  plus mutation M18. Also added a guard test for the registration-country fallback in the
+  assumed-age EU branch.
+
+Left for Scot (Lows):
+- a rare residual in the concurrent case;
+- the notice queued before the detach, and the AI reset repeated on a retry;
+- an assumed `eu_under_16` is never cleared and also turns opt-ins off;
+- pending vs accepted authorizing links differ between the two predicates.
+
+The verdict asked for changes, so nothing is pushed and no pass is recorded.
