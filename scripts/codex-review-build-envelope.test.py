@@ -364,6 +364,26 @@ class BinaryContentTest(unittest.TestCase):
                 with self.subTest(disguise=name, extension=extension):
                     self.assertFalse(signature(disguise[:1024]))
 
+    # One shape per opener in which it is the only opener before the NUL, so dropping any one of them from
+    # _LITERAL_OPENERS fails here (every shape above also holds `=`). Each ran after `GIF89a` under ruby
+    # 3.4.4 (a rescue modifier swallows the NameError of the magic) or node 16 (the magic as a label).
+    ONLY_OPENER = {
+        "#": b" rescue 1#\x00", '"': b' rescue"\x00"', "'": b" rescue'\x00'", "`": b":`\x00`",
+        "/": b"://\x00", "%": b" rescue%q(\x00)", "<": b" rescue<<A\n\x00\nA", "?": b" rescue ?\x00",
+        "=": b"=1\n=begin\x00\n=end",
+    }
+
+    def test_every_literal_opener_has_its_own_shape(self):
+        self.assertEqual(set(self.ONLY_OPENER), {chr(byte) for byte in build_envelope._LITERAL_OPENERS})
+
+    def test_each_literal_opener_is_needed_on_its_own(self):
+        for opener, literal in self.ONLY_OPENER.items():
+            disguise = b"GIF89a" + literal + self.AFTER_NUL
+            before_nul = disguise[:disguise.index(b"\x00")]
+            with self.subTest(opener=opener):
+                self.assertEqual(set(before_nul.decode("latin-1")) & set(self.ONLY_OPENER), {opener})
+                self.assertFalse(build_envelope.BINARY_SIGNATURES["gif"](disguise))
+
     # Formats that share a container must still tell each other apart.
     def test_a_container_holding_another_format_is_not_accepted(self):
         # An MP3 opens with the same ID3 tag a FLAC may carry; only fLaC after the tag makes it FLAC.

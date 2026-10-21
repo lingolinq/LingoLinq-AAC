@@ -354,17 +354,17 @@ def _pdf_binary_line(head):
 # How each expected binary type starts. A file named for one of these types that does not start that
 # way is not that type: a .png can hold code (Ruby stops parsing at a NUL) or a scanned roster. A real
 # file that starts unusually only costs a human look (the APPROVE is withheld), never a missed one.
-# Every real file of these types other than PDF holds a NUL within its first 20 bytes (all 483
+# Every real file of these types other than PDF holds a NUL within its first 20 bytes (all 485
 # such files in this repo do). Ruby and node stop reading a script at a NUL only in token position;
 # a NUL inside a comment, a string, a regex, a %-literal, a heredoc, a char literal or an =begin
 # block is read past, and the code after it runs however long it is. So the bytes before the first
-# NUL must also hold none of the characters that open one (_LITERAL_OPENERS); code that fits before
-# the NUL with none of them is what still passes. A real file whose header bytes happen to include
-# one is withheld (a human look): 4 of the 483 here, all webp RIFF sizes. Any other byte script text
-# cannot hold is not enough: a control byte inside a string literal (`GIF89a="\x01";...`) is legal
-# Ruby. A PDF has its own check (_pdf_binary_line). This does not stop a shell: bash skips a NUL
-# that is not on the first line, so `bash x.gif` can run code of any length. What still passes is
-# listed in .github/codex/README.md; it is a residual risk, not a closed class.
+# NUL must also hold none of the characters that open one (_LITERAL_OPENERS). A real file whose
+# header bytes happen to include one is withheld (a human look): 4 here, all webp RIFF sizes. Any
+# other byte script text cannot hold is not enough: a control byte inside a string literal
+# (`GIF89a="\x01";...`) is legal Ruby. A PDF has its own check (_pdf_binary_line). This does not
+# stop every interpreter: bash and perl skip a NUL, and node reads one inside a `-->` comment after a
+# label, so `bash x.gif`, `perl x.gif` or such a node file can run code of any length. What still
+# passes is listed in .github/codex/README.md; it is a residual risk, not a closed class.
 _HEADER_BYTES = 20
 # Each opens a construct ruby 3.4 or node 16 reads a NUL through: # comment, " ' ` strings, / regex
 # and // /* comments, % literal, << heredoc, ? char literal, = (=begin at the start of a line).
