@@ -329,7 +329,8 @@ Raw diff hashes identify the exact Git evidence. Prompt hashes identify the
 defanged bytes sent to the model. `CI_INJECT` markers in diff or model-authored
 chunk findings are defanged before prompt assembly.
 
-Known weakness, not fixed (decision 2026-10-20): the guard matches a fixed
+Known weakness, not fixed (decision: Traci, 2026-10-20; for Scot's review before the
+workflow is re-enabled): the guard matches a fixed
 list of phrasings (`INJECTION_PATTERNS` in `scripts/codex-review-build-envelope.py`),
 so a reworded instruction gets past it: a phrase split across two diff lines,
 markdown emphasis or an HTML comment inside a word, look-alike letters,
@@ -358,7 +359,8 @@ outside the data-bearing paths (a test using a real name, a pasted log line or
 support email), reaches OpenAI, which has no BAA with LingoLinq. Deleting such
 a line sends it too, as a removed line.
 
-This is not fixed with a content scanner (decision 2026-10-20). The patterns
+This is not fixed with a content scanner (decision: Traci, 2026-10-20; for Scot's
+review before the workflow is re-enabled). The patterns
 that would catch it are noisy in this codebase: example emails in specs,
 `127.0.0.1` in config, test values shaped like a global id, and the
 `lib/pii_scrubber.rb` first-name list, which matches the fake names used across
