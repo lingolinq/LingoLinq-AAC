@@ -242,6 +242,31 @@ describe 'School-authorized hand-back to the family (#1063)', type: :model do
       end
       expect(handoff_events(u).first.data['age_basis']).to eq('unknown_assumed_under_13')
     end
+
+    def expire_seat_with_unknown_age!(jurisdiction, suffix:)
+      o = Organization.create(settings: {'total_licenses' => 1, 'jurisdiction' => jurisdiction})
+      u = school_authorized_user!(suffix: suffix, ai_on: true)
+      License.create!(organization: o, seat_type: 'student', status: 'active', user: u, expires_at: 1.day.ago)
+      u.update!(managing_organization_id: o.id)
+      License.expire_stale_licenses!
+      u.reload
+    end
+
+    it 'requires EU parental consent to turn AI back on after an assumed-under-13 expiry at an EU organization' do
+      u = expire_seat_with_unknown_age!('EU', suffix: 'eu_unknown_age')
+
+      expect(handoff_events(u).first.data['age_basis']).to eq('unknown_assumed_under_13')
+      expect(u.eu_under_16?).to eq(true)
+      expect(FeatureFlags.eu_under16_blocks_ai_for?(u)).to eq(true)
+    end
+
+    it 'does not set the EU flag after an assumed-under-13 expiry at a US organization' do
+      u = expire_seat_with_unknown_age!('US', suffix: 'us_unknown_age')
+
+      expect(handoff_events(u).first.data['age_basis']).to eq('unknown_assumed_under_13')
+      expect(u.eu_under_16?).to eq(false)
+      User::EU_AI_PREF_KEYS.each { |k| expect(u.settings['preferences'][k]).to eq(false) }
+    end
   end
 
   describe 'which organizations still count as supporting the student' do
@@ -314,6 +339,41 @@ describe 'School-authorized hand-back to the family (#1063)', type: :model do
 
         expect(handed_off?(u)).to eq(true)
       end
+    end
+
+    def authorized_by!(org, suffix:)
+      u = school_authorized_user!(suffix: suffix)
+      u.settings['school_authorization']['organization_id'] = org.global_id
+      u.save!
+      u
+    end
+
+    it 'does not hand back while the authorizing organization is still attached, sponsored or not' do
+      authorizing = Organization.create(settings: {'total_licenses' => 1})
+      departing = licensed_org
+      u = authorized_by!(authorizing, suffix: 'authorizer_stays')
+      authorizing.add_user(u.user_name, false, false)
+      departing.claim_user(u.reload)
+      authorization_before = u.reload.settings['school_authorization']
+
+      remove_from(departing, u)
+
+      u.reload
+      expect(u.settings['school_authorization']).to eq(authorization_before)
+      expect(handoff_events(u).count).to eq(0)
+      expect(handoff_notices(u, departing).count).to eq(0)
+    end
+
+    it "hands back when the authorizing organization's link is still pending" do
+      authorizing = Organization.create(settings: {'total_licenses' => 1})
+      departing = licensed_org
+      u = authorized_by!(authorizing, suffix: 'authorizer_pending')
+      authorizing.add_user(u.user_name, true, false)
+      departing.claim_user(u.reload)
+
+      remove_from(departing, u)
+
+      expect(handed_off?(u)).to eq(true)
     end
 
     it "counts the departing organization's own remaining seat when one seat expires" do

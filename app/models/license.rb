@@ -94,6 +94,11 @@ class License < ApplicationRecord
   # supervisor seat, and a link whose seat expired without being released (expire_stale_licenses!
   # commits status 'expired' before release_user! runs).
   #
+  # The organization that authorized the account (settings['school_authorization']
+  # ['organization_id']) also counts while it has an accepted org_user link, sponsored or not: it
+  # counts as a sponsor when it leaves itself (Organization#sponsors_student?), so its
+  # authorization must not end while it is still attached.
+  #
   # `org` itself counts only when `departing_had_link` (its sponsoring link, read before the detach)
   # and it still holds another active student seat: perform_release! removes the link even then.
   def self.sponsored_elsewhere?(user, org, departing_had_link: false)
@@ -101,10 +106,14 @@ class License < ApplicationRecord
     if org && departing_had_link
       return true if License.where(user_id: user.id, organization_id: org.id, status: 'active', seat_type: 'student').exists?
     end
+    school = (user.settings || {})['school_authorization']
+    authorizing_code = school.is_a?(Hash) && school['organization_id'].present? ? "Organization:#{school['organization_id']}" : nil
     UserLink.where(user_id: user.id).each do |link|
-      next unless sponsoring_link?(link)
+      authorizing = authorizing_code && link.record_code == authorizing_code && accepted_org_user_link?(link)
+      next unless authorizing || sponsoring_link?(link)
       other = Organization.find_by_global_id(link.record_code.split(/:/, 2)[1])
       next if !other || (org && other.id == org.id)
+      return true if authorizing
       seats = License.where(user_id: user.id, organization_id: other.id)
       return true if !seats.exists? || seats.where(status: 'active', seat_type: 'student').exists?
     end
@@ -115,10 +124,14 @@ class License < ApplicationRecord
   # sponsored add_user write. Read from the table, not the UserLink.links_for cache, because the
   # callers run under the user lock.
   def self.sponsoring_link?(link)
+    state = (link.data || {})['state'] || {}
+    accepted_org_user_link?(link) && !!state['sponsored'] && !state['eval']
+  end
+
+  def self.accepted_org_user_link?(link)
     data = link.data || {}
     state = data['state'] || {}
-    data['type'] == 'org_user' && link.record_code.to_s.start_with?('Organization:') &&
-      !state['pending'] && !!state['sponsored'] && !state['eval']
+    data['type'] == 'org_user' && link.record_code.to_s.start_with?('Organization:') && !state['pending']
   end
 
   def self.sponsoring_link_to?(user, org)

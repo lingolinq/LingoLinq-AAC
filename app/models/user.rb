@@ -611,6 +611,22 @@ class User < ApplicationRecord
             )
           end
         end
+      elsif age_basis == 'unknown_assumed_under_13'
+        # An assumed under-13 is also under 16: set eu_under_16 the way the branch above does for a
+        # known age, so turning AI back on goes through EU parental consent (#1063 finding 4).
+        # Nothing else in registration is written for an age that was never attested.
+        eu = if org && org.respond_to?(:eu_jurisdiction?) && org.eu_jurisdiction?
+          true
+        elsif org && org.respond_to?(:us_jurisdiction?) && org.us_jurisdiction?
+          false
+        else
+          country = registration_country
+          !!(country && LingoLinq::Jurisdiction.eu?(country))
+        end
+        if eu
+          self.settings['registration'] ||= {}
+          self.settings['registration']['eu_under_16'] = true
+        end
       end
 
       # The transition fires only while school_authorization is on file and removes it in the same
