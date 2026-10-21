@@ -252,6 +252,17 @@ task "scheduler:dispatch" => :environment do
       count = License.expire_stale_licenses!
       "#{count} licenses expired"
     end
+
+    # Rolls the Demo School District's synthetic activity forward through yesterday
+    # (America/Los_Angeles). Writes only into the organization flagged
+    # settings['demo_data'] == true and only for @demoschooldistrict.org users; with no
+    # flagged organization (staging, dev) it logs and does nothing. See lib/demo_district.rb.
+    # Loaded in the body for the same reason as data_policy_enforcer above.
+    run_task.call("refresh_demo_district") do
+      require_relative '../demo_district'
+      res = DemoDistrict.refresh!
+      res[:skipped_org] ? "no flagged demo organization" : "#{res[:sessions_created]} sessions, #{res[:summaries_updated]} summaries, #{res[:goals_tracked]} goals, #{res[:profiles_refreshed]} profiles through #{res[:through]}; skipped #{res[:skipped_users].length} users"
+    end
   end
 
   if failed.any?

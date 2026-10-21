@@ -528,6 +528,9 @@ elsif !DEMO_ALREADY_SEEDED
   demo_org = Organization.find_by(admin: false) || Organization.new
   demo_org.settings = {
     'name' => 'Demo School District',
+    # Explicit opt-in for DemoDistrict.refresh! (lib/demo_district.rb), which only ever
+    # writes synthetic activity into an organization carrying this flag.
+    'demo_data' => true,
     'total_licenses' => 30,
     'total_eval_licenses' => 5,
     'total_supervisor_licenses' => 10,
@@ -624,28 +627,9 @@ elsif !DEMO_ALREADY_SEEDED
   demo_org.save!
 
   # ---- 5. Twenty student AAC users with varied profiles ----
-  student_profiles = [
-    { name: 'Aiden Parker',      user_name: 'aiden_parker',      age: 6,  skill: :beginner,   freq: :low },
-    { name: 'Bella Martinez',    user_name: 'bella_martinez',    age: 8,  skill: :intermediate, freq: :high },
-    { name: 'Charlie Kim',       user_name: 'charlie_kim',       age: 5,  skill: :beginner,   freq: :medium },
-    { name: 'Daisy Johnson',     user_name: 'daisy_johnson',     age: 7,  skill: :intermediate, freq: :medium },
-    { name: 'Ethan Brown',       user_name: 'ethan_brown',       age: 9,  skill: :advanced,   freq: :high },
-    { name: 'Fiona Davis',       user_name: 'fiona_davis',       age: 6,  skill: :beginner,   freq: :low },
-    { name: 'Gabriel Wilson',    user_name: 'gabriel_wilson',    age: 10, skill: :advanced,   freq: :high },
-    { name: 'Hannah Lee',        user_name: 'hannah_lee',        age: 7,  skill: :intermediate, freq: :medium },
-    { name: 'Isaac Thompson',    user_name: 'isaac_thompson',    age: 5,  skill: :beginner,   freq: :low },
-    { name: 'Jasmine Nguyen',    user_name: 'jasmine_nguyen',    age: 8,  skill: :intermediate, freq: :high },
-    { name: 'Kevin Anderson',    user_name: 'kevin_anderson',    age: 11, skill: :advanced,   freq: :medium },
-    { name: 'Luna Garcia',       user_name: 'luna_garcia',       age: 6,  skill: :beginner,   freq: :medium },
-    { name: 'Mason Clark',       user_name: 'mason_clark',       age: 9,  skill: :intermediate, freq: :low },
-    { name: 'Nora White',        user_name: 'nora_white',        age: 7,  skill: :intermediate, freq: :high },
-    { name: 'Oliver Harris',     user_name: 'oliver_harris',     age: 8,  skill: :advanced,   freq: :high },
-    { name: 'Penelope Scott',    user_name: 'penelope_scott',    age: 5,  skill: :beginner,   freq: :low },
-    { name: 'Quinn Taylor',      user_name: 'quinn_taylor',      age: 10, skill: :advanced,   freq: :medium },
-    { name: 'Ruby Adams',        user_name: 'ruby_adams',        age: 6,  skill: :beginner,   freq: :medium },
-    { name: 'Sam Mitchell',      user_name: 'sam_mitchell',      age: 7,  skill: :intermediate, freq: :low },
-    { name: 'Tessa Campbell',    user_name: 'tessa_campbell',    age: 9,  skill: :advanced,   freq: :high }
-  ]
+  # Profiles (name, skill, usage frequency) live with the usage generator so the seed and
+  # the daily rolling refresh agree on who each student is.
+  student_profiles = DemoDistrict::UsageGenerator::STUDENT_PROFILES
 
   students = student_profiles.map do |profile|
     student = User.find_by(user_name: profile[:user_name])
@@ -700,109 +684,18 @@ elsif !DEMO_ALREADY_SEEDED
   end
 
   # ---- 7. Generate 90 days of backdated LogSession data ----
+  # The generator lives in lib/demo_district/usage_generator.rb so DemoDistrict.refresh!
+  # (the daily rolling job) produces exactly the same kind of data as this seed.
   puts "\n  Generating 90 days of usage data (this may take a few minutes)..."
 
-  # Parts of speech mapping for core words
-  word_pos = {
-    'yes' => 'other', 'no' => 'other', 'more' => 'adjective', 'help' => 'verb',
-    'stop' => 'verb', 'go' => 'verb', 'want' => 'verb', 'eat' => 'verb',
-    'drink' => 'verb', 'please' => 'other', 'I' => 'pronoun', 'need' => 'verb',
-    'like' => 'verb', 'play' => 'verb', 'happy' => 'adjective', 'sad' => 'adjective',
-    'mad' => 'adjective', 'glad' => 'adjective', 'bathroom' => 'noun',
-    'all done' => 'other', 'my turn' => 'other', 'thank you' => 'other',
-    'that' => 'pronoun', 'this' => 'pronoun', 'is' => 'verb', 'not' => 'other',
-    'can' => 'verb', 'do' => 'verb', 'it' => 'pronoun', 'the' => 'other',
-    'and' => 'other', 'big' => 'adjective', 'little' => 'adjective',
-    'good' => 'adjective', 'bad' => 'adjective', 'water' => 'noun',
-    'food' => 'noun', 'home' => 'noun', 'school' => 'noun', 'friend' => 'noun',
-    'book' => 'noun', 'outside' => 'noun', 'music' => 'noun', 'movie' => 'noun'
-  }
-
-  # Core word list (AAC core vocabulary)
-  core_words = %w[I want need like go stop help more yes no eat drink play is not can do it the and that this]
-
-  # Heat map access patterns - simulate different motor abilities
-  heat_map_profiles = {
-    full_access:     { x_range: 0.05..0.95, y_range: 0.05..0.95 },  # Full board
-    left_bias:       { x_range: 0.02..0.55, y_range: 0.05..0.95 },  # Right-hand motor difficulty
-    top_left_quad:   { x_range: 0.02..0.50, y_range: 0.02..0.50 },  # Limited reach
-    bottom_right:    { x_range: 0.45..0.95, y_range: 0.45..0.95 },  # Physical positioning
-    center_cluster:  { x_range: 0.25..0.75, y_range: 0.25..0.75 },  # Center access only
-  }
-
-  # Device/system profiles
-  device_profiles = [
-    { system: 'iOS', browser: 'Safari', name_suffix: 'iPad' },
-    { system: 'iOS', browser: 'Safari', name_suffix: 'iPad' },
-    { system: 'Web', browser: 'Chrome', name_suffix: 'Chromebook' },
-    { system: 'Android', browser: 'Chrome', name_suffix: 'Tablet' },
-    { system: 'Web', browser: 'Chrome', name_suffix: 'Desktop' }
-  ]
-
-  # Access method and grid size by skill level
-  access_configs = {
-    beginner:     { methods: ['touch'], grid_sizes: ['3x3', '4x4'] },
-    intermediate: { methods: ['touch'], grid_sizes: ['4x5', '5x5'] },
-    advanced:     { methods: ['touch', 'keyboard'], grid_sizes: ['5x7', '6x8', '5x9'] }
-  }
-
-  # Core vocabulary used in log events, weighted by frequency
-  core_vocab = {
-    beginner: {
-      words: %w[yes no more help stop go want eat drink please],
-      avg_buttons_per_session: 4,
-      avg_utterance_length: 1.5,
-      sessions_per_day: { low: 1, medium: 2, high: 3 }
-    },
-    intermediate: {
-      words: %w[I want need like go stop help more yes no eat drink play happy sad please bathroom all\ done my\ turn thank\ you],
-      avg_buttons_per_session: 8,
-      avg_utterance_length: 2.5,
-      sessions_per_day: { low: 2, medium: 3, high: 5 }
-    },
-    advanced: {
-      words: %w[I want need like go stop help more yes no eat drink play happy sad mad glad please thank\ you bathroom all\ done my\ turn that this is not can do it the and],
-      avg_buttons_per_session: 14,
-      avg_utterance_length: 4.0,
-      sessions_per_day: { low: 3, medium: 5, high: 8 }
-    }
-  }
-
-  # Simulate realistic growth: students get slightly better over 90 days
   total_sessions_created = 0
-  lat_base = 45.5231  # Portland, OR
-  long_base = -122.6765
 
   students.each_with_index do |student_data, student_idx|
     student = student_data[:user]
     profile = student_data[:profile]
-    skill = profile[:skill]
-    freq = profile[:freq]
-    vocab_config = core_vocab[skill]
-    base_sessions_per_day = vocab_config[:sessions_per_day][freq]
 
     # Create device with realistic metadata
-    dev_profile = device_profiles[student_idx % device_profiles.length]
-    device = Device.find_or_initialize_by(user: student, developer_key_id: 0)
-    # Ensure device_key is always set, even for pre-existing system-generated devices
-    if device.device_key.blank?
-      device.device_key = "seed-student-#{student.id}"
-    end
-    device.settings ||= {}
-    device.settings['name'] = "#{profile[:name].split.first}'s #{dev_profile[:name_suffix]}"
-    device.settings['ip_address'] = "10.0.#{student_idx}.1"
-    device.settings['system'] = dev_profile[:system]
-    device.settings['browser'] = dev_profile[:browser]
-    device.save!
-
-    # Assign heat map profile based on student (vary motor access patterns)
-    heat_profiles = heat_map_profiles.keys
-    heat_profile = heat_map_profiles[heat_profiles[student_idx % heat_profiles.length]]
-
-    # Assign access method and grid size
-    acc_config = access_configs[skill]
-    access_method = acc_config[:methods].sample
-    grid_size = acc_config[:grid_sizes].sample
+    device = DemoDistrict::UsageGenerator.ensure_device!(student, profile, student_idx)
 
     # Set student preferences (home board, logging, access method)
     student.settings['preferences'] ||= {}
@@ -825,155 +718,24 @@ elsif !DEMO_ALREADY_SEEDED
 
     # Assign a supervisor as author for log sessions
     supervisor_idx = student_idx < 7 ? 0 : (student_idx < 14 ? 1 : 2)
-    author = supervisors[supervisor_idx]
 
-    # Modeling rate varies by skill (beginners get more modeling)
-    modeling_rate = case skill
-      when :beginner then 0.20
-      when :intermediate then 0.10
-      when :advanced then 0.05
-    end
+    generator = DemoDistrict::UsageGenerator.new(
+      student: student,
+      profile: profile,
+      index: student_idx,
+      author: supervisors[supervisor_idx],
+      board: { 'id' => district_board.global_id, 'key' => district_board.key },
+      device: device
+    )
 
     90.downto(1) do |days_ago|
       day_date = days_ago.days.ago.to_date
-      # Skip weekends (school-based AAC usage)
-      next if day_date.saturday? || day_date.sunday?
-
       # Simulate growth: more sessions and longer utterances as time progresses
-      growth_factor = 1.0 + (90 - days_ago) * 0.005 # 0-45% improvement over 90 days
-      # Add some day-to-day randomness
-      day_variability = rand(0.5..1.5)
-      sessions_today = [(base_sessions_per_day * day_variability * growth_factor).round, 1].max
-
-      # Occasional absences (roughly 1 in 10 school days)
-      next if rand(10) == 0
-
-      sessions_today.times do |session_num|
-        # Spread sessions across the school day (8am-3pm)
-        session_hour = 8 + rand(7)
-        session_minute = rand(60)
-        session_start = Time.new(day_date.year, day_date.month, day_date.day, session_hour, session_minute, 0, "+00:00")
-        ts = session_start.to_i
-
-        events = []
-        event_id = 1
-
-        # Generate button presses for this session
-        num_buttons = [(vocab_config[:avg_buttons_per_session] * day_variability * growth_factor).round, 1].max
-        current_utterance_words = []
-
-        num_buttons.times do |btn_idx|
-          word = vocab_config[:words].sample
-          current_utterance_words << word
-
-          # Determine button position using heat map profile
-          pct_x = rand(heat_profile[:x_range])
-          pct_y = rand(heat_profile[:y_range])
-
-          # Depth: mostly home board (0), some sub-board navigation
-          depth = (rand < 0.2 && skill != :beginner) ? rand(1..2) : 0
-
-          # Is this a modeling event?
-          is_modeled = rand < modeling_rate
-
-          # Parts of speech
-          pos = word_pos[word] || 'other'
-          is_core = core_words.include?(word)
-
-          # button_id is required by generate_stats (line ~449 in log_session.rb)
-          # to populate all_word_counts and all_button_counts — without it,
-          # words_by_frequency, buttons_by_frequency, and related stats are empty.
-          button_id = (btn_idx + 1).to_s
-
-          button_event = {
-            'type' => 'button',
-            'button' => {
-              'label' => word,
-              'vocalization' => word,
-              'button_id' => button_id,
-              'board' => { 'id' => district_board.global_id, 'key' => district_board.key },
-              'spoken' => true,
-              'for_speaking' => true,
-              'type' => 'speak',
-              'depth' => depth,
-              'percent_x' => pct_x.round(4),
-              'percent_y' => pct_y.round(4),
-              'percent_travel' => (depth > 0 ? rand(0.1..0.5).round(3) : rand(0.01..0.15).round(3)),
-              'access' => access_method
-            },
-            'parts_of_speech' => { 'types' => [pos] },
-            'core_word' => is_core,
-            'system' => dev_profile[:system],
-            'browser' => dev_profile[:browser],
-            'window_width' => 1024,
-            'window_height' => 768,
-            'volume' => rand(0.3..0.9).round(2),
-            'screen_brightness' => rand(0.5..1.0).round(2),
-            'orientation' => { 'alpha' => 0, 'beta' => 0, 'gamma' => 0, 'layout' => 'landscape-primary' },
-            'geo' => [lat_base + rand(-0.01..0.01), long_base + rand(-0.01..0.01)],
-            'timestamp' => ts + (btn_idx * rand(2..8)),
-            'id' => event_id
-          }
-
-          # Add modeling flag
-          if is_modeled
-            button_event['modeling'] = true
-            button_event['session_user_id'] = author.global_id
-          end
-
-          events << button_event
-          event_id += 1
-
-          # Generate utterances at natural breakpoints
-          target_length = (vocab_config[:avg_utterance_length] * growth_factor).round
-          if current_utterance_words.length >= target_length || btn_idx == num_buttons - 1
-            if current_utterance_words.any?
-              events << {
-                'type' => 'utterance',
-                'utterance' => {
-                  'text' => current_utterance_words.join(' '),
-                  'buttons' => current_utterance_words.map { |w| { 'label' => w } }
-                },
-                'geo' => [lat_base, long_base],
-                'timestamp' => ts + (btn_idx * rand(2..8)) + 1,
-                'id' => event_id
-              }
-              event_id += 1
-
-              # Add 'clear' action after utterance (realistic AAC usage)
-              events << {
-                'type' => 'action',
-                'action' => { 'action' => 'clear' },
-                'timestamp' => ts + (btn_idx * rand(2..8)) + 2,
-                'id' => event_id
-              }
-              event_id += 1
-
-              current_utterance_words = []
-            end
-          end
-        end
-
-        # Create the log session
-        begin
-          LogSession.process_new(
-            { 'events' => events },
-            {
-              user: student,
-              author: author,
-              device: device,
-              ip_address: "10.0.#{student_idx}.#{rand(1..254)}"
-            }
-          )
-          total_sessions_created += 1
-        rescue => e
-          # Skip individual session errors, continue seeding
-          puts "    Warning: skipped session for #{student.user_name} on #{day_date}: #{e.message}" if total_sessions_created < 5
-        end
-      end
+      growth_factor = DemoDistrict::UsageGenerator.seed_growth_factor(days_ago)
+      total_sessions_created += generator.generate_day(day_date, growth_factor: growth_factor).length
     end
 
-    puts "    #{student.user_name}: sessions generated (#{dev_profile[:name_suffix]}, #{heat_profiles[student_idx % heat_profiles.length]})"
+    puts "    #{student.user_name}: sessions generated (#{generator.description})"
   end
 
   puts "\n  Total log sessions created: #{total_sessions_created}"
