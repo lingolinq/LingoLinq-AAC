@@ -405,3 +405,22 @@ school_authorization guard dropped ("runs twice" red; "same removal sent twice" 
 because the second removal is already skipped by D4, so that test guards D4, not M7); M8
 removal-path parent email reintroduced; M9 D4 check removed (2); M10 Q6 rule removed (2); M11
 stuck expired link counted; M12 send-time dedupe removed; M13 RemoteAction branch removed.
+
+## 7. Dual review (2026-10-21)
+
+Preflight `review-preflight.sh working origin/develop` exit 0 on head `2776250be`. Codex
+`gpt-6.1-sol` (high) asked for changes; the Claude adversary pass said ship with conditions.
+Fixed in `fd82eb700`, each with a test that fails on the code before the fix:
+- the hand-back now runs before the detach, so a failed removal can be retried (both reviewers);
+- re-attaching to the same organization clears the dedupe marker, so a later separate removal
+  still gets its legacy mail (Codex);
+- a non-sponsoring removal keeps the birth date the manager entered (adversary);
+- the lock comment and the race spec name now say the re-check sees a finished claim only;
+- mailer tests for the HTML part and a missing organization.
+
+Left for Scot: the authorizing organization's unsponsored link does not count as remaining
+support when another organization leaves; the assumed-under-13 expiry at an EU organization does
+not set `eu_under_16`; the approved compliance overview still describes the consent gate. Accepted
+Lows: the dedupe marker is the queue time, not delivery; older builds delete unknown RemoteAction
+rows. After the fixes: 1700 examples, 0 failures, 6 pending (containers). No existing test changed
+beyond the 44 approved.
