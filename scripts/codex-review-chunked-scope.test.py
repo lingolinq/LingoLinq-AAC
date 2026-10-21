@@ -728,6 +728,20 @@ class WorkflowLogExposureTest(unittest.TestCase):
                     self.assertIn("--no-textconv", call)
         self.assertGreater(checked, 0, "no content diff found to check")
 
+    # GH_TOKEN is set per step, so a step that calls gh without its own GH_TOKEN fails auth on every
+    # run (2026-10-21 senior-dev review of #1120).
+    def test_every_step_that_calls_gh_sets_its_own_token(self):
+        steps = re.split(r"\n      - (?=name:|uses:|run:|id:|if:|env:)", WORKFLOW.read_text())[1:]
+        calling = 0
+        for step in steps:
+            run = step.split("run: |", 1)[1] if "run: |" in step else ""
+            if not re.search(r"(^|[\s;(|&])gh (api|pr|run|repo|issue|workflow)\b", run, re.M):
+                continue
+            calling += 1
+            with self.subTest(step=step.split("\n", 1)[0]):
+                self.assertRegex(step, re.compile(r"^        env:\n(?:          .*\n)*?          GH_TOKEN:", re.M))
+        self.assertGreaterEqual(calling, 9, "fewer gh-calling steps found than the workflow has")
+
     def test_github_token_is_not_job_wide_and_never_reaches_the_bounded_reviewer(self):
         text = WORKFLOW.read_text()
         workflow_env = text.split("\nenv:\n", 1)[1].split("\njobs:\n", 1)[0]
