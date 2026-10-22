@@ -230,7 +230,7 @@ Two reviews of the proposal: an adversary pass (all items) and a security pass (
   are not guarded.
 
 ## Still open (for Scot)
-- Item 5: about 130 other whole-record `user.save()` calls (saveHomeBoard, view style, word-suggestion position,
+- Item 5: many other whole-record `user.save()` calls (count not verified) (saveHomeBoard, view style, word-suggestion position,
   the preferences page...) still write every key, so a stale device can still turn AI back on through them. The
   stronger fix is a server rule that writes AI consent keys only when a save lists them, with the preferences page,
   enable-ai-features and focus-words listing theirs.
