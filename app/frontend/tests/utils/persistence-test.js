@@ -341,7 +341,9 @@ describe("persistence", function() {
         var rnd = persistence.temporary_id();
         var record = null;
         var obj = {
-          raw: {hat: rnd, retrieved: ((new Date()).getTime() - (5*60*1000 - 300))},
+          // One minute inside the 5-minute window: at 300 ms the IndexedDB store, find and waitsFor poll
+          // before the check could use it up on a busy runner. The 6-minute case below covers stale.
+          raw: {hat: rnd, retrieved: ((new Date()).getTime() - (4*60*1000))},
           storageId: 'hat'
         };
         lingoLinqExtras.storage.store('settings', obj, 'hat').then(function() {
