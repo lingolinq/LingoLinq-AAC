@@ -193,7 +193,8 @@ export function discard_cancelled_copy(ids, user, startedAt, root, startedFor) {
       var created = b && b.get('created');
       var ours = b && userName && b.get('user_name') === userName && b.get('key') !== homeKey &&
                  since !== null && created && new Date(created).getTime() >= since && made_by_copy(b, rootId);
-      if (!ours) { return null; }
+      // Checked again here: a sign-in can land while the lookup is in flight.
+      if (!ours || signed_in_user_changed(startedFor)) { return null; }
       (b.get('buttons') || []).forEach(function(btn) {
         var link = btn && (btn.load_board || (btn.get && btn.get('load_board')));
         if (link && link.id && !seen[link.id]) { seen[link.id] = true; queue.push(link.id); }

@@ -1,4 +1,4 @@
-# 2026-10-22 — #1141 review follow-ups (items 1, 2, 3, 5, 6, 7, 8, 9)
+# 2026-10-22: #1141 review follow-ups (items 1, 2, 3, 5, 6, 7, 8, 9)
 
 Branch `traci/fix/1141-review-followups`, from `origin/develop` at 4bae48a9c. One PR, one commit per item.
 Source: Scot's follow-up on #1141 (findings from Oct 14, plus the Oct 15 adversary pass). Item 4 is #1132,
@@ -10,7 +10,7 @@ token is two values; invalidate -> flush is device-wide), :406-413 (`new_board_i
 LEARNINGS-2026-01_to_2026-09.md:3174-3225 (copy_id on roots), :6322 (user.save serializes the whole record),
 :7166 (serialize rapid saves).
 
-## Item 1 — cancelled copy cleanup can delete boards the copy did not make (High)
+## Item 1: cancelled copy cleanup can delete boards the copy did not make (High)
 
 ### Facts
 - (a) READ: `discard_cancelled_copy` (app/frontend/app/utils/board-copy.js:160-188) chooses what to delete from
@@ -56,7 +56,7 @@ LEARNINGS-2026-01_to_2026-09.md:3174-3225 (copy_id on roots), :6322 (user.save s
 - Red: a copy links to a recent board the user owns with no copy_id (or another copy's id) -> it stays.
 - Mutation: drop the lineage check -> the test fails.
 
-## Item 2 — Basic "set home" double tap (classic-view.js)
+## Item 2: Basic "set home" double tap (classic-view.js)
 
 ### Facts
 - (a) READ: BoardIcon is a classic component; its click handler reads `_this.onAction` (board-icon.js:393-406),
@@ -81,7 +81,7 @@ LEARNINGS-2026-01_to_2026-09.md:3174-3225 (copy_id on roots), :6322 (user.save s
   first tap's board. A public-board tap during an owned save -> no second dialog.
 - Mutations: remove the call-time mode check (second tap assigns); remove the latch (re-enter mode, tap -> second copy).
 
-## Item 3 — a stale failed request logs out a session that just signed back in (Medium)
+## Item 3: a stale failed request logs out a session that just signed back in (Medium)
 
 ### Facts
 - (a) READ: the dead-session branch, utils/extras.js:407-411, calls `force_logout` on `dead_session && !already_dead
@@ -110,14 +110,14 @@ LEARNINGS-2026-01_to_2026-09.md:3174-3225 (copy_id on roots), :6322 (user.save s
 ### Test / mutation
 - Red: a failure whose request carried T1 while the session now holds T2 -> no force_logout. Mutation: drop the token check.
 
-## Item 8 — no test for the dead-session branch
+## Item 8: no test for the dead-session branch
 
 Four cases, in tests/utils/extras-test.js (or a new unit file), driving the real failure handler through
 `$.realAjax` stubbed to reject: (a) a 400 invalid_token logs out once; (b) not in speak mode; (c) not for a
 "Not authorized" 400 (no `invalid_token`); (d) a second failure after the first is de-duped (logout_under_way).
 Plus item 3's fifth case. Mutations: drop each condition in turn.
 
-## Item 5 — an old device can switch AI consent back on (Medium); #1134 (tour progress)
+## Item 5: an old device can switch AI consent back on (Medium); #1134 (tour progress)
 
 ### Facts
 - (a) READ: `User#process_params` (app/models/user.rb:2917-2935) writes every PREFERENCE_PARAMS key the request
@@ -164,7 +164,7 @@ Plus item 3's fifth case. Mutations: drop each condition in turn.
   without the list behaves as today. Mutation: skip the slice -> AI flips on.
 - QUnit: each of the five paths saves with the right `preference_keys`; the serializer puts the list in the payload.
 
-## Item 7 — seven new `.eslint-todo` rows (Medium)
+## Item 7: seven new `.eslint-todo` rows (Medium)
 
 Rows 1125-1126 (`dashboard-preview-boards-cache-test.js`) and 1132-1136 (`application-word-prediction-test.js`),
 added in 57c314604 with the files. Fix: `assert.strictEqual(x, true|false, m)` -> `assert.true(x, m)` /
@@ -172,7 +172,7 @@ added in 57c314604 with the files. Fix: `assert.strictEqual(x, true|false, m)` -
 63:24 moved out of the assertion. Delete the seven rows. Correct docs/task-management/2026-10-12_tour-redesign.md:193.
 Approval for rewriting these assertions: Scot's review asks for exactly this.
 
-## Item 6 — copy cleanup after a logout may run as the next user (Medium, auth_spa_transition only)
+## Item 6: copy cleanup after a logout may run as the next user (Medium, auth_spa_transition only)
 
 ### Facts
 - (a) READ: trial-bar.js:146 `superseded` is true when `home_copy_pending` is null; `clear_user_state` nulls it
@@ -197,7 +197,7 @@ Approval for rewriting these assertions: Scot's review asks for exactly this.
 - Red: cancelled copy, session.user_id changes before the discard -> nothing deleted; cancel check true once the id changes.
   Mutation: drop the id comparison.
 
-## Item 9 — comments cite a rake task that is not in the repo (Low)
+## Item 9: comments cite a rake task that is not in the repo (Low)
 
 The file was never committed on any ref (`git log --all` on the path is empty). The task log
 (2026-10-10_modern-home-polish-and-compressed-view-removal.md:66-68) says it ran only on local development. Fix the three

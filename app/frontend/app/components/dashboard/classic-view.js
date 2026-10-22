@@ -346,12 +346,15 @@ export default AuthenticatedView.extend({
   basicSetHomeTip: computed(function() {
     return i18n.t('set_home_mode_tip', "Click any board to make it your home board");
   }),
-  // Also bound while an assign is in flight (`basicSettingHome`), so a quick second tap reaches
-  // _basicAssign and is ignored there rather than opening the board it landed on.
-  basicTileAction: computed('basicAssigningHome', 'basicSettingHome', '_basicAssignFromTile', function() {
-    return (this.get('basicAssigningHome') || this.get('basicSettingHome')) ? this._basicAssignFromTile : null;
+  // Also bound for a moment after a tap (`basicHoldTaps`), so a quick second tap reaches _basicAssign
+  // and is ignored there rather than opening the board it landed on. Only a moment, not until the save
+  // settles: a save that hangs (offline, slow network) must not leave every tile dead.
+  basicTileAction: computed('basicAssigningHome', 'basicHoldTaps', '_basicAssignFromTile', function() {
+    return (this.get('basicAssigningHome') || this.get('basicHoldTaps')) ? this._basicAssignFromTile : null;
   }),
   basicSettingHome: false,
+  basicHoldTaps: false,
+  basicTapHoldMs: 1500,
   _setBasicAssigning(on) {
     var self = this;
     if (self.isDestroyed || self.isDestroying) { return; }
@@ -385,8 +388,17 @@ export default AuthenticatedView.extend({
       return RSVP.resolve();
     }
     self.set('basicSettingHome', true);
+    var hold = self._basicTapHold = {};
+    var releaseTaps = function() {
+      if (self._basicTapHold === hold && !self.isDestroyed && !self.isDestroying) { self.set('basicHoldTaps', false); }
+    };
+    self.set('basicHoldTaps', true);
+    window.setTimeout(releaseTaps, self.get('basicTapHoldMs'));
     self._setBasicAssigning(false);
-    var settled = function() { if (!self.isDestroyed && !self.isDestroying) { self.set('basicSettingHome', false); } };
+    var settled = function() {
+      releaseTaps();
+      if (!self.isDestroyed && !self.isDestroying) { self.set('basicSettingHome', false); }
+    };
     var assigning;
     try {
       assigning = assign_home_board_basic(board, user, {

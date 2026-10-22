@@ -146,6 +146,29 @@ module('Unit | Component | classic-view home assign', function(hooks) {
       c.destroy();
     });
 
+    test('a save that hangs does not leave the tiles dead: after a moment they open boards again', async function(assert) {
+      var c = setup(this, 'example/old-home');
+      c.set('basicCopyAsHome', function() { return new RSVP.Promise(function() { /* never settles */ }); });
+      modal.open = function() { return RSVP.resolve(); };
+      // The hold timer, captured rather than waited for: a real wait lets unrelated timers of this
+      // component fire against the stubbed services.
+      var timers = [];
+      var original_timeout = window.setTimeout;
+      window.setTimeout = function(fn, ms) { timers.push([fn, ms]); return 0; };
+      try {
+        c.send('toggleBasicHomeAssign');
+        c.get('basicTileAction')(board('example/three'));
+      } finally {
+        window.setTimeout = original_timeout;
+      }
+      assert.strictEqual(typeof c.get('basicTileAction'), 'function', 'a quick second tap is still ignored');
+      assert.deepEqual(timers.map(function(t) { return t[1]; }), [1500], 'released after a moment');
+      timers[0][0]();
+      assert.strictEqual(c.get('basicTileAction'), null, 'then tiles have their normal click back');
+      assert.true(c.get('basicSettingHome'), 'while the save is still held as in flight');
+      c.destroy();
+    });
+
     test('an assign that throws does not leave the next one blocked', async function(assert) {
       var c = setup(this, 'example/old-home');
       var calls = 0;
