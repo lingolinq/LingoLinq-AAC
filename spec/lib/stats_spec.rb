@@ -2,6 +2,11 @@ require 'spec_helper'
 
 describe Stats do
   describe "daily summary reports" do
+    include ActiveSupport::Testing::TimeHelpers
+    # Noon UTC: these examples build sessions and day keys from separate clock reads (Time.now + 100,
+    # Date.today), so a run within about 100 s of midnight UTC put them on different days.
+    around { |example| travel_to(Time.utc(2026, 6, 17, 12, 0, 0)) { example.run } }
+
     it "should error if the user isn't found" do
       expect { Stats.daily_use(0, {}) }.to raise_error("user not found")
     end
@@ -646,6 +651,11 @@ describe Stats do
   
   
   describe "lam" do
+    include ActiveSupport::Testing::TimeHelpers
+    # Noon UTC: a run in the first seconds after midnight put `now - 10` and `now - 8` on different days,
+    # adding a date line the fixed line indexes below do not expect.
+    around { |example| travel_to(Time.utc(2026, 6, 17, 12, 0, 0)) { example.run } }
+
     it "should generate an empty lam file" do
       str = Stats.lam([])
       expect(str).to be_is_a(String)
