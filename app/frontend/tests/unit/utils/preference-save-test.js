@@ -3,6 +3,7 @@ import RSVP from 'rsvp';
 import EmberObject from '@ember/object';
 import $ from 'jquery';
 import { setupTest } from '../../helpers';
+import LingoLinq from 'frontend/app';
 import { queryLog } from 'frontend/tests/helpers/ember_helper';
 import { save_listed_preferences, queued_preference_keys, replay_save_options, keep_queued_keys } from 'frontend/utils/preference_save';
 import { set_word_prediction } from 'frontend/utils/word_prediction_pref';
@@ -147,6 +148,31 @@ module('Unit | Utility | saves that name the preference keys they changed', func
       await keep_queued_keys({ find: function() { board_lookups++; return RSVP.resolve(null); } }, 'board', board);
       assert.strictEqual(board_lookups, 0, 'not looked up');
       assert.deepEqual(board, { board: { id: '1_1', changed: true } }, 'other records untouched');
+    });
+
+    /* The call site: sync_changed (services/persistence.js) replays each queued copy with record.save(). */
+    test('sync_changed replays a queued user copy with its list, and one without as a plain save', async function(assert) {
+      var persistence = this.owner.lookup('service:persistence');
+      var original_find = LingoLinq.store.findRecord;
+      var saves = [];
+      function fake(id) {
+        return { id: id, get: function(k) { return k === 'id' ? id : null; }, setProperties: function() {}, save: function(options) { saves.push([id, options]); return RSVP.resolve(this); } };
+      }
+      persistence.find_changed = function() {
+        return RSVP.resolve([
+          { store: 'user', data: { raw: { user: { id: '1_77', changed: true, preference_keys: ['word_suggestions'] } } } },
+          { store: 'user', data: { raw: { user: { id: '1_78', changed: true } } } }
+        ]);
+      };
+      persistence.queue_sync_action = function(action, sync_id, method) { return method(); };
+      LingoLinq.store.findRecord = function(type, id) { return RSVP.resolve(fake(id)); };
+      try {
+        await persistence.sync_changed().then(null, function() { });
+      } finally {
+        LingoLinq.store.findRecord = original_find;
+      }
+      saves.sort(function(a, b) { return a[0] < b[0] ? -1 : 1; });
+      assert.deepEqual(saves, [['1_77', { adapterOptions: { preference_keys: ['word_suggestions'] } }], ['1_78', undefined]]);
     });
 
     test('the replay saves with the stored list, or as a plain save', function(assert) {
