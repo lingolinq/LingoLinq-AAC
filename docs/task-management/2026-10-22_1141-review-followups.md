@@ -238,7 +238,7 @@ Two reviews of the proposal: an adversary pass (all items) and a security pass (
   that record is dropped in memory (PLAUSIBLE; no current flow found that leaves one).
 - Item 3: another tab's no-modal logout still flushes the shared stored login (needs a decision on what that path may clear).
 - The success-path invalid_token logout (extras.js ~297) has the same stale-token gap; not changed.
-- utils/persistence.js and services/persistence.js carry the same offline edits; the adapter uses the utils copy's DSExtend.
+- utils/persistence.js and services/persistence.js carry the same offline edits, since both are reachable. Which copy's DSExtend the adapter mixes in was reported by the adversary pass (the utils copy) and not verified here.
 
 ## Verification
 - RSpec: spec/models/user_preference_keys_spec.rb (12), spec/controllers/api/users_controller_preference_keys_spec.rb (3);
