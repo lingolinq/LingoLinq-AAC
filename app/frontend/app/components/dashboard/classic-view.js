@@ -1,3 +1,4 @@
+import RSVP from 'rsvp';
 import { inject as service } from '@ember/service';
 import { computed, observer, set as emberSet } from '@ember/object';
 import AuthenticatedView from './authenticated-view';
@@ -345,9 +346,12 @@ export default AuthenticatedView.extend({
   basicSetHomeTip: computed(function() {
     return i18n.t('set_home_mode_tip', "Click any board to make it your home board");
   }),
-  basicTileAction: computed('basicAssigningHome', '_basicAssignFromTile', function() {
-    return this.get('basicAssigningHome') ? this._basicAssignFromTile : null;
+  // Also bound while an assign is in flight (`basicSettingHome`), so a quick second tap reaches
+  // _basicAssign and is ignored there rather than opening the board it landed on.
+  basicTileAction: computed('basicAssigningHome', 'basicSettingHome', '_basicAssignFromTile', function() {
+    return (this.get('basicAssigningHome') || this.get('basicSettingHome')) ? this._basicAssignFromTile : null;
   }),
+  basicSettingHome: false,
   _setBasicAssigning(on) {
     var self = this;
     if (self.isDestroyed || self.isDestroying) { return; }
@@ -366,21 +370,45 @@ export default AuthenticatedView.extend({
   basicEndAssignOnLeave: observer({ dependentKeys: ['index_nav_state'], sync: true, fn: function() {
     if (this.get('basicAssigningHome') && !(this.get('index_nav') || {}).boards) { this._setBasicAssigning(false); }
   } }),
+  /* ONE ASSIGN AT A TIME (Scot's review of #1141, 2026-10-14). <BoardIcon> is a classic component and
+     calls the `onAction` it was last rendered with (components/board-icon.js), so a second tap before the
+     re-render still lands here; and the mode used to end only once the save came back, so two saves raced
+     and the last to resolve became home. Now a tap counts only while the mode is on, ends the mode at once
+     (as Modern's available-boards-section.js#_assignHomeBoard does), and holds `basicSettingHome` until
+     this assign settles, which also covers a tap after the mode is turned back on mid-save. A tile with no
+     key, or no signed-in user, does nothing and leaves the mode on (the guard in utils/basic_home_assign.js). */
   _basicAssign(board) {
     var self = this;
     var user = self.appState.get('currentUser');
-    return assign_home_board_basic(board, user, {
-      onAssigned: function() {
-        self._setBasicAssigning(false);
-        // A new copy is listed under Mine only after the list is fetched again.
-        if (!self.isDestroyed && !self.isDestroying) { self.update_selected(); }
-      },
-      openBoard: function(home) {
-        var key = home && (home.get ? home.get('key') : home.key);
-        if (key) { self.get('router').transitionTo('board', key); }
-      }
-    });
+    var key = board && (board.get ? board.get('key') : board.key);
+    if (!self.get('basicAssigningHome') || self.get('basicSettingHome') || !key || !(user && user.get && user.get('user_name'))) {
+      return RSVP.resolve();
+    }
+    self.set('basicSettingHome', true);
+    self._setBasicAssigning(false);
+    var settled = function() { if (!self.isDestroyed && !self.isDestroying) { self.set('basicSettingHome', false); } };
+    var assigning;
+    try {
+      assigning = assign_home_board_basic(board, user, {
+        copyAsHome: self.get('basicCopyAsHome'),
+        onAssigned: function() {
+          self._setBasicAssigning(false);
+          // A new copy is listed under Mine only after the list is fetched again.
+          if (!self.isDestroyed && !self.isDestroying) { self.update_selected(); }
+        },
+        openBoard: function(home) {
+          var key = home && (home.get ? home.get('key') : home.key);
+          if (key) { self.get('router').transitionTo('board', key); }
+        }
+      });
+    } catch (e) {
+      settled();
+      throw e;
+    }
+    return RSVP.resolve(assigning).finally(settled);
   },
+  // The copy step, replaceable in tests; unset means utils/board-copy.js#copy_or_reuse_as_home.
+  basicCopyAsHome: null,
 
   homeBoardPending: computed('homeBoardKey', 'appState.currentUser.home_board_pending', function() {
     return !this.get('homeBoardKey') && !!this.appState.get('currentUser.home_board_pending');
