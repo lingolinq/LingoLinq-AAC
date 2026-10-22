@@ -8380,32 +8380,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
     // and never prompts), and it is gated by the ACTIVE speak-mode PIN (open_speak_mode_exit_pin
     // resolves immediately when no PIN is active). Same preference + dirty-bit + save as above.
     set_word_prediction: function(on) {
-      var prefUser = this.get('app_state.referenced_user') || this.get('app_state.currentUser');
-      if(!prefUser) { return; }
-      if((prefUser.get('preferences.word_suggestions') === true) === !!on) { return; }
-      var apply = function() {
-        prefUser.set('preferences.word_suggestions', !!on);
-        if(prefUser.save) {
-          // CREATE the device container first: set('preferences.device.updated') THROWS on a
-          // record whose preferences carry no `device` key (components/view-switcher.js:186).
-          if(!prefUser.get('preferences.device')) { prefUser.set('preferences.device', {}); }
-          prefUser.set('preferences.device.updated', true);
-          prefUser.save().then(null, function() {
-            // Save failed (offline, or a supervisor without write access to the communicator):
-            // put the control back to the stored value and say so, rather than leaving it showing
-            // a change the server never received.
-            if(prefUser.isDestroyed || prefUser.isDestroying) { return; }
-            prefUser.set('preferences.word_suggestions', !on);
-            modal.error(i18n.t('word_prediction_save_failed', "Couldn't save the Prediction setting. Please try again."));
-          });
-        }
-      };
-      var ready = this.get('app_state').open_speak_mode_exit_pin('none');
-      if(ready && ready.then) {
-        ready.then(function(res) { if(res && res.correct_pin) { apply(); } }, function() { });
-      } else {
-        apply();
-      }
+      set_word_prediction(this.get('app_state'), on);
     },
     toggle_word_prediction_position_dropdown: function() {
       this.toggleProperty('word_prediction_position_dropdown_open');
@@ -10493,3 +10468,6 @@ BoardDetailController.reopen({
 });
 
 export default BoardDetailController;
+
+// Imported last so the .eslint-todo rows above keep their lines.
+import { set_word_prediction } from '../../utils/word_prediction_pref';

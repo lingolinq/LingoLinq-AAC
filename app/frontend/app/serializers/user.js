@@ -82,6 +82,10 @@ export default ApplicationSerializer.extend({
       var supervisees = snapshot.record.get('supervisees');
       if (Array.isArray(supervisees)) { json.supervisees = plain_copy(supervisees, []); }
     }
+    // The keys a save changed, from `save({adapterOptions: {preference_keys}})` (utils/preference_save.js).
+    // Per save: adapterOptions belong to this snapshot only, so the list never reaches a later save.
+    var listed = snapshot.adapterOptions && snapshot.adapterOptions.preference_keys;
+    if (Array.isArray(listed)) { json.preference_keys = listed.slice(); }
     // Response-only flags; never POST them (new records default DS.attr('boolean') to false).
     delete json.coppa_parental_consent_pending;
     delete json.eu_under_16;

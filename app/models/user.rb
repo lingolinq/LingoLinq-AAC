@@ -2641,6 +2641,40 @@ class User < ApplicationRecord
   GUIDED_TOUR_PROGRESS_PARAMS = ['guided_tours_completed', 'guided_tours_autoshown']
   GUIDED_TOUR_MAX_KEYS = 50
   GUIDED_TOUR_MAX_KEY_LENGTH = 64
+
+  # SAVES THAT NAME WHAT THEY CHANGED (Scot's review of #1141, 2026-10-15; issue #1134).
+  # A device recording one small change (a tour marked as shown, the Prediction toggle)
+  # sends the WHOLE preferences object it holds, and every key below is written as sent,
+  # so a tablet with an old copy of the account could switch AI consent back on after a
+  # parent or SLP turned it off, or drop a tour finished elsewhere. Such a save lists the
+  # keys it changed in `preference_keys`: a top-level preference name, or
+  # 'progress.<attr>' for one PROGRESS_PARAMS entry. On an existing account the request's
+  # preferences are cut down to those keys before anything below reads them. (Guided-tour
+  # maps are merged with the stored ones on every save.) Anything other than an Array of
+  # Strings is ignored, and a save without the list is applied as before. The list can
+  # only remove keys, and it is read from what users_controller#update already reduced
+  # to what this caller may write.
+  def self.listed_preference_keys(params)
+    list = params['preference_keys']
+    return nil unless list.is_a?(Array) && list.all? { |k| k.is_a?(String) }
+    list
+  end
+
+  def self.reduce_to_listed_preferences(prefs, listed)
+    reduced = {}
+    listed.each do |name|
+      if name.start_with?('progress.')
+        attr = name.sub(/\Aprogress\./, '')
+        next unless PROGRESS_PARAMS.include?(attr) && prefs['progress'].is_a?(Hash) && prefs['progress'].key?(attr)
+        reduced['progress'] ||= {}
+        reduced['progress'][attr] = prefs['progress'][attr]
+      elsif prefs.key?(name)
+        reduced[name] = prefs[name]
+      end
+    end
+    reduced
+  end
+
   def process_params(params, non_user_params)
     # Defensive guard: `settings['admin']` may only be set via
     # non_user_params['admin'] (see ~line 1485 below). Strip any
@@ -2851,6 +2885,9 @@ class User < ApplicationRecord
       self.settings['user_notifications_cutoff'] = Time.now.utc.iso8601
     end
     self.settings['preferences'] ||= {}
+    listed_keys = User.listed_preference_keys(params)
+    listed_save = !!(listed_keys && self.id && params['preferences'].is_a?(Hash))
+    params['preferences'] = User.reduce_to_listed_preferences(params['preferences'], listed_keys) if listed_save
     if !non_user_params['updater'] || non_user_params['updater'].global_id != self.global_id
       if params['preferences']
         params['preferences'].delete('private_logging') 
@@ -2883,6 +2920,8 @@ class User < ApplicationRecord
     end
     if params['preferences']
       CONFIRMATION_PREFERENCE_PARAMS.each do |key|
+        # A key the request leaves out (or sends as nil) is never written below, so it is not a change.
+        next if params['preferences'][key].nil?
         if params['preferences'][key] != self.settings['preferences'][key]
           self.settings['confirmation_log'] ||= []
           self.settings['confirmation_log'] << {
@@ -3156,6 +3195,7 @@ class User < ApplicationRecord
     self.settings['preferences']['stretch_buttons'] = nil if self.settings['preferences']['stretch_buttons'] == 'none'
     self.settings['preferences']['progress'] ||= {}
     if params['preferences'] && params['preferences']['progress']
+      tours_stored = GUIDED_TOUR_PROGRESS_PARAMS.map { |a| [a, self.settings['preferences']['progress'][a]] }.to_h
       PROGRESS_PARAMS.each do |attr|
         self.settings['preferences']['progress'][attr] = params['preferences']['progress'][attr] if params['preferences']['progress'][attr]
       end
@@ -3169,6 +3209,12 @@ class User < ApplicationRecord
       GUIDED_TOUR_PROGRESS_PARAMS.each do |tour_attr|
         val = self.settings['preferences']['progress'][tour_attr]
         next if val.nil?
+        # Merged with the stored map, stored entries first, so the cap below never drops one already
+        # stored. Tours are only ever added (nothing resets a map), so a device holding an old copy must
+        # not drop a tour recorded elsewhere, whatever kind of save carries it (issue #1134).
+        if val.is_a?(Hash) && tours_stored[tour_attr].is_a?(Hash)
+          val = tours_stored[tour_attr].merge(val)
+        end
         if val.is_a?(Hash)
           cleaned = {}
           val.each do |k, v|

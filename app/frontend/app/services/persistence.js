@@ -3613,7 +3613,7 @@ var persistence = Service.extend({
                   return _this.time_promise(record.reload(), "reload changed record", 10000);
                 });
               } else {
-                return record.save();
+                return record.save(replay_save_options(object));
               }
             });
 
@@ -4739,7 +4739,7 @@ persistence.DSExtend = {
       } else {
         var record = _this.convert_model_to_json(store, type.modelName, obj);
         record[type.modelName].changed = true;
-        _this.store(type.modelName, record).then(function() {
+        keep_queued_keys(_this, type.modelName, record).then(function() { return _this.store(type.modelName, record); }).then(function() {
           update_resolve(record);
         }, function() {
           update_reject({offline: true, error: "not online"});
@@ -4801,3 +4801,4 @@ persistence.allowInvalidTokenLocalFallback = function(err, type, id, still_onlin
 export default persistence;
 // Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
 import boardRevocation from '../utils/board_revocation';
+import { keep_queued_keys, replay_save_options } from '../utils/preference_save';
