@@ -2307,6 +2307,11 @@ describe Organization, :type => :model do
   end
   
   describe "usage_stats" do
+    include ActiveSupport::Testing::TimeHelpers
+    # Wednesday noon UTC: sessions 64 seconds and one week old landed in the same week when a run fell in
+    # the first 64 seconds after Monday (date_trunc('week')) or Sunday (weekyear) midnight UTC.
+    around { |example| travel_to(Time.utc(2026, 6, 17, 12, 0, 0)) { example.run } }
+
     it "should return expected values" do
       @user = User.create
       user = User.create
