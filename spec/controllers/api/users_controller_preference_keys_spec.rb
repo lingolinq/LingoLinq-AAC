@@ -26,13 +26,20 @@ describe Api::UsersController, type: :controller do
     expect(@user.reload.settings['preferences']['word_suggestions']).to eq(true)
   end
 
-  it 'does not let the list reach an account the caller may not edit' do
+  it 'does not let the list widen what a supervise-only supervisor may write' do
     token_user
-    other = User.create
-    other.settings['preferences']['word_suggestions'] = false
-    other.save
-    post :update, params: { id: other.global_id, user: { preferences: { word_suggestions: true }, preference_keys: ['word_suggestions'] } }, as: :json
-    assert_unauthorized
-    expect(other.reload.settings['preferences']['word_suggestions']).to eq(false)
+    u2 = User.create
+    u2.settings['preferences']['ai_features_enabled'] = false
+    u2.save
+    b = Board.create(user: u2)
+    User.link_supervisor_to_user(@user, u2, nil, false)
+    put :update, params: { id: u2.global_id, user: {
+      preferences: { home_board: { id: b.global_id, key: b.key }, ai_features_enabled: true },
+      preference_keys: ['home_board', 'ai_features_enabled']
+    } }, as: :json
+    expect(response).to be_successful
+    u2.reload
+    expect(u2.settings['preferences']['home_board']['id']).to eq(b.global_id)
+    expect(u2.settings['preferences']['ai_features_enabled']).to eq(false)
   end
 end

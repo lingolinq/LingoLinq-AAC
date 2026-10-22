@@ -80,7 +80,10 @@ describe User, 'saves that name the preference keys they changed' do
     u = existing_user('progress' => { 'guided_tours_completed' => many })
     u.process_params({ 'preferences' => { 'progress' => { 'guided_tours_completed' => { 'one_more' => true } } },
                        'preference_keys' => ['progress.guided_tours_completed'] }, {})
-    expect(u.settings['preferences']['progress']['guided_tours_completed'].size).to eq(User::GUIDED_TOUR_MAX_KEYS)
+    kept = u.settings['preferences']['progress']['guided_tours_completed']
+    expect(kept.size).to eq(User::GUIDED_TOUR_MAX_KEYS)
+    expect(kept).to have_key("tour_#{User::GUIDED_TOUR_MAX_KEYS}")
+    expect(kept).to_not have_key('one_more')
   end
 
   it 'applies a listed AI key' do

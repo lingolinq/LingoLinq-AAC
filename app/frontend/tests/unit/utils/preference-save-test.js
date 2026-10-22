@@ -130,24 +130,76 @@ module('Unit | Utility | saves that name the preference keys they changed', func
         ['progress.guided_tours_autoshown', 'word_suggestions']);
     });
 
-    test('keep_queued_keys sets the list on the copy it is about to store', async function(assert) {
-      var waiting = { id: 'self', changed: true };
+    test('keep_queued_keys reads the waiting copy by the id it is stored under, and fails whole', async function(assert) {
+      var storage = window.lingoLinqExtras.storage;
+      var original_find = storage.find_all;
       var lookups = [];
-      var persistence = { find: function(store, id) { lookups.push([store, id]); return RSVP.resolve(waiting); } };
-      var record = { user: { id: 'self', changed: true, preference_keys: ['word_suggestions'] } };
-      await keep_queued_keys(persistence, 'user', record);
-      assert.deepEqual(lookups, [['user', 'self']], 'the copy waiting for this user is read');
-      assert.false('preference_keys' in record.user, 'a whole save was waiting: replay whole');
-      waiting = null;
-      persistence.find = function() { return RSVP.reject({ error: 'record not found' }); };
-      record = { user: { id: 'self', changed: true, preference_keys: ['word_suggestions'] } };
-      await keep_queued_keys(persistence, 'user', record);
-      assert.deepEqual(record.user.preference_keys, ['word_suggestions'], 'nothing waiting');
-      var board = { board: { id: '1_1', changed: true } };
-      var board_lookups = 0;
-      await keep_queued_keys({ find: function() { board_lookups++; return RSVP.resolve(null); } }, 'board', board);
-      assert.strictEqual(board_lookups, 0, 'not looked up');
-      assert.deepEqual(board, { board: { id: '1_1', changed: true } }, 'other records untouched');
+      var answer;
+      var run = function(reply, record) {
+        answer = reply;
+        return keep_queued_keys(Object.keys(record)[0], record).then(function() { return record; });
+      };
+      storage.find_all = function(store, ids) { lookups.push([store, ids]); return answer(); };
+      var whole, none, failed, board, board_lookups;
+      try {
+        whole = await run(function() { return RSVP.resolve([{ data: { id: 'self', raw: { id: 'self', changed: true } } }]); },
+          { user: { id: 'self', changed: true, preference_keys: ['word_suggestions'] } });
+        none = await run(function() { return RSVP.resolve([]); },
+          { user: { id: 'self', changed: true, preference_keys: ['word_suggestions'] } });
+        failed = await run(function() { return RSVP.reject({ error: 'database not ready' }); },
+          { user: { id: 'self', changed: true, preference_keys: ['word_suggestions'] } });
+        board_lookups = lookups.length;
+        board = await run(null, { board: { id: '1_1', changed: true } });
+      } finally {
+        storage.find_all = original_find;
+      }
+      assert.deepEqual(lookups[0], ['user', ['self']], "the 'self' row itself, by id");
+      assert.false('preference_keys' in whole.user, 'a whole save was waiting: replay whole');
+      assert.deepEqual(none.user.preference_keys, ['word_suggestions'], 'nothing waiting');
+      assert.false('preference_keys' in failed.user, 'an unknown failure keeps the replay whole');
+      assert.strictEqual(lookups.length, board_lookups, 'other records are not looked up');
+      assert.deepEqual(board, { board: { id: '1_1', changed: true } }, 'and are untouched');
+    });
+
+    /* Through the real adapter and local storage (adversary review, 2026-10-22): the session user's offline
+       copy is stored under 'self', and an earlier lookup through persistence.find read the real-id row instead,
+       so a listed save overwrote a whole save still waiting and the replay dropped its changes. */
+    test("two offline saves of the signed-in user: a whole one waiting keeps the replay whole", async function(assert) {
+      var store = this.owner.lookup('service:store');
+      var persistence = this.owner.lookup('service:persistence');
+      var storage = window.lingoLinqExtras.storage;
+      var original_online = persistence.get('online');
+      var original_real_lookup = queryLog.real_lookup;
+      var row = function() {
+        return RSVP.resolve(storage.find_all('user', ['self'])).then(function(list) {
+          var item = (list || [])[0];
+          var r = item ? (item.data || item) : null;
+          return r ? (r.raw || r) : null;
+        }, function() { return null; });
+      };
+      queryLog.real_lookup = true;
+      persistence.set('online', false);
+      var whole, listed;
+      try {
+        await RSVP.resolve(storage.remove('user', 'self')).then(null, function() { });
+        store.push({ data: { id: 'self', type: 'user', attributes: { user_name: 'pkself', preferences: { word_suggestions: false, skin: 'default' } } } });
+        var user = store.peekRecord('user', 'self');
+        user.set('preferences', { word_suggestions: false, skin: 'dark' });
+        await user.save();
+        whole = await row();
+        user.set('preferences', { word_suggestions: true, skin: 'dark' });
+        await save_listed_preferences(user, ['word_suggestions']);
+        listed = await row();
+      } finally {
+        await RSVP.resolve(storage.remove('user', 'self')).then(null, function() { });
+        queryLog.real_lookup = original_real_lookup;
+        persistence.set('online', original_online);
+      }
+      assert.true(!!(whole && whole.changed), 'the whole save is waiting under self');
+      assert.false('preference_keys' in (whole || {}), 'with no list');
+      assert.true(!!(listed && listed.changed), 'the listed save replaced the copy');
+      assert.strictEqual((listed && listed.preferences || {}).skin, 'dark', "it carries the whole save's change");
+      assert.false('preference_keys' in (listed || {}), 'and no list, so the replay sends it all');
     });
 
     /* The call site: sync_changed (services/persistence.js) replays each queued copy with record.save(). */

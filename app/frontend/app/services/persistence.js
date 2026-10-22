@@ -4739,7 +4739,7 @@ persistence.DSExtend = {
       } else {
         var record = _this.convert_model_to_json(store, type.modelName, obj);
         record[type.modelName].changed = true;
-        keep_queued_keys(_this, type.modelName, record).then(function() { return _this.store(type.modelName, record); }).then(function() {
+        keep_queued_keys(type.modelName, record).then(function() { return _this.store(type.modelName, record); }).then(function() {
           update_resolve(record);
         }, function() {
           update_reject({offline: true, error: "not online"});

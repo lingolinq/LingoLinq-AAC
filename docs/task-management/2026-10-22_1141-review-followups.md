@@ -229,7 +229,23 @@ Two reviews of the proposal: an adversary pass (all items) and a security pass (
 - Item 6: added "signed out, nobody signed in yet". Org, picker and for-someone-else copies are not cancellable and
   are not guarded.
 
+## Final-diff reviews (2026-10-22)
+- Senior-dev pass (diff file only): approve with comments. Acted on: a hung save no longer leaves Basic tiles dead (taps
+  are ignored only for a 1.5 s double-tap window); the signed-in user is checked again just before each delete; both
+  callers are tested to pass the copy's starting user. Checked and not changed: `copy_id` is a declared board attribute;
+  `_basicAssign` has one caller; no save caller passes arguments; nothing on the server shrinks a tour map.
+- Adversary pass: no Critical or High. Medium, fixed: the offline queue looked up the session user's waiting copy
+  through persistence.find, which redirects 'self' to the real id, and dbman.find reads a non-numeric user key as a user
+  name, so a listed save could overwrite a whole save still waiting. The copy is now read by its storage id
+  (storage.find_all, the id index), any lookup failure keeps the replay whole, and a test drives two offline saves of the
+  'self' user through the real adapter and local storage. Also strengthened: the cap spec pins that stored tours win, and
+  the request spec now uses a supervise-only supervisor whose list cannot widen the write.
+
 ## Still open (for Scot)
+- Item 2: on someone else's board the in-flight guard is released when the copy dialog closes; after a slow copy the
+  dialog can be closed while the copy carries on, so a second assign started then can race the first.
+- Item 5: a listed save cuts down only `preferences`; the rest of a stale record (name, email, description,
+  external_device, ...) is still written as sent, as on every whole save today.
 - Item 5: many other whole-record `user.save()` calls (count not verified) (saveHomeBoard, view style, word-suggestion position,
   the preferences page...) still write every key, so a stale device can still turn AI back on through them. The
   stronger fix is a server rule that writes AI consent keys only when a save lists them, with the preferences page,
