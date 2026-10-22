@@ -2598,7 +2598,7 @@ class User < ApplicationRecord
       'board_dark_mode',
       # 'compressed_view' (Compressed View) was accepted here until 2026-10-10, when the
       # feature was removed. It is no longer a preference, so a client sending it is ignored;
-      # lib/tasks/backfill_remove_compressed_view_preference.rake clears stored values.
+      # a stored value is left in place and read by nothing (no backfill was landed).
       # These lines are kept so the line numbers below, which audit findings and compliance
       # docs cite, do not move.
       # Boards-page arrangement: 'side-by-side' (Folders 1/4 left, Boards 3/4 right)
@@ -3507,7 +3507,7 @@ class User < ApplicationRecord
 
     # (compressed_view was coerced to a boolean here until 2026-10-10. Compressed View was
     # removed then and the key is no longer in PREFERENCE_PARAMS, so it cannot be written;
-    # stored values are cleared by lib/tasks/backfill_remove_compressed_view_preference.rake.
+    # a stored value is left in place and read by nothing (no backfill was landed).
     # Kept as five lines so the line numbers below, which audit findings and compliance docs
     # cite, do not move.)
 
