@@ -4293,56 +4293,66 @@ describe Subscription, :type => :model do
       expect(u.settings['subscription']['eval_expires']).to be < 40.days.from_now.iso8601
     end
 
-    it "should limit self-extending to 1 week if managed" do
-      u = User.create
-      res = u.update_subscription({
-        'purchase' => true,
-        'plan_id' => 'eval_long_term_25',
-        'purchase_id' => '23456',
-        'seconds_to_add' => 8.weeks.to_i
-      })
-      u2 = User.create
-      User.link_supervisor_to_user(u2, u, nil, true)
-      expect(u.reload.settings['subscription']['eval_expires']).to be > 80.days.from_now.iso8601
-      expect(u.reload.settings['subscription']['eval_expires']).to be < 100.days.from_now.iso8601
-      u.settings['subscription']['eval_expires'] = 6.days.from_now.to_date.iso8601
-      u.save
-      expect(u.settings['subscription']['eval_extended']).to eq(nil)
-      expect(u.extend_eval(30.days.from_now.to_date.iso8601, u)).to_not eq(false)
-      expect(u.settings['subscription']['eval_expires']).to be > 12.days.from_now.iso8601
-      expect(u.settings['subscription']['eval_expires']).to be < 14.days.from_now.iso8601
-      expect(u.settings['subscription']['eval_extended']).to eq(true)
+    include ActiveSupport::Testing::TimeHelpers
 
-      expect(u.extend_eval(30.days.from_now.to_date.iso8601, u)).to_not eq(false)
-      expect(u.settings['subscription']['eval_expires']).to be > 12.days.from_now.iso8601
-      expect(u.settings['subscription']['eval_expires']).to be < 14.days.from_now.iso8601
-      expect(u.settings['subscription']['eval_extended']).to eq(true)
+    # Noon UTC: extend_eval stores a date-only string here, compared with full timestamps read later
+    # (12.days.from_now.iso8601), so a run crossing midnight UTC compared the wrong day.
+    it "should limit self-extending to 1 week if managed" do
+      travel_to(Time.utc(2026, 6, 17, 12, 0, 0)) do
+        u = User.create
+        res = u.update_subscription({
+          'purchase' => true,
+          'plan_id' => 'eval_long_term_25',
+          'purchase_id' => '23456',
+          'seconds_to_add' => 8.weeks.to_i
+        })
+        u2 = User.create
+        User.link_supervisor_to_user(u2, u, nil, true)
+        expect(u.reload.settings['subscription']['eval_expires']).to be > 80.days.from_now.iso8601
+        expect(u.reload.settings['subscription']['eval_expires']).to be < 100.days.from_now.iso8601
+        u.settings['subscription']['eval_expires'] = 6.days.from_now.to_date.iso8601
+        u.save
+        expect(u.settings['subscription']['eval_extended']).to eq(nil)
+        expect(u.extend_eval(30.days.from_now.to_date.iso8601, u)).to_not eq(false)
+        expect(u.settings['subscription']['eval_expires']).to be > 12.days.from_now.iso8601
+        expect(u.settings['subscription']['eval_expires']).to be < 14.days.from_now.iso8601
+        expect(u.settings['subscription']['eval_extended']).to eq(true)
+
+        expect(u.extend_eval(30.days.from_now.to_date.iso8601, u)).to_not eq(false)
+        expect(u.settings['subscription']['eval_expires']).to be > 12.days.from_now.iso8601
+        expect(u.settings['subscription']['eval_expires']).to be < 14.days.from_now.iso8601
+        expect(u.settings['subscription']['eval_extended']).to eq(true)
+      end
     end
 
+    # Noon UTC: extend_eval stores a date-only string here, compared with full timestamps read later
+    # (12.days.from_now.iso8601), so a run crossing midnight UTC compared the wrong day.
     it "should only allow self-extending once if managed" do
-      u = User.create
-      res = u.update_subscription({
-        'purchase' => true,
-        'plan_id' => 'eval_long_term_25',
-        'purchase_id' => '23456',
-        'seconds_to_add' => 8.weeks.to_i
-      })
-      u2 = User.create
-      User.link_supervisor_to_user(u2, u, nil, true)
-      expect(u.reload.settings['subscription']['eval_expires']).to be > 80.days.from_now.iso8601
-      expect(u.reload.settings['subscription']['eval_expires']).to be < 100.days.from_now.iso8601
-      u.settings['subscription']['eval_expires'] = 6.days.from_now.to_date.iso8601
-      u.save
-      expect(u.settings['subscription']['eval_extended']).to eq(nil)
-      expect(u.extend_eval(30.days.from_now.to_date.iso8601, u)).to_not eq(false)
-      expect(u.settings['subscription']['eval_expires']).to be > 12.days.from_now.iso8601
-      expect(u.settings['subscription']['eval_expires']).to be < 14.days.from_now.iso8601
-      expect(u.settings['subscription']['eval_extended']).to eq(true)
+      travel_to(Time.utc(2026, 6, 17, 12, 0, 0)) do
+        u = User.create
+        res = u.update_subscription({
+          'purchase' => true,
+          'plan_id' => 'eval_long_term_25',
+          'purchase_id' => '23456',
+          'seconds_to_add' => 8.weeks.to_i
+        })
+        u2 = User.create
+        User.link_supervisor_to_user(u2, u, nil, true)
+        expect(u.reload.settings['subscription']['eval_expires']).to be > 80.days.from_now.iso8601
+        expect(u.reload.settings['subscription']['eval_expires']).to be < 100.days.from_now.iso8601
+        u.settings['subscription']['eval_expires'] = 6.days.from_now.to_date.iso8601
+        u.save
+        expect(u.settings['subscription']['eval_extended']).to eq(nil)
+        expect(u.extend_eval(30.days.from_now.to_date.iso8601, u)).to_not eq(false)
+        expect(u.settings['subscription']['eval_expires']).to be > 12.days.from_now.iso8601
+        expect(u.settings['subscription']['eval_expires']).to be < 14.days.from_now.iso8601
+        expect(u.settings['subscription']['eval_extended']).to eq(true)
 
-      expect(u.extend_eval(30.days.from_now.to_date.iso8601, u)).to_not eq(false)
-      expect(u.settings['subscription']['eval_expires']).to be > 12.days.from_now.iso8601
-      expect(u.settings['subscription']['eval_expires']).to be < 14.days.from_now.iso8601
-      expect(u.settings['subscription']['eval_extended']).to eq(true)
+        expect(u.extend_eval(30.days.from_now.to_date.iso8601, u)).to_not eq(false)
+        expect(u.settings['subscription']['eval_expires']).to be > 12.days.from_now.iso8601
+        expect(u.settings['subscription']['eval_expires']).to be < 14.days.from_now.iso8601
+        expect(u.settings['subscription']['eval_extended']).to eq(true)
+      end
     end
 
     it "should allow supervisors to extend indefinitely" do
