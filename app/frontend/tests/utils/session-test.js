@@ -950,6 +950,43 @@ describe('session', function() {
       expect(alerts).toEqual(1);
       expect(invalidates).toEqual(1);
     });
+
+    /* ANOTHER TAB SIGNED IN (Scot's review of #1141, item 3). Every tab shares the stored login. When this
+       tab's old session dies with no modal route, invalidate(true) flushed every stash, so it also wiped the
+       login another tab had just made, and that tab was signed out on its next load. The stored login is now
+       kept when it holds a different token from the one that failed (stashes.flush(null, 'auth_'), as the
+       login form already does); this tab's own dead login is still wiped. */
+    function noModalLogout(storedToken, failedToken) {
+      modal.route = null;
+      stub(sessionTarget(), 'alert', function() { });
+      stub(sessionTarget(), 'persist', function() { return RSVP.resolve(); });
+      stub(sessionTarget(), 'reload', function() { });
+      stub(stashesTarget(), 'setup', function() { });
+      stub(stashesTarget(), 'get_object', function(key, extra) {
+        if(key === 'auth_settings' && extra) { return storedToken ? {access_token: storedToken} : null; }
+        return null;
+      });
+      var flushed = [];
+      stub(stashesTarget(), 'flush', function(prefix, ignorePrefix) { flushed.push([prefix, ignorePrefix]); return RSVP.resolve(); });
+      session.set('isAuthenticated', true);
+      session.set('invalid_token', false);
+      session.set('access_token', 'token-one');
+      session.force_logout('session expired', failedToken);
+      return flushed;
+    }
+
+    it('stale-token: keeps the login another tab made when this tab logs out without a dialog', function() {
+      expect(noModalLogout('token-two', 'token-one')).toEqual([[null, 'auth_']]);
+    });
+
+    it('stale-token: still wipes this tab\'s own dead login', function() {
+      expect(noModalLogout('token-one', 'token-one')).toEqual([[undefined, undefined]]);
+    });
+
+    it('stale-token: still wipes the stored login when it is the token that failed', function() {
+      // This tab's own session token is older, but every tab was sending the stored one and it is dead too.
+      expect(noModalLogout('token-two', 'token-two')).toEqual([[undefined, undefined]]);
+    });
   });
 
   /* A NEW SIGN-IN ENDS THE DEAD SESSION'S FLAG. `invalid_token` was reset only by an async
