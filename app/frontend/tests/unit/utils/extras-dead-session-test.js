@@ -20,7 +20,7 @@ module('Unit | Utility | extras dead-session logout', function(hooks) {
   setupTest(hooks);
 
   var original_real, original_app_state, had_session, original_session, original_token;
-  var svc, logouts, speak_mode, pending;
+  var svc, logouts, logout_tokens, speak_mode, pending;
   hooks.beforeEach(function() {
     original_real = $.realAjax;
     original_app_state = extras.get_app_state;
@@ -29,9 +29,11 @@ module('Unit | Utility | extras dead-session logout', function(hooks) {
     original_token = capabilities.access_token;
     svc = this.owner.lookup('service:session');
     logouts = 0;
+    logout_tokens = [];
     // What _tear_down_dead_session does to the state these checks read (services/session.js).
-    svc.force_logout = function() {
+    svc.force_logout = function(message, failedToken) {
       logouts++;
+      logout_tokens.push(failedToken);
       svc.set('invalid_token', true);
       svc.set('isAuthenticated', false);
       svc.set('access_token', null);
@@ -69,6 +71,7 @@ module('Unit | Utility | extras dead-session logout', function(hooks) {
     await req;
     assert.strictEqual(pending[0].opts.headers['Authorization'], 'Bearer token-one', 'sent with the session token');
     assert.strictEqual(logouts, 1);
+    assert.deepEqual(logout_tokens, ['token-one'], 'and is told which token failed (services/session.js keeps another tab\'s login)');
   });
 
   test('not in Speak Mode', async function(assert) {

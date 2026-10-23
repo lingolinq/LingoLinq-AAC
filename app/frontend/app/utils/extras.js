@@ -413,7 +413,7 @@ import app_state from './app_state';
            answers already use. No token, or no session yet: unchanged. */
         var stale_token = (typeof session._checked_token_is_current === 'function') && !session._checked_token_is_current(token);
         if(dead_session && !already_dead && !stale_token && !extras.get_app_state().get('speak_mode')) {
-          session.force_logout(i18n.t('session_expired', "This session has expired, please log back in"));
+          session.force_logout(i18n.t('session_expired', "This session has expired, please log back in"), token);
         }
         if(error) {
           xhr.responseJSON = xhr.responseJSON || {error: 'unknown error ' + result};
