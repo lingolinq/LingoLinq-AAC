@@ -8,7 +8,7 @@ Found during the independent review of #1183 (crass 1.0.8).
 
 **Who can write and see it.** Writers: anyone with `edit` on the goal (the owner, the owner's editors, unit editors, admin-org managers; `app/models/user_goal.rb:19-28`). Setting `template_header` is admin-only (`user_goal.rb:389`). Viewers: the template list is served without a token (`app/controllers/api/goals_controller.rb:2-7`), so the goals template index is public; the new-goal picker is used by supervisors.
 
-**Fix.** Return the stripped text as a plain string; Glimmer escapes it. The default (non-stripped) mode is unchanged. Visible change: text with a literal `<` (e.g. `x<y`) now shows in full instead of losing everything after the `<`, matching the detail view.
+**Fix.** Return the stripped text as a plain string; Glimmer escapes it. The default (non-stripped) mode is unchanged. Visible change: only entity text typed into a description (e.g. `&lt;b&gt;`) now shows literally, matching the detail view; a bare typed `x<y` is saved as `x` by the server sanitizer, so it is unaffected.
 
 **Red/green and mutants** (`tests/integration/helpers/safe-test.js`, Node 22, filtered run):
 - before the fix: "stripped mode does not turn entity text back into markup" fails (`#safe-stripped-xss` exists);

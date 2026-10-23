@@ -4,8 +4,8 @@ import { render } from '@ember/test-helpers';
 import { hbs } from 'ember-cli-htmlbars';
 
 /* {{safe x "stripped"}} shows a goal description as plain text (templates/goals/index.hbs,
- * components/new-goal.hbs). The server keeps typed markup as entity text (processable.rb
- * process_html), and DOMParser's textContent decodes those entities, so the stripped result must
+ * components/new-goal.hbs). The server keeps entity text typed as entities (`&lt;b&gt;`) as entity
+ * text (processable.rb process_html), and DOMParser's textContent decodes those entities, so the stripped result must
  * be inserted as text, never as trusted HTML (2026-10-23). */
 module('Integration | Helper | safe', function(hooks) {
   setupRenderingTest(hooks);
