@@ -74,7 +74,12 @@ setting to relax.
   from, a weekyear computed with the app's own helper). One read removes only the two-reads race:
   data placed relative to `base` must also sit away from the boundaries the code computes (day,
   week, month). `spec/models/organization_spec.rb` usage_stats dates its sessions from
-  `Time.now.utc.beginning_of_hour - 30.minutes` so they never fall near midnight.
+  `Time.now.utc.beginning_of_hour - 30.minutes` so they never fall near midnight. Bind only a
+  value the example uses as an input or a key, never the value it asserts (reading back the stamp
+  under test and comparing it with itself proves nothing), and use a test-side `base` only when the
+  code does not read the clock itself for that value (otherwise it is still two reads). When the
+  asserted value is the code's own clock stamp, pin instead (`spec/lib/worker_spec.rb`
+  scheduled_actions).
 - Only when nothing can be bound, run the example at a fixed instant with `travel_to`, placed away
   from any window boundary the code uses (30 s TOTP windows, hourly or daily rollovers). Real
   `Time.now` near a boundary is a flake. `travel_to` is not available by default: add
@@ -90,7 +95,9 @@ setting to relax.
   `touch_connections` then stamps the frozen time, so the empty result stays cached. This is the
   2026-06-01 regression (`docs/task-management/learnings-archive/LEARNINGS-2026-01_to_2026-09.md`
   "spec re-reading `Time.now`"), and a single-example wrap hits it as surely as a group one. Any
-  other cache that relies on `updated_at` moving forward carries the same hazard.
+  other cache that relies on `updated_at` moving forward carries the same hazard. The archive's
+  wider "never freeze around code that reads these caches" is narrowed here on purpose: reads with
+  no link write or permission change inside the frozen span see a consistent cache and are safe.
 - A fixed instant written into a record must not race the real clock. If the code compares that
   value with one taken from `Time.now`, the result flips once the real date passes the fixed one;
   write every value the comparison reads, or (within the limits above) pin the clock.
