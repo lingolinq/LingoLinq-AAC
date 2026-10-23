@@ -191,7 +191,10 @@ no secrets:
    (committed, safe) recording: `ts`, `auditedSha`, `auditedRef`, `type` (full|light), `finders`,
    `new`/`reseen`/`regressions`/`skipped` counts, `newIds`, the adversary verdict tally,
    `citationCheck` status, and the open Critical/High headline. Recurrence is then a diff over
-   `runs.jsonl`. See `audit-reports/run-log/README.md`.
+   `runs.jsonl`. See `audit-reports/run-log/README.md`. `.jsonl` is a data-bearing extension
+   (`scripts/codex-review-path-classifier.sh`), so the PR that commits this line fails
+   `data-bearing-paths` until a reviewer confirms the rows are synthetic and adds the
+   `synthetic-data` label. Never add that label yourself (root `CLAUDE.md` rule 15).
 
 ## Step 8 (optional, human-initiated): Publish summary to Notion
 Regenerate the one-way Notion page body from the register:
