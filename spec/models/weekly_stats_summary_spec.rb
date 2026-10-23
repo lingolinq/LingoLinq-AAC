@@ -258,7 +258,7 @@ describe WeeklyStatsSummary, :type => :model do
           ]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
           WeeklyStatsSummary.update_for(s1.global_id)
         end
-      
+
         sum = WeeklyStatsSummary.last
         sum = WeeklyStatsSummary.track_trends(sum.weekyear)
         expect(sum).to_not eq(nil)
@@ -268,7 +268,7 @@ describe WeeklyStatsSummary, :type => :model do
         expect(sum.data['available_words']['that']).to eq(nil)
       end
     end
-    
+
     # Runs at a fixed mid-week instant: the weekyear checks below compare values read at different
     # moments, so a run crossing Saturday-to-Sunday midnight UTC changed the week under it.
     it 'should include only public user home board roots' do
@@ -291,7 +291,7 @@ describe WeeklyStatsSummary, :type => :model do
           {'type' => 'utterance', 'utterance' => {'text' => 'never again', 'buttons' => []}, 'geo' => ['13.0001', '12.0001'], 'timestamp' => ts.to_i}
         ]}, {:user => u2, :author => u2, :device => Device.create(:user => u2), :ip_address => '1.2.3.4'})
         WeeklyStatsSummary.update_for(s2.global_id)
-      
+
         5.times do |i|
           u3 = User.create(:settings => {'preferences' => {'allow_log_reports' => true}})
           b3 = Board.create(:user => u, :public => false, :parent_board => b)
