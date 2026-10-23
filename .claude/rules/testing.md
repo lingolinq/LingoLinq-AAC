@@ -71,14 +71,18 @@ setting to relax.
 - An assertion that compares against the clock must not read the clock twice. First choice: bind
   the expectation to the value the code stored or will use (the record's own `created_at`, the
   scheduled job's args read back, one `base = Time.now` read that every expected value derives
-  from, a weekyear computed with the app's own helper).
+  from, a weekyear computed with the app's own helper). One read removes only the two-reads race:
+  data placed relative to `base` must also sit away from the boundaries the code computes (day,
+  week, month). `spec/models/organization_spec.rb` usage_stats dates its sessions from
+  `Time.now.utc.beginning_of_hour - 30.minutes` so they never fall near midnight.
 - Only when nothing can be bound, run the example at a fixed instant with `travel_to`, placed away
   from any window boundary the code uses (30 s TOTP windows, hourly or daily rollovers). Real
   `Time.now` near a boundary is a flake. `travel_to` is not available by default: add
   `include ActiveSupport::Testing::TimeHelpers` to the describe block (as `spec/models/user_spec.rb`
   does in `valid_2fa?`).
-- Never freeze the clock around code that writes a link or a permission: adding a manager, user,
-  supervisor or share, then anything that reads links or permissions. `travel_to` pins
+- Never freeze the clock around code that writes a link or changes a permission, then reads links
+  or permissions: adding a manager, user, supervisor or share, or any save that changes what
+  `allows?` returns (a board's public flag, a role, a subscription). `travel_to` pins
   `updated_at`, and `UserLink.links_for` (`links/for/<code>/<updated_at>`) and the permission cache
   (`permissions-for/...`, in permissable's `lib/permissable.rb`) are keyed on it moving forward. The
   app's own `UserLink.invalidate_cache_for` does not make this safe: `Organization#add_manager`
