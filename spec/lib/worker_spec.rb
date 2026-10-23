@@ -194,18 +194,24 @@ describe Worker do
   end
 
   describe "scheduled_actions" do
+    include ActiveSupport::Testing::TimeHelpers
+
+    # The scheduled job carries 'scheduled' => Time.now.to_i (boy_band scheduled_stamp), compared with
+    # a later Time.now.to_i; a fixed instant keeps a second boundary from falling between them.
     it "should have list actions" do
-      Worker.schedule(User, :something)
-      expect(Worker.scheduled_actions.length).to eq(1)
-      expect(Worker.scheduled_actions[-1].except('domain_id')).to eq({
-        'class' => 'Worker', 'args' => ['User', 'something']
-      })
-      u = User.create
-      u.schedule(:do_something, 'cool')
-      expect(Worker.scheduled_actions.length).to be >= 2
-      expect(Worker.scheduled_actions[-1].except('domain_id')).to eq({
-        'class' => 'Worker', 'args' => ['User', 'perform_action', {'id' => u.id, 'method' => 'do_something', 'scheduled' => Time.now.to_i, 'arguments' => ['cool']}]
-      })
+      travel_to(Time.utc(2026, 6, 15, 12, 0, 30)) do
+        Worker.schedule(User, :something)
+        expect(Worker.scheduled_actions.length).to eq(1)
+        expect(Worker.scheduled_actions[-1].except('domain_id')).to eq({
+          'class' => 'Worker', 'args' => ['User', 'something']
+        })
+        u = User.create
+        u.schedule(:do_something, 'cool')
+        expect(Worker.scheduled_actions.length).to be >= 2
+        expect(Worker.scheduled_actions[-1].except('domain_id')).to eq({
+          'class' => 'Worker', 'args' => ['User', 'perform_action', {'id' => u.id, 'method' => 'do_something', 'scheduled' => Time.now.to_i, 'arguments' => ['cool']}]
+        })
+      end
     end
   end
 

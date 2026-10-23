@@ -529,35 +529,42 @@ RSpec.describe WordData, :type => :model do
   end
   
   describe "activities_for" do
+    include ActiveSupport::Testing::TimeHelpers
+
+    # activities_for stamps 'checked' with Time.now, and this example compares it with a second
+    # Time.now taken after the call, so a call that crosses a second boundary failed (CI, 2026-10-21).
+    # The example runs at a fixed instant instead (.claude/rules/testing.md "Time").
     it 'should return nothing for non-premium users' do
-      u = User.create
-      User.where(id: u.id).update_all(created_at: 6.months.ago, expires_at: 4.months.ago)
-      u.reload
-      expect(u.full_premium?).to eq(false)
-      expect(u.any_premium_or_grace_period?).to eq(false)
-      u.settings['target_words'] = {
-        'generated' => Time.now.iso8601,
-        'activities' => {
+      travel_to(Time.utc(2026, 6, 15, 12, 0, 30)) do
+        u = User.create
+        User.where(id: u.id).update_all(created_at: 6.months.ago, expires_at: 4.months.ago)
+        u.reload
+        expect(u.full_premium?).to eq(false)
+        expect(u.any_premium_or_grace_period?).to eq(false)
+        u.settings['target_words'] = {
           'generated' => Time.now.iso8601,
-          'words' => [
-            {'word' => 'good', 'locale' => 'en'},
-            {'word' => 'bad', 'locale' => 'en'}
-          ],
-          'list' => [
-            {'id' => '1', 'score' => 5},
-            {'id' => '2', 'score' => 3},
-            {'id' => '3', 'score' => 1}
-          ]
+          'activities' => {
+            'generated' => Time.now.iso8601,
+            'words' => [
+              {'word' => 'good', 'locale' => 'en'},
+              {'word' => 'bad', 'locale' => 'en'}
+            ],
+            'list' => [
+              {'id' => '1', 'score' => 5},
+              {'id' => '2', 'score' => 3},
+              {'id' => '3', 'score' => 1}
+            ]
+          }
         }
-      }
-      u.save!
-      res = WordData.activities_for(u)
-      expect(res).to eq({
-        'checked' => Time.now.iso8601,
-        'list' => [],
-        'log' => [],
-        'words' => []
-      })
+        u.save!
+        res = WordData.activities_for(u)
+        expect(res).to eq({
+          'checked' => Time.now.iso8601,
+          'list' => [],
+          'log' => [],
+          'words' => []
+        })
+      end
     end
 
     it 'should retrieve activities for a free trial user' do
