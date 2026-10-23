@@ -8372,7 +8372,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
       prefUser.set('preferences.word_suggestions', !currentlyOn);
       if(prefUser.save) {
         prefUser.set('preferences.device.updated', true);
-        prefUser.save();
+        save_listed_preferences(prefUser, ['word_suggestions']); // only this key (utils/preference_save.js)
       }
     },
     // The inline-sidebar "Predict" Yes/No toggle (2026-10-13). Unlike the edit-sidebar's flip above,
@@ -10471,3 +10471,4 @@ export default BoardDetailController;
 
 // Imported last so the .eslint-todo rows above keep their lines.
 import { set_word_prediction } from '../../utils/word_prediction_pref';
+import { save_listed_preferences } from '../../utils/preference_save';

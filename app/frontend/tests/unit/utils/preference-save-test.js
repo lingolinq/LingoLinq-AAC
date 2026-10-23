@@ -52,11 +52,11 @@ module('Unit | Utility | saves that name the preference keys they changed', func
       return RSVP.resolve({ user: { id: '1_77', user_name: 'pkeys', preferences: { word_suggestions: true } } });
     };
     try {
-      store.push({ data: { id: '1_77', type: 'user', attributes: { user_name: 'pkeys', preferences: { word_suggestions: false } } } });
+      store.push({ data: { id: '1_77', type: 'user', attributes: { user_name: 'pkeys', preferences: { word_suggestions: false, ai_features_enabled: true } } } });
       var user = store.peekRecord('user', '1_77');
-      user.set('preferences', { word_suggestions: true });
+      user.set('preferences', { word_suggestions: true, ai_features_enabled: true });
       await save_listed_preferences(user, ['word_suggestions']);
-      user.set('preferences', { word_suggestions: false });
+      user.set('preferences', { word_suggestions: false, ai_features_enabled: true });
       await user.save();
     } finally {
       $.realAjax = original_real;
@@ -67,21 +67,29 @@ module('Unit | Utility | saves that name the preference keys they changed', func
     var plain = (bodies[1] || {}).user || {};
     assert.strictEqual(bodies.length, 2, 'two PUTs');
     assert.deepEqual(listed.preference_keys, ['word_suggestions'], 'the listed save names its key');
+    assert.deepEqual(Object.keys(listed.preferences || {}), ['word_suggestions'], 'and sends only that preference');
     assert.false('preference_keys' in plain, 'a plain save names none');
   });
 
   test('the user serializer sends the list, and only when a save names one', function(assert) {
     var store = this.owner.lookup('service:store');
-    var record = store.createRecord('user', { user_name: 'example', preferences: { word_suggestions: true } });
+    var record = store.createRecord('user', { user_name: 'example', preferences: { word_suggestions: true, ai_features_enabled: true, progress: { guided_tours_autoshown: { a: true }, setup_done: true } } });
     var serializer = store.serializerFor('user');
     var plain = record._createSnapshot();
     assert.false('preference_keys' in serializer.serialize(plain, { includeId: true }), 'a plain save sends no list');
     var listed = record._createSnapshot();
     listed.adapterOptions = { preference_keys: ['word_suggestions'] };
-    assert.deepEqual(serializer.serialize(listed, { includeId: true }).preference_keys, ['word_suggestions']);
+    var sent = serializer.serialize(listed, { includeId: true });
+    assert.deepEqual(sent.preference_keys, ['word_suggestions']);
+    assert.deepEqual(sent.preferences, { word_suggestions: true }, 'the request carries only the listed preference');
+    var tour = record._createSnapshot();
+    tour.adapterOptions = { preference_keys: ['progress.guided_tours_autoshown'] };
+    assert.deepEqual(serializer.serialize(tour, { includeId: true }).preferences, { progress: { guided_tours_autoshown: { a: true } } }, 'one progress map, alone');
     var offline = record._createSnapshot();
     offline.adapterOptions = { preference_keys: ['word_suggestions'] };
-    assert.deepEqual(serializer.serialize(offline, { includeId: true, localCopy: true }).preference_keys, ['word_suggestions'], 'and keeps it in the offline local copy');
+    var local = serializer.serialize(offline, { includeId: true, localCopy: true });
+    assert.deepEqual(local.preference_keys, ['word_suggestions'], 'and keeps it in the offline local copy');
+    assert.true('ai_features_enabled' in (local.preferences || {}), 'whose preferences stay whole (it is the record\'s local copy)');
   });
 
   test('the Prediction toggle saves only word_suggestions', async function(assert) {

@@ -8,6 +8,26 @@ import RSVP from 'rsvp';
    (app/models/user.rb, User.listed_preference_keys). A key is a top-level preference name, or
    'progress.<attr>' for one progress entry. The list rides on this save's adapterOptions, so it never
    carries over to a later save of the same record. */
+/* The part of `preferences` a listed save sends: each listed top-level key, and for 'progress.<attr>'
+   that one progress entry. The server applies the same cut (User.reduce_to_listed_preferences), so
+   this keeps the request to what changed without being the only guard. */
+export function listed_preferences(preferences, keys) {
+  var prefs = preferences || {};
+  var out = {};
+  (keys || []).forEach(function(key) {
+    var progress = /^progress\.(.+)$/.exec(key);
+    if (progress) {
+      if (prefs.progress && Object.prototype.hasOwnProperty.call(prefs.progress, progress[1])) {
+        out.progress = out.progress || {};
+        out.progress[progress[1]] = prefs.progress[progress[1]];
+      }
+    } else if (Object.prototype.hasOwnProperty.call(prefs, key)) {
+      out[key] = prefs[key];
+    }
+  });
+  return out;
+}
+
 export function save_listed_preferences(user, keys) {
   return user.save({ adapterOptions: { preference_keys: (keys || []).slice() } });
 }
