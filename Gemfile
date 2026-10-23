@@ -53,7 +53,8 @@ gem 'loofah', '>= 2.25.2'
 # GHSA-cj75-f6xr-r4g7 (possible XSS with certain configs); transitive via actionview/actiontext, pin patched
 gem 'rails-html-sanitizer', '>= 1.7.1'
 # GHSA-6jxj-px6v-747w et al.; GHSA-pq4g-8rxf-4g29 (bad-URL tokenization, CSS sanitizer bypass) needs >= 1.0.8.
-# bundler-audit minimum (transitive via loofah, sanitize, rails-dom-testing)
+# bundler-audit minimum. crass is required by loofah and sanitize, both direct dependencies
+# (rails-html-sanitizer also pulls in loofah).
 gem 'crass', '>= 1.0.8'
 # ERB @_init deserialization guard bypass (def_module/def_method/def_class); pulled transitively, pin patched 6.x
 gem 'erb', '>= 6.0.4'
