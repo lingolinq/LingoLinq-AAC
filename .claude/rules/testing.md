@@ -76,6 +76,13 @@ setting to relax.
 - A fixed instant written into a record must not race the real clock. If the code compares that
   value with one taken from `Time.now`, the result flips once the real date passes the fixed one;
   write every value the comparison reads, or pin the clock for the whole example.
+- Prefer binding the expectation to the value the code stored (the record's own `created_at`, the
+  scheduled job's args read back, a weekyear computed with the app's own helper) over a second clock
+  read. When `travel_to` is the fix, wrap only the example that needs it, never a whole group: it
+  pins `updated_at`, and `UserLink.links_for` and the permission cache are keyed on `updated_at`
+  moving forward, so a link written inside a frozen block can read a stale cache (regressed
+  2026-06-01, `docs/task-management/learnings-archive/LEARNINGS-2026-01_to_2026-09.md` "spec
+  re-reading `Time.now`"). Do not nest `travel_to` blocks: ActiveSupport 7.2 raises.
 
 ## Running and reading results
 
