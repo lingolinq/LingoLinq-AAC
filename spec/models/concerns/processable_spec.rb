@@ -46,6 +46,16 @@ describe Processable, :type => :model do
       expect(r.process_html('bacon <b>is</b>')).to eq('bacon <b>is</b>')
       expect(r.process_html("<a href='http://www.google.com'>Google</a> <a href='javascript:alert(true);'>alert</a> <img src='file://something.png'/>")).to eq("<a href=\"http://www.google.com\">Google</a> <a>alert</a> <img>")
     end
+
+    # GHSA-pq4g-8rxf-4g29: crass before 1.0.8 mis-tokenized a bad url() ending in an escaped
+    # backslash, so the CSS after it slipped past the RELAXED sanitizer.
+    it "should not let a bad url() smuggle CSS past the sanitizer" do
+      r = FakeRecord.new
+      style_block = r.process_html('<style>url(x y\\\\) {} @import "https://evil.example/x.css"; q ) {}</style>')
+      expect(style_block).not_to include('@import')
+      style_attr = r.process_html('<p style="color: (url(x y\\\\)); background-image: url(javascript:alert(1)); z: )">hi</p>')
+      expect(style_attr).not_to include('javascript:')
+    end
   end
   
   describe "clean_path" do
