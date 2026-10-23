@@ -507,3 +507,10 @@ fresh schema load: related suites plus all new specs plus the i18n spec, 1710 ex
 0 failures, 6 pending (1708 plus the 2 new tests; develop renamed one example in these files and
 added none). `npm run lint:js:ci`: new=0 (baseline 1556). `ember-template-lint` on the changed
 template: clean.
+
+`develop` then moved to `4985c5066` and was merged again (no conflicts, no schema or frontend
+change). Rerun: the same suites, 1710 examples, 0 failures, 6 pending; `button_sound_spec.rb`
+plus `button_sound_transcription_ai_switch_spec.rb`, 61 examples, 0 failures, 1 pending. That
+merge brings `User.ai_features_opted_out?`, which stops voice transcription after an explicit
+"off" of `ai_features_enabled`. The hand-back's AI reset writes that "off", so a handed-back
+account's transcription also stays off until the family turns AI back on.
