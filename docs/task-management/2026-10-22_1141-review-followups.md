@@ -241,6 +241,18 @@ Two reviews of the proposal: an adversary pass (all items) and a security pass (
   'self' user through the real adapter and local storage. Also strengthened: the cap spec pins that stored tours win, and
   the request spec now uses a supervise-only supervisor whose list cannot widen the write.
 
+## Browser checks (2026-10-22)
+`app/frontend/e2e/home-assign-and-preferences.spec.js` (Playwright, project `1141-followups`), run against this
+branch on an isolated local stack (own database `lingolinq-e2e-1141`, own Resque namespace) with synthetic users from
+`e2e/support/users-1141.rb`. Both pass on two runs in a row, and each fails against the pre-fix code:
+- Basic double tap: develop's code saved the home board twice; fixed code saves it once, one dialog, page not left.
+- Predict: with the old whole-record save, a stale tab's toggle turned AI back on (server answered true); fixed code
+  sends `preference_keys: ['word_suggestions']`, AI stays off, and the choice survives a reload.
+A trial-bar supersede check was started and stopped by decision: two "Use this board" in a row made the second copy
+home, but the first copy's boards were not removed. The request log shows the first copy's progress is polled only
+until its board page is left, so its clean-up never runs. Not yet compared with develop; likely pre-existing.
+Follow-up, not in this PR.
+
 ## Still open (for Scot)
 - Item 2: on someone else's board the in-flight guard is released when the copy dialog closes; after a slow copy the
   dialog can be closed while the copy carries on, so a second assign started then can race the first.
