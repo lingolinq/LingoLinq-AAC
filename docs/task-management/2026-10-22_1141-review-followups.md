@@ -269,6 +269,18 @@ Adversary pass: no Critical or High; four Low. Fixed:
 Not changed: the data-bearing classifier does not match e2e/support/*.rb (no real data today). Changing the pattern
 list is shared CI config, for its owner.
 
+## Completing Scot's asks (2026-10-22, after the PR review of #1173)
+The PR review found items 3 and 5 only partly done against Scot's wording. Both finished:
+- Item 3, other tab: reproduced first (tests/utils/session-test.js, force_logout: the no-dialog logout flushed the
+  shared stored login another tab had just written). force_logout now receives the failed request's token
+  (utils/extras.js) and, when the stored login holds a different token, invalidate keeps it
+  (`stashes.flush(null, 'auth_')`, the login form's existing mode); this tab's own dead login, or a stored token that
+  is itself the one that failed, is still wiped. No other invalidate caller passes the option.
+- Item 5, "send only the changed key": a listed save's request now carries only the listed preferences
+  (serializers/user.js via utils/preference_save.js#listed_preferences); the offline local copy stays whole. The
+  edit sidebar's Word Prediction switch (board-detail.js#toggle_word_suggestions, same key) also uses the listed save.
+- Tests red before each fix; then each fix removed in one mutant build and each test went red again.
+
 ## Still open (for Scot)
 - Item 2: on someone else's board the in-flight guard is released when the copy dialog closes; after a slow copy the
   dialog can be closed while the copy carries on, so a second assign started then can race the first.
@@ -283,16 +295,15 @@ list is shared CI config, for its owner.
   memory (services/app-state.js toggle_speak_mode and toggle_mode) and relies on a later whole save to carry them; a
   tour-offer or Predict save no longer does, so a language chosen that way can revert. A safe fix must check the board
   id and a present locale before saving, and decide whether Speak Mode entry may add a request; left for Scot.
-- Item 3: another tab's no-modal logout still flushes the shared stored login (needs a decision on what that path may clear).
 - The success-path invalid_token logout (extras.js ~297) has the same stale-token gap; not changed.
 - utils/persistence.js and services/persistence.js carry the same offline edits, since both are reachable. Which copy's DSExtend the adapter mixes in was reported by the adversary pass (the utils copy) and not verified here.
 
 ## Verification
 - RSpec: spec/models/user_preference_keys_spec.rb (12), spec/controllers/api/users_controller_preference_keys_spec.rb (3);
   with user_spec, the AI preference and EU consent specs and users_controller_spec: 908 examples, 0 failures.
-- QUnit, targeted: home copy cancel 15, classic-view home assign 10, extras dead-session 6, preference keys 12, word
-  prediction 6, tour offer 13, guided 39, trial-bar 19, confirm dialog 9, board-detail 197, session 181 (1 todo),
-  persistence 181 (9 skips), serializer 4, all passing.
+- QUnit, targeted (at the final head): home copy cancel 17, classic-view 28, extras 38 (dead-session 6),
+  preference keys 13, word prediction 7, tour offer 13, guided 39, trial-bar 20, confirm dialog 10, board-detail 198,
+  session 184 (1 todo), persistence 181 (9 skips), app_state 169 (1 skip), serializer 4, all passing.
 - Falsified: each guard mutated (lineage, session change, mode check, latch, stale token, de-dupe key, base save
   arguments, serializer list, queued-key rule, replay call site, server reduction, merge, confirmation guard); each
   turned its own tests red.
