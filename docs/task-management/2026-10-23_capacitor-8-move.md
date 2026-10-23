@@ -51,7 +51,8 @@ optional. Xcode 26 needs macOS Sequoia 15.6 or later, so the iOS build waits on 
   namespace. `buildToolsVersion` pin removed (AGP 8.13 defaults to 35.0.0). `density` added to
   `configChanges`. `kotlin_version` not added: the app has no Kotlin, and
   `@capacitor/filesystem` defaults to `'2.2.20'` when it is unset.
-- README and `package.json` description updated. `www/` untouched.
+- README and `package.json` description updated. `www/` untouched in this commit (the
+  `www/init.js` fallback label changed after the review; see below).
 
 ## Verification
 
@@ -120,16 +121,29 @@ inventory and the shell README refer to it). `.github/copilot-instructions.md`, 
   `^8.5.3` (lockfile resolutions unchanged; `cap sync` and `cap doctor` still pass).
 - Shell `www/init.js` fallback label renamed to `"capacitor-8"`. No runtime effect once the
   app loads: the packaged bundle's `application-preload.js` sets `window.app_version`
-  unconditionally, and nothing calls `LingoLinq.expired()`, the only parser of the value.
+  unconditionally, so `LingoLinq.VERSION`, the `X-LingoLinq-Version` header the server
+  parses, and the stored device settings all get the bundle's date version; nothing in
+  `www/` reads the fallback, and nothing calls `LingoLinq.expired()`.
 - The two Medium checks (Android system-bar layout, iOS single bridge at launch) are on the
   shell README checklist.
 - Public-doc wording: the session prompt now tells agents to treat every environment as
   holding real user data, teammates' local paths are no longer spelled out, and the kickoff
   doc's SQLite encryption line uses the neutral sign-off wording.
 
+### Re-check of the fix commits
+
+A second local adversary pass covered the two follow-up commits (shell `316e209`, AAC
+`1be1cb2b1`). Shell: nothing found; the range, lockfile and label claims all held. AAC: five
+Low wording issues (a leftover copy of the wrong link claim in the handoff, a stale "`www/`
+untouched" line, an over-strong "only parser" claim, the prompt's stale local-path sentence,
+and two missing "Still open" items), all fixed in the following commit.
+
 ### Still open
 
 - Offline smoke on an Android emulator or device, including the layout check. This session
   cannot run it: it needs a LingoLinq API and a test account, and the session prompt forbids
   touching the database.
-- iOS: update macOS to 15.6 or later, install Xcode 26, build, and check the cold-launch log.
+- iOS: update macOS to 15.6 or later, install Xcode 26, build, check the cold-launch log, and
+  run the simulator smoke test.
+- Release notes: Capacitor 8 raises the minimum to Android 7 (API 24) and iOS 15, so Android 6
+  and iOS 14 devices get no further updates.

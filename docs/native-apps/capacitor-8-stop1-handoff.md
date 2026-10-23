@@ -47,8 +47,8 @@ either repo, other than this docs branch. Checked through the GitHub API.
 
 - `github.com/lingolinq/lingolinq_mobile`, default branch `master`. The API reports it as
   **public**.
-- It did not need to be pushed from Melissa's machine. The local paths in the older docs
-  (a teammate's machine) do not exist on Traci's machine.
+- It did not need to be pushed from Melissa's machine. The local paths in the older docs,
+  which pointed at a teammate's machine, do not exist on Traci's machine.
 
 ### b. Current state
 
@@ -180,7 +180,7 @@ line), so it works.
 |---|---|
 | `docs/native-apps/native-apps-project-overview.md` (lines 63-65, 131, 202, 247) | Change to Capacitor 8 and give the real reason: Play API 36, Node 22 already in place |
 | `docs/native-apps/native-bridge-inventory.md` (lines 3, 33) | Change "Capacitor 7" to "Capacitor 8"; consider adding the TTS and video bridges |
-| `docs/native-apps/capacitor-7-kickoff.md` | Keep the name (a task log and the learnings archive link to it). Add a dated Capacitor 8 note at the top and point the shell link at the GitHub repo instead of a local path. |
+| `docs/native-apps/capacitor-7-kickoff.md` | Keep the name (the learnings archive, the bridge inventory and the shell README refer to it). Add a dated Capacitor 8 note at the top and point the shell link at the GitHub repo instead of a local path. |
 | `.github/copilot-instructions.md:34` | No change; it is a correct historical note about Node |
 | `docs/archive/`, `docs/CHANGES.md`, `docs/task-management/` logs and learnings archive | No change; dated records |
 | `CLAUDE.md`, `AGENTS.md`, `app/frontend/README.md` | No hits |
