@@ -75,7 +75,8 @@ setting to relax.
   does in `valid_2fa?`).
 - A fixed instant written into a record must not race the real clock. If the code compares that
   value with one taken from `Time.now`, the result flips once the real date passes the fixed one;
-  write every value the comparison reads, or pin the clock for the whole example.
+  write every value the comparison reads, or pin the clock for the whole example (within the
+  caching limits below).
 - Prefer binding the expectation to the value the code stored (the record's own `created_at`, the
   scheduled job's args read back, a weekyear computed with the app's own helper) over a second clock
   read.
@@ -88,6 +89,8 @@ setting to relax.
   single-example wrap regressed this way on 2026-06-01
   (`docs/task-management/learnings-archive/LEARNINGS-2026-01_to_2026-09.md` "spec re-reading
   `Time.now`"); a narrower pin limits how many examples are exposed, it does not remove the hazard.
+  Links and permissions are the known cases; any cache that relies on `updated_at` moving forward
+  to notice a change carries the same hazard.
 - Pin only the examples that need it: an `around` hook on a group only when every example in it
   does. Do not nest `travel_to` blocks: ActiveSupport 7.2 raises.
 
