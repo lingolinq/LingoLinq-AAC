@@ -62,6 +62,10 @@ describe DemoDistrict do
 
     it "skips members without a demo email and fills weekdays through yesterday for demo members" do
       srand(20261021)
+      # Absences (UsageGenerator#absent?, about 1 school day in 10) are keyed on the student's id, which
+      # changes from run to run, so this example fails whenever the day it needs happens to be an absence.
+      # Absence has its own example ("does not fill an absent last day on a rerun"); pin it off here.
+      allow_any_instance_of(DemoDistrict::UsageGenerator).to receive(:absent?).and_return(false)
       o = org_with('demo_data' => true)
       demo = member(o, 'kid@demoschooldistrict.org')
       outsider = member(o, 'parent@example.com')
@@ -139,6 +143,10 @@ describe DemoDistrict do
 
   describe "interrupted runs" do
     it "redoes a day that a killed run left half written" do
+      # Absences (UsageGenerator#absent?, about 1 school day in 10) are keyed on the student's id, which
+      # changes from run to run, so this example fails whenever the day it needs happens to be an absence.
+      # Absence has its own example ("does not fill an absent last day on a rerun"); pin it off here.
+      allow_any_instance_of(DemoDistrict::UsageGenerator).to receive(:absent?).and_return(false)
       o = org_with('demo_data' => true)
       demo = member(o, 'kid@demoschooldistrict.org')
       prior_session(demo, Time.utc(2026, 10, 16, 18, 0, 0))
