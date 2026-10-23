@@ -1158,6 +1158,35 @@ describe('app_state', function() {
         expect(stashesForTests().get('board_level')).toEqual(5);
       });
 
+      // Opening Speak Mode on the home board in another language makes that language the home board's
+      // preference. It was set but never saved, so it relied on some later whole-record save to carry it;
+      // a listed save (utils/preference_save.js) does not, and replaced it with the stored value (adversary
+      // review of the #1141 follow-ups, 2026-10-22). It is now saved on its own, as `home_board`.
+      it('should save a new home board locale on its own when Speak Mode opens it in another language', function() {
+        var user = primeBoardLevelUser({
+          home_board: { id: '1_12345', key: 'aaaa/bbbb', locale: 'en' }
+        });
+        var saves = [];
+        user.save = function(options) { saves.push(options); return RSVP.resolve(user); };
+        app_state.set('currentBoardState', null);
+        stashesForTests().persist('board_level', null);
+        app_state.toggle_mode('speak', {override_state: {key: 'aaaa/bbbb', id: '1_12345', locale: 'es'}});
+        expect(user.get('preferences.home_board.locale')).toEqual('es');
+        expect(saves).toEqual([{ adapterOptions: { preference_keys: ['home_board'] } }]);
+      });
+
+      it('should not save when Speak Mode opens the home board in its own language', function() {
+        var user = primeBoardLevelUser({
+          home_board: { id: '1_12345', key: 'aaaa/bbbb', locale: 'en' }
+        });
+        var saves = [];
+        user.save = function(options) { saves.push(options); return RSVP.resolve(user); };
+        app_state.set('currentBoardState', null);
+        stashesForTests().persist('board_level', null);
+        app_state.toggle_mode('speak', {override_state: {key: 'aaaa/bbbb', id: '1_12345', locale: 'en'}});
+        expect(saves).toEqual([]);
+      });
+
       it('should ignore the stashed board_level if not launching from a board view (i.e. currentBoardState=null)', function() {
         expect(app_state.get('speak_mode')).toEqual(false);
         primeBoardLevelUser({
