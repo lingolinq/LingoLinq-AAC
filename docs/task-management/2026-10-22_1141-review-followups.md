@@ -253,6 +253,22 @@ home, but the first copy's boards were not removed. The request log shows the fi
 until its board page is left, so its clean-up never runs. Not yet compared with develop; likely pre-existing.
 Follow-up, not in this PR.
 
+## Published-branch review (2026-10-22, head f85ad8145)
+Adversary pass: no Critical or High; four Low. Fixed:
+- Opening Speak Mode on the home board in another language set `preferences.home_board.locale` and never saved it
+  (services/app-state.js#toggle_mode; an inner `var save_user = false` only redeclared the flag), so it relied on a
+  later whole-record save. A listed save (tour offer, Predict) dropped it. It is now saved on its own as `home_board`
+  when no level save is going out (a level save is a whole save and carries it). Server: process_home_board with the
+  same board stores id/key/locale and notifies nothing, as every whole save already did. Tests in
+  tests/utils/app_state-test.js (board_level); red before the fix.
+- The second signed-in-user checks in discard_cancelled_copy (after a lookup, and between deletes) had no test; two
+  added, each red with its check removed.
+- e2e safety: users-1141.rb refuses a database that is not local or whose name lacks development/e2e (verified: it
+  refuses lingolinq-test); the spec refuses a non-local E2E_BASE_URL (verified), and a sign-in failure says to run the
+  setup script.
+Not changed: the data-bearing classifier does not match e2e/support/*.rb (no real data today). Changing the pattern
+list is shared CI config, for its owner.
+
 ## Still open (for Scot)
 - Item 2: on someone else's board the in-flight guard is released when the copy dialog closes; after a slow copy the
   dialog can be closed while the copy carries on, so a second assign started then can race the first.
@@ -263,7 +279,8 @@ Follow-up, not in this PR.
   stronger fix is a server rule that writes AI consent keys only when a save lists them, with the preferences page,
   enable-ai-features and focus-words listing theirs.
 - Item 5: a listed save replaces the record's preferences with the server's, so an unsaved local preference edit on
-  that record is dropped in memory (PLAUSIBLE; no current flow found that leaves one).
+  that record is dropped in memory. One such flow existed and is fixed (see "Published-branch review" below); others
+  may exist.
 - Item 3: another tab's no-modal logout still flushes the shared stored login (needs a decision on what that path may clear).
 - The success-path invalid_token logout (extras.js ~297) has the same stale-token gap; not changed.
 - utils/persistence.js and services/persistence.js carry the same offline edits, since both are reachable. Which copy's DSExtend the adapter mixes in was reported by the adversary pass (the utils copy) and not verified here.
