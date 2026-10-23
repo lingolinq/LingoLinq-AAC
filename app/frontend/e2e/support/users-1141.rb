@@ -10,9 +10,12 @@ raise 'refusing to run outside development' unless Rails.env.development?
 # The environment name alone does not say which database this is: a shell can still hold a
 # DATABASE_URL for a shared or deployed one. Only a local database whose name says it is for
 # development or e2e testing.
-db = ActiveRecord::Base.connection_db_config.configuration_hash
-local_host = db[:host].blank? || %w[localhost 127.0.0.1 ::1].include?(db[:host].to_s)
-raise "refusing to run against database #{db[:database].inspect} on #{db[:host].inspect}" unless local_host && db[:database].to_s =~ /development|e2e/
+# Read from the open connection, not the config: PGHOST and friends can point a host-less
+# config somewhere else.
+pg = ActiveRecord::Base.connection.raw_connection
+host = pg.host.to_s
+local_host = host.empty? || host.start_with?('/') || %w[localhost 127.0.0.1 ::1].include?(host)
+raise "refusing to run against database #{pg.db.inspect} on #{host.inspect}" unless local_host && pg.db.to_s =~ /\Alingolinq-(development|e2e[\w-]*)\z/
 
 def e2e_user(user_name, prefs)
   u = User.find_by(user_name: user_name) || User.process_new({

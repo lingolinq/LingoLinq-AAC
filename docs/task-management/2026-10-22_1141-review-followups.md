@@ -255,16 +255,16 @@ Follow-up, not in this PR.
 
 ## Published-branch review (2026-10-22, head f85ad8145)
 Adversary pass: no Critical or High; four Low. Fixed:
-- Opening Speak Mode on the home board in another language set `preferences.home_board.locale` and never saved it
-  (services/app-state.js#toggle_mode; an inner `var save_user = false` only redeclared the flag), so it relied on a
-  later whole-record save. A listed save (tour offer, Predict) dropped it. It is now saved on its own as `home_board`
-  when no level save is going out (a level save is a whole save and carries it). Server: process_home_board with the
-  same board stores id/key/locale and notifies nothing, as every whole save already did. Tests in
-  tests/utils/app_state-test.js (board_level); red before the fix.
+- (Reverted.) A fix that saved the home-board language at Speak Mode entry was added (8557fdb9b) and reverted after
+  the next adversary pass (f13280a57): services/app-state.js#toggle_mode compares only the locales, so on an entry whose
+  override_state has just a key (evaluation start, starred boards) it set the language to undefined and the new save
+  wrote that to the account, including a communicator's during a supervisor's evaluation; and the main Speak Mode button
+  (toggle_speak_mode) sets the language in memory first, so the save never ran there. See "Still open".
 - The second signed-in-user checks in discard_cancelled_copy (after a lookup, and between deletes) had no test; two
-  added, each red with its check removed.
-- e2e safety: users-1141.rb refuses a database that is not local or whose name lacks development/e2e (verified: it
-  refuses lingolinq-test); the spec refuses a non-local E2E_BASE_URL (verified), and a sign-in failure says to run the
+  added. The between-deletes test also asserts a single lookup, so it is red with only the between-deletes check removed
+  (verified); the in-flight test is red with the after-lookup check removed (verified).
+- e2e safety: users-1141.rb refuses unless the OPEN connection is local (socket or localhost) and the database is
+  `lingolinq-development` or `lingolinq-e2e...` (verified: it refuses lingolinq-test); the spec refuses a non-local E2E_BASE_URL (verified), and a sign-in failure says to run the
   setup script.
 Not changed: the data-bearing classifier does not match e2e/support/*.rb (no real data today). Changing the pattern
 list is shared CI config, for its owner.
@@ -279,8 +279,10 @@ list is shared CI config, for its owner.
   stronger fix is a server rule that writes AI consent keys only when a save lists them, with the preferences page,
   enable-ai-features and focus-words listing theirs.
 - Item 5: a listed save replaces the record's preferences with the server's, so an unsaved local preference edit on
-  that record is dropped in memory. One such flow existed and is fixed (see "Published-branch review" below); others
-  may exist.
+  that record is dropped in memory. CONFIRMED flow: Speak Mode sets the home board's language and text direction in
+  memory (services/app-state.js toggle_speak_mode and toggle_mode) and relies on a later whole save to carry them; a
+  tour-offer or Predict save no longer does, so a language chosen that way can revert. A safe fix must check the board
+  id and a present locale before saving, and decide whether Speak Mode entry may add a request; left for Scot.
 - Item 3: another tab's no-modal logout still flushes the shared stored login (needs a decision on what that path may clear).
 - The success-path invalid_token logout (extras.js ~297) has the same stale-token gap; not changed.
 - utils/persistence.js and services/persistence.js carry the same offline edits, since both are reachable. Which copy's DSExtend the adapter mixes in was reported by the adversary pass (the utils copy) and not verified here.

@@ -327,9 +327,11 @@ module('Unit | Utility | cancelling a home board copy', function(hooks) {
         '1_90': root,
         '1_91': rec(deleted, '1_91', { user_name: 'example', key: 'example/top-food', copy_id: '1_90', created: at })
       };
-      LingoLinq.store.findRecord = function(type, id) { return recs[id] ? RSVP.resolve(recs[id]) : RSVP.reject({ status: 404 }); };
+      var lookups = [];
+      LingoLinq.store.findRecord = function(type, id) { lookups.push(id); return recs[id] ? RSVP.resolve(recs[id]) : RSVP.reject({ status: 404 }); };
       await discard_cancelled_copy(['1_90'], user, new Date('2026-10-11T10:00:00Z'), root, '1_1');
       assert.deepEqual(deleted, ['1_90'], 'only the delete made before the sign-in');
+      assert.deepEqual(lookups, ['1_90'], "the next board is not even looked up with the next person's session");
     });
 
     test('discard_cancelled_copy still removes the copy when the same person is signed in', async function(assert) {
