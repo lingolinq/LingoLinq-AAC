@@ -52,8 +52,12 @@ describe Processable, :type => :model do
     it "should not let a bad url() smuggle CSS past the sanitizer" do
       r = FakeRecord.new
       style_block = r.process_html('<style>url(x y\\\\) {} @import "https://evil.example/x.css"; q ) {}</style>')
+      # The element itself survives, so the CSS really went through the tokenizer; without
+      # this, a config that dropped <style> entirely would pass the next line without crass.
+      expect(style_block).to include('<style>')
       expect(style_block).not_to include('@import')
       style_attr = r.process_html('<p style="color: (url(x y\\\\)); background-image: url(javascript:alert(1)); z: )">hi</p>')
+      expect(style_attr).to include('style="color:')
       expect(style_attr).not_to include('javascript:')
     end
   end
