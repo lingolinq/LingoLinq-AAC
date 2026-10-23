@@ -27,12 +27,18 @@ describe ButtonSound, 'transcription and the personal AI switch' do
   end
 
   it 'does not schedule transcription for an account that turned AI features off' do
-    expect(scheduled?(schedule_for('ai_features_enabled' => false))).to eq(false)
+    u = User.create(:settings => {'preferences' => {'ai_features_enabled' => false}})
+    expect(User.ai_features_opted_out?(u)).to eq(true)
+    bs = ButtonSound.create(:user => u, :settings => {})
+    expect(bs).to receive(:secondary_url).and_return("http://www.example.com/sound.wav")
+    bs.schedule_transcription
+    expect(scheduled?(bs)).to eq(false)
   end
 
-  it 'treats a stored "false" or 0 as an opt-out too' do
+  it 'treats a stored "false", 0 or "0" as an opt-out too' do
     expect(scheduled?(schedule_for('ai_features_enabled' => 'false'))).to eq(false)
     expect(scheduled?(schedule_for('ai_features_enabled' => 0))).to eq(false)
+    expect(scheduled?(schedule_for('ai_features_enabled' => '0'))).to eq(false)
   end
 
   it 'schedules transcription for an account whose AI choice is blank (not a decision)' do

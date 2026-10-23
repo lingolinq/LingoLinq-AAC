@@ -4,7 +4,9 @@ Branch `traci/fix/transcription-ai-opt-out`, from develop at 4bae48a9c. Asked by
 
 ## Facts
 - READ: `ButtonSound#schedule_transcription` (app/models/button_sound.rb), above the `frd` branch, so both the after_save
-  scheduling and the worker re-run pass through it. No other path sends audio to Google (CONFIRMED by grep).
+  scheduling and the worker re-run pass through it. No other SERVER-side path sends recorded audio to Google (CONFIRMED
+  by grep). Browser dictation (webkitSpeechRecognition in the board-creation and focus-word screens) sends microphone
+  audio to the browser vendor; it is user-initiated and not part of this check.
 - Before: org switch, COPPA, EU under-16, org `disable_ai_features`; the personal preference was removed on purpose in
   #1087 (00e86c9e0), so an explicit opt-out still sent recordings to Google. Main and develop both (the Oct 14 release
   carried #1087).
@@ -24,7 +26,16 @@ encoded the same behaviour and was flipped with them. Added: string/int opt-outs
 still transcribes; the never-set example is kept. Red before the change (4 failures); red again with the gate removed.
 
 ## Open for Scot
-- An EU under-16 account has its AI preferences forced to false at creation and on revoke, which this check cannot tell
-  apart from the person's own choice. A parent who grants consent without turning the master switch on leaves it false,
-  so transcription stays off for that child. Kept (the conservative reading); say if it should transcribe.
-- A supervisor recording on a communicator's board is gated by the supervisor's preference (the recording's owner).
+- System-written "off" values read as an opt-out. When an under-16 student is removed from an organization or a license
+  ends, `apply_eu_ai_offboarding_reset!` (user.rb, called for `attested_under_16 || eu_under_16?`, so not only EU) writes
+  every AI preference false, with no confirmation_log entry. This check cannot tell that from the person's choice, so
+  transcription stops for those students (the privacy-safe direction). Turning "Allow AI features" on restores it, but
+  also turns on the features that follow the master switch. A parental consent grant always sets the master true
+  (sanitize_eu_ai_requested_features), so that path is not affected. If they should keep transcription, the reset needs a
+  marker this check can read.
+- Whose preference: the recording's owner. Usually the person recording; for batch recording on a communicator's
+  account the communicator owns the sounds (sounds_controller.rb), so their preference governs.
+- Release: Scot asked for the next release; no hotfix.
+- Follow-ups: the attested compliance program overview (2026-09-14) says transcription is not gated by individual consent;
+  it needs a dated successor. The recordings view keeps polling "checking for transcription..." for a sound that will
+  never be transcribed (also true today for the org, COPPA and EU gates).
