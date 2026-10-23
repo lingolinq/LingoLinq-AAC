@@ -18,6 +18,15 @@ import { mark_tour_offered } from 'frontend/utils/tours/tour_offer';
 module('Unit | Utility | saves that name the preference keys they changed', function(hooks) {
   setupTest(hooks);
 
+  /* Switch persistence online or offline WITHOUT it reading as a reconnect. services/stashes.js#drain_on_reconnect
+     calls push_log on an offline-to-online edge, and push_log arms a 15-minute timer; left pending, it made every
+     later test that awaits settled() time out (seen in the Ember shard: 38 tours tests in a row). The edge is read
+     from stashes._was_online, so it is cleared first: the observer then sees no previous state and does nothing. */
+  function setOnline(persistence, value) {
+    if (persistence.stashes) { persistence.stashes._was_online = undefined; }
+    persistence.set('online', value);
+  }
+
   function userStub(prefs) {
     var saves = [];
     var u = EmberObject.extend({
@@ -46,7 +55,7 @@ module('Unit | Utility | saves that name the preference keys they changed', func
     var bodies = [];
     var original_real_lookup = queryLog.real_lookup;
     queryLog.real_lookup = true; // the test adapter (tests/helpers/ember_helper.js) passes through to the real one
-    persistence.set('online', true);
+    setOnline(persistence, true);
     $.realAjax = function(options) {
       if (options.type === 'PUT' && /\/api\/v1\/users\/1_77/.test(options.url)) { bodies.push(typeof options.data === 'string' ? JSON.parse(options.data) : options.data); }
       return RSVP.resolve({ user: { id: '1_77', user_name: 'pkeys', preferences: { word_suggestions: true } } });
@@ -61,7 +70,7 @@ module('Unit | Utility | saves that name the preference keys they changed', func
     } finally {
       $.realAjax = original_real;
       queryLog.real_lookup = original_real_lookup;
-      persistence.set('online', original_online);
+      setOnline(persistence, original_online);
     }
     var listed = (bodies[0] || {}).user || {};
     var plain = (bodies[1] || {}).user || {};
@@ -186,7 +195,7 @@ module('Unit | Utility | saves that name the preference keys they changed', func
         }, function() { return null; });
       };
       queryLog.real_lookup = true;
-      persistence.set('online', false);
+      setOnline(persistence, false);
       var whole, listed;
       try {
         await RSVP.resolve(storage.remove('user', 'self')).then(null, function() { });
@@ -201,7 +210,7 @@ module('Unit | Utility | saves that name the preference keys they changed', func
       } finally {
         await RSVP.resolve(storage.remove('user', 'self')).then(null, function() { });
         queryLog.real_lookup = original_real_lookup;
-        persistence.set('online', original_online);
+        setOnline(persistence, original_online);
       }
       assert.true(!!(whole && whole.changed), 'the whole save is waiting under self');
       assert.false('preference_keys' in (whole || {}), 'with no list');
