@@ -119,16 +119,8 @@
       window.dispatchEvent(new CustomEvent('weblinger-script-load-failed'));
     }
   };
-  window.weblingerLoadFallback = function() {
-    var script = document.createElement('script');
-    script.src = 'https://app.covidspeak.org/weblinger.js/weblinger.js';
-    script.async = true;
-    script.onload = window.weblingerScriptLoaded;
-    script.onerror = window.weblingerScriptFailed;
-    document.head.appendChild(script);
-  };
 </script>
-<script src='/weblinger/weblinger.js' async='true' onload='weblingerScriptLoaded()' onerror='weblingerLoadFallback()'></script>
+<script src='/weblinger/weblinger.js' async='true' onload='weblingerScriptLoaded()' onerror='weblingerScriptFailed()'></script>
 <script src='/mespeak/mespeak.js' async='true'></script>
 <script type='text/javascript'>
   <% if ENV['SYMBOL_PROXY_KEY'] %>
