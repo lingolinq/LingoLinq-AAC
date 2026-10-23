@@ -79,11 +79,13 @@ setting to relax.
 - Prefer binding the expectation to the value the code stored (the record's own `created_at`, the
   scheduled job's args read back, a weekyear computed with the app's own helper) over a second clock
   read.
-- Do not freeze the clock around code that writes and then reads `UserLink` links or permissions,
-  unless that code path invalidates the cache itself (`UserLink.invalidate_cache_for`). `travel_to`
-  pins `updated_at`, and `UserLink.links_for` and the permission cache are keyed on `updated_at`
-  moving forward, so a link written inside the frozen block reads a stale cache. A single-example
-  wrap regressed this way on 2026-06-01
+- Do not freeze the clock around code that writes a link or permission and then reads it back.
+  `travel_to` pins `updated_at`, and both caches are keyed on `updated_at` moving forward:
+  `UserLink.links_for` (`links/for/<code>/<updated_at>`) and the permission cache
+  (`permissions-for/...`, permissable `lib/permissable.rb`). A link written inside the frozen block
+  then reads a stale cache. `UserLink.invalidate_cache_for` clears only the `links/for` key, so it
+  makes a frozen `links_for` read safe but never a frozen `allows?` / `permissions_for` read. A
+  single-example wrap regressed this way on 2026-06-01
   (`docs/task-management/learnings-archive/LEARNINGS-2026-01_to_2026-09.md` "spec re-reading
   `Time.now`"); a narrower pin limits how many examples are exposed, it does not remove the hazard.
 - Pin only the examples that need it: an `around` hook on a group only when every example in it
