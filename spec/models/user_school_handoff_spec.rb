@@ -574,6 +574,37 @@ describe 'School-authorized hand-back to the family (#1063)', type: :model do
       expect(o.managed_user?(u.reload)).to eq(false)
     end
 
+    it 'does not store an unclassifiable birth date from a sponsoring removal while another sponsor remains' do
+      # With parental consent off, Organization#remove_user does not check the date, and the
+      # re-check after the detach records it through begin_family_offboarding_consents!.
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(false)
+      leaving = licensed_org
+      staying = licensed_org
+      u = school_authorized_user!(suffix: 'bad_birth_recheck')
+      leaving.claim_user(u)
+      staying.claim_user(u.reload)
+
+      leaving.remove_user(u.user_name, birth_month: 13, birth_year: Time.now.utc.year - 10)
+
+      expect((u.reload.settings['registration'] || {})['offboarding_birth_month']).to be_nil
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      License.where(organization_id: staying.id, user_id: u.id).update_all(expires_at: 1.day.ago)
+      License.expire_stale_licenses!
+      expect(handed_off?(u)).to eq(true)
+      expect(handoff_events(u).first.data['age_basis']).to eq('unknown_assumed_under_13')
+    end
+
+    it 'does not store an unclassifiable birth date from the last sponsor' do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(false)
+      o = licensed_org
+      u = school_authorized_user!(suffix: 'bad_birth_last')
+      o.claim_user(u)
+
+      o.remove_user(u.user_name, birth_month: 13, birth_year: Time.now.utc.year - 10)
+
+      expect((u.reload.settings['registration'] || {})['offboarding_birth_month']).to be_nil
+    end
+
     it 'hands back when two organizations remove the student at the same time' do
       # Both removals check for another sponsor before either detaches, so each sees the other.
       # Modelled by running the second removal inside the first, just before the first releases

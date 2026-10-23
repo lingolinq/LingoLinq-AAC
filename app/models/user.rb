@@ -727,6 +727,10 @@ class User < ApplicationRecord
   end
 
   def stamp_offboarding_age_attestation(birth_month, birth_year, org_jurisdiction)
+    # Every caller reaches here, including begin_family_offboarding_consents! with parental consent
+    # off, when Organization#remove_user does not check the date. A date age_under_threshold?
+    # cannot classify would otherwise count as an age on file for License.expire_stale_licenses!.
+    return if self.class.age_under_threshold?(birth_month: birth_month, birth_year: birth_year, age: 13).nil?
     self.settings['registration'] ||= {}
     self.settings['registration']['offboarding_birth_month'] = birth_month.to_i
     self.settings['registration']['offboarding_birth_year'] = birth_year.to_i
