@@ -544,8 +544,9 @@ describe WeeklyStatsSummary, :type => :model do
       cweek = start.beginning_of_week(:sunday).cweek
       cwyear = start.beginning_of_week(:sunday).cwyear
       cw1 = (cwyear * 100) + cweek
-      # The following week, computed as the app does: `cweek + 1` is not a real ISO week when start
-      # falls in its year's last week, and add_to_trends raised Date::Error (early February 2027, 2028, ...).
+      # The following week, computed as the app does: `cweek + 1` is not a real ISO week when the Sunday
+      # on or before start is in its ISO year's last week, and add_to_trends raised Date::Error (early
+      # February 2027, 2028, ...).
       cw2 = WeeklyStatsSummary.date_to_weekyear(start + 7.days)
       
       sum1 = WeeklyStatsSummary.create(:user_id => 0, :weekyear => cw1, :data => {

@@ -78,11 +78,16 @@ setting to relax.
   write every value the comparison reads, or pin the clock for the whole example.
 - Prefer binding the expectation to the value the code stored (the record's own `created_at`, the
   scheduled job's args read back, a weekyear computed with the app's own helper) over a second clock
-  read. When `travel_to` is the fix, wrap only the example that needs it, never a whole group: it
+  read.
+- Do not freeze the clock around code that writes and then reads `UserLink` links or permissions,
+  unless that code path invalidates the cache itself (`UserLink.invalidate_cache_for`). `travel_to`
   pins `updated_at`, and `UserLink.links_for` and the permission cache are keyed on `updated_at`
-  moving forward, so a link written inside a frozen block can read a stale cache (regressed
-  2026-06-01, `docs/task-management/learnings-archive/LEARNINGS-2026-01_to_2026-09.md` "spec
-  re-reading `Time.now`"). Do not nest `travel_to` blocks: ActiveSupport 7.2 raises.
+  moving forward, so a link written inside the frozen block reads a stale cache. A single-example
+  wrap regressed this way on 2026-06-01
+  (`docs/task-management/learnings-archive/LEARNINGS-2026-01_to_2026-09.md` "spec re-reading
+  `Time.now`"); a narrower pin limits how many examples are exposed, it does not remove the hazard.
+- Pin only the examples that need it: an `around` hook on a group only when every example in it
+  does. Do not nest `travel_to` blocks: ActiveSupport 7.2 raises.
 
 ## Running and reading results
 
