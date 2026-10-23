@@ -3,6 +3,7 @@ import importlib.util
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import tempfile
@@ -13,6 +14,32 @@ MODULE_PATH = pathlib.Path(__file__).with_name("codex-review-run-chunks.py")
 SPEC = importlib.util.spec_from_file_location("codex_review_run_chunks", MODULE_PATH)
 run_chunks = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(run_chunks)
+
+_FIXTURE_DIR = None
+_ORIGINAL_RUNNER_TEMP = None
+
+
+def setUpModule():
+    # Every codex call needs the locked model catalog the workflow writes under $RUNNER_TEMP
+    # (codex_exec_args refuses to build one without it). These tests use a fake codex, so the
+    # catalog is locked from a stub rather than from `codex debug models --bundled`.
+    global _FIXTURE_DIR, _ORIGINAL_RUNNER_TEMP
+    catalog = run_chunks.model_catalog
+    _FIXTURE_DIR = tempfile.TemporaryDirectory()
+    _ORIGINAL_RUNNER_TEMP = os.environ.get("RUNNER_TEMP")
+    stub = {"models": [dict({"slug": slug}, **{field: "set" for field in catalog.TOOL_FIELDS})
+                       for slug in catalog.APPROVED_MODELS]}
+    path = pathlib.Path(_FIXTURE_DIR.name) / catalog.CATALOG_NAME
+    path.write_text(json.dumps(catalog.locked_catalog(stub)))
+    os.environ["RUNNER_TEMP"] = _FIXTURE_DIR.name
+
+
+def tearDownModule():
+    if _ORIGINAL_RUNNER_TEMP is None:
+        os.environ.pop("RUNNER_TEMP", None)
+    else:
+        os.environ["RUNNER_TEMP"] = _ORIGINAL_RUNNER_TEMP
+    _FIXTURE_DIR.cleanup()
 
 
 class RunChunksTest(unittest.TestCase):
@@ -262,6 +289,128 @@ class RunChunksTest(unittest.TestCase):
             finally:
                 run_chunks.subprocess.run = original
         self.assertIn("--ephemeral", seen[0])
+        # The shared hardening arguments, an empty working directory and absolute paths
+        # (2026-10-02): codex runs with no tools, no PR files and no user config.
+        command = seen[0]
+        for required in run_chunks.codex_exec_args():
+            self.assertIn(required, command)
+        self.assertIn("features.shell_tool=false", command)
+        workdir = command[command.index("-C") + 1]
+        self.assertTrue(pathlib.Path(workdir).is_dir())
+        self.assertEqual(list(pathlib.Path(workdir).iterdir()), [], "codex's working directory is not empty")
+        self.assertTrue(pathlib.Path(command[command.index("--output-schema") + 1]).is_absolute())
+
+    # The whole command, built here from the hardening file and the catalog's constants rather than
+    # from codex_exec_args(), so a flag added in run_model or a lock argument dropped there fails
+    # (round 3b, 2026-10-10).
+    def test_run_model_sends_exactly_the_reviewed_arguments(self):
+        catalog = run_chunks.model_catalog
+        hardening = [line for line in run_chunks.CODEX_EXEC_ARGS_FILE.read_text().splitlines()
+                     if line and not line.startswith("#")]
+        seen = []
+        original = run_chunks.subprocess.run
+
+        class Ok:
+            returncode = 0
+
+        with tempfile.TemporaryDirectory() as tmp:
+            prompt = pathlib.Path(tmp) / "prompt.md"
+            prompt.write_text("prompt")
+            output = pathlib.Path(tmp) / "out.json"
+
+            def fake_run(command, **_kwargs):
+                seen.append(list(command))
+                output.write_text(json.dumps({"verdict": "APPROVE"}))
+                return Ok()
+
+            try:
+                run_chunks.subprocess.run = fake_run
+                run_chunks.run_model(object(), prompt, "schema.json", output, model=run_chunks.CHUNK_MODEL)
+            finally:
+                run_chunks.subprocess.run = original
+        self.assertEqual(len(seen), 1)
+        command = seen[0]
+        expected = ["codex", "exec", *hardening,
+                    "-c", f'model_provider="{catalog.PROVIDER_ID}"',
+                    "-c", f'model_catalog_json="{pathlib.Path(os.environ["RUNNER_TEMP"]) / catalog.CATALOG_NAME}"',
+                    "-C", run_chunks.codex_workdir(), "-m", run_chunks.CHUNK_MODEL,
+                    "--output-schema", str(pathlib.Path("schema.json").resolve()),
+                    "--output-last-message", str(output.resolve())]
+        self.assertEqual(command, expected)
+
+    # The retry after invalid JSON, and a synthesis call with its own model and schema, send the
+    # same whole command (round 3c, 2026-10-10): a flag added only to the retry, or only to a
+    # synthesis output, fails.
+    def test_run_model_retry_and_synthesis_calls_send_exactly_the_reviewed_arguments(self):
+        catalog = run_chunks.model_catalog
+        hardening = [line for line in run_chunks.CODEX_EXEC_ARGS_FILE.read_text().splitlines()
+                     if line and not line.startswith("#")]
+        original = run_chunks.subprocess.run
+
+        class Ok:
+            returncode = 0
+
+        cases = {
+            "chunk call and its retry": ("chunk-0001-review-1.json", ".github/codex/chunk-review-schema.json",
+                                         run_chunks.CHUNK_MODEL, 2),
+            "synthesis call": ("synthesis-1.json", ".github/codex/synthesis-schema.json", run_chunks.SYNTHESIS_MODEL, 1),
+        }
+        for why, (name, schema, model, count) in cases.items():
+            with self.subTest(why=why), tempfile.TemporaryDirectory() as tmp:
+                prompt = pathlib.Path(tmp) / "prompt.md"
+                prompt.write_text("prompt")
+                output = pathlib.Path(tmp) / name
+                seen = []
+
+                def fake_run(command, **_kwargs):
+                    seen.append(list(command))
+                    # The first answer is not JSON when a retry is wanted.
+                    output.write_text("not json" if len(seen) < count else json.dumps({"verdict": "APPROVE"}))
+                    return Ok()
+
+                try:
+                    run_chunks.subprocess.run = fake_run
+                    self.assertTrue(run_chunks.run_model(object(), prompt, schema, output, model=model))
+                finally:
+                    run_chunks.subprocess.run = original
+                expected = ["codex", "exec", *hardening,
+                            "-c", f'model_provider="{catalog.PROVIDER_ID}"',
+                            "-c", f'model_catalog_json="{pathlib.Path(os.environ["RUNNER_TEMP"]) / catalog.CATALOG_NAME}"',
+                            "-C", run_chunks.codex_workdir(), "-m", model,
+                            "--output-schema", str(pathlib.Path(schema).resolve()),
+                            "--output-last-message", str(output.resolve())]
+                self.assertEqual(seen, [expected] * count)
+
+    def test_refuses_to_build_a_codex_call_without_hardening_arguments(self):
+        original = run_chunks.CODEX_EXEC_ARGS_FILE
+        with tempfile.TemporaryDirectory() as tmp:
+            empty = pathlib.Path(tmp) / "args.txt"
+            empty.write_text("# nothing\n\n")
+            run_chunks.CODEX_EXEC_ARGS_FILE = empty
+            try:
+                with self.assertRaises(RuntimeError):
+                    run_chunks.codex_exec_args()
+            finally:
+                run_chunks.CODEX_EXEC_ARGS_FILE = original
+
+    def test_refuses_to_build_a_codex_call_without_the_locked_model_catalog(self):
+        self.assertIn("model_provider=\"codex-review\"", run_chunks.codex_exec_args())
+        original = os.environ["RUNNER_TEMP"]
+        with tempfile.TemporaryDirectory() as empty:
+            os.environ["RUNNER_TEMP"] = empty
+            try:
+                with self.assertRaises((RuntimeError, OSError)):
+                    run_chunks.codex_exec_args()
+            finally:
+                os.environ["RUNNER_TEMP"] = original
+
+    def test_the_locked_catalog_holds_exactly_the_models_the_review_runs(self):
+        # The catalog is the only list codex can pick from, so a model the review asks for must be
+        # in it, and nothing else may be.
+        workflow = (MODULE_PATH.parents[1] / ".github/workflows/codex-review.yml").read_text()
+        used = set(re.findall(r"-m (gpt-[\w.-]+)", workflow))
+        used |= {run_chunks.DEFAULT_CHUNK_MODEL, run_chunks.DEFAULT_SYNTHESIS_MODEL}
+        self.assertEqual(used, set(run_chunks.model_catalog.APPROVED_MODELS))
 
     def test_needs_tiebreak_for_approve_block_split(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -458,7 +607,9 @@ class ChunkRunnerLogExposureTest(unittest.TestCase):
         env["FAKE_CODEX_RECEIVED_DIR"] = str(root)
         env["FAKE_CODEX_MODEL_CANARY"] = MODEL_CANARY
         env["FAKE_CODEX_MODE"] = mode
-        env["CODEX_REVIEW_MODEL_CALL_TIMEOUT"] = "1"
+        # Only the timeout mode tests the per-call timeout; in the other modes a 1 s limit let a fake codex that
+        # started slowly under machine load trip a retry, which failed this test at random (2026-10-10).
+        env["CODEX_REVIEW_MODEL_CALL_TIMEOUT"] = "1" if mode == "timeout" else "30"
         result = subprocess.run(
             [
                 sys.executable,
@@ -557,6 +708,139 @@ class QuietExecLabelTest(unittest.TestCase):
         # not turn a finished call into a timeout.
         leave_child = "import subprocess, sys; subprocess.Popen(['sleep', '4']); sys.exit(0)"
         self.assertEqual(self.run_child(leave_child, "", timeout=2), (0, None))
+
+
+# A manifest that already says coverage is incomplete can never be approved: the envelope discards every
+# chunk and synthesis review and returns NEEDS_HUMAN (validate_chunked_evidence in
+# codex-review-build-envelope.py). Since the large-PR fallback routes every over-cap PR here, the runner
+# stops before any model call on such a manifest and leaves placeholders the envelope step can read.
+class IncompleteCoverageEarlyStopTest(unittest.TestCase):
+    def run_with_manifest(self, root, manifest_extra, chunk_count):
+        bin_dir = root / "bin"
+        bin_dir.mkdir()
+        fake = bin_dir / "codex"
+        fake.write_text(FAKE_CODEX)
+        fake.chmod(0o755)
+        counter = root / "codex-calls"
+        counter.write_text("0")
+        evidence = root / "evidence"
+        evidence.mkdir()
+        chunks = []
+        for n in range(1, chunk_count + 1):
+            cid = f"chunk-{n:04d}"
+            body = f"diff --git a/app/{n}.rb b/app/{n}.rb\n@@ -1 +1 @@\n-old\n+{DIFF_CANARY}\n"
+            (evidence / f"{cid}.diff").write_text(body)
+            chunks.append({"id": cid, "path": f"{cid}.diff", "raw_sha256": f"{n:064x}",
+                           "prompt_sha256": "c" * 64, "coverage": [{"path": f"app/{n}.rb"}]})
+        (evidence / "manifest.json").write_text(json.dumps(dict({"chunks": chunks}, **manifest_extra)))
+        (evidence / "manifest.md").write_text("manifest\n")
+        live_state = root / "live_state.txt"
+        live_state.write_text(f"### gh pr view\n{{\"title\": \"t\", \"body\": \"{BODY_CANARY}\"}}\n")
+        out_dir = root / "results"
+        env = dict(os.environ)
+        env["PATH"] = f"{bin_dir}{os.pathsep}{env.get('PATH', '')}"
+        env.update({"FAKE_CODEX_COUNTER": str(counter), "FAKE_CODEX_RECEIVED_DIR": str(root),
+                    "FAKE_CODEX_MODEL_CANARY": MODEL_CANARY, "FAKE_CODEX_MODE": "block",
+                    "CODEX_REVIEW_MODEL_CALL_TIMEOUT": "30"})
+        result = subprocess.run(
+            [sys.executable, str(MODULE_PATH), "--evidence-dir", str(evidence), "--live-state-file", str(live_state),
+             "--out-dir", str(out_dir), "--head-sha", "a" * 40],
+            cwd=MODULE_PATH.resolve().parents[1], env=env, capture_output=True, text=True)
+        return result, int(counter.read_text()), out_dir
+
+    INCOMPLETE = {"coverage_complete": False,
+                  "incomplete_coverage": [{"path": "(diff-wide)", "reason": "too_many_chunks", "chunks": 17, "max_chunks": 16}]}
+
+    def test_incomplete_coverage_makes_no_model_call(self):
+        cases = {"too many chunks": (self.INCOMPLETE, 16),
+                 "flag only": ({"coverage_complete": False, "incomplete_coverage": []}, 2),
+                 "reasons only": ({"incomplete_coverage": [{"path": "app/x.rb", "reason": "oversized_hunk"}]}, 2),
+                 "no chunks at all": (self.INCOMPLETE, 0)}
+        for why, (extra, count) in cases.items():
+            with self.subTest(why), tempfile.TemporaryDirectory() as tmp:
+                result, calls, out_dir = self.run_with_manifest(pathlib.Path(tmp), extra, count)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(calls, 0, "a model call was made on evidence that cannot be approved")
+                self.assertIn("coverage incomplete: no model calls made", result.stdout)
+                self.assertFalse(CANARY_STEM in result.stdout + result.stderr)
+
+    def test_the_placeholders_are_what_the_envelope_step_reads(self):
+        for count in (2, 0):
+            with self.subTest(chunks=count), tempfile.TemporaryDirectory() as tmp:
+                _result, _calls, out_dir = self.run_with_manifest(pathlib.Path(tmp), self.INCOMPLETE, count)
+                # The envelope step's globs (codex-review.yml "Build W2 envelope").
+                chunk_reviews = sorted(out_dir.glob("chunk-*-review-*.json"))
+                synthesis = sorted(out_dir.glob("synthesis-*.json"))
+                self.assertEqual(len(chunk_reviews), max(count, 1))
+                self.assertEqual(len(synthesis), 1)
+                for path in chunk_reviews + synthesis:
+                    with self.subTest(path=path.name):
+                        self.assertEqual(json.loads(path.read_text())["verdict"], "NEEDS_HUMAN")
+                self.assertIs(json.loads(synthesis[0].read_text())["coverage_complete"], False)
+                summary = json.loads((out_dir / "run-summary.json").read_text())
+                # No model produced anything, so none is named as the reviewer.
+                self.assertEqual((summary["chunk_model"], summary["synthesis_model"]), ("", ""))
+
+    def test_the_envelope_built_from_the_placeholders_fails_closed(self):
+        own = subprocess.run(["git", "rev-parse", "HEAD"], cwd=MODULE_PATH.resolve().parents[1], check=True,
+                             capture_output=True, text=True).stdout.strip()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            _result, _calls, out_dir = self.run_with_manifest(root, dict(self.INCOMPLETE, head_sha=own, base_sha=own), 2)
+            (root / "full.diff").write_text("")
+            envelope = root / "envelope.json"
+            env = dict(os.environ, PR_NUMBER="7", HEAD_SHA=own, BASE_SHA=own, LOOP_N="0", RUN_ID="1",
+                       REVIEWER_ROUTE="codex", CODEX_REVIEW_EVIDENCE_MODE="chunked")
+            built = subprocess.run(
+                [sys.executable, "-I", str(MODULE_PATH.with_name("codex-review-build-envelope.py")),
+                 "--manifest", str(root / "evidence/manifest.json"), "--evidence-dir", str(root / "evidence"),
+                 "--full-diff", str(root / "full.diff"),
+                 "--chunk-reviews", *map(str, sorted(out_dir.glob("chunk-*-review-*.json"))),
+                 "--synthesis-reviews", *map(str, sorted(out_dir.glob("synthesis-*.json"))),
+                 "--out", str(envelope)],
+                cwd=MODULE_PATH.resolve().parents[1], env=env, capture_output=True, text=True)
+            self.assertEqual(built.returncode, 0, built.stderr)
+            result = json.loads(envelope.read_text())
+            self.assertEqual(result["status"]["state"], "failure")
+            self.assertEqual(result["review_outcome"]["kind"], "incomplete_evidence")
+
+    def test_the_workflow_envelope_step_succeeds_on_the_placeholders(self):
+        # The workflow's own "Build W2 envelope" step, not a copy of its flags: a hand-built call left
+        # out --injection-scan, so the step crashed on every incomplete-coverage run while the test
+        # above passed (2026-10-20 review of #1120, F3).
+        scope_test = importlib.util.spec_from_file_location(
+            "codex_review_chunked_scope_test", MODULE_PATH.with_name("codex-review-chunked-scope.test.py"))
+        helpers = importlib.util.module_from_spec(scope_test)
+        scope_test.loader.exec_module(helpers)
+        repo = MODULE_PATH.resolve().parents[1]
+        own = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, check=True,
+                             capture_output=True, text=True).stdout.strip()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            _result, _calls, out_dir = self.run_with_manifest(root, dict(self.INCOMPLETE, head_sha=own, base_sha=own), 2)
+            # Where the step reads them once /tmp/ is localized to this directory.
+            (root / "evidence").rename(root / "codex-review-evidence")
+            out_dir.rename(root / "codex-review-results")
+            (root / "codex-review-evidence/full.diff").write_text("")
+            script = helpers.localize(helpers.extract_step_run("Build W2 envelope"), tmp)
+            env = dict(os.environ, PR_NUMBER="7", HEAD_SHA=own, BASE_SHA=own, LOOP_N="0", RUN_ID="1",
+                       REVIEWER_ROUTE="codex", CODEX_REVIEW_EVIDENCE_MODE="chunked", GITHUB_WORKSPACE=str(repo))
+            built = subprocess.run(["bash", "-e", "-c", script], cwd=repo, env=env, capture_output=True, text=True)
+            self.assertEqual(built.returncode, 0, built.stderr)
+            result = json.loads((root / "envelope.json").read_text())
+            self.assertEqual(result["status"]["state"], "failure")
+            self.assertEqual(result["review_outcome"]["kind"], "incomplete_evidence")
+
+    def test_complete_coverage_still_runs_the_models(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result, calls, _out_dir = self.run_with_manifest(pathlib.Path(tmp), {"coverage_complete": True, "incomplete_coverage": []}, 1)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(calls, 2, "one chunk call and one synthesis call (block mode)")
+            # A complete run's synthesis prompt is the real one (it carries the PR body), never the
+            # skip path's placeholder, which would leave the title and body unscanned.
+            prompt = (_out_dir / "synthesis-prompt.md").read_text()
+            self.assertIn(BODY_CANARY, prompt)
+            self.assertNotIn(run_chunks.COVERAGE_INCOMPLETE_LOG, prompt)
 
 
 if __name__ == "__main__":

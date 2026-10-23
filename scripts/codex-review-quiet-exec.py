@@ -15,6 +15,7 @@ Usage (stdin is passed through to the command):
 Exit status is the command's own, or 124 on timeout.
 """
 import argparse
+import os
 import re
 import subprocess
 import sys
@@ -55,6 +56,26 @@ def failure_label(transcript, prompt=""):
     return "unclassified"
 
 
+# Environment variables a model call never needs. The model reads PR-authored text, so nothing it
+# could be talked into reading should be a credential: the job's GitHub token, the n8n and Claude
+# secrets, the Actions runtime tokens. CODEX_API_KEY is the one credential codex itself needs.
+_CREDENTIAL_NAME_RE = re.compile(r"(TOKEN|SECRET|PASSWORD|_KEY$|WEBHOOK)")
+_MODEL_CREDENTIAL_ALLOWED = {"CODEX_API_KEY"}
+# codex needs none of the Actions runtime variables. Dropping the whole prefix also drops the
+# file-command paths (writing to those sets env, PATH, outputs or state for later steps).
+_ACTIONS_RUNTIME_PREFIX = "GITHUB_"
+
+
+def model_env(environ=None):
+    environ = os.environ if environ is None else environ
+    return {
+        name: value
+        for name, value in environ.items()
+        if not name.startswith(_ACTIONS_RUNTIME_PREFIX)
+        and (name in _MODEL_CREDENTIAL_ALLOWED or not _CREDENTIAL_NAME_RE.search(name))
+    }
+
+
 def run_quiet(command, stdin, timeout=None):
     """Run command with stdin, discarding its output.
 
@@ -73,6 +94,7 @@ def run_quiet(command, stdin, timeout=None):
                 stdout=buffer,
                 stderr=subprocess.STDOUT,
                 timeout=timeout,
+                env=model_env(),
             )
         except subprocess.TimeoutExpired:
             return None, "timeout"
