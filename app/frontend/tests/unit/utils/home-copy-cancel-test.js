@@ -305,6 +305,33 @@ module('Unit | Utility | cancelling a home board copy', function(hooks) {
       assert.deepEqual(deleted, []);
     });
 
+    test('a sign-in that lands while a board is being looked up stops that delete', async function(assert) {
+      var user = fake_user('example');
+      var deleted = [];
+      var root = rec(deleted, '1_90', { user_name: 'example', key: 'example/top', created: new Date('2026-10-11T10:00:10Z') });
+      LingoLinq.store.findRecord = function() {
+        LingoLinq.session.user_id = '1_2'; // someone else signs in while the lookup is in flight
+        return RSVP.resolve(root);
+      };
+      await discard_cancelled_copy(['1_90'], user, new Date('2026-10-11T10:00:00Z'), root, '1_1');
+      assert.deepEqual(deleted, [], 'nothing is deleted with the next person\'s session');
+    });
+
+    test('a sign-in between two deletes stops the rest of the walk', async function(assert) {
+      var user = fake_user('example');
+      var deleted = [];
+      var at = new Date('2026-10-11T10:00:10Z');
+      var root = rec(deleted, '1_90', { user_name: 'example', key: 'example/top', created: at, buttons: [{ load_board: { id: '1_91', key: 'example/top-food' } }] });
+      root.save = function() { LingoLinq.session.user_id = '1_2'; return RSVP.resolve(this); }; // signs in after the first delete
+      var recs = {
+        '1_90': root,
+        '1_91': rec(deleted, '1_91', { user_name: 'example', key: 'example/top-food', copy_id: '1_90', created: at })
+      };
+      LingoLinq.store.findRecord = function(type, id) { return recs[id] ? RSVP.resolve(recs[id]) : RSVP.reject({ status: 404 }); };
+      await discard_cancelled_copy(['1_90'], user, new Date('2026-10-11T10:00:00Z'), root, '1_1');
+      assert.deepEqual(deleted, ['1_90'], 'only the delete made before the sign-in');
+    });
+
     test('discard_cancelled_copy still removes the copy when the same person is signed in', async function(assert) {
       var user = fake_user('example');
       var deleted = [];
