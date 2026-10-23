@@ -1,4 +1,4 @@
-<div id="within_ember" class="{{this.background_class}} {{if this.app_state.index_or_landing_view "index-or-landing-view"}} {{if (is-equal this.app_state.current_route "speech") "speech-route"}} {{if (is-equal this.app_state.current_route "landing-alt") "landing-alt-route"}} {{if (is-equal this.app_state.current_route "pricing") "pricing-route"}} {{if (is-equal this.app_state.current_route "features") "features-route"}} {{if this.showBentoPageWithFooter "bento-page-with-footer"}} {{if (and this.app_state.index_or_landing_view this.app_state.darkMode) "bento-dark-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.midDayMode) "bento-midday-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.defaultMode) "bento-default-mode-active"}} {{if this.on_board_alt "board-alt-view"}} {{if this.on_board "board-view"}} {{if this.on_board_detail "board-detail-view"}} {{if this.app_state.focus_words "focus-words-active"}} {{if this.app_state.edit_mode "edit-mode-active"}} {{if this.app_state.beta_program_access "beta-program-access"}}" style={{if this.speak_mode_needing_hammer_js "touch-action: auto;" }}>
+<div id="within_ember" class="{{this.background_class}} {{if this.app_state.index_or_landing_view "index-or-landing-view"}} {{if (is-equal this.app_state.current_route "speech") "speech-route"}} {{if (is-equal this.app_state.current_route "landing-alt") "landing-alt-route"}} {{if (is-equal this.app_state.current_route "pricing") "pricing-route"}} {{if (is-equal this.app_state.current_route "features") "features-route"}} {{if this.showBentoPageWithFooter "bento-page-with-footer"}} {{if (and this.app_state.index_or_landing_view this.app_state.darkMode) "bento-dark-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.midDayMode) "bento-midday-mode-active"}} {{if (and this.app_state.index_or_landing_view this.app_state.defaultMode) "bento-default-mode-active"}} {{if this.on_board_alt "board-alt-view"}} {{if this.speak_board_theme_dark "board-speak-theme-dark"}} {{if this.speak_board_theme_light "board-speak-theme-light"}} {{if this.on_board "board-view"}} {{if this.on_board_detail "board-detail-view"}} {{if this.app_state.focus_words "focus-words-active"}} {{if this.app_state.edit_mode "edit-mode-active"}} {{if this.app_state.beta_program_access "beta-program-access"}}" style={{if this.speak_mode_needing_hammer_js "touch-action: auto;" }}>
 <div id="audio"></div>
 <AppLoadingOverlay />
 <AppToast />
@@ -1699,20 +1699,20 @@
     {{/each}}
     {{#if this.board_alt_username}}
       {{#if this.board_alt_boardname}}
-        {{#if this.on_board_alt}}
-          <LinkTo @route="board" @model={{this.board.model}} class="sidebar_item sidebar_item--board-alt sidebar_item--board-alt-active">
+        {{#if this.speak_board_dark}}
+          <button type="button" class="sidebar_item sidebar_item--board-alt sidebar_item--board-alt-active" {{on "click" (this.ctrlAction "set_speak_board_theme" false)}}>
             <span class="sidebar_item__icon sidebar_item__icon--board-alt" aria-hidden="true">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="100%" height="100%" fill="#d4a84b" aria-hidden="true"><path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58a.996.996 0 0 0-1.41 0 .996.996 0 0 0 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37a.996.996 0 0 0-1.41 0 .996.996 0 0 0 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0a.996.996 0 0 0 0-1.41l-1.06-1.06zm1.06-10.96a.996.996 0 0 0 0-1.41.996.996 0 0 0-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36a.996.996 0 0 0 0-1.41.996.996 0 0 0-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/></svg>
             </span>
             {{t "Light" key="board_alt_return"}}
-          </LinkTo>
+          </button>
         {{else}}
-          <LinkTo @route="user.board-alt" @models={{array this.board_alt_username this.board_alt_boardname}} class="sidebar_item sidebar_item--board-alt">
+          <button type="button" class="sidebar_item sidebar_item--board-alt" {{on "click" (this.ctrlAction "set_speak_board_theme" true)}}>
             <span class="sidebar_item__icon sidebar_item__icon--board-alt" aria-hidden="true">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="100%" height="100%" fill="currentColor" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
             </span>
             {{t "Dark" key="board_alt"}}
-          </LinkTo>
+          </button>
         {{/if}}
       {{/if}}
     {{/if}}
