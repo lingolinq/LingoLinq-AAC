@@ -973,6 +973,6 @@ describe UserMailer, :type => :mailer do
     end
   end
   
-  it "should have a default reply-to of noreply@mylingolinq.com"
+  it "should have a default reply-to address"
   it "should have specs for the mailer erb templates"
 end

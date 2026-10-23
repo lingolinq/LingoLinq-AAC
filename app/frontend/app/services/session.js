@@ -746,7 +746,7 @@ export default Service.extend({
     return stored.access_token === token;
   },
 
-  force_logout: function(message) {
+  force_logout: function(message, failed_token) {
     var full_invalidate = true;
     if(full_invalidate) {
       if(!modal.route) {
@@ -759,9 +759,11 @@ export default Service.extend({
            and here there is no force-logout dialog to key that on. invalidate's SPA landing clears
            it; a reload drops it. */
         this.set('logout_without_dialog', true);
+        // Read before the teardown, which clears this tab's token.
+        var keep_stored_login = this._stored_login_is_another(failed_token);
         this._tear_down_dead_session();
         this.alert(message);
-        this.invalidate(true);
+        this.invalidate(true, {keep_stored_login: keep_stored_login});
       } else {
         modal.open('force-logout', {message: message});
         this._tear_down_dead_session();
@@ -786,7 +788,19 @@ export default Service.extend({
            !isTesting();
   },
 
-  invalidate: function(force) {
+  /* DOES THE STORED LOGIN BELONG TO ANOTHER SESSION? Every tab shares it, so another tab may have signed in
+     since this tab's session died. True when it holds a token other than the one that failed (`failed_token`,
+     the token the failed request carried, from utils/extras.js), or than this tab's own when that is not
+     known. Read by force_logout's no-dialog branch, whose invalidate would otherwise flush that login too
+     (Scot's review of #1141, item 3). */
+  _stored_login_is_another: function(failed_token) {
+    var stored = this.stashes.get_object('auth_settings', true) || this.auth_settings_fallback() || {};
+    var dead = failed_token || this.get('access_token');
+    return !!(stored.access_token && stored.access_token !== 'none' && dead && stored.access_token !== dead);
+  },
+
+  // `opts.keep_stored_login`: keep the shared stored login (another tab's; see _stored_login_is_another).
+  invalidate: function(force, opts) {
     var _this = this;
     if (this.isDestroyed || this.isDestroying) {
       return;
@@ -827,7 +841,8 @@ export default Service.extend({
     // Flag is read once, here, before the async chain — avoids mid-flow flag flips.
     var spaTransitionEnabled = _this._invalidate_spa_eligible(full_invalidate);
 
-    this.stashes.flush().then(null, function() { return RSVP.resolve(); }).then(function() {
+    var flushed = (opts && opts.keep_stored_login) ? this.stashes.flush(null, 'auth_') : this.stashes.flush();
+    flushed.then(null, function() { return RSVP.resolve(); }).then(function() {
       _this.stashes.setup();
       var later = function(callback, delay) { callback(); };
       if(!isTesting()) {

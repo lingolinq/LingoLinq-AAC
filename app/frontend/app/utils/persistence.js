@@ -3635,7 +3635,7 @@ var persistence = EmberObject.extend({
                   return time_promise(record.reload(), "reload changed record", 10000);
                 });
               } else {
-                return record.save();
+                return record.save(replay_save_options(object));
               }
             });
 
@@ -4571,7 +4571,7 @@ persistence.DSExtend = {
       } else {
         var record = persistence.convert_model_to_json(store, type.modelName, obj);
         record[type.modelName].changed = true;
-        persistence.store(type.modelName, record).then(function() {
+        keep_queued_keys(type.modelName, record).then(function() { return persistence.store(type.modelName, record); }).then(function() {
           update_resolve(record);
         }, function() {
           update_reject({offline: true, error: "not online"});
@@ -4692,3 +4692,4 @@ export function isUtilOnlineCheckRunning() {
 export default persistenceProxy;
 // Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
 import boardRevocation from './board_revocation';
+import { keep_queued_keys, replay_save_options } from './preference_save';
