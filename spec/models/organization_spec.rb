@@ -2307,11 +2307,6 @@ describe Organization, :type => :model do
   end
   
   describe "usage_stats" do
-    include ActiveSupport::Testing::TimeHelpers
-    # Wednesday noon UTC: sessions 64 seconds and one week old landed in the same week when a run fell in
-    # the first 64 seconds after Monday (date_trunc('week')) or Sunday (weekyear) midnight UTC.
-    around { |example| travel_to(Time.utc(2026, 6, 17, 12, 0, 0)) { example.run } }
-
     it "should return expected values" do
       @user = User.create
       user = User.create
@@ -2326,22 +2321,29 @@ describe Organization, :type => :model do
         'user_counts' => {'goal_set' => 0, 'goal_recently_logged' => 0, 'modeled_word_counts' => [], 'recent_session_count' => 0, 'recent_session_user_count' => 0, 'total_users' => 0, 'recent_session_seconds' => 0.0, 'recent_session_hours' => 0.0, "total_models"=>0, "total_seconds"=>0, "total_sessions"=>0, "total_user_weeks"=>0, "total_words"=>0, "word_counts"=>[]}
       })
       
+      # A run in the first 64 seconds after Monday (date_trunc('week')) or Sunday (weekyear) midnight UTC
+      # put the 64-second-old and week-old sessions in the same week. Close to either boundary, the
+      # sessions are dated two hours earlier; the gaps between them, and every expected value, are
+      # unchanged. (Not travel_to: this example adds a manager and users, and their link caches rely on
+      # updated_at moving forward.)
+      base = Time.now.utc
+      base -= 2.hours if [:monday, :sunday].any? { |day| base - base.beginning_of_week(day) < 2.hours }
       LogSession.process_new({
         :events => [
-          {'timestamp' => 64.seconds.ago.to_i, 'type' => 'button', 'button' => {'label' => 'ok', 'board' => {'id' => '1_1'}}},
-          {'timestamp' => 3.seconds.ago.to_i, 'type' => 'button', 'button' => {'label' => 'never mind', 'board' => {'id' => '1_1'}}}
+          {'timestamp' => (base - 64.seconds).to_i, 'type' => 'button', 'button' => {'label' => 'ok', 'board' => {'id' => '1_1'}}},
+          {'timestamp' => (base - 3.seconds).to_i, 'type' => 'button', 'button' => {'label' => 'never mind', 'board' => {'id' => '1_1'}}}
         ]
       }, {:user => user, :device => d, :author => user})
       LogSession.process_new({
         :events => [
-          {'timestamp' => 1.weeks.ago.to_i + 200, 'type' => 'button', 'button' => {'label' => 'ok', 'board' => {'id' => '1_1'}}},
-          {'timestamp' => 1.weeks.ago.to_i, 'type' => 'button', 'button' => {'label' => 'never mind', 'board' => {'id' => '1_1'}}}
+          {'timestamp' => (base - 1.week).to_i + 200, 'type' => 'button', 'button' => {'label' => 'ok', 'board' => {'id' => '1_1'}}},
+          {'timestamp' => (base - 1.week).to_i, 'type' => 'button', 'button' => {'label' => 'never mind', 'board' => {'id' => '1_1'}}}
         ]
       }, {:user => user, :device => d, :author => user})
       LogSession.process_new({
         :events => [
-          {'timestamp' => 4.weeks.ago.to_i + 200, 'type' => 'button', 'button' => {'label' => 'ok', 'board' => {'id' => '1_1'}}},
-          {'timestamp' => 4.weeks.ago.to_i, 'type' => 'button', 'button' => {'label' => 'never mind', 'board' => {'id' => '1_1'}}}
+          {'timestamp' => (base - 4.weeks).to_i + 200, 'type' => 'button', 'button' => {'label' => 'ok', 'board' => {'id' => '1_1'}}},
+          {'timestamp' => (base - 4.weeks).to_i, 'type' => 'button', 'button' => {'label' => 'never mind', 'board' => {'id' => '1_1'}}}
         ]
       }, {:user => user, :device => d, :author => user})
       Worker.process_queues
