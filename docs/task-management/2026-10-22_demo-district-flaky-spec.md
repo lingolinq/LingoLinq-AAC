@@ -11,14 +11,23 @@ Branch `traci/fix/demo-district-flaky-spec`, from develop at 4bae48a9c.
 10 an absence with no sessions, seeded from `"#{student.id}:#{date}"`. The spec's users get a new database id every
 run, so in roughly 1 run in 10 the communicator is absent on Tuesday 2026-10-20, the day the example asserts was
 regenerated. Reproduced deterministically by stubbing `absent?` true for 2026-10-20 (3 of 3 runs: the CI message).
-The same unpinned input lets "skips members without a demo email and fills weekdays through yesterday" fail when all
-three days are absences (about 1 in 1000).
+The adversary review on 55974a9ca showed the same cause in three more examples, and reproduced the worst on that head
+(by advancing `users_id_seq` to an id whose absences hit): over 1,000,000 ids, day 20 absent 10.0%; days 16 and 19 both
+absent 1.0% ("stops at a day whose sessions failed" only accepts a failure on the 16th or 19th); all three absent 0.1%
+("skips members without a demo email...", "removes a partly written day...", "goal and profile freshness..."). The ids
+come from a sequence that transactions do not roll back, so the examples' `srand` calls never reached absences.
 
 ## Fix
-Both examples pin `absent?` to false. They test the redo of a half-written day and the weekday fill, not absences;
-absence keeps its own example ("does not fill an absent last day on a rerun"), unchanged. No assertion changed, and
-no product code changed (absences are intended).
+- One pin at the top of the spec turns absences off for every example. The "absences" examples turn them back on: the
+  existing one uses the real rule (`and_call_original`); a new one makes only Mon 2026-10-19 absent and checks the fill
+  carries on past it (16 and 20 filled, 19 empty, a rerun adds nothing). That one also fails if `absent?` is renamed,
+  which would otherwise make the pin silently stop applying.
+- No assertion changed and no product code changed (absences are intended).
 
-## Verification
-With the fix, `--order random` over the whole file: 13 of the first 15 runs passed and the two failures were not
-captured (cause unknown); then 60 consecutive runs passed (two batches of 30, each run's output kept on failure).
+## Verification (deterministic)
+- Pin flipped to "absent on 16, 19 and 20": exactly the five dependent examples fail (refresh! skips members, redoes a
+  half-written day, stops at a failed day, removes a partly written day, goal and profile freshness).
+- `absent?` renamed in lib/demo_district/usage_generator.rb: both absence examples fail.
+- With the fix: 19 examples, 0 failures.
+- Earlier loop counts are not evidence: with a 1.2% residual, 60 passes in a row happen about half the time. The two
+  failures seen in the first 15 runs of the earlier commit were not captured and stay unattributed.

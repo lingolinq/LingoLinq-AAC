@@ -7,6 +7,14 @@ describe DemoDistrict do
   # Tuesday 2026-10-20.
   let(:now) { Time.utc(2026, 10, 21, 20, 0, 0) }
 
+  # Absences (UsageGenerator#absent?, about 1 school day in 10) are keyed on the student's database id, which
+  # comes from a sequence that does not roll back, so it differs from run to run (and srand does not reach it).
+  # Left on, any example that needs a session on a given day failed whenever that day came up absent: about
+  # 1 run in 10 for "redoes a day that a killed run left half written", 1 in 100 for "stops at a day whose
+  # sessions failed", 1 in 1000 for three others. Off for every example; the "absences" examples below
+  # turn them back on (the real rule, or a fixed day).
+  before { allow_any_instance_of(DemoDistrict::UsageGenerator).to receive(:absent?).and_return(false) }
+
   def org_with(settings = {})
     Organization.create(settings: { 'name' => 'Spec District', 'total_licenses' => 5 }.merge(settings))
   end
@@ -62,10 +70,6 @@ describe DemoDistrict do
 
     it "skips members without a demo email and fills weekdays through yesterday for demo members" do
       srand(20261021)
-      # Absences (UsageGenerator#absent?, about 1 school day in 10) are keyed on the student's id, which
-      # changes from run to run, so this example fails whenever the day it needs happens to be an absence.
-      # Absence has its own example ("does not fill an absent last day on a rerun"); pin it off here.
-      allow_any_instance_of(DemoDistrict::UsageGenerator).to receive(:absent?).and_return(false)
       o = org_with('demo_data' => true)
       demo = member(o, 'kid@demoschooldistrict.org')
       outsider = member(o, 'parent@example.com')
@@ -108,6 +112,7 @@ describe DemoDistrict do
 
   describe "absences" do
     it "does not fill an absent last day on a rerun" do
+      allow_any_instance_of(DemoDistrict::UsageGenerator).to receive(:absent?).and_call_original
       o = org_with('demo_data' => true)
       demo = member(o, 'kid@demoschooldistrict.org')
       gen = DemoDistrict::UsageGenerator.new(student: demo, profile: DemoDistrict::UsageGenerator::DEFAULT_PROFILE,
@@ -123,6 +128,21 @@ describe DemoDistrict do
       res = travel_to(run_at) { DemoDistrict.refresh!(organization: o.reload, now: run_at) }
       expect(res[:sessions_created]).to eq(0)
       expect(rolling_sessions(demo).length).to eq(first)
+    end
+
+    # An absence in the middle of the gap leaves that day empty and the fill carries on past it. Also fails if
+    # absent? is renamed, which would otherwise make the pin at the top silently stop applying.
+    it "fills the days around an absence in the middle of the gap, and a rerun adds nothing" do
+      allow_any_instance_of(DemoDistrict::UsageGenerator).to receive(:absent?) { |_gen, date| date == Date.new(2026, 10, 19) }
+      o = org_with('demo_data' => true)
+      demo = member(o, 'kid@demoschooldistrict.org')
+      # Thursday 2026-10-15, so the gap is Fri 16, Mon 19 (absent), Tue 20.
+      prior_session(demo, Time.utc(2026, 10, 15, 18, 0, 0))
+      travel_to(now) { DemoDistrict.refresh!(organization: o.reload, now: now) }
+      days = rolling_sessions(demo).map { |s| s.started_at.in_time_zone('America/Los_Angeles').to_date }.uniq.sort
+      expect(days).to eq([Date.new(2026, 10, 16), Date.new(2026, 10, 20)])
+      res = travel_to(now) { DemoDistrict.refresh!(organization: o.reload, now: now) }
+      expect(res[:sessions_created]).to eq(0)
     end
   end
 
@@ -143,10 +163,6 @@ describe DemoDistrict do
 
   describe "interrupted runs" do
     it "redoes a day that a killed run left half written" do
-      # Absences (UsageGenerator#absent?, about 1 school day in 10) are keyed on the student's id, which
-      # changes from run to run, so this example fails whenever the day it needs happens to be an absence.
-      # Absence has its own example ("does not fill an absent last day on a rerun"); pin it off here.
-      allow_any_instance_of(DemoDistrict::UsageGenerator).to receive(:absent?).and_return(false)
       o = org_with('demo_data' => true)
       demo = member(o, 'kid@demoschooldistrict.org')
       prior_session(demo, Time.utc(2026, 10, 16, 18, 0, 0))
