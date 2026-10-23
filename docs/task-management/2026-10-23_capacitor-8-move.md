@@ -78,6 +78,58 @@ optional. Xcode 26 needs macOS Sequoia 15.6 or later, so the iOS build waits on 
 ## AAC docs
 
 `native-apps-project-overview.md`, `native-bridge-inventory.md` and
-`capacitor-7-kickoff.md` updated (kickoff keeps its name: a task log and the learnings
-archive link to it). `.github/copilot-instructions.md`, `CLAUDE.md`, `AGENTS.md` and
+`capacitor-7-kickoff.md` updated (kickoff keeps its name: the learnings archive, the bridge
+inventory and the shell README refer to it). `.github/copilot-instructions.md`, `CLAUDE.md`, `AGENTS.md` and
 `app/frontend/README.md` need no change.
+
+## Local adversary review (2026-10-23)
+
+`/adversary-review-local`, three read-only slices (AAC docs; shell Android, packages and
+`www/` bridge compatibility; shell iOS). This is the local substitute; the canonical
+`/review-pr` and `/adversary-review` passes did not run here. No Critical or High findings.
+
+- **Bridges vs Capacitor 8 plugins: compatible as far as source shows (CONFIRMED by diffing the
+  7.x and 8.x plugin sources).** SQLite Android Java differs only in formatting; TTS Android
+  Java is identical; Filesystem option keys, `DATA` mapping and result shapes are unchanged.
+  The new path confinement cannot be hit by real call paths: filenames come from
+  `app/frontend/app/services/persistence.js` and never contain `..`.
+- **Medium, PLAUSIBLE: system-bar insets.** Capacitor 8 registers `SystemBars` for every app with
+  `insetsHandling` defaulting to `css` (`@capacitor/android` `Bridge.java:664`,
+  `SystemBars.java:56,125`); Capacitor 7 did nothing by default. Layout may vary by Android
+  and WebView version. Check the top bar, bottom button row and keyboard in the smoke test.
+- **Medium, PLAUSIBLE: possible second hidden `CAPBridgeViewController` on iOS cold launch.**
+  `Info.plist` sets `UISceneStoryboardFile` while `SceneDelegate` builds its own window; both
+  match the Capacitor 8.5.3 template exactly. Check on the first Xcode run by counting
+  "Loading app at" log lines.
+- **Low, CONFIRMED: `package.json` ranges are `^8.0.0`** but `CAPSceneDelegateProxy.swift`
+  first ships in `@capacitor/ios` 8.5.0 (absent from 8.4.0). The lockfile pins 8.5.3.
+- **Low, CONFIRMED: `www/init.js:54` still labels `app_version` `"capacitor-7-kickoff"`.**
+- **Low, CONFIRMED: docs say the shell "moved" to Capacitor 8** while the shell branch is
+  unmerged and the smoke test has not run; this log's claim that a task log links to the
+  kickoff doc was wrong (the learnings archive, the inventory and the shell README refer to it).
+- **Low, CONFIRMED: minSdk 24 and iOS 15** drop Android 6 and iOS 14 devices (required by
+  Capacitor 8; note in release notes).
+- **Refuted:** the 16 KB date. Android's page-sizes guide says "Starting February 1, 2027".
+
+### Fixes applied after the review
+
+- Docs say the shell "is moving" to Capacitor 8 until the shell change merges and the smoke
+  test passes; the kickoff note says JDK 21+ and that the shell README lists the
+  prerequisites once the change merges.
+- Shell `package.json`: `@capacitor/core`, `android`, `ios` and `cli` ranges raised to
+  `^8.5.3` (lockfile resolutions unchanged; `cap sync` and `cap doctor` still pass).
+- Shell `www/init.js` fallback label renamed to `"capacitor-8"`. No runtime effect once the
+  app loads: the packaged bundle's `application-preload.js` sets `window.app_version`
+  unconditionally, and nothing calls `LingoLinq.expired()`, the only parser of the value.
+- The two Medium checks (Android system-bar layout, iOS single bridge at launch) are on the
+  shell README checklist.
+- Public-doc wording: the session prompt now tells agents to treat every environment as
+  holding real user data, teammates' local paths are no longer spelled out, and the kickoff
+  doc's SQLite encryption line uses the neutral sign-off wording.
+
+### Still open
+
+- Offline smoke on an Android emulator or device, including the layout check. This session
+  cannot run it: it needs a LingoLinq API and a test account, and the session prompt forbids
+  touching the database.
+- iOS: update macOS to 15.6 or later, install Xcode 26, build, and check the cold-launch log.

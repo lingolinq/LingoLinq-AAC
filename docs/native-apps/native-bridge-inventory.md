@@ -2,7 +2,7 @@
 
 **Status:** Authoritative inventory for the Cordova -> Capacitor 8 migration. Read-only,
 grep-driven from the codebase at `scot/feat/native-apps`. Written for Capacitor 7; the shell
-moved to Capacitor 8 in October 2026 so it can target Android API 36 (see
+is moving to Capacitor 8 (started October 2026) so it can target Android API 36 (see
 [capacitor-7-kickoff.md](./capacitor-7-kickoff.md)). The plugin targets named below are
 unchanged by that move.
 **Shell-side bridges not listed as rows:** besides `sqlite_bridge.js` and

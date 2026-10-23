@@ -48,7 +48,7 @@ either repo, other than this docs branch. Checked through the GitHub API.
 - `github.com/lingolinq/lingolinq_mobile`, default branch `master`. The API reports it as
   **public**.
 - It did not need to be pushed from Melissa's machine. The local paths in the older docs
-  (`/home/melis/repos/lingolinq_mobile`) do not exist on Traci's machine.
+  (a teammate's machine) do not exist on Traci's machine.
 
 ### b. Current state
 

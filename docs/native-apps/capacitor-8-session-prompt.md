@@ -27,7 +27,7 @@ Queue row: propagation_map.md Part 3, row 19.
   do the Android side and the iOS config, but it can't compile or upload iOS. Someone needs a
   Mac (Melissa's?) or a cloud Mac build service. That's the next decision after STOP 1.
 - **The shell repo may only exist on Melissa's old machine** (Traci has since taken over her roles). The AAC docs point to
-  `/home/melis/repos/lingolinq_mobile`. If STOP 1 can't find it on GitHub or locally, the fix
+  a local path on her machine. If STOP 1 can't find it on GitHub or locally, the fix
   is asking Melissa to push it to the lingolinq org (private), not rebuilding it.
 - **Android tooling in WSL** may not be installed. The prompt tells the session to report what's
   missing instead of installing it.
@@ -52,7 +52,7 @@ CONTEXT (treat as unconfirmed until you verify it, see rule 10):
   docs/native-apps/ (native-apps-project-overview.md, capacitor-7-kickoff.md,
   native-bridge-inventory.md). It chose Capacitor 7 because of an old Node 20 pin.
 - The native shell is a SEPARATE repo, "lingolinq_mobile" (app id com.lingolinq.app). The docs
-  point to /home/melis/repos/lingolinq_mobile on a teammate's machine. It may or may not be on
+  point to a local path on a teammate's machine. It may or may not be on
   GitHub under the lingolinq org. It packages the Ember build into www/ and adds
   www/sqlite_bridge.js and www/filesystem_bridge.js over @capacitor-community/sqlite and
   @capacitor/filesystem. The Ember side has a backup bridge in
@@ -63,8 +63,8 @@ CONTEXT (treat as unconfirmed until you verify it, see rule 10):
   Capacitor 8 targets 36 and requires Node 22+, Xcode 26, Android Studio Otter 2025.2.1+
   (capacitorjs.com/docs/android/setting-target-sdk and capacitorjs.com/docs/updating/8-0).
   LingoLinq-AAC is now on Node 22 (read .nvmrc and app/frontend/package.json engines yourself).
-- No real users or student data exist in any LingoLinq environment. Never put real personal
-  data in configs, screenshots, logs or test accounts anyway.
+- Treat every LingoLinq environment as holding real user data. Never put real personal data
+  in configs, screenshots, logs or test accounts.
 
 RULES:
 1. Read-only until STOP 1 is approved. No installs, no edits, no branches, no commits.

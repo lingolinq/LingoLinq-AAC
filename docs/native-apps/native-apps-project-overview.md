@@ -66,8 +66,8 @@ Three core strategy decisions (already confirmed):
   ([Play target API requirement](https://support.google.com/googleplay/android-developer/answer/11926878)),
   and each Capacitor version supports exactly one Android target: Capacitor 7 targets 35 and
   Capacitor 8 targets 36 ([Capacitor target SDK](https://capacitorjs.com/docs/android/setting-target-sdk)).
-  Capacitor 8 needs Node 22, which our app already uses. The shell started on Capacitor 7 and
-  moved to 8 in October 2026.)
+  Capacitor 8 needs Node 22, which our app already uses. The shell started on Capacitor 7; the
+  move to 8 began in October 2026.)
 - **Desktop stays on Electron.** Capacitor has no desktop path, and Electron is already in our
   codebase. We refresh it for Windows.
 
