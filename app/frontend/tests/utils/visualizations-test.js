@@ -14,8 +14,11 @@ describe('Visualizations', function() {
   var saved = {};
   var appended = [];
   var keys = ['ready', 'initializing', 'maps_ready', 'maps_initializing', 'callbacks'];
+  // init() / init_maps() install these loader callbacks on window; put them back exactly afterwards.
+  var windowKeys = ['ready_to_load_graphs', 'ready_to_do_maps'];
   beforeEach(function() {
     keys.forEach(function(k) { saved[k] = LingoLinq.Visualizations[k]; LingoLinq.Visualizations[k] = undefined; });
+    saved.windowProps = windowKeys.map(function(k) { return [k, Object.getOwnPropertyDescriptor(window, k)]; });
     saved.google = window.google;
     window.google = undefined;
     appended = [];
@@ -23,6 +26,9 @@ describe('Visualizations', function() {
   });
   afterEach(function() {
     keys.forEach(function(k) { LingoLinq.Visualizations[k] = saved[k]; });
+    saved.windowProps.forEach(function(pair) {
+      if (pair[1]) { Object.defineProperty(window, pair[0], pair[1]); } else { delete window[pair[0]]; }
+    });
     window.google = saved.google;
   });
 

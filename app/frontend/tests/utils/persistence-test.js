@@ -1069,7 +1069,10 @@ describe("persistence", function() {
         });
         var res = LingoLinq.store.findRecord('board', '1234');
         expect(res && typeof res.then === 'function').toEqual(true);
-        res.catch(function() { });
+        var settled = false;
+        res.then(function() { settled = true; }, function() { settled = true; });
+        waitsFor(function() { return settled; });
+        runs();
       });
       it("should make an ajax query and find the record", function() {
         queryLog.real_lookup = false;

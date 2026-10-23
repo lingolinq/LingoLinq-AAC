@@ -25,7 +25,7 @@ module('Unit | Utility | raw-events', function(hooks) {
   hooks.afterEach(function() {
     delete buttonTracker.hit_spots;
     delete buttonTracker.lastReleaseEvent;
-    delete buttonTracker.appState;
+    // buttonTracker.appState is an accessor (delete is a no-op); restored by the last afterEach
     var board = document.querySelector('.board[data-test-raw-events-board]');
     if(board && board.parentNode) {
       board.parentNode.removeChild(board);
@@ -375,5 +375,22 @@ module('Unit | Utility | raw-events', function(hooks) {
     delete editManager.controller;
     delete editManager.find_button;
     delete buttonTracker.appState;
+  });
+
+  /* `editManager.controller` and `buttonTracker.appState` are accessors on their singletons'
+     prototypes (app/utils/edit_manager.js:42, app/utils/raw_events.js:774): assigning one stores
+     the value in a private slot, and `delete` on the instance is a no-op. So the stubs these tests
+     assign used to outlive the module; the `{send}` controller survived ~1,150 tests and failed 16
+     in terms-agree-gate and the app-state view/modelling modules whenever nothing in between
+     happened to overwrite it. Record both slots and put them back through their setters.
+     Registered last, so this afterEach runs before the one above. */
+  hooks.beforeEach(function() {
+    this._savedEditController = editManager._controller;
+    this._savedTrackerAppState = buttonTracker._services.appState;
+  });
+
+  hooks.afterEach(function() {
+    editManager.controller = this._savedEditController;
+    buttonTracker.appState = this._savedTrackerAppState;
   });
 });

@@ -36,11 +36,14 @@ function fake_user(user_name) {
 }
 
 module('Unit | Utility | cancelling a home board copy', function(hooks) {
-  var original_find, original_copy, created_store, original_force_reload;
+  var original_store, had_store, original_copy, original_force_reload;
   hooks.beforeEach(function() {
-    created_store = !LingoLinq.store;
-    if (created_store) { LingoLinq.store = {}; }
-    original_find = LingoLinq.store.findRecord;
+    // A store of this module's own, swapped in for the global and swapped back after. Whatever
+    // LingoLinq.store holds here belongs to an earlier test's app, which is torn down by now;
+    // stubbing findRecord on it read and wrote a destroyed service (the leak check added in #1118).
+    had_store = Object.prototype.hasOwnProperty.call(LingoLinq, 'store');
+    original_store = LingoLinq.store;
+    LingoLinq.store = {};
     original_copy = editManager.copy_board;
     original_force_reload = persistence.force_reload;
     // No existing copy: the lookup 404s.
@@ -49,7 +52,7 @@ module('Unit | Utility | cancelling a home board copy', function(hooks) {
   hooks.afterEach(function() {
     editManager.copy_board = original_copy;
     persistence.force_reload = original_force_reload;
-    if (created_store) { delete LingoLinq.store; } else { LingoLinq.store.findRecord = original_find; }
+    if (had_store) { LingoLinq.store = original_store; } else { delete LingoLinq.store; }
   });
 
   var original = fake_board({ key: 'lingolinq/quick-core-24', id: '1_5' });

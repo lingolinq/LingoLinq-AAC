@@ -13,7 +13,9 @@ export default Component.extend({
     if(this.get('selection')) {
       var _this = this;
       var i = new Image();
+      // The picker can be gone by the time the image answers (a modal closed): do not touch it then.
       i.onload = function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
         var url = _this.get('selection');
         var urls = [].concat(_this.get('extra_urls') || []);
         urls.push(url);
@@ -22,6 +24,7 @@ export default Component.extend({
         _this.set('selection_preview', url);
       };
       i.onerror = function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
         _this.set('selection_preview', null);
       };
       i.src = this.get('selection');

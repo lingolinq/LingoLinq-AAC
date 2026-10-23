@@ -58,7 +58,8 @@ name: Deploy to Cloud Run
 # scot/fix/empty-button-sets-prod-hotfix, both 2026-08-02/03). Nothing restricts the source
 # branch of a PR into `main`. What makes automatic deploy acceptable is therefore NOT
 # provenance, it is the four gates below, and removing any of them removes the safety:
-#   1. Required status checks on `main` (rspec, build-and-test, audit-artifacts-integrity,
+#   1. Required status checks on `main` (rspec, build-and-test (a gate on lint, the build and the
+#      Ember shards), audit-artifacts-integrity,
 #      codex-review-tests, security-scan, secret-detection) with enforce_admins on, so no PR
 #      merges red against the base it was tested against, whatever branch it came from.
 #      Note `strict` is FALSE, deliberately: requiring every PR to be up to date with `main`

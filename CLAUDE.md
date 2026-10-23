@@ -6,6 +6,7 @@ is kept under 200 lines. Everything else loads on demand:
 | Where | Loads when | Holds |
 |---|---|---|
 | `app/frontend/CLAUDE.md` | you read files under `app/frontend/` | Ember commands, test-run discipline, 5.12 gotchas, frontend map |
+| `.claude/rules/testing-frontend.md` | touching frontend tests, e2e, `ci.yml` or `app/frontend/app/**` | the frontend testing standards: which test, isolation, deferred-work guards, running, CI |
 | `.claude/rules/compliance-docs.md` | touching `docs/legal/**` or `audit-reports/**` | register governance, attested-doc rules |
 | `.claude/rules/data-bearing-paths.md` | touching fixtures, seeds, cassettes, migrations, `db/language/` | the Tier 1 data boundary |
 | `.claude/rules/deploy.md` | touching the deploy workflow, Dockerfile, `scripts/gcp/` | Cloud Run facts |
@@ -204,6 +205,8 @@ test DB `lingolinq-test`. Deploy prep: `bin/deploy_prep`, `rake extras:mobile`,
 - **Frontend:** QUnit via `cd app/frontend && ember test`; read the run-shape rules in
   `app/frontend/CLAUDE.md` before interpreting a failure.
 - Reconcile totals against a known-good baseline before claiming a delta.
+- **Standards** (which kind of test, isolation enforced by the leak check, e2e, CI gates):
+  `.claude/rules/testing-frontend.md`; RSpec: `.claude/rules/testing.md`.
 
 ## Before a PR
 
