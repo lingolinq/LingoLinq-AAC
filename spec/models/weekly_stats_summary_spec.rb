@@ -539,17 +539,14 @@ describe WeeklyStatsSummary, :type => :model do
   end
   
   describe "trends" do
-    # A fixed mid-year, mid-week instant. These examples derive the next weekyear as `cweek + 1`, which
-    # is not a real ISO week when one month ago falls in the year's last week (runs in early February
-    # 2027 and 2028 raised Date::Error in WeeklyStatsSummary#add_to_trends).
-    around { |example| travel_to(Time.utc(2026, 6, 17, 12, 0, 0)) { example.run } }
-
     it 'should include basic totals' do
       start = 1.month.ago.to_date
       cweek = start.beginning_of_week(:sunday).cweek
       cwyear = start.beginning_of_week(:sunday).cwyear
       cw1 = (cwyear * 100) + cweek
-      cw2 = (cwyear * 100) + cweek + 1
+      # The following week, computed as the app does: `cweek + 1` is not a real ISO week when start
+      # falls in its year's last week, and add_to_trends raised Date::Error (early February 2027, 2028, ...).
+      cw2 = WeeklyStatsSummary.date_to_weekyear(start + 7.days)
       
       sum1 = WeeklyStatsSummary.create(:user_id => 0, :weekyear => cw1, :data => {
         'totals' => {
@@ -688,7 +685,7 @@ describe WeeklyStatsSummary, :type => :model do
       cweek = start.beginning_of_week(:sunday).cweek
       cwyear = start.beginning_of_week(:sunday).cwyear
       cw1 = (cwyear * 100) + cweek
-      cw2 = (cwyear * 100) + cweek + 1
+      cw2 = WeeklyStatsSummary.date_to_weekyear(start + 7.days)
       
       sum1 = WeeklyStatsSummary.create(:user_id => 0, :weekyear => cw1, :data => {
         'totals' => {
@@ -737,7 +734,7 @@ describe WeeklyStatsSummary, :type => :model do
       cweek = start.beginning_of_week(:sunday).cweek
       cwyear = start.beginning_of_week(:sunday).cwyear
       cw1 = (cwyear * 100) + cweek
-      cw2 = (cwyear * 100) + cweek + 1
+      cw2 = WeeklyStatsSummary.date_to_weekyear(start + 7.days)
       start = 4.months.ago.to_date
       cweek = start.beginning_of_week(:sunday).cweek
       cwyear = start.beginning_of_week(:sunday).cwyear
@@ -796,7 +793,7 @@ describe WeeklyStatsSummary, :type => :model do
       cweek = start.beginning_of_week(:sunday).cweek
       cwyear = start.beginning_of_week(:sunday).cwyear
       cw1 = (cwyear * 100) + cweek
-      cw2 = (cwyear * 100) + cweek + 1
+      cw2 = WeeklyStatsSummary.date_to_weekyear(start + 7.days)
       
       sum1 = WeeklyStatsSummary.create(:user_id => 0, :weekyear => cw1, :data => {
         'totals' => {
@@ -843,7 +840,7 @@ describe WeeklyStatsSummary, :type => :model do
       cweek = start.beginning_of_week(:sunday).cweek
       cwyear = start.beginning_of_week(:sunday).cwyear
       cw1 = (cwyear * 100) + cweek
-      cw2 = (cwyear * 100) + cweek + 1
+      cw2 = WeeklyStatsSummary.date_to_weekyear(start + 7.days)
       
       sum1 = WeeklyStatsSummary.create(:user_id => 0, :weekyear => cw1, :data => {
         'totals' => {
