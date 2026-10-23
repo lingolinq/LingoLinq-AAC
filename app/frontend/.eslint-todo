@@ -1478,7 +1478,7 @@ tests/unit/utils/tours/registry-test.js|qunit/no-assert-equal|9|5|1|8b9cc9ba7f61
 tests/unit/view-style-coverage-test.js|qunit/no-assert-logical-expression|89|17|1|10e4caa62dd1
 tests/unit/view-style-coverage-test.js|qunit/no-ok-equality|124|5|1|65fd871ce649
 tests/unit/view-style-coverage-test.js|qunit/no-ok-equality|51|5|1|0bb71725fa05
-tests/utils/app_state-test.js|ember/no-runloop|3138|7|2|b7a9757b024f
+tests/utils/app_state-test.js|ember/no-runloop|3109|7|2|b7a9757b024f
 tests/utils/app_state-test.js|ember/no-runloop|436|7|2|513c0395fe72
 tests/utils/app_state-test.js|ember/no-runloop|449|7|2|513c0395fe72
 tests/utils/capabilities-test.js|ember/no-runloop|121|11|2|b7a9757b024f

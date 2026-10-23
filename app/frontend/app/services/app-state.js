@@ -1673,7 +1673,7 @@ export default Service.extend({
             });
           }
         }
-        var save_user = false, save_locale = false;
+        var save_user = false;
         if(user == speak_mode_user) {
           // If entering Speak Mode on what is already
           // the user's home board, but with a different
@@ -1682,7 +1682,7 @@ export default Service.extend({
           var home = user.get('preferences.home_board');
           if(home && home.locale && opts.override_state && home.locale != opts.override_state.locale && user.get('preferences.home_board')) {
             user.set('preferences.home_board.locale', opts.override_state.locale);
-            save_locale = true; // saved below, as `home_board` alone (utils/preference_save.js)
+            var save_user = false;
           }
         }
         if(this.stashes.get('label_locale'))
@@ -1725,7 +1725,7 @@ export default Service.extend({
         }
         if(save_user) {
           user.save();
-        } else if(save_locale) { save_listed_preferences(user, ['home_board']).then(null, function() { }); }
+        }
       }
 
       if(opts && opts.override_state) {
@@ -5510,5 +5510,3 @@ import boardRevocation from '../utils/board_revocation';
 export function logout_already_under_way(session) {
   return !!(session && typeof session.logout_under_way === 'function' && session.logout_under_way());
 }
-// Imported last so the .eslint-todo rows above keep their lines.
-import { save_listed_preferences } from '../utils/preference_save';
