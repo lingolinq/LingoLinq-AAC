@@ -475,3 +475,35 @@ Left for Scot (Lows):
 - pending vs accepted authorizing links differ between the two predicates.
 
 The verdict asked for changes, so nothing is pushed and no pass is recorded.
+
+## 10. Third dual review (2026-10-22), head `dfe49f0a7`, and the follow-up fix
+
+Preflight exit 0. Codex `gpt-6.1-sol` (high) approved with no findings and confirmed both
+round-2 fixes. The adversary approved with conditions and raised three Lows:
+- **Fixed in `8f453655e`:** the classification check from `63e275c4e` covered only
+  `record_offboarding_age_attestation!`. `begin_family_offboarding_consents!` stored the date
+  directly, and with parental consent off `remove_user` does not check it, so the re-check after a
+  detach could still store an out-of-range month. The check now sits in
+  `stamp_offboarding_age_attestation`, the one place the date is written. Two red tests (the
+  re-check path and the last-sponsor path) failed with `got: 13` before the fix. Mutation M19
+  (remove the new guard) turns both red again.
+- PR-text wording about retries and simultaneous removals, corrected in the PR body.
+- The dialog help text says AI is turned off for anyone under 16 without the "no other
+  organization still supports them" condition. The base text said the same. Left for Scot.
+
+The fix delta (`dfe49f0a7..8f453655e`) had its own dual review: preflight exit 0, Codex
+`gpt-6.1-sol` (high) approved with no findings, and the adversary approved. Lows left for Scot,
+none reachable at this head:
+- `License.expire_stale_licenses!` treats an age as on file when only the month is present, and
+  takes month and year from different sources (existed before this branch). It is reachable only
+  if `compliance_workflow_kernel` is enabled.
+- Fixing that alone would let a present but unclassifiable date reach the assumed-age branch
+  without setting `eu_under_16`; fix the two together.
+- The guard in `record_offboarding_age_attestation!` is now redundant (a fast path; no test pins
+  it).
+
+Merged `origin/develop` (`4bae48a9c`, no conflicts) and reran in throwaway containers after a
+fresh schema load: related suites plus all new specs plus the i18n spec, 1710 examples,
+0 failures, 6 pending (1708 plus the 2 new tests; develop renamed one example in these files and
+added none). `npm run lint:js:ci`: new=0 (baseline 1556). `ember-template-lint` on the changed
+template: clean.
