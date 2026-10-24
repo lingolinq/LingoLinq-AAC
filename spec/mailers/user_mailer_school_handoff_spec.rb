@@ -46,6 +46,22 @@ describe UserMailer, :type => :mailer do
     expect(text).to include('An organization no longer supports')
   end
 
+  # User#school_handoff_blocks_ai? keeps AI off for this account until a parent consents, so a
+  # preferences switch alone does not turn it back on.
+  it 'says AI stays off until a parent or guardian consents, in both parts' do
+    o = Organization.create(settings: {'name' => 'Riverside District'})
+    u = handed_back_user(email: 'family_handoff_ai@example.com')
+    expect(u.school_handoff_blocks_ai?).to eq(true)
+
+    m = UserMailer.school_handoff_notice(u.global_id, o.global_id)
+
+    m.body.parts.each do |part|
+      body = CGI.unescapeHTML(part.body.to_s)
+      expect(body).to include('They stay off until a parent or guardian gives consent.')
+      expect(body).not_to include('turn them back on')
+    end
+  end
+
   it 'sends nothing when the account has no email' do
     o = Organization.create
     u = handed_back_user(email: nil)
