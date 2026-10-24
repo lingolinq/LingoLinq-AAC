@@ -41,7 +41,16 @@ en:
     decline_cta_label: "Decline and request deletion"
     unexpected_heading: "Didn't expect this email?"
     footer: "No worries! If this wasn't you, you can simply ignore this message. The account will stay locked and restricted until a parent approves it, or the request eventually expires."
-    offboarding_footer: "If nobody responds before the request expires, we will prepare an export of the account data when available and then permanently delete the account."
+    offboarding_footer: "If you did not expect this email, you can ignore it. The account is not deleted unless you decline."
+  school_handoff_mailer:
+    subject: "School support has ended for this account"
+    greeting: "Hi there!"
+    intro: "%{org_name} no longer supports the %{app_name} account %{username}. The account stays open, and you can keep using it as before."
+    intro_unnamed_org: "An organization no longer supports the %{app_name} account %{username}. The account stays open, and you can keep using it as before."
+    ai_notice: "AI features on the account were turned off when the organization let go. You can turn them back on in the account's preferences."
+    billing_notice: "If the organization was paying for the account, it no longer does."
+    footer: "If you have questions, contact us."
+    contact_link_label: "Contact Page"
   parental_consent_offboarding_export_mailer:
     subject: "Account export and scheduled deletion for %{app_name}"
     greeting: "Hi there!"
