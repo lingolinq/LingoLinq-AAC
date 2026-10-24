@@ -420,6 +420,17 @@ class User < ApplicationRecord
       coppa_parental_consent_declined?
   end
 
+  # A school handed this account back to the family (#1063). begin_family_offboarding_consents!
+  # writes school_authorization_ended only for an attested or assumed under-13, so the school's
+  # authorization is gone and nothing has replaced it until a parent consents. It never blocks
+  # access; FeatureFlags.coppa_blocks_ai_for? and CoppaSentryScrub.child_user? read it. The EU AI
+  # consent counts, because it is the only consent an EU family can give for this account.
+  def school_handoff_blocks_ai?
+    ended = self.settings && self.settings['school_authorization_ended']
+    return false unless ended.is_a?(Hash) && ended.present?
+    !coppa_parental_consent_active? && !eu_ai_parental_consent_active?
+  end
+
   # Compliance Kernel profile for this user (nil when flag OFF).
   def compliance_profile(request: nil)
     return nil unless FeatureFlags.compliance_workflow_kernel_enabled?

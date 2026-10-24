@@ -285,6 +285,69 @@ describe 'School-authorized hand-back to the family (#1063)', type: :model do
     end
   end
 
+  describe 'AI after hand-back stays off until a parent consents' do
+    def hand_back!(jurisdiction, suffix:)
+      o = Organization.create(settings: {'total_licenses' => 1, 'jurisdiction' => jurisdiction})
+      License.create!(organization: o, seat_type: 'student', status: 'active')
+      u = school_authorized_user!(suffix: suffix, ai_on: true)
+      o.claim_user(u)
+      b = under13_birth
+      o.remove_user(u.user_name, birth_month: b[:month], birth_year: b[:year])
+      u.reload
+      expect(handed_off?(u)).to eq(true)
+      u
+    end
+
+    # The family's own "Allow AI features" save, through the same writer the preferences page uses.
+    def turn_ai_on!(u)
+      u.process({'preferences' => User::EU_AI_PREF_KEYS.map { |k| [k, true] }.to_h})
+      u.reload
+    end
+
+    it 'keeps AI off for a handed-back US under-13 whose family turns AI back on' do
+      u = turn_ai_on!(hand_back!('US', suffix: 'us_ai_on'))
+
+      expect(FeatureFlags.user_pref_allows_ai?('ai_word_prediction', u)).to eq(true)
+      expect(FeatureFlags.feature_enabled_for?('ai_word_prediction', u)).to eq(true)
+      expect(FeatureFlags.coppa_blocks_ai_for?(u)).to eq(true)
+      expect(FeatureFlags.ai_feature_enabled_for?('ai_word_prediction', u)).to eq(false)
+    end
+
+    it 'keeps AI off after an assumed-under-13 expiry at a US organization once the family turns AI on' do
+      o = Organization.create(settings: {'total_licenses' => 1, 'jurisdiction' => 'US'})
+      u = school_authorized_user!(suffix: 'us_assumed_ai_on', ai_on: true)
+      License.create!(organization: o, seat_type: 'student', status: 'active', user: u, expires_at: 1.day.ago)
+      u.update!(managing_organization_id: o.id)
+      License.expire_stale_licenses!
+      u = turn_ai_on!(u.reload)
+
+      expect(handoff_events(u).first.data['age_basis']).to eq('unknown_assumed_under_13')
+      expect(FeatureFlags.user_pref_allows_ai?('ai_word_prediction', u)).to eq(true)
+      expect(FeatureFlags.ai_feature_enabled_for?('ai_word_prediction', u)).to eq(false)
+    end
+
+    it 'allows AI for the same US account once a parent has consented' do
+      u = hand_back!('US', suffix: 'us_consented')
+      u.settings['coppa'] = {'parent_consent_granted_at' => Time.now.utc.iso8601}
+      u.save!
+      u = turn_ai_on!(u)
+
+      expect(FeatureFlags.coppa_blocks_ai_for?(u)).to eq(false)
+      expect(FeatureFlags.ai_feature_enabled_for?('ai_word_prediction', u)).to eq(true)
+    end
+
+    it 'allows AI for a handed-back EU under-13 once a parent has given the EU AI consent' do
+      u = hand_back!('EU', suffix: 'eu_consented')
+      u.settings['eu_ai_parental_consent'] = {'parent_consent_granted_at' => Time.now.utc.iso8601}
+      u.save!
+      u = turn_ai_on!(u)
+
+      expect(FeatureFlags.eu_under16_blocks_ai_for?(u)).to eq(false)
+      expect(FeatureFlags.coppa_blocks_ai_for?(u)).to eq(false)
+      expect(FeatureFlags.ai_feature_enabled_for?('ai_word_prediction', u)).to eq(true)
+    end
+  end
+
   describe 'which organizations still count as supporting the student' do
     def remove_from(org, u)
       b = under13_birth
