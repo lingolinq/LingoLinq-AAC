@@ -1,5 +1,6 @@
 import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
+import EmberObject from '@ember/object';
 import { buildHomeSteps } from 'frontend/utils/tours/home';
 import { buildClassicHomeSteps } from 'frontend/utils/tours/classic-home';
 
@@ -57,29 +58,68 @@ module('Unit | Utility | tours | SLP home tour', function(hooks) {
       '<button data-tour-tab="supervisees" class="ch-tab">Communicators</button><button data-tour-tab="boards" class="ch-tab">Boards</button></nav>');
     put('<div class="ch-comm__actions">Model</div>');
     put('<aside class="ch-rail">rail</aside>');
-    document.querySelectorAll('[data-tour-tab]').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        document.querySelectorAll('.ch-tab').forEach(function(other) { other.classList.remove('is-active'); });
-        btn.classList.add('is-active');
-      });
-    });
+    var clicked = 0;
+    document.querySelector('[data-tour-tab="supervisees"]').addEventListener('click', function() { clicked++; });
     var steps = buildClassicHomeSteps({ supporter: true });
-    var active = function() { return document.querySelector('.ch-tab.is-active').getAttribute('data-tour-tab'); };
     assert.deepEqual(steps.map(function(s) { return s.id; }),
       ['classic_tour_welcome', 'classic_tour_slp_boards', 'classic_tour_slp_caseload', 'classic_tour_slp_model', 'classic_tour_slp_dashboards']);
     assert.strictEqual(target(steps[1]), document.querySelector('[data-tour-tab="boards"]'), 'boards: the Boards tab');
     assert.strictEqual(target(steps[2]), document.querySelector('[data-tour-tab="supervisees"]'), 'caseload: the Communicators tab');
     assert.strictEqual(target(steps[3]), document.querySelector('.ch-comm__actions'), 'Model: a communicator card\'s actions');
-    assert.strictEqual(active(), 'main', 'the tour starts on Actions');
     await steps[3].beforeShowPromise();
-    assert.strictEqual(active(), 'supervisees', 'the Model step opens the Communicators tab first');
-    await steps[4].beforeShowPromise();
-    assert.strictEqual(active(), 'main', 'the next step returns to the tab that was open');
-    await steps[3].beforeShowPromise();
-    assert.strictEqual(active(), 'supervisees');
-    steps[3].when.destroy();
-    assert.strictEqual(active(), 'main', 'cancelling on the Model step returns to the tab that was open');
+    assert.strictEqual(clicked, 1, 'the Model step opens the Communicators tab first');
     assert.strictEqual(target(steps[4]), document.querySelector('.ch-rail'), 'dashboards: the side menu');
     assert.strictEqual(steps[4].buttons[1].text, 'Got it', 'the last spotlight finishes the tour');
+  });
+
+  test('Basic: every step keeps the runner show hook', async function(assert) {
+    assert.expect(6);
+    // The runner's default `when.show` is what scrolls the target, paints the
+    // progress dots, and clears the centered-step blur (guided-tour.js). Shepherd
+    // copies a step's own `when` over that default, even when the value is
+    // undefined (shepherd.js Step#_setOptions), and then binds `when.show` onto
+    // step.bindings.show. Build through the real component so that merge happens.
+    put('<nav class="ch-tabs"><button data-tour-tab="main" class="ch-tab is-active">Actions</button>' +
+      '<button data-tour-tab="supervisees" class="ch-tab">Communicators</button><button data-tour-tab="boards" class="ch-tab">Boards</button></nav>');
+    put('<div class="ch-comm__actions">Model</div>');
+    put('<aside class="ch-rail">rail</aside>');
+    try { sessionStorage.removeItem('ll_auto_open_home_tour'); } catch (e) { /* unavailable */ }
+    var appState = this.owner.lookup('service:app-state');
+    appState.set('auto_open_home_tour', false);
+    appState.set('current_route', 'user.home');
+    appState.set('currentUser', EmberObject.create({
+      supporter_role: true,
+      user_name: 'slp',
+      preferences: EmberObject.create({ board_view_style: 'classic', dashboard_layout: 'gentle' })
+    }));
+    var comp = this.owner.factoryFor('component:guided-tour').create();
+    try {
+      comp._startTour();
+      var steps = await new Promise(function(resolve, reject) {
+        var started = Date.now();
+        function tick() {
+          var tour = comp.get('tour');
+          var list = tour && tour.tourObject && tour.tourObject.steps;
+          if (list && list.length === 5) { resolve(list); return; }
+          if (Date.now() - started > 5000) {
+            reject(new Error('tour steps did not build, saw ' + (list ? list.length : 0)));
+            return;
+          }
+          setTimeout(tick, 20);
+        }
+        tick();
+      });
+      assert.strictEqual(steps.length, 5, 'the Basic SLP tour has five steps');
+      steps.forEach(function(step) {
+        var show = step.bindings && step.bindings.show;
+        var bound = Array.isArray(show) && show.some(function(binding) {
+          return typeof binding.handler === 'function';
+        });
+        assert.true(bound, (step.id || 'step') + ' keeps the show hook');
+      });
+    } finally {
+      try { comp.get('tour').cancel(); } catch (e) { /* tour never started */ }
+      comp.destroy();
+    }
   });
 });

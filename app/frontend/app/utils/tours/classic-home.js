@@ -136,56 +136,19 @@ function showTab(name) {
   if (tab && !tab.classList.contains('is-active')) { tab.click(); }
 }
 
-// The Model step opens the Communicators tab and nothing else put it back
-// (GitHub #1131). Remember the tab that was active before the first switch, put
-// it back when the next step shows, and again if the tour is cancelled first.
-// Shepherd destroys every step on cancel and on complete (shepherd.js tour._done),
-// and a step's `when.destroy` runs then.
-var homeTabBeforeTour = null;
-function activeTabName() {
-  var active = document.querySelector('.ch-tabs .ch-tab.is-active');
-  return active ? active.getAttribute('data-tour-tab') : null;
-}
-function rememberHomeTab() {
-  if (homeTabBeforeTour) { return; }
-  homeTabBeforeTour = activeTabName();
-}
-function restoreHomeTab() {
-  var name = homeTabBeforeTour;
-  homeTabBeforeTour = null;
-  if (name) { showTab(name); }
-}
-
 function pushInteriorSteps(steps) {
-  var restoreOnNext = false;
   interiorSteps().forEach(function(cfg) {
     var el = visibleEl(cfg.sel);
     var later = !el && !!cfg.tab && !!tabButton(cfg.tab);
     if (!el && !later) { return; }
     var wait = waitForElement(cfg.sel);
-    var beforeShow = wait;
-    if (cfg.tab) {
-      beforeShow = function() {
-        rememberHomeTab();
-        showTab(cfg.tab);
-        return wait();
-      };
-      restoreOnNext = true;
-    } else if (restoreOnNext) {
-      beforeShow = function() {
-        restoreHomeTab();
-        return wait();
-      };
-      restoreOnNext = false;
-    }
     var step = {
       id: cfg.id,
       // Resolve the target LIVE at show time so a control that re-rendered, shifted, or
       // painted a beat late (common under deployment latency, where the DOM is not as
       // instant as on a dev machine) is still spotlighted.
       attachTo: { element: liveTarget(cfg.sel, el), on: cfg.on },
-      beforeShowPromise: beforeShow,
-      when: cfg.tab ? { destroy: function() { restoreHomeTab(); } } : undefined,
+      beforeShowPromise: cfg.tab ? function() { showTab(cfg.tab); return wait(); } : wait,
       title: cfg.title,
       text: cfg.text,
       classes: 'ch-tour__step',
