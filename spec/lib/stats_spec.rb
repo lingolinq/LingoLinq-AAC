@@ -2,6 +2,8 @@ require 'spec_helper'
 
 describe Stats do
   describe "daily summary reports" do
+    include ActiveSupport::Testing::TimeHelpers
+
     it "should error if the user isn't found" do
       expect { Stats.daily_use(0, {}) }.to raise_error("user not found")
     end
@@ -102,262 +104,278 @@ describe Stats do
       expect(res[:days].keys.length).to be <= 65
     end
     
+    # Noon UTC: the sessions and day keys come from separate clock reads (Time.now + 100, Date.today),
+    # so a run within about 100 s of midnight UTC put them on different days.
     it "should generate per-day stats" do
-      u = User.create
-      d = Device.create(:user => u)
-      s1 = LogSession.process_new({'events' => [
-        {'type' => 'button', 'button' => {'label' => 'ok go ok', 'button_id' => 1, 'board' => {'id' => '1_1'}, 'spoken' => true}, 'geo' => ['13', '12'], 'timestamp' => Time.now.to_i - 1},
-        {'type' => 'utterance', 'utterance' => {'text' => 'ok go ok', 'buttons' => []}, 'geo' => ['13', '12'], 'timestamp' => Time.now.to_i}
-      ]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
-      s2 = LogSession.process_new({'events' => [
-        {'type' => 'utterance', 'utterance' => {'text' => 'never again', 'buttons' => []}, 'geo' => ['13.0001', '12.0001'], 'timestamp' => 2.days.ago.to_time.to_i}
-      ]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
+      travel_to(Time.utc(2026, 6, 17, 12, 0, 0)) do
+        u = User.create
+        d = Device.create(:user => u)
+        s1 = LogSession.process_new({'events' => [
+          {'type' => 'button', 'button' => {'label' => 'ok go ok', 'button_id' => 1, 'board' => {'id' => '1_1'}, 'spoken' => true}, 'geo' => ['13', '12'], 'timestamp' => Time.now.to_i - 1},
+          {'type' => 'utterance', 'utterance' => {'text' => 'ok go ok', 'buttons' => []}, 'geo' => ['13', '12'], 'timestamp' => Time.now.to_i}
+        ]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
+        s2 = LogSession.process_new({'events' => [
+          {'type' => 'utterance', 'utterance' => {'text' => 'never again', 'buttons' => []}, 'geo' => ['13.0001', '12.0001'], 'timestamp' => 2.days.ago.to_time.to_i}
+        ]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
       
-      ClusterLocation.clusterize_ips(u.global_id)
-      ClusterLocation.clusterize_geos(u.global_id)
-      ClusterLocation.all.each{|c| c.generate_stats(true) }
-      res = Stats.daily_use(u.global_id, {:start_at => 3.days.ago, :end_at => Time.now + 100})
-      expect(res[:total_sessions]).to eq(2)
-      expect(res[:total_utterances]).to eq(2)
-      expect(res[:utterances_per_minute]).to eq(20)
-      expect(res[:words_per_utterance]).to eq(2.5)
-      expect(res[:total_buttons]).to eq(1)
-      expect(res[:total_words]).to eq(3)
-      expect(res[:unique_buttons]).to eq(1)
-      expect(res[:unique_words]).to eq(2)
-      expect(res[:buttons_per_minute]).to eq(10)
-      expect(res[:words_per_minute]).to eq(30)
-      expect(res[:words_by_frequency]).to eq([
-        {'text' => 'ok', 'count' => 2}, {'text' => 'go', 'count' => 1}
-      ])
-      expect(res[:buttons_by_frequency]).to eq([
-        {'button_id' => 1, 'board_id' => '1_1', 'text' => 'ok go ok', 'count' => 1}
-      ])
+        ClusterLocation.clusterize_ips(u.global_id)
+        ClusterLocation.clusterize_geos(u.global_id)
+        ClusterLocation.all.each{|c| c.generate_stats(true) }
+        res = Stats.daily_use(u.global_id, {:start_at => 3.days.ago, :end_at => Time.now + 100})
+        expect(res[:total_sessions]).to eq(2)
+        expect(res[:total_utterances]).to eq(2)
+        expect(res[:utterances_per_minute]).to eq(20)
+        expect(res[:words_per_utterance]).to eq(2.5)
+        expect(res[:total_buttons]).to eq(1)
+        expect(res[:total_words]).to eq(3)
+        expect(res[:unique_buttons]).to eq(1)
+        expect(res[:unique_words]).to eq(2)
+        expect(res[:buttons_per_minute]).to eq(10)
+        expect(res[:words_per_minute]).to eq(30)
+        expect(res[:words_by_frequency]).to eq([
+          {'text' => 'ok', 'count' => 2}, {'text' => 'go', 'count' => 1}
+        ])
+        expect(res[:buttons_by_frequency]).to eq([
+          {'button_id' => 1, 'board_id' => '1_1', 'text' => 'ok go ok', 'count' => 1}
+        ])
       
-      expect(res[:days].length).to eq(4)
-      day = res[:days][Date.today.to_s]
-      expect(day).not_to eq(nil)
-      expect(day[:total_sessions]).to eq(1)
-      expect(day[:total_utterances]).to eq(1)
-      expect(day[:total_buttons]).to eq(1)
-      expect(day[:total_words]).to eq(3)
-      expect(day[:unique_words]).to eq(2)
-      expect(day[:unique_buttons]).to eq(1)
+        expect(res[:days].length).to eq(4)
+        day = res[:days][Date.today.to_s]
+        expect(day).not_to eq(nil)
+        expect(day[:total_sessions]).to eq(1)
+        expect(day[:total_utterances]).to eq(1)
+        expect(day[:total_buttons]).to eq(1)
+        expect(day[:total_words]).to eq(3)
+        expect(day[:unique_words]).to eq(2)
+        expect(day[:unique_buttons]).to eq(1)
       
-      day = res[:days][2.days.ago.to_date.to_s]
-      expect(day).not_to eq(nil)
-      expect(day[:total_sessions]).to eq(1)
-      expect(day[:total_utterances]).to eq(1)
-      expect(day[:total_buttons]).to eq(0)
-      expect(day[:total_words]).to eq(0)
+        day = res[:days][2.days.ago.to_date.to_s]
+        expect(day).not_to eq(nil)
+        expect(day[:total_sessions]).to eq(1)
+        expect(day[:total_utterances]).to eq(1)
+        expect(day[:total_buttons]).to eq(0)
+        expect(day[:total_words]).to eq(0)
+      end
     end
 
+    # Noon UTC: the sessions and day keys come from separate clock reads (Time.now + 100, Date.today),
+    # so a run within about 100 s of midnight UTC put them on different days.
     it "should generate per-day stats when weekly summary is generated" do
-      u = User.create
-      d = Device.create(:user => u)
-      s1 = LogSession.process_new({'events' => [
-        {'type' => 'button', 'button' => {'label' => 'ok go ok', 'button_id' => 1, 'board' => {'id' => '1_1'}, 'spoken' => true}, 'geo' => ['13', '12'], 'timestamp' => Time.now.to_i - 1},
-        {'type' => 'utterance', 'utterance' => {'text' => 'ok go ok', 'buttons' => []}, 'geo' => ['13', '12'], 'timestamp' => Time.now.to_i}
-      ]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
-      s2 = LogSession.process_new({'events' => [
-        {'type' => 'utterance', 'utterance' => {'text' => 'never again', 'buttons' => []}, 'geo' => ['13.0001', '12.0001'], 'timestamp' => 2.days.ago.to_time.to_i}
-      ]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
+      travel_to(Time.utc(2026, 6, 17, 12, 0, 0)) do
+        u = User.create
+        d = Device.create(:user => u)
+        s1 = LogSession.process_new({'events' => [
+          {'type' => 'button', 'button' => {'label' => 'ok go ok', 'button_id' => 1, 'board' => {'id' => '1_1'}, 'spoken' => true}, 'geo' => ['13', '12'], 'timestamp' => Time.now.to_i - 1},
+          {'type' => 'utterance', 'utterance' => {'text' => 'ok go ok', 'buttons' => []}, 'geo' => ['13', '12'], 'timestamp' => Time.now.to_i}
+        ]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
+        s2 = LogSession.process_new({'events' => [
+          {'type' => 'utterance', 'utterance' => {'text' => 'never again', 'buttons' => []}, 'geo' => ['13.0001', '12.0001'], 'timestamp' => 2.days.ago.to_time.to_i}
+        ]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
       
-      ClusterLocation.clusterize_ips(u.global_id)
-      ClusterLocation.clusterize_geos(u.global_id)
-      ClusterLocation.all.each{|c| c.generate_stats(true) }
-      WeeklyStatsSummary.update_for(s1.global_id)
-      WeeklyStatsSummary.update_for(s2.global_id)
-      sum = WeeklyStatsSummary.last
+        ClusterLocation.clusterize_ips(u.global_id)
+        ClusterLocation.clusterize_geos(u.global_id)
+        ClusterLocation.all.each{|c| c.generate_stats(true) }
+        WeeklyStatsSummary.update_for(s1.global_id)
+        WeeklyStatsSummary.update_for(s2.global_id)
+        sum = WeeklyStatsSummary.last
       
-      starty = 3.days.ago
-      endy = Time.now + 100
-      res = Stats.daily_use(u.global_id, {:start_at => starty, :end_at => endy})
-      res = Stats.cached_daily_use(u.global_id, {:start_at => starty, :end_at => endy})
-      expect(res[:cached]).to eq(true)
-      expect(res[:total_sessions]).to eq(2)
-      expect(res[:total_utterances]).to eq(2)
-      expect(res[:utterances_per_minute]).to eq(20)
-      expect(res[:words_per_utterance]).to eq(2.5)
-      expect(res[:total_buttons]).to eq(1)
-      expect(res[:total_words]).to eq(3)
-      expect(res[:unique_buttons]).to eq(1)
-      expect(res[:unique_words]).to eq(2)
-      expect(res[:buttons_per_minute]).to eq(10)
-      expect(res[:words_per_minute]).to eq(30)
-      expect(res[:words_by_frequency]).to eq([
-        {'text' => 'ok', 'count' => 2}, {'text' => 'go', 'count' => 1}
-      ])
-      expect(res[:buttons_by_frequency]).to eq([
-        {'button_id' => 1, 'board_id' => '1_1', 'text' => 'ok go ok', 'count' => 1}
-      ])
+        starty = 3.days.ago
+        endy = Time.now + 100
+        res = Stats.daily_use(u.global_id, {:start_at => starty, :end_at => endy})
+        res = Stats.cached_daily_use(u.global_id, {:start_at => starty, :end_at => endy})
+        expect(res[:cached]).to eq(true)
+        expect(res[:total_sessions]).to eq(2)
+        expect(res[:total_utterances]).to eq(2)
+        expect(res[:utterances_per_minute]).to eq(20)
+        expect(res[:words_per_utterance]).to eq(2.5)
+        expect(res[:total_buttons]).to eq(1)
+        expect(res[:total_words]).to eq(3)
+        expect(res[:unique_buttons]).to eq(1)
+        expect(res[:unique_words]).to eq(2)
+        expect(res[:buttons_per_minute]).to eq(10)
+        expect(res[:words_per_minute]).to eq(30)
+        expect(res[:words_by_frequency]).to eq([
+          {'text' => 'ok', 'count' => 2}, {'text' => 'go', 'count' => 1}
+        ])
+        expect(res[:buttons_by_frequency]).to eq([
+          {'button_id' => 1, 'board_id' => '1_1', 'text' => 'ok go ok', 'count' => 1}
+        ])
       
-      expect(res[:days].length).to eq(4)
-      day = res[:days][Date.today.to_s]
-      expect(day).not_to eq(nil)
-      expect(day[:total_sessions]).to eq(1)
-      expect(day[:total_utterances]).to eq(1)
-      expect(day[:total_buttons]).to eq(1)
-      expect(day[:total_words]).to eq(3)
-      expect(day[:unique_words]).to eq(2)
-      expect(day[:unique_buttons]).to eq(1)
+        expect(res[:days].length).to eq(4)
+        day = res[:days][Date.today.to_s]
+        expect(day).not_to eq(nil)
+        expect(day[:total_sessions]).to eq(1)
+        expect(day[:total_utterances]).to eq(1)
+        expect(day[:total_buttons]).to eq(1)
+        expect(day[:total_words]).to eq(3)
+        expect(day[:unique_words]).to eq(2)
+        expect(day[:unique_buttons]).to eq(1)
       
-      day = res[:days][2.days.ago.to_date.to_s]
-      expect(day).not_to eq(nil)
-      expect(day[:total_sessions]).to eq(1)
-      expect(day[:total_utterances]).to eq(1)
-      expect(day[:total_buttons]).to eq(0)
-      expect(day[:total_words]).to eq(0)
+        day = res[:days][2.days.ago.to_date.to_s]
+        expect(day).not_to eq(nil)
+        expect(day[:total_sessions]).to eq(1)
+        expect(day[:total_utterances]).to eq(1)
+        expect(day[:total_buttons]).to eq(0)
+        expect(day[:total_words]).to eq(0)
+      end
     end
 
+    # Noon UTC: the sessions and day keys come from separate clock reads (Time.now + 100, Date.today),
+    # so a run within about 100 s of midnight UTC put them on different days.
     it "should include sensor data in generated stats" do
-      u = User.create
-      d = Device.create(:user => u)
-      s1 = LogSession.process_new({'events' => [
-        {'type' => 'button', 'volume' => 0.75, 'screen_brightness' => 0.50, 'ambient_light' => 200, 'orientation' => {'alpha' => 355, 'beta' => 10, 'gamma' => 45, 'layout' => 'landscape-primary'}, 'button' => {'label' => 'ok go ok', 'button_id' => 1, 'board' => {'id' => '1_1'}, 'spoken' => true}, 'geo' => ['13', '12'], 'timestamp' => Time.now.to_i - 1},
-        {'type' => 'utterance', 'volume' => 0.54, 'screen_brightness' => 0.50, 'ambient_light' => 1000, 'orientation' => {'alpha' => 90, 'beta' => 5, 'gamma' => 0, 'layout' => 'landscape-secondary'}, 'utterance' => {'text' => 'ok go ok', 'buttons' => []}, 'geo' => ['13', '12'], 'timestamp' => Time.now.to_i}
-      ]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
-      s2 = LogSession.process_new({'events' => [
-        {'type' => 'utterance', 'volume' => 0.55, 'screen_brightness' => 0.80, 'ambient_light' => 1100, 'orientation' => {'alpha' => 95, 'beta' => 8, 'gamma' => 50, 'layout' => 'landscape-primary'}, 'utterance' => {'text' => 'never again', 'buttons' => []}, 'geo' => ['13.0001', '12.0001'], 'timestamp' => 2.days.ago.to_time.to_i}
-      ]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
+      travel_to(Time.utc(2026, 6, 17, 12, 0, 0)) do
+        u = User.create
+        d = Device.create(:user => u)
+        s1 = LogSession.process_new({'events' => [
+          {'type' => 'button', 'volume' => 0.75, 'screen_brightness' => 0.50, 'ambient_light' => 200, 'orientation' => {'alpha' => 355, 'beta' => 10, 'gamma' => 45, 'layout' => 'landscape-primary'}, 'button' => {'label' => 'ok go ok', 'button_id' => 1, 'board' => {'id' => '1_1'}, 'spoken' => true}, 'geo' => ['13', '12'], 'timestamp' => Time.now.to_i - 1},
+          {'type' => 'utterance', 'volume' => 0.54, 'screen_brightness' => 0.50, 'ambient_light' => 1000, 'orientation' => {'alpha' => 90, 'beta' => 5, 'gamma' => 0, 'layout' => 'landscape-secondary'}, 'utterance' => {'text' => 'ok go ok', 'buttons' => []}, 'geo' => ['13', '12'], 'timestamp' => Time.now.to_i}
+        ]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
+        s2 = LogSession.process_new({'events' => [
+          {'type' => 'utterance', 'volume' => 0.55, 'screen_brightness' => 0.80, 'ambient_light' => 1100, 'orientation' => {'alpha' => 95, 'beta' => 8, 'gamma' => 50, 'layout' => 'landscape-primary'}, 'utterance' => {'text' => 'never again', 'buttons' => []}, 'geo' => ['13.0001', '12.0001'], 'timestamp' => 2.days.ago.to_time.to_i}
+        ]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
       
-      ClusterLocation.clusterize_ips(u.global_id)
-      ClusterLocation.clusterize_geos(u.global_id)
-      ClusterLocation.all.each{|c| c.generate_stats(true) }
-      WeeklyStatsSummary.update_for(s1.global_id)
-      WeeklyStatsSummary.update_for(s2.global_id)
+        ClusterLocation.clusterize_ips(u.global_id)
+        ClusterLocation.clusterize_geos(u.global_id)
+        ClusterLocation.all.each{|c| c.generate_stats(true) }
+        WeeklyStatsSummary.update_for(s1.global_id)
+        WeeklyStatsSummary.update_for(s2.global_id)
       
-      starty = 3.days.ago
-      endy = Time.now + 100
-      res = Stats.daily_use(u.global_id, {:start_at => starty, :end_at => endy})
-      res = Stats.cached_daily_use(u.global_id, {:start_at => starty, :end_at => endy})
-      expect(res[:cached]).to eq(true)
-      expect(res[:total_sessions]).to eq(2)
-      expect(res[:total_utterances]).to eq(2)
-      expect(res['volume']['average']).to eq(61.33)
-      expect(res['volume']['total']).to eq(3)
-      expect(res['volume']['histogram']['50-60']).to eq(2)
-      expect(res['volume']['histogram']['70-80']).to eq(1)
-      expect(res['screen_brightness']['average']).to eq(60)
-      expect(res['screen_brightness']['total']).to eq(3)
-      expect(res['screen_brightness']['histogram']['50-60']).to eq(2)
-      expect(res['screen_brightness']['histogram']['80-90']).to eq(1)
-      expect(res['ambient_light']['average']).to eq(766.67)
-      expect(res['ambient_light']['total']).to eq(3)
-      expect(res['ambient_light']['histogram']['100-250']).to eq(1)
-      expect(res['ambient_light']['histogram']['1000-15000']).to eq(2)
-      expect(res['orientation']['total']).to eq(3)
-      expect(res['orientation']['alpha']['total']).to eq(3)
-      expect(res['orientation']['alpha']['average']).to eq(180)
-      expect(res['orientation']['alpha']['histogram']['N']).to eq(1)
-      expect(res['orientation']['alpha']['histogram']['E']).to eq(2)
-      expect(res['orientation']['beta']['total']).to eq(3)
-      expect(res['orientation']['beta']['average']).to eq(7.67)
-      expect(res['orientation']['beta']['histogram']['-20-20']).to eq(3)
-      expect(res['orientation']['gamma']['total']).to eq(3)
-      expect(res['orientation']['gamma']['average']).to eq(31.67)
-      expect(res['orientation']['gamma']['histogram']['-18-18']).to eq(1)
-      expect(res['orientation']['gamma']['histogram']['18-54']).to eq(2)
+        starty = 3.days.ago
+        endy = Time.now + 100
+        res = Stats.daily_use(u.global_id, {:start_at => starty, :end_at => endy})
+        res = Stats.cached_daily_use(u.global_id, {:start_at => starty, :end_at => endy})
+        expect(res[:cached]).to eq(true)
+        expect(res[:total_sessions]).to eq(2)
+        expect(res[:total_utterances]).to eq(2)
+        expect(res['volume']['average']).to eq(61.33)
+        expect(res['volume']['total']).to eq(3)
+        expect(res['volume']['histogram']['50-60']).to eq(2)
+        expect(res['volume']['histogram']['70-80']).to eq(1)
+        expect(res['screen_brightness']['average']).to eq(60)
+        expect(res['screen_brightness']['total']).to eq(3)
+        expect(res['screen_brightness']['histogram']['50-60']).to eq(2)
+        expect(res['screen_brightness']['histogram']['80-90']).to eq(1)
+        expect(res['ambient_light']['average']).to eq(766.67)
+        expect(res['ambient_light']['total']).to eq(3)
+        expect(res['ambient_light']['histogram']['100-250']).to eq(1)
+        expect(res['ambient_light']['histogram']['1000-15000']).to eq(2)
+        expect(res['orientation']['total']).to eq(3)
+        expect(res['orientation']['alpha']['total']).to eq(3)
+        expect(res['orientation']['alpha']['average']).to eq(180)
+        expect(res['orientation']['alpha']['histogram']['N']).to eq(1)
+        expect(res['orientation']['alpha']['histogram']['E']).to eq(2)
+        expect(res['orientation']['beta']['total']).to eq(3)
+        expect(res['orientation']['beta']['average']).to eq(7.67)
+        expect(res['orientation']['beta']['histogram']['-20-20']).to eq(3)
+        expect(res['orientation']['gamma']['total']).to eq(3)
+        expect(res['orientation']['gamma']['average']).to eq(31.67)
+        expect(res['orientation']['gamma']['histogram']['-18-18']).to eq(1)
+        expect(res['orientation']['gamma']['histogram']['18-54']).to eq(2)
       
-      expect(res[:days].length).to eq(4)
-      day = res[:days][Date.today.to_s]
-      expect(day).not_to eq(nil)
-      expect(day[:total_sessions]).to eq(1)
-      # expect(day['volume']['average']).to eq(64.5)
-      # expect(day['volume']['total']).to eq(2)
-      # expect(day['volume']['histogram']['50-60']).to eq(1)
-      # expect(day['volume']['histogram']['70-80']).to eq(1)
-      # expect(day['screen_brightness']['average']).to eq(50)
-      # expect(day['screen_brightness']['total']).to eq(2)
-      # expect(day['screen_brightness']['histogram']['50-60']).to eq(2)
-      # expect(day['ambient_light']['average']).to eq(600)
-      # expect(day['ambient_light']['total']).to eq(2)
-      # expect(day['ambient_light']['histogram']['100-250']).to eq(1)
-      # expect(day['ambient_light']['histogram']['1000-15000']).to eq(1)
-      # expect(day['orientation']['total']).to eq(2)
-      # expect(day['orientation']['alpha']['total']).to eq(2)
-      # expect(day['orientation']['alpha']['average']).to eq(222.5)
-      # expect(day['orientation']['alpha']['histogram']['N']).to eq(1)
-      # expect(day['orientation']['alpha']['histogram']['E']).to eq(1)
-      # expect(day['orientation']['beta']['total']).to eq(2)
-      # expect(day['orientation']['beta']['average']).to eq(7.5)
-      # expect(day['orientation']['beta']['histogram']['-20-20']).to eq(2)
-      # expect(day['orientation']['gamma']['total']).to eq(2)
-      # expect(day['orientation']['gamma']['average']).to eq(22.5)
-      # expect(day['orientation']['gamma']['histogram']['-18-18']).to eq(1)
-      # expect(day['orientation']['gamma']['histogram']['18-54']).to eq(1)
+        expect(res[:days].length).to eq(4)
+        day = res[:days][Date.today.to_s]
+        expect(day).not_to eq(nil)
+        expect(day[:total_sessions]).to eq(1)
+        # expect(day['volume']['average']).to eq(64.5)
+        # expect(day['volume']['total']).to eq(2)
+        # expect(day['volume']['histogram']['50-60']).to eq(1)
+        # expect(day['volume']['histogram']['70-80']).to eq(1)
+        # expect(day['screen_brightness']['average']).to eq(50)
+        # expect(day['screen_brightness']['total']).to eq(2)
+        # expect(day['screen_brightness']['histogram']['50-60']).to eq(2)
+        # expect(day['ambient_light']['average']).to eq(600)
+        # expect(day['ambient_light']['total']).to eq(2)
+        # expect(day['ambient_light']['histogram']['100-250']).to eq(1)
+        # expect(day['ambient_light']['histogram']['1000-15000']).to eq(1)
+        # expect(day['orientation']['total']).to eq(2)
+        # expect(day['orientation']['alpha']['total']).to eq(2)
+        # expect(day['orientation']['alpha']['average']).to eq(222.5)
+        # expect(day['orientation']['alpha']['histogram']['N']).to eq(1)
+        # expect(day['orientation']['alpha']['histogram']['E']).to eq(1)
+        # expect(day['orientation']['beta']['total']).to eq(2)
+        # expect(day['orientation']['beta']['average']).to eq(7.5)
+        # expect(day['orientation']['beta']['histogram']['-20-20']).to eq(2)
+        # expect(day['orientation']['gamma']['total']).to eq(2)
+        # expect(day['orientation']['gamma']['average']).to eq(22.5)
+        # expect(day['orientation']['gamma']['histogram']['-18-18']).to eq(1)
+        # expect(day['orientation']['gamma']['histogram']['18-54']).to eq(1)
       
-      day = res[:days][2.days.ago.to_date.to_s]
-      expect(day).not_to eq(nil)
-      expect(day[:total_sessions]).to eq(1)
-      # expect(day['volume']['average']).to eq(55)
-      # expect(day['volume']['total']).to eq(1)
-      # expect(day['volume']['histogram']['50-60']).to eq(1)
-      # expect(day['screen_brightness']['average']).to eq(80)
-      # expect(day['screen_brightness']['total']).to eq(1)
-      # expect(day['screen_brightness']['histogram']['80-90']).to eq(1)
-      # expect(day['ambient_light']['average']).to eq(1100)
-      # expect(day['ambient_light']['total']).to eq(1)
-      # expect(day['ambient_light']['histogram']['1000-15000']).to eq(1)
-      # expect(day['orientation']['total']).to eq(1)
-      # expect(day['orientation']['alpha']['total']).to eq(1)
-      # expect(day['orientation']['alpha']['average']).to eq(95)
-      # expect(day['orientation']['alpha']['histogram']['E']).to eq(1)
-      # expect(day['orientation']['beta']['total']).to eq(1)
-      # expect(day['orientation']['beta']['average']).to eq(8)
-      # expect(day['orientation']['beta']['histogram']['-20-20']).to eq(1)
-      # expect(day['orientation']['gamma']['total']).to eq(1)
-      # expect(day['orientation']['gamma']['average']).to eq(50)
-      # expect(day['orientation']['gamma']['histogram']['18-54']).to eq(1)
+        day = res[:days][2.days.ago.to_date.to_s]
+        expect(day).not_to eq(nil)
+        expect(day[:total_sessions]).to eq(1)
+        # expect(day['volume']['average']).to eq(55)
+        # expect(day['volume']['total']).to eq(1)
+        # expect(day['volume']['histogram']['50-60']).to eq(1)
+        # expect(day['screen_brightness']['average']).to eq(80)
+        # expect(day['screen_brightness']['total']).to eq(1)
+        # expect(day['screen_brightness']['histogram']['80-90']).to eq(1)
+        # expect(day['ambient_light']['average']).to eq(1100)
+        # expect(day['ambient_light']['total']).to eq(1)
+        # expect(day['ambient_light']['histogram']['1000-15000']).to eq(1)
+        # expect(day['orientation']['total']).to eq(1)
+        # expect(day['orientation']['alpha']['total']).to eq(1)
+        # expect(day['orientation']['alpha']['average']).to eq(95)
+        # expect(day['orientation']['alpha']['histogram']['E']).to eq(1)
+        # expect(day['orientation']['beta']['total']).to eq(1)
+        # expect(day['orientation']['beta']['average']).to eq(8)
+        # expect(day['orientation']['beta']['histogram']['-20-20']).to eq(1)
+        # expect(day['orientation']['gamma']['total']).to eq(1)
+        # expect(day['orientation']['gamma']['average']).to eq(50)
+        # expect(day['orientation']['gamma']['histogram']['18-54']).to eq(1)
+      end
     end   
     
+    # Noon UTC: the sessions and day keys come from separate clock reads (Time.now + 100, Date.today),
+    # so a run within about 100 s of midnight UTC put them on different days.
     it "should include modeling data when available" do
-      u = User.create
-      d = Device.create(:user => u)
-      s1 = LogSession.process_new({'events' => [
-        {'type' => 'button', 'modeling' => true, 'button' => {'label' => 'donut', 'button_id' => 2, 'board' => {'id' => '1_1'}, 'spoken' => true}, 'timestamp' => Time.now.to_i - 6},
-        {'type' => 'button', 'button' => {'label' => 'tastes', 'button_id' => 3, 'board' => {'id' => '1_1'}, 'spoken' => true}, 'timestamp' => Time.now.to_i - 3},
-        {'type' => 'button', 'modeling' => true, 'button' => {'label' => 'ok go ok', 'button_id' => 1, 'board' => {'id' => '1_1'}, 'spoken' => true}, 'timestamp' => Time.now.to_i - 1},
-        {'type' => 'utterance', 'utterance' => {'text' => 'ok go ok', 'buttons' => []}, 'timestamp' => Time.now.to_i}
-      ]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
-      s2 = LogSession.process_new({'events' => [
-        {'type' => 'button', 'modeling' => true, 'button' => {'label' => 'donut', 'button_id' => 2, 'board' => {'id' => '1_1'}, 'spoken' => true}, 'timestamp' => 2.days.ago.to_time.to_i - 6},
-        {'type' => 'button', 'button' => {'label' => 'tastes like', 'button_id' => 3, 'board' => {'id' => '1_1'}, 'spoken' => true}, 'timestamp' => 2.days.ago.to_time.to_i - 3},
-        {'type' => 'utterance', 'utterance' => {'text' => 'never again', 'buttons' => []}, 'timestamp' => 2.days.ago.to_time.to_i}
-      ]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
+      travel_to(Time.utc(2026, 6, 17, 12, 0, 0)) do
+        u = User.create
+        d = Device.create(:user => u)
+        s1 = LogSession.process_new({'events' => [
+          {'type' => 'button', 'modeling' => true, 'button' => {'label' => 'donut', 'button_id' => 2, 'board' => {'id' => '1_1'}, 'spoken' => true}, 'timestamp' => Time.now.to_i - 6},
+          {'type' => 'button', 'button' => {'label' => 'tastes', 'button_id' => 3, 'board' => {'id' => '1_1'}, 'spoken' => true}, 'timestamp' => Time.now.to_i - 3},
+          {'type' => 'button', 'modeling' => true, 'button' => {'label' => 'ok go ok', 'button_id' => 1, 'board' => {'id' => '1_1'}, 'spoken' => true}, 'timestamp' => Time.now.to_i - 1},
+          {'type' => 'utterance', 'utterance' => {'text' => 'ok go ok', 'buttons' => []}, 'timestamp' => Time.now.to_i}
+        ]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
+        s2 = LogSession.process_new({'events' => [
+          {'type' => 'button', 'modeling' => true, 'button' => {'label' => 'donut', 'button_id' => 2, 'board' => {'id' => '1_1'}, 'spoken' => true}, 'timestamp' => 2.days.ago.to_time.to_i - 6},
+          {'type' => 'button', 'button' => {'label' => 'tastes like', 'button_id' => 3, 'board' => {'id' => '1_1'}, 'spoken' => true}, 'timestamp' => 2.days.ago.to_time.to_i - 3},
+          {'type' => 'utterance', 'utterance' => {'text' => 'never again', 'buttons' => []}, 'timestamp' => 2.days.ago.to_time.to_i}
+        ]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
       
-      WeeklyStatsSummary.update_for(s1.global_id)
-      WeeklyStatsSummary.update_for(s2.global_id)
+        WeeklyStatsSummary.update_for(s1.global_id)
+        WeeklyStatsSummary.update_for(s2.global_id)
       
-      starty = 3.days.ago
-      endy = Time.now + 100
-      res = Stats.daily_use(u.global_id, {:start_at => starty, :end_at => endy})
-      res = Stats.cached_daily_use(u.global_id, {:start_at => starty, :end_at => endy})
-      expect(res[:cached]).to eq(true)
-      expect(res[:total_sessions]).to eq(2)
-      expect(res[:total_utterances]).to eq(2)
-      expect(res[:total_buttons]).to eq(2)
-      expect(res[:total_words]).to eq(3)
-      expect(res[:modeled_buttons]).to eq(3)
-      expect(res[:modeled_words]).to eq(5)
-      expect(res[:modeling_user_names]).to eq({u.user_name => 3})
+        starty = 3.days.ago
+        endy = Time.now + 100
+        res = Stats.daily_use(u.global_id, {:start_at => starty, :end_at => endy})
+        res = Stats.cached_daily_use(u.global_id, {:start_at => starty, :end_at => endy})
+        expect(res[:cached]).to eq(true)
+        expect(res[:total_sessions]).to eq(2)
+        expect(res[:total_utterances]).to eq(2)
+        expect(res[:total_buttons]).to eq(2)
+        expect(res[:total_words]).to eq(3)
+        expect(res[:modeled_buttons]).to eq(3)
+        expect(res[:modeled_words]).to eq(5)
+        expect(res[:modeling_user_names]).to eq({u.user_name => 3})
       
-      expect(res[:days].length).to eq(4)
-      day = res[:days][Date.today.to_s]
-      expect(day).not_to eq(nil)
-      expect(day[:total_sessions]).to eq(1)
-      expect(day[:total_buttons]).to eq(1)
-      expect(day[:total_words]).to eq(1)
-      expect(day[:modeled_buttons]).to eq(2)
-      expect(day[:modeled_words]).to eq(4)
+        expect(res[:days].length).to eq(4)
+        day = res[:days][Date.today.to_s]
+        expect(day).not_to eq(nil)
+        expect(day[:total_sessions]).to eq(1)
+        expect(day[:total_buttons]).to eq(1)
+        expect(day[:total_words]).to eq(1)
+        expect(day[:modeled_buttons]).to eq(2)
+        expect(day[:modeled_words]).to eq(4)
       
-      day = res[:days][2.days.ago.to_date.to_s]
-      expect(day).not_to eq(nil)
-      expect(day[:total_sessions]).to eq(1)
-      expect(day[:total_buttons]).to eq(1)
-      expect(day[:total_words]).to eq(2)
-      expect(day[:modeled_buttons]).to eq(1)
-      expect(day[:modeled_words]).to eq(1)
+        day = res[:days][2.days.ago.to_date.to_s]
+        expect(day).not_to eq(nil)
+        expect(day[:total_sessions]).to eq(1)
+        expect(day[:total_buttons]).to eq(1)
+        expect(day[:total_words]).to eq(2)
+        expect(day[:modeled_buttons]).to eq(1)
+        expect(day[:modeled_words]).to eq(1)
+      end
     end 
     
     it "should allow filtering by geolocation or ip address" do
@@ -646,6 +664,8 @@ describe Stats do
   
   
   describe "lam" do
+    include ActiveSupport::Testing::TimeHelpers
+
     it "should generate an empty lam file" do
       str = Stats.lam([])
       expect(str).to be_is_a(String)
@@ -654,27 +674,31 @@ describe Stats do
       expect(str.split(/\n/).length).to eql(6)
     end
     
+    # Noon UTC: in the first seconds after midnight `now - 10` and `now - 8` fell on different days,
+    # adding a date line the fixed line indexes below do not expect.
     it "should generate with only one session" do
-      s1 = LogSession.new
-      s1.data = {}
-      now = Time.now.to_i
-      s1.data['events'] = [
-        {'type' => 'button', 'button' => {'label' => 'I', 'board' => {'id' => '1_1'}, 'spoken' => true}, 'timestamp' => now - 10},
-        {'type' => 'button', 'button' => {'label' => 'like', 'board' => {'id' => '1_1'}, 'spoken' => true}, 'timestamp' => now - 8},
-        {'type' => 'button', 'button' => {'label' => 'ok go', 'board' => {'id' => '1_1'}, 'spoken' => true}, 'timestamp' => now}
-      ]
+      travel_to(Time.utc(2026, 6, 17, 12, 0, 0)) do
+        s1 = LogSession.new
+        s1.data = {}
+        now = Time.now.to_i
+        s1.data['events'] = [
+          {'type' => 'button', 'button' => {'label' => 'I', 'board' => {'id' => '1_1'}, 'spoken' => true}, 'timestamp' => now - 10},
+          {'type' => 'button', 'button' => {'label' => 'like', 'board' => {'id' => '1_1'}, 'spoken' => true}, 'timestamp' => now - 8},
+          {'type' => 'button', 'button' => {'label' => 'ok go', 'board' => {'id' => '1_1'}, 'spoken' => true}, 'timestamp' => now}
+        ]
       
-      str = Stats.lam([s1])
-      expect(str).to match(/CAUTION/)
-      lines = str.split(/\n/)
-      stamp = Time.at(now - 10).strftime("%H:%M:%S")
-      date = Time.at(now - 10).strftime("%y-%m-%d")
-      expect(lines[-4]).to eql("#{stamp} CTL *[YY-MM-DD=#{date}]*")
-      expect(lines[-3]).to eql("#{stamp} SMP \"I \"")
-      stamp = Time.at(now - 8).strftime("%H:%M:%S")
-      expect(lines[-2]).to eql("#{stamp} SMP \"like \"")
-      stamp = Time.at(now).strftime("%H:%M:%S")
-      expect(lines[-1]).to eql("#{stamp} SMP \"ok go \"")
+        str = Stats.lam([s1])
+        expect(str).to match(/CAUTION/)
+        lines = str.split(/\n/)
+        stamp = Time.at(now - 10).strftime("%H:%M:%S")
+        date = Time.at(now - 10).strftime("%y-%m-%d")
+        expect(lines[-4]).to eql("#{stamp} CTL *[YY-MM-DD=#{date}]*")
+        expect(lines[-3]).to eql("#{stamp} SMP \"I \"")
+        stamp = Time.at(now - 8).strftime("%H:%M:%S")
+        expect(lines[-2]).to eql("#{stamp} SMP \"like \"")
+        stamp = Time.at(now).strftime("%H:%M:%S")
+        expect(lines[-1]).to eql("#{stamp} SMP \"ok go \"")
+      end
     end 
     
     it "should generate with multiple sessions" do

@@ -64,5 +64,12 @@ module.exports = defineConfig({
       dependencies: ['setup'],
       use: { ...devices['Desktop Chrome'], storageState: 'e2e/.auth/user.json' },
     },
+    // The #1141 review follow-ups (2026-10-22). Signs in as its own synthetic users
+    // (e2e/support/users-1141.rb), so it needs no setup project.
+    {
+      name: '1141-followups',
+      testMatch: /home-assign-and-preferences\.spec\.js/,
+      use: { ...devices['Desktop Chrome'] },
+    },
   ],
 });

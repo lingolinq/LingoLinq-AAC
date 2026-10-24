@@ -1,4 +1,5 @@
 {
+  "bounded_max_bytes": 60000,
   "max_chunks": 16,
   "chunk_target_bytes": 40000,
   "excluded_paths": [
