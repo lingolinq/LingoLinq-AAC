@@ -7,8 +7,8 @@ import persistence from 'frontend/utils/persistence';
 import { setupRestoreOnTeardown } from 'frontend/tests/helpers/restore-on-teardown';
 
 /* GitHub #1058. persistence.ajax rejects with {fakeXHR, message, result}.
-   These handlers used to read err.error, which that shape does not set, so
-   the screen always showed the generic fallback. */
+   Report fetch, load-more, and telemetry used to read err.error, which that
+   shape does not set. The starter board keeps a translated message. */
 module('Unit | Controller | api error message handlers', function(hooks) {
   setupTest(hooks);
   var trackRestore = setupRestoreOnTeardown(hooks);
@@ -82,19 +82,19 @@ module('Unit | Controller | api error message handlers', function(hooks) {
     assert.notOk(controller.get('telemetry.loading'));
   });
 
-  test('building a starter board shows the server error', async function(assert) {
-    var message = 'board key already in use';
+  test('building a starter board keeps the translated message', async function(assert) {
+    var shown = 'Could not build the starter board. Please try again.';
     var component = this.owner.factoryFor('component:eval-quick-report').create({
       session: EmberObject.create({ recommendation: { starter_board_spec: {} } }),
       user: EmberObject.create({ user_name: 'sam' })
     });
-    await rejectWith(message, function() {
+    await rejectWith('board key already in use', function() {
       component.send('buildStarterBoard');
       return function() {
-        return component.get('buildError') === message;
+        return component.get('buildError') === shown;
       };
     });
-    assert.strictEqual(component.get('buildError'), message);
+    assert.strictEqual(component.get('buildError'), shown);
     assert.false(component.get('buildingBoard'));
   });
 });

@@ -7,7 +7,7 @@ import { computed } from '@ember/object';
 import { set as emberSet } from '@ember/object';
 import { debounce as runDebounce, cancel as runCancel } from '@ember/runloop';
 import LingoLinq from '../../app';
-import apiErrorMessage from '../../utils/api_error_message';
+
 export default Controller.extend({
   _filterDebounceTimer: null,
   willDestroy() {
@@ -403,3 +403,4 @@ export default Controller.extend({
     }
   }
 });
+import apiErrorMessage from '../../utils/api_error_message';
