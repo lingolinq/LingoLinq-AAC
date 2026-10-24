@@ -125,8 +125,9 @@ module RedisInit
   #   CACHE_TOKEN       - explicit operator-set secret (preferred; in BOOT_SECRETS in
   #                       deploy-cloudrun.yml, so web, the worker pool, the scheduler
   #                       and the migrate Job, with one-off runners through it, all mount it)
-  #   K_REVISION        - a revision name, used only off Cloud Run (on Cloud Run a missing
-  #                       CACHE_TOKEN refuses to boot first, see below)
+  #   K_REVISION        - a revision name. Unreachable on Cloud Run, where services also
+  #                       carry K_SERVICE and a missing CACHE_TOKEN refuses to boot first
+  #                       (see below); kept for any non-Cloud-Run host that sets it
   # (RENDER_GIT_COMMIT was a second tier until Render was decommissioned 2026-09-09.)
   # Falling back to 'abc' where none are set: local development, the test suite, CI and the
   # Docker image build. On Cloud Run (a service,

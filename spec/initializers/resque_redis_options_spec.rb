@@ -130,7 +130,8 @@ describe RedisInit do
       # Scrub every RENDER* key present plus the ones the examples set, so a tier gated on any
       # Render platform variable is deterministic here.
       keys = (%w[CACHE_TOKEN K_REVISION RENDER RENDER_GIT_COMMIT RENDER_SERVICE_ID
-                 K_SERVICE CLOUD_RUN_JOB CLOUD_RUN_WORKER_POOL CLOUD_RUN_REVISION] +
+                 K_SERVICE CLOUD_RUN_JOB CLOUD_RUN_WORKER_POOL CLOUD_RUN_REVISION
+                 RAILS_ENV RACK_ENV] +
               ENV.keys.grep(/\ARENDER/)).uniq
       saved = ENV.values_at(*keys)
       keys.each { |k| ENV.delete(k) }
@@ -232,8 +233,11 @@ describe RedisInit do
 
     it 'does not refuse to boot in production off Cloud Run (the Docker image build)' do
       # The Dockerfile runs assets:precompile with RAILS_ENV=production and no CACHE_TOKEN, so
-      # the guard must stay keyed on Cloud Run's own variables, never on the Rails environment.
+      # the guard must stay keyed on Cloud Run's own variables, never on the Rails environment
+      # (neither Rails.env nor the RAILS_ENV / RACK_ENV variables the Dockerfile sets).
       allow(Rails).to receive(:env).and_return(ActiveSupport::EnvironmentInquirer.new('production'))
+      ENV['RAILS_ENV'] = 'production'
+      ENV['RACK_ENV'] = 'production'
       expect(RedisInit.resolved_cache_token).to eq('abc')
     end
   end
