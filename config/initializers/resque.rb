@@ -129,8 +129,8 @@ module RedisInit
   #                       worker pool and Jobs do not receive it, so this tier is a
   #                       last resort for a service, not a cross-process safety net
   # (RENDER_GIT_COMMIT was a second tier until Render was decommissioned 2026-09-09.)
-  # Falling back to 'abc' only in local/dev/test where none are set, preserving
-  # existing behavior there. Deterministic: no per-process randomness.
+  # Falling back to 'abc' where none are set: local/dev/test, and any hand-made Cloud Run
+  # Job that does not mount CACHE_TOKEN. Deterministic: no per-process randomness.
   def self.resolved_cache_token
     ENV['CACHE_TOKEN'].presence ||
       ENV['K_REVISION'].presence ||

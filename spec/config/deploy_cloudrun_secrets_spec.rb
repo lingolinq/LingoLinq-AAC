@@ -7,7 +7,7 @@ require 'yaml'
 # runner through it fall back to the shared static token (GitHub #423).
 describe 'deploy-cloudrun.yml secrets' do
   let(:path) { Rails.root.join('.github', 'workflows', 'deploy-cloudrun.yml') }
-  let(:workflow) { YAML.safe_load(File.read(path), aliases: true) }
+  let(:workflow) { YAML.safe_load(File.read(path), permitted_classes: [Date, Time], aliases: true) }
 
   def env_values(node, key, found = [])
     case node
