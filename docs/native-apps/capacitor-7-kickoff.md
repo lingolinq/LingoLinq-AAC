@@ -13,7 +13,7 @@
 > refer to it. Plan: [capacitor-8-stop1-handoff.md](./capacitor-8-stop1-handoff.md). Progress:
 > [2026-10-23_capacitor-8-move.md](../task-management/2026-10-23_capacitor-8-move.md).
 
-Sibling shell: [`lingolinq/lingolinq_mobile`](https://github.com/lingolinq/lingolinq_mobile) (`com.lingolinq.app`).  
+Sibling shell: [`lingolinq/lingolinq_mobile`](https://github.com/lingolinq/lingolinq_mobile) (`com.lingolinq.app`).\
 Monorepo branch: `feat/melissa-capacitor-7-kickoff`.
 
 ## Offline MVP (this pass)
