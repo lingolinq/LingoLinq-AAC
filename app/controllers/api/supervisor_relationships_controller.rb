@@ -53,11 +53,16 @@ class Api::SupervisorRelationshipsController < ApplicationController
     # Do not store lookup_key. It is the username or email the supervisor typed,
     # and the audit row would record whether that account was being probed
     # (GitHub #1145, KAN-134).
-    AuditEvent.log_command(@api_user.global_id, {
+    audit = {
       'type' => 'supervisor_access_request',
       'permission_level' => permission_level,
       'organization_id' => service.requested_organization_id
-    })
+    }
+    # Only a created row has an id. A missing account adds nothing here.
+    if service.requested_relationship_id
+      audit['relationship_id'] = service.requested_relationship_id
+    end
+    AuditEvent.log_command(@api_user.global_id, audit)
     render json: { meta: { message: result[:message] } }.to_json
   end
 

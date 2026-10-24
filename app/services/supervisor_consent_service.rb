@@ -3,7 +3,7 @@ class SupervisorConsentService
 
   # The global id of the organization stored on the last request_access relationship (nil when
   # none was stored or no relationship was made), for the caller's audit record.
-  attr_reader :requested_organization_id
+  attr_reader :requested_organization_id, :requested_relationship_id
 
   def create_with_supervisor(supervisor:, communicator_params:, owner_email:, permission_level: 'edit_boards')
     communicator = User.process_new(communicator_params)
@@ -38,10 +38,9 @@ class SupervisorConsentService
 
   def request_access(supervisor:, lookup_key:, permission_level: 'view_only', organization_id: nil)
     @requested_organization_id = nil
-    begin
+    @requested_relationship_id = nil
     # F1: Anti-timing side-channel. An unknown permission level is answered before the lookup,
     # the same way for every account (it would otherwise fail only once an account was found).
-    # Every return, including this one, pays burn_lookup_time in the ensure below.
     if lookup_key.blank? || !SupervisorRelationship::PERMISSION_LEVELS.include?(permission_level.to_s)
       return { message: GENERIC_LOOKUP_MESSAGE }
     end
@@ -97,7 +96,12 @@ class SupervisorConsentService
         target_email ||= communicator.settings['email']
         
         relationship.consent_email_sent_to = target_email
-        relationship.save!
+        begin
+          relationship.save!
+        rescue ActiveRecord::RecordNotUnique
+          return { message: GENERIC_LOOKUP_MESSAGE }
+        end
+        @requested_relationship_id = relationship.global_id
         @requested_organization_id = relationship.organization_id && Organization.new(id: relationship.organization_id).global_id
         relationship.generate_consent_token!
         
@@ -106,16 +110,6 @@ class SupervisorConsentService
     end
 
     { message: GENERIC_LOOKUP_MESSAGE }
-    ensure
-      # KAN-134. The already-linked branch used to fall through with no burn, so it
-      # answered faster than a missing account. The old burn called BCrypt, which is
-      # not loaded (Gemfile bcrypt-ruby is commented out), and rescue nil swallowed
-      # the NameError, so those branches did no work either. GoSecure.generate_password
-      # is the hash this app actually uses for passwords (go_secure.rb pbkdf2, 100_000
-      # iterations). One call on every exit, including a raised error, so a fast
-      # branch cannot skip it.
-      burn_lookup_time
-    end
   end
 
   def approve(token:)
@@ -172,13 +166,6 @@ class SupervisorConsentService
   end
 
   private
-
-  def burn_lookup_time
-    GoSecure.generate_password(SecureRandom.hex)
-    nil
-  rescue StandardError
-    nil
-  end
 
   # ---------------------------------------------------------------------------
   # Concurrency
