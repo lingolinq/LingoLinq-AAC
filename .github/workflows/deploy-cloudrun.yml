@@ -352,7 +352,8 @@ jobs:
       # CACHE_TOKEN is here, not in NON_BOOT_SECRETS, because RedisInit.init reads it at every
       # boot (config/initializers/resque.rb resolved_cache_token): the migration Job and every
       # one-off runner through it get no K_REVISION (Cloud Run sets that on services only), so
-      # without it they fall back to the shared static token (GitHub #423).
+      # without it they used to fall back to the shared static token (GitHub #423); now any
+      # Cloud Run surface without it refuses to boot.
       BOOT_SECRETS: SECRET_KEY_BASE=SECRET_KEY_BASE:latest,COOKIE_KEY=COOKIE_KEY:latest,SECURE_ENCRYPTION_KEY=SECURE_ENCRYPTION_KEY:latest,SECURE_NONCE_KEY=SECURE_NONCE_KEY:latest,DB_HOST=DB_HOST:latest,DB_NAME=DB_NAME:latest,DB_USERNAME=DB_USERNAME:latest,DB_PASSWORD=DB_PASSWORD:latest,REDIS_URL=REDIS_URL:latest,REDIS_CA_CERT=REDIS_CA_CERT:latest,DEFAULT_HOST=DEFAULT_HOST:latest,DEFAULT_EMAIL_FROM=DEFAULT_EMAIL_FROM:latest,SYSTEM_ERROR_EMAIL=SYSTEM_ERROR_EMAIL:latest,CACHE_TOKEN=CACHE_TOKEN:latest
       # Non-boot APP secrets (migration 4.E1): S3/SES creds + Google/Stripe/AI/Sentry/SMS + misc
       # integration tokens. Lazy-loaded at use time, NOT at boot -- so they go on the web service and

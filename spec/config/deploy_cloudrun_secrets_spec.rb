@@ -3,8 +3,8 @@ require 'yaml'
 
 # RedisInit.init reads CACHE_TOKEN at every Rails boot (config/initializers/resque.rb,
 # resolved_cache_token), so every Cloud Run surface that boots Rails must mount it, the
-# migrate Job included: Jobs get no K_REVISION, so without it the Job and every one-off
-# runner through it fall back to the shared static token (GitHub #423).
+# migrate Job included. On Cloud Run a missing CACHE_TOKEN now refuses to boot; before that,
+# the Job and every one-off runner through it fell back to the shared static token (GitHub #423).
 describe 'deploy-cloudrun.yml secrets' do
   let(:path) { Rails.root.join('.github', 'workflows', 'deploy-cloudrun.yml') }
   let(:workflow) { YAML.safe_load(File.read(path), permitted_classes: [Date, Time], aliases: true) }

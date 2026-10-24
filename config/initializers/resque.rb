@@ -128,7 +128,8 @@ module RedisInit
   #   K_REVISION        - a revision name, used only off Cloud Run (on Cloud Run a missing
   #                       CACHE_TOKEN refuses to boot first, see below)
   # (RENDER_GIT_COMMIT was a second tier until Render was decommissioned 2026-09-09.)
-  # Falling back to 'abc' where none are set: local/dev/test only. On Cloud Run (a service,
+  # Falling back to 'abc' where none are set: local development, the test suite, CI and the
+  # Docker image build. On Cloud Run (a service,
   # a Job or a worker pool, detected from the variables Cloud Run itself injects) a missing
   # CACHE_TOKEN raises instead, so a misconfigured surface fails at boot rather than quietly
   # using its own K_REVISION (a web/worker split) or the shared static token (GitHub #423).

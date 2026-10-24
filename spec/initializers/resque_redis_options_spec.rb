@@ -229,6 +229,13 @@ describe RedisInit do
         expect { RedisInit.resolved_cache_token }.to raise_error { |e| expect(e.message).not_to include('not-a-secret-but-must-not-leak') }
       end
     end
+
+    it 'does not refuse to boot in production off Cloud Run (the Docker image build)' do
+      # The Dockerfile runs assets:precompile with RAILS_ENV=production and no CACHE_TOKEN, so
+      # the guard must stay keyed on Cloud Run's own variables, never on the Rails environment.
+      allow(Rails).to receive(:env).and_return(ActiveSupport::EnvironmentInquirer.new('production'))
+      expect(RedisInit.resolved_cache_token).to eq('abc')
+    end
   end
 
   # Hostname verification is ON by default (so DNS-named TLS endpoints stay
