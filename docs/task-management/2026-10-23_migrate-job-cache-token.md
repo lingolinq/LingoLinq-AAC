@@ -10,4 +10,4 @@
 - list the hand-made Cloud Run Jobs in both projects that boot Rails without `CACHE_TOKEN` (at least `lingolinq-admin-audit` in prod), since they would fail at boot on their next image bump;
 - confirm the latest `CACHE_TOKEN` version is non-blank in both projects (byte length only), since a blank value would crash every new instance on scale-out.
 
-The nonprod migrate Job also lacks `REDIS_NAMESPACE_SUFFIX` (it gets no `APP_ENV_VARS`), so its cache and Resque keys use the unsuffixed namespaces rather than `-dev`; that predates this change and is separate.
+Separate and unverified: the migrate Job gets no `APP_ENV_VARS`, so it has no `REDIS_NAMESPACE_SUFFIX`. If nonprod web and the worker use `-dev` (`docs/INFRASTRUCTURE.md`), the nonprod migrate Job's cache and Resque keys use the unsuffixed namespaces instead. That predates this change; the live variable value was not checked.
