@@ -1316,7 +1316,7 @@ var pictureGrabber = EmberObject.extend({
         type: 'CC By',
         copyright_notice_url: 'https://creativecommons.org/licenses/by/3.0/us/',
         author_name: LingoLinq.app_name,
-        author_url: 'https://www.mylingolinq.com',
+        author_url: 'https://www.lingolinq.com',
         uneditable: true
       }
     });

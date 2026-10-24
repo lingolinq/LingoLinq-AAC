@@ -174,7 +174,8 @@ $(printf '    - %s\n' "${SEL_RENDER[@]}")
 $(printf '    - %s\n' "${SEL_AWS[@]}")
 
   SMS_ENCRYPTION_KEY is preserve-exact (orphans SMS rows if changed). The migration Job does NOT
-  load these (boot set only); they go on web + worker via the workflow's NON_BOOT_SECRETS.
+  load these (boot set only); they go on web, worker and scheduler via the workflow's
+  NON_BOOT_SECRETS. Exception: CACHE_TOKEN is in BOOT_SECRETS, so the migration Job loads it too.
 
   Next:
     $0 --verify                              # presence + sha256 prefixes, no write
@@ -286,7 +287,7 @@ fi
 
 if [ "$MODE" = "seed" ]; then
   log "SEED complete. Selected app secrets are seeded in GCP Secret Manager ($PROJECT_ID)."
-  gate "Verify the deploy references them (deploy-cloudrun.yml NON_BOOT_SECRETS) before enabling."
+  gate "Verify the deploy references them (deploy-cloudrun.yml NON_BOOT_SECRETS, or BOOT_SECRETS for CACHE_TOKEN) before enabling."
 else
   log "VERIFY/${MODE^^} complete. Nothing written."
   gate "Re-run with CONFIRM_SEED_SECRETS=1 to seed GCP Secret Manager."

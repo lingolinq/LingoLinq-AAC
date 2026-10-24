@@ -132,7 +132,11 @@ Present to Scot:
 Append one JSONL line to `audit-reports/ember-upgrade/run-log/runs.jsonl` (committed):
 `ts`, `auditedSha`, `auditedRef`, `mode` (full|diff|runtime), `slices`, `new`/`reseen`/
 `regressions`/`skipped` counts, `newIds`, adversary tally, `citationCheck`, open
-Critical/High headline. The per-tool examined log is automatic
+Critical/High headline. `.jsonl` is a data-bearing extension
+(`scripts/codex-review-path-classifier.sh`), so the PR that commits this line fails
+`data-bearing-paths` until a reviewer confirms the rows are synthetic and adds the
+`synthetic-data` label; never add that label yourself (root `CLAUDE.md` rule 15).
+The per-tool examined log is automatic
 (`audit-run-logger.sh ember-upgrade-auditor` → `audit-reports/run-log/examined-<sha8>.jsonl`).
 
 ## Guardrails (always)

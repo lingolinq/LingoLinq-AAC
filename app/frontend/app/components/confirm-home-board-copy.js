@@ -144,7 +144,7 @@ export default Component.extend({
       var self = this;
       var model = self.get('model') || {};
       var copy = model.copyAsHome || copy_or_reuse_as_home;
-      var discard = model.discardCopy || function(ids, root) { return discard_cancelled_copy(ids, model.user, startedAt, root); };
+      var discard = model.discardCopy || function(ids, root, startedFor) { return discard_cancelled_copy(ids, model.user, startedAt, root, startedFor); };
       var startedAt = new Date();
       self.set('stage', 'copying');
       self.set('progressStep', 0);
@@ -163,7 +163,7 @@ export default Component.extend({
         if (err && err.cancelled) {
           // Home board untouched; remove what this copy made, then say so.
           var finish = function() { if (!self.isDestroyed && !self.isDestroying) { self.set('stage', 'cancelled'); } };
-          if (err.new_board_ids && err.new_board_ids.length) { discard(err.new_board_ids, err.board).then(finish, finish); } else { finish(); }
+          if (err.new_board_ids && err.new_board_ids.length) { discard(err.new_board_ids, err.board, err.session_user_id).then(finish, finish); } else { finish(); }
           return;
         }
         if (self.isDestroyed || self.isDestroying) { return; }
