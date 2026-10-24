@@ -125,16 +125,24 @@ module RedisInit
   #   CACHE_TOKEN       - explicit operator-set secret (preferred; in BOOT_SECRETS in
   #                       deploy-cloudrun.yml, so web, the worker pool, the scheduler
   #                       and the migrate Job, with one-off runners through it, all mount it)
-  #   K_REVISION        - Cloud Run revision name, injected into SERVICES only; the
-  #                       worker pool and Jobs do not receive it, so this tier is a
-  #                       last resort for a service, not a cross-process safety net
+  #   K_REVISION        - a revision name, used only off Cloud Run (on Cloud Run a missing
+  #                       CACHE_TOKEN refuses to boot first, see below)
   # (RENDER_GIT_COMMIT was a second tier until Render was decommissioned 2026-09-09.)
-  # Falling back to 'abc' where none are set: local/dev/test, and any hand-made Cloud Run
-  # Job that does not mount CACHE_TOKEN. Deterministic: no per-process randomness.
+  # Falling back to 'abc' where none are set: local/dev/test only. On Cloud Run (a service,
+  # a Job or a worker pool, detected from the variables Cloud Run itself injects) a missing
+  # CACHE_TOKEN raises instead, so a misconfigured surface fails at boot rather than quietly
+  # using its own K_REVISION (a web/worker split) or the shared static token (GitHub #423).
+  # Keyed on Cloud Run, not Rails.env.production?, because the Docker build runs
+  # assets:precompile in production mode with no CACHE_TOKEN (Dockerfile).
+  # Deterministic: no per-process randomness.
   def self.resolved_cache_token
-    ENV['CACHE_TOKEN'].presence ||
-      ENV['K_REVISION'].presence ||
-      'abc'
+    token = ENV['CACHE_TOKEN'].presence
+    return token if token
+    if ENV['K_SERVICE'].present? || ENV['CLOUD_RUN_JOB'].present? || ENV['CLOUD_RUN_WORKER_POOL'].present?
+      raise 'CACHE_TOKEN is not set on this Cloud Run service, Job or worker pool. Every deployed ' \
+            'process must share it: mount it from Secret Manager (BOOT_SECRETS in deploy-cloudrun.yml).'
+    end
+    ENV['K_REVISION'].presence || 'abc'
   end
 
   def self.memory
