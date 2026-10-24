@@ -4305,17 +4305,20 @@ describe Subscription, :type => :model do
       User.link_supervisor_to_user(u2, u, nil, true)
       expect(u.reload.settings['subscription']['eval_expires']).to be > 80.days.from_now.iso8601
       expect(u.reload.settings['subscription']['eval_expires']).to be < 100.days.from_now.iso8601
-      u.settings['subscription']['eval_expires'] = 6.days.from_now.to_date.iso8601
+      # One clock read for everything below: extend_eval stores a date-only string, and comparing it with
+      # full timestamps read separately failed when a run crossed midnight UTC in between.
+      base = Time.now
+      u.settings['subscription']['eval_expires'] = (base + 6.days).to_date.iso8601
       u.save
       expect(u.settings['subscription']['eval_extended']).to eq(nil)
-      expect(u.extend_eval(30.days.from_now.to_date.iso8601, u)).to_not eq(false)
-      expect(u.settings['subscription']['eval_expires']).to be > 12.days.from_now.iso8601
-      expect(u.settings['subscription']['eval_expires']).to be < 14.days.from_now.iso8601
+      expect(u.extend_eval((base + 30.days).to_date.iso8601, u)).to_not eq(false)
+      expect(u.settings['subscription']['eval_expires']).to be > (base + 12.days).iso8601
+      expect(u.settings['subscription']['eval_expires']).to be < (base + 14.days).iso8601
       expect(u.settings['subscription']['eval_extended']).to eq(true)
 
-      expect(u.extend_eval(30.days.from_now.to_date.iso8601, u)).to_not eq(false)
-      expect(u.settings['subscription']['eval_expires']).to be > 12.days.from_now.iso8601
-      expect(u.settings['subscription']['eval_expires']).to be < 14.days.from_now.iso8601
+      expect(u.extend_eval((base + 30.days).to_date.iso8601, u)).to_not eq(false)
+      expect(u.settings['subscription']['eval_expires']).to be > (base + 12.days).iso8601
+      expect(u.settings['subscription']['eval_expires']).to be < (base + 14.days).iso8601
       expect(u.settings['subscription']['eval_extended']).to eq(true)
     end
 
@@ -4331,17 +4334,20 @@ describe Subscription, :type => :model do
       User.link_supervisor_to_user(u2, u, nil, true)
       expect(u.reload.settings['subscription']['eval_expires']).to be > 80.days.from_now.iso8601
       expect(u.reload.settings['subscription']['eval_expires']).to be < 100.days.from_now.iso8601
-      u.settings['subscription']['eval_expires'] = 6.days.from_now.to_date.iso8601
+      # One clock read for everything below: extend_eval stores a date-only string, and comparing it with
+      # full timestamps read separately failed when a run crossed midnight UTC in between.
+      base = Time.now
+      u.settings['subscription']['eval_expires'] = (base + 6.days).to_date.iso8601
       u.save
       expect(u.settings['subscription']['eval_extended']).to eq(nil)
-      expect(u.extend_eval(30.days.from_now.to_date.iso8601, u)).to_not eq(false)
-      expect(u.settings['subscription']['eval_expires']).to be > 12.days.from_now.iso8601
-      expect(u.settings['subscription']['eval_expires']).to be < 14.days.from_now.iso8601
+      expect(u.extend_eval((base + 30.days).to_date.iso8601, u)).to_not eq(false)
+      expect(u.settings['subscription']['eval_expires']).to be > (base + 12.days).iso8601
+      expect(u.settings['subscription']['eval_expires']).to be < (base + 14.days).iso8601
       expect(u.settings['subscription']['eval_extended']).to eq(true)
 
-      expect(u.extend_eval(30.days.from_now.to_date.iso8601, u)).to_not eq(false)
-      expect(u.settings['subscription']['eval_expires']).to be > 12.days.from_now.iso8601
-      expect(u.settings['subscription']['eval_expires']).to be < 14.days.from_now.iso8601
+      expect(u.extend_eval((base + 30.days).to_date.iso8601, u)).to_not eq(false)
+      expect(u.settings['subscription']['eval_expires']).to be > (base + 12.days).iso8601
+      expect(u.settings['subscription']['eval_expires']).to be < (base + 14.days).iso8601
       expect(u.settings['subscription']['eval_extended']).to eq(true)
     end
 

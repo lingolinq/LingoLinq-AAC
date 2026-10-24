@@ -68,14 +68,41 @@ setting to relax.
 
 ## Time
 
-- An assertion that compares against the clock runs at a fixed instant: `travel_to`, placed away
+- An assertion that compares against the clock must not read the clock twice. First choice: bind
+  the expectation to the value the code stored or will use (the record's own `created_at`, the
+  scheduled job's args read back, one `base = Time.now` read that every expected value derives
+  from, a weekyear computed with the app's own helper). One read removes only the two-reads race:
+  data placed relative to `base` must also sit away from the boundaries the code computes (day,
+  week, month). `spec/models/organization_spec.rb` usage_stats dates its sessions from
+  `Time.now.utc.beginning_of_hour - 30.minutes` so they never fall near midnight. Bind only a
+  value the example uses as an input or a key, never the value it asserts (reading back the stamp
+  under test and comparing it with itself proves nothing), and use a test-side `base` only when the
+  code does not read the clock itself for that value (otherwise it is still two reads). When the
+  asserted value is the code's own clock stamp, pin instead (`spec/lib/worker_spec.rb`
+  scheduled_actions).
+- Only when nothing can be bound, run the example at a fixed instant with `travel_to`, placed away
   from any window boundary the code uses (30 s TOTP windows, hourly or daily rollovers). Real
   `Time.now` near a boundary is a flake. `travel_to` is not available by default: add
   `include ActiveSupport::Testing::TimeHelpers` to the describe block (as `spec/models/user_spec.rb`
   does in `valid_2fa?`).
+- Never freeze the clock around code that writes a link or changes a permission, then reads links
+  or permissions: adding a manager, user, supervisor or share, or any save that changes what
+  `allows?` returns (a board's public flag, a role, a subscription). `travel_to` pins
+  `updated_at`, and `UserLink.links_for` (`links/for/<code>/<updated_at>`) and the permission cache
+  (`permissions-for/...`, in permissable's `lib/permissable.rb`) are keyed on it moving forward. The
+  app's own `UserLink.invalidate_cache_for` does not make this safe: `Organization#add_manager`
+  saves the user (clearing and re-reading the cache) before it writes the link, and
+  `touch_connections` then stamps the frozen time, so the empty result stays cached. This is the
+  2026-06-01 regression (`docs/task-management/learnings-archive/LEARNINGS-2026-01_to_2026-09.md`
+  "spec re-reading `Time.now`"), and a single-example wrap hits it as surely as a group one. Any
+  other cache that relies on `updated_at` moving forward carries the same hazard. The archive's
+  wider "never freeze around code that reads these caches" is narrowed here on purpose: reads with
+  no link write or permission change inside the frozen span see a consistent cache and are safe.
 - A fixed instant written into a record must not race the real clock. If the code compares that
   value with one taken from `Time.now`, the result flips once the real date passes the fixed one;
-  write every value the comparison reads, or pin the clock for the whole example.
+  write every value the comparison reads, or (within the limits above) pin the clock.
+- Pin only the examples that need it: an `around` hook on a group only when every example in it
+  does. Do not nest `travel_to` blocks: ActiveSupport 7.2 raises.
 
 ## Running and reading results
 
