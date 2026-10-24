@@ -75,7 +75,7 @@ describe('ai-disclosure', function() {
         // MUST carry the reader's locale or the Spanish notice is unreachable.
         // Assert the path plus the presence of the param rather than an exact
         // string, since the locale varies with the test browser.
-        expect(url.split('?')[0]).toEqual('/ai_consent/disclosures/art50_v1');
+        expect(url.split('?')[0]).toEqual('/ai_consent/disclosures/art50_v2');
         expect(url.indexOf('locale=') > -1).toEqual(true);
         expect(opts.type).toEqual('GET');
         return new RSVP.Promise(function(innerResolve) {
@@ -180,7 +180,7 @@ describe('ai-disclosure', function() {
       var posted_url = null;
       stub(persistence, 'ajax', function(url) {
         posted_url = url;
-        return RSVP.resolve({article_50_disclosure_shown: true, disclosures_version: 1});
+        return RSVP.resolve({article_50_disclosure_shown: true, disclosures_version: 2});
       });
       component.send('acknowledge');
       waitsFor(function() { return posted_url !== null; });
@@ -216,7 +216,7 @@ describe('ai-disclosure', function() {
         });
       });
       component.send('acknowledge');
-      resolve({article_50_disclosure_shown: true, disclosures_version: 1});
+      resolve({article_50_disclosure_shown: true, disclosures_version: 2});
       waitsFor(function() { return closeCalls === 1; });
       runs(function() {
         expect(user.get('article_50_disclosure_shown')).toEqual(true);
@@ -263,7 +263,7 @@ describe('ai-disclosure', function() {
         return new RSVP.Promise(function(innerResolve) { resolve = innerResolve; });
       });
       component.send('acknowledge');
-      resolve({article_50_disclosure_shown: true, disclosures_version: 1});
+      resolve({article_50_disclosure_shown: true, disclosures_version: 2});
       waitsFor(function() { return closeCalls === 1; });
       runs(function() {
         expect(posted_url).toEqual('/api/v1/users/supporter-1/article_50_disclosure_ack');

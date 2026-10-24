@@ -30,7 +30,7 @@ import i18n from './i18n';
  * link (controllers/user/preferences.js) cannot drift to different versions --
  * a bump is one edit, in one place.
  */
-export var ART50_CURRENT_VERSION = 1;
+export var ART50_CURRENT_VERSION = 2;
 export var ART50_DISCLOSURE_URL = '/ai_consent/disclosures/art50_v' + ART50_CURRENT_VERSION;
 
 /**

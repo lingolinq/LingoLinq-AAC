@@ -122,7 +122,7 @@ module AiPredictionGenerator
         region: AiClient.bedrock_region,
         # runtime_model applies the Tier 1 ALLOWED_RUNTIME_MODELS gate to the
         # ANTHROPIC_MODEL override; see AiClient.
-        model: AiClient.runtime_model('anthropic.claude-haiku-4-5')
+        model: AiClient.runtime_model('anthropic.claude-haiku-5-5')
       }
     end
 
@@ -239,6 +239,7 @@ module AiPredictionGenerator
       response = client.messages.create(
         model: config[:model],
         max_tokens: 4096,
+        thinking: AiClient::RUNTIME_THINKING,
         messages: [{ role: 'user', content: prompt }]
       )
       response.dig('content', 0, 'text') || ''

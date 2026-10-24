@@ -8,7 +8,7 @@ require_relative 'lingo_linq/article50_call_context'
 module AiWordPredictor
   # Use fast/cheap models -- predictions need to feel instant. Bedrock model id
   # (anthropic. prefix, bare alias) -- routes via AWS Bedrock, see AiClient.
-  DEFAULT_ANTHROPIC_MODEL = 'anthropic.claude-haiku-4-5'
+  DEFAULT_ANTHROPIC_MODEL = 'anthropic.claude-haiku-5-5'
   # GEMINI_API_KEY fallback disabled 2026-07-09 -- see docs/legal/AI_DATA_SHARING_CONSENT.md
   # section 2.2 (Gemini Developer/AI-Studio endpoint, data-handling terms not adequate for child
   # data). Runtime AI now egresses to Claude on AWS Bedrock (BAA/HIPAA path), not the direct
@@ -346,6 +346,7 @@ module AiWordPredictor
       client.messages.create(
         model: config[:model],
         max_tokens: 60,
+        thinking: AiClient::RUNTIME_THINKING,
         system: system_prompt(locale, count, context),
         messages: [{ role: 'user', content: sentence }]
       )

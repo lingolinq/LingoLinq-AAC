@@ -10,7 +10,7 @@ require_relative 'lingo_linq/article50_call_context'
 module AiBoardGenerator
   # Default model for board generation — Haiku is fast and cheap for structured output
   # Bedrock model id (anthropic. prefix, bare alias) -- routes via AWS Bedrock (AiClient).
-  DEFAULT_MODEL = 'anthropic.claude-haiku-4-5'
+  DEFAULT_MODEL = 'anthropic.claude-haiku-5-5'
 
   class << self
     # Generates word labels, suggested name, and description for an AAC board using Claude.
@@ -569,6 +569,7 @@ module AiBoardGenerator
       client.messages.create(
         model: model,
         max_tokens: completion_max_tokens(cell_count),
+        thinking: AiClient::RUNTIME_THINKING,
         system: system_prompt,
         messages: [{ role: 'user', content: user_prompt }]
       )
