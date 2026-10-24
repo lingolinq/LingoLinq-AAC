@@ -21,7 +21,7 @@ describe 'deploy-cloudrun.yml secrets' do
   end
 
   def names(list)
-    list.to_s.split(',').map { |pair| pair.split('=').first }
+    list.to_s.split(',').map { |pair| pair.split('=').first.to_s.strip }
   end
 
   let(:boot) { env_values(workflow, 'BOOT_SECRETS') }
@@ -37,8 +37,24 @@ describe 'deploy-cloudrun.yml secrets' do
     expect(names(non_boot.first)).not_to include('CACHE_TOKEN')
   end
 
+  def steps(node, found = [])
+    case node
+    when Hash
+      found << node if node['run'].is_a?(String)
+      node.each_value { |v| steps(v, found) }
+    when Array
+      node.each { |v| steps(v, found) }
+    end
+    found
+  end
+
   it 'mounts the boot set on the migrate Job' do
-    migrate = File.read(path)[/gcloud run jobs deploy "\$MIGRATE_JOB".*?--set-secrets "([^"]+)"/m, 1]
-    expect(migrate).to eq('$BOOT_SECRETS')
+    # Only the migrate deploy command itself: from `jobs deploy "$MIGRATE_JOB"` to the end of
+    # its backslash-continued lines, inside the one step that runs it.
+    deploy = steps(workflow).map { |s| s['run'] }.select { |r| r.include?('gcloud run jobs deploy "$MIGRATE_JOB"') }
+    expect(deploy.length).to eq(1)
+    command = deploy.first[/gcloud run jobs deploy "\$MIGRATE_JOB"(?:[^\n]*\\\n)*[^\n]*/]
+    expect(command).to include('--set-secrets "$BOOT_SECRETS"')
+    expect(command).not_to match(/--(update|remove|clear)-secrets/)
   end
 end

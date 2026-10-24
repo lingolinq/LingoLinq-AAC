@@ -356,8 +356,8 @@ jobs:
       # Cloud Run surface without it refuses to boot.
       BOOT_SECRETS: SECRET_KEY_BASE=SECRET_KEY_BASE:latest,COOKIE_KEY=COOKIE_KEY:latest,SECURE_ENCRYPTION_KEY=SECURE_ENCRYPTION_KEY:latest,SECURE_NONCE_KEY=SECURE_NONCE_KEY:latest,DB_HOST=DB_HOST:latest,DB_NAME=DB_NAME:latest,DB_USERNAME=DB_USERNAME:latest,DB_PASSWORD=DB_PASSWORD:latest,REDIS_URL=REDIS_URL:latest,REDIS_CA_CERT=REDIS_CA_CERT:latest,DEFAULT_HOST=DEFAULT_HOST:latest,DEFAULT_EMAIL_FROM=DEFAULT_EMAIL_FROM:latest,SYSTEM_ERROR_EMAIL=SYSTEM_ERROR_EMAIL:latest,CACHE_TOKEN=CACHE_TOKEN:latest
       # Non-boot APP secrets (migration 4.E1): S3/SES creds + Google/Stripe/AI/Sentry/SMS + misc
-      # integration tokens. Lazy-loaded at use time, NOT at boot -- so they go on the web service and
-      # worker pool ONLY, never the migration Job (which boots Rails for db:migrate but needs none of
+      # integration tokens. Lazy-loaded at use time, NOT at boot -- so they go on the web service,
+      # worker pool and scheduler only, never the migration Job (which boots Rails for db:migrate but needs none of
       # these). Seeded by scripts/gcp/phase4-seed-app-secrets.sh (Render-prod-first; AWS_KEY/AWS_SECRET
       # are the NEW least-priv IAM user, scripts/gcp/iam/). Every name here is asserted to have a
       # SEEDED VERSION in Secret Manager by the "Assert referenced secrets exist + assemble

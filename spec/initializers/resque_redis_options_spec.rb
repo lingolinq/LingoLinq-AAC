@@ -224,7 +224,7 @@ describe RedisInit do
         expect(RedisInit.resolved_cache_token).to eq('explicit-secret')
       end
 
-      it 'does not put the token value in the error' do
+      it 'does not echo environment values in the error' do
         ENV['CLOUD_RUN_JOB'] = 'lingolinq-migrate'
         ENV['K_REVISION'] = 'not-a-secret-but-must-not-leak'
         expect { RedisInit.resolved_cache_token }.to raise_error { |e| expect(e.message).not_to include('not-a-secret-but-must-not-leak') }

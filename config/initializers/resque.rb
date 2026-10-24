@@ -127,7 +127,8 @@ module RedisInit
   #                       and the migrate Job, with one-off runners through it, all mount it)
   #   K_REVISION        - a revision name. Unreachable on Cloud Run, where services also
   #                       carry K_SERVICE and a missing CACHE_TOKEN refuses to boot first
-  #                       (see below); kept for any non-Cloud-Run host that sets it
+  #                       (see below). No known host reaches this tier; it is kept only
+  #                       until a reviewed change removes it
   # (RENDER_GIT_COMMIT was a second tier until Render was decommissioned 2026-09-09.)
   # Falling back to 'abc' where none are set: local development, the test suite, CI and the
   # Docker image build. On Cloud Run (a service,
@@ -136,6 +137,9 @@ module RedisInit
   # using its own K_REVISION (a web/worker split) or the shared static token (GitHub #423).
   # Keyed on Cloud Run, not Rails.env.production?, because the Docker build runs
   # assets:precompile in production mode with no CACHE_TOKEN (Dockerfile).
+  # The guard catches a missing or blank value only. Changing the value is not caught: Cloud
+  # Run reads the secret when an instance starts, so running instances keep the old value
+  # until every surface restarts or redeploys.
   # Deterministic: no per-process randomness.
   def self.resolved_cache_token
     token = ENV['CACHE_TOKEN'].presence
