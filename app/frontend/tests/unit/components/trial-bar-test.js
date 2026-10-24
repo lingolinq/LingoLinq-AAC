@@ -236,6 +236,21 @@ module('Unit | Component | trial-bar', function(hooks) {
     assert.ok(t.appState.get('board_detail_try_origin'), 'still trying it');
   });
 
+  // Signed out mid-copy (review of #1141, 2026-10-15): the clean-up is told who started the copy, so it can refuse
+  // to delete anything once someone else is signed in (utils/board-copy.js#discard_cancelled_copy).
+  test('the clean-up of a cancelled copy is told who started it', async function(assert) {
+    var t = setup(this, {});
+    var args = [];
+    var made = EmberObject.create({ id: '1_99', key: 'example/core-60' });
+    t.component.set('copyAsHome', function() { return Promise.reject({ cancelled: true, board: made, new_board_ids: ['1_99'], session_user_id: '1_1' }); });
+    t.component.set('discardCopy', function() { args.push(Array.prototype.slice.call(arguments)); return Promise.resolve(); });
+    await t.component.use();
+    assert.strictEqual(args.length, 1, 'cleaned up once');
+    assert.deepEqual((args[0] || [])[0], ['1_99']);
+    assert.strictEqual((args[0] || [])[3], made, 'handed the copy');
+    assert.strictEqual((args[0] || [])[4], '1_1', 'and who started it');
+  });
+
   test('a newer choice wins: a superseded copy does not become home and is removed', async function(assert) {
     var finish;
     var t = setup(this, { copyPending: function(f) { finish = f; } });

@@ -48,6 +48,11 @@ describe 'scheduler:dispatch rake task' do
       expect(AiApiLog).to receive(:redact_old_ip_addresses!).and_return(0)
       Rake::Task['scheduler:dispatch'].invoke
     end
+
+    it 'invokes DemoDistrict.refresh! to roll the demo organization forward' do
+      expect(DemoDistrict).to receive(:refresh!).and_return({ skipped_org: true })
+      expect { Rake::Task['scheduler:dispatch'].invoke }.not_to raise_error
+    end
   end
 
   # These cover the failure-handling contract added on 2026-09-04, which previously shipped
@@ -100,6 +105,11 @@ describe 'scheduler:dispatch rake task' do
 
     it 'does not invoke AiApiLog.redact_old_ip_addresses!' do
       expect(AiApiLog).not_to receive(:redact_old_ip_addresses!)
+      Rake::Task['scheduler:dispatch'].invoke
+    end
+
+    it 'does not invoke DemoDistrict.refresh!' do
+      expect(DemoDistrict).not_to receive(:refresh!)
       Rake::Task['scheduler:dispatch'].invoke
     end
   end

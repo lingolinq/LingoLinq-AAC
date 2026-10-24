@@ -17025,18 +17025,6 @@ form.row.subscription-form-with-cards {
 /* Supporter / Eval secondary states */
 .subscription-form-card .semi_dim { opacity: 0.85; }
 
-.subscription-form-cards a[href*='blog.mylingolinq.com'] {
-  color: var(--fs-dark-teal, $brand-verdigris);
-  text-decoration: none;
-  font-weight: 500;
-  border-bottom: 1px solid transparent;
-  transition: border-color 0.12s ease;
-}
-
-.subscription-form-cards a[href*='blog.mylingolinq.com']:hover {
-  border-bottom-color: var(--fs-dark-teal, $brand-verdigris);
-}
-
 /* Applied in: speak-menu component - speak options dropdown */
 /* ── Modern Speak Menu ─────────────────────────────────── */
 .modal-content:has(.md-speak-menu) {

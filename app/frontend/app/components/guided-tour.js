@@ -1398,18 +1398,7 @@ const GuidedTour = Component.extend({
   // gotcha display-style documents). Mirrors the progress-flag convention used
   // by board-intro / speak-mode-intro (preferences.progress.*).
   _markTourCompleted: function() {
-    var key = this.get('tourKey');
-    var user = this.get('appState.currentUser');
-    if (!key || !user) { return; }
-    var prefs = Object.assign({}, user.get('preferences') || {});
-    var progress = Object.assign({}, prefs.progress || {});
-    var done = Object.assign({}, progress.guided_tours_completed || {});
-    if (done[key]) { return; }
-    done[key] = true;
-    progress.guided_tours_completed = done;
-    prefs.progress = progress;
-    user.set('preferences', prefs);
-    if (user.save) { user.save().then(null, function() { /* best-effort */ }); }
+    mark_tour_progress(this.get('appState.currentUser'), 'guided_tours_completed', this.get('tourKey'));
   },
 
   // Persist "this page's tour has been AUTO-OPENED once" as
@@ -1423,18 +1412,7 @@ const GuidedTour = Component.extend({
   // serializes a real reference change, so mutating the nested map in place
   // would leave hasDirtyAttributes false and never save.
   _markTourAutoShown: function() {
-    var key = this.get('tourKey');
-    var user = this.get('appState.currentUser');
-    if (!key || !user) { return; }
-    var prefs = Object.assign({}, user.get('preferences') || {});
-    var progress = Object.assign({}, prefs.progress || {});
-    var shown = Object.assign({}, progress.guided_tours_autoshown || {});
-    if (shown[key]) { return; }
-    shown[key] = true;
-    progress.guided_tours_autoshown = shown;
-    prefs.progress = progress;
-    user.set('preferences', prefs);
-    if (user.save) { user.save().then(null, function() { /* best-effort */ }); }
+    mark_tour_progress(this.get('appState.currentUser'), 'guided_tours_autoshown', this.get('tourKey'));
   },
 
   // Safety net: if the component is torn down while the tour is open (route
@@ -1581,3 +1559,4 @@ export default GuidedTour;
 
 // Imported last so the .eslint-todo rows above keep their lines.
 import { start_talking_now } from '../utils/tours/start_talking';
+import { mark_tour_progress } from '../utils/tours/tour_progress';

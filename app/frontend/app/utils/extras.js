@@ -406,8 +406,14 @@ import app_state from './app_state';
            swallow the real failure. Same defence app-state.js:585 uses on this service. */
         var dead_session = (typeof session.dead_session_response === 'function') && session.dead_session_response(xhr);
         var already_dead = (typeof session.logout_under_way === 'function') && session.logout_under_way();
-        if(dead_session && !already_dead && !extras.get_app_state().get('speak_mode')) {
-          session.force_logout(i18n.t('session_expired', "This session has expired, please log back in"));
+        /* A FAILURE FOR A TOKEN THIS TAB NO LONGER USES says nothing about the session it has now
+           (Scot's review of #1141, item 3): a request sent with the old token can fail after the person
+           has signed back in, and logging out then ended the new session. `token` is what this request
+           carried (set above); services/session.js#_checked_token_is_current is the test check_token's
+           answers already use. No token, or no session yet: unchanged. */
+        var stale_token = (typeof session._checked_token_is_current === 'function') && !session._checked_token_is_current(token);
+        if(dead_session && !already_dead && !stale_token && !extras.get_app_state().get('speak_mode')) {
+          session.force_logout(i18n.t('session_expired', "This session has expired, please log back in"), token);
         }
         if(error) {
           xhr.responseJSON = xhr.responseJSON || {error: 'unknown error ' + result};

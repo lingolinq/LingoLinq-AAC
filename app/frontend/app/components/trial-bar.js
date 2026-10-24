@@ -152,7 +152,7 @@ export default Component.extend({
         }, function(err) {
           if(err && err.cancelled) {
             var ids = err.new_board_ids || [];
-            return ids.length ? RSVP.resolve(_this.discardCopy(ids, me, startedAt, err.board)).then(null, function() {}) : null;
+            return ids.length ? RSVP.resolve(_this.discardCopy(ids, me, startedAt, err.board, err.session_user_id)).then(null, function() {}) : null;
           }
           if(!superseded()) { appState.set('home_copy_pending', null); }
           modal.error(i18n.t('trial_bar_copy_failed', "%{board} is your home board, but your own copy of it couldn't be made. You can copy it later from Boards.", { board: name }));

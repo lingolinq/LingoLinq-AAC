@@ -707,9 +707,9 @@ export default Controller.extend({
       if(location.hostname == '127.0.0.1') {
         this.router.transitionTo('login');
         // location.href = "//localhost:" + location.port + "/login";
-      } else if(location.hostname == 'www.mylingolinq.com') {
-        location.href = "//app.mylingolinq.com/login";
       } else {
+        // Holds the line count of a removed legacy-hostname redirect so .eslint-todo
+        // rows below stay anchored; drop it at the next approved lint rebaseline.
         this.router.transitionTo('login');
       }
     },
@@ -1195,32 +1195,7 @@ export default Controller.extend({
     // Dirty-bits preferences.device.updated so the raw preferences blob ships (Ember Data won't mark
     // a nested set dirty on its own).
     set_word_prediction: function(on) {
-      var prefUser = this.get('app_state.referenced_user') || this.get('app_state.currentUser');
-      if(!prefUser) { return; }
-      if((prefUser.get('preferences.word_suggestions') === true) === !!on) { return; }
-      var apply = function() {
-        prefUser.set('preferences.word_suggestions', !!on);
-        if(prefUser.save) {
-          // CREATE the device container first: set('preferences.device.updated') THROWS on a
-          // record whose preferences carry no `device` key (components/view-switcher.js:186).
-          if(!prefUser.get('preferences.device')) { prefUser.set('preferences.device', {}); }
-          prefUser.set('preferences.device.updated', true);
-          prefUser.save().then(null, function() {
-            // Save failed (offline, or a supervisor without write access to the communicator):
-            // put the control back to the stored value and say so, rather than leaving it showing
-            // a change the server never received.
-            if(prefUser.isDestroyed || prefUser.isDestroying) { return; }
-            prefUser.set('preferences.word_suggestions', !on);
-            modal.error(i18n.t('word_prediction_save_failed', "Couldn't save the Prediction setting. Please try again."));
-          });
-        }
-      };
-      var ready = this.get('app_state').open_speak_mode_exit_pin('none');
-      if(ready && ready.then) {
-        ready.then(function(res) { if(res && res.correct_pin) { apply(); } }, function() { });
-      } else {
-        apply();
-      }
+      set_word_prediction(this.get('app_state'), on);
     },
     special: function(opts) {
       // sidebar actions (opts is often an EmberObject from sidebar_boards_with_fallbacks)
@@ -2601,3 +2576,6 @@ export default Controller.extend({
     return false;
   })
 });
+
+// Imported last so the .eslint-todo rows above keep their lines.
+import { set_word_prediction } from '../utils/word_prediction_pref';

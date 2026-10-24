@@ -1,5 +1,5 @@
 # CODEOWNERS - GitHub auto-requests these users as reviewers on every PR.
-# This is routing, NOT a gate. Branch protection on develop requires 1 approving
-# review from any collaborator with write access; require_code_owner_reviews is
-# off, so an approval from a code owner specifically is not required.
+# This is routing, NOT a gate. As read on 2026-10-20, develop requires a pull
+# request but 0 approving reviews (ruleset and classic protection), and code-owner
+# review is off, so no approval is required at all.
 * @swahlquist @MelissaOneil @traciday

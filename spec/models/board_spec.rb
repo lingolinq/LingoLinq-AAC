@@ -1889,11 +1889,17 @@ describe Board, :type => :model do
       expect(b.key).to eq(nil)
     end
     
+    include ActiveSupport::Testing::TimeHelpers
+
+    # process_params stamps last_updated with Time.now.iso8601, compared with a later read; a fixed
+    # instant keeps a second boundary from falling between them.
     it "should set last_updated" do
-      u = User.create
-      b = Board.new(:user => u)
-      b.process_params({}, {})
-      expect(b.settings['last_updated']).to eq(Time.now.iso8601)
+      travel_to(Time.utc(2026, 6, 15, 12, 0, 30)) do
+        u = User.create
+        b = Board.new(:user => u)
+        b.process_params({}, {})
+        expect(b.settings['last_updated']).to eq(Time.now.iso8601)
+      end
     end
 
     it "should not set name column" do

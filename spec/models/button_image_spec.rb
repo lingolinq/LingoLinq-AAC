@@ -1,4 +1,5 @@
 require 'spec_helper'
+require Rails.root.join('db/migrate/20261018120000_rewrite_legacy_word_art_author_url.rb')
 
 describe ButtonImage, :type => :model do
   describe "paper trail" do
@@ -272,6 +273,17 @@ describe ButtonImage, :type => :model do
       expect(i.settings['external_id']).to eq(nil)
       expect(i.public).to eq(true)
       expect(i.user).to eq(u)
+    end
+
+    it "should store the current address for a license author_url on the legacy domain" do
+      u = User.new
+      i = ButtonImage.new(:user_id => 1)
+      i.process_params({
+        'content_type' => 'image/png',
+        'license' => {'type' => 'CC By', 'author_name' => 'LingoLinq', 'author_url' => 'https://www.mylingolinq.com'}
+      }, {:user => u})
+      expect(i.settings['license']['author_url']).to eq('https://www.lingolinq.com')
+      expect(i.settings['license']['author_name']).to eq('LingoLinq')
     end
     
     it "should process the URL including non_user_params if sent" do
@@ -862,6 +874,86 @@ describe ButtonImage, :type => :model do
         }
       )
       expect(bi.skin_capable_url).to eq(Uploader.fronted_url(library_skin))
+    end
+  end
+
+  describe "RewriteLegacyWordArtAuthorUrl backfill" do
+    def raw_settings(bi)
+      ButtonImage.connection.select_value("SELECT settings FROM button_images WHERE id = #{bi.id}")
+    end
+
+    it "rewrites old-domain author_url values and leaves other hosts alone" do
+      word_art = ButtonImage.create(:settings => {
+        'license' => {'type' => 'CC By', 'author_name' => 'LingoLinq', 'author_url' => 'https://www.mylingolinq.com', 'uneditable' => true},
+        'library_alternates' => {'original' => {'url' => 'http://www.example.com/a.png', 'license' => {'type' => 'CC By', 'author_url' => 'http://app.mylingolinq.com/images'}}}
+      })
+      bare = ButtonImage.create(:settings => {'license' => {'type' => 'CC By', 'author_url' => 'https://mylingolinq.com'}})
+      other_path = ButtonImage.create(:settings => {'license' => {'type' => 'CC By', 'author_url' => 'https://www.example.com/mylingolinq.com'}})
+      lookalike = ButtonImage.create(:settings => {'license' => {'type' => 'CC By', 'author_url' => 'https://notmylingolinq.com'}})
+      userinfo = ButtonImage.create(:settings => {'license' => {'type' => 'CC By', 'author_url' => 'https://mylingolinq.com:443@external.example/image'}})
+      no_license = ButtonImage.create(:settings => {})
+      odd_alternates = ButtonImage.create(:settings => {'license' => {'type' => 'CC By'}, 'library_alternates' => ['not', 'a', 'hash']})
+      fallback = ButtonImage.create(:settings => {'license' => {'type' => 'private'}, 'fallback' => {'url' => 'http://www.example.com/b.png', 'license' => {'type' => 'CC By', 'author_url' => 'https://www.mylingolinq.com'}}})
+      plaintext = ButtonImage.create(:settings => {})
+      ButtonImage.where(id: plaintext.id).update_all(settings: {'license' => {'type' => 'CC By', 'author_url' => 'https://www.mylingolinq.com'}}.to_json)
+      untouched_raw = [other_path, lookalike, userinfo, no_license, odd_alternates].map{|bi| raw_settings(bi) }
+
+      migration = RewriteLegacyWordArtAuthorUrl.new
+      migration.verbose = false
+      migration.up
+
+      word_art = ButtonImage.find(word_art.id)
+      expect(word_art.settings['license']['author_url']).to eq('https://www.lingolinq.com')
+      expect(word_art.settings['license']['author_name']).to eq('LingoLinq')
+      expect(word_art.settings['library_alternates']['original']['license']['author_url']).to eq('https://www.lingolinq.com')
+      expect(ButtonImage.find(bare.id).settings['license']['author_url']).to eq('https://www.lingolinq.com')
+      expect([other_path, lookalike, userinfo, no_license, odd_alternates].map{|bi| raw_settings(bi) }).to eq(untouched_raw)
+      expect(ButtonImage.find(fallback.id).settings['fallback']['license']['author_url']).to eq('https://www.lingolinq.com')
+      expect(ButtonImage.find(plaintext.id).settings['license']['author_url']).to eq('https://www.lingolinq.com')
+      expect(raw_settings(plaintext)).to_not include('lingolinq.com')
+      expect(raw_settings(word_art)).to_not include('lingolinq.com')
+
+      rewritten_raw = raw_settings(word_art)
+      migration.up
+      expect(raw_settings(word_art)).to eq(rewritten_raw)
+    end
+
+    it "keeps a settings change saved after the row was read" do
+      bi = ButtonImage.create(:settings => {'width' => 100, 'license' => {'type' => 'CC By', 'author_url' => 'https://www.mylingolinq.com'}})
+      stale_raw = raw_settings(bi)
+      bi = ButtonImage.find(bi.id)
+      bi.settings['width'] = 200
+      bi.save!
+
+      migration = RewriteLegacyWordArtAuthorUrl.new
+      migration.verbose = false
+      expect(migration.send(:rewrite_row, bi.id, stale_raw)).to eq(:rewritten)
+
+      bi = ButtonImage.find(bi.id)
+      expect(bi.settings['width']).to eq(200)
+      expect(bi.settings['license']['author_url']).to eq('https://www.lingolinq.com')
+    end
+
+    it "reports rows it gave up on after repeated concurrent writes" do
+      bi = ButtonImage.create(:settings => {'license' => {'type' => 'CC By', 'author_url' => 'https://www.mylingolinq.com'}})
+      migration = RewriteLegacyWordArtAuthorUrl.new
+      messages = []
+      allow(migration).to receive(:say) {|message, *| messages << message }
+      allow(migration).to receive(:rewrite_row).and_call_original
+      allow(migration).to receive(:rewrite_row).with(bi.id, anything).and_return(:conflict)
+      migration.up
+      expect(messages.join("\n")).to match(/gave up on 1 button_image row\(s\) still being written after 5 attempts: #{bi.id}\b/)
+    end
+
+    it "reports rows it cannot read instead of skipping them silently" do
+      bi = ButtonImage.create(:settings => {'license' => {'type' => 'CC By'}})
+      ButtonImage.where(id: bi.id).update_all(settings: 'not-a-salt--not-a-secret')
+
+      migration = RewriteLegacyWordArtAuthorUrl.new
+      messages = []
+      allow(migration).to receive(:say) {|message, *| messages << message }
+      migration.up
+      expect(messages.join("\n")).to match(/could not read 1 button_image row\(s\): #{bi.id}\b/)
     end
   end
 end
