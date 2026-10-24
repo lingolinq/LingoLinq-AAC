@@ -46,7 +46,7 @@ module('Unit | Controller | system-settings/features empty save', function(hooks
     var body = captured.data;
     // $.param is what jQuery would send for a plain object. An empty array disappears.
     var wire = (typeof body === 'string') ? body : $.param(body);
-    assert.true(wire.indexOf('enabled_features') !== -1, 'the empty list is present in the request body');
+    assert.notStrictEqual(wire.indexOf('enabled_features'), -1, 'the empty list is present in the request body');
     assert.strictEqual(captured.contentType, 'application/json');
     assert.deepEqual(JSON.parse(body).enabled_features, []);
     assert.strictEqual(JSON.parse(body).org_id, 'default');

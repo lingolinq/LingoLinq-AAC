@@ -176,6 +176,10 @@ export default Controller.extend({
     },
 
     saveFeatures: function() {
+      // pendingToggles is cleared at the start of loadFeatures and filled when
+      // the GET returns. A Save in between would store an empty list. features
+      // still holds the previous scope then, so this checks loading, not features.
+      if (this.get('loading')) { return; }
       var _this = this;
       var orgId = this.getOrgId();
       var enabled = [];
