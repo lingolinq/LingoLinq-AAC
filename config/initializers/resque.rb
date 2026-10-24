@@ -122,8 +122,9 @@ module RedisInit
   # value or they would read/write disjoint permission caches. A static 'abc'
   # (LL-c6dd65a2aa) was predictable and never rotated. Resolve from env in
   # preference order, all of which are process-invariant within a deploy:
-  #   CACHE_TOKEN       - explicit operator-set secret (preferred; mounted on every
-  #                       Cloud Run web/worker revision via deploy-cloudrun.yml)
+  #   CACHE_TOKEN       - explicit operator-set secret (preferred; in BOOT_SECRETS in
+  #                       deploy-cloudrun.yml, so web, the worker pool, the scheduler
+  #                       and the migrate Job, with one-off runners through it, all mount it)
   #   K_REVISION        - Cloud Run revision name, injected into SERVICES only; the
   #                       worker pool and Jobs do not receive it, so this tier is a
   #                       last resort for a service, not a cross-process safety net
