@@ -1093,6 +1093,7 @@ describe('speecher', function() {
       deviceVoices = google();
       // components/premium-voices.js calls refresh_voices when it closes
       speecher.refresh_voices();
+      expect(speecher.voiceURI).toEqual('Google US English');
       synth.fire_voiceschanged();
       expect(speecher.voiceURI).toEqual('Google US English');
     });
@@ -1107,10 +1108,39 @@ describe('speecher', function() {
     });
 
     it('keeps speaking with a saved cloud voice on a device with no voice', function() {
+      // cloud_voices depends on the browser language, so take the saved voice from its own list
+      var cloudURI = speecher.cloud_voices()[0].voiceURI;
       speecher.refresh_voices();
-      var user = signedIn({voice: {voice_uris: ['remote:en-US:female'], volume: 1, pitch: 1}});
-      expect(user.get('preferences.device.voice.voice_uri')).toEqual('remote:en-US:female');
-      expect(speecher.voiceURI).toEqual('remote:en-US:female');
+      var user = signedIn({voice: {voice_uris: [cloudURI], volume: 1, pitch: 1}});
+      expect(user.get('preferences.device.voice.voice_uri')).toEqual(cloudURI);
+      expect(speecher.voiceURI).toEqual(cloudURI);
+    });
+
+    it('lists the cloud voices when the only voice is the speech polyfill', function() {
+      // vendor/speech/speech.js reports this one voice when the browser has no speech API
+      deviceVoices = [{voiceURI: 'voice:speak_js', name: 'Basic computer voice', lang: 'en-US'}];
+      speecher.refresh_voices();
+      var uris = speecher.get('voices').map(function(v) { return v.voiceURI; });
+      expect(uris[0]).toEqual('voice:speak_js');
+      expect(uris.filter(function(uri) { return (uri || '').match(/^remote:/); }).length).toBeGreaterThan(0);
+      expect(uris.indexOf('')).toEqual(-1);
+    });
+
+    it('keeps the saved voices when the device voices briefly shrink', function() {
+      var aria = {voiceURI: 'Microsoft Aria Online', name: 'Microsoft Aria Online', lang: 'en-US'};
+      deviceVoices = google().concat([aria]);
+      speecher.refresh_voices();
+      var user = signedIn({
+        voice: {voice_uris: ['Microsoft Aria Online', 'Google US English'], volume: 1, pitch: 1},
+        alternate_voice: {enabled: true, voice_uri: 'Google español'}
+      });
+      deviceVoices = [google()[0]];
+      synth.fire_voiceschanged();
+      deviceVoices = google().concat([aria]);
+      synth.fire_voiceschanged();
+      expect(user.get('preferences.device.voice.voice_uri')).toEqual('Microsoft Aria Online');
+      expect(user.get('preferences.device.alternate_voice.voice_uri')).toEqual('Google español');
+      expect(speecher.voiceURI).toEqual('Microsoft Aria Online');
     });
 
     it('keeps the alternate voice when the device voices change', function() {

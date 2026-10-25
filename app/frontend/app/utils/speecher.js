@@ -170,11 +170,11 @@ var speecher = EmberObject.extend({
   // cloud "*Internet Required*" voices and speak.js are listed only then).
   with_backup_voices: function(device_list) {
     var list = device_list.slice();
-    if(list.length === 0) {
-      list.push({
-        name: "Default Voice",
-        voiceURI: ""
-      });
+    if(!speecher.has_own_voice(list)) {
+      if(list.length === 0) {
+        list.push({name: "Default Voice", voiceURI: ""});
+      }
+      // Also beside the speech polyfill's one voice, which is not the device's own (has_own_voice)
       list = list.concat(speecher.cloud_voices());
       // speak.js (vendor/speak_js/speakClient.js, loaded on every web page)
       if(window.speak || window.meSpeak) {
@@ -227,8 +227,8 @@ var speecher = EmberObject.extend({
     if(synth !== speecher.scope.speechSynthesis) { return; }
     var list = speecher.device_voices();
     if(list.length === 0 || speecher.voice_key(list) == speecher._device_voice_key) { return; }
-    speecher.store_voice_list(speecher.with_backup_voices(list), list.length);
-    speecher.reapply_user_voice();
+    // store_device_voices (below) applies the user's voice again when voices were only added
+    speecher.store_device_voices(list, list.length);
   },
   check_for_upgrades: function() {
     var ttsService = speecher.get_tts_voices && speecher.get_tts_voices();
@@ -1507,7 +1507,7 @@ speecher.cloud_voices = function() {
   // Need a remote English voice for low-cost Kindles
   if(!navigator.language.match(/en/)) {
     list.push({
-      name: "English Female (Internet Required)",
+      name: i18n.t('english_female_internet_required', "English Female (Internet Required)"),
       lang: 'en-US',
       remote_voice: true,
       voiceURI: "remote:en-US:female"
@@ -1554,13 +1554,24 @@ speecher.cloud_voices = function() {
   return list;
 };
 
+// The polyfill in vendor/speech/speech.js reports one voice, voice:speak_js, when the browser has
+// no speech API; that is speak.js, not a voice of the device's own.
+speecher.has_own_voice = function(list) {
+  return list.some(function(v) { return v.voiceURI != 'voice:speak_js'; });
+};
+
 // refresh_voices' store step. After boot, a different set of device voices means the user's
 // voice is looked up again, whichever of refresh_voices or voiceschanged sees them first.
 speecher.store_device_voices = function(list, device_voice_count) {
   var had_list = !!speecher._built_voices;
   var previous_key = speecher._device_voice_key;
+  var previous = (speecher._built_voices || []).slice(0, speecher._device_voice_count || 0);
+  // Only when voices were added (Android reports them after boot). A list that briefly drops the
+  // user's voice would otherwise make update_voice_uri pick a fallback and keep it, and null the
+  // alternate voice, which has no voice_uris to find it again.
+  var only_added = previous.every(function(v) { return list.some(function(d) { return d.voiceURI == v.voiceURI; }); });
   speecher.store_voice_list(speecher.with_backup_voices(list), device_voice_count);
-  if(had_list && device_voice_count > 0 && speecher._device_voice_key != previous_key) {
+  if(had_list && device_voice_count > 0 && speecher._device_voice_key != previous_key && only_added) {
     speecher.reapply_user_voice();
   }
 };
