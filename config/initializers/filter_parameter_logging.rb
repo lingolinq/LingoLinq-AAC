@@ -1,4 +1,4 @@
 # Be sure to restart your server when you modify this file.
 
 # Configure sensitive parameters which will be filtered from the log file.
-Rails.application.config.filter_parameters += [:password, :access_token, :board, :user, :log, :message, :image, :sound, :utterance, :latitude, :longitude]
+Rails.application.config.filter_parameters += [:password, :access_token, :board, :user, :log, :message, :image, :sound, :utterance, :latitude, :longitude, :lookup_key, :communicator_lookup, :owner_email]
