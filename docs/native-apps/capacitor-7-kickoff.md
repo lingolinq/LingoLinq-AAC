@@ -10,7 +10,8 @@
 > iOS, Xcode 26 ([Capacitor 8 upgrade guide](https://capacitorjs.com/docs/updating/8-0)); the
 > shell README lists them once the Capacitor 8 change merges. The "Manual smoke" section below is also the
 > definition of done for the Capacitor 8 move. This file keeps its name because other docs
-> refer to it. Plan: [capacitor-8-stop1-handoff.md](./capacitor-8-stop1-handoff.md). Progress:
+> refer to it. Status and open issues: [capacitor-8-stop2-handoff.md](./capacitor-8-stop2-handoff.md).
+> Plan: [capacitor-8-stop1-handoff.md](./capacitor-8-stop1-handoff.md). Progress:
 > [2026-10-23_capacitor-8-move.md](../task-management/2026-10-23_capacitor-8-move.md).
 
 Sibling shell: [`lingolinq/lingolinq_mobile`](https://github.com/lingolinq/lingolinq_mobile) (`com.lingolinq.app`).\

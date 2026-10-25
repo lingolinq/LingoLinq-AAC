@@ -147,3 +147,27 @@ and two missing "Still open" items), all fixed in the following commit.
   run the simulator smoke test.
 - Release notes: Capacitor 8 raises the minimum to Android 7 (API 24) and iOS 15, so Android 6
   and iOS 14 devices get no further updates.
+
+## Simulated CI on the shell PR (2026-10-25)
+
+The shell repo has no CI, so lingolinq/lingolinq_mobile#2 was checked on a fresh clone of its
+head (`316e209`) with the AAC CI's equivalents where they apply:
+
+- gitleaks 8.30.1 over the PR's commits and the full history: no leaks.
+- `git diff --check`, `node --check` on every `www/*.js`, JSON parse of `package.json`,
+  `package-lock.json` and `capacitor.config.json`, `plutil -lint` and `xmllint`: all clean.
+- `npm ci`: installs from the lockfile with no changes. `npm audit --audit-level=high`: exit 0
+  (3 moderate, all in the build-time CLI's `uuid`); `npm audit --omit=dev`: 0.
+- `npx cap sync` then `git status`: no changes, so the committed generated files are current.
+  `npx cap doctor`: Android and iOS pass.
+- `./gradlew clean assembleDebug bundleRelease :app:lintDebug :app:testDebugUnitTest` (JDK 21):
+  BUILD SUCCESSFUL. Lint: 0 errors, 14 warnings, none blocking (`ObsoleteSdkInt` on
+  `drawable-v24` from the minSdk 24 bump; newer Gradle and appcompat than the Capacitor 8 guide
+  pins; the rest predate the branch). Unit tests: 1 run, 0 failures.
+- APK `targetSdkVersion:'36'`; 16 KB zip alignment passes; all 8 `libsqlcipher.so` copies
+  (APK and AAB, four ABIs) have 16 KB LOAD alignment. `jarsigner`: the release bundle is
+  unsigned, as expected; Play upload needs a signing setup.
+- iOS: `xcodebuild` cannot run on this Mac (Xcode 16.4 has no iOS platform installed, and
+  Capacitor 8 needs Xcode 26).
+- `@codex review` on the PR: the Codex bot replied that the commenter's account is not
+  connected to Codex, so no review ran.
