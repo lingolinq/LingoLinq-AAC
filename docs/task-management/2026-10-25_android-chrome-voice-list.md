@@ -209,3 +209,12 @@ Findings checked against the code before acting:
   native `tts:` voices, as before.
 - Pickers filter premium voices on `voice.voiceURI`, which `voiceList` entries do not carry (they
   have `id`), so that filter never matches. Pre-existing; out of scope.
+
+## Full suite (timing-strict shards, Node 22.23.2, on 0ef7d2cdc)
+
+- `pool=include`: 1679 tests, 1667 pass, 7 skip, 0 fail.
+- `pool=exclude`: 2097 tests, 2066 pass, 30 skip, 1 fail (`session check_token - accepts the answer
+  for the token this tab is sending after another tab signed in`). That test file does not touch
+  `speecher` or voices; it passed 3 of 3 runs alone (`--filter "session check_token"`), and a re-run
+  of the same shard on the same code gave 2067 pass, 0 fail. The failing set emptied, so it is
+  the wandering flake, not this change.
