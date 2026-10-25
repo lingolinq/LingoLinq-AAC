@@ -171,3 +171,22 @@ head (`316e209`) with the AAC CI's equivalents where they apply:
   Capacitor 8 needs Xcode 26).
 - `@codex review` on the PR: the Codex bot replied that the commenter's account is not
   connected to Codex, so no review ran.
+
+## iOS build and simulator launch (macOS 27.0.1, Xcode 27.1)
+
+- Xcode 27.1 installed from the App Store (16.4 updated); iOS 27.0 and 27.1 simulator runtimes
+  downloaded with `xcodebuild -downloadPlatform iOS`. `cap sync ios` and `cap doctor` pass;
+  the sync leaves the tree unchanged.
+- `xcodebuild -workspace ios/App/App.xcworkspace -scheme App -sdk iphonesimulator` (no
+  signing): `** BUILD SUCCEEDED **`. 445 warnings, none in the app target (`AppDelegate`,
+  `SceneDelegate`): 388 in SQLCipher, the rest in plugin and Capacitor sources (deprecations,
+  Swift concurrency notes). So the `SceneDelegate.swift` pbxproj entry builds.
+- Cold launch on iPad Air 11-inch (M4) and iPhone 17, iOS 27.1, console captured with
+  `simctl launch --console-pty`: exactly one "Loading app at capacitor://localhost" line on
+  each, so no second bridge at launch (review item closed). The console shows the shell's
+  bridges starting: "Capacitor sqlitePlugin shim ready", "Capacitor file_storage bridge
+  ready", "Capacitor TTS ready, voices=68".
+- The app stays on the shell's "Loading LingoLinq..." page because `www/app.js` is not
+  packaged in a fresh checkout. On iPhone 17 that page's heading sits under the status bar
+  (the bootstrap `www/index.html` uses `viewport-fit=cover`); check the real UI for the same
+  top-inset issue in the smoke test.

@@ -7,11 +7,13 @@ full working record, with command output, is
 
 ## Summary
 
-The shell is on Capacitor 8.5.3 and targets Android API 36. It builds for Android, passes
-`cap doctor` for Android and iOS, and passes the 16 KB page-size checks. It has not been run
-on a device or emulator, has not been compiled for iOS, and the release bundle is unsigned.
-So the code change is done, but the app is not yet shown to work on Capacitor 8 and is not
-yet ready for a Play upload.
+The shell is on Capacitor 8.5.3 and targets Android API 36. It builds for Android and iOS,
+passes `cap doctor` for both, and passes the 16 KB page-size checks. On the iOS simulator it
+launches with one bridge and starts its SQLite, file storage and TTS bridges (updated
+2026-10-25, Xcode 27.1). The offline smoke test has not been run on either platform, Google
+sign-in does not work in the app ([#1198](https://github.com/lingolinq/LingoLinq-AAC/issues/1198)),
+and the release bundle is unsigned. So the code change is done, but the app is not yet shown
+to work end to end on Capacitor 8 and is not yet ready for a store upload.
 
 | Goal | State |
 |---|---|
@@ -21,7 +23,7 @@ yet ready for a Play upload.
 | 16 KB page size | Done (all native libraries aligned) |
 | AAC docs say Capacitor 8 and why | Done (PR #1185) |
 | App works on Capacitor 8 (offline smoke test) | **Not run** |
-| iOS build | **Not run** (needs Xcode 26 or later) |
+| iOS build | Done (Xcode 27.1, simulator; one bridge at launch) |
 | Signed release bundle for Play | **Not started** (outside the move) |
 
 ## Pull requests
@@ -91,6 +93,12 @@ real but only a run on a device or simulator can show whether it happens.
 
 ### iOS (none of it compiled yet)
 
+**Update (Xcode 27.1 on macOS 27.0.1):** items 5 and 9 are resolved and item 7 is resolved for
+launch: the app builds for the simulator, and a cold launch on iPad and iPhone logs "Loading
+app at" once, with the SQLite, file storage and TTS bridges starting. Still open on iOS: the
+simulator smoke test with a packaged app (item 6), the TTS audio-session check (item 8), and
+export compliance at upload (item 10). Details are in the task log.
+
 5. **Xcode 26 or later is not installed.** The Mac runs macOS Sequoia 15.5 with Xcode 16.4.
    Per [Apple's system requirements](https://developer.apple.com/xcode/system-requirements/),
    Xcode 26.0 to 26.3 need Sequoia 15.6 or later, Xcode 26.4 and later need Tahoe 26.2 or
@@ -143,6 +151,11 @@ real but only a run on a device or simulator can show whether it happens.
 15. **SQLite encryption setting.** `capacitor.config.json` holds the `CapacitorSQLite`
     encryption options (`androidIsEncryption` / `iosIsEncryption`). Their release setting
     requires internal privacy and security sign-off.
+
+**Found during the iOS smoke test (2026-10-25):** Continue with Google (sign-up and log-in) does
+nothing in the native app, because the frontend opens relative `/auth/google/start` URLs that
+resolve inside the app. Not a Capacitor 8 regression, but it blocks the first store release.
+Tracked in [#1198](https://github.com/lingolinq/LingoLinq-AAC/issues/1198), with the full plan.
 
 ### Release notes
 
