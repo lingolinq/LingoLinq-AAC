@@ -352,6 +352,8 @@ describe('Goal', function() {
   describe("time_units labels outside UTC", function() {
     // Every moment the model builds is shown at a fixed UTC offset, with "now" pinned,
     // so the label is checked where a UTC date and the local date differ.
+    // The weekly fixtures key the data with the app's own formula (goal.js time_units), so the
+    // sessions checks below follow it; the server keys weeks differently (#1196).
     var at_offset = function(now, offset) {
       var base = window.moment;
       stub(window, 'moment', function(a, b) {
