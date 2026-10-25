@@ -130,7 +130,7 @@ LingoLinq.Goal = BaseModel.extend({
         var key = week.clone().weekday(1).format('GGGG-WW');
         weeks.push({
           key: key,
-          label: week.clone().weekday(0).toISOString().substring(0, 10),
+          label: week.clone().weekday(0).format('YYYY-MM-DD'),
           sessions: ((stats.weekly[key] || {}).sessions || 0),
           max_statuses: Utils.max_appearance((stats.weekly[key] || {}).statuses || [])
         });
@@ -153,7 +153,7 @@ LingoLinq.Goal = BaseModel.extend({
         var key = date.format('YYYY-MM');
         months.push({
           key: key,
-          label: date.toISOString().substring(0, 10),
+          label: date.format('YYYY-MM-DD'),
           sessions: ((stats.monthly[key] || {}).sessions || 0),
           max_statuses: Utils.max_appearance((stats.monthly[key] || {}).statuses || [])
         });

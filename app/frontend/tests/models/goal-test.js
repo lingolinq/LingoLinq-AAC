@@ -349,6 +349,64 @@ describe('Goal', function() {
     });
   });
 
+  describe("time_units labels outside UTC", function() {
+    // Every moment the model builds is shown at a fixed UTC offset, with "now" pinned,
+    // so the label is checked where a UTC date and the local date differ.
+    var at_offset = function(now, offset) {
+      var base = window.moment;
+      stub(window, 'moment', function(a, b) {
+        if(a || b) {
+          return base(a, b).utcOffset(offset, true);
+        } else {
+          return base(now).utcOffset(offset);
+        }
+      });
+    };
+    var stats_for = function(weekly_key) {
+      var stats = {
+        daily: {totals: {sessions: 0, statuses: []}},
+        weekly: {totals: {sessions: 1, statuses: [3]}},
+        monthly: {'2026-07': {sessions: 1, statuses: [3]}, totals: {sessions: 1, statuses: [3]}}
+      };
+      if(weekly_key) {
+        stats.weekly[weekly_key] = {sessions: 1, statuses: [3]};
+      } else {
+        stats.weekly.totals = {sessions: 0, statuses: []};
+      }
+      return stats;
+    };
+
+    it("labels a month with its own first day east of UTC", function() {
+      at_offset('2026-07-15T00:30:00+02:00', 120);
+      var goal = LingoLinq.store.createRecord('goal');
+      goal.set('stats', stats_for(null));
+      expect(goal.get('best_time_level')).toEqual('monthly');
+      var units = goal.get('time_units');
+      expect(units[units.length - 1].key).toEqual('2026-07');
+      expect(units[units.length - 1].label).toEqual('2026-07-01');
+    });
+
+    it("labels a week with its local Sunday east of UTC", function() {
+      at_offset('2026-07-15T00:30:00+02:00', 120);
+      var goal = LingoLinq.store.createRecord('goal');
+      goal.set('stats', stats_for(window.moment().weekday(1).format('GGGG-WW')));
+      expect(goal.get('best_time_level')).toEqual('weekly');
+      var units = goal.get('time_units');
+      expect(units[units.length - 1].sessions).toEqual(1);
+      expect(units[units.length - 1].label).toEqual('2026-07-12');
+    });
+
+    it("labels a week with its local Sunday west of UTC", function() {
+      at_offset('2026-07-15T20:00:00-07:00', -420);
+      var goal = LingoLinq.store.createRecord('goal');
+      goal.set('stats', stats_for(window.moment().weekday(1).format('GGGG-WW')));
+      expect(goal.get('best_time_level')).toEqual('weekly');
+      var units = goal.get('time_units');
+      expect(units[units.length - 1].sessions).toEqual(1);
+      expect(units[units.length - 1].label).toEqual('2026-07-12');
+    });
+  });
+
   it("should return the correct unit_description", function() {
     var goal = LingoLinq.store.createRecord('goal');
     goal.set('stats', empty);
