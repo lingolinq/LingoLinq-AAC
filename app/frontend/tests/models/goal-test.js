@@ -289,13 +289,13 @@ describe('Goal', function() {
     expect(goal.get('time_units').length).toEqual(4);
     expect(goal.get('time_units')[2]).toEqual({
       key: day1.format('GGGG-WW'),
-      label: day1.clone().weekday(0).toISOString().substring(0, 10),
+      label: day1.clone().weekday(0).format('YYYY-MM-DD'),
       max_statuses: 1,
       sessions: 1
     });
     expect(goal.get('time_units')[1]).toEqual({
       key: day4.format('GGGG-WW'),
-      label: day4.clone().weekday(0).toISOString().substring(0, 10),
+      label: day4.clone().weekday(0).format('YYYY-MM-DD'),
       max_statuses: 2,
       sessions: 4
     });
@@ -478,7 +478,7 @@ describe('Goal', function() {
     expect(goal.get('time_unit_status_rows')[3].tooltip).toEqual("We didn't do it (1)");
     expect(goal.get('time_unit_status_rows')[3].time_blocks[2].score).toEqual(1);
     expect(goal.get('time_unit_status_rows')[3].time_blocks[2].style_class).toEqual('time_block level_5');
-    expect(goal.get('time_unit_status_rows')[3].time_blocks[2].tooltip).toEqual('1 status, ' + day1.clone().weekday(0).toISOString().substring(0, 10));
+    expect(goal.get('time_unit_status_rows')[3].time_blocks[2].tooltip).toEqual('1 status, ' + day1.clone().weekday(0).format('YYYY-MM-DD'));
 
     goal.set('stats', recent_monthly);
     expect(goal.get('time_unit_status_rows').length).toEqual(4);
