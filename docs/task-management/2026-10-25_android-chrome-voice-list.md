@@ -152,3 +152,60 @@ C. Make the app-state retry match (poll after boot). Polling a timer for an even
 ## Mutation for the PR
 
 Remove the listener registration in `refresh_voices` -> test 1 red. Restore -> green.
+
+## Scot's answers (2026-10-25)
+
+- Cloud fallback in `find_voice_by_uri`: keep the speech fallbacks as they are. Wanted: a
+  disclaimer when no voice matches a language, so users know why it speaks with an English
+  pronunciation. Filed as a follow-up brief (new UI text; separate review), not in this PR.
+- Low-Quality (speak.js) voice: offer it only when the device has no voice of its own.
+
+## Adversary review (2026-10-25) and what changed
+
+Findings checked against the code before acting:
+- High, accepted: `update_voice_uri` (`models/user.js`) re-tries the current `voice_uri` before the
+  saved `voice_uris`, so a value matched before the device voices arrived stays applied. Fixed in
+  `speecher.reapply_user_voice`: it clears the derived `voice_uri` and walks the saved list again.
+  `models/user.js` is not changed.
+- Medium, accepted: an observer on the `speecher` singleton would outlive every test app. Dropped
+  the `utterance.js` observer; the re-apply runs only from the `voiceschanged` handler and reads
+  `live_service(speecher.appState)` with no global fallback.
+- Medium, accepted: a later call that briefly sees no voices no longer replaces a device list.
+- Medium, accepted: more tests (Default Voice gone once voices arrive, speak.js once, extras kept,
+  one listener, saved voice applied, empty-call guard).
+- Low, accepted: `.eslint-todo` is line-anchored. `speecher.js` keeps every line above the first
+  baselined row (498) at net zero: two helpers live below the last baselined row as
+  `speecher.x = function` statics. The new tests sit below the test file's baselined rows.
+  `npm run lint:js:ci`: `new=0`.
+- Low, carried to the PR body: ask for an airplane-mode check on the phone.
+
+## Falsification (targeted run, `--filter "refresh_voices"`, 9 tests)
+
+| Mutation | Red |
+|---|---|
+| Whole fix reverted (`HEAD~1` speecher.js) | 7 of 9 (tests 3 and 8 guard behaviour the old code already had) |
+| No `addEventListener('voiceschanged')` | 5: tests 1, 2, 6, 7, 9 |
+| `reapply_user_voice` without clearing `voice_uri` | 1: test 9 |
+| No keep-on-empty guard in `refresh_voices` | 1: test 8 |
+
+## Trace to the read
+
+- `voiceschanged` listener: registered in `refresh_voices`, which `routes/application.js`
+  `setupController` calls at boot, before any picker reads `speecher.voiceList`.
+- `device_voices_changed` writes `voices` through `store_voice_list`; every picker reads
+  `voiceList`, a computed on `voices`, so they update.
+- `reapply_user_voice` clears `preferences.device.voice.voice_uri` before calling
+  `update_voice_uri`, which reads it first (`models/user.js` `update_voice_uri`).
+
+## Not changed, noted
+
+- The app-state Android retry (`voices.length == 1 && voiceURI == ""`) is still unreachable on the
+  web (the speak.js entry makes the list two long). Harmless; left in place.
+- The `no_local_voices` warning in `services/app-state.js` cannot fire on the web before or after
+  this change (the list always holds a non-remote entry).
+- Locale keys `female_ukranian_internet_required` and `male_internet_required` are no longer
+  used by JS; `female_internet_required` is still used by the `find_voice_by_uri` fallback.
+- iOS installed app: `getVoices()` is forced empty there, so speak.js is still listed beside the
+  native `tts:` voices, as before.
+- Pickers filter premium voices on `voice.voiceURI`, which `voiceList` entries do not carry (they
+  have `id`), so that filter never matches. Pre-existing; out of scope.
