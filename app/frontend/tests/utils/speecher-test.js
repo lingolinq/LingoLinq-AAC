@@ -1097,6 +1097,22 @@ describe('speecher', function() {
       expect(speecher.voiceURI).toEqual('Google US English');
     });
 
+    it('lists the Internet Required cloud voices only when the device has no voice', function() {
+      var cloud = function() { return speecher.get('voices').filter(function(v) { return (v.voiceURI || '').match(/^remote:/); }).length; };
+      speecher.refresh_voices();
+      expect(cloud()).toBeGreaterThan(0);
+      deviceVoices = google();
+      synth.fire_voiceschanged();
+      expect(cloud()).toEqual(0);
+    });
+
+    it('keeps speaking with a saved cloud voice on a device with no voice', function() {
+      speecher.refresh_voices();
+      var user = signedIn({voice: {voice_uris: ['remote:en-US:female'], volume: 1, pitch: 1}});
+      expect(user.get('preferences.device.voice.voice_uri')).toEqual('remote:en-US:female');
+      expect(speecher.voiceURI).toEqual('remote:en-US:female');
+    });
+
     it('keeps the alternate voice when the device voices change', function() {
       // The alternate voice has no voice_uris history (app/models/user.rb rebuilds it for the main
       // voice only), so its voice_uri is the one stored copy of the user's choice

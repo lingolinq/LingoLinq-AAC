@@ -166,9 +166,8 @@ var speecher = EmberObject.extend({
     }
     return list;
   },
-  // What the picker offers when the device reports no voice of its own. The cloud
-  // "*Internet Required*" voices are no longer listed (Scot, 2026-10-25); find_voice_by_uri
-  // below can still fall back to one when there is no local voice.
+  // What the picker offers when the device reports no voice of its own (Scot, 2026-10-25: the
+  // cloud "*Internet Required*" voices and speak.js are listed only then).
   with_backup_voices: function(device_list) {
     var list = device_list.slice();
     if(list.length === 0) {
@@ -176,6 +175,7 @@ var speecher = EmberObject.extend({
         name: "Default Voice",
         voiceURI: ""
       });
+      list = list.concat(speecher.cloud_voices());
       // speak.js (vendor/speak_js/speakClient.js, loaded on every web page)
       if(window.speak || window.meSpeak) {
         var locale = ((i18n.langs || {}).preferred || window.navigator.language).replace(/_/, '-');
@@ -1498,6 +1498,60 @@ speecher.listen_for_voices = function() {
   if(!synth || !synth.addEventListener || speecher._voice_sources.indexOf(synth) != -1) { return; }
   speecher._voice_sources.push(synth);
   synth.addEventListener('voiceschanged', function() { speecher.device_voices_changed(synth); });
+};
+
+// The cloud voices (server TTS, /api/v1/search/audio) for the browser's language, plus English
+// and Ukrainian. with_backup_voices lists them only on a device with no voice of its own.
+speecher.cloud_voices = function() {
+  var list = [];
+  // Need a remote English voice for low-cost Kindles
+  if(!navigator.language.match(/en/)) {
+    list.push({
+      name: "English Female (Internet Required)",
+      lang: 'en-US',
+      remote_voice: true,
+      voiceURI: "remote:en-US:female"
+    });
+  }
+  var match = cloud_locales.find(function(loc) { return loc.match(navigator.language); });
+  var same = cloud_locales.filter(function(loc) { return loc.indexOf(navigator.language.split(/-|_/)[0]) == 0; });
+  if(match) {
+    same = [match];
+  }
+  same.forEach(function(match) {
+    var parts = match.split(':');
+    var loc = i18n.locales[parts[0].replace(/-/, '_')] || i18n.other_locales[parts[0].replace(/-/, '_')] || i18n.locales[parts[0].split(/-|_/)[0]];
+    if(parts[1].match(/f/) && loc) {
+      list.push({
+        name: loc + i18n.t('female_internet_required', " Female *Internet Required*"),
+        lang: parts[0],
+        remote_voice: true,
+        voiceURI: "remote:" + parts[0] + ":female"
+      });
+    }
+    if(parts[1].match(/m/) && loc) {
+      list.push({
+        name: loc + i18n.t('male_internet_required', " Male *Internet Required*"),
+        lang: parts[0],
+        remote_voice: true,
+        voiceURI: "remote:" + parts[0] + ":male"
+      });
+    }
+  });
+
+  if(!navigator.language.match(/uk/)) {
+    list.push({
+      name: i18n.t('female_ukranian_internet_required', "Ukranian Female *Internet Required*"),
+      lang: 'uk-UA',
+      remote_voice: true,
+      voiceURI: "remote:uk-UA:female"
+    });
+  }
+  // Irish (ga-IE) remote voice removed: the server-side Abair TTS endpoint was disabled
+  // 2026-07-23 (no DPA -- finding LL-a167848115), so /api/v1/search/audio now returns 400
+  // for `ga` locales. Offering it here would give Irish users a voice that can never
+  // succeed. Restore this option only if Irish TTS is re-enabled behind a DPA/SCCs.
+  return list;
 };
 
 // refresh_voices' store step. After boot, a different set of device voices means the user's
