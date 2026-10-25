@@ -148,7 +148,7 @@ var speecher = EmberObject.extend({
       _this.set('voices', voices);
     }, function() { });
     if(list) {
-      speecher.store_voice_list(speecher.with_backup_voices(list), device_voice_count);
+      speecher.store_device_voices(list, device_voice_count);
     }
     return list;
   },
@@ -1500,18 +1500,25 @@ speecher.listen_for_voices = function() {
   synth.addEventListener('voiceschanged', function() { speecher.device_voices_changed(synth); });
 };
 
-// The same two calls as utterance.update_voice (app/utils/utterance.js). update_voice_uri
-// (app/models/user.js) tries the current voice_uri before the saved voice_uris, and before the
-// device voices arrived that holds whatever it matched in the shorter list (speak_js:). Clear
-// it so the saved choice is found.
+// refresh_voices' store step. After boot, a different set of device voices means the user's
+// voice is looked up again, whichever of refresh_voices or voiceschanged sees them first.
+speecher.store_device_voices = function(list, device_voice_count) {
+  var had_list = !!speecher._built_voices;
+  var previous_key = speecher._device_voice_key;
+  speecher.store_voice_list(speecher.with_backup_voices(list), device_voice_count);
+  if(had_list && device_voice_count > 0 && speecher._device_voice_key != previous_key) {
+    speecher.reapply_user_voice();
+  }
+};
+
+// The same two calls as utterance.update_voice (app/utils/utterance.js), so the saved voice is
+// found in the new list. voice_uri is not cleared first: the alternate voice keeps no voice_uris
+// history (app/models/user.rb process_device rebuilds it for the main voice only), so its
+// voice_uri is the only copy of the user's choice.
 speecher.reapply_user_voice = function() {
   var appState = live_service(speecher.appState);
   var user = appState && appState.get('currentUser');
   if(!user || !user.update_voice_uri || !user.get('preferences.device.voice')) { return; }
-  user.set('preferences.device.voice.voice_uri', null);
-  if(user.get('preferences.device.alternate_voice')) {
-    user.set('preferences.device.alternate_voice.voice_uri', null);
-  }
   user.update_voice_uri();
   speecher.set_voice(user.get('preferences.device.voice'), user.get('preferences.device.alternate_voice'));
 };

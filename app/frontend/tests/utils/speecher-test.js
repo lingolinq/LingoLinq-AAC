@@ -1067,30 +1067,50 @@ describe('speecher', function() {
       expect(ids()).toContain('Google US English');
     });
 
-    it('applies the saved voice once device voices arrive, not the one matched before them', function() {
-      // update_voice_uri below follows app/models/user.js: the current voice_uri first, then the
-      // saved voice_uris (most recent first), and the first one listed wins.
-      var prefs = {voice: {voice_uri: null, voice_uris: ['Google US English', 'extra:acap:Ella'], volume: 1, pitch: 1, rate: 1}};
-      var user = {
-        get: function(key) { return key == 'preferences.device.voice' ? prefs.voice : (key == 'preferences.device.alternate_voice' ? undefined : null); },
-        set: function(key, val) { if(key == 'preferences.device.voice.voice_uri') { prefs.voice.voice_uri = val; } },
-        update_voice_uri: function() {
-          var uris = (prefs.voice.voice_uri ? [prefs.voice.voice_uri] : []).concat(prefs.voice.voice_uris);
-          var listed = speecher.get('voices').map(function(v) { return v.voiceURI; });
-          prefs.voice.voice_uri = uris.find(function(uri) { return listed.indexOf(uri) != -1; });
-        }
-      };
+    // A real user record, so update_voice_uri (app/models/user.js) runs as it does in the app
+    var signedIn = function(device) {
+      var user = LingoLinq.store.createRecord('user');
       stub(speecher, 'appState', {get: function(key) { return key == 'currentUser' ? user : null; }});
+      user.set('preferences', {device: device});
+      speecher.set_voice(user.get('preferences.device.voice'), user.get('preferences.device.alternate_voice'));
+      return user;
+    };
+
+    it('applies the saved voice once device voices arrive, not the one matched before them', function() {
       speecher.refresh_voices();
-      speecher.set('voices', [{voiceURI: 'extra:acap:Ella', name: 'Ella', lang: 'en-US'}].concat(speecher.get('voices')));
-      // At boot only the premium voice is listed, so that is what gets applied
-      user.update_voice_uri();
-      speecher.set_voice(prefs.voice);
-      expect(speecher.voiceURI).toEqual('extra:acap:Ella');
+      var user = signedIn({voice: {voice_uris: ['Google US English', 'speak_js:en-us'], volume: 1, pitch: 1}});
+      // Before the device voices arrive only the speak.js voice is listed, so that is what gets applied
+      expect(speecher.voiceURI).toEqual('speak_js:en-us');
       deviceVoices = google();
       synth.fire_voiceschanged();
       expect(speecher.voiceURI).toEqual('Google US English');
-      expect(prefs.voice.voice_uri).toEqual('Google US English');
+      expect(user.get('preferences.device.voice.voice_uri')).toEqual('Google US English');
+    });
+
+    it('applies the saved voice when a later refresh_voices call is the first to see the device voices', function() {
+      speecher.refresh_voices();
+      signedIn({voice: {voice_uris: ['Google US English'], volume: 1, pitch: 1}});
+      deviceVoices = google();
+      // components/premium-voices.js calls refresh_voices when it closes
+      speecher.refresh_voices();
+      synth.fire_voiceschanged();
+      expect(speecher.voiceURI).toEqual('Google US English');
+    });
+
+    it('keeps the alternate voice when the device voices change', function() {
+      // The alternate voice has no voice_uris history (app/models/user.rb rebuilds it for the main
+      // voice only), so its voice_uri is the one stored copy of the user's choice
+      deviceVoices = google();
+      speecher.refresh_voices();
+      var user = signedIn({
+        voice: {voice_uris: ['Google US English'], volume: 1, pitch: 1},
+        alternate_voice: {enabled: true, voice_uri: 'Google español'}
+      });
+      expect(speecher.alternate_voiceURI).toEqual('Google español');
+      deviceVoices = google().concat([{voiceURI: 'Microsoft Aria Online', name: 'Microsoft Aria Online', lang: 'en-US'}]);
+      synth.fire_voiceschanged();
+      expect(user.get('preferences.device.alternate_voice.voice_uri')).toEqual('Google español');
+      expect(speecher.alternate_voiceURI).toEqual('Google español');
     });
   });
 });
