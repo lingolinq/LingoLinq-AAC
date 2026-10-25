@@ -3025,7 +3025,16 @@ class User < ApplicationRecord
       EU_AI_PREF_KEYS.each { |k| self.settings['preferences'][k] = false }
       product_improvement_keys.each { |k| self.settings['preferences'][k] = false }
     end
-    if eu_under_16? && !eu_ai_parental_consent_active?
+    eu_ai_forced = eu_under_16? && !eu_ai_parental_consent_active?
+    if eu_ai_forced
+      EU_AI_PREF_KEYS.each { |k| self.settings['preferences'][k] = false }
+    end
+    # A child a school handed back (#1063) gets the same treatment until a parent consents: the
+    # server gate (FeatureFlags.coppa_blocks_ai_for?) is read for the signed-in person, so a
+    # stored "on" would still reach AI when a supervisor speaks as the child. The preferences
+    # page shows why the switch stays off (json 'school_handoff_ai_blocked').
+    handoff_ai_forced = !eu_ai_forced && school_handoff_blocks_ai?
+    if handoff_ai_forced
       EU_AI_PREF_KEYS.each { |k| self.settings['preferences'][k] = false }
     end
     if eu_under_16?
@@ -3035,7 +3044,8 @@ class User < ApplicationRecord
     # when, and the old and new value. Compared after normalization and the EU
     # override above, so a save that omits the keys, repeats a value, or sends a
     # dropped blank records nothing. A value the EU rule set, rather than the
-    # one this save asked for, is marked 'source' => 'eu_forced'.
+    # one this save asked for, is marked 'source' => 'eu_forced' ('handoff_forced'
+    # for the hand-back rule).
     EU_AI_PREF_KEYS.each do |key|
       before = ai_prefs_before[key]
       after = self.settings['preferences'][key]
@@ -3045,7 +3055,7 @@ class User < ApplicationRecord
       # request with no signed-in user (a sign-up) to a fixed system actor.
       whodunnit = PaperTrail.request.whodunnit
       updater_id = if non_user_params['updater'] then non_user_params['updater'].global_id
-                   elsif forced then 'system:eu_rule'
+                   elsif forced then (handoff_ai_forced ? 'system:handoff_rule' : 'system:eu_rule')
                    elsif whodunnit.to_s.start_with?('unauthenticated') then 'system:unauthenticated'
                    else whodunnit end
       entry = {
@@ -3055,7 +3065,7 @@ class User < ApplicationRecord
         'to' => after,
         'timestamp' => Time.now.utc.iso8601
       }
-      entry['source'] = 'eu_forced' if forced
+      entry['source'] = (handoff_ai_forced ? 'handoff_forced' : 'eu_forced') if forced
       entry['operator'] = non_user_params['operator'].global_id if non_user_params['operator']
       self.settings['confirmation_log'] ||= []
       self.settings['confirmation_log'] << entry

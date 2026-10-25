@@ -307,10 +307,34 @@ describe 'School-authorized hand-back to the family (#1063)', type: :model do
     it 'keeps AI off for a handed-back US under-13 whose family turns AI back on' do
       u = turn_ai_on!(hand_back!('US', suffix: 'us_ai_on'))
 
-      expect(FeatureFlags.user_pref_allows_ai?('ai_word_prediction', u)).to eq(true)
       expect(FeatureFlags.feature_enabled_for?('ai_word_prediction', u)).to eq(true)
       expect(FeatureFlags.coppa_blocks_ai_for?(u)).to eq(true)
       expect(FeatureFlags.ai_feature_enabled_for?('ai_word_prediction', u)).to eq(false)
+    end
+
+    # A supervisor speaking as the child is checked on the server as themselves
+    # (Api::WordsController#predict reads @api_user), and the client reads the child's stored
+    # preference, so the stored "on" must not stick while the block is on.
+    it 'stores the AI preferences as off while the block is on, and logs why' do
+      u = hand_back!('US', suffix: 'us_ai_forced')
+      # An "on" stored before this rule existed, so the save below has something to change.
+      User::EU_AI_PREF_KEYS.each { |k| u.settings['preferences'][k] = true }
+      u.save!
+      u = turn_ai_on!(u)
+
+      User::EU_AI_PREF_KEYS.each { |k| expect(u.settings['preferences'][k]).to eq(false) }
+      expect(FeatureFlags.user_pref_allows_ai?('ai_word_prediction', u)).to eq(false)
+      forced = (u.settings['confirmation_log'] || []).select { |e| e['source'] == 'handoff_forced' }
+      expect(forced.map { |e| e['setting'] }).to include('ai_features_enabled')
+      forced.each { |e| expect(e['updater']).to eq('system:handoff_rule') }
+      expect((u.settings['confirmation_log'] || []).select { |e| e['source'] == 'eu_forced' }).to be_empty
+    end
+
+    it 'tells the client the account is blocked so the preferences page can say why' do
+      u = hand_back!('US', suffix: 'us_ai_json')
+
+      json = JsonApi::User.as_json(u, :permissions => u)
+      expect(json['school_handoff_ai_blocked']).to eq(true)
     end
 
     it 'keeps AI off after an assumed-under-13 expiry at a US organization once the family turns AI on' do
@@ -322,7 +346,7 @@ describe 'School-authorized hand-back to the family (#1063)', type: :model do
       u = turn_ai_on!(u.reload)
 
       expect(handoff_events(u).first.data['age_basis']).to eq('unknown_assumed_under_13')
-      expect(FeatureFlags.user_pref_allows_ai?('ai_word_prediction', u)).to eq(true)
+      expect(FeatureFlags.coppa_blocks_ai_for?(u)).to eq(true)
       expect(FeatureFlags.ai_feature_enabled_for?('ai_word_prediction', u)).to eq(false)
     end
 
