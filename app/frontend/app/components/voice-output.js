@@ -123,6 +123,11 @@ export default Component.extend({
     ];
   }),
 
+  // Premium voices can only be downloaded in the installed apps.
+  premium_voices_supported: computed(function() {
+    return capabilities.tts.premium_voices_supported();
+  }),
+
   // Helper for the +/- number pickers — clamp rate/pitch/volume into a
   // sensible range and round to 1 decimal so the displayed value stays clean.
   _bump: function(field, delta) {

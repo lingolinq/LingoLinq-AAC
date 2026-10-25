@@ -48,7 +48,7 @@ module('Unit | Controller | system-settings/features save errors', function(hook
       // calls push_log(), which re-arms its periodic flush (app/services/stashes.js). This
       // timed out at 15s in CI (#1073). It is not needed: the controller sets saving to
       // false and calls modal.error in the same rejection callback
-      // (app/controllers/system-settings/features.js:196-198 and 213-215), so both values
+      // (app/controllers/system-settings/features.js:207-209 and 224-226), so both values
       // are final once the message has been shown.
       await waitUntil(function() { return shown.length > 0; }, { timeout: 3000 });
     } finally {

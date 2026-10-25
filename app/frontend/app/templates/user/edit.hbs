@@ -452,11 +452,11 @@
   <PreferenceBox @title="Integrations" @glyph="glyphicon glyphicon-link" @title_key="integrations_heading">
     <div class="md-edit-profile__integrations-row">
       <button class='md-edit-profile__integration-btn' {{on "click" (this.ctrlAction "browse_tools" "lessonpix")}}>
-        <img src='https://s3.amazonaws.com/lingolinq/icons/lessonpix.png' class="md-edit-profile__integration-icon">
+        <img src={{path "images/lessonpix.png"}} alt="" class="md-edit-profile__integration-icon">
         {{t "Connect To LessonPix" key="connect_lessonpix"}}
       </button>
       <button class='md-edit-profile__integration-btn' {{on "click" (this.ctrlAction "browse_tools" "ifttt")}}>
-        <img src='https://s3.amazonaws.com/lingolinq/icons/ifttt.png' class="md-edit-profile__integration-icon">
+        <img src={{path "images/logos/ifttt.png"}} alt="" class="md-edit-profile__integration-icon">
         {{t "Connect to IFTTT" key="connect_ifttt"}}
       </button>
     </div>
