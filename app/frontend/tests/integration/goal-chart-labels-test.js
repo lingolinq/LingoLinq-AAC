@@ -3,21 +3,22 @@ import { render } from '@ember/test-helpers';
 import { hbs } from 'ember-cli-htmlbars';
 import * as QUnit from 'qunit';
 import { stub, restoreStubs } from 'frontend/tests/helpers/jasmine';
+import { pinMomentAtOffset } from 'frontend/tests/helpers/fixed-offset-moment';
 import LingoLinq from 'frontend/app';
 import i18n from 'frontend/utils/i18n';
 
 /*
  * The goal page's two charts, rendered: the "Statistics By" grid
  * (Stats::GoalStatusesOverTime) and the area chart (Stats::GoalSummary).
- * This is the click-test for #1172 in test form: each week or month must be
- * labelled with the local date, in the grid's date row, in the grid's
- * tooltips, and on the chart's axis and tooltips.
+ * For #1172: each week or month must be labelled with the local date, in the
+ * grid's date row, in the grid's tooltips, and in the rows the area chart is
+ * given for its axis and tooltips.
  *
  * Every moment the goal model builds is shown at a fixed UTC offset with
  * "now" pinned, so the label is checked where the UTC date and the local date
  * differ, in CI (UTC) as on any other machine. The Google chart library is
- * replaced by a recorder, so what the chart was given is checked without
- * loading it.
+ * replaced by a recorder: this checks what the chart is given, not how Google
+ * draws it. e2e/goal-chart-labels.spec.js covers the grid in a real browser.
  */
 QUnit.module('Integration | goal chart date labels', function(hooks) {
   setupRenderingTest(hooks);
@@ -26,16 +27,7 @@ QUnit.module('Integration | goal chart date labels', function(hooks) {
     restoreStubs();
   });
 
-  function at_offset(now, offset) {
-    var base = window.moment;
-    stub(window, 'moment', function(a, b) {
-      if(a || b) {
-        return base(a, b).utcOffset(offset, true);
-      } else {
-        return base(now).utcOffset(offset);
-      }
-    });
-  }
+  var at_offset = pinMomentAtOffset;
 
   // One session with a status of 3 in the given month and, for a weekly goal,
   // in the given week. The weekly key follows the app's own formula

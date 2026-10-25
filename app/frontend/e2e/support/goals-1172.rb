@@ -6,6 +6,7 @@
 # Re-run it before each spec run: the sessions are placed relative to today, and the
 # weekly goal only charts by week while its sessions are inside the last 12 weeks.
 require_relative 'local_e2e'
+assert_local_e2e_database!
 
 user = e2e_user('e2e_goals_1172', 'board_view_style' => 'modern')
 device = Device.where(user_id: user.id).first || Device.create!(user: user)

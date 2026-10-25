@@ -7,6 +7,7 @@
 # Separate users so the specs never change the seeded `example` user's preferences
 # (an e2e run that writes a shared user's device prefs poisons later runs).
 require_relative 'local_e2e'
+assert_local_e2e_database!
 
 def e2e_board(user, name)
   key = "#{user.user_name}/#{name.parameterize}"

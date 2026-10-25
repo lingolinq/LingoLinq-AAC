@@ -12,6 +12,7 @@ import {
   runs,
   stub
 } from 'frontend/tests/helpers/jasmine';
+import { pinMomentAtOffset } from 'frontend/tests/helpers/fixed-offset-moment';
 import LingoLinq from '../../app';
 import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
@@ -354,16 +355,7 @@ describe('Goal', function() {
     // so the label is checked where a UTC date and the local date differ.
     // The weekly fixtures key the data with the app's own formula (goal.js time_units), so the
     // sessions checks below follow it; the server keys weeks differently (#1196).
-    var at_offset = function(now, offset) {
-      var base = window.moment;
-      stub(window, 'moment', function(a, b) {
-        if(a || b) {
-          return base(a, b).utcOffset(offset, true);
-        } else {
-          return base(now).utcOffset(offset);
-        }
-      });
-    };
+    var at_offset = pinMomentAtOffset;
     var stats_for = function(weekly_key) {
       var stats = {
         daily: {totals: {sessions: 0, statuses: []}},
@@ -400,6 +392,28 @@ describe('Goal', function() {
 
     it("labels a week with its local Sunday west of UTC", function() {
       at_offset('2026-07-15T20:00:00-07:00', -420);
+      var goal = LingoLinq.store.createRecord('goal');
+      goal.set('stats', stats_for(window.moment().weekday(1).format('GGGG-WW')));
+      expect(goal.get('best_time_level')).toEqual('weekly');
+      var units = goal.get('time_units');
+      expect(units[units.length - 1].sessions).toEqual(1);
+      expect(units[units.length - 1].label).toEqual('2026-07-12');
+    });
+
+    // At the week boundary the local week and the UTC week differ, so these catch a label
+    // taken from the UTC week, which is still a Sunday and agrees with local mid-week.
+    it("labels a week with its local Sunday early on a Sunday east of UTC", function() {
+      at_offset('2026-07-19T00:30:00+02:00', 120);
+      var goal = LingoLinq.store.createRecord('goal');
+      goal.set('stats', stats_for(window.moment().weekday(1).format('GGGG-WW')));
+      expect(goal.get('best_time_level')).toEqual('weekly');
+      var units = goal.get('time_units');
+      expect(units[units.length - 1].sessions).toEqual(1);
+      expect(units[units.length - 1].label).toEqual('2026-07-19');
+    });
+
+    it("labels a week with its local Sunday late on a Saturday west of UTC", function() {
+      at_offset('2026-07-18T20:00:00-07:00', -420);
       var goal = LingoLinq.store.createRecord('goal');
       goal.set('stats', stats_for(window.moment().weekday(1).format('GGGG-WW')));
       expect(goal.get('best_time_level')).toEqual('weekly');
