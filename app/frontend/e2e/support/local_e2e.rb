@@ -19,6 +19,7 @@ def assert_local_e2e_database!
 end
 
 def e2e_user(user_name, prefs)
+  assert_local_e2e_database!
   u = User.find_by(user_name: user_name) || User.process_new({
     'name' => user_name.tr('_', ' '), 'user_name' => user_name, 'email' => "#{user_name}@example.com",
     'password' => 'password', 'public' => false
