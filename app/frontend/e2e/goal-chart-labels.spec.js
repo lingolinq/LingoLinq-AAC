@@ -90,6 +90,7 @@ for (const zone of ZONES) {
         expect(label, 'a week column').toMatch(/^\d{4}-\d{2}-\d{2}$/);
         expect(weekdayOf(label), `week column ${label} is a Sunday`).toBe(0);
       }
+      expect(tooltipDates.length, 'the seeded statuses show in the grid').toBeGreaterThan(0);
       for (const date of tooltipDates) {
         expect(weekdayOf(date), `status tooltip ${date} is a Sunday`).toBe(0);
       }
