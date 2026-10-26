@@ -62,6 +62,20 @@ describe UserMailer, :type => :mailer do
     end
   end
 
+  # There is no in-app consent step for these accounts yet, so the notice says how to arrange it.
+  it 'points the family to the contact page to arrange consent, in both parts' do
+    o = Organization.create(settings: {'name' => 'Riverside District'})
+    u = handed_back_user(email: 'family_handoff_contact@example.com')
+
+    m = UserMailer.school_handoff_notice(u.global_id, o.global_id)
+
+    m.body.parts.each do |part|
+      body = CGI.unescapeHTML(part.body.to_s)
+      expect(body).to include('To arrange consent, contact us using the link below.')
+      expect(body).to include("#{JsonApi::Json.absolute_host}/contact")
+    end
+  end
+
   it 'sends nothing when the account has no email' do
     o = Organization.create
     u = handed_back_user(email: nil)

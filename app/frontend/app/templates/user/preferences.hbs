@@ -240,6 +240,7 @@
         <div class="col-sm-9 col-sm-offset-3">
           <p class="form-control-static" data-test-handoff-ai-notice>
             {{t "An organization's authorization for this account has ended. AI features stay off until a parent or guardian gives consent." key="school_handoff_ai_blocked_notice"}}
+            <LinkTo @route="contact">{{t "Contact us to arrange consent." key="school_handoff_ai_contact"}}</LinkTo>
           </p>
           {{#if this.handoffAiRefused}}
             <p class="form-control-static text-warning" role="alert" data-test-handoff-ai-refused>

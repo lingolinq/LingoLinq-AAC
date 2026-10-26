@@ -47,7 +47,7 @@ en:
     greeting: "Hi there!"
     intro: "%{org_name} no longer supports the %{app_name} account %{username}. The account stays open, and you can keep using it as before."
     intro_unnamed_org: "An organization no longer supports the %{app_name} account %{username}. The account stays open, and you can keep using it as before."
-    ai_notice: "AI features on the account were turned off when the organization let go. They stay off until a parent or guardian gives consent."
+    ai_notice: "AI features on the account were turned off when the organization let go. They stay off until a parent or guardian gives consent. To arrange consent, contact us using the link below."
     billing_notice: "If the organization was paying for the account, it no longer does."
     footer: "If you have questions, contact us."
     contact_link_label: "Contact Page"
