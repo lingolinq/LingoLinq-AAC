@@ -37,6 +37,7 @@ class User < ApplicationRecord
   end
 
   before_save :generate_defaults
+  before_save :force_blocked_ai_prefs_off
   after_save :track_boards
   after_save :notify_of_changes
 #  replicated_model
@@ -1547,6 +1548,21 @@ class User < ApplicationRecord
   # Org offboarding: force AI prefs off and invalidate any EU AI parental
   # consent so family re-enable requires a new parent grant. Caller is
   # responsible for save! / audit when used inside begin_family_offboarding.
+  # The EU under-16 and school hand-back AI rules (#1063) on every save, not only through
+  # process_params, which applies them first and logs them: a save that writes preferences another
+  # way (Subscription#transfer_eval_to through save_with_sync) must not store AI on while the block
+  # holds. Only values that read as on are turned off; an unset key stays unset, since an explicit
+  # off also stops voice transcription (User.ai_features_opted_out?).
+  def force_blocked_ai_prefs_off
+    prefs = self.settings && self.settings['preferences']
+    return true unless prefs.is_a?(Hash)
+    return true unless (eu_under_16? && !eu_ai_parental_consent_active?) || school_handoff_blocks_ai?
+    EU_AI_PREF_KEYS.each do |k|
+      prefs[k] = false if FeatureFlags::AI_PREF_TRUE_VALUES.include?(prefs[k])
+    end
+    true
+  end
+
   def apply_eu_ai_offboarding_reset!
     self.settings ||= {}
     self.settings['preferences'] ||= {}

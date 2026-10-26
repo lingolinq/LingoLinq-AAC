@@ -318,8 +318,13 @@ describe 'School-authorized hand-back to the family (#1063)', type: :model do
     it 'stores the AI preferences as off while the block is on, and logs why' do
       u = hand_back!('US', suffix: 'us_ai_forced')
       # An "on" stored before this rule existed, so the save below has something to change.
+      # User#force_blocked_ai_prefs_off would turn it off on this save, so it is held back for the
+      # seeding save only and restored before the save under test.
       User::EU_AI_PREF_KEYS.each { |k| u.settings['preferences'][k] = true }
+      allow(u).to receive(:force_blocked_ai_prefs_off).and_return(true)
       u.save!
+      expect(u.reload.settings['preferences']['ai_features_enabled']).to eq(true)
+      allow(u).to receive(:force_blocked_ai_prefs_off).and_call_original
       u = turn_ai_on!(u)
 
       User::EU_AI_PREF_KEYS.each { |k| expect(u.settings['preferences'][k]).to eq(false) }
@@ -347,6 +352,30 @@ describe 'School-authorized hand-back to the family (#1063)', type: :model do
       json = JsonApi::User.as_json(u.reload, :permissions => u)
       expect(json).to have_key('school_handoff_ai_blocked')
       expect(json['school_handoff_ai_blocked']).to eq(false)
+    end
+
+    # A save that writes preferences without process_params (Subscription#transfer_eval_to saves
+    # through save_with_sync) must not store AI on while the block holds.
+    it 'keeps the AI preferences off on a save that skips process_params' do
+      u = hand_back!('US', suffix: 'us_ai_direct_save')
+      User::EU_AI_PREF_KEYS.each { |k| u.settings['preferences'][k] = true }
+      u.save!
+
+      User::EU_AI_PREF_KEYS.each { |k| expect(u.reload.settings['preferences'][k]).to eq(false) }
+    end
+
+    it 'keeps an EU under-16 without consent off on a direct save, and leaves unset keys unset' do
+      u = User.create
+      u.settings['registration'] = {'eu_under_16' => true}
+      u.settings['preferences']['ai_features_enabled'] = true
+      u.settings['preferences']['ai_word_prediction'] = 'true'
+      u.settings['preferences'].delete('ai_symbol_search')
+      u.save!
+
+      u.reload
+      expect(u.settings['preferences']['ai_features_enabled']).to eq(false)
+      expect(u.settings['preferences']['ai_word_prediction']).to eq(false)
+      expect(u.settings['preferences']).not_to have_key('ai_symbol_search')
     end
 
     # The flag says something about the child's age and consent, so only someone who can supervise
