@@ -97,7 +97,7 @@ var capabilities;
   }
 
   capabilities = window.capabilities || {};
-  capabilities.fallback_host = 'https://app.mylingolinq.com';
+  capabilities.fallback_host = 'https://app.lingolinq.com';
   capabilities.installed_app = !!capabilities.installed_app;
   capabilities.browserless = !!(capabilities.installed_app || navigator.standalone);
   /**
@@ -1067,6 +1067,11 @@ var capabilities;
         downloadable_voices: function() {
           return tts_voices.all();
         },
+        // Premium voices download through the native bridge, so this is the
+        // same condition tts_exec uses to reach it; the web has neither.
+        premium_voices_supported: function() {
+          return !!((window.cordova && window.cordova.exec) || window.extra_tts);
+        },
         init: function() {
           return capabilities.tts.tts_exec('init', null, function(promise, res) {
             promise.resolve(res);
@@ -1197,7 +1202,7 @@ var capabilities;
             };
             var check_one = function(type) {
               var check_type = (capabilities.sharing.types()[type] || {})[capabilities.system] || type;
-              window.plugins.socialsharing.canShareVia(check_type, 'message', 'message', 'https://www.mylingolinq.com/images/logo-new.png', 'https://www.mylingolinq.com', function() {
+              window.plugins.socialsharing.canShareVia(check_type, 'message', 'message', 'https://app.lingolinq.com/images/logo-new.png', 'https://www.lingolinq.com', function() {
                 valids.push(type);
                 all_done();
               }, function() {

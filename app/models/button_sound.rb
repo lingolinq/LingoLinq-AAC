@@ -55,11 +55,16 @@ class ButtonSound < ApplicationRecord
       # Also "not permitted," not a failure. Both return false for a nil user.
       return if FeatureFlags.coppa_blocks_ai_for?(self.user)
       return if FeatureFlags.eu_under16_blocks_ai_for?(self.user)
-      # The org-wide disable_ai_features switch. Transcription is Google speech
-      # recognition, a standard service like text-to-speech and translation, so it
-      # is not gated by the account's personal AI preference (2026-09-30), which
-      # now defaults to off.
+      # The org-wide disable_ai_features switch.
       return unless FeatureFlags.ai_enabled_for?(self.user)
+      # The account's personal "Allow AI features" preference. Transcription is Google
+      # speech recognition, a standard service, so it keeps running while that preference
+      # was never set (AI features default to off, 2026-09-30); but an explicit opt-out
+      # stops it, so a recording is not sent to Google after the person turned AI off
+      # (2026-10-22). Only a recognizable "off" counts (FeatureFlags.ai_pref_value: false,
+      # 'false', 0, '0'); never set, blank or anything else still transcribes. Read from
+      # the recording's owner, as every check above is.
+      return if User.ai_features_opted_out?(self.user)
       if frd
         language_code, alternative_codes = SpeechLanguage.for_recording(self.settings['locale'], self.user)
         if !language_code

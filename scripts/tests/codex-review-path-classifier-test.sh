@@ -264,6 +264,38 @@ real_case codex 'lib/language/schema2_generator.rb'
 real_case codex 'app/models/user.rb'
 real_case blocked 'spec/fixtures/users.json'
 
+echo "== letter case: data-bearing and compliance patterns match in any case =="
+real_case blocked 'SPEC/FIXTURES/users.json'
+real_case blocked 'spec/Fixtures/users.json'
+head="$(commit_paths 'Docs/Legal/policy.md')"
+classify "$BASE" "$head" CODEX_COMPLIANCE_PATHS=block
+report claude-deep 'Docs/Legal/policy.md with CODEX_COMPLIANCE_PATHS=block'
+head="$(commit_paths 'AUDIT-REPORTS/findings.json')"
+classify "$BASE" "$head" CODEX_COMPLIANCE_PATHS=block
+report claude-deep 'AUDIT-REPORTS/findings.json with CODEX_COMPLIANCE_PATHS=block'
+head="$(commit_paths 'docs/legal/control.md')"
+classify "$BASE" "$head" CODEX_COMPLIANCE_PATHS=block
+report claude-deep 'docs/legal/control.md with CODEX_COMPLIANCE_PATHS=block (lowercase control)'
+
+echo "== every data-bearing pattern blocks on its own (each path matches that pattern alone) =="
+# Part B item 5a (2026-10-10): one case per pattern, chosen so no other pattern matches it, so
+# dropping any single pattern turns its case red. Lowercase and uppercase. Two patterns cannot be
+# isolated: '(^|/)fixtures/' is a subset of the fixtures|seeds|sample_data|test_data directory
+# pattern, and '(^|/)db/.*\.sql$' a subset of the .sql extension pattern.
+for p in 'spec/support/myfixtures/a.rb' 'spec/myfactories/a.rb' 'app/factories/a.rb' \
+         'spec/support/myfactories.rb' 'lib/factories.rb' 'db/seeds.rb' 'db/data/backfill.rb' \
+         'lib/tasks/import_users.rake' 'spec/vcr/stripe.yml' 'exports/users.json' 'test_data/a.rb'; do
+  real_case blocked "$p"
+  real_case blocked "$(printf '%s' "$p" | tr '[:lower:]' '[:upper:]')"
+done
+
+echo "== line-per-record and capture formats are data-bearing =="
+# Part B item 5b (2026-10-10): JSON Lines exports, HTTP archives (request and response bodies) and
+# logs carry records, wherever they sit.
+for p in 'exports/users.jsonl' 'spec/support/session.har' 'tmp/server.log' 'EXPORTS/USERS.JSONL'; do
+  real_case blocked "$p"
+done
+
 echo "== fail closed: nothing classified means exit 3 and no route =="
 classify "$BASE" "$BASE"
 report ERR3 'empty diff (base == head)'
@@ -272,6 +304,48 @@ report ERR3 'git diff fails (unknown head)'
 stub_case ERR3 'empty listing from git (stubbed git)' ''
 stub_case ERR3 'git diff exits non-zero after printing paths (stubbed git)' $'README.md\n' 128
 stub_case ERR3 'git-quoted path (stubbed git)' $'README.md\n"db/language/en/a\\tb.json"\n'
+# The reviewer steps read the names as UTF-8 (codex-review-assemble-prompt.py read_required), so a
+# name that is not UTF-8 would crash them; it must stop here instead. A data-bearing name of the
+# same shape stays blocked (the db/migrate case above). Control: a valid non-ASCII name still routes.
+head="$(commit_paths $'app/models/caf\351.rb')"
+classify "$BASE" "$head"
+report ERR3 'app/models/caf<0xe9>.rb (Latin-1 name)'
+head="$(commit_paths $'docs/legal/caf\351.md')"
+classify "$BASE" "$head" CODEX_COMPLIANCE_PATHS=block
+report ERR3 'docs/legal/caf<0xe9>.md with CODEX_COMPLIANCE_PATHS=block'
+real_case codex 'app/models/café.rb'
+# The UTF-8 check must fail closed when the checker itself fails.
+ICONV_STUB="$WORK/iconv-stub"
+mkdir -p "$ICONV_STUB"
+printf '#!/usr/bin/env bash\nexit 1\n' > "$ICONV_STUB/iconv"
+chmod +x "$ICONV_STUB/iconv"
+head="$(commit_paths 'app/models/user.rb')"
+classify "$BASE" "$head" PATH="$ICONV_STUB:$PATH"
+report ERR3 'iconv fails during the UTF-8 check'
+# glibc iconv accepts byte sequences that are not UTF-8 (a code point past U+10FFFF, the old
+# 5-byte form); the reviewer steps decode with Python, which rejects them, so the check must too.
+head="$(commit_paths $'app/models/a\364\220\200\200.rb')"
+classify "$BASE" "$head"
+report ERR3 'app/models/a<f4 90 80 80>.rb (past U+10FFFF)'
+head="$(commit_paths $'app/models/a\370\210\200\200\200.rb')"
+classify "$BASE" "$head"
+report ERR3 'app/models/a<f8 88 80 80 80>.rb (5-byte form)'
+# Every name is checked, not only the first one listed.
+head="$(commit_paths 'app/models/a.rb' $'app/models/z\351.rb')"
+classify "$BASE" "$head"
+report ERR3 'a valid name, then app/models/z<0xe9>.rb'
+# The same with a name only the Python check rejects (iconv accepts it), so a Python check that
+# reads only the first name fails here.
+head="$(commit_paths 'app/models/a.rb' $'app/models/z\364\220\200\200.rb')"
+classify "$BASE" "$head"
+report ERR3 'a valid name, then app/models/z<f4 90 80 80>.rb'
+PY_STUB="$WORK/python-stub"
+mkdir -p "$PY_STUB"
+printf '#!/usr/bin/env bash\nexit 1\n' > "$PY_STUB/python3"
+chmod +x "$PY_STUB/python3"
+head="$(commit_paths 'app/models/user.rb')"
+classify "$BASE" "$head" PATH="$PY_STUB:$PATH"
+report ERR3 'python3 fails during the UTF-8 check'
 # Its own directory: $STUBS still holds the git stub, which would turn this case into
 # the empty-listing case above and prove nothing about grep.
 GREP_STUB="$WORK/grep-stub"
@@ -331,6 +405,42 @@ list_case ERR3    'path list: a missing file fails closed'             MISSING
 list_case ERR3    'path list: a git-quoted path fails closed'          $'README.md\n"spec/fixtures/a\\tb.yml"\n'
 classify --paths-from ''
 report ERR3 'path list: an empty file name fails closed'
+
+echo "== data-bearing-only mode (--data-bearing-only), used by data-bearing-path-check.sh =="
+# The gate sends nothing to a reviewer, so a name that is not UTF-8 is not a reason to stop
+# it: without this mode such a name failed the required check with no approval route. The
+# mode writes only data_bearing, so a reviewer step that passed it would find no route and
+# never run. Without the flag the UTF-8 check stays (the Latin-1 ERR3 cases above).
+# db_only <label> <expect: true|false|ERR3> <classifier args...>
+db_only() {
+  local label="$1" expect="$2" out="$WORK/github_output" rc=0 data
+  shift 2
+  : > "$out"
+  (cd "$REPO" && env GITHUB_OUTPUT="$out" bash "$CLASSIFIER" --data-bearing-only "$@") >/dev/null 2>&1 || rc=$?
+  data="$(sed -n 's/^data_bearing=//p' "$out")"
+  if [ "$rc" = 3 ]; then
+    if [ -s "$out" ]; then RESULT="BAD:exit3-but-output-written"; else RESULT=ERR3; fi
+  elif [ "$rc" != 0 ]; then
+    RESULT="BAD:exit$rc"
+  elif grep -q -E '^(reviewer_route|compliance_path)=' "$out"; then
+    RESULT="BAD:route-written"
+  elif [ "$data" = true ] || [ "$data" = false ]; then
+    RESULT="$data"
+  else
+    RESULT="BAD:data_bearing=$data"
+  fi
+  report "$expect" "data-bearing-only: $label"
+}
+head="$(commit_paths $'app/models/caf\351.rb')"
+db_only 'diff: a Latin-1 code name is not data-bearing' false "$BASE" "$head"
+head="$(commit_paths $'spec/fixtures/caf\351.yml')"
+db_only 'diff: a Latin-1 fixture is data-bearing' true "$BASE" "$head"
+db_only 'diff: an empty diff fails closed' ERR3 "$BASE" "$BASE"
+printf 'app/models/caf\351.rb\n' > "$WORK/paths-list"
+db_only 'path list: a Latin-1 code name is not data-bearing' false --paths-from "$WORK/paths-list"
+printf 'README.md\nspec/fixtures/caf\351.yml\n' > "$WORK/paths-list"
+db_only 'path list: a Latin-1 fixture is data-bearing' true --paths-from "$WORK/paths-list"
+db_only 'path list: a missing file fails closed' ERR3 --paths-from "$WORK/no-such-list"
 
 echo
 if [ "$fails" -eq 0 ]; then

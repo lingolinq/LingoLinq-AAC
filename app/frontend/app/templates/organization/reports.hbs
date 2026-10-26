@@ -23,7 +23,7 @@
       </div>
     {{else if this.results}}
       {{#if this.results.error}}
-        <p class="md-org-error">{{this.results.error}}</p>
+        <p class="md-org-error">{{this.results.error.error}}</p>
       {{/if}}
 
       {{#if this.show_list_controls}}

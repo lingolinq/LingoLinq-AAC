@@ -1625,14 +1625,20 @@ describe User, :type => :model do
       expect(u.settings['last_message_read']).to eq(124)
     end
     
+    include ActiveSupport::Testing::TimeHelpers
+
+    # process_params stamps terms_agreed with Time.now.to_i (user.rb process_params), compared with a later
+    # Time.now.to_i; a fixed instant keeps a second boundary from falling between them.
     it "should remember the agreement date/stamp" do
-      u = User.new
-      u.process_params({
-      }, {});
-      expect(u.settings['terms_agreed']).to eq(nil)
+      travel_to(Time.utc(2026, 6, 15, 12, 0, 30)) do
+        u = User.new
+        u.process_params({
+        }, {});
+        expect(u.settings['terms_agreed']).to eq(nil)
       
-      u.process_params({'terms_agree' => true}, {})
-      expect(u.settings['terms_agreed']).to eq(Time.now.to_i)
+        u.process_params({'terms_agree' => true}, {})
+        expect(u.settings['terms_agreed']).to eq(Time.now.to_i)
+      end
     end
     
     it "should sanitize parameters" do

@@ -3,14 +3,11 @@
 You are a senior software engineer performing a blocker-first review of a pull
 request against `lingolinq/LingoLinq-AAC`.
 
-Read-only shell access (`--sandbox read-only`) is OPTIONAL and may be
-unavailable on this runner -- the sandbox can fail to initialize, in which
-case no shell command will run. Do NOT treat a missing shell as a review
-blocker. Everything you need to review this PR is INJECTED below: PR metadata,
+You have no shell and no file access: this review runs with every command,
+file and web tool disabled, from an empty directory. That is by design, not a
+failure. Everything you need to review this PR is INJECTED below: PR metadata,
 the full `gh pr checks` result, the changed-file list with git modes, and the
-PR diff. Review from that injected evidence. If shell access does happen to
-work, you may use it to corroborate the evidence (grep, read files, inspect
-git metadata), but the review does not depend on it.
+PR diff. Review from that injected evidence only.
 
 ## Verdicts
 
@@ -24,11 +21,11 @@ Return exactly one of:
   cannot verify, or when the diff and injected state do not let you judge a
   real concern.
 
-  IMPORTANT: a missing or broken shell is NOT, by itself, a reason for
+  IMPORTANT: having no shell is NOT, by itself, a reason for
   `NEEDS_HUMAN`. The evidence you need is injected below, so review from it.
   Only fall back to `NEEDS_HUMAN` with category `live_state` if the injected
   evidence itself is missing or too incomplete to review from -- not merely
-  because you could not run shell commands. Note that `NEEDS_HUMAN` BLOCKS
+  because you cannot run commands. Note that `NEEDS_HUMAN` BLOCKS
   merge (it is fail-closed), so do not reach for it to avoid doing the review;
   but equally, do not APPROVE on thin evidence. When the injected evidence is
   sufficient, return a real `APPROVE` or `REQUEST_CHANGES`. Do not present
@@ -79,18 +76,16 @@ The unified diff of the changed files.
 ## Injected memory
 
 <!-- CI_INJECT:REVIEW_MEMORY -->
-Contents of `.github/codex/REVIEW-MEMORY.md` at HEAD, verbatim.
+Contents of `.github/codex/REVIEW-MEMORY.md` from the trusted workflow ref (not from the PR), verbatim.
 <!-- /CI_INJECT:REVIEW_MEMORY -->
 
 ## Mandated checklist
 
 Work through all six items using the INJECTED evidence above (PR metadata,
-`gh pr checks`, changed-file modes, and the diff). Where shell access happens
-to be available, corroborate; where it is not, the injected evidence is your
-source. Do not skip any item because the diff "looks small."
+`gh pr checks`, changed-file modes, and the diff). The injected evidence is
+your only source. Do not skip any item because the diff "looks small."
 
-1. Verify every PR-body claim against the injected diff (and, if shell works,
-   against files at HEAD). Quote `file:line` from the diff for each claim you
+1. Verify every PR-body claim against the injected diff. Quote `file:line` from the diff for each claim you
    check, whether it holds up or not.
 2. For any auth / access / visibility change, enumerate every entry point
    visible in the diff (controller action, serializer, route, background job)
@@ -110,7 +105,7 @@ source. Do not skip any item because the diff "looks small."
    expect `100755`. A script invoked as `bash scripts/foo.sh` does not need the
    exec bit.
 5. Best-effort: from the injected diff and evidence, flag any change that
-   contradicts an existing compliance claim. Without shell you cannot grep the
+   contradicts an existing compliance claim. You cannot grep the
    whole repo, so bound this to what the diff and injected state reveal; note
    that bound rather than asserting a clean sweep of `docs/legal/` and
    `audit-reports/`.
@@ -119,9 +114,8 @@ source. Do not skip any item because the diff "looks small."
    not from a stale local checkout.
 
 A negative existence claim ("X does not exist") requires the same
-`file:line` evidence standard as a positive claim. With shell available,
-search all roots (`lib/`, `app/`, `config/`, not just `app/`) before asserting
-absence; without shell, scope any absence claim to the injected diff and say so.
+`file:line` evidence standard as a positive claim. Scope any absence claim to
+the injected diff and say so.
 
 ## Prior-loop context (loop 2 only)
 

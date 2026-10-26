@@ -340,8 +340,9 @@ describe("persistence", function() {
       db_wait(function() {
         var rnd = persistence.temporary_id();
         var record = null;
+        var stored_retrieved = (new Date()).getTime() - (5*60*1000 - 300);
         var obj = {
-          raw: {hat: rnd, retrieved: ((new Date()).getTime() - (5*60*1000 - 300))},
+          raw: {hat: rnd, retrieved: stored_retrieved},
           storageId: 'hat'
         };
         lingoLinqExtras.storage.store('settings', obj, 'hat').then(function() {
@@ -361,6 +362,11 @@ describe("persistence", function() {
             board.set('appState', state);
           }
           expect(record.hat).toEqual(rnd);
+          expect(board.get('retrieved')).toEqual(stored_retrieved);
+          // Re-anchor 300 ms inside the 5-minute window just before the synchronous check: the IndexedDB
+          // store, find and waitsFor poll above can take longer than 300 ms on a busy runner, which made
+          // the stored value stale before it was read.
+          board.set('retrieved', (new Date()).getTime() - (5*60*1000 - 300));
           expect(board.get('fresh')).toEqual(true);
           LingoLinq.sync_testing = true;
           setTimeout(function() {
