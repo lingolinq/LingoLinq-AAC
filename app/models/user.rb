@@ -656,8 +656,8 @@ class User < ApplicationRecord
         did_handoff = true
       end
 
-      # Under-16, and an under-13 whose age is only assumed: turn AI prefs off now. The family can
-      # turn them back on; for EU orgs, parental consent runs when they try.
+      # Under-16, and an under-13 whose age is only assumed: turn AI prefs off now. An EU under-16 needs
+      # parental consent to turn them back on; a handed-back child stays off until a parent consents.
       if attested_under_16 || attested_under_13 || eu_under_16?
         apply_eu_ai_offboarding_reset!
         did_ai = true
