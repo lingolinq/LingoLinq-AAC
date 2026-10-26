@@ -122,6 +122,30 @@ function coppaAiBlocked(user) {
 }
 
 /**
+ * The AI block on the person whose words prediction sends (currentUser, the communicator in speak
+ * mode): COPPA consent pending, a school hand-back with no parent consent, or an EU under-16
+ * without EU consent. Mirrors ApplicationController#ai_blocked_for_communicator? (#1063).
+ */
+function communicatorAiBlocked(appState) {
+  if(!appState || typeof appState.get !== 'function') { return false; }
+  var user = appState.get('currentUser');
+  return coppaAiBlocked(user) || euAiConsentRequired(user);
+}
+
+/**
+ * The user_id a word-prediction request names: the communicator's id when the signed-in person
+ * is speaking as someone else, otherwise null, and the server judges the signed-in person alone.
+ * 'self' is the offline copy's key for the signed-in person, not an id the server knows.
+ */
+function predictionCommunicatorId(appState) {
+  if(!appState || typeof appState.get !== 'function') { return null; }
+  var currentId = userAttr(appState.get('currentUser'), 'id');
+  if(!currentId || currentId === 'self') { return null; }
+  if(currentId === userAttr(appState.get('sessionUser'), 'id')) { return null; }
+  return currentId;
+}
+
+/**
  * Whether the signed-in person can change this account's AI settings. The
  * server writes them only for someone with `edit` on the account, and the user
  * model carries the viewer's permissions. Unknown permissions do not hide the
@@ -237,6 +261,8 @@ export default {
   prefExplicitlyEnabled: prefExplicitlyEnabled,
   euAiConsentRequired: euAiConsentRequired,
   coppaAiBlocked: coppaAiBlocked,
+  communicatorAiBlocked: communicatorAiBlocked,
+  predictionCommunicatorId: predictionCommunicatorId,
   authoringUser: authoringUser,
   authoringFlagEnabled: authoringFlagEnabled,
   authoringFeatureEnabled: authoringFeatureEnabled,
@@ -255,6 +281,8 @@ export {
   prefExplicitlyEnabled,
   euAiConsentRequired,
   coppaAiBlocked,
+  communicatorAiBlocked,
+  predictionCommunicatorId,
   authoringUser,
   authoringFlagEnabled,
   authoringFeatureEnabled,
