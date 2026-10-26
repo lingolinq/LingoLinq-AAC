@@ -3,7 +3,7 @@ class SupervisorConsentService
 
   # The global id of the organization stored on the last request_access relationship (nil when
   # none was stored or no relationship was made), for the caller's audit record.
-  attr_reader :requested_organization_id
+  attr_reader :requested_organization_id, :requested_relationship_id
 
   def create_with_supervisor(supervisor:, communicator_params:, owner_email:, permission_level: 'edit_boards')
     communicator = User.process_new(communicator_params)
@@ -38,10 +38,10 @@ class SupervisorConsentService
 
   def request_access(supervisor:, lookup_key:, permission_level: 'view_only', organization_id: nil)
     @requested_organization_id = nil
+    @requested_relationship_id = nil
     # F1: Anti-timing side-channel. An unknown permission level is answered before the lookup,
     # the same way for every account (it would otherwise fail only once an account was found).
     if lookup_key.blank? || !SupervisorRelationship::PERMISSION_LEVELS.include?(permission_level.to_s)
-      ::BCrypt::Password.create(SecureRandom.hex) rescue nil
       return { message: GENERIC_LOOKUP_MESSAGE }
     end
 
@@ -59,7 +59,6 @@ class SupervisorConsentService
       # If communicator is in an org, supervisor must be in same org or be a manager
       if comm_orgs.any? && (comm_orgs & sup_orgs).empty? && !Organization.manager_for?(supervisor, communicator)
         # Still return generic message to prevent leaking that user exists but is in different org
-        ::BCrypt::Password.create(SecureRandom.hex) rescue nil
         return { message: GENERIC_LOOKUP_MESSAGE }
       end
 
@@ -97,15 +96,17 @@ class SupervisorConsentService
         target_email ||= communicator.settings['email']
         
         relationship.consent_email_sent_to = target_email
-        relationship.save!
+        begin
+          relationship.save!
+        rescue ActiveRecord::RecordNotUnique
+          return { message: GENERIC_LOOKUP_MESSAGE }
+        end
+        @requested_relationship_id = relationship.global_id
         @requested_organization_id = relationship.organization_id && Organization.new(id: relationship.organization_id).global_id
         relationship.generate_consent_token!
         
         SupervisorMailer.schedule_delivery(:consent_request, relationship.global_id)
       end
-    else
-      # Burn some time to match the "found" path
-      ::BCrypt::Password.create(SecureRandom.hex) rescue nil
     end
 
     { message: GENERIC_LOOKUP_MESSAGE }

@@ -157,6 +157,77 @@ describe Api::SupervisorRelationshipsController, type: :controller do
       expect(json['meta']['message']).to eq(SupervisorConsentService::GENERIC_LOOKUP_MESSAGE)
     end
 
+    it "does not store the lookup value on the access-request audit" do
+      token_user
+      u2 = User.create
+      allow(SupervisorMailer).to receive(:schedule_delivery)
+      logged = []
+      allow(AuditEvent).to receive(:log_command){|_actor, data| logged << data }
+      post :create, params: {
+        supervisor_relationship: {
+          lookup_key: u2.user_name,
+          permission_level: 'view_only'
+        }
+      }
+      expect(response).to be_successful
+      request_audits = logged.select{|d| d['type'] == 'supervisor_access_request' }
+      expect(request_audits.length).to eq(1)
+      expect(request_audits.first).not_to have_key('lookup_key')
+      expect(request_audits.first.values.join(' ')).not_to include(u2.user_name)
+    end
+
+    it "logs the created relationship id, and nothing extra when no row is created" do
+      token_user
+      u2 = User.create
+      allow(SupervisorMailer).to receive(:schedule_delivery)
+      logged = []
+      allow(AuditEvent).to receive(:log_command){|_actor, data| logged << data }
+      post :create, params: {
+        supervisor_relationship: {
+          lookup_key: u2.user_name,
+          permission_level: 'view_only'
+        }
+      }
+      expect(response).to be_successful
+      created = SupervisorRelationship.find_by(supervisor_user_id: @user.id, communicator_user_id: u2.id)
+      request_audits = logged.select{|d| d['type'] == 'supervisor_access_request' }
+      expect(request_audits.length).to eq(1)
+      expect(request_audits.first['relationship_id']).to eq(created.global_id)
+
+      post :create, params: {
+        supervisor_relationship: {
+          lookup_key: 'nobody-home@example.com',
+          permission_level: 'view_only'
+        }
+      }
+      missing = logged.select{|d| d['type'] == 'supervisor_access_request' }.last
+      expect(missing.keys).to match_array(['type', 'permission_level', 'organization_id'])
+      expect(missing).not_to have_key('relationship_id')
+      expect(missing).not_to have_key('lookup_key')
+      expect(missing.values.compact.join(' ')).not_to include('nobody-home@example.com')
+    end
+
+    it "returns the generic message and still audits when the insert is a duplicate" do
+      token_user
+      u2 = User.create
+      allow(SupervisorMailer).to receive(:schedule_delivery)
+      logged = []
+      allow(AuditEvent).to receive(:log_command){|_actor, data| logged << data }
+      allow_any_instance_of(SupervisorRelationship).to receive(:save!).and_raise(ActiveRecord::RecordNotUnique)
+      post :create, params: {
+        supervisor_relationship: {
+          lookup_key: u2.user_name,
+          permission_level: 'view_only'
+        }
+      }
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['meta']['message']).to eq(SupervisorConsentService::GENERIC_LOOKUP_MESSAGE)
+      request_audits = logged.select{|d| d['type'] == 'supervisor_access_request' }
+      expect(request_audits.length).to eq(1)
+      expect(request_audits.first).not_to have_key('relationship_id')
+    end
+
     it "should return same message for nonexistent user" do
       token_user
       post :create, params: {
