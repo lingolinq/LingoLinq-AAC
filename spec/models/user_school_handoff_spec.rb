@@ -337,6 +337,18 @@ describe 'School-authorized hand-back to the family (#1063)', type: :model do
       expect(json['school_handoff_ai_blocked']).to eq(true)
     end
 
+    # Ember Data keeps an attribute a later response leaves out, so the lifted block has to be
+    # sent as false, or the client keeps refusing AI after a parent consents.
+    it 'tells the client the block has lifted once a parent consents' do
+      u = hand_back!('US', suffix: 'us_ai_json_lifted')
+      u.settings['coppa'] = {'parent_consent_granted_at' => Time.now.utc.iso8601}
+      u.save!
+
+      json = JsonApi::User.as_json(u.reload, :permissions => u)
+      expect(json).to have_key('school_handoff_ai_blocked')
+      expect(json['school_handoff_ai_blocked']).to eq(false)
+    end
+
     it 'keeps AI off after an assumed-under-13 expiry at a US organization once the family turns AI on' do
       o = Organization.create(settings: {'total_licenses' => 1, 'jurisdiction' => 'US'})
       u = school_authorized_user!(suffix: 'us_assumed_ai_on', ai_on: true)
