@@ -132,6 +132,44 @@ describe Api::GoalsController, type: :controller do
       expect(json['goal']['stats']['daily']).to eq(zoned['daily'])
     end
 
+    describe "the viewer's time zone is honoured only for a viewer who may read the logs" do
+      # Regrouping by a viewer-chosen zone narrows when each session happened, so it follows the
+      # logs#index rules: the communicator, or a supervisor with supervise or set_goals, and no
+      # private logging or logging cutoff hiding the logs.
+      def supervised_goal(prefs = {})
+        token_user
+        u = User.create
+        u.settings['preferences'].merge!(prefs)
+        u.save
+        User.link_supervisor_to_user(@user, u)
+        [u, UserGoal.create(:user => u.reload)]
+      end
+
+      it "regroups for a supervisor who can read the logs" do
+        u, g = supervised_goal
+        expect_any_instance_of(UserGoal).to receive(:stats_in_zone).with('Europe/Berlin').and_return(g.settings['stats'].merge('zone' => 'Europe/Berlin'))
+        get :show, params: {:id => g.global_id, :tz => 'Europe/Berlin'}
+        expect(response).to be_successful
+        expect(JSON.parse(response.body)['goal']['stats']['zone']).to eq('Europe/Berlin')
+      end
+
+      it "uses the stored stats when the communicator keeps their logs private" do
+        u, g = supervised_goal('private_logging' => true)
+        expect_any_instance_of(UserGoal).not_to receive(:stats_in_zone)
+        get :show, params: {:id => g.global_id, :tz => 'Europe/Berlin'}
+        expect(response).to be_successful
+        expect(JSON.parse(response.body)['goal']['stats']['zone']).to eq(nil)
+      end
+
+      it "uses the stored stats when a logging cutoff applies to the viewer" do
+        u, g = supervised_goal('logging_cutoff' => 24)
+        expect_any_instance_of(UserGoal).not_to receive(:stats_in_zone)
+        get :show, params: {:id => g.global_id, :tz => 'Europe/Berlin'}
+        expect(response).to be_successful
+        expect(JSON.parse(response.body)['goal']['stats']['zone']).to eq(nil)
+      end
+    end
+
     it "returns the stored stats when no time zone is given or it is unknown" do
       token_user
       g = UserGoal.create(:user => @user)
