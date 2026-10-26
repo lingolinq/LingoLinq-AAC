@@ -9,7 +9,7 @@ export default Route.extend({
   model: function(params) {
     var user = this.modelFor('user');
     user.set('subroute_name', i18n.t('goals', "goals"));
-    return this.store.findRecord('goal', params.goal_id);
+    return this.store.findRecord('goal', params.goal_id, this.persistence.get('online') ? {reload: true} : {});
   },
   setupController: function(controller, model) {
     var wait = resolve();
@@ -33,5 +33,9 @@ export default Route.extend({
         controller.send('cancel_edit');
       }
     });
-  }
+  },
+  // model() fetches the goal again while online: only the goal's own request returns stats
+  // grouped at the viewer's midnight (adapters/goal.js, #1196), and a goal the goals list
+  // loaded holds the stored UTC grouping, which findRecord would hand straight back.
+  persistence: service('persistence')
 });
