@@ -19,6 +19,12 @@ class Api::WordSuggestionsController < ApplicationController
     if FeatureFlags.eu_under16_blocks_ai_for?(@api_user)
       return render json: { error: 'parental consent required', words: [] }, status: 403
     end
+    # Speaking as someone (#1063): their own AI block applies too.
+    communicator = ai_prediction_communicator
+    return unless communicator
+    if ai_blocked_for_communicator?(communicator)
+      return render json: { error: 'parental consent required', words: [] }, status: 403
+    end
     # EU AI Act Article 50(1) server-side backstop (shared helper LL-6723438462):
     # a client that skips the ai-disclosure modal and calls this endpoint directly
     # must still be refused. See ApplicationController#article_50_disclosure_missing?.
