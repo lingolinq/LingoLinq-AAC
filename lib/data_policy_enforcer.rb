@@ -155,10 +155,15 @@ module DataPolicyEnforcer
                           .where('started_at < ?', cutoff)
                           .where('started_at >= ?', started)
 
+        goal_ids = []
         stale.find_each do |session|
+          goal_ids << session.goal_id if session.goal_id.to_i > 0
           Flusher.flush_record(session)
           count += 1
         end
+        # A goal stores stats built from its sessions; saving it rebuilds them
+        # (UserGoal#generate_defaults), so they stop counting the purged ones.
+        UserGoal.where(id: goal_ids.uniq).find_each(&:save)
       end
     end
     count

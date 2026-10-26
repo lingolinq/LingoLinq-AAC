@@ -119,6 +119,30 @@ describe Api::GoalsController, type: :controller do
       json = JSON.parse(response.body)
       expect(json['goal']['id']).to eq(g.global_id)
     end
+
+    it "returns the stats grouped in the viewer's time zone when one is given" do
+      token_user
+      g = UserGoal.create(:user => @user)
+      zoned = g.settings['stats'].merge('zone' => 'Europe/Berlin', 'daily' => {'2026-07-31' => {'sessions' => 1}, 'totals' => {'sessions' => 1}})
+      expect_any_instance_of(UserGoal).to receive(:stats_in_zone).with('Europe/Berlin').and_return(zoned)
+      get :show, params: {:id => g.global_id, :tz => 'Europe/Berlin'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['goal']['stats']['zone']).to eq('Europe/Berlin')
+      expect(json['goal']['stats']['daily']).to eq(zoned['daily'])
+    end
+
+    it "returns the stored stats when no time zone is given or it is unknown" do
+      token_user
+      g = UserGoal.create(:user => @user)
+      get :show, params: {:id => g.global_id}
+      expect(JSON.parse(response.body)['goal']['stats']['zone']).to eq(nil)
+      get :show, params: {:id => g.global_id, :tz => 'Not/AZone'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['goal']['stats']['zone']).to eq(nil)
+      expect(json['goal']['stats']['daily']).to eq(g.reload.settings['stats']['daily'])
+    end
   end
 
   describe "create" do

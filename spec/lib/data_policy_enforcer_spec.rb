@@ -70,6 +70,23 @@ describe DataPolicyEnforcer do
       expect(LogSession.where(id: fresh.id).count).to eq(1)
     end
 
+    it "rebuilds the stats of a goal whose sessions it purged" do
+      # A goal's stats are stored on the goal; left alone they keep counting the purged sessions.
+      o, u = sponsored_org(3)
+      goal = UserGoal.create(user: u)
+      stale = log(u, 'note', 5.months.ago)
+      fresh = log(u, 'note', 1.month.ago)
+      [stale, fresh].each { |s| s.update_column(:goal_id, goal.id) }
+      goal.reload.save!
+      expect(goal.reload.settings['stats']['sessions']).to eq(2)
+
+      expect(DataPolicyEnforcer.enforce_retention!).to eq(1)
+
+      expect(LogSession.where(id: stale.id).count).to eq(0)
+      expect(goal.reload.settings['stats']['sessions']).to eq(1)
+      expect(goal.settings['stats']['monthly']['totals']['sessions']).to eq(1)
+    end
+
     it "bounds the purge by the seat grant when the link is older than the seat" do
       # The link's 'added' stamp is written once, with ||=, so an invitation or an unsponsored
       # attachment that a later claim converts keeps its original date. Sponsorship began when

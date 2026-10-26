@@ -47,7 +47,7 @@ class Api::GoalsController < ApplicationController
     goal = UserGoal.find_by_global_id(params['id'])
     return unless exists?(goal, params['id'])
     return unless allowed?(goal, 'view')
-    render json: JsonApi::Goal.as_json(goal, :wrapper => true, :permissions => @api_user).to_json
+    render json: JsonApi::Goal.as_json(goal, :wrapper => true, :permissions => @api_user, :time_zone => params['tz']).to_json
   end
   
   def create

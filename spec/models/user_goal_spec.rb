@@ -221,6 +221,65 @@ describe UserGoal, type: :model do
     end
   end
   
+  describe "stats_in_zone" do
+    include ActiveSupport::Testing::TimeHelpers
+
+    # Pinned mid-day on a Wednesday, so no window edge (2 weeks, 12 weeks) and no midnight is near.
+    around(:each) do |example|
+      travel_to(Time.utc(2026, 8, 5, 12, 0, 0)) { example.run }
+    end
+
+    def goal_with_sessions(times)
+      u = User.create
+      g = UserGoal.create(:user => u)
+      sessions = times.map do |t|
+        double('log_session', :started_at => t, :data => {'goal' => {'positives' => 1, 'negatives' => 0, 'status' => 3}})
+      end
+      allow(LogSession).to receive(:where).with({:user_id => g.user_id, :goal_id => g.id}).and_return(sessions)
+      g.generate_stats
+      g
+    end
+
+    it "keeps storing the UTC grouping, with the server's week key" do
+      # Wed 2026-07-15 belongs to the week of Sunday 2026-07-12, ISO week 28.
+      g = goal_with_sessions([Time.utc(2026, 7, 15, 12, 0, 0)])
+      expect(g.settings['stats']['weekly'].keys.sort).to eq(['2026-28', 'totals'])
+      expect(g.settings['stats']['zone']).to eq(nil)
+    end
+
+    it "regroups days, weeks and months at local midnight in the given zone" do
+      day = Time.utc(2026, 7, 30, 22, 15, 0)    # Berlin: Fri 2026-07-31 00:15
+      month = Time.utc(2026, 7, 31, 22, 30, 0)  # Berlin: Sat 2026-08-01 00:30
+      week = Time.utc(2026, 7, 25, 22, 30, 0)   # Berlin: Sun 2026-07-26 00:30
+      g = goal_with_sessions([day, month, week])
+
+      expect(g.settings['stats']['daily'].keys.sort).to eq(['2026-07-25', '2026-07-30', '2026-07-31', 'totals'])
+      expect(g.settings['stats']['monthly'].keys.sort).to eq(['2026-07', 'totals'])
+      expect(g.settings['stats']['weekly'].keys.sort).to eq(['2026-29', '2026-30', 'totals'])
+
+      stats = g.stats_in_zone('Europe/Berlin')
+      expect(stats['zone']).to eq('Europe/Berlin')
+      expect(stats['daily'].keys.sort).to eq(['2026-07-26', '2026-07-31', '2026-08-01', 'totals'])
+      expect(stats['monthly'].keys.sort).to eq(['2026-07', '2026-08', 'totals'])
+      expect(stats['monthly']['2026-08']).to eq({'sessions' => 1, 'positives' => 1, 'negatives' => 0, 'statuses' => [3]})
+      # The Sunday 00:30 session starts the next week in Berlin, joining the other two.
+      expect(stats['weekly'].keys.sort).to eq(['2026-30', 'totals'])
+      expect(stats['weekly']['2026-30']['sessions']).to eq(3)
+      # The rest of the stats are the stored ones, and the stored stats are untouched.
+      expect(stats['sessions']).to eq(3)
+      expect(g.settings['stats']['zone']).to eq(nil)
+      expect(g.settings['stats']['daily'].keys.sort).to eq(['2026-07-25', '2026-07-30', '2026-07-31', 'totals'])
+    end
+
+    it "returns nil for a missing or unknown zone" do
+      g = goal_with_sessions([Time.utc(2026, 7, 15, 12, 0, 0)])
+      expect(g.stats_in_zone(nil)).to eq(nil)
+      expect(g.stats_in_zone('')).to eq(nil)
+      expect(g.stats_in_zone('Not/AZone')).to eq(nil)
+      expect(g.stats_in_zone(['Europe/Berlin'])).to eq(nil)
+    end
+  end
+
   describe "remove_if_primary" do
     it "should remove as primary goal if set" do
       u = User.create

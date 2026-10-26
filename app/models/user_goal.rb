@@ -143,45 +143,7 @@ class UserGoal < ApplicationRecord
     # monthly for all time
     # TODO: sharding
     sessions = LogSession.where(user_id: self.user_id, :goal_id => self.id).select{|s| s.started_at } if self.id
-    stats['monthly'] = {}
-    suggested_level = 'monthly'
-    # weekly for the past 12 weeks
-    stats['weekly'] = {}
-    weekly_sessions = sessions.select{|s| s.started_at && s.started_at > 12.weeks.ago }
-    suggested_level = 'weekly' if weekly_sessions.length == sessions.length
-    # daily for the past 2 weeks
-    stats['daily'] = {}
-    daily_sessions = sessions.select{|s| s.started_at && s.started_at > 2.weeks.ago }
-    suggested_level = 'daily' if daily_sessions.length == weekly_sessions.length
-    [[daily_sessions, 'daily'], [weekly_sessions, 'weekly'], [sessions, 'monthly']].each do |sessions, level|
-      sessions.each do |session|
-        key = session.started_at.utc.iso8601[0, 10]
-        weekyear = WeeklyStatsSummary.date_to_weekyear(session.started_at.utc).to_s
-        key = "#{weekyear[0, 4]}-#{weekyear[4, 2]}" if level == 'weekly'
-        key = session.started_at.utc.iso8601[0, 7] if level == 'monthly'
-        [key, 'totals'].each do |k|
-          stats[level][k] ||= {}
-          stats[level][k]['sessions'] ||= 0
-          stats[level][k]['sessions'] += 1
-          stats[level][k]['positives'] ||= 0
-          if session.data['goal'] && session.data['goal']['positives']
-            stats[level][k]['positives'] += session.data['goal']['positives'].to_i
-          end
-          stats[level][k]['negatives'] ||= 0
-          if session.data['goal'] && session.data['goal']['negatives']
-            stats[level][k]['negatives'] += session.data['goal']['negatives'].to_i
-          end
-          stats[level][k]['statuses'] ||= []
-          stats[level][k]['statuses'] << session.data['goal']['status'] if session.data['goal'] && session.data['goal']['status']
-        end
-      end
-      stats[level]['totals'] ||= {
-        'sessions' => 0,
-        'positives' => 0,
-        'negatives' => 0,
-        'statuses' => []
-      }
-    end
+    suggested_level = UserGoal.group_sessions(stats, sessions, ActiveSupport::TimeZone['UTC'])
     all_statuses = stats['monthly']['totals']['statuses']
     status_tally = 0.0
     positive_tally = 0.0
@@ -236,6 +198,70 @@ class UserGoal < ApplicationRecord
     self.settings['stats'] = stats
   end
   
+  # Sorts a goal's sessions into daily (past 2 weeks), weekly (past 12 weeks) and monthly
+  # buckets, each day starting at midnight in zone. A week is keyed by the server's week, the
+  # one starting on the Sunday on or before the date (WeeklyStatsSummary.date_to_weekyear).
+  # Writes stats['daily'], stats['weekly'] and stats['monthly'] and returns the suggested level.
+  def self.group_sessions(stats, sessions, zone)
+    stats['monthly'] = {}
+    suggested_level = 'monthly'
+    # weekly for the past 12 weeks
+    stats['weekly'] = {}
+    weekly_sessions = sessions.select{|s| s.started_at && s.started_at > 12.weeks.ago }
+    suggested_level = 'weekly' if weekly_sessions.length == sessions.length
+    # daily for the past 2 weeks
+    stats['daily'] = {}
+    daily_sessions = sessions.select{|s| s.started_at && s.started_at > 2.weeks.ago }
+    suggested_level = 'daily' if daily_sessions.length == weekly_sessions.length
+    [[daily_sessions, 'daily'], [weekly_sessions, 'weekly'], [sessions, 'monthly']].each do |sessions, level|
+      sessions.each do |session|
+        local = session.started_at.in_time_zone(zone)
+        key = local.strftime('%Y-%m-%d')
+        weekyear = WeeklyStatsSummary.date_to_weekyear(local).to_s
+        key = "#{weekyear[0, 4]}-#{weekyear[4, 2]}" if level == 'weekly'
+        key = local.strftime('%Y-%m') if level == 'monthly'
+        [key, 'totals'].each do |k|
+          stats[level][k] ||= {}
+          stats[level][k]['sessions'] ||= 0
+          stats[level][k]['sessions'] += 1
+          stats[level][k]['positives'] ||= 0
+          if session.data['goal'] && session.data['goal']['positives']
+            stats[level][k]['positives'] += session.data['goal']['positives'].to_i
+          end
+          stats[level][k]['negatives'] ||= 0
+          if session.data['goal'] && session.data['goal']['negatives']
+            stats[level][k]['negatives'] += session.data['goal']['negatives'].to_i
+          end
+          stats[level][k]['statuses'] ||= []
+          stats[level][k]['statuses'] << session.data['goal']['status'] if session.data['goal'] && session.data['goal']['status']
+        end
+      end
+      stats[level]['totals'] ||= {
+        'sessions' => 0,
+        'positives' => 0,
+        'negatives' => 0,
+        'statuses' => []
+      }
+    end
+    suggested_level
+  end
+
+  # The stored stats with the daily, weekly and monthly buckets regrouped at midnight in the named
+  # time zone (an IANA name from the viewer's device), so the goal charts show the viewer's own
+  # days (#1196). The stored stats stay grouped by UTC for older app versions; nothing is saved.
+  # nil when the zone is missing or unknown or there are no stats.
+  def stats_in_zone(zone_name)
+    return nil unless zone_name.is_a?(String) && zone_name.present? && self.id
+    zone = ActiveSupport::TimeZone[zone_name]
+    stored = self.settings && self.settings['stats']
+    return nil unless zone && stored
+    stats = stored.dup
+    sessions = LogSession.where(user_id: self.user_id, :goal_id => self.id).select{|s| s.started_at }
+    stats['suggested_level'] = UserGoal.group_sessions(stats, sessions, zone)
+    stats['zone'] = zone.tzinfo.name
+    stats
+  end
+
   def goal_code(user)
     self.class.goal_code(self.global_id, user)
     # raise "user required" unless user
