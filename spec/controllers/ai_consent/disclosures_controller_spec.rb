@@ -104,7 +104,10 @@ describe AiConsent::DisclosuresController, :type => :controller do
       expect(body).to include('data-disclosure-version="2"')
       expect(body).to include(LingoLinq::AiConsentDisclosures.content_hash(2))
       expect(body).to include(I18n.t('ai_consent_disclosures.v2.no_consent_body'))
-      expect(body).to include('the account passes to the parent or guardian with a notice. AI features then stay off until a parent or guardian gives consent.')
+      # Scoped to the accounts the hand-back applies to (User#begin_family_offboarding_consents!
+      # ends school_authorization only for an under-13), and the notice only goes to an email on file.
+      expect(body).to include("If that authorization stood in for a parent's consent, the account passes to the parent or guardian, with a notice sent to the account's email address if it has one, and AI features stay off until a parent or guardian gives consent.")
+      expect(body).not_to include('AI features then stay off')
       expect(body).not_to include(old_sentence)
       expect(body).not_to include('translation missing')
     end
