@@ -153,6 +153,31 @@ describe Api::GoalsController, type: :controller do
         expect(JSON.parse(response.body)['goal']['stats']['zone']).to eq('Europe/Berlin')
       end
 
+      it "uses the stored stats for a supervisor on a modeling-only link" do
+        token_user
+        u = User.create
+        User.link_supervisor_to_user(@user, u, nil, 'modeling_only')
+        g = UserGoal.create(:user => u.reload)
+        expect_any_instance_of(UserGoal).not_to receive(:stats_in_zone)
+        get :show, params: {:id => g.global_id, :tz => 'Europe/Berlin'}
+        expect(response).to be_successful
+        expect(JSON.parse(response.body)['goal']['stats']['zone']).to eq(nil)
+      end
+
+      it "uses the stored stats for an admin acting as a communicator who keeps their logs private" do
+        admin_org = Organization.create(admin: true)
+        token_user
+        admin_org.add_manager(@user.user_name, true)
+        u = User.create
+        u.settings['preferences']['private_logging'] = true
+        u.save
+        g = UserGoal.create(:user => u)
+        expect_any_instance_of(UserGoal).not_to receive(:stats_in_zone)
+        get :show, params: {:id => g.global_id, :tz => 'Europe/Berlin', :as_user_id => u.global_id}
+        expect(response).to be_successful
+        expect(JSON.parse(response.body)['goal']['stats']['zone']).to eq(nil)
+      end
+
       it "uses the stored stats when the communicator keeps their logs private" do
         u, g = supervised_goal('private_logging' => true)
         expect_any_instance_of(UserGoal).not_to receive(:stats_in_zone)

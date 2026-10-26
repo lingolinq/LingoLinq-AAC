@@ -256,17 +256,24 @@ class UserGoal < ApplicationRecord
     stored = self.settings && self.settings['stats']
     return nil unless zone && stored
     # Regrouping loads and decrypts every session of the goal, so it is kept for an hour per goal
-    # and zone. The key changes whenever the goal is saved, which rebuilds its stored stats
-    # (a new session, an edit, or the retention purge).
+    # and zone, encrypted as the goal's own settings are. The key changes whenever the goal is
+    # saved, which rebuilds its stored stats (a new session, an edit, or the retention purge).
     cache_key = "goal_stats_in_zone/#{self.global_id}/#{self.updated_at.to_f}/#{zone.tzinfo.name}"
     cached = RedisInit.permissions && RedisInit.permissions.get(cache_key) rescue nil
-    return JSON.parse(cached) if cached
+    if cached
+      begin
+        secret, salt = JSON.parse(cached)
+        return JSON.parse(GoSecure.decrypt(secret, salt, 'goal_stats_in_zone'))
+      rescue StandardError
+        # An unreadable entry is regrouped again below.
+      end
+    end
     stats = stored.dup
     sessions = LogSession.where(user_id: self.user_id, :goal_id => self.id).select{|s| s.started_at }
     stats['suggested_level'] = UserGoal.group_sessions(stats, sessions, zone)
     stats['zone'] = zone.tzinfo.name
     begin
-      Permissions.setex(RedisInit.permissions, cache_key, 1.hour.to_i, stats.to_json) if RedisInit.permissions
+      Permissions.setex(RedisInit.permissions, cache_key, 1.hour.to_i, GoSecure.encrypt(stats.to_json, 'goal_stats_in_zone').to_json) if RedisInit.permissions
     rescue StandardError
       # Without the cache the page still gets its stats; a Redis failure must not fail it.
     end

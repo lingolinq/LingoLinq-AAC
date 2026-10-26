@@ -287,6 +287,28 @@ describe UserGoal, type: :model do
       expect(g.stats_in_zone('Europe/Berlin')['daily'].keys.sort).to eq(['2026-07-31', 'totals'])
     end
 
+    it "stores the regrouping encrypted, as the goal's own settings are" do
+      g = goal_with_sessions([Time.utc(2026, 7, 30, 22, 15, 0)])
+      g.stats_in_zone('Europe/Berlin')
+      keys = RedisInit.permissions.keys('goal_stats_in_zone/*')
+      expect(keys.length).to eq(1)
+      raw = RedisInit.permissions.get(keys[0])
+      expect(raw).not_to include('2026-07-31')
+      expect(raw).not_to include('statuses')
+      expect(g.stats_in_zone('Europe/Berlin')['daily'].keys.sort).to eq(['2026-07-31', 'totals'])
+    end
+
+    it "regroups again once the goal is saved" do
+      t = Time.utc(2026, 7, 30, 22, 15, 0)
+      g = goal_with_sessions([t])
+      session = double('log_session', :started_at => t, :data => {'goal' => {'positives' => 1, 'negatives' => 0, 'status' => 3}})
+      expect(LogSession).to receive(:where).with({:user_id => g.user_id, :goal_id => g.id}).twice.and_return([session])
+      g.stats_in_zone('Europe/Berlin')
+      # A save moves updated_at (the clock is pinned for this group, so move it by hand).
+      g.update_columns(updated_at: g.updated_at + 1.minute)
+      g.stats_in_zone('Europe/Berlin')
+    end
+
     it "returns nil for a missing or unknown zone" do
       g = goal_with_sessions([Time.utc(2026, 7, 15, 12, 0, 0)])
       expect(g.stats_in_zone(nil)).to eq(nil)
