@@ -1713,6 +1713,8 @@
   "share_notifications": "Share Notifications",
   "ai_features": "AI Features",
   "eu_ai_parental_consent_required_notice": "Parental consent is required before AI features can be enabled for this account. Turning a feature on will open a dialog to email a parent or guardian.",
+  "school_handoff_ai_blocked_notice": "This account is no longer managed by an organization. AI features stay off until a parent or guardian gives consent.",
+  "school_handoff_ai_turn_on_refused": "AI features can't be turned on for this account until a parent or guardian gives consent.",
   "eu_ai_parental_consent_pending_notice": "Waiting for a parent or guardian to approve AI features. The features you selected will turn on automatically after they approve.",
   "eu_ai_parental_consent_send_success": "Consent email sent. Waiting for parent approval.",
   "resend_eu_ai_parental_consent": "Resend consent email",

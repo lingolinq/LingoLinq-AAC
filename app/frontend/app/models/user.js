@@ -1199,6 +1199,10 @@ LingoLinq.User = BaseModel.extend({
 
     return defer.promise;
   },
+  /** Set by API while a school hand-back keeps AI off until a parent consents (#1063). Read with
+   *  coppa_parental_consent_pending by utils/ai_feature_gate.js. Declared here, below the
+   *  baselined lint rows, so .eslint-todo's line-anchored entries do not shift. */
+  school_handoff_ai_blocked: attr('boolean'),
   check_user_name: observer('watch_user_name_and_cookies', 'user_name', function() {
     if(this.get('watch_user_name_and_cookies')) {
       var user_name = this.get('user_name');

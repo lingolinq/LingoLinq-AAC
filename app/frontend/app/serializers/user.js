@@ -68,6 +68,7 @@ export default ApplicationSerializer.extend({
      * below adds a plain copy only for that local copy (`options.localCopy`). */
     supervisees: { serialize: false },
     coppa_parental_consent_pending: { serialize: false },
+    school_handoff_ai_blocked: { serialize: false },
     eu_under_16: { serialize: false },
     eu_ai_parental_consent_pending: { serialize: false },
     eu_ai_parental_consent_active: { serialize: false },
@@ -94,6 +95,7 @@ export default ApplicationSerializer.extend({
     }
     // Response-only flags; never POST them (new records default DS.attr('boolean') to false).
     delete json.coppa_parental_consent_pending;
+    delete json.school_handoff_ai_blocked;
     delete json.eu_under_16;
     delete json.eu_ai_parental_consent_pending;
     delete json.eu_ai_parental_consent_active;

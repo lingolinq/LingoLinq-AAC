@@ -115,8 +115,10 @@ function euAiConsentRequired(user) {
   return !!userAttr(user, 'eu_under_16') && !userAttr(user, 'eu_ai_parental_consent_active');
 }
 
+// Mirrors FeatureFlags.coppa_blocks_ai_for?: consent pending, or a school hand-back with no
+// parent consent yet (school_handoff_ai_blocked, lib/json_api/user.rb; #1063).
 function coppaAiBlocked(user) {
-  return !!userAttr(user, 'coppa_parental_consent_pending');
+  return !!userAttr(user, 'coppa_parental_consent_pending') || !!userAttr(user, 'school_handoff_ai_blocked');
 }
 
 /**
