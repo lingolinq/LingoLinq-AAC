@@ -20,7 +20,7 @@
               {{t "Are you sure you want to remove the user <b>%{user_name}</b> from the org?" user_name=this.model.user_name key="confirm_remove_user"}}
               {{#if this.show_offboarding_age}}
                 <span class="help-block" style="margin-top: 12px; display: block;">
-                  {{t "Enter their birth month and year so we can apply the right family-account protections. AI features will be turned off for anyone under 16. If a school authorized the account for a child under 13, the account's email address, if it has one, gets a notice that school support has ended, and AI features stay off until a parent or guardian gives consent." key="offboarding_handoff_age_help"}}
+                  {{t "Enter their birth month and year so we can apply the right family-account protections. If this organization sponsors them and no other organization does, AI features are turned off depending on their age. For a younger child a school authorized, the account's email address, if it has one, also gets a notice that school support has ended, and AI features stay off until a parent or guardian gives consent." key="offboarding_handoff_age_help"}}
                 </span>
               {{/if}}
             {{else if this.model.unit_user_name}}
