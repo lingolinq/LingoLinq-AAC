@@ -281,6 +281,12 @@ describe UserGoal, type: :model do
       expect(first['daily'].keys.sort).to eq(['2026-07-31', 'totals'])
     end
 
+    it "still returns the regrouping when the cache cannot be written" do
+      g = goal_with_sessions([Time.utc(2026, 7, 30, 22, 15, 0)])
+      allow(Permissions).to receive(:setex).and_raise(Redis::CannotConnectError)
+      expect(g.stats_in_zone('Europe/Berlin')['daily'].keys.sort).to eq(['2026-07-31', 'totals'])
+    end
+
     it "returns nil for a missing or unknown zone" do
       g = goal_with_sessions([Time.utc(2026, 7, 15, 12, 0, 0)])
       expect(g.stats_in_zone(nil)).to eq(nil)

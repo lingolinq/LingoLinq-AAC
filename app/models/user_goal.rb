@@ -265,7 +265,11 @@ class UserGoal < ApplicationRecord
     sessions = LogSession.where(user_id: self.user_id, :goal_id => self.id).select{|s| s.started_at }
     stats['suggested_level'] = UserGoal.group_sessions(stats, sessions, zone)
     stats['zone'] = zone.tzinfo.name
-    Permissions.setex(RedisInit.permissions, cache_key, 1.hour.to_i, stats.to_json) if RedisInit.permissions
+    begin
+      Permissions.setex(RedisInit.permissions, cache_key, 1.hour.to_i, stats.to_json) if RedisInit.permissions
+    rescue StandardError
+      # Without the cache the page still gets its stats; a Redis failure must not fail it.
+    end
     stats
   end
 

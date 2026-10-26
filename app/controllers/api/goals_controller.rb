@@ -117,7 +117,8 @@ class Api::GoalsController < ApplicationController
     zone = params['tz']
     user = goal.user
     return nil unless zone.is_a?(String) && zone.present? && user && @api_user
-    return zone if user == @api_user
+    # The real user decides, as in logs#index, so an admin acting as the communicator is a viewer.
+    return zone if user == (@true_user || @api_user)
     scopes = api_permission_scopes
     return nil unless user.allows?(@api_user, 'supervise', scopes) || user.allows?(@api_user, 'set_goals', scopes)
     return nil if user.modeling_only? || user.private_logging?
