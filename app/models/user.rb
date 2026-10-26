@@ -36,8 +36,7 @@ class User < ApplicationRecord
     managing_organization_id.nil? && expires_at && expires_at > Time.now
   end
 
-  before_save :generate_defaults
-  before_save :force_blocked_ai_prefs_off
+  before_save :generate_defaults, :force_blocked_ai_prefs_off
   after_save :track_boards
   after_save :notify_of_changes
 #  replicated_model
