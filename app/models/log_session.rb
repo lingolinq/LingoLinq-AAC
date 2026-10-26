@@ -1048,7 +1048,7 @@ class LogSession < ApplicationRecord
                 elsif event && event['assessment']
                   assmnt = event['assessment']
                   assmnt = assmnt['assessment'] if assmnt['assessment'].is_a?(Hash)
-                  params = {assessment: assmnt, timestamp: event['timestamp']}
+                  params = {assessment: assmnt, timestamp: event['timestamp'], goal_id: event['goal_id']}
                 elsif event && event['profile']
                   prof = event['profile']
                   params = {profile: prof}
