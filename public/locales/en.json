@@ -3627,6 +3627,7 @@
   "female_internet_required": " Female *Internet Required*",
   "male_internet_required": " Male *Internet Required*",
   "female_ukranian_internet_required": "Ukranian Female *Internet Required*",
+  "english_female_internet_required": "English Female (Internet Required)",
   "low_quality_male_voice": " Low-Quality Male Voice",
   "cloud_tts_failed_trying_fallback": "Cloud-Based Speech Failed, Trying Fallback...",
   "to": "to",

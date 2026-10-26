@@ -951,6 +951,214 @@ describe('speecher', function() {
       runs();
     });
   });
+
+  // Kept below the baselined lint rows (.eslint-todo is line-anchored).
+  describe("refresh_voices", function() {
+    var saved = null;
+    var savedFields = ['voices', '_built_voices', '_device_voice_count', '_device_voice_key', '_voice_sources',
+      'voiceURI', 'voiceLang', 'voice', 'alternate_voiceURI', 'alternate_voiceLang', 'alternate_voice'];
+    var deviceVoices = null;
+    var synth = null;
+    var listenerCount = 0;
+    // A speechSynthesis stand-in whose getVoices() is empty until the test fills it,
+    // the way Chrome on Android behaves before its speech engine has reported in.
+    var fakeSynth = function() {
+      var listeners = [];
+      return {
+        getVoices: function() { return deviceVoices; },
+        addEventListener: function(type, fn) { if(type == 'voiceschanged') { listeners.push(fn); listenerCount++; } },
+        removeEventListener: function() { },
+        fire_voiceschanged: function() {
+          listeners.forEach(function(fn) { fn({type: 'voiceschanged'}); });
+          if(this.onvoiceschanged) { this.onvoiceschanged({type: 'voiceschanged'}); }
+        }
+      };
+    };
+    var ids = function() { return speecher.get('voiceList').map(function(v) { return v.id; }); };
+    var google = function() {
+      return [
+        {voiceURI: 'Google US English', name: 'Google US English', lang: 'en-US'},
+        {voiceURI: 'Google español', name: 'Google español', lang: 'es-ES'}
+      ];
+    };
+
+    beforeEach(function() {
+      saved = {};
+      savedFields.forEach(function(key) { saved[key] = speecher[key]; });
+      speecher.set('voices', []);
+      speecher._built_voices = null;
+      speecher._device_voice_count = null;
+      speecher._device_voice_key = null;
+      deviceVoices = [];
+      listenerCount = 0;
+      synth = fakeSynth();
+      speecher.scope = {speechSynthesis: synth};
+      // No user, so a voiceschanged does not reach whatever app an earlier test left behind
+      stub(speecher, 'appState', null);
+    });
+    afterEach(function() {
+      savedFields.forEach(function(key) {
+        if(key == 'voices') { speecher.set('voices', saved.voices); } else { speecher[key] = saved[key]; }
+      });
+    });
+
+    it('adds device voices that load after the first getVoices call', function() {
+      speecher.refresh_voices();
+      expect(ids().indexOf('Google US English')).toEqual(-1);
+      deviceVoices = [
+        {voiceURI: 'Google US English', name: 'Google US English', lang: 'en-US'},
+        {voiceURI: 'Google español', name: 'Google español', lang: 'es-ES'}
+      ];
+      synth.fire_voiceschanged();
+      expect(ids()).toContain('Google US English');
+      expect(ids()).toContain('Google español');
+    });
+
+    it('drops the Default Voice and Low-Quality entries once device voices arrive', function() {
+      speecher.refresh_voices();
+      deviceVoices = google();
+      synth.fire_voiceschanged();
+      expect(speecher.get('voices').map(function(v) { return v.voiceURI; })).toEqual(['Google US English', 'Google español']);
+    });
+
+    it('keeps the Default Voice entry when the device never reports a voice', function() {
+      speecher.refresh_voices();
+      synth.fire_voiceschanged();
+      expect(speecher.get('voices').filter(function(v) { return v.name == 'Default Voice'; }).length).toEqual(1);
+    });
+
+    it('offers the Low-Quality voice once, and only when the device has no voice', function() {
+      speecher.refresh_voices();
+      speecher.refresh_voices();
+      var low = function() { return speecher.get('voices').filter(function(v) { return (v.voiceURI || '').match(/^speak_js:/); }).length; };
+      expect(low()).toEqual(1);
+      deviceVoices = google();
+      speecher.refresh_voices();
+      expect(low()).toEqual(0);
+    });
+
+    it('does not list the Internet Required cloud voices', function() {
+      deviceVoices = google();
+      speecher.refresh_voices();
+      expect(speecher.get('voices').filter(function(v) { return v.remote_voice || (v.voiceURI || '').match(/^remote:/); })).toEqual([]);
+    });
+
+    it('keeps voices the async writers added when device voices arrive', function() {
+      speecher.refresh_voices();
+      var premium = {voiceURI: 'extra:acap:Ella', name: 'Ella', lang: 'en-US', addon_voice: true};
+      speecher.set('voices', [premium].concat(speecher.get('voices')));
+      deviceVoices = google();
+      synth.fire_voiceschanged();
+      expect(speecher.get('voices').map(function(v) { return v.voiceURI; })).toEqual(['extra:acap:Ella', 'Google US English', 'Google español']);
+    });
+
+    it('registers one voiceschanged listener however often it runs', function() {
+      speecher.refresh_voices();
+      speecher.refresh_voices();
+      expect(listenerCount).toEqual(1);
+    });
+
+    it('keeps the device voices when a later call briefly sees none', function() {
+      deviceVoices = google();
+      speecher.refresh_voices();
+      deviceVoices = [];
+      speecher.refresh_voices();
+      synth.fire_voiceschanged();
+      expect(ids()).toContain('Google US English');
+    });
+
+    // A real user record, so update_voice_uri (app/models/user.js) runs as it does in the app
+    var signedIn = function(device) {
+      var user = LingoLinq.store.createRecord('user');
+      stub(speecher, 'appState', {get: function(key) { return key == 'currentUser' ? user : null; }});
+      user.set('preferences', {device: device});
+      speecher.set_voice(user.get('preferences.device.voice'), user.get('preferences.device.alternate_voice'));
+      return user;
+    };
+
+    it('applies the saved voice once device voices arrive, not the one matched before them', function() {
+      speecher.refresh_voices();
+      var user = signedIn({voice: {voice_uris: ['Google US English', 'speak_js:en-us'], volume: 1, pitch: 1}});
+      // Before the device voices arrive only the speak.js voice is listed, so that is what gets applied
+      expect(speecher.voiceURI).toEqual('speak_js:en-us');
+      deviceVoices = google();
+      synth.fire_voiceschanged();
+      expect(speecher.voiceURI).toEqual('Google US English');
+      expect(user.get('preferences.device.voice.voice_uri')).toEqual('Google US English');
+    });
+
+    it('applies the saved voice when a later refresh_voices call is the first to see the device voices', function() {
+      speecher.refresh_voices();
+      signedIn({voice: {voice_uris: ['Google US English'], volume: 1, pitch: 1}});
+      deviceVoices = google();
+      // components/premium-voices.js calls refresh_voices when it closes
+      speecher.refresh_voices();
+      expect(speecher.voiceURI).toEqual('Google US English');
+      synth.fire_voiceschanged();
+      expect(speecher.voiceURI).toEqual('Google US English');
+    });
+
+    it('lists the Internet Required cloud voices only when the device has no voice', function() {
+      var cloud = function() { return speecher.get('voices').filter(function(v) { return (v.voiceURI || '').match(/^remote:/); }).length; };
+      speecher.refresh_voices();
+      expect(cloud()).toBeGreaterThan(0);
+      deviceVoices = google();
+      synth.fire_voiceschanged();
+      expect(cloud()).toEqual(0);
+    });
+
+    it('keeps speaking with a saved cloud voice on a device with no voice', function() {
+      // cloud_voices depends on the browser language, so take the saved voice from its own list
+      var cloudURI = speecher.cloud_voices()[0].voiceURI;
+      speecher.refresh_voices();
+      var user = signedIn({voice: {voice_uris: [cloudURI], volume: 1, pitch: 1}});
+      expect(user.get('preferences.device.voice.voice_uri')).toEqual(cloudURI);
+      expect(speecher.voiceURI).toEqual(cloudURI);
+    });
+
+    it('lists the cloud voices when the only voice is the speech polyfill', function() {
+      // vendor/speech/speech.js reports this one voice when the browser has no speech API
+      deviceVoices = [{voiceURI: 'voice:speak_js', name: 'Basic computer voice', lang: 'en-US'}];
+      speecher.refresh_voices();
+      var uris = speecher.get('voices').map(function(v) { return v.voiceURI; });
+      expect(uris[0]).toEqual('voice:speak_js');
+      expect(uris.filter(function(uri) { return (uri || '').match(/^remote:/); }).length).toBeGreaterThan(0);
+      expect(uris.indexOf('')).toEqual(-1);
+    });
+
+    it('keeps the saved voices when the device voices briefly shrink', function() {
+      var aria = {voiceURI: 'Microsoft Aria Online', name: 'Microsoft Aria Online', lang: 'en-US'};
+      deviceVoices = google().concat([aria]);
+      speecher.refresh_voices();
+      var user = signedIn({
+        voice: {voice_uris: ['Microsoft Aria Online', 'Google US English'], volume: 1, pitch: 1},
+        alternate_voice: {enabled: true, voice_uri: 'Google español'}
+      });
+      deviceVoices = [google()[0]];
+      synth.fire_voiceschanged();
+      deviceVoices = google().concat([aria]);
+      synth.fire_voiceschanged();
+      expect(user.get('preferences.device.voice.voice_uri')).toEqual('Microsoft Aria Online');
+      expect(user.get('preferences.device.alternate_voice.voice_uri')).toEqual('Google español');
+      expect(speecher.voiceURI).toEqual('Microsoft Aria Online');
+    });
+
+    it('keeps the alternate voice when the device voices change', function() {
+      // The alternate voice has no voice_uris history (app/models/user.rb rebuilds it for the main
+      // voice only), so its voice_uri is the one stored copy of the user's choice
+      deviceVoices = google();
+      speecher.refresh_voices();
+      var user = signedIn({
+        voice: {voice_uris: ['Google US English'], volume: 1, pitch: 1},
+        alternate_voice: {enabled: true, voice_uri: 'Google español'}
+      });
+      expect(speecher.alternate_voiceURI).toEqual('Google español');
+      deviceVoices = google().concat([{voiceURI: 'Microsoft Aria Online', name: 'Microsoft Aria Online', lang: 'en-US'}]);
+      synth.fire_voiceschanged();
+      expect(user.get('preferences.device.alternate_voice.voice_uri')).toEqual('Google español');
+      expect(speecher.alternate_voiceURI).toEqual('Google español');
+    });
+  });
 });
 
 // The fake SpeechSynthesisUtterance never fires `end` or `error`, so the app's fallback timer

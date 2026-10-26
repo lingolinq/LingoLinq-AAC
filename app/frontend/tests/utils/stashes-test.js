@@ -973,6 +973,31 @@ describe('stashes', function() { afterEach(restoreStashesPushLog); // first, so 
       });
     });
 
+    it("keeps the goal on a note and an assessment recorded offline", function() {
+      // Offline, record-note and quick-assessment queue their entry with log_event; the server
+      // reads the goal, status, video and notify from the event (LogSession#split_out_later_sessions).
+      var target = stashesTarget();
+      stub(target, 'geo', {});
+      stub(target, 'push_log', function() {});
+      var last_event = null;
+      stub(target, 'persist', function(key, val) {
+        if(key == 'last_event') { last_event = val; }
+      });
+
+      target.log_event({note: {text: 'ahem'}, goal_id: '1_7', goal_status: 3, video_id: '1_9', notify: 'true'}, 'asdf');
+      expect(last_event.type).toEqual('note');
+      expect(last_event.note).toEqual({text: 'ahem'});
+      expect(last_event.goal_id).toEqual('1_7');
+      expect(last_event.goal_status).toEqual(3);
+      expect(last_event.video_id).toEqual('1_9');
+      expect(last_event.notify).toEqual('true');
+
+      target.log_event({assessment: {tallies: [], totals: {correct: 1}}, goal_id: '1_7'}, 'asdf');
+      expect(last_event.type).toEqual('assessment');
+      expect(last_event.assessment).toEqual({tallies: [], totals: {correct: 1}});
+      expect(last_event.goal_id).toEqual('1_7');
+    });
+
     it("should not include geo data if not enabled, even if available", function() {
       stashes.set('logging_enabled', true);
       stashes.set('geo_logging_enabled', false);

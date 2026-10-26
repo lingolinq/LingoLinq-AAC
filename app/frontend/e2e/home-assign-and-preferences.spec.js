@@ -12,36 +12,15 @@
 //      copy of the account does not switch AI back on when it saves it.
 
 const { test, expect } = require('@playwright/test');
+const { assertLocalStack, signIn: signInAs } = require('./support/local-session');
 
-// Only ever a local stack: these specs click real buttons and change settings.
-test.beforeAll(() => {
-  const base = process.env.E2E_BASE_URL || 'http://localhost:8184';
-  if (!/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/.test(base)) {
-    throw new Error(`refusing to run against ${base}: local stacks only`);
-  }
-});
+test.beforeAll(assertLocalStack);
 
 const BASIC = 'e2e_basic_1141';
 const MODERN = 'e2e_modern_1141';
 
-async function signIn(page, userName) {
-  await page.goto('/login');
-  await expect(page.locator('#identification')).toBeVisible({ timeout: 30_000 });
-  await page.locator('#identification').fill(userName);
-  await page.locator('#password').fill('password');
-  await page.locator('button.login-btn[type="submit"]').click();
-  await page.waitForURL(/login\/device|\/home|\/$/, { timeout: 30_000 });
-  if (/login\/device/.test(page.url())) {
-    await page.getByText('Trust this Device').click();
-  }
-  await expect(page.locator('#identification'),
-    `could not sign in as ${userName}: run e2e/support/users-1141.rb against this stack first`).toBeHidden({ timeout: 30_000 });
-  // Signed in AND done redirecting, so a page.evaluate below is not cut off by a navigation.
-  await page.waitForFunction(() => {
-    const s = window.LingoLinq && window.LingoLinq.session;
-    return !!(s && s.get && s.get('isAuthenticated') && window.persistence && window.persistence.ajax);
-  }, null, { timeout: 30_000 });
-  await page.waitForLoadState('networkidle');
+function signIn(page, userName) {
+  return signInAs(page, userName, 'users-1141.rb');
 }
 
 // The signed-in user as the server has it now (the app's own ajax layer adds the token).
