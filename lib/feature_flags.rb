@@ -306,17 +306,14 @@ module FeatureFlags
     ENV['COPPA_AI_HARD_GATE'].to_s.downcase != 'false'
   end
 
-  # Returns true when AI calls must be blocked for this user because COPPA
-  # parental consent is still pending, or because a school handed a child's
-  # account back to the family and no parent has consented yet
-  # (User#school_handoff_blocks_ai?). Used by every AI call site as a
-  # short-circuit before PiiScrubber and any provider request.
+  # Returns true when AI calls must be blocked for this user: COPPA parental consent is pending, or a
+  # school handed a child's account back and no parent has consented yet (User#school_handoff_blocks_ai?).
+  # Used by every AI call site as a short-circuit before PiiScrubber and any provider request.
   def self.coppa_blocks_ai_for?(user)
     return false unless coppa_ai_hard_gate_enabled?
     return false unless user
     return false unless user.respond_to?(:coppa_parental_consent_blocks_access?)
-    return true if user.coppa_parental_consent_blocks_access?
-    user.respond_to?(:school_handoff_blocks_ai?) && user.school_handoff_blocks_ai?
+    user.coppa_parental_consent_blocks_access? || (user.respond_to?(:school_handoff_blocks_ai?) && user.school_handoff_blocks_ai?)
   end
 
   # EU under-16 AI parental-consent hard-gate. Default ON.
