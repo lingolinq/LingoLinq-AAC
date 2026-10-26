@@ -68,7 +68,7 @@ describe('Goal', function() {
     statuses: [1],
     sessions: 1
   };
-  recent_daily.weekly[day1.format('GGGG-WW')] = {
+  recent_daily.weekly['2015-43'] = {
     statuses: [3, 4, 2, 1],
     sessions: 4
   };
@@ -95,11 +95,11 @@ describe('Goal', function() {
     statuses: [4, 3, 2],
     sessions: 3
   };
-  recent_weekly.weekly[day1.format('GGGG-WW')] = {
+  recent_weekly.weekly['2015-43'] = {
     statuses: [1],
     sessions: 1
   };
-  recent_weekly.weekly[day4.format('GGGG-WW')] = {
+  recent_weekly.weekly['2015-42'] = {
     statuses: [4, 4, 3, 2],
     sessions: 4
   };
@@ -122,11 +122,11 @@ describe('Goal', function() {
     statuses: [4],
     sessions: 1
   };
-  recent_monthly.weekly[day1.format('GGGG-WW')] = {
+  recent_monthly.weekly['2015-43'] = {
     statuses: [1, 2, 4],
     sessions: 3
   };
-  recent_monthly.weekly[day5.format('GGGG-WW')] = {
+  recent_monthly.weekly['2015-41'] = {
     statuses: [3, 3, 3, 3],
     sessions: 4
   };
@@ -157,7 +157,7 @@ describe('Goal', function() {
     statuses: [3],
     sessions: 1
   };
-  old_daily.weekly[day8.format('GGGG-WW')] = {
+  old_daily.weekly['2014-24'] = {
     statuses: [1, 4, 3],
     sessions: 3
   };
@@ -188,15 +188,15 @@ describe('Goal', function() {
     statuses: [4],
     sessions: 1
   };
-  old_weekly.weekly[day8.format('GGGG-WW')] = {
+  old_weekly.weekly['2014-24'] = {
     statuses: [3, 1, 2],
     sessions: 3
   };
-  old_weekly.weekly[day10.format('GGGG-WW')] = {
+  old_weekly.weekly['2014-23'] = {
     statuses: [3, 3, 3],
     sessions: 3
   };
-  old_weekly.weekly[day11.format('GGGG-WW')] = {
+  old_weekly.weekly['2014-21'] = {
     statuses: [4],
     sessions: 1
   };
@@ -214,11 +214,11 @@ describe('Goal', function() {
     statuses: [3, 1],
     sessions: 2
   };
-  old_monthly.weekly[day8.format('GGGG-WW')] = {
+  old_monthly.weekly['2014-24'] = {
     statuses: [3, 1],
     sessions: 2
   };
-  old_monthly.weekly[day10.format('GGGG-WW')] = {
+  old_monthly.weekly['2014-23'] = {
     statuses: [4, 4, 3, 2, 4],
     sessions: 5
   };
@@ -289,13 +289,13 @@ describe('Goal', function() {
     goal.set('stats', recent_weekly);
     expect(goal.get('time_units').length).toEqual(4);
     expect(goal.get('time_units')[2]).toEqual({
-      key: day1.format('GGGG-WW'),
+      key: '2015-43',
       label: day1.clone().weekday(0).format('YYYY-MM-DD'),
       max_statuses: 1,
       sessions: 1
     });
     expect(goal.get('time_units')[1]).toEqual({
-      key: day4.format('GGGG-WW'),
+      key: '2015-42',
       label: day4.clone().weekday(0).format('YYYY-MM-DD'),
       max_statuses: 2,
       sessions: 4
@@ -353,8 +353,7 @@ describe('Goal', function() {
   describe("time_units labels outside UTC", function() {
     // Every moment the model builds is shown at a fixed UTC offset, with "now" pinned,
     // so the label is checked where a UTC date and the local date differ.
-    // The weekly fixtures key the data with the app's own formula (goal.js time_units), so the
-    // sessions checks below follow it; the server keys weeks differently (#1196).
+    // The weekly fixtures use the server's week key for each pinned date, written out (#1196).
     var at_offset = pinMomentAtOffset;
     var stats_for = function(weekly_key) {
       var stats = {
@@ -383,7 +382,7 @@ describe('Goal', function() {
     it("labels a week with its local Sunday east of UTC", function() {
       at_offset('2026-07-15T00:30:00+02:00', 120);
       var goal = LingoLinq.store.createRecord('goal');
-      goal.set('stats', stats_for(window.moment().weekday(1).format('GGGG-WW')));
+      goal.set('stats', stats_for('2026-28'));
       expect(goal.get('best_time_level')).toEqual('weekly');
       var units = goal.get('time_units');
       expect(units[units.length - 1].sessions).toEqual(1);
@@ -393,7 +392,7 @@ describe('Goal', function() {
     it("labels a week with its local Sunday west of UTC", function() {
       at_offset('2026-07-15T20:00:00-07:00', -420);
       var goal = LingoLinq.store.createRecord('goal');
-      goal.set('stats', stats_for(window.moment().weekday(1).format('GGGG-WW')));
+      goal.set('stats', stats_for('2026-28'));
       expect(goal.get('best_time_level')).toEqual('weekly');
       var units = goal.get('time_units');
       expect(units[units.length - 1].sessions).toEqual(1);
@@ -405,7 +404,7 @@ describe('Goal', function() {
     it("labels a week with its local Sunday early on a Sunday east of UTC", function() {
       at_offset('2026-07-19T00:30:00+02:00', 120);
       var goal = LingoLinq.store.createRecord('goal');
-      goal.set('stats', stats_for(window.moment().weekday(1).format('GGGG-WW')));
+      goal.set('stats', stats_for('2026-29'));
       expect(goal.get('best_time_level')).toEqual('weekly');
       var units = goal.get('time_units');
       expect(units[units.length - 1].sessions).toEqual(1);
@@ -415,11 +414,64 @@ describe('Goal', function() {
     it("labels a week with its local Sunday late on a Saturday west of UTC", function() {
       at_offset('2026-07-18T20:00:00-07:00', -420);
       var goal = LingoLinq.store.createRecord('goal');
-      goal.set('stats', stats_for(window.moment().weekday(1).format('GGGG-WW')));
+      goal.set('stats', stats_for('2026-28'));
       expect(goal.get('best_time_level')).toEqual('weekly');
       var units = goal.get('time_units');
       expect(units[units.length - 1].sessions).toEqual(1);
       expect(units[units.length - 1].label).toEqual('2026-07-12');
+    });
+  });
+
+  // #1196: the app looks a week up by the server's key (the week of the Sunday on or before the
+  // date, WeeklyStatsSummary.date_to_weekyear), and a day by the viewer's own date when the server
+  // grouped the stats in the viewer's zone. Keys below are the server's values, written out.
+  describe("time_units keys match the server", function() {
+    var session = {sessions: 1, positives: 1, negatives: 0, statuses: [3]};
+    var none = {sessions: 0, positives: 0, negatives: 0, statuses: []};
+
+    it("finds a week's sessions under the server's week key", function() {
+      pinMomentAtOffset('2026-07-15T00:30:00+02:00', 120);
+      var goal = LingoLinq.store.createRecord('goal');
+      goal.set('stats', {
+        daily: {totals: none},
+        weekly: {'2026-28': session, totals: session},
+        monthly: {'2026-07': session, totals: session}
+      });
+      expect(goal.get('best_time_level')).toEqual('weekly');
+      var units = goal.get('time_units');
+      expect(units[units.length - 1].key).toEqual('2026-28');
+      expect(units[units.length - 1].label).toEqual('2026-07-12');
+      expect(units[units.length - 1].sessions).toEqual(1);
+    });
+
+    it("keys and labels a day at the viewer's midnight when the server grouped in their zone", function() {
+      pinMomentAtOffset('2026-07-16T00:30:00+02:00', 120);
+      var goal = LingoLinq.store.createRecord('goal');
+      goal.set('stats', {
+        zone: 'Europe/Berlin',
+        daily: {'2026-07-16': session, totals: session},
+        weekly: {'2026-28': session, totals: session},
+        monthly: {'2026-07': session, totals: session}
+      });
+      expect(goal.get('best_time_level')).toEqual('daily');
+      var units = goal.get('time_units');
+      expect(units[units.length - 1].key).toEqual('2026-07-16');
+      expect(units[units.length - 1].label).toEqual('2026-07-16');
+      expect(units[units.length - 1].sessions).toEqual(1);
+    });
+
+    it("keeps the UTC day for stats the server grouped by UTC", function() {
+      pinMomentAtOffset('2026-07-16T00:30:00+02:00', 120);
+      var goal = LingoLinq.store.createRecord('goal');
+      goal.set('stats', {
+        daily: {'2026-07-15': session, totals: session},
+        weekly: {'2026-28': session, totals: session},
+        monthly: {'2026-07': session, totals: session}
+      });
+      expect(goal.get('best_time_level')).toEqual('daily');
+      var units = goal.get('time_units');
+      expect(units[units.length - 1].key).toEqual('2026-07-15');
+      expect(units[units.length - 1].sessions).toEqual(1);
     });
   });
 
@@ -450,8 +502,8 @@ describe('Goal', function() {
     expect(goal.get('time_unit_measurements')['totals']).toEqual({sessions: 4, statuses: [3, 4, 2, 1]});
 
     goal.set('stats', recent_weekly);
-    expect(goal.get('time_unit_measurements')[day1.format('GGGG-WW')]).toEqual({sessions: 1, statuses: [1]});
-    expect(goal.get('time_unit_measurements')[day4.format('GGGG-WW')]).toEqual({sessions: 4, statuses: [4, 4, 3, 2]});
+    expect(goal.get('time_unit_measurements')['2015-43']).toEqual({sessions: 1, statuses: [1]});
+    expect(goal.get('time_unit_measurements')['2015-42']).toEqual({sessions: 4, statuses: [4, 4, 3, 2]});
     expect(goal.get('time_unit_measurements')['totals']).toEqual({sessions: 5, statuses: [1, 4, 4, 3, 2]});
 
     goal.set('stats', recent_monthly);

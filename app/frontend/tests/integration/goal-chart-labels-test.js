@@ -30,8 +30,7 @@ QUnit.module('Integration | goal chart date labels', function(hooks) {
   var at_offset = pinMomentAtOffset;
 
   // One session with a status of 3 in the given month and, for a weekly goal,
-  // in the given week. The weekly key follows the app's own formula
-  // (goal.js time_units); the server keys weeks differently (#1196).
+  // in the given week, keyed as the server keys it (#1196).
   function goal_with(owner, weekly_key) {
     var session = {sessions: 1, positives: 1, negatives: 0, statuses: [3]};
     var none = {sessions: 0, positives: 0, negatives: 0, statuses: []};
@@ -46,8 +45,9 @@ QUnit.module('Integration | goal chart date labels', function(hooks) {
     return goal;
   }
 
+  // The server's key for the pinned week (the week of Sunday 2026-07-12, ISO week 28).
   function this_week_key() {
-    return window.moment().weekday(1).format('GGGG-WW');
+    return '2026-28';
   }
 
   function date_row_labels(root) {
