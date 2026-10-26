@@ -194,8 +194,10 @@ Findings checked against the code before acting:
   `setupController` calls at boot, before any picker reads `speecher.voiceList`.
 - `device_voices_changed` writes `voices` through `store_voice_list`; every picker reads
   `voiceList`, a computed on `voices`, so they update.
-- `reapply_user_voice` clears `preferences.device.voice.voice_uri` before calling
-  `update_voice_uri`, which reads it first (`models/user.js` `update_voice_uri`).
+- `reapply_user_voice` calls `update_voice_uri` and `set_voice`, the same two calls as
+  `utterance.update_voice`; `store_device_voices` calls it on both paths (refresh and
+  `voiceschanged`) once the new device list holds every earlier voice. (Superseded: the first
+  version cleared `voice_uri` first; see "PR review rounds" below.)
 
 ## Not changed, noted
 
@@ -203,8 +205,8 @@ Findings checked against the code before acting:
   web (the speak.js entry makes the list two long). Harmless; left in place.
 - The `no_local_voices` warning in `services/app-state.js` cannot fire on the web before or after
   this change (the list always holds a non-remote entry).
-- Locale keys `female_ukranian_internet_required` and `male_internet_required` are no longer
-  used by JS; `female_internet_required` is still used by the `find_voice_by_uri` fallback.
+- (Superseded) The cloud-voice locale keys are all still used: `speecher.cloud_voices` lists them
+  on a device with no voice of its own (Scot's answer in "PR review rounds").
 - iOS installed app: `getVoices()` is forced empty there, so speak.js is still listed beside the
   native `tts:` voices, as before.
 - Pickers filter premium voices on `voice.voiceURI`, which `voiceList` entries do not carry (they
@@ -218,3 +220,63 @@ Findings checked against the code before acting:
   `speecher` or voices; it passed 3 of 3 runs alone (`--filter "session check_token"`), and a re-run
   of the same shard on the same code gave 2067 pass, 0 fail. The failing set emptied, so it is
   the wandering flake, not this change.
+
+## PR review rounds (2026-10-25, after the first commits)
+
+`/pr-preflight` passed (`git diff --check`, no em dashes, no data-bearing paths, lint `new=0`,
+review preflight exit 0). Then the dual review on `origin/develop...8ac7f8dbe`:
+
+- **Codex `gpt-6.1-sol` (high), approve with comments.** Medium: a `refresh_voices` call that sees
+  the device voices before `voiceschanged` (`components/premium-voices.js` `willDestroyElement`
+  calls it on the web) stored them without reapplying, and the event then returned early. Fixed:
+  both paths go through `speecher.store_device_voices`. Medium: the saved-voice test used a
+  hand-written user that hid the real `update_voice_uri`, which `unshift`s into the stored
+  `voice_uris` array in place. Fixed: tests use a real `LingoLinq.store` user.
+- **Adversary, block.** High: `reapply_user_voice` cleared `alternate_voice.voice_uri`, the only
+  copy of the alternate voice (`app/models/user.rb` `process_device` rebuilds `voice_uris` for
+  `device['voice']` only), so a later whole-preferences save stored null. Fixed: nothing is
+  cleared. With the real model, clearing the main `voice_uri` never helped either: on the web the
+  boot match (speak.js) leaves the list when device voices arrive, and where it does not (native
+  premium voices) the in-place `unshift` has already put it first in `voice_uris`.
+  High: on a device with no voices, a saved `remote:` voice was no longer listed, so `voice_uri`
+  became null and `uri_match(null)` matched the "Default Voice" placeholder (`v.lang == uri`,
+  `undefined == null`), so the cloud fallback never ran and the user went silent. Asked Scot:
+  **"Cloud voices only then"**: list the "*Internet Required*" voices only when the device has no
+  voice of its own, like speak.js. Fixed: the develop list code moved to `speecher.cloud_voices`.
+- **Re-review of the fixes.** Codex approve with comments (i18n for the restored "English Female
+  (Internet Required)" label: fixed; assert right after `refresh_voices`: done; premium fallback
+  case: native only, noted below). Adversary pass. Medium: a `voiceschanged` list that briefly
+  drops the user's voice would make `update_voice_uri` pick a fallback and keep it, and null the
+  alternate voice. Fixed: reapply only when the new device list keeps every earlier voice. Low:
+  the speech polyfill's one voice (`voice:speak_js`, `vendor/speech/speech.js`) counted as a
+  device voice, so browsers without the speech API lost the cloud voices. Fixed:
+  `speecher.has_own_voice`. Low: the cloud-voice test depended on the browser language. Fixed.
+
+### Falsification (final, `--filter "refresh_voices"`, 15 tests)
+
+| Mutation | Red |
+|---|---|
+| `speecher.js` from develop | 10 of 15 (3, 8, 13, 14, 15 guard behaviour develop already had; 12 fails on the missing `cloud_voices`) |
+| No reapply in `device_voices_changed` | 1: "applies the saved voice once device voices arrive, not the one matched before them" |
+| No reapply in `store_device_voices` | 1: "applies the saved voice when a later refresh_voices call is the first to see the device voices" |
+| `reapply_user_voice` clears the alternate `voice_uri` | 1: "keeps the alternate voice when the device voices change" |
+| No `only_added` guard | 1: "keeps the saved voices when the device voices briefly shrink" |
+| No cloud voices in `with_backup_voices` | 2: "lists the Internet Required cloud voices only when the device has no voice", "keeps speaking with a saved cloud voice on a device with no voice" |
+| Polyfill voice counts as the device's own | 1: "lists the cloud voices when the only voice is the speech polyfill" |
+
+### Not fixed, noted
+
+- On Android, `update_voice_uri` at boot (before the voices load) already sets the alternate
+  `voice_uri` to null when it is not in the short list; a later whole-preferences save stores it.
+  Pre-existing; this change cannot recover it (no stored copy). Follow-up.
+- Native shells only: a boot match that stays listed after the device voices arrive (premium
+  `extra:`, Electron Windows TTS) stays applied, because `update_voice_uri` `unshift`s it into
+  `voice_uris` in place. Pre-existing; the brief puts native shells out of scope.
+- `routes/user/board-detail.js` applies the board owner's voice; a late `voiceschanged` reapplies
+  the signed-in user's. On Android that route's `set_voice` runs against the short list anyway,
+  so the owner's voice was not found before this change either. Narrow; noted.
+
+### Full suite on the final code (timing-strict shards, Node 22.23.2, on 2434918ff)
+
+- `pool=include`: 1679 tests, 1667 pass, 7 skip, 0 fail.
+- `pool=exclude`: 2103 tests, 2073 pass, 30 skip, 0 fail (on f3b081336: 2101 tests, 0 fail).
