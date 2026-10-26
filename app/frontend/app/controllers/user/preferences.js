@@ -1044,6 +1044,9 @@ export default Controller.extend({
   audio_target_available: computed(function() {
     return capabilities.installed_app && (capabilities.system == 'iOS' || capabilities.system == 'Android');
   }),
+  premium_voices_supported: computed(function() {
+    return capabilities.tts.premium_voices_supported();
+  }),
   // A school handed this child back and no parent has consented (#1063). The server stores AI
   // prefs as off while this holds (User#process_params), applying the EU rule first, so the
   // EU consent step keeps priority here too.

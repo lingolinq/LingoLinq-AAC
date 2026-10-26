@@ -1934,7 +1934,9 @@
           <BoundSelect @select_class="form-control" @select_id="voiceURI" @content={{this.user_voice_list}} @selection={{this.pending_preferences.device.voice.voice_uri}} @action={{mut this.pending_preferences.device.voice.voice_uri}} />
         </div>
         <div class="col-sm-2 col-xs-5">
-          <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "premium_voices")}}>{{t "Premium Voices" key='premium_voices'}}</button>
+          {{#if this.premium_voices_supported}}
+            <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "premium_voices")}}>{{t "Premium Voices" key='premium_voices'}}</button>
+          {{/if}}
         </div>
       </div>
       <div class="form-group" style="margin-top: -15px;">
@@ -1974,7 +1976,9 @@
               <div style="flex: 1 1 auto; min-width: 180px;">
                 <BoundSelect @select_class="form-control" @select_id="voiceURI" @content={{this.user_voice_list}} @selection={{this.pending_preferences.device.voice.voice_uri}} @action={{mut this.pending_preferences.device.voice.voice_uri}} />
               </div>
-              <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "premium_voices")}} style="white-space: nowrap;">{{t "Premium Voices" key='premium_voices'}}</button>
+              {{#if this.premium_voices_supported}}
+                <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "premium_voices")}} style="white-space: nowrap;">{{t "Premium Voices" key='premium_voices'}}</button>
+              {{/if}}
             </div>
             {{#if this.ios_app}}
               <p class='form-control-static' style='margin-top: 8px;'><em>{{t "Some system voices may not work due to an Apple speech engine issue. Try a Premium Voice or \"System Default Voice\" if needed." key='apple_tts_bug'}}</em></p>
@@ -1990,7 +1994,9 @@
             </p>
           </div>
           <div class="col-sm-2 col-xs-5">
-            <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "premium_voices")}}>{{t "Premium Voices" key='premium_voices'}}</button>
+            {{#if this.premium_voices_supported}}
+              <button type="button" class='btn btn-default' {{on "click" (this.ctrlAction "premium_voices")}}>{{t "Premium Voices" key='premium_voices'}}</button>
+            {{/if}}
           </div>
         </div>
       {{/if}}
