@@ -271,6 +271,16 @@ describe UserGoal, type: :model do
       expect(g.settings['stats']['daily'].keys.sort).to eq(['2026-07-25', '2026-07-30', '2026-07-31', 'totals'])
     end
 
+    it "reuses a regrouping until the goal changes, without reloading its sessions" do
+      t = Time.utc(2026, 7, 30, 22, 15, 0)
+      g = goal_with_sessions([t])
+      session = double('log_session', :started_at => t, :data => {'goal' => {'positives' => 1, 'negatives' => 0, 'status' => 3}})
+      expect(LogSession).to receive(:where).with({:user_id => g.user_id, :goal_id => g.id}).once.and_return([session])
+      first = g.stats_in_zone('Europe/Berlin')
+      expect(g.stats_in_zone('Europe/Berlin')).to eq(first)
+      expect(first['daily'].keys.sort).to eq(['2026-07-31', 'totals'])
+    end
+
     it "returns nil for a missing or unknown zone" do
       g = goal_with_sessions([Time.utc(2026, 7, 15, 12, 0, 0)])
       expect(g.stats_in_zone(nil)).to eq(nil)
