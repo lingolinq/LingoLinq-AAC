@@ -96,6 +96,11 @@ export default ApplicationSerializer.extend({
     // Response-only flags; never POST them (new records default DS.attr('boolean') to false).
     delete json.coppa_parental_consent_pending;
     delete json.school_handoff_ai_blocked;
+    // The offline local copy is the whole record, so it keeps the hand-back block (#1063); a replay
+    // goes through a plain save, which drops it again above.
+    if (options && options.localCopy && snapshot.record && typeof snapshot.record.get === 'function') {
+      json.school_handoff_ai_blocked = !!snapshot.record.get('school_handoff_ai_blocked');
+    }
     delete json.eu_under_16;
     delete json.eu_ai_parental_consent_pending;
     delete json.eu_ai_parental_consent_active;

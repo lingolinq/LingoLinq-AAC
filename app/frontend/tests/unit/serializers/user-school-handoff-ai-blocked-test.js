@@ -20,4 +20,13 @@ module('Unit | Serializer | user school_handoff_ai_blocked', function(hooks) {
     var json = store.serializerFor('user').serialize(record._createSnapshot(), { includeId: true });
     assert.false('school_handoff_ai_blocked' in json);
   });
+
+  // Offline, persistence#convert_model_to_json stores the serialized user (localCopy) as the whole
+  // local record, so a copy without the flag would bring the AI turn-on step back offline.
+  test('the offline local copy keeps the flag', function(assert) {
+    var store = this.owner.lookup('service:store');
+    var record = store.createRecord('user', { user_name: 'handed_back', school_handoff_ai_blocked: true });
+    var json = store.serializerFor('user').serialize(record._createSnapshot(), { includeId: true, localCopy: true });
+    assert.true(json.school_handoff_ai_blocked);
+  });
 });
