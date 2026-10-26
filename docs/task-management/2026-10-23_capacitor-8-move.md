@@ -2,7 +2,8 @@
 
 Runs STOP 2 of [capacitor-8-session-prompt.md](../native-apps/capacitor-8-session-prompt.md)
 from the plan in [capacitor-8-stop1-handoff.md](../native-apps/capacitor-8-stop1-handoff.md).
-Branch `traci/feat/capacitor-8` in both repos (the shell in a worktree beside its clone). Nothing pushed.
+Branch `traci/feat/capacitor-8` in both repos (the shell in a worktree beside its clone). Nothing pushed as of
+2026-10-23; both branches were pushed and both PRs opened on 2026-10-25 (see below).
 
 ## Sources opened this session
 
@@ -18,6 +19,16 @@ Branch `traci/feat/capacitor-8` in both repos (the shell in a worktree beside it
   "automatically uses a default version of the build tools that the plugin specifies".
 - [AGP 8.13 release notes](https://developer.android.com/build/releases/agp-8-13-0-release-notes):
   default SDK Build Tools 35.0.0, max API level 36.1.
+- [Apple Xcode system requirements](https://developer.apple.com/xcode/system-requirements/)
+  (opened 2026-10-25): Xcode 26.0 to 26.3 need macOS Sequoia 15.6+, Xcode 26.4 to 26.6 need
+  Tahoe 26.2+, Xcode 27.x needs Tahoe 26.6+.
+- [Apple upcoming requirements](https://developer.apple.com/news/upcoming-requirements/)
+  (opened 2026-10-25): since April 28, 2026, uploads must be built with Xcode 26 or later.
+- [Android page sizes](https://developer.android.com/guide/practices/page-sizes): updates
+  without 16 KB support cannot be released from February 1, 2027.
+- Google OAuth in embedded webviews (opened 2026-10-25, for #1198):
+  [Google Developers blog](https://developers.googleblog.com/en/upcoming-security-changes-to-googles-oauth-20-authorization-endpoint-in-embedded-webviews/)
+  and [OAuth for native apps](https://developers.google.com/identity/protocols/oauth2/native-app).
 
 ## Mac build tools (STOP 1 item d, redone)
 
@@ -30,7 +41,8 @@ and `platform-tools` into `~/Library/Android/sdk`; CocoaPods 1.17.0 (Homebrew); 
 21.0.13 at user level in `~/Library/Java/JavaVirtualMachines` (the Homebrew cask needs sudo;
 the tarball's SHA-256 was checked against Adoptium's API). Android Studio 2026.2 bundles a
 Java 25 runtime, not 21; the shell also builds on it (below), so the separate JDK 21 is
-optional. Xcode 26 needs macOS Sequoia 15.6 or later, so the iOS build waits on a macOS update.
+optional. Xcode 26 needs macOS Sequoia 15.6 or later, so the iOS build waits on a macOS update
+(superseded 2026-10-25: macOS 27.0.1 and Xcode 27.1 installed; see the iOS section below).
 
 ## Shell repo (`lingolinq_mobile`, off `origin/master` at `0d20e48`, unchanged since STOP 1)
 
@@ -71,7 +83,8 @@ optional. Xcode 26 needs macOS Sequoia 15.6 or later, so the iOS build waits on 
 
 ## Not run, and why
 
-- iOS build: Xcode 16.4 is installed and Capacitor 8 needs Xcode 26, which needs macOS 15.6+.
+- iOS build: Xcode 16.4 is installed and Capacitor 8 needs Xcode 26, which needs macOS 15.6+
+  (superseded: built on 2026-10-25, see the iOS section below).
 - Manual smoke from `capacitor-7-kickoff.md`: needs an emulator image, a packaged `www/app.js`
   and a LingoLinq API with a test account. The session prompt's rule 3 forbids this session
   from touching the database, so a local Rails run is out of scope here.
@@ -143,8 +156,8 @@ and two missing "Still open" items), all fixed in the following commit.
 - Offline smoke on an Android emulator or device, including the layout check. This session
   cannot run it: it needs a LingoLinq API and a test account, and the session prompt forbids
   touching the database.
-- iOS: update macOS to 15.6 or later, install Xcode 26, build, check the cold-launch log, and
-  run the simulator smoke test.
+- iOS: run the simulator smoke test with a packaged app, and check the top safe-area inset
+  (the build and the cold-launch check were done on 2026-10-25; see below).
 - Release notes: Capacitor 8 raises the minimum to Android 7 (API 24) and iOS 15, so Android 6
   and iOS 14 devices get no further updates.
 
@@ -168,7 +181,7 @@ head (`316e209`) with the AAC CI's equivalents where they apply:
   (APK and AAB, four ABIs) have 16 KB LOAD alignment. `jarsigner`: the release bundle is
   unsigned, as expected; Play upload needs a signing setup.
 - iOS: `xcodebuild` cannot run on this Mac (Xcode 16.4 has no iOS platform installed, and
-  Capacitor 8 needs Xcode 26).
+  Capacitor 8 needs Xcode 26). Superseded the same day: see the iOS section below.
 - `@codex review` on the PR: the Codex bot replied that the commenter's account is not
   connected to Codex, so no review ran.
 
@@ -190,3 +203,39 @@ head (`316e209`) with the AAC CI's equivalents where they apply:
   packaged in a fresh checkout. On iPhone 17 that page's heading sits under the status bar
   (the bootstrap `www/index.html` uses `viewport-fit=cover`); check the real UI for the same
   top-inset issue in the smoke test.
+
+## Packaged run against staging (2026-10-25)
+
+- `brew install ripgrep` (the packaging script calls `rg`), then in the shell worktree:
+  `LINGOLINQ_ROOT=../LingoLinq-AAC PACKAGE_SOURCE=prod PACKAGE_PROD_HOST=https://staging.lingolinq.com
+  LINGOLINQ_API_HOST=https://staging.lingolinq.com ./bin/package_from_lingolinq`: downloaded
+  staging's `application-526c3819...js` (10,327,510 bytes, the script's ember-inflector check
+  passed) and CSS, wrote `domain_settings.js` from staging, and set `api_host` to staging.
+  This rewrites the tracked `www/init.js` and `www/domain_settings.js`; those local edits are
+  test setup and must not be committed.
+- `npx cap sync`, simulator rebuild (`** BUILD SUCCEEDED **`), cold launch on iPad Air
+  11-inch: one "Loading app at" line; the console shows `capacitor_bridge adapters
+  {"native":true,"sqlite":true,"filesystem":true}`, `db succeeded through upgrade check` and
+  `using sqlite plugin for offline sync` (not the IndexedDB fallback); the landing page renders.
+- First-launch Filesystem messages, all handled by the app: `stat` of
+  `json/db_s/db_stats.json` "does not exist" (not written yet on a fresh install) and a
+  create of `json/` that "already exists".
+- Manual check by Traci: Continue with Google (sign-up) does nothing. The iOS unified log
+  shows, once per tap: `Failed to open URL capacitor://localhost/auth/google/start`. Cause and
+  plan: [#1198](https://github.com/lingolinq/LingoLinq-AAC/issues/1198) (relative URLs in
+  `register.js:442` and `login-form.js:259`; Google also blocks its sign-in page in embedded
+  webviews). Not a Capacitor 8 regression. The smoke test itself (log in, sync, offline,
+  speak) has not run yet.
+
+## Local adversary review of the later commits (2026-10-25)
+
+Two read-only slices: the new `capacitor-8-stop2-handoff.md`, and every commit after
+`1be1cb2b1` plus this log. The canonical passes did not run. No Critical or High findings;
+the merge `d967d53cc` kept every `develop` learnings entry verbatim. Fixed in the next commit:
+the handoff contradicted itself about the iOS smoke test and this log did not record the
+staging run or the Google failure (Medium); the iOS top inset was missing from the open
+issues (Medium); stale pre-iOS lines in the handoff and this log; the handoff stated the
+shell "is on" Capacitor 8 before PR #2 merges; the suggested order missed #1198 and the store
+items; no warning that packaging edits tracked files; item 20 said names "never contain `..`"
+(they can, inside a name, not as a path segment); missing Apple sources here; the PR-rule
+note is now neutral; and the STOP 1 handoff says the smoke test is still open.
