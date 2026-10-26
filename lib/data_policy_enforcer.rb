@@ -163,7 +163,14 @@ module DataPolicyEnforcer
         end
         # A goal stores stats built from its sessions; saving it rebuilds them
         # (UserGoal#generate_defaults), so they stop counting the purged ones.
-        UserGoal.where(id: goal_ids.uniq).find_each(&:save)
+        # A failure in one goal is logged and skipped: it must not stop the purge.
+        UserGoal.where(id: goal_ids.uniq).find_each do |goal|
+          begin
+            goal.save
+          rescue StandardError => e
+            Rails.logger.warn("DataPolicyEnforcer: could not rebuild stats for goal #{goal.global_id}: #{e.class}")
+          end
+        end
       end
     end
     count
