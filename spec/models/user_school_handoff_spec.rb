@@ -349,6 +349,17 @@ describe 'School-authorized hand-back to the family (#1063)', type: :model do
       expect(json['school_handoff_ai_blocked']).to eq(false)
     end
 
+    # The flag says something about the child's age and consent, so only someone who can supervise
+    # or edit the account sees it, not a shared-message link holder (limited identity) or a stranger.
+    it 'leaves the flag out for viewers who cannot supervise or edit the account' do
+      u = hand_back!('US', suffix: 'us_ai_json_scoped')
+      stranger = User.create
+
+      expect(JsonApi::User.as_json(u, limited_identity: true)).not_to have_key('school_handoff_ai_blocked')
+      expect(JsonApi::User.as_json(u, :permissions => stranger)).not_to have_key('school_handoff_ai_blocked')
+      expect(JsonApi::User.as_json(u, :permissions => u)['school_handoff_ai_blocked']).to eq(true)
+    end
+
     it 'keeps AI off after an assumed-under-13 expiry at a US organization once the family turns AI on' do
       o = Organization.create(settings: {'total_licenses' => 1, 'jurisdiction' => 'US'})
       u = school_authorized_user!(suffix: 'us_assumed_ai_on', ai_on: true)
