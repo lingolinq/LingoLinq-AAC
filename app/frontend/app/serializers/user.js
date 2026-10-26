@@ -94,17 +94,17 @@ export default ApplicationSerializer.extend({
       if (!(options && options.localCopy)) { json.preferences = listed_preferences(json.preferences, listed); }
     }
     // Response-only flags; never POST them (new records default DS.attr('boolean') to false).
-    delete json.coppa_parental_consent_pending;
-    delete json.school_handoff_ai_blocked;
-    // The offline local copy is the whole record, so it keeps the hand-back block (#1063); a replay
-    // goes through a plain save, which drops it again above.
-    if (options && options.localCopy && snapshot.record && typeof snapshot.record.get === 'function') {
-      json.school_handoff_ai_blocked = !!snapshot.record.get('school_handoff_ai_blocked');
-    }
-    delete json.eu_under_16;
-    delete json.eu_ai_parental_consent_pending;
-    delete json.eu_ai_parental_consent_active;
-    delete json.eu_ai_parental_consent_parent_email;
+    // The offline local copy is the whole record, so it keeps them (#1063): without them a record
+    // restored offline loses its consent state. A replay goes through a plain save, which drops
+    // them again here.
+    var keepForLocalCopy = !!(options && options.localCopy && snapshot.record && typeof snapshot.record.get === 'function');
+    RESPONSE_ONLY_KEYS.forEach(function(key) {
+      delete json[key];
+      if (keepForLocalCopy) {
+        var value = snapshot.record.get(key);
+        if (value !== undefined && value !== null) { json[key] = value; }
+      }
+    });
     // Prefer live record values so createRecord().save() always sends fields the server expects.
     var record = snapshot.record;
     if (record && typeof record.get === 'function') {
@@ -136,6 +136,17 @@ export default ApplicationSerializer.extend({
     return json;
   },
 });
+
+// Consent state the server sends and never accepts back (lib/json_api/user.rb), also marked
+// `serialize: false` in attrs above.
+var RESPONSE_ONLY_KEYS = [
+  'coppa_parental_consent_pending',
+  'school_handoff_ai_blocked',
+  'eu_under_16',
+  'eu_ai_parental_consent_pending',
+  'eu_ai_parental_consent_active',
+  'eu_ai_parental_consent_parent_email'
+];
 
 /* A plain-data copy for storage: primitives, arrays and plain objects are kept; anything else
    (Ember objects and records, which can reach the Store and form cycles; functions) is left out,
