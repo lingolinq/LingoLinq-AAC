@@ -16,6 +16,13 @@ module('Unit | Adapter | goal', function(hooks) {
     assert.notStrictEqual(url.indexOf('tz=' + encodeURIComponent(zone)), -1, url);
   });
 
+  test("a goal's save sends the device's time zone", function(assert) {
+    var zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    var adapter = this.owner.lookup('adapter:goal');
+    var url = adapter.urlForUpdateRecord('1_2', 'goal');
+    assert.notStrictEqual(url.indexOf('tz=' + encodeURIComponent(zone)), -1, url);
+  });
+
   test('other goal requests do not change', function(assert) {
     var adapter = this.owner.lookup('adapter:goal');
     var url = adapter.urlForQuery({user_id: '1_2'}, 'goal');
