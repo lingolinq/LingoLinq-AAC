@@ -13,14 +13,18 @@ import { setupTest } from '../../helpers';
 module('Unit | Route | user goal fresh stats', function(hooks) {
   setupTest(hooks);
 
-  function setup(context, online) {
+  function setup(context, online, opts) {
+    opts = opts || {};
     var calls = [];
     var goal = EmberObject.create({ id: '1_2' });
     context.owner.unregister('service:store');
     context.owner.register('service:store', Service.extend({
       findRecord: function(type, id, options) {
         calls.push({ type: type, id: id, options: options });
-        return RSVP.resolve(goal);
+        return opts.fetch_fails ? RSVP.reject({ error: 'timeout' }) : RSVP.resolve(goal);
+      },
+      peekRecord: function(type, id) {
+        return opts.loaded ? goal : null;
       }
     }));
     context.owner.unregister('service:persistence');
@@ -37,6 +41,23 @@ module('Unit | Route | user goal fresh stats', function(hooks) {
     assert.strictEqual(t.calls.length, 1);
     assert.strictEqual(t.calls[0].id, '1_2');
     assert.true(!!(t.calls[0].options && t.calls[0].options.reload), 'findRecord is asked to reload');
+  });
+
+  test('online, a failed fetch falls back to the goal already loaded', async function(assert) {
+    var t = setup(this, true, { fetch_fails: true, loaded: true });
+    var model = await t.route.model({ goal_id: '1_2' });
+    assert.strictEqual(model, t.goal, 'the goal the goals list loaded is shown, as before');
+  });
+
+  test('online, a failed fetch with nothing loaded still fails', async function(assert) {
+    var t = setup(this, true, { fetch_fails: true, loaded: false });
+    var failed = false;
+    try {
+      await t.route.model({ goal_id: '1_2' });
+    } catch(err) {
+      failed = true;
+    }
+    assert.true(failed, 'the error reaches the router');
   });
 
   test('offline, the stored goal is used', async function(assert) {
