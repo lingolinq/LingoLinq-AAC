@@ -8,9 +8,13 @@ Guarantee (docs/task-management/2026-10-26_frontend-scope-single-source.md):
    `frontend` step), ember-shard, ember-shard-coverage and build-and-test. No
    step outside ember-shard-scope reads `steps.frontend-scope`.
 3. Fail toward running: each "Decide" step writes run=false only when its
-   source succeeded and said exactly `false`. lint-and-build still runs when
-   the scope job fails.
-4. The classifier gives the CASES answer for every row.
+   source succeeded and said exactly `false`, and always runs. lint-and-build
+   still runs when the scope job fails, and only its fast-path step runs on
+   `false`.
+4. The classifier gives the CASES answer for every row, and runs the suite for
+   one file in each app area (MUST_RUN_PATHS).
+5. The build-and-test gate passes only when lint-and-build succeeded and
+   either the scope job said `false` or the shards and coverage passed.
 
 Threat model: this catches accidental edits. It does not try to catch an edit
 built to fool it (for example YAML that GitHub reads differently from Ruby's
@@ -227,12 +231,26 @@ def all_steps(workflow):
             yield job_name, step
 
 
+# Ways a step can find out which files a PR changed. Only the classifier
+# uses any of them today; a second step that does means a second classifier.
+CHANGED_FILES_MARKERS = (
+    "listFiles",
+    "pull_number",
+    "/files",
+    "compareCommits",
+    "paths-filter",
+    "changed-files",
+    "git diff --name-only",
+    "git diff --name-status",
+)
+
+
 def classifier_steps(workflow):
-    """Every step that lists a PR's files, whatever it is named."""
+    """Every step that finds a PR's changed files, whatever it is named."""
     return [
         (job_name, step)
         for job_name, step in all_steps(workflow)
-        if "listFiles" in json.dumps(step)
+        if any(marker in json.dumps(step) for marker in CHANGED_FILES_MARKERS)
     ]
 
 
@@ -254,9 +272,18 @@ def step_by_id(workflow, job_name, step_id):
 def run_decide(step, values):
     """Run a Decide step's bash. `values` maps each ${{ }} expression its env
     reads to a value; returns what it wrote to GITHUB_OUTPUT."""
+    returncode, written, stderr = run_step(step, values)
+    if returncode != 0:
+        raise AssertionError(f"Decide step exited {returncode}: {stderr}")
+    return written
+
+
+def run_step(step, values):
+    """Run a step's bash with its env resolved from `values`; returns the exit
+    code, what it wrote to GITHUB_OUTPUT, and stderr."""
     script = step["run"]
     if "${{" in script:
-        raise AssertionError("a Decide step must read its inputs through env, not inline ${{ }}")
+        raise AssertionError("a gating step must read its inputs through env, not inline ${{ }}")
     env = {"PATH": os.environ.get("PATH", "")}
     for name, expression in step.get("env", {}).items():
         match = EXPRESSION_RE.match(str(expression))
@@ -270,9 +297,7 @@ def run_decide(step, values):
         result = subprocess.run(
             ["bash", "-e", "-c", script], env=env, check=False, capture_output=True, text=True
         )
-        if result.returncode != 0:
-            raise AssertionError(f"Decide step exited {result.returncode}: {result.stderr}")
-        return pathlib.Path(output_path).read_text()
+        return result.returncode, pathlib.Path(output_path).read_text(), result.stderr
     finally:
         os.unlink(output_path)
 
@@ -397,32 +422,88 @@ class FrontendScopeClassifierTest(unittest.TestCase):
                     skip = status == "success" and value == "false"
                     self.assertEqual(written.strip(), "run=false" if skip else "run=true")
 
+    def test_decide_steps_always_run_and_come_last_in_the_scope_job(self):
+        for job_name in (SCOPE_JOB, "lint-and-build"):
+            step = step_by_id(self.workflow, job_name, "frontend")
+            with self.subTest(job=job_name):
+                self.assertNotIn("if", step)
+                self.assertNotIn("continue-on-error", step)
+        # A later step that fails would fail the job after `run` was written,
+        # so the shards (which read `run`) and the gate (which reads the
+        # result) would disagree.
+        steps = self.workflow["jobs"][SCOPE_JOB]["steps"]
+        self.assertEqual([step.get("id") for step in steps], ["frontend-scope", "frontend"])
+
     def test_lint_and_build_follows_the_scope_job(self):
         job = self.workflow["jobs"]["lint-and-build"]
         needs = job.get("needs")
         self.assertIn(SCOPE_JOB, needs if isinstance(needs, list) else [needs])
         self.assertEqual(job.get("if"), "${{ !cancelled() }}")
-        # Every step after the Decide step is gated on its output, one way or the other.
-        steps = job["steps"]
-        decide = next(i for i, step in enumerate(steps) if step.get("id") == "frontend")
-        gates = {"steps.frontend.outputs.run == 'true'", "steps.frontend.outputs.run == 'false'"}
-        for step in steps[decide + 1:]:
+        # Exactly these steps, each gated this way. Adding a step means
+        # adding it here, with the gate it should have.
+        work = "steps.frontend.outputs.run == 'true'"
+        expected = [
+            ("Checkout repository", None),
+            ("Decide whether frontend suite is required", None),
+            ("Documentation-only fast path", "steps.frontend.outputs.run == 'false'"),
+            ("Setup Node 22", work),
+            ("Cache node_modules and Puppeteer Chrome", work),
+            ("Install frontend dependencies", work),
+            ("Lint Ember templates", work),
+            ("Lint Ember JS", work),
+            ("Build Ember app (test env)", work),
+        ]
+        self.assertEqual([(s.get("name"), s.get("if")) for s in job["steps"]], expected)
+        for step in job["steps"]:
             with self.subTest(step=step.get("name")):
-                self.assertIn(step.get("if"), gates)
-        for step in steps[:decide]:
-            with self.subTest(step=step.get("name")):
-                self.assertEqual(step.get("uses", "").split("@")[0], "actions/checkout")
+                self.assertNotIn("continue-on-error", step)
 
-    def test_shards_and_gate_follow_the_scope_job(self):
+    def test_shards_follow_the_scope_job(self):
         jobs = self.workflow["jobs"]
         skip_unless_told = "${{ !cancelled() && needs.ember-shard-scope.outputs.run != 'false' }}"
         for name in ("ember-shard", "ember-shard-coverage"):
             with self.subTest(job=name):
                 self.assertEqual(jobs[name].get("if"), skip_unless_told)
-        gate = jobs["build-and-test"]["steps"][0]["env"]
-        self.assertEqual(gate.get("SCOPE"), "${{ needs.ember-shard-scope.result }}")
-        self.assertEqual(gate.get("SCOPE_RUN"), "${{ needs.ember-shard-scope.outputs.run }}")
-        self.assertEqual(gate.get("LINT_AND_BUILD"), "${{ needs.lint-and-build.result }}")
+                self.assertNotIn("continue-on-error", jobs[name])
+
+    def test_only_known_jobs_read_the_scope_decision(self):
+        readers = {
+            name for name, job in self.workflow["jobs"].items()
+            if "ember-shard-scope" in json.dumps(job)
+        }
+        self.assertEqual(
+            readers, {"lint-and-build", "ember-shard", "ember-shard-coverage", "build-and-test"}
+        )
+
+    def test_the_gate_passes_only_when_everything_required_passed(self):
+        job = self.workflow["jobs"]["build-and-test"]
+        self.assertEqual(
+            set(job.get("needs", [])),
+            {"lint-and-build", SCOPE_JOB, "ember-shard", "ember-shard-coverage"},
+        )
+        # always(): a skipped required check counts as passing.
+        self.assertEqual(job.get("if"), "always()")
+        self.assertEqual(len(job["steps"]), 1)
+        step = job["steps"][0]
+        self.assertNotIn("if", step)
+        self.assertNotIn("continue-on-error", step)
+        statuses = ["success", "failure", "skipped", ""]
+        for lint, scope, run, shards, coverage in itertools.product(
+            statuses, statuses, VALUES, statuses, statuses
+        ):
+            values = {
+                "needs.lint-and-build.result": lint,
+                "needs.ember-shard-scope.result": scope,
+                "needs.ember-shard-scope.outputs.run": run,
+                "needs.ember-shard.result": shards,
+                "needs.ember-shard-coverage.result": coverage,
+            }
+            docs_only = scope == "success" and run == "false"
+            suite_passed = shards == "success" and coverage == "success"
+            should_pass = lint == "success" and (docs_only or suite_passed)
+            with self.subTest(lint=lint, scope=scope, run=run, shards=shards, coverage=coverage):
+                returncode, _written, _stderr = run_step(step, values)
+                self.assertEqual(returncode == 0, should_pass)
 
     def test_old_allowlist_does_not_skip_instruction_files(self):
         script = with_allowed(self.script, OLD_ALLOWED)
