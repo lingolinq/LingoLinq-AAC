@@ -56,9 +56,32 @@ describe Processable, :type => :model do
       # this, a config that dropped <style> entirely would pass the next line without crass.
       expect(style_block).to include('<style>')
       expect(style_block).not_to include('@import')
-      style_attr = r.process_html('<p style="color: (url(x y\\\\)); background-image: url(javascript:alert(1)); z: )">hi</p>')
-      expect(style_attr).to include('style="color:')
+      # sanitize 7.0.1 also removes any declaration holding a bad url() inside a (...) block,
+      # so the control is a declaration AFTER the bad one: it proves tokenizing resumed past it.
+      style_attr = r.process_html('<p style="color: (url(x y\\\\)); background-image: url(javascript:alert(1)); z: ); font-weight: bold">hi</p>')
+      expect(style_attr).to include('font-weight: bold')
       expect(style_attr).not_to include('javascript:')
+      expect(style_attr).not_to include('color:')
+    end
+
+    # GHSA-wgw9-qhqg-8hv5: sanitize before 7.0.1 did not parse CSS nesting the way browsers do,
+    # so a nested rule or a nested @media carried a blocked url() scheme past the RELAXED
+    # protocol allowlist. A flat rule shows the allowlist itself is working. RELAXED allows
+    # nearly every property (position included), so the scheme is what this pins.
+    it "should not let nested CSS carry a blocked url() past the sanitizer" do
+      r = FakeRecord.new
+      flat = r.process_html('<style>p{background:url(data:image/png;base64,AAAA)}</style>')
+      expect(flat).to include('<style>')
+      expect(flat).not_to include('data:')
+      payloads = {
+        'nested rule in a value' => '<p><style>p{color:not(z), *{position:fixed;inset:0;background:url(data:image/png;base64,AAAA)}}</style><b>hi</b></p>',
+        'declarations in a nested @media' => '<p><style>p{@media all{position:fixed;inset:0;background:url(data:image/png;base64,AAAA);a{}}}</style>hi</p>'
+      }
+      payloads.each do |name, html|
+        out = r.process_html(html)
+        expect(out).to include('<style>'), name
+        expect(out).not_to include('data:'), name
+      end
     end
   end
   
