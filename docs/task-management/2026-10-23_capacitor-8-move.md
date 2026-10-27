@@ -239,3 +239,53 @@ shell "is on" Capacitor 8 before PR #2 merges; the suggested order missed #1198 
 items; no warning that packaging edits tracked files; item 20 said names "never contain `..`"
 (they can, inside a name, not as a path segment); missing Apple sources here; the PR-rule
 note is now neutral; and the STOP 1 handoff says the smoke test is still open.
+
+## Offline smoke test (2026-10-25 and 2026-10-26)
+
+App packaged from staging (see above), synthetic account, email login. Results and the issues
+filed are in the handoff's "Smoke test results" section; the method and evidence are here.
+
+- **How offline was proven.** iOS: the Mac's Wi-Fi was turned off from a background script
+  (`networksetup -setairportpower en0 off`), and the simulator's unified log showed no network
+  tasks in the window. Android: `adb shell cmd connectivity airplane-mode enable`, and logcat
+  showed no `CapacitorHttp` requests until airplane mode was turned off. Speech was confirmed
+  from the logs (iOS audio entries; Android TextToSpeech `speak` calls with their timestamps
+  inside the offline window).
+- **Second bridge defect (fixed, shell `9a9789b`).** The first manual sync on iOS failed with
+  "promise timed out: confirming quota". The sync's database check
+  (`app/frontend/app/services/persistence.js:2073-2092`) calls the short Cordova form
+  `executeSql(sql, success, error)`; the bridge treated `success` as the values, the plugin
+  refused it ("Must provide an Array of value"), and the check then called
+  `db.abortAllPendingTransactions()`, which the bridge did not have. The fix accepts the short
+  form and adds a no-op `abortAllPendingTransactions` (statements run in order on one queue,
+  so there is nothing safe to cancel). Red tests first; 12 bridge tests pass.
+- **Correction recorded.** The first iOS offline run was reported as "speech works" when only
+  the board appearing had been seen; the rerun tested speech and pictures and confirmed both.
+- **Sync errors under load.** Native request latency measured from the iOS log: p90 30.7 s in
+  one run, 3.9 s and 5.8 s in two others. The cause is slow staging responses under load, iPads
+  syncing with desktop parallelism, and tight client timeouts with no retry (#1212). An earlier
+  thread-count theory was contradicted by a rerun and dropped.
+- **Android unsynced folder.** In airplane mode the "do" folder on the home board led to
+  `#/traci-test-simulator/board/core-60-do_2` with a `bad` board record (read through the
+  web view debugger, `adb forward tcp:9333 localabstract:webview_devtools_remote_<pid>`). The
+  device database held 2 of the home board's 30 linked boards. The same run logged
+  `buttonset load_buttons work timed out for board 1_6277 (buttons.length=0)`
+  (`models/buttonset.js:369`). Recorded against #1213; the incomplete sync belongs to #1208
+  and #1212.
+- **Not checked:** whether the shared-app failures also happen on a Capacitor 7 build. They
+  are in Ember code paths the move does not touch, which is why they are tracked as app issues
+  and not as Capacitor 8 regressions.
+
+## Canonical review passes on shell PR #2 (2026-10-26)
+
+`~/ai-company-brain` is now on this machine, so the canonical passes ran. PII preflight:
+`REVIEWED=PR lingolinq/lingolinq_mobile#2 at 9a9789bfd0a8921f40d65383235d06aa211a242c` (guard
+PASS). Senior-dev pass (`review-pr.md`, run by Claude; the Codex CLI is not installed):
+"Request changes" on one High. Adversary pass: "Ship with conditions". Every finding was checked
+by hand; the outcome is item 4 of the handoff. In short: the High (iOS never built, two
+bridges) is refuted by five saved cold-launch logs with one bridge and one shim each, and came
+from the shell README's stale checklist, fixed in `7ae7419`. The no-op abort and `null`
+values findings are refuted in code. The in-place upgrade condition does not apply (no store
+build exists). Confirmed and recorded as follow-ups: the Ember shim's missing fixes (#1206), the
+device database in cloud backups (handoff item 27, pre-existing), and three Low bridge
+follow-ups. `npm test`: 12 of 12 pass.

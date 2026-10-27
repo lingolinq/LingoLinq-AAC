@@ -8,12 +8,22 @@ full working record, with command output, is
 ## Summary
 
 Shell PR #2 (not merged yet) moves the shell to Capacitor 8.5.3 with Android target API 36.
-On that branch the shell builds for Android and iOS, passes `cap doctor` for both, and passes the 16 KB page-size checks. On the iOS simulator it
-launches with one bridge and starts its SQLite, file storage and TTS bridges (updated
-2026-10-25, Xcode 27.1). The offline smoke test has not been run on either platform, Google
-sign-in does not work in the app ([#1198](https://github.com/lingolinq/LingoLinq-AAC/issues/1198)),
-and the release bundle is unsigned. So the code change is ready for review, but the app is not
-yet shown to work end to end on Capacitor 8 and is not yet ready for a store upload.
+On that branch the shell builds for Android and iOS, passes `cap doctor` for both, and passes
+the 16 KB page-size checks. The offline smoke test ran on 2026-10-25 and 2026-10-26 on the iPad
+simulator (Xcode 27.1) and an API 36 Android tablet emulator, with the app packaged from
+staging. It found two defects in the shell's SQLite bridge, both fixed in PR #2 with tests.
+With them fixed, on both platforms the app logs in, syncs to the device, cold starts offline,
+and in Basic view opens the home board and speaks with its pictures, with no network requests.
+
+What still fails is in the shared Ember app, not in the shell: the first sync never runs on its
+own and Basic view can report a sync complete when it is not
+([#1208](https://github.com/lingolinq/LingoLinq-AAC/issues/1208),
+[#1212](https://github.com/lingolinq/LingoLinq-AAC/issues/1212)), Modern view never loads boards
+from the device offline, and an unsynced folder tapped offline fails late and replaces the board
+([#1213](https://github.com/lingolinq/LingoLinq-AAC/issues/1213)). Google sign-in does not work in
+the app ([#1198](https://github.com/lingolinq/LingoLinq-AAC/issues/1198)) and the release bundle
+is unsigned. So the Capacitor 8 move works, but the app is not ready for a store upload until
+those issues are fixed.
 
 | Goal | State |
 |---|---|
@@ -22,7 +32,7 @@ yet shown to work end to end on Capacitor 8 and is not yet ready for a store upl
 | Android debug and release builds | Done (release is unsigned) |
 | 16 KB page size | Done (all native libraries aligned) |
 | AAC docs say Capacitor 8 and why | Done (PR #1185) |
-| App works on Capacitor 8 (offline smoke test) | **Not run** |
+| App works on Capacitor 8 (offline smoke test) | Done for the shell: Basic view offline speech and pictures pass on iOS and Android. Shared-app failures tracked (#1208, #1212, #1213) |
 | iOS build | Done (Xcode 27.1, simulator; one bridge at launch) |
 | Signed release bundle for Play | **Not started** (outside the move) |
 
@@ -31,10 +41,11 @@ yet shown to work end to end on Capacitor 8 and is not yet ready for a store upl
 | Repo | PR | Branch | State |
 |---|---|---|---|
 | lingolinq/LingoLinq-AAC | [#1185](https://github.com/lingolinq/LingoLinq-AAC/pull/1185) | `traci/feat/capacitor-8` → `develop` | Ready for review. Docs only. |
-| lingolinq/lingolinq_mobile | [#2](https://github.com/lingolinq/lingolinq_mobile/pull/2) | `traci/feat/capacitor-8` → `master` | Draft until the smoke test passes. The repo has no CI. |
+| lingolinq/lingolinq_mobile | [#2](https://github.com/lingolinq/lingolinq_mobile/pull/2) | `traci/feat/capacitor-8` → `master` | Smoke test done; leaves draft once the review passes are clean. The repo has no CI. |
 
 - The shell repo's only long-lived branch is `master` (no `develop`, and it is not being
-  renamed). PR #2 is two commits on top of `master` at `0d20e48`.
+  renamed). PR #2 is five commits on top of `master` at `0d20e48`: the move, its follow-up,
+  the two SQLite bridge fixes (`cc94c74`, `9a9789b`) and a README checklist update (`7ae7419`).
 - Merge order: the two can merge independently. #1185 only describes the move as "in
   progress", so it is accurate before or after #2 merges.
 
@@ -72,7 +83,9 @@ real but only a run on a device or simulator can show whether it happens.
 
 ### Blocks the shell PR leaving draft
 
-1. **Offline smoke test (Android and iOS) has not run.** The definition of done is the "Manual smoke"
+1. **Offline smoke test (done 2026-10-25 and 2026-10-26; results under "Smoke test results"
+   below).** The shell passes; the failures it found are in the shared Ember app and are
+   tracked as issues. How to run it again: the definition of done is the "Manual smoke"
    section of [capacitor-7-kickoff.md](./capacitor-7-kickoff.md): fresh install, log in, wait
    for sync, confirm the console shows the SQLite shim and not the IndexedDB fallback,
    airplane mode, cold start, open the home board and speak with local symbols, go online
@@ -84,9 +97,11 @@ real but only a run on a device or simulator can show whether it happens.
    `www/domain_settings.js`: never commit those changes, and check `grep api_host www/init.js`
    before any shell commit. The run also needs a LingoLinq
    API reachable over HTTPS or through `adb reverse`, and a test account that holds no real
-   user data, and it must not use Continue with Google (see #1198 below). The STOP 2 session
-   did not run local Rails, because its session prompt forbids touching the database. The
-   Android emulator and AVD are installed (see above).
+   user data, and it must not use Continue with Google (see #1198 below). The runs so far used
+   staging and a synthetic account, not local Rails. To test offline on the Android emulator
+   without cutting the Mac's network, use `adb shell cmd connectivity airplane-mode enable`
+   (and `disable`); launch the app with `adb shell am start -n com.lingolinq.app/.MainActivity`
+   (a `monkey` launch did not open it).
 2. **Layout: system bars and safe areas (Medium, PLAUSIBLE), Android and iOS.** Capacitor 8 registers its `SystemBars` plugin for
    every app with `insetsHandling` defaulting to `css`
    (`@capacitor/android` `Bridge.java:664`, `SystemBars.java:56,125`); Capacitor 7 did nothing
@@ -95,24 +110,42 @@ real but only a run on a device or simulator can show whether it happens.
    and the on-screen keyboard on Android 14 and on Android 15 or later during the smoke test.
    On iOS, the shell's own loading page sat under the status bar on iPhone 17 (the bootstrap
    `www/index.html` uses `viewport-fit=cover`), and the Ember CSS has no top safe-area inset,
-   so check the top of the real UI on an iPhone and an iPad too.
-3. **Codex review on PR #2 has not run.** `@codex review` was posted; the Codex bot replied
-   that the commenter's GitHub account is not connected to Codex. Either connect the account
-   at chatgpt.com/codex/cloud/settings/connectors and post the request again, or ask someone
-   whose account is connected to post it.
-4. **The canonical review passes have not run** on either PR. `/review-pr` and
-   `/adversary-review` need the PII pre-flight script from the internal tooling repo, which
-   was not available. A local substitute (`/adversary-review-local`) ran on both branches,
-   then a re-check of the fix commits: no Critical or High findings, and every Low finding is
-   fixed. The automatic Codex review on #1185 also never arrived.
+   so check the top of the real UI on an iPhone and an iPad too. Fix tracked in
+   [#1202](https://github.com/lingolinq/LingoLinq-AAC/issues/1202) (add the top safe-area inset to the navbar and other top-edge elements).
+3. **Codex review on PR #2 has not run (not a required pass).** `@codex review` was posted;
+   the Codex bot replied that the commenter's GitHub account is not connected to Codex. To get
+   one, connect the account at chatgpt.com/codex/cloud/settings/connectors and post the
+   request again.
+4. **Canonical review passes (2026-10-26).** The PII preflight passed on PR #2 at `9a9789b`, and
+   the senior-dev pass (`/review-pr`, run by Claude because the Codex CLI is not installed) and
+   the adversary pass both ran on it. No Critical findings. Each finding was checked by hand:
+   - Refuted: "the iOS scene setup was never built or launched, and may start two bridges".
+     Every saved iOS cold launch (5) logged one "Loading app at" and one shim start. The
+     reviewer was reading the shell README's stale checklist, now updated (`7ae7419`).
+   - Refuted: the no-op `abortAllPendingTransactions` lets a late callback misfire. Its only
+     caller resolves an idempotent promise (`services/persistence.js:2075-2091`).
+   - Refuted: `null` values reach the plugin; `runSql` defaults them to `[]`.
+   - Not applicable: an in-place upgrade from a Capacitor 7 build. No store build exists.
+   - Confirmed, outside this PR: the Ember app's own SQLite shim lacks all three bridge fixes
+     ([#1206](https://github.com/lingolinq/LingoLinq-AAC/issues/1206) covers the `ios_columns`
+     part; the short `executeSql` form and the abort method should be added to it). The shell's
+     bridge loads first, so the Ember copy is unused in the app today.
+   - Confirmed, pre-existing, launch blocker: item 27 (device database in cloud backups).
+   - Low follow-ups for the bridge: no watchdog on a native call that never returns (every later
+     read and write would wait); `transaction()` drops statements queued from a statement
+     callback and `tx.executeSql` lacks the short form (no current caller); the shell repo has
+     no CI to run `npm test`.
+
+   The automatic Codex review on #1185 never arrived.
 
 ### iOS
 
 **Update (Xcode 27.1 on macOS 27.0.1, 2026-10-25):** items 5 and 9 are resolved and item 7 is resolved for
 launch: the app builds for the simulator, and a cold launch on iPad and iPhone logs "Loading
-app at" once, with the SQLite, file storage and TTS bridges starting. Still open on iOS: the
-simulator smoke test with a packaged app (item 6), the top safe-area inset (item 2), the TTS
-audio-session check (item 8), and export compliance at upload (item 10). Details are in the task log.
+app at" once, with the SQLite, file storage and TTS bridges starting. The simulator smoke test
+(item 6) is done. Still open on iOS: the top safe-area inset (item 2), the TTS audio-session
+check with the silent switch (item 8), and export compliance at upload (item 10). Details are
+in the task log.
 
 5. **Xcode (resolved).** Xcode 27.1 is installed on macOS 27.0.1 with the iOS simulator
    runtimes. For another Mac: per
@@ -124,8 +157,7 @@ audio-session check (item 8), and export compliance at upload (item 10). Details
    Install the iOS platform with `xcodebuild -downloadPlatform iOS`. Xcode 27.1 has no
    separate Simulator app: open `ios/App/App.xcworkspace`, pick a simulator as the run
    destination and press Run.
-6. **Simulator smoke test (open).** The build works; what remains is the item 1 smoke test
-   in the iPad simulator, with a packaged app and a test login.
+6. **Simulator smoke test (done 2026-10-25).** See "Smoke test results" below.
 7. **Second bridge at cold launch (resolved for launch).** Checked 2026-10-25: one "Loading app
    at" line on iPad and iPhone. Original concern: `Info.plist` sets
    `UISceneStoryboardFile` to `Main` (whose initial view controller is a
@@ -170,6 +202,91 @@ audio-session check (item 8), and export compliance at upload (item 10). Details
 nothing in the native app, because the frontend opens relative `/auth/google/start` URLs that
 resolve inside the app. Not a Capacitor 8 regression, but it blocks the first store release.
 Tracked in [#1198](https://github.com/lingolinq/LingoLinq-AAC/issues/1198), with the full plan.
+
+**Also found 2026-10-25:** a logged-out app opens on the marketing landing page with an empty
+header (the logged-out header is hidden when `installed_app`, `app-navbar.hbs:9`). Decision:
+the iOS and Android apps open on sign-in instead. Tracked in
+[#1200](https://github.com/lingolinq/LingoLinq-AAC/issues/1200); also blocks the first store release.
+
+**Also found 2026-10-25:** the app detects an iPad as a Mac desktop (Mac user agent since
+iPadOS 13; `capabilities.js:182-232` only matches `ipod|ipad|iphone`), so `mobile` is false and
+`system` is `Mac` on iPads, skipping iOS behaviour such as `no_linky`, native voices and iOS
+offline file handling. Tracked in [#1201](https://github.com/lingolinq/LingoLinq-AAC/issues/1201).
+
+**Also found 2026-10-25, during sign-up testing on iOS:**
+
+- Fixed in shell PR #2 (`cc94c74`): the shell's SQLite bridge passed the iOS `ios_columns` row
+  through as data, so the schema version read failed on every launch after the first and
+  single-record reads found nothing. With the fix, login works and survives the reload.
+- After sign-up the user comes back logged out (login works):
+  [#1204](https://github.com/lingolinq/LingoLinq-AAC/issues/1204). Blocks sign-up in the apps.
+- A failed SQLite setup leaves every local storage call waiting forever:
+  [#1205](https://github.com/lingolinq/LingoLinq-AAC/issues/1205).
+- The Ember backup SQLite shim has the same `ios_columns` defect:
+  [#1206](https://github.com/lingolinq/LingoLinq-AAC/issues/1206).
+- Deployed Gentle View showing Focused assets (not app-specific):
+  [#1203](https://github.com/lingolinq/LingoLinq-AAC/issues/1203).
+
+### Smoke test results (2026-10-25 and 2026-10-26)
+
+App packaged from staging, synthetic test account, normal email login. Offline was checked
+from the device side each time (no network requests in the offline window), not assumed.
+
+**iOS (iPad Air 11-inch simulator, iOS 27.1):**
+
+- Login, a manual sync, and the SQLite shim (not the IndexedDB fallback) all work. Pictures are
+  saved for offline use.
+- The first manual sync failed with "promise timed out: confirming quota". Cause: the shell's
+  SQLite bridge did not accept the short `executeSql(sql, success, error)` form the sync's
+  database check uses, and had no `abortAllPendingTransactions`. **Fixed in shell PR #2
+  (`9a9789b`)**, with tests; the sync then completes.
+- Basic view, Wi-Fi off, cold start: the home board opens, and buttons speak and show their
+  pictures. (A first run showed the board but did not test speech; the rerun did.)
+- Modern view offline: the board page shows no boards, because it never reads the device copy
+  ([#1213](https://github.com/lingolinq/LingoLinq-AAC/issues/1213)). Not a shell defect: reading
+  the same board through the app's store offline works.
+- Sync errors under load: staging is slow under load, iPads sync with desktop parallelism, and
+  the client's timeouts are tight with no retry
+  ([#1212](https://github.com/lingolinq/LingoLinq-AAC/issues/1212)).
+
+**Android (Pixel Tablet emulator, API 36), airplane mode:**
+
+- The app opens offline, reads its database, and in Basic view speaks with pictures
+  (TextToSpeech `speak` calls logged while in airplane mode).
+- Sync is slow: about 5 boards a minute, with each SQLite bridge call taking about 130 ms. A
+  Modern view sync failed on the 5-second "reloading root user" limit. A Basic view sync said
+  it was complete when only 2 of the home board's 30 linked boards were on the device.
+- Tapping a folder whose board is not on the device does nothing visible for about 12 seconds,
+  then replaces the board with "Not available offline" (see
+  [#1213](https://github.com/lingolinq/LingoLinq-AAC/issues/1213)).
+- Cold start offline took about 27 seconds in one run and about 2 seconds in the next; not
+  investigated.
+- On both emulators the on-screen keyboard does not appear, because the Mac keyboard counts as
+  a hardware keyboard. Not an app defect.
+
+**Issues filed from this testing** (all on LingoLinq-AAC, in the shared Ember app):
+[#1207](https://github.com/lingolinq/LingoLinq-AAC/issues/1207) (board-detail Predict works once;
+Yes on the right), [#1208](https://github.com/lingolinq/LingoLinq-AAC/issues/1208) (the first
+offline sync never runs on a new device; sync hidden in Modern view),
+[#1209](https://github.com/lingolinq/LingoLinq-AAC/issues/1209) (offline Speak Mode should open
+the boards page, not an error), [#1212](https://github.com/lingolinq/LingoLinq-AAC/issues/1212)
+(sync timeouts under load), [#1213](https://github.com/lingolinq/LingoLinq-AAC/issues/1213)
+(Modern view offline; Go to Home Board does nothing),
+[#1214](https://github.com/lingolinq/LingoLinq-AAC/issues/1214) (Basic view collapsed-sidebar
+button). Before the first store release, #1208 and #1213 need fixing, since without them a user
+can lose their boards offline.
+
+**Found by the canonical review of PR #2 (2026-10-26):**
+
+27. **Device database in cloud backups (Medium, CONFIRMED, pre-existing; blocks the first
+    store release).** The shell opens SQLite unencrypted (`www/sqlite_bridge.js`,
+    `mode: 'no-encryption'`), on iOS in `Documents` (no `iosDatabaseLocation` is set, and the
+    plugin excludes only a custom location from backup), and Android has
+    `allowBackup="true"` with no `dataExtractionRules`. With iCloud Backup or Android Auto Backup
+    on, boards, user records and logs are copied to the family's cloud account, outside
+    LingoLinq's retention and deletion controls. Options: set `CapacitorSQLite.iosDatabaseLocation`
+    to `Library/CapacitorDatabase`, add Android backup rules that exclude `databases/` (or turn
+    backup off), and decide encryption with item 15. Found by the adversary review of PR #2.
 
 ### Release notes
 
@@ -228,11 +345,16 @@ Tracked in [#1198](https://github.com/lingolinq/LingoLinq-AAC/issues/1198), with
 
 ## Suggested order
 
-1. Connect a Codex account and request the review on PR #2 (item 3).
-2. Run the offline smoke test with the layout checks, on the iPad simulator and the Android
-   tablet emulator (items 1, 2, 6 and 8, plus the path check in item 20); then take PR #2
-   out of draft. Use a normal email sign-up or login, not Google.
-3. Fix native Google sign-in ([#1198](https://github.com/lingolinq/LingoLinq-AAC/issues/1198))
-   before the first store build.
+1. Merge shell PR #2 and #1185 (in either order).
+2. Fix the shared-app offline and sync issues
+   ([#1208](https://github.com/lingolinq/LingoLinq-AAC/issues/1208),
+   [#1213](https://github.com/lingolinq/LingoLinq-AAC/issues/1213),
+   [#1212](https://github.com/lingolinq/LingoLinq-AAC/issues/1212)) and rerun the offline smoke
+   test on both platforms after a sync that really completes.
+3. Fix native Google sign-in ([#1198](https://github.com/lingolinq/LingoLinq-AAC/issues/1198)),
+   opening on sign-in ([#1200](https://github.com/lingolinq/LingoLinq-AAC/issues/1200)), sign-up
+   ([#1204](https://github.com/lingolinq/LingoLinq-AAC/issues/1204)) and the top inset
+   ([#1202](https://github.com/lingolinq/LingoLinq-AAC/issues/1202)) before the first store build.
 4. Store preparation: release signing and versioning, Play Console, the App Store export
-   compliance answer, and the release notes (items 10 to 16).
+   compliance answer, the TTS silent-switch check (item 8), and the release notes (items 10
+   to 16).
