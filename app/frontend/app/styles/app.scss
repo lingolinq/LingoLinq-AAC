@@ -9430,27 +9430,6 @@ body.pretty_loader #loading_box {
     width: 60%;
     margin: 0 auto;
   }
-  /* Board Alt: colored icon above label (modern board layout – grid in teal) */
-  .sidebar_item__icon--board-alt {
-    display: block;
-    width: 60%;
-    margin: 0 auto;
-    color: rgba(44, 183, 176, 0.95);
-    background: linear-gradient(145deg, rgba(44, 183, 176, 0.25) 0%, rgba(91, 141, 239, 0.2) 100%);
-    border-radius: 6px;
-    padding: 4px;
-    box-sizing: border-box;
-  }
-  .sidebar_item__icon--board-alt svg {
-    display: block;
-    width: 100%;
-    height: auto;
-    aspect-ratio: 1;
-  }
-  &.sidebar_item--board-alt-active .sidebar_item__icon--board-alt {
-    color: #fff;
-    background: $brand-charcoal-dark;
-  }
 }
 #sidebar > a:hover {
   text-decoration: none;
