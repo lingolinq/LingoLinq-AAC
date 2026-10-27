@@ -117,75 +117,29 @@ jobs:
 
   # Lint gates and the Ember build. The required check is `build-and-test` (the gate job at the end of
   # this workflow), which waits for this job AND the Ember shards.
+  # Whether the frontend steps run comes from ember-shard-scope, the one classifier, so this job and
+  # the shards cannot disagree. `!cancelled()`: if the scope job fails, this job still runs every
+  # step (the Decide step below fails toward running), so the gate never sees it skipped.
   lint-and-build:
+    needs: ember-shard-scope
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      # Keep this job present for every PR (the required build-and-test gate needs it). GitHub does not
-      # report a path-filtered job at all, which can leave a required check pending.
-      # This classifier instead skips only the expensive frontend steps, and only
-      # when every current and previous (rename) path is documentation/audit data.
-      - name: Classify frontend impact
-        id: frontend-scope
-        continue-on-error: true
-        uses: actions/github-script@v8
-        with:
-          script: |
-            if (context.eventName !== 'pull_request') {
-              core.setOutput('run_frontend', 'true');
-              core.info('Protected-branch push: run the complete frontend suite.');
-              return;
-            }
-
-            const files = await github.paginate(github.rest.pulls.listFiles, {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.issue.number,
-              per_page: 100,
-            });
-            const allowed = (path) =>
-              path.startsWith('docs/') || path.startsWith('audit-reports/');
-            // GitHub caps listFiles at 3,000 paths. The payload's changed_files
-            // count lets us detect truncation and fail toward the full suite.
-            const reportedCount = context.payload.pull_request.changed_files;
-            const completeList =
-              Number.isInteger(reportedCount) && files.length === reportedCount;
-            if (!completeList) {
-              core.warning(
-                `PR reports ${reportedCount} changed files but the API returned ${files.length}; ` +
-                'run the full frontend suite.'
-              );
-            }
-            const documentationOnly =
-              completeList &&
-              files.length > 0 &&
-              files.every((file) =>
-                allowed(file.filename) &&
-                (!file.previous_filename || allowed(file.previous_filename))
-              );
-
-            core.setOutput('run_frontend', documentationOnly ? 'false' : 'true');
-            core.info(
-              documentationOnly
-                ? 'Documentation/audit-only PR: skip the frontend suite.'
-                : 'Frontend-relevant or unknown path present: run the frontend suite.'
-            );
-
-      # The classifier is an optimization, not a gate. If GitHub's files API or
-      # the classifier fails, default to the full suite rather than skipping tests.
+      # The classifier is an optimization, not a gate. If the scope job failed, was skipped, or left
+      # its output empty, default to the full suite rather than skipping lint and build.
       - name: Decide whether frontend suite is required
         id: frontend
         env:
-          CLASSIFIER_OUTCOME: ${{ steps.frontend-scope.outcome }}
-          CLASSIFIED_VALUE: ${{ steps.frontend-scope.outputs.run_frontend }}
+          SCOPE_RESULT: ${{ needs.ember-shard-scope.result }}
+          SCOPE_RUN: ${{ needs.ember-shard-scope.outputs.run }}
         run: |
-          if [ "$CLASSIFIER_OUTCOME" = "success" ] && [ "$CLASSIFIED_VALUE" = "false" ]; then
+          if [ "$SCOPE_RESULT" = "success" ] && [ "$SCOPE_RUN" = "false" ]; then
             echo "run=false" >> "$GITHUB_OUTPUT"
           else
             echo "run=true" >> "$GITHUB_OUTPUT"
@@ -193,7 +147,7 @@ jobs:
 
       - name: Documentation-only fast path
         if: steps.frontend.outputs.run == 'false'
-        run: echo "Frontend build and browser tests are not applicable to this documentation/audit-only PR."
+        run: echo "Frontend build and browser tests are not applicable to this documentation, audit, or instruction-file-only PR."
 
       - name: Setup Node 22
         if: steps.frontend.outputs.run == 'true'
@@ -268,7 +222,13 @@ jobs:
     outputs:
       run: ${{ steps.frontend.outputs.run }}
     steps:
-      # Same classifier and fail-toward-running decision as lint-and-build.
+      # The one frontend-impact classifier. lint-and-build, the shards, coverage and the
+      # build-and-test gate all read this job's `run` output (scripts/frontend-scope-classifier.test.py
+      # pins that). Keep this job present for every PR (the required build-and-test gate needs it):
+      # GitHub does not report a path-filtered job at all, which can leave a required check pending.
+      # This classifier instead skips only the expensive frontend work, and only when every current
+      # and previous (rename) path is documentation, audit data, or one of CLAUDE.md, AGENTS.md,
+      # GEMINI.md, or .github/copilot-instructions.md.
       - name: Classify frontend impact
         id: frontend-scope
         continue-on-error: true
@@ -277,6 +237,7 @@ jobs:
           script: |
             if (context.eventName !== 'pull_request') {
               core.setOutput('run_frontend', 'true');
+              core.info('Protected-branch push: run the complete frontend suite.');
               return;
             }
             const files = await github.paginate(github.rest.pulls.listFiles, {
@@ -286,10 +247,23 @@ jobs:
               per_page: 100,
             });
             const allowed = (path) =>
-              path.startsWith('docs/') || path.startsWith('audit-reports/');
+              path.startsWith('docs/') ||
+              path.startsWith('audit-reports/') ||
+              path === 'CLAUDE.md' ||
+              path === 'AGENTS.md' ||
+              path === '.github/copilot-instructions.md' ||
+              path === 'GEMINI.md';
+            // GitHub caps listFiles at 3,000 paths. The payload's changed_files
+            // count lets us detect truncation and fail toward the full suite.
             const reportedCount = context.payload.pull_request.changed_files;
             const completeList =
               Number.isInteger(reportedCount) && files.length === reportedCount;
+            if (!completeList) {
+              core.warning(
+                `PR reports ${reportedCount} changed files but the API returned ${files.length}; ` +
+                'run the full frontend suite.'
+              );
+            }
             const documentationOnly =
               completeList &&
               files.length > 0 &&
@@ -298,6 +272,11 @@ jobs:
                 (!file.previous_filename || allowed(file.previous_filename))
               );
             core.setOutput('run_frontend', documentationOnly ? 'false' : 'true');
+            core.info(
+              documentationOnly
+                ? 'Documentation, audit, or instruction-file-only PR: skip the frontend suite.'
+                : 'Frontend-relevant or unknown path present: run the frontend suite.'
+            );
 
       - name: Decide whether frontend suite is required
         id: frontend
@@ -465,7 +444,8 @@ jobs:
           python3 scripts/ci-shard-compare.py --coverage ember-shard-pool.log ember-shard-main.log
 
   # THE REQUIRED CHECK `build-and-test`: passes only if lint-and-build passed AND the Ember suite passed
-  # in both shards with coverage, or the scope job said this PR touches no frontend (docs/audit only).
+  # in both shards with coverage, or the scope job said this PR touches no frontend
+  # (docs, audit, or root instruction files only).
   # Branch protection already requires `build-and-test` on develop, staging and main, so the Ember
   # tests are required with no protection change. The shard checks themselves are not required:
   # a skipped matrix job never reports its expanded names, which would leave a docs-only PR waiting.
@@ -491,7 +471,7 @@ jobs:
             exit 1
           fi
           if [ "$SCOPE" = "success" ] && [ "$SCOPE_RUN" = "false" ]; then
-            echo "Documentation/audit-only change: the Ember suite is not required."
+            echo "Documentation, audit, or instruction-file-only change: the Ember suite is not required."
             exit 0
           fi
           if [ "$SHARDS" != "success" ] || [ "$COVERAGE" != "success" ]; then
@@ -701,6 +681,12 @@ jobs:
       # codex-review.yml (inline because that step runs before checkout).
       - name: Run codex-review chunked-scope match tests
         run: python3 scripts/codex-review-chunked-scope.test.py
+
+      # Guards the one Classify frontend impact step (in ember-shard-scope) and
+      # every job that reads its decision. Reads this file with system Ruby's
+      # YAML parser and runs the classifier in Node; no PyYAML.
+      - name: Run frontend-scope classifier tests
+        run: python3 scripts/frontend-scope-classifier.test.py
 
       # Guards the path classifier that routes a diff away from the external
       # reviewer: data-bearing paths (including every path under db/language/)

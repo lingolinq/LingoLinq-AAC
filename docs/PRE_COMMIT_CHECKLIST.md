@@ -11,10 +11,10 @@ Check the PR's **Checks** section for the current required set.
 
 | Job | What it runs |
 |-----|--------------|
-| `build-and-test` | A gate job. For application-relevant PRs and protected-branch pushes it passes only when `lint-and-build` (Ember lint and build) and the full Chrome Headless suite, run as the `ember-shard-main` and `ember-shard-pool` jobs plus `ember-shard-coverage`, all passed. For PRs whose changes are entirely under `docs/**` and/or `audit-reports/**`: reports success after classification without installing Node dependencies, linting, installing Chrome, building Ember, or running browser tests. |
+| `build-and-test` | A gate job. For application-relevant PRs and protected-branch pushes it passes only when `lint-and-build` (Ember lint and build) and the full Chrome Headless suite, run as the `ember-shard-main` and `ember-shard-pool` jobs plus `ember-shard-coverage`, all passed. For PRs whose every changed path (and every rename source) is under `docs/**` or `audit-reports/**`, or is one of `CLAUDE.md`, `AGENTS.md`, `GEMINI.md` or `.github/copilot-instructions.md`, in any mix: reports success after classification without installing Node dependencies, linting, installing Chrome, building Ember, or running browser tests. |
 | `rspec` | `rails db:create db:schema:load`, repository guards, then `bundle exec rspec` (Postgres 15 + Redis 7, `RAILS_ENV=test`) |
 | `audit-artifacts-integrity` | Compliance register, publication, naming, attestation, capability, and consumer-integrity guards |
-| `codex-review-tests` | Codex review envelope, evidence-builder, and chunk-runner unit tests |
+| `codex-review-tests` | Codex review envelope, evidence-builder, and chunk-runner unit tests, plus the frontend-scope classifier test, which pins the one `Classify frontend impact` step (in `ember-shard-scope`) and every job that reads its decision |
 | `security-scan` | Brakeman and npm audit are advisory (`continue-on-error`); bundle-audit is blocking within this job |
 | `secret-detection` | Blocking gitleaks scan of newly introduced commit content |
 
