@@ -5,11 +5,16 @@ The two copies are inline github-script steps. This test extracts each script
 with a stdlib regex (no PyYAML), asserts their `allowed` predicates are the
 same text, and runs one case table against each copy in Node. A widened
 predicate in only one copy fails the sameness check. The whole script must
-also match once comments, blank lines and the log-only calls are dropped, so a
-change anywhere in one copy (the fetch, the skip expression, or a later output)
-fails too. A log call is dropped only when it is inert: a `core.info` or
-`core.warning` whose arguments hold no further call and no `=`. The allowlist
-from before the instruction-file paths does not skip those paths.
+also match once comments, blank lines and indentation are dropped, so a change
+anywhere in one copy's script (the fetch, the skip expression, or a later
+output) fails too. Only the first copy logs, so its log calls are dropped
+before the comparison, but only the calls listed in KNOWN_LOG_CALLS, matched
+exactly. Any other `core.info` or `core.warning` fails the test, so changing a
+log message means updating that list. Each step's YAML (`id`,
+`continue-on-error`, `uses`, no `if:`) is pinned too. Not pinned: the
+"Decide whether frontend suite is required" steps and the `build-and-test`
+gate that read the output. The allowlist from before the instruction-file
+paths does not skip those paths.
 """
 import json
 import os
@@ -32,8 +37,32 @@ SCRIPT_RE = re.compile(
     r"((?:(?:[ ]{12}.*)?\n)*?)(?=^[ ]{0,10}\S)",
     re.MULTILINE,
 )
+HEADER_RE = re.compile(
+    r"- name: Classify frontend impact\n((?:.*\n)*?)^[ ]+script: \|\n",
+    re.MULTILINE,
+)
+USES_RE = re.compile(r"uses: actions/github-script@(?:v8|[0-9a-f]{40} # v8)")
 ALLOWED_RE = re.compile(r"const allowed = \(path\) =>[\s\S]*?;")
 LOG_CALL_PREFIXES = ("core.info(", "core.warning(")
+# The first copy's log calls, one string per stripped line. Matching is exact:
+# a heuristic for "harmless" arguments was bypassed by tagged templates,
+# `${}`, `--` and `delete`, none of which need `(` or `=`.
+KNOWN_LOG_CALLS = [
+    ["core.info('Protected-branch push: run the complete frontend suite.');"],
+    [
+        "core.warning(",
+        "`PR reports ${reportedCount} changed files but the API returned ${files.length}; ` +",
+        "'run the full frontend suite.'",
+        ");",
+    ],
+    [
+        "core.info(",
+        "documentationOnly",
+        "? 'Documentation, audit, or instruction-file-only PR: skip the frontend suite.'",
+        ": 'Frontend-relevant or unknown path present: run the frontend suite.'",
+        ");",
+    ],
+]
 OLD_ALLOWED = (
     "const allowed = (path) =>\n"
     "              path.startsWith('docs/') ||\n"
@@ -158,6 +187,18 @@ CASES = [
         "true",
     ),
     (
+        "four files, app path last",
+        "pull_request",
+        [
+            {"filename": "docs/a.md"},
+            {"filename": "docs/b.md"},
+            {"filename": "docs/c.md"},
+            {"filename": "app/frontend/app/x.js"},
+        ],
+        None,
+        "true",
+    ),
+    (
         "near miss bare docs file",
         "pull_request",
         [{"filename": "docs"}],
@@ -205,9 +246,18 @@ def allowed_predicate(script):
     return match.group(0)
 
 
+def extract_headers():
+    headers = HEADER_RE.findall(WORKFLOW.read_text())
+    if len(headers) != 2:
+        raise AssertionError(
+            f"expected 2 Classify frontend impact steps in {WORKFLOW}, found {len(headers)}"
+        )
+    return headers
+
+
 def decision_logic(script):
     """The script as code that can change run_frontend: no comments, blank
-    lines, indentation or inert log calls. Only the first copy logs."""
+    lines, indentation or KNOWN_LOG_CALLS."""
     lines = [line.strip() for line in script.splitlines()]
     lines = [line for line in lines if line and not line.startswith("//")]
     kept = []
@@ -218,16 +268,16 @@ def decision_logic(script):
             kept.append(line)
             index += 1
             continue
-        end = index
-        while not lines[end].endswith(");"):
-            end += 1
-            if end == len(lines):
-                raise AssertionError(f"unterminated log call: {line}")
-        call = "\n".join(lines[index:end + 1])
-        arguments = call[call.index("(") + 1:-2]
-        if "(" in arguments or "=" in arguments:
-            raise AssertionError(f"log call is not inert: {call}")
-        index = end + 1
+        known = next(
+            (call for call in KNOWN_LOG_CALLS if lines[index:index + len(call)] == call),
+            None,
+        )
+        if known is None:
+            raise AssertionError(
+                f"unknown log call at {line!r}: if it only changes a message, "
+                "add its stripped lines to KNOWN_LOG_CALLS"
+            )
+        index += len(known)
     # The warning's guard is left empty; drop it only when it closes at once.
     normalized = "\n".join(kept).replace("if (!completeList) {\n}\n", "")
     if "documentationOnly" not in normalized or "setOutput('run_frontend'" not in normalized:
@@ -366,6 +416,40 @@ class FrontendScopeClassifierTest(unittest.TestCase):
         self.assertNotEqual(first, smuggled)
         with self.assertRaises(AssertionError):
             decision_logic(smuggled)
+
+    def test_log_calls_with_side_effects_are_not_dropped(self):
+        second = extract_scripts()[1]
+        anchor = "const documentationOnly ="
+        self.assertIn(anchor, second)
+        # Each one changes run_frontend without a `(` or `=` in its arguments.
+        injections = {
+            "tagged template": "core.info(`${files.splice`0`}`);",
+            "comment line in a template": (
+                "core.info(`\n"
+                "//${files.forEach((f) => { f.filename = 'docs/x.md'; })}\n"
+                "`);"
+            ),
+            "decrement": "core.info(files.length > 3 && files.length--);",
+            "delete": "core.info(files.length > 3 && delete files[files.length - 1]);",
+            "known message with code after it": (
+                "core.info('Protected-branch push: run the complete frontend suite.'); files.pop();"
+            ),
+        }
+        for name, injection in injections.items():
+            with self.subTest(name=name):
+                mutated = second.replace(anchor, injection + "\n" + anchor, 1)
+                with self.assertRaises(AssertionError):
+                    decision_logic(mutated)
+
+    def test_step_yaml_is_pinned(self):
+        for copy, header in enumerate(extract_headers(), start=1):
+            with self.subTest(copy=copy):
+                lines = sorted(line.strip() for line in header.splitlines() if line.strip())
+                self.assertEqual(len(lines), 4, lines)
+                self.assertEqual(lines[0], "continue-on-error: true")
+                self.assertEqual(lines[1], "id: frontend-scope")
+                self.assertRegex(lines[2], f"^{USES_RE.pattern}$")
+                self.assertEqual(lines[3], "with:")
 
     def test_old_allowlist_does_not_skip_instruction_files(self):
         script = with_allowed(extract_scripts()[0], OLD_ALLOWED)
