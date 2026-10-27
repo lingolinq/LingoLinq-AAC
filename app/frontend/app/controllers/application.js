@@ -181,19 +181,7 @@ export default Controller.extend({
     return !this.appState.get('currentBoardState');
   }),
 
-  /** Username segment for Board Alt route (user_id in URL). */
-  board_alt_username: computed('appState.currentBoardState.key', function() {
-    var key = this.get('appState.currentBoardState.key');
-    if (!key || key.indexOf('/') === -1) { return null; }
-    return key.split('/')[0];
-  }),
-  /** Boardname segment for Board Alt route (boardname in URL). */
-  board_alt_boardname: computed('appState.currentBoardState.key', function() {
-    var key = this.get('appState.currentBoardState.key');
-    if (!key || key.indexOf('/') === -1) { return null; }
-    return key.split('/').slice(1).join('/');
-  }),
-  /** True when the current page is the Board Alt view, used to toggle the sidebar button label/style. */
+  /** True when the current page is the Board Alt view. Drives the board-alt-view class and the eval controls. */
   on_board_alt: computed('appState.current_route', function() {
     return this.appState.get('current_route') === 'user.board-alt.index';
   }),
