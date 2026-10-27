@@ -307,8 +307,9 @@ loading the test page in a browser, where the load error is visible.
 `lint-and-build` (template + JS lint gates and the Ember build), both Ember shards
 (`ember-shard-main`, `ember-shard-pool`: the suite split in two, run timing-strict) and
 `ember-shard-coverage` (every registered test ran exactly once) passed, or when `ember-shard-scope`
-classified the PR as docs/audit-only. The shard checks are not required by name: a skipped matrix
-job never reports its expanded names.
+classified the PR as docs, audit, or root instruction files only (`CLAUDE.md`, `AGENTS.md`,
+`GEMINI.md`, `.github/copilot-instructions.md`). The shard checks are not required by name: a
+skipped matrix job never reports its expanded names.
 Changing how CI decides to run a check (conditions, filters, `continue-on-error`, retries, required
 wiring) is covered by Rule 0.14 and needs approval.
 

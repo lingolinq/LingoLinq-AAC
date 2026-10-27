@@ -4,10 +4,14 @@
 The two copies are inline github-script steps. This test extracts each script
 with a stdlib regex (no PyYAML), asserts their `allowed` predicates are the
 same text, and runs one case table against each copy in Node. A widened
-predicate in only one copy fails the sameness check. The allowlist from before
-the instruction-file paths does not skip those paths.
+predicate in only one copy fails the sameness check. The whole decision, from
+`const allowed` through `core.setOutput('run_frontend', ...)`, must also match
+once comments, blank lines and the log-only calls are dropped, so a change to
+the skip expression in one copy fails too. The allowlist from before the
+instruction-file paths does not skip those paths.
 """
 import json
+import os
 import pathlib
 import re
 import subprocess
@@ -28,6 +32,14 @@ SCRIPT_RE = re.compile(
     re.MULTILINE,
 )
 ALLOWED_RE = re.compile(r"const allowed = \(path\) =>[\s\S]*?;")
+# The decision runs from the allowed predicate to the run_frontend output.
+DECISION_RE = re.compile(
+    r"const allowed = \(path\) =>[\s\S]*?core\.setOutput\('run_frontend'[^\n]*"
+)
+# Only the first copy logs; these lines do not affect run_frontend.
+LOG_ONLY_RE = re.compile(
+    r"^[ ]*if \(!completeList\) \{\n(?:.*\n)*?^[ ]*\}\n", re.MULTILINE
+)
 OLD_ALLOWED = (
     "const allowed = (path) =>\n"
     "              path.startsWith('docs/') ||\n"
@@ -144,6 +156,41 @@ CASES = [
         1,
         "true",
     ),
+    (
+        "near miss docsite/",
+        "pull_request",
+        [{"filename": "docsite/index.js"}],
+        None,
+        "true",
+    ),
+    (
+        "near miss bare docs file",
+        "pull_request",
+        [{"filename": "docs"}],
+        None,
+        "true",
+    ),
+    (
+        "near miss nested app/docs/",
+        "pull_request",
+        [{"filename": "app/docs/x.js"}],
+        None,
+        "true",
+    ),
+    (
+        "near miss audit-reports- prefix",
+        "pull_request",
+        [{"filename": "audit-reports-tool.rb"}],
+        None,
+        "true",
+    ),
+    (
+        "near miss CLAUDE.md suffix",
+        "pull_request",
+        [{"filename": "NOTCLAUDE.md"}],
+        None,
+        "true",
+    ),
 ]
 
 
@@ -162,6 +209,15 @@ def allowed_predicate(script):
     if not match:
         raise AssertionError("could not find an allowed predicate in a classifier script")
     return match.group(0)
+
+
+def decision_logic(script):
+    match = DECISION_RE.search(script)
+    if not match:
+        raise AssertionError("could not find the run_frontend decision in a classifier script")
+    region = LOG_ONLY_RE.sub("", match.group(0) + "\n")
+    lines = [line.strip() for line in region.splitlines()]
+    return "\n".join(line for line in lines if line and not line.startswith("//"))
 
 
 def with_allowed(script, predicate):
@@ -208,12 +264,15 @@ def run_script(script, event, files, changed_files):
     with tempfile.NamedTemporaryFile(mode="w", suffix=".js", delete=False) as handle:
         handle.write(program)
         script_path = handle.name
-    result = subprocess.run(
-        ["node", script_path],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    try:
+        result = subprocess.run(
+            ["node", script_path],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    finally:
+        os.unlink(script_path)
     if result.returncode != 0:
         raise AssertionError(
             f"node exited {result.returncode}: {result.stderr}"
@@ -234,6 +293,22 @@ class FrontendScopeClassifierTest(unittest.TestCase):
         files = [{"filename": "app/foo.js"}]
         self.assertEqual(run_script(first, "pull_request", files, 1), "true")
         self.assertEqual(run_script(mutated, "pull_request", files, 1), "false")
+
+    def test_decision_logic_is_identical(self):
+        first, second = extract_scripts()
+        self.assertIn("documentationOnly", decision_logic(first))
+        self.assertEqual(decision_logic(first), decision_logic(second))
+
+    def test_changing_one_copys_decision_is_detected(self):
+        first, second = extract_scripts()
+        bypass = (
+            "(allowed(file.filename) || "
+            "file.filename.startsWith('app/frontend/app/styles/')) &&"
+        )
+        mutated = second.replace("allowed(file.filename) &&", bypass, 1)
+        self.assertNotEqual(second, mutated)
+        self.assertEqual(allowed_predicate(first), allowed_predicate(mutated))
+        self.assertNotEqual(decision_logic(first), decision_logic(mutated))
 
     def test_old_allowlist_does_not_skip_instruction_files(self):
         script = with_allowed(extract_scripts()[0], OLD_ALLOWED)
@@ -258,9 +333,9 @@ class FrontendScopeClassifierTest(unittest.TestCase):
         )
 
     def test_each_copy_agrees_on_the_case_table(self):
-        for script in extract_scripts():
+        for copy, script in enumerate(extract_scripts(), start=1):
             for name, event, files, changed_files, expected in CASES:
-                with self.subTest(name=name):
+                with self.subTest(copy=copy, name=name):
                     self.assertEqual(
                         run_script(script, event, files, changed_files),
                         expected,
