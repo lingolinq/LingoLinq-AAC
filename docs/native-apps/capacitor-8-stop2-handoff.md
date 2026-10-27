@@ -7,7 +7,7 @@ full working record, with command output, is
 
 ## Summary
 
-Shell PR #2 (not merged yet) moves the shell to Capacitor 8.5.3 with Android target API 36.
+Shell PR #2 (open as of 2026-10-26) moves the shell to Capacitor 8.5.3 with Android target API 36.
 On that branch the shell builds for Android and iOS, passes `cap doctor` for both, and passes
 the 16 KB page-size checks. The offline smoke test ran on 2026-10-25 and 2026-10-26 on the iPad
 simulator (Xcode 27.1) and an API 36 Android tablet emulator, with the app packaged from
@@ -22,17 +22,17 @@ own and Basic view can report a sync complete when it is not
 from the device offline, and an unsynced folder tapped offline fails late and replaces the board
 ([#1213](https://github.com/lingolinq/LingoLinq-AAC/issues/1213)). Google sign-in does not work in
 the app ([#1198](https://github.com/lingolinq/LingoLinq-AAC/issues/1198)) and the release bundle
-is unsigned. So the Capacitor 8 move works, but the app is not ready for a store upload until
+is unsigned. So the shell side of the Capacitor 8 move works, but the app is not ready for a store upload until
 those issues are fixed.
 
 | Goal | State |
 |---|---|
-| Shell on Capacitor 8, Android target SDK 36 | Done (shell PR #2, draft) |
+| Shell on Capacitor 8, Android target SDK 36 | Done (shell PR #2, open as of 2026-10-26) |
 | `cap sync` and `cap doctor` pass | Done, Android and iOS |
 | Android debug and release builds | Done (release is unsigned) |
 | 16 KB page size | Done (all native libraries aligned) |
 | AAC docs say Capacitor 8 and why | Done (PR #1185) |
-| App works on Capacitor 8 (offline smoke test) | Done for the shell: Basic view offline speech and pictures pass on iOS and Android. Shared-app failures tracked (#1208, #1212, #1213) |
+| App works on Capacitor 8 (offline smoke test) | Run; the shell-side checks pass (Basic view offline speech and pictures on iOS and Android). Not run: the "go online, sync keeps the local set" step. Rerun once #1208, #1212 and #1213 are fixed |
 | iOS build | Done (Xcode 27.1, simulator; one bridge at launch) |
 | Signed release bundle for Play | **Not started** (outside the move) |
 
@@ -41,13 +41,13 @@ those issues are fixed.
 | Repo | PR | Branch | State |
 |---|---|---|---|
 | lingolinq/LingoLinq-AAC | [#1185](https://github.com/lingolinq/LingoLinq-AAC/pull/1185) | `traci/feat/capacitor-8` → `develop` | Ready for review. Docs only. |
-| lingolinq/lingolinq_mobile | [#2](https://github.com/lingolinq/lingolinq_mobile/pull/2) | `traci/feat/capacitor-8` → `master` | Smoke test done; leaves draft once the review passes are clean. The repo has no CI. |
+| lingolinq/lingolinq_mobile | [#2](https://github.com/lingolinq/lingolinq_mobile/pull/2) | `traci/feat/capacitor-8` → `master` | As of 2026-10-26: smoke test run and canonical review passes done; nothing blocks it leaving draft. The repo has no CI. |
 
 - The shell repo's only long-lived branch is `master` (no `develop`, and it is not being
   renamed). PR #2 is five commits on top of `master` at `0d20e48`: the move, its follow-up,
   the two SQLite bridge fixes (`cc94c74`, `9a9789b`) and a README checklist update (`7ae7419`).
-- Merge order: the two can merge independently. #1185 only describes the move as "in
-  progress", so it is accurate before or after #2 merges.
+- Merge order: the two can merge independently. The PR-state lines in this file are dated
+  2026-10-26; update them when the PRs merge.
 
 ## Where things are on the machine that did STOP 2
 
@@ -81,11 +81,15 @@ export PATH="/opt/homebrew/bin:$PATH"
 Each item says whether it blocks, and what closes it. "PLAUSIBLE" means the mechanism is
 real but only a run on a device or simulator can show whether it happens.
 
-### Blocks the shell PR leaving draft
+### Shell PR gates (all resolved or tracked as of 2026-10-26)
+
+These were the gates for PR #2 leaving draft. None of them blocks it now: the smoke test ran,
+the canonical reviews ran, item 2 is tracked in #1202, and item 3 is optional.
 
 1. **Offline smoke test (done 2026-10-25 and 2026-10-26; results under "Smoke test results"
    below).** The shell passes; the failures it found are in the shared Ember app and are
-   tracked as issues. How to run it again: the definition of done is the "Manual smoke"
+   tracked as issues. The "go online and confirm sync keeps the local set" step was not run.
+   How to run it again: the definition of done is the "Manual smoke"
    section of [capacitor-7-kickoff.md](./capacitor-7-kickoff.md): fresh install, log in, wait
    for sync, confirm the console shows the SQLite shim and not the IndexedDB fallback,
    airplane mode, cold start, open the home board and speak with local symbols, go online
@@ -118,7 +122,9 @@ real but only a run on a device or simulator can show whether it happens.
    request again.
 4. **Canonical review passes (2026-10-26).** The PII preflight passed on PR #2 at `9a9789b`, and
    the senior-dev pass (`/review-pr`, run by Claude because the Codex CLI is not installed) and
-   the adversary pass both ran on it. No Critical findings. Each finding was checked by hand:
+   the adversary pass both ran on it. Verdicts: the senior-dev pass said "Request changes" on
+   one High, which is refuted below; the adversary said "Ship with conditions", both met or not
+   applicable below. No Critical findings. Each finding was checked by hand:
    - Refuted: "the iOS scene setup was never built or launched, and may start two bridges".
      Every saved iOS cold launch (5) logged one "Loading app at" and one shim start. The
      reviewer was reading the shell README's stale checklist, now updated (`7ae7419`).
@@ -198,6 +204,18 @@ in the task log.
     encryption options (`androidIsEncryption` / `iosIsEncryption`). Their release setting
     requires internal privacy and security sign-off.
 
+**Found by the canonical review of PR #2 (2026-10-26):**
+
+27. **Device database in cloud backups (Medium, CONFIRMED, pre-existing; blocks the first
+    store release).** The shell opens SQLite unencrypted (`www/sqlite_bridge.js`,
+    `mode: 'no-encryption'`), on iOS in `Documents` (no `iosDatabaseLocation` is set, and the
+    plugin excludes only a custom location from backup), and Android has
+    `allowBackup="true"` with no `dataExtractionRules`. With iCloud Backup or Android Auto Backup
+    on, boards, user records and logs are copied to the family's cloud account, outside
+    LingoLinq's retention and deletion controls. Options: set `CapacitorSQLite.iosDatabaseLocation`
+    to `Library/CapacitorDatabase`, add Android backup rules that exclude `databases/` (or turn
+    backup off), and decide encryption with item 15. Found by the adversary review of PR #2.
+
 **Found during a manual iOS sign-in check (2026-10-25, app packaged against staging):** Continue with Google (sign-up and log-in) does
 nothing in the native app, because the frontend opens relative `/auth/google/start` URLs that
 resolve inside the app. Not a Capacitor 8 regression, but it blocks the first store release.
@@ -276,18 +294,6 @@ the boards page, not an error), [#1212](https://github.com/lingolinq/LingoLinq-A
 button). Before the first store release, #1208 and #1213 need fixing, since without them a user
 can lose their boards offline.
 
-**Found by the canonical review of PR #2 (2026-10-26):**
-
-27. **Device database in cloud backups (Medium, CONFIRMED, pre-existing; blocks the first
-    store release).** The shell opens SQLite unencrypted (`www/sqlite_bridge.js`,
-    `mode: 'no-encryption'`), on iOS in `Documents` (no `iosDatabaseLocation` is set, and the
-    plugin excludes only a custom location from backup), and Android has
-    `allowBackup="true"` with no `dataExtractionRules`. With iCloud Backup or Android Auto Backup
-    on, boards, user records and logs are copied to the family's cloud account, outside
-    LingoLinq's retention and deletion controls. Options: set `CapacitorSQLite.iosDatabaseLocation`
-    to `Library/CapacitorDatabase`, add Android backup rules that exclude `databases/` (or turn
-    backup off), and decide encryption with item 15. Found by the adversary review of PR #2.
-
 ### Release notes
 
 16. **Minimum OS versions rise.** Capacitor 8 requires Android 7 (API 24) and iOS 15, so
@@ -356,5 +362,5 @@ can lose their boards offline.
    ([#1204](https://github.com/lingolinq/LingoLinq-AAC/issues/1204)) and the top inset
    ([#1202](https://github.com/lingolinq/LingoLinq-AAC/issues/1202)) before the first store build.
 4. Store preparation: release signing and versioning, Play Console, the App Store export
-   compliance answer, the TTS silent-switch check (item 8), and the release notes (items 10
-   to 16).
+   compliance answer, the TTS silent-switch check (item 8), the device database backup and
+   encryption settings (items 15 and 27), and the release notes (items 10 to 16).

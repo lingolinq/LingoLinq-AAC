@@ -4,7 +4,7 @@ This is the read-only STOP 1 report for [capacitor-8-session-prompt.md](./capaci
 plus the decisions made afterwards and the plan for picking STOP 2 up on a Mac. STOP 1 was
 run in WSL on 2026-10-23. Nothing was installed, edited or pushed in the shell repo.
 
-**Current status:** STOP 2 is done, but the offline smoke test is still open; see [capacitor-8-stop2-handoff.md](./capacitor-8-stop2-handoff.md)
+**Current status:** STOP 2 and the offline smoke test are done; open issues are in [capacitor-8-stop2-handoff.md](./capacitor-8-stop2-handoff.md)
 for where things stand and every open issue.
 
 ## Decisions (Traci, 2026-10-23)

@@ -87,7 +87,8 @@ optional. Xcode 26 needs macOS Sequoia 15.6 or later, so the iOS build waits on 
   (superseded: built on 2026-10-25, see the iOS section below).
 - Manual smoke from `capacitor-7-kickoff.md`: needs an emulator image, a packaged `www/app.js`
   and a LingoLinq API with a test account. The session prompt's rule 3 forbids this session
-  from touching the database, so a local Rails run is out of scope here.
+  from touching the database, so a local Rails run is out of scope here. (Superseded: run
+  against staging on 2026-10-25 and 2026-10-26, see "Offline smoke test" below.)
 
 ## AAC docs
 
@@ -155,9 +156,11 @@ and two missing "Still open" items), all fixed in the following commit.
 
 - Offline smoke on an Android emulator or device, including the layout check. This session
   cannot run it: it needs a LingoLinq API and a test account, and the session prompt forbids
-  touching the database.
+  touching the database. (Superseded: run against staging, see "Offline smoke test" below;
+  the Android 14 and 15 layout check is still open.)
 - iOS: run the simulator smoke test with a packaged app, and check the top safe-area inset
-  (the build and the cold-launch check were done on 2026-10-25; see below).
+  (the build and the cold-launch check were done on 2026-10-25; see below). (Superseded: the
+  smoke test ran, see "Offline smoke test" below; the top inset is #1202.)
 - Release notes: Capacitor 8 raises the minimum to Android 7 (API 24) and iOS 15, so Android 6
   and iOS 14 devices get no further updates.
 
@@ -225,7 +228,7 @@ head (`316e209`) with the AAC CI's equivalents where they apply:
   plan: [#1198](https://github.com/lingolinq/LingoLinq-AAC/issues/1198) (relative URLs in
   `register.js:442` and `login-form.js:259`; Google also blocks its sign-in page in embedded
   webviews). Not a Capacitor 8 regression. The smoke test itself (log in, sync, offline,
-  speak) has not run yet.
+  speak) had not run yet at this point (superseded: see "Offline smoke test" below).
 
 ## Local adversary review of the later commits (2026-10-25)
 
@@ -266,7 +269,7 @@ filed are in the handoff's "Smoke test results" section; the method and evidence
   syncing with desktop parallelism, and tight client timeouts with no retry (#1212). An earlier
   thread-count theory was contradicted by a rerun and dropped.
 - **Android unsynced folder.** In airplane mode the "do" folder on the home board led to
-  `#/traci-test-simulator/board/core-60-do_2` with a `bad` board record (read through the
+  `#/<test-user>/board/core-60-do_2` with a `bad` board record (read through the
   web view debugger, `adb forward tcp:9333 localabstract:webview_devtools_remote_<pid>`). The
   device database held 2 of the home board's 30 linked boards. The same run logged
   `buttonset load_buttons work timed out for board 1_6277 (buttons.length=0)`
@@ -289,3 +292,13 @@ values findings are refuted in code. The in-place upgrade condition does not app
 build exists). Confirmed and recorded as follow-ups: the Ember shim's missing fixes (#1206), the
 device database in cloud backups (handoff item 27, pre-existing), and three Low bridge
 follow-ups. `npm test`: 12 of 12 pass.
+
+Senior-dev pass on #1185 at `1a6c4aea4` (preflight PASS, `REVIEWED=PR lingolinq/LingoLinq-AAC#1185
+at 1a6c4aea49bf42c5a0a6a6f85f927e38dbac34c0`): "Approve with comments", 0 Critical, 0 High, 5
+Medium, 8 Low. Fixed in the next commit: the STOP 1 status line, the smoke-test status wording
+(including the go-online step that was not run), the gate section heading and the review
+verdicts, dated PR-state lines, item 27's place and its entry in the suggested order, stale
+lines here, an em dash in the kickoff doc, and the test account name. Left as is: the session
+prompt's references to internal tooling and people (a dated record of the brief as given) and
+the two compatible wordings of the Xcode version ranges. The adversary pass was skipped under
+its own rule for docs-only changes.

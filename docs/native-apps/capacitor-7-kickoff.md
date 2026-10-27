@@ -57,4 +57,4 @@ Free-disk warning may no-op (Filesystem has no portable free-space API); accepta
 ## Related docs
 
 - [native-bridge-inventory.md](./native-bridge-inventory.md) — rows 1–2 status
-- Shell README offline section — [`lingolinq_mobile/README.md`](https://github.com/lingolinq/lingolinq_mobile/blob/master/README.md)
+- Shell README offline section: [`lingolinq_mobile/README.md`](https://github.com/lingolinq/lingolinq_mobile/blob/master/README.md)
