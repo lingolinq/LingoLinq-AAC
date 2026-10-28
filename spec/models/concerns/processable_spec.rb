@@ -54,11 +54,13 @@ describe Processable, :type => :model do
       style_block = r.process_html('<style>url(x y\\\\) {} @import "https://evil.example/x.css"; q ) {}</style>')
       # The element itself survives, so the CSS really went through the tokenizer; without
       # this, a config that dropped <style> entirely would pass the next line without crass.
+      # On sanitize 7.0.1 this line is also the crass detector: with crass before 1.0.8 the
+      # whole element is dropped, so it fails here while every other line in this example passes.
       expect(style_block).to include('<style>')
       expect(style_block).not_to include('@import')
       # sanitize 7.0.1 also removes any declaration holding a bad url() inside a (...) block, so
-      # the control is a declaration after the bad one: it shows the attribute survived and was
-      # sanitized, not dropped. The javascript: line is what detects the crass tokenizer bug.
+      # this half pins that removal rather than crass. The control is a declaration after the
+      # bad one: it shows the attribute survived and was sanitized, not dropped.
       style_attr = r.process_html('<p style="color: (url(x y\\\\)); background-image: url(javascript:alert(1)); z: ); font-weight: bold">hi</p>')
       expect(style_attr).to include('font-weight: bold')
       expect(style_attr).not_to include('javascript:')
