@@ -234,3 +234,61 @@ A live sample of the scanner every second showed `scanner.appState` missing on d
 step on, and present on the fixed build; both scan the same order. The first fixed run timed out on
 every scenario right after the develop run; a rerun alone and the sample both passed. Cause not found.
 Pre-existing on both builds: a `board-icon` "calling set on destroyed object" page error.
+
+## Review findings fixed (2026-10-28)
+
+### High: scanning restarted outside speak mode
+
+Fact sheet:
+- READ: `utils/scanner.js` `start()` decides whether to scan. Its only mode check was `#speak` on the page.
+  CONFIRMED (`utils/scanner.js:185-191`).
+- SHAPES: `#speak` exists on board-detail in every mode (`templates/user/board-detail.hbs:624`, outside any
+  mode condition; only hidden by CSS in edit mode) and on the classic view only in speak mode
+  (`templates/application.hbs:27-28`). CONFIRMED. The old guard was `header #speak`, removed in `9aa0007c0`.
+  CONFIRMED (`git show 9aa0007c0 -- app/frontend/app/utils/scanner.js`).
+- CROSS-FILE: every resume passes `scanner.options`, which `stop()` never clears (`utils/scanner.js:611-617`
+  clears only `last_options`): `utils/modal.js:130,192,441`, `services/modal.js:121,286`,
+  `routes/user/board-detail.js:114`. CONFIRMED. `check_scanning` starts scanning only when `speak_mode`
+  and the preference are both on (`services/app-state.js:2043`). CONFIRMED.
+
+Runtime (scratch script `modal-resume-qa.mjs`, modern view, `example`, scan in speak mode, leave
+speak mode, open and close `about-lingolinq`, sample 4 s):
+
+| | branch before this fix | fixed |
+|---|---|---|
+| after leaving speak mode | stopped | stopped |
+| after the modal closes | scanning, highlight shown | not scanning |
+| same, staying in speak mode | (n/a) | resumes |
+
+Fix: `start()` also requires `appState.speak_mode` (folded into the preference check; the comment above it
+rewritten at the same length so the line-anchored `.eslint-todo` rows below stay put). Considered and
+rejected: resuming only when scanning was running at modal open (`resume_scanning`); it misses the
+scannable-modal start and the board re-arm, which also pass stale options.
+
+Tests: new `tests/unit/utils/scanner-speak-mode-test.js` (red on the pre-fix file, green after; its
+speak-mode control passes on both). Two existing stubs now say the app is in speak mode:
+`tests/utils/scanner-board-rearm-test.js` (its `scanner.get` stub answered only the preference) and this
+branch's own highlight test (a pass-through stub for `appState.speak_mode`, because setting the real
+property fires eight observers, `check_scanning` among them).
+
+Re-run of `switch-scanning-qa.mjs` on the fixed build matches the earlier fixed numbers (modern speak 24 ms,
+three in a row ~21 ms, folder 77 ms, step+quick 328 ms, auto-home 137 ms, classic speak 23 ms). Classic
+auto-home and both axes runs report `stoppedAtEnd: true` on the pre-fix and fixed code alike.
+
+### Medium: integration messages trusted from any origin
+
+The fix re-enables `add_text` and `speak_text` (they need `frame_listener.appState`), so this branch makes
+them reachable again. Research (sources in the PR body): MDN `postMessage` says check `event.origin`
+exactly and never use `'*'` as the target when the data matters; OWASP-derived scanner rules (ZAP) flag
+both; `aac_shim.js` itself posts with `'*'` and validates nothing, so the host must. AAC ethics treat the
+user as the author of what their device says, so speech from a third party is a high-impact path.
+
+Fix (`utils/frame_listener.js`): refuse messages whose origin is not that of the frame's configured `src`;
+reply to that origin only; refuse non-string or over-500-character text and a non-http(s) `image_url`.
+Not done here: `sandbox` on the iframe, the `interrupt: true` product question, a backend scheme check on
+`board_render_url`, and the first-message `data-session_id` claim (`session_window` runs before the
+origin check; a wrong-origin page can only fix the session id, not act).
+
+Unit runs: fixed build frame_listener 56/56, "scanner" 83 (79 pass, 4 skip), HighlightController 3/3.
+Mutant build (the pre-fix `scanner.js` and `frame_listener.js` from `97dbf59d0`): exactly the 8 new tests
+fail. `node scripts/eslint-todo-gate.js`: new=0.
