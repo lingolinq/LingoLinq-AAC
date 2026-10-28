@@ -49,6 +49,27 @@ module('Unit | Service | persistence sync startup', function(hooks) {
     assert.strictEqual(calls_at_create, 1, 'init called start_sync_state once');
   });
 
+  // Every route and component injects this service, so a startup error must not stop it being
+  // created: the user would lose the app, not just the sync.
+  test('the service is still created when the sync startup throws', function(assert) {
+    var factory = this.owner.factoryFor('service:persistence');
+    stub(factory.class.prototype, 'start_sync_state', function() { throw new Error('startup failed'); });
+    stub(emberDebug, 'isTesting', function() { return false; });
+    var saved = window.persistence;
+    var created = null;
+    var error = null;
+    try {
+      created = factory.create();
+    } catch(e) {
+      error = e;
+    }
+    if(created) { created.destroy(); }
+    window.persistence = saved;
+
+    assert.strictEqual(error, null, 'creating the service did not throw');
+    assert.ok(created, 'the service exists');
+  });
+
   test('a device with no saved sync record gets the first-sync marker', async function(assert) {
     stub(this.svc, 'find', function() { return RSVP.reject({error: 'not found'}); });
     this.svc.set('last_sync_at', undefined);

@@ -4812,7 +4812,13 @@ persistence.reopen({
   init() {
     this._super(...arguments);
     if(!isTesting()) {
-      this.start_sync_state();
+      // Every route and component injects this service, so a startup error must not stop it
+      // being created (setup() rethrows); the app then runs without automatic sync.
+      try {
+        this.start_sync_state();
+      } catch(e) {
+        console.warn('[PERSISTENCE] start_sync_state failed:', e);
+      }
     }
   },
   // Load the device's last sync time (setup(); a device with no saved sync sets 1, which starts its
