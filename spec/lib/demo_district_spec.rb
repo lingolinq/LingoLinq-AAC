@@ -305,6 +305,122 @@ describe DemoDistrict do
     end
   end
 
+  describe "create_district!" do
+    let(:names) { DemoDistrict::Seeder.user_names }
+
+    it "builds a flagged district whose every member qualifies for refresh!, and refresh! fills it" do
+      org = DemoDistrict.create_district!(password: 'spec-demo-password')
+
+      expect(DemoDistrict.flagged?(org)).to eq(true)
+      expect(org.admin).to eq(nil)
+      expect(org.settings['name']).to eq('Demo School District')
+      communicators = org.approved_users(false)
+      expect(communicators.map(&:user_name).sort).to eq(DemoDistrict::UsageGenerator::STUDENT_PROFILES.map { |p| p[:user_name] }.sort)
+      expect(communicators).to all(satisfy { |u| DemoDistrict.demo_email?(u) })
+      expect(org.supervisors.map(&:user_name).sort).to eq(DemoDistrict::Seeder::SLP_PROFILES.map { |p| p[:user_name] }.sort)
+      expect(org.supervisors).to all(satisfy { |u| DemoDistrict.demo_email?(u) })
+      expect(OrganizationUnit.where(organization_id: org.id).count).to eq(3)
+      communicators.each do |u|
+        expect(DemoDistrict.board_for(u, nil)).to eq({ 'id' => org.settings['default_home_board']['id'], 'key' => org.settings['default_home_board']['key'] })
+        expect(u.settings['preferences']['allow_log_reports']).to eq(true)
+      end
+
+      # A brand-new district has no history, so refresh! starts INITIAL_HISTORY_DAYS back; one
+      # day keeps the example short. Yesterday is Tuesday 2026-10-20.
+      stub_const('DemoDistrict::INITIAL_HISTORY_DAYS', 1)
+      res = travel_to(now) { DemoDistrict.refresh!(organization: org.reload, now: now) }
+      expect(res[:skipped_users]).to eq([])
+      expect(res[:communicators]).to eq(20)
+      expect(res[:sessions_created]).to be > 0
+      expect(res[:summaries_updated]).to be > 0
+      # Each room's SLP is linked to its students before the backfill, so every session is
+      # authored (and modeled) by an SLP, never by the student.
+      aiden = User.find_by(user_name: 'aiden_parker')
+      expect(aiden.supervisors.map(&:user_name)).to include('sarah_chen_slp')
+      authors = LogSession.where(user_id: communicators.map(&:id), log_type: 'session').map(&:author_id).uniq
+      expect(authors).not_to eq([])
+      expect(authors - org.supervisors.map(&:id)).to eq([])
+
+      # Each student who used the device got a primary goal from their SLP and a check-in
+      # note, which is what moves the Goals tile and the room's weekly goal faces.
+      expect(res[:goals_created]).to be > 0
+      expect(res[:goal_notes]).to eq(res[:goals_created])
+      notes = LogSession.where(user_id: communicators.map(&:id), log_type: 'note')
+      expect(notes.count).to eq(res[:goal_notes])
+      notes.each do |n|
+        expect(n.goal_id).not_to eq(nil)
+        expect(n.score).to be_between(1, 4)
+        expect(n.data['seed_marker']).to eq(DemoDistrict::SEED_MARKER)
+        expect(org.supervisors.map(&:id)).to include(n.author_id)
+        expect(n.user.reload.settings['primary_goal']['last_tracked']).to be >= n.ended_at.iso8601
+      end
+
+      # Supervisor daily activity, which the room page reads for its supervisor rows.
+      expect(res[:supervisor_days]).to be > 0
+      daily = LogSession.where(log_type: 'daily_use', user_id: org.supervisors.map(&:id))
+      expect(daily.map { |d| d.data['days'].keys }.flatten.uniq).to eq(['2026-10-20'])
+    end
+
+    it "refuses a missing or short password and creates nothing" do
+      expect { DemoDistrict.create_district!(password: '') }.to raise_error(DemoDistrict::RefusedError, /password/)
+      expect { DemoDistrict.create_district!(password: 'short') }.to raise_error(DemoDistrict::RefusedError, /at least/)
+      expect(User.where(user_name: names).count).to eq(0)
+    end
+
+    it "refuses when an organization is already flagged, and creates nothing" do
+      org_with('demo_data' => true)
+      before_count = Organization.count
+      expect { DemoDistrict.create_district!(password: 'spec-demo-password') }.to raise_error(DemoDistrict::RefusedError, /already flagged/)
+      expect(Organization.count).to eq(before_count)
+      expect(User.where(user_name: names).count).to eq(0)
+    end
+
+    it "refuses when an organization already has the district's name, and creates nothing" do
+      org_with('name' => 'Demo School District')
+      before_count = Organization.count
+      expect { DemoDistrict.create_district!(password: 'spec-demo-password') }.to raise_error(DemoDistrict::RefusedError, /already exists/)
+      expect(Organization.count).to eq(before_count)
+    end
+
+    it "refuses when one of the district's user names is taken, and leaves that account alone" do
+      existing = User.create(user_name: 'ruby_adams', settings: { 'email' => 'someone@example.com' })
+      before_count = Organization.count
+      expect { DemoDistrict.create_district!(password: 'spec-demo-password') }.to raise_error(DemoDistrict::RefusedError, /ruby_adams/)
+      expect(Organization.count).to eq(before_count)
+      expect(User.where(user_name: names).count).to eq(1)
+      existing.reload
+      expect(existing.settings['email']).to eq('someone@example.com')
+      expect(existing.settings.dig('preferences', 'home_board')).to eq(nil)
+    end
+  end
+
+  describe "record_supervisor_days!" do
+    it "rebuilds a supervisor's day from the sessions they modeled in, the same way on a rerun" do
+      srand(20261021)
+      o = org_with('demo_data' => true)
+      kid = member(o, 'kid@demoschooldistrict.org')
+      slp = User.create(settings: { 'email' => 'slp@demoschooldistrict.org', 'name' => 'Spec SLP' })
+      gen = DemoDistrict::UsageGenerator.new(student: kid, profile: { name: 'Kid', user_name: kid.user_name, skill: :beginner, freq: :high, modeling_rate: 0.5 },
+                                             index: 0, author: slp, board: { 'id' => '1_1', 'key' => 'example/home' },
+                                             device: Device.create(user: kid))
+      date = Date.new(2026, 10, 20)
+      made = gen.generate_day(date)
+      expect(made).not_to eq([])
+      modeled = made.map { |s| s.data['events'].select { |e| e['modeling'] } }.flatten
+
+      expect(DemoDistrict.record_supervisor_days!(slp, [date, date - 1])).to eq(1)
+      day = LogSession.find_by(log_type: 'daily_use', user_id: slp.id).data['days']['2026-10-20']
+      expect(day['models']).to eq(modeled.length)
+      expect(day['modeled'].sort).to eq(modeled.map { |e| e['button']['label'].downcase }.sort)
+      expect(day['activity_level']).to be_between(1, 5)
+
+      DemoDistrict.record_supervisor_days!(slp, [date])
+      again = LogSession.where(log_type: 'daily_use', user_id: slp.id)
+      expect(again.count).to eq(1)
+      expect(again.first.data['days']['2026-10-20']).to eq(day)
+    end
+  end
+
   describe "flag_organization!" do
     it "flags the single matching organization" do
       o = org_with('name' => 'Demo School District')

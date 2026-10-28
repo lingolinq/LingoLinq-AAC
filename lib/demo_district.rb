@@ -27,6 +27,20 @@ module DemoDistrict
   # Each communicator's primary goal is tracked every 3 to 10 days (stable per user), always
   # inside the two-week window the Goals tile counts as "recently logged".
   GOAL_CADENCE_DAYS = (3..10).freeze
+  # The primary goal refresh! gives a demo communicator who has none, by skill.
+  GOAL_SUMMARIES = {
+    beginner: "Use core words to ask for more, help and all done",
+    intermediate: "Combine two core words to make requests and comments",
+    advanced: "Build three-word sentences that include a verb"
+  }.freeze
+  # Goal status (1 to 4) on each check-in note, drawn by skill so the room's weekly goal
+  # faces vary between students.
+  GOAL_STATUSES = { beginner: [1, 2, 2, 3], intermediate: [2, 2, 3, 4], advanced: [2, 3, 4, 4] }.freeze
+  # Supervisor daily activity (rooms read it) is rebuilt for at least this many recent days
+  # on every run, so a day a failed run missed is filled in by a later one.
+  SUPERVISOR_DAYS_WINDOW = 14
+  # Supporter minutes counted for each session they authored, for the activity level.
+  SUPERVISOR_MINUTES_PER_SESSION = 3
 
   class RefusedError < StandardError; end
   # Raised at the end of a refresh that could not finish some user's sessions or summaries,
@@ -71,6 +85,63 @@ module DemoDistrict
     org
   end
 
+  # One-off: build a fresh, flagged Demo School District (lib/demo_district/seeder.rb) for an
+  # environment whose existing demo org has no synthetic users, such as nonprod's "Demo".
+  # Run refresh!(organization: org) afterwards to give it 90 days of history.
+  #
+  # It creates, and never adopts: it refuses if any organization is already flagged, if one
+  # is already named Seeder::ORG_NAME, or if any of the district's user names is taken,
+  # because an existing account with one of those names may be a real person. The new
+  # organization is admin nil, not false: organizations.admin is uniquely indexed and the
+  # existing demo org may already hold false.
+  def create_district!(password:)
+    raise RefusedError, "a password for the demo accounts is required" if password.to_s.strip.empty?
+    if password.to_s.length < Passwords::MIN_PASSWORD_LENGTH
+      raise RefusedError, "the demo account password must be at least #{Passwords::MIN_PASSWORD_LENGTH} characters"
+    end
+    existing = demo_organization
+    raise RefusedError, "organization #{existing.global_id} is already flagged #{FLAG}" if existing
+    named = []
+    Organization.find_each { |org| named << org if (org.settings || {})['name'] == Seeder::ORG_NAME }
+    if named.any?
+      raise RefusedError, "an organization named #{Seeder::ORG_NAME.inspect} already exists (#{named.map(&:global_id).join(', ')})"
+    end
+    taken = User.where(user_name: Seeder.user_names).pluck(:user_name)
+    raise RefusedError, "user names already taken: #{taken.sort.join(', ')}" if taken.any?
+
+    # No surrounding transaction, matching db/seeds.rb: user and board saves schedule
+    # background jobs that a worker could pick up before an outer transaction committed. A
+    # failure part way is logged with the organization's id, and a rerun refuses until the
+    # partial district is removed.
+    org = Organization.new
+    org.settings = Seeder.org_settings
+    org.admin = nil
+    org.save!
+    begin
+      district = Seeder.build!(org, password: password, log: ->(msg) { log(msg.strip) })
+      board_ref = { 'id' => district[:board].global_id, 'key' => district[:board].key }
+      district[:students].each do |entry|
+        student = entry[:user]
+        Seeder.prepare_student!(student)
+        # A brand-new student has no session for refresh! to take a board from, so give
+        # them the district board as their home board. Reports aggregate only with
+        # allow_log_reports on (db/seeds.rb sets it after generating usage).
+        student.settings['preferences']['home_board'] = board_ref
+        student.settings['preferences']['allow_log_reports'] = true
+        student.save!
+      end
+      # Link each room's SLP to its students now rather than waiting for the job adding them
+      # scheduled: refresh! picks a session's author (who models) from the student's
+      # supervisors, and a backfill run straight after this would otherwise find none.
+      district[:units].each(&:assert_supervision!)
+    rescue => e
+      log("FAILED building #{org.global_id} part way: #{e.class}: #{e.message}")
+      raise
+    end
+    log("created #{org.global_id} (#{Seeder::ORG_NAME}), flagged #{FLAG}")
+    org
+  end
+
   # Extends the flagged organization's demo activity through yesterday. Pass organization:
   # to target one explicitly; it is refused unless it carries the flag. With no flagged
   # organization (most non-production environments) this logs and does nothing.
@@ -89,9 +160,11 @@ module DemoDistrict
     yesterday = last_school_day_ended(now)
     result = {
       organization: org.global_id, through: yesterday.iso8601, communicators: 0,
-      sessions_created: 0, summaries_updated: 0, goals_tracked: 0, profiles_refreshed: 0,
-      skipped_users: [], failures: []
+      sessions_created: 0, summaries_updated: 0, goals_tracked: 0, goals_created: 0, goal_notes: 0,
+      supervisor_days: 0, profiles_refreshed: 0, skipped_users: [], failures: []
     }
+    # author id => dates this run wrote sessions or notes for, so their daily activity is rebuilt
+    touched = Hash.new { |h, k| h[k] = Set.new }
 
     communicators = org.approved_users(false)
     communicators.each do |user|
@@ -99,13 +172,21 @@ module DemoDistrict
         skip_user(result, user, 'communicator email is not @demoschooldistrict.org')
         next
       end
-      refresh_communicator(org, user, yesterday, result)
+      refresh_communicator(org, user, yesterday, result, touched)
     end
 
     supervisors = org.supervisors.to_a.select do |user|
       next true if demo_email?(user)
       skip_user(result, user, 'supervisor email is not @demoschooldistrict.org')
       false
+    end
+    recent = ((yesterday - (SUPERVISOR_DAYS_WINDOW - 1))..yesterday).to_a
+    supervisors.each do |sup|
+      begin
+        result[:supervisor_days] += record_supervisor_days!(sup, touched[sup.id] + recent)
+      rescue => e
+        result[:failures] << "#{sup.user_name} daily activity: #{e.class}: #{e.message}"
+      end
     end
     demo_communicators = communicators.select { |u| demo_email?(u) }
     result[:profiles_refreshed] += refresh_profiles(org, 'communicator', demo_communicators, now)
@@ -119,7 +200,7 @@ module DemoDistrict
     result
   end
 
-  def refresh_communicator(org, user, yesterday, result)
+  def refresh_communicator(org, user, yesterday, result, touched = Hash.new { |h, k| h[k] = Set.new })
     tz = UsageGenerator.time_zone
     sessions = LogSession.where(user_id: user.id, log_type: 'session')
     latest = sessions.order('started_at DESC').where('started_at IS NOT NULL').first
@@ -167,6 +248,7 @@ module DemoDistrict
     pending_weeks = Set.new
     pending_weeks << weekyear_for(latest.started_at) if latest
     latest_created_at = nil
+    day_ends = {}
     (start_date..yesterday).each do |date|
       next if marked_days.include?(date)
       made = generator.generate_day(date)
@@ -192,6 +274,10 @@ module DemoDistrict
         pending_weeks << weekyear_for(s.started_at)
         latest_created_at = [latest_created_at, s.started_at].compact.max
       end
+      if made.any?
+        day_ends[date] = made.map { |s| s.ended_at || s.started_at }.max
+        touched[generator.author.id] << date
+      end
       if date == yesterday || weekyear_for(date + 1) != weekyear_for(date)
         flush_summaries(user, pending_weeks, result)
       end
@@ -202,7 +288,98 @@ module DemoDistrict
     end
     return unless latest_created_at
 
+    write_goal_notes(user, generator.author, day_ends, result, touched)
     result[:goals_tracked] += 1 if track_goal(user, latest_created_at)
+  end
+
+  # Gives a demo communicator with no primary goal one (authored by their SLP), then logs a
+  # goal check-in note on the user's cadence across the days this run filled. The notes are
+  # what the room's weekly goal faces and the Goals tile read, and saving one is how the app
+  # itself moves primary_goal last_tracked. A user whose primary goal is not a real active
+  # goal of theirs keeps the plain last_tracked bump in track_goal.
+  def write_goal_notes(user, author, day_ends, result, touched)
+    return if day_ends.empty? || author.nil? || author.id == user.id
+    user.reload
+    if user.settings['primary_goal'].blank?
+      _, profile = UsageGenerator.profile_for(user)
+      created = UserGoal.process_new({
+        'summary' => GOAL_SUMMARIES[profile[:skill]] || GOAL_SUMMARIES[:intermediate],
+        'active' => true,
+        'primary' => true
+      }, { user: user, author: author })
+      return unless created.persisted?
+      result[:goals_created] += 1
+      user.reload
+    end
+    goal = UserGoal.find_by_global_id((user.settings['primary_goal'] || {})['id'])
+    return unless goal && goal.user_id == user.id && goal.active
+
+    tz = UsageGenerator.time_zone
+    last_note = LogSession.where(goal_id: goal.id, log_type: 'note').where('started_at IS NOT NULL').order('started_at DESC').first
+    last_date = last_note && last_note.started_at.in_time_zone(tz).to_date
+    cadence = GOAL_CADENCE_DAYS.min + (user.id.to_i % GOAL_CADENCE_DAYS.size)
+    _, profile = UsageGenerator.profile_for(user)
+    statuses = GOAL_STATUSES[profile[:skill]] || GOAL_STATUSES[:intermediate]
+    device = UsageGenerator.ensure_supervisor_device!(author)
+    day_ends.keys.sort.each do |date|
+      next if last_date && date < last_date + cadence
+      at = day_ends[date] + 5.minutes
+      note = LogSession.process_new({
+        'note' => { 'text' => "Goal check-in: #{goal.summary}", 'timestamp' => at.to_i },
+        'goal_id' => goal.global_id,
+        'goal_status' => statuses.sample
+      }, { user: user, author: author, device: device })
+      unless note.persisted?
+        log("WARN #{user.user_name}: goal note on #{date} not saved")
+        next
+      end
+      note.data['seed_marker'] = SEED_MARKER
+      note.save!
+      # update_usage normally runs later on the slow queue; run it now so the Goals tile
+      # does not wait on a worker.
+      goal.reload.update_usage(note.ended_at.iso8601)
+      result[:goal_notes] += 1
+      touched[author.id] << date
+      last_date = date
+    end
+  rescue => e
+    log("WARN #{user.user_name}: goal notes: #{e.class}: #{e.message}")
+  end
+
+  # Rebuilds a supervisor's daily activity (the 'daily_use' log the app keeps for each
+  # supporter, which a room reads for its supervisor rows and modeled words) for each date
+  # from the sessions they authored and the notes they wrote that day, so a rerun gives the
+  # same answer. Shape and activity levels follow the app's own track_daily_use
+  # (app/frontend/app/services/stashes.js). Returns the number of days written.
+  def record_supervisor_days!(supervisor, dates)
+    tz = UsageGenerator.time_zone
+    gid = supervisor.global_id
+    days = dates.to_a.uniq.sort.filter_map do |date|
+      range = tz.local(date.year, date.month, date.day)..tz.local(date.year, date.month, date.day).end_of_day
+      authored = LogSession.where(author_id: supervisor.id, started_at: range).where.not(user_id: supervisor.id)
+      sessions = authored.where(log_type: 'session').to_a
+      notes = authored.where(log_type: 'note').count
+      next if sessions.empty? && notes == 0
+      models = 0
+      modeled = []
+      seconds = 0
+      sessions.each do |s|
+        stats = (s.data || {})['stats'] || {}
+        models += ((stats['modeling_user_ids'] || {})[gid]).to_i
+        (stats['modeled_word_counts'] || {}).each { |word, count| modeled.concat(Array.new(count.to_i) { word }) }
+        # Generated sessions last seconds; a supporter's time with the student around one is
+        # longer, so count each as at least SUPERVISOR_MINUTES_PER_SESSION.
+        seconds += [stats['session_seconds'].to_i, SUPERVISOR_MINUTES_PER_SESSION * 60].max
+      end
+      minutes = seconds / 60.0 + notes * 2
+      level = if minutes >= 60 then 5 elsif minutes >= 30 then 4 elsif minutes >= 15 then 3 elsif minutes >= 5 then 2 elsif minutes > 0 then 1 else 0 end
+      day = { 'date' => date.iso8601, 'activity_level' => level, 'active' => minutes >= 30, 'models' => models, 'modeled' => modeled }
+      day['notes'] = notes if notes > 0
+      day
+    end
+    return 0 if days.empty?
+    LogSession.process_daily_use({ 'events' => days }, { author: supervisor, device: UsageGenerator.ensure_supervisor_device!(supervisor) })
+    days.length
   end
 
   # A process killed part way through a day leaves some of its sessions behind with no
@@ -215,8 +392,11 @@ module DemoDistrict
     day = sessions.where(started_at: tz.local(date.year, date.month, date.day)..tz.local(date.year, date.month, date.day).end_of_day)
                   .select { |s| (s.data || {})['seed_marker'] == SEED_MARKER }
     return latest if day.any? { |s| s.data[DAY_COMPLETE] }
-    log("#{user.user_name}: discarding #{day.length} session(s) from unfinished day #{date}")
+    notes = LogSession.where(user_id: user.id, log_type: 'note', started_at: tz.local(date.year, date.month, date.day)..tz.local(date.year, date.month, date.day).end_of_day)
+                      .select { |s| (s.data || {})['seed_marker'] == SEED_MARKER }
+    log("#{user.user_name}: discarding #{day.length} session(s) and #{notes.length} goal note(s) from unfinished day #{date}")
     day.each(&:destroy)
+    notes.each(&:destroy)
     sessions.order('started_at DESC').where('started_at IS NOT NULL').first
   end
 

@@ -523,165 +523,20 @@ elsif !DEMO_ALREADY_SEEDED
     puts "  Linked lingolinq_admin to admin organization as manager"
   end
 
-  # ---- 2. Demo School District organization ----
+  # ---- 2 to 6. Demo School District organization, SLPs, core board, students, classrooms ----
+  # The people and structure live in lib/demo_district/seeder.rb so DemoDistrict.create_district!
+  # builds exactly the same district in an environment that needs a fresh one.
   # Reuse existing non-admin org if one exists (unique index on admin column)
   demo_org = Organization.find_by(admin: false) || Organization.new
-  demo_org.settings = {
-    'name' => 'Demo School District',
-    # Explicit opt-in for DemoDistrict.refresh! (lib/demo_district.rb), which only ever
-    # writes synthetic activity into an organization carrying this flag.
-    'demo_data' => true,
-    'total_licenses' => 30,
-    'total_eval_licenses' => 5,
-    'total_supervisor_licenses' => 10,
-    'include_extras' => true,
-    'org_access' => true,
-    'public' => false,
-    'support_target' => {
-      'email' => 'support@demoschooldistrict.org',
-      'name' => 'Demo School District'
-    }
-  }
+  demo_org.settings = DemoDistrict::Seeder.org_settings
   demo_org.admin = false
   demo_org.save!
   puts "  Created org: Demo School District (ID: #{demo_org.global_id})"
 
-  # ---- 3. Three SLP Supervisor accounts ----
-  slp_profiles = [
-    { name: 'Sarah Chen', user_name: 'sarah_chen_slp', email: 'sarah.chen@demoschooldistrict.org', location: 'Portland, OR' },
-    { name: 'Marcus Williams', user_name: 'marcus_williams_slp', email: 'marcus.williams@demoschooldistrict.org', location: 'Portland, OR' },
-    { name: 'Elena Rodriguez', user_name: 'elena_rodriguez_slp', email: 'elena.rodriguez@demoschooldistrict.org', location: 'Portland, OR' }
-  ]
-
-  supervisors = slp_profiles.map do |profile|
-    slp = User.find_by(user_name: profile[:user_name])
-    unless slp
-      slp = User.process_new({
-        name: profile[:name],
-        user_name: profile[:user_name],
-        email: profile[:email],
-        public: false,
-        password: demo_password,
-        description: "Speech-Language Pathologist at Demo School District",
-        location: profile[:location]
-      }, {
-        is_admin: false
-      })
-    end
-    demo_org.add_supervisor(slp.user_name, false, true) # pending=false, premium=true
-    puts "  Created SLP: #{slp.user_name}"
-    slp
-  end
-
-  # Add first supervisor as a manager too (district admin)
-  demo_org.add_manager(supervisors.first.user_name, true)
-
-  # ---- 4. District-level home board for AAC users ----
-  district_board = Board.find_by(key: 'demo_district_home')
-  unless district_board
-    core_words = [
-      { id: 1,  label: "I",       background_color: "#FFEB3B" },
-      { id: 2,  label: "want",    background_color: "#FF9800" },
-      { id: 3,  label: "need",    background_color: "#FF9800" },
-      { id: 4,  label: "like",    background_color: "#FF9800" },
-      { id: 5,  label: "go",      background_color: "#4CAF50" },
-      { id: 6,  label: "stop",    background_color: "#F44336" },
-      { id: 7,  label: "help",    background_color: "#2196F3" },
-      { id: 8,  label: "more",    background_color: "#9C27B0" },
-      { id: 9,  label: "yes",     background_color: "#4CAF50" },
-      { id: 10, label: "no",      background_color: "#F44336" },
-      { id: 11, label: "eat",     background_color: "#FF9800" },
-      { id: 12, label: "drink",   background_color: "#FF9800" },
-      { id: 13, label: "play",    background_color: "#4CAF50" },
-      { id: 14, label: "happy",   background_color: "#FFEB3B" },
-      { id: 15, label: "sad",     background_color: "#607D8B" },
-      { id: 16, label: "please",  background_color: "#9C27B0" },
-      { id: 17, label: "thank you", background_color: "#9C27B0" },
-      { id: 18, label: "bathroom", background_color: "#795548" },
-      { id: 19, label: "all done", background_color: "#F44336" },
-      { id: 20, label: "my turn", background_color: "#FFEB3B" }
-    ]
-
-    district_board = Board.process_new({
-      name: 'Demo District Core Board',
-      public: false,
-      buttons: core_words,
-      grid: {
-        rows: 4,
-        columns: 5,
-        order: [
-          [1, 2, 3, 4, 5],
-          [6, 7, 8, 9, 10],
-          [11, 12, 13, 14, 15],
-          [16, 17, 18, 19, 20]
-        ]
-      }
-    }, { user: supervisors.first, key: 'demo_district_home' })
-    puts "  Created district core board (20 buttons)"
-  end
-
-  demo_org.settings['default_home_board'] = {
-    'id' => district_board.global_id,
-    'key' => district_board.key
-  }
-  demo_org.save!
-
-  # ---- 5. Twenty student AAC users with varied profiles ----
-  # Profiles (name, skill, usage frequency) live with the usage generator so the seed and
-  # the daily rolling refresh agree on who each student is.
-  student_profiles = DemoDistrict::UsageGenerator::STUDENT_PROFILES
-
-  students = student_profiles.map do |profile|
-    student = User.find_by(user_name: profile[:user_name])
-    unless student
-      student = User.process_new({
-        name: profile[:name],
-        user_name: profile[:user_name],
-        email: "#{profile[:user_name]}@demoschooldistrict.org",
-        public: false,
-        password: demo_password,
-        description: "AAC user, age #{profile[:age]}",
-        location: "Portland, OR"
-      }, {
-        is_admin: false
-      })
-    end
-    demo_org.add_user(student.user_name, false, true, false) # pending=false, sponsored=true, eval=false
-    puts "  Created student: #{student.user_name} (#{profile[:skill]}, #{profile[:freq]} freq)"
-    { user: student, profile: profile }
-  end
-
-  # ---- 6. Three classrooms (OrganizationUnits) ----
-  classroom_configs = [
-    { name: 'Early Communication (K-1)', supervisor: supervisors[0], student_indices: (0..6) },
-    { name: 'Building Sentences (2nd-3rd)', supervisor: supervisors[1], student_indices: (7..13) },
-    { name: 'Advanced Communication (4th-5th)', supervisor: supervisors[2], student_indices: (14..19) }
-  ]
-
-  classrooms = classroom_configs.map do |config|
-    unit = OrganizationUnit.find_by(organization_id: demo_org.id)
-    # Check by name in settings - need to search properly
-    existing = OrganizationUnit.where(organization_id: demo_org.id).detect { |u|
-      u.settings && u.settings['name'] == config[:name]
-    }
-
-    unit = existing
-    unless unit
-      unit = OrganizationUnit.new
-      unit.organization = demo_org
-      unit.settings = { 'name' => config[:name] }
-      unit.save!
-    end
-
-    unit.add_supervisor(config[:supervisor].user_name, true) # edit_permission=true
-
-    config[:student_indices].each do |i|
-      unit.add_communicator(students[i][:user].user_name)
-    end
-
-    puts "  Created classroom: #{config[:name]} (#{config[:student_indices].size} students)"
-    unit
-  end
+  district = DemoDistrict::Seeder.build!(demo_org, password: demo_password)
+  supervisors = district[:supervisors]
+  district_board = district[:board]
+  students = district[:students]
 
   # ---- 7. Generate 90 days of backdated LogSession data ----
   # The generator lives in lib/demo_district/usage_generator.rb so DemoDistrict.refresh!
@@ -697,24 +552,9 @@ elsif !DEMO_ALREADY_SEEDED
     # Create device with realistic metadata
     device = DemoDistrict::UsageGenerator.ensure_device!(student, profile, student_idx)
 
-    # Set student preferences (home board, logging, access method)
-    student.settings['preferences'] ||= {}
-    student.settings['preferences']['logging'] = true
-    student.settings['preferences']['role'] = 'communicator'
-    student.settings['preferences']['device'] = {
-      'voice' => { 'voice_uri' => 'default' },
-      'alternate_voice' => {},
-      'button_spacing' => 'small',
-      'button_border' => 'medium',
-      'button_text' => 'medium',
-      'button_text_position' => 'bottom',
-      'vocalization_height' => 80
-    }
-    student.settings['preferences']['skin'] = 'default'
-    student.settings['preferences']['auto_home_return'] = true
-    student.settings['preferences']['clear_on_vocalize'] = true
+    # Set student preferences (logging, role, device settings)
     # Home board will be assigned by reprocess_imported_boards task
-    student.save!
+    DemoDistrict::Seeder.prepare_student!(student)
 
     # Assign a supervisor as author for log sessions
     supervisor_idx = student_idx < 7 ? 0 : (student_idx < 14 ? 1 : 2)
@@ -787,6 +627,14 @@ elsif !DEMO_ALREADY_SEEDED
   end
 
   puts "  Total WeeklyStatsSummary records: #{total_summaries}"
+
+  # Supervisor daily activity (the 'daily_use' log): rooms read it for their supervisor rows and
+  # the modeled-words cloud. Built from the sessions each SLP authored above.
+  puts "\n  Recording supervisor daily activity..."
+  seeded_dates = (1..90).map { |days_ago| days_ago.days.ago.to_date }
+  supervisors.each do |slp|
+    puts "    #{slp.user_name}: #{DemoDistrict.record_supervisor_days!(slp, seeded_dates)} days"
+  end
 
   puts "\n" + "=" * 60
   puts "Demo School District seeding complete!"
