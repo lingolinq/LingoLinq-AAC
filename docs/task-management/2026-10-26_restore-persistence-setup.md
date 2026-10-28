@@ -219,17 +219,22 @@ lengthen Modern view's wait. Recorded here so it can be revisited if iOS file li
     - The `sync` wrapper records the root sync's reason, and `sync_backoff_watcher` sets the
       back-off.
   - Line-for-line edits in the class: the success path sets `last_sync_event_at` before
-    `last_sync_at`; the failure popup only for `sync_reason == 'manual_sync'`; the post-login
+    `last_sync_at`; the failure popup only for syncs that are not automatic
+    (`!sync_is_automatic()`; first written as `sync_reason == 'manual_sync'` and corrected after the
+    implementation review, below); the post-login
     function clears `just_logged_in` after the check runs, has a pending guard, and reads an
     optional `post_login_sync_delay` (tests set it; production keeps 10 s).
 - `app/frontend/app/routes/user/board-detail.js`: `_maybe_prime_caches` calls
   `persistence.prepare_local_files()`; the unused `capabilities` import is removed. This shifts the
   file's 5 `.eslint-todo` rows by a constant -32 lines (same rule, column and message hash; total
-  findings 1549 = baseline 1549). Re-anchoring them needs Traci's approval (Rule #14).
+  findings 1549 = baseline 1549). Re-anchoring them needs Traci's approval (Rule #14). Approved
+  by Traci on 2026-10-27 ("re-anchor the lint entries"): rows 112/130/140/489/619 moved to
+  80/98/108/457/587, each checked to be the same `runLater(function() {` call.
 
 ## Tests
 
-- New: `app/frontend/tests/unit/services/persistence-sync-startup-test.js` (10 tests), and three
+- New, at this stage (more were added after the reviews, below):
+  `app/frontend/tests/unit/services/persistence-sync-startup-test.js` (10 tests), and three
   tests at the end of `app/frontend/tests/utils/persistence-sync-test.js` (automatic failure is quiet
   and backs off; a user-started failure still shows the popup; event time recorded before
   `last_sync_at`).
@@ -305,7 +310,7 @@ taps were real `mousedown`/`mouseup` events on the button elements, handled by `
     `navigator.onLine` only (`services/persistence.js:4246-4277`), so it stayed in offline mode
     until relaunch. Not checked on a real iPad; it may be a simulator quirk.
 
-## Implementation review (adversary-local, 2026-10-28)
+## Implementation review (adversary-local, 2026-10-27)
 
 Local substitute only; the canonical `/review-pr` and `/adversary-review` have not run. Two
 `adversary-local` reviewers on the uncommitted working tree (app code; tests and `.eslint-todo`).
@@ -354,9 +359,9 @@ Findings verified by hand before recording. No Critical or High.
   reproduced; plan-review findings 2 and 4 to 9 implemented; existing tests only added to (Rule 14);
   `.eslint-todo` re-anchored rows point at the same five calls.
 
-### Fixes after the implementation review (2026-10-28)
+### Fixes after the implementation review (2026-10-27)
 
-Only findings that are real problems were fixed (Traci, 2026-10-28: "only make the fixes if they
+Only findings that are real problems were fixed (Traci, 2026-10-27: "only make the fixes if they
 are necessary and correct real problems"). Each fix has a test written first that failed for the
 reason it was written for.
 
@@ -383,9 +388,53 @@ reason it was written for.
     were left without new tests.
   - The Low items are left as recorded above.
   - The compressed post-login lines (`:3988`, `:3990`, `:3992`) were split back into one statement
-    per line; with Traci's approval (2026-10-28) the two `.eslint-todo` rows below them were
+    per line; with Traci's approval (2026-10-27) the two `.eslint-todo` rows below them were
     re-anchored, `persistence.js` `ember/no-runloop` 3989 -> 3990 and 4521 -> 4524, each checked
     to be the same `runLater(function() {` call as at HEAD. Gate: new=0; the 65 sync tests pass.
 - Results: the 16 sync startup and sync-failure tests pass. `npm run lint:js:ci`: new=0. Full suite,
   both timing-strict shards: include 1684 tests, 1672 pass, 7 skip, 5 todo, 0 fail; exclude 2139,
   2109 pass, 30 skip, 0 fail (3,823 tests, 3 more than the earlier run; 37 skips, a complete run).
+
+## Canonical review passes (2026-10-27)
+
+PII preflight: `review-preflight.sh range` exited 0.
+`REVIEWED=range origin/develop (a01becefdf90ba80476c88119e558639cb1125c8) ... origin/traci/fix/restore-persistence-setup (068e1f15b8a11797c0c0a634cff45478077604ef) in /Users/traciday/Documents/GitHub/lingolinq/LingoLinq-AAC`
+
+- `/review-pr` (senior-dev pass, read only the preflight's `DIFF_FILE`): **Approve with
+  comments.** No Critical or High.
+- `/adversary-review` (ai-company-brain `agents/adversary.md`): **Ship with conditions.** No
+  Critical or High; "data isolation on the automatic path holds by construction".
+
+Each finding was checked by hand:
+
+- **Fixed: a startup error could stop the service being created** (`/review-pr`, Medium).
+  `setup()` rethrows (`services/persistence.js:282-284`) and `init` called `start_sync_state`
+  unguarded; every route and component injects the service, so the app, not just sync, would fail.
+  `init` now catches and logs. Test: "the service is still created when the sync startup throws",
+  red before the fix.
+- **Fixed: task log.** The 2026-10-28 dates were wrong (corrected to 2026-10-27); the
+  implementation and test-count lines are marked as superseded; the board-detail re-anchor
+  approval is recorded where it was asked for.
+- **Refuted: the DB-owner guard fails open on an unexpected name** (`/review-pr`). The real name
+  is `"lingolinqStorage::" + db_id + "===" + db_key` (`utils/capabilities.js:2539`), with `db_id`
+  the signed-in user name (`utils/_stashes.js:310-312`), which the guard's pattern matches.
+- **Product decision, open: a failed first sync is invisible in Modern view**
+  (`/adversary-review`, Medium). CONFIRMED: the "Sync Failed" row exists only in the classic
+  dashboard (`components/dashboard/classic-view.hbs:400`, `classic-rail.hbs:555`) and Sync
+  details; `authenticated-view.hbs` has none. With quiet automatic failures, a Modern-view user
+  whose first sync fails is told nothing. Options: a small non-modal failed state in Modern view,
+  or keep the first-device sync loud.
+- **Pre-existing, not fixed: reconnect forces a check that skips the back-off**
+  (`/adversary-review`, Medium, PLAUSIBLE). `on_connect` (`:3945-3958`) calls
+  `check_for_needs_sync(true)` on every offline-to-online flip; it is identical on develop, where
+  each failure also showed a popup. Each reconnect after a failed sync retries a full sync. Not
+  caused by this change; now quiet.
+- **Not fixed (Low, by decision):** pointer comments at the class methods the reopen block wraps
+  (would move more baseline rows); back-off doubling, cap and reset tests; a test tied to the real
+  DB-name builder; `_root_sync_reason` shared between overlapping syncs; the owner check running
+  every tick; the millisecond comparison in "event time recorded before last_sync_at"; a stuck
+  `syncing` status now also blocking forced checks; the new per-user fields not reset by
+  `clear_user_state` (the DB-owner guard blocks the next user's checks until reload anyway); the
+  two-failures 48-hour rule.
+- Results after the fix: the 66 sync startup and sync tests pass (1 skip); `npm run lint:js:ci`
+  new=0.
