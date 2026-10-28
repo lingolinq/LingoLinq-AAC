@@ -124,6 +124,11 @@ describe('HighlightController scanner hand-off', function() {
     opened = controller;
     controller.send('opening');
     var stopped = false;
+    // start() also requires speak mode. Setting speak_mode on the real service would fire its
+    // observers (check_scanning among them), so only that one read is answered here; the
+    // preference read still goes to the app-state the highlight handed over.
+    var realGet = scanner.get;
+    stub(scanner, 'get', function(key) { return key === 'appState.speak_mode' ? true : realGet.call(scanner, key); });
     stub(scanner, 'find_elem', function(str) { return str === '#speak' ? {length: 1} : {length: 0}; });
     stub(scanner, 'stop', function() { stopped = true; });
     scanner.interval = null;
