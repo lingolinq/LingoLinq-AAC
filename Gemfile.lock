@@ -499,8 +499,8 @@ GEM
       rexml
     ruby2_keywords (0.0.5)
     rubyzip (3.6.0)
-    sanitize (7.0.0)
-      crass (~> 1.0.2)
+    sanitize (7.0.1)
+      crass (~> 1.0.8)
       nokogiri (>= 1.16.8)
     sass-rails (6.0.0)
       sassc-rails (~> 2.1, >= 2.1.1)
@@ -646,7 +646,7 @@ DEPENDENCIES
   ruby-openai (~> 7.0)
   ruby-saml (>= 1.18.0)
   rubyzip (>= 3.4)
-  sanitize
+  sanitize (>= 7.0.1)
   sass-rails (~> 6.0)
   sdoc
   sentry-rails
