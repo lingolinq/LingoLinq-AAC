@@ -117,4 +117,3 @@ describe('HighlightController scanner hand-off', function() {
     appState.set('currentUser', savedUser);
   });
 });
-
