@@ -12,6 +12,8 @@ group :development, :test do
   gem 'simplecov', :require => false
   gem 'rack-test'
   gem 'rails-controller-testing'
+  # Specs never reach the real network (spec/spec_helper.rb disables it)
+  gem 'webmock', require: false
   gem 'drb'
   gem 'irb'
   # CVE-2026-34060 (GHSA-c4r5-fxqw-vh93); bundler-audit minimum
@@ -50,8 +52,10 @@ gem 'oj', '>= 3.17.3'
 gem 'loofah', '>= 2.25.2'
 # GHSA-cj75-f6xr-r4g7 (possible XSS with certain configs); transitive via actionview/actiontext, pin patched
 gem 'rails-html-sanitizer', '>= 1.7.1'
-# GHSA-6jxj-px6v-747w et al.; bundler-audit minimum (transitive via loofah, rails-dom-testing)
-gem 'crass', '>= 1.0.7'
+# GHSA-6jxj-px6v-747w et al.; GHSA-pq4g-8rxf-4g29 (bad-URL tokenization, CSS sanitizer bypass) needs >= 1.0.8.
+# bundler-audit minimum. crass is required by loofah and sanitize, both direct dependencies
+# (rails-html-sanitizer also pulls in loofah).
+gem 'crass', '>= 1.0.8'
 # ERB @_init deserialization guard bypass (def_module/def_method/def_class); pulled transitively, pin patched 6.x
 gem 'erb', '>= 6.0.4'
 gem 'pg', '~> 1.5'
@@ -108,7 +112,9 @@ gem 'faraday', '>= 2.14.3'
 gem 'clowne', '~> 1.4' # Declarative model cloning DSL for board copy optimization
 
 gem 'sinatra', '~> 4.2'
-gem 'sanitize'
+# GHSA-wgw9-qhqg-8hv5 (CSS nesting bypasses the property and protocol allowlists in <style>,
+# which Processable#process_html allows through Sanitize::Config::RELAXED); ensure >= 7.0.1
+gem 'sanitize', '>= 7.0.1'
 gem 'anthropic', '~> 1.36'
 gem 'ruby-openai', '~> 7.0'  # Used for Gemini fallback (OpenAI-compatible endpoint)
 

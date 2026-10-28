@@ -58,7 +58,8 @@ name: Deploy to Cloud Run
 # scot/fix/empty-button-sets-prod-hotfix, both 2026-08-02/03). Nothing restricts the source
 # branch of a PR into `main`. What makes automatic deploy acceptable is therefore NOT
 # provenance, it is the four gates below, and removing any of them removes the safety:
-#   1. Required status checks on `main` (rspec, build-and-test, audit-artifacts-integrity,
+#   1. Required status checks on `main` (rspec, build-and-test (a gate on lint, the build and the
+#      Ember shards), audit-artifacts-integrity,
 #      codex-review-tests, security-scan, secret-detection) with enforce_admins on, so no PR
 #      merges red against the base it was tested against, whatever branch it came from.
 #      Note `strict` is FALSE, deliberately: requiring every PR to be up to date with `main`
@@ -223,7 +224,7 @@ name: Deploy to Cloud Run
 # NOT GitHub secrets; staging and dev read the SAME unsuffixed names in lingolinq-nonprod):
 #   SECRET_KEY_BASE, SECURE_ENCRYPTION_KEY, SECURE_NONCE_KEY, DB_HOST, DB_NAME,
 #   DB_USERNAME, DB_PASSWORD, REDIS_URL, DEFAULT_EMAIL_FROM, SYSTEM_ERROR_EMAIL, COOKIE_KEY,
-#   DEFAULT_HOST. (DB_* replaced the single DATABASE_URL: the Cloud SQL socket URL is unparseable
+#   DEFAULT_HOST, CACHE_TOKEN. (DB_* replaced the single DATABASE_URL: the Cloud SQL socket URL is unparseable
 #   by uri >= 1.0, so config/database.yml builds the connection from discrete params instead.)
 #   REDIS_CA_CERT is seeded later by scripts/gcp/phase3-data-layer.sh (the Memorystore
 #   per-instance CA, fetched from the live instance) -- the app's Redis client loads it to
@@ -348,10 +349,15 @@ jobs:
       # DATABASE_URL: the Cloud SQL socket-form URL (empty host) is rejected by uri >= 1.0 at boot.
       # DB_HOST is the Cloud SQL unix socket dir (/cloudsql/<conn>); database.yml defaults DB_SSLMODE
       # to 'disable' for the socket.
-      BOOT_SECRETS: SECRET_KEY_BASE=SECRET_KEY_BASE:latest,COOKIE_KEY=COOKIE_KEY:latest,SECURE_ENCRYPTION_KEY=SECURE_ENCRYPTION_KEY:latest,SECURE_NONCE_KEY=SECURE_NONCE_KEY:latest,DB_HOST=DB_HOST:latest,DB_NAME=DB_NAME:latest,DB_USERNAME=DB_USERNAME:latest,DB_PASSWORD=DB_PASSWORD:latest,REDIS_URL=REDIS_URL:latest,REDIS_CA_CERT=REDIS_CA_CERT:latest,DEFAULT_HOST=DEFAULT_HOST:latest,DEFAULT_EMAIL_FROM=DEFAULT_EMAIL_FROM:latest,SYSTEM_ERROR_EMAIL=SYSTEM_ERROR_EMAIL:latest
+      # CACHE_TOKEN is here, not in NON_BOOT_SECRETS, because RedisInit.init reads it at every
+      # boot (config/initializers/resque.rb resolved_cache_token): the migration Job and every
+      # one-off runner through it get no K_REVISION (Cloud Run sets that on services only), so
+      # without it they used to fall back to the shared static token (GitHub #423); now any
+      # Cloud Run surface without it refuses to boot.
+      BOOT_SECRETS: SECRET_KEY_BASE=SECRET_KEY_BASE:latest,COOKIE_KEY=COOKIE_KEY:latest,SECURE_ENCRYPTION_KEY=SECURE_ENCRYPTION_KEY:latest,SECURE_NONCE_KEY=SECURE_NONCE_KEY:latest,DB_HOST=DB_HOST:latest,DB_NAME=DB_NAME:latest,DB_USERNAME=DB_USERNAME:latest,DB_PASSWORD=DB_PASSWORD:latest,REDIS_URL=REDIS_URL:latest,REDIS_CA_CERT=REDIS_CA_CERT:latest,DEFAULT_HOST=DEFAULT_HOST:latest,DEFAULT_EMAIL_FROM=DEFAULT_EMAIL_FROM:latest,SYSTEM_ERROR_EMAIL=SYSTEM_ERROR_EMAIL:latest,CACHE_TOKEN=CACHE_TOKEN:latest
       # Non-boot APP secrets (migration 4.E1): S3/SES creds + Google/Stripe/AI/Sentry/SMS + misc
-      # integration tokens. Lazy-loaded at use time, NOT at boot -- so they go on the web service and
-      # worker pool ONLY, never the migration Job (which boots Rails for db:migrate but needs none of
+      # integration tokens. Lazy-loaded at use time, NOT at boot -- so they go on the web service,
+      # worker pool and scheduler only, never the migration Job (which boots Rails for db:migrate but needs none of
       # these). Seeded by scripts/gcp/phase4-seed-app-secrets.sh (Render-prod-first; AWS_KEY/AWS_SECRET
       # are the NEW least-priv IAM user, scripts/gcp/iam/). Every name here is asserted to have a
       # SEEDED VERSION in Secret Manager by the "Assert referenced secrets exist + assemble
@@ -382,7 +388,7 @@ jobs:
       # 2026-07-09, PR #570, and its Render/GCP provisioning inputs were removed in the follow-up
       # cleanup. The existing GCP Secret Manager item is intentionally not deleted here. Do not
       # re-add the key: the Gemini Developer/AI-Studio route is not an approved Tier 1 runtime path.
-      NON_BOOT_SECRETS: AWS_KEY=AWS_KEY:latest,AWS_SECRET=AWS_SECRET:latest,BEDROCK_AWS_KEY=BEDROCK_AWS_KEY:latest,BEDROCK_AWS_SECRET=BEDROCK_AWS_SECRET:latest,GOOGLE_TTS_TOKEN=GOOGLE_TTS_TOKEN:latest,GOOGLE_TRANSLATE_TOKEN=GOOGLE_TRANSLATE_TOKEN:latest,GOOGLE_OAUTH_CLIENT_ID=GOOGLE_OAUTH_CLIENT_ID:latest,GOOGLE_OAUTH_CLIENT_SECRET=GOOGLE_OAUTH_CLIENT_SECRET:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,SENTRY_DSN=SENTRY_DSN:latest,SMS_ENCRYPTION_KEY=SMS_ENCRYPTION_KEY:latest,INTERNAL_API_TOKEN=INTERNAL_API_TOKEN:latest,CACHE_TOKEN=CACHE_TOKEN:latest,OPENSYMBOLS_SECRET=OPENSYMBOLS_SECRET:latest,IPLOCATE_API_KEY=IPLOCATE_API_KEY:latest,YOUTUBE_API_KEY=YOUTUBE_API_KEY:latest
+      NON_BOOT_SECRETS: AWS_KEY=AWS_KEY:latest,AWS_SECRET=AWS_SECRET:latest,BEDROCK_AWS_KEY=BEDROCK_AWS_KEY:latest,BEDROCK_AWS_SECRET=BEDROCK_AWS_SECRET:latest,GOOGLE_TTS_TOKEN=GOOGLE_TTS_TOKEN:latest,GOOGLE_TRANSLATE_TOKEN=GOOGLE_TRANSLATE_TOKEN:latest,GOOGLE_OAUTH_CLIENT_ID=GOOGLE_OAUTH_CLIENT_ID:latest,GOOGLE_OAUTH_CLIENT_SECRET=GOOGLE_OAUTH_CLIENT_SECRET:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,SENTRY_DSN=SENTRY_DSN:latest,SMS_ENCRYPTION_KEY=SMS_ENCRYPTION_KEY:latest,INTERNAL_API_TOKEN=INTERNAL_API_TOKEN:latest,OPENSYMBOLS_SECRET=OPENSYMBOLS_SECRET:latest,IPLOCATE_API_KEY=IPLOCATE_API_KEY:latest,YOUTUBE_API_KEY=YOUTUBE_API_KEY:latest
       # Non-secret runtime config (Group B) + perf tuning (Group C), web + worker only. This is
       # the ENVIRONMENT-INDEPENDENT part: identical in production, staging, and dev. The
       # environment-specific part (buckets, CDN, Sentry env, Redis namespace, REMOTE_EXTRA_DATA,

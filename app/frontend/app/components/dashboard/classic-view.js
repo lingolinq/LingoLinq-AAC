@@ -1,3 +1,4 @@
+import RSVP from 'rsvp';
 import { inject as service } from '@ember/service';
 import { computed, observer, set as emberSet } from '@ember/object';
 import AuthenticatedView from './authenticated-view';
@@ -9,6 +10,7 @@ import { pillForRoute } from '../../utils/primary_nav';
 import { showsAdminSlot } from '../../utils/admin_nav';
 import { has_caseload_access } from '../../utils/caseload_access';
 import { take_pending_index_nav, take_pending_open_extras, take_pending_open_supervisee } from '../../utils/basic_landing';
+import { assign_home_board_basic, basic_home_button_label, BASIC_HOME_CURSOR } from '../../utils/basic_home_assign';
 
 /**
  * Classic home page.
@@ -55,6 +57,8 @@ export default AuthenticatedView.extend({
   init() {
     this._super(...arguments);
     var self = this;
+    // Bound once, so <BoardIcon @onAction> gets a stable function while the assign mode is on.
+    this.set('_basicAssignFromTile', function(board) { return self._basicAssign(board); });
     this.ctrlAction = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
       return function() {
@@ -136,13 +140,13 @@ export default AuthenticatedView.extend({
       this._pending_index_nav = null;
       this.send('set_index_nav', nav);
     }
-    /* The Extras drawer handed off by a switch from the Extras page (utils/basic_landing.js).
-       Opened through `toggle_extras`, the Extras card's own action, so the arrival gets exactly
-       the click's behaviour: the drawer opens and the card scrolls to the top once it renders.
-       After the tab above, because the drawer lives on the Actions tab. */
+    /* The Extras handoff from a switch off the Extras page (utils/basic_landing.js). It used to
+       OPEN the drawer; as of 2026-10-09 the drawer no longer collapses, so arriving on the
+       Actions tab — which `index_nav: 'main'` above already does — IS the whole handoff. The
+       flag is still consumed here so it cannot survive into the next navigation or, via
+       app-state's reset, the next account. */
     if(this._pending_open_extras) {
       this._pending_open_extras = false;
-      if(!this.get('show_main_extras')) { this.send('toggle_extras'); }
     }
     if(this._pending_open_supervisee) {
       var name = this._pending_open_supervisee;
@@ -327,6 +331,97 @@ export default AuthenticatedView.extend({
     return this.appState.get('currentUser.preferences.home_board.key');
   }),
 
+  /* BOARDS VIEW: "Assign Home Board" / "Change Home Board" (requested 2026-10-12). A mode, like
+     Modern's Boards page Set Home Board (components/available-boards-section.js), but Basic's own:
+     every name here is `basic...` so nothing is shared with that component, and the assign step is
+     utils/basic_home_assign.js. While on: tiles take the house pointer and assign instead of opening
+     (`basicTileAction` is passed to <BoardIcon @onAction> only then, so a normal click is untouched),
+     a tooltip under the button says what to do and carries Cancel. Escape, Cancel, the button again,
+     leaving the Boards view, or leaving the page ends it; switching subtabs keeps it. */
+  basicAssigningHome: false,
+  basicHomeCursor: BASIC_HOME_CURSOR,
+  basicSetHomeLabel: computed('homeBoardKey', function() {
+    return basic_home_button_label(!!this.get('homeBoardKey'));
+  }),
+  basicSetHomeTip: computed(function() {
+    return i18n.t('set_home_mode_tip', "Click any board to make it your home board");
+  }),
+  // Also bound for a moment after a tap (`basicHoldTaps`), so a quick second tap reaches _basicAssign
+  // and is ignored there rather than opening the board it landed on. Only a moment, not until the save
+  // settles: a save that hangs (offline, slow network) must not leave every tile dead.
+  basicTileAction: computed('basicAssigningHome', 'basicHoldTaps', '_basicAssignFromTile', function() {
+    return (this.get('basicAssigningHome') || this.get('basicHoldTaps')) ? this._basicAssignFromTile : null;
+  }),
+  basicSettingHome: false,
+  basicHoldTaps: false,
+  basicTapHoldMs: 1500,
+  _setBasicAssigning(on) {
+    var self = this;
+    if (self.isDestroyed || self.isDestroying) { return; }
+    self.set('basicAssigningHome', !!on);
+    if (on && !self._basicHomeKeydown) {
+      self._basicHomeKeydown = function(e) { if (e.key === 'Escape') { self._setBasicAssigning(false); } };
+      document.addEventListener('keydown', self._basicHomeKeydown);
+    } else if (!on && self._basicHomeKeydown) {
+      document.removeEventListener('keydown', self._basicHomeKeydown);
+      self._basicHomeKeydown = null;
+    }
+  },
+  // Another view of the home page (Actions, Communicators, Updates) ends it; Boards subtabs do not.
+  // Watches `index_nav_state`, which every view switch writes (authenticated-view.js#set_index_nav);
+  // synchronous, so the mode is off the moment the view changes rather than at the end of the run loop.
+  basicEndAssignOnLeave: observer({ dependentKeys: ['index_nav_state'], sync: true, fn: function() {
+    if (this.get('basicAssigningHome') && !(this.get('index_nav') || {}).boards) { this._setBasicAssigning(false); }
+  } }),
+  /* ONE ASSIGN AT A TIME (Scot's review of #1141, 2026-10-14). <BoardIcon> is a classic component and
+     calls the `onAction` it was last rendered with (components/board-icon.js), so a second tap before the
+     re-render still lands here; and the mode used to end only once the save came back, so two saves raced
+     and the last to resolve became home. Now a tap counts only while the mode is on, ends the mode at once
+     (as Modern's available-boards-section.js#_assignHomeBoard does), and holds `basicSettingHome` until
+     this assign settles, which also covers a tap after the mode is turned back on mid-save. A tile with no
+     key, or no signed-in user, does nothing and leaves the mode on (the guard in utils/basic_home_assign.js). */
+  _basicAssign(board) {
+    var self = this;
+    var user = self.appState.get('currentUser');
+    var key = board && (board.get ? board.get('key') : board.key);
+    if (!self.get('basicAssigningHome') || self.get('basicSettingHome') || !key || !(user && user.get && user.get('user_name'))) {
+      return RSVP.resolve();
+    }
+    self.set('basicSettingHome', true);
+    var hold = self._basicTapHold = {};
+    var releaseTaps = function() {
+      if (self._basicTapHold === hold && !self.isDestroyed && !self.isDestroying) { self.set('basicHoldTaps', false); }
+    };
+    self.set('basicHoldTaps', true);
+    window.setTimeout(releaseTaps, self.get('basicTapHoldMs'));
+    self._setBasicAssigning(false);
+    var settled = function() {
+      releaseTaps();
+      if (!self.isDestroyed && !self.isDestroying) { self.set('basicSettingHome', false); }
+    };
+    var assigning;
+    try {
+      assigning = assign_home_board_basic(board, user, {
+        copyAsHome: self.get('basicCopyAsHome'),
+        onAssigned: function() {
+          self._setBasicAssigning(false);
+          // A new copy is listed under Mine only after the list is fetched again.
+          if (!self.isDestroyed && !self.isDestroying) { self.update_selected(); }
+        },
+        openBoard: function(home) {
+          var key = home && (home.get ? home.get('key') : home.key);
+          if (key) { self.get('router').transitionTo('board', key); }
+        }
+      });
+    } catch (e) {
+      settled();
+      throw e;
+    }
+    return RSVP.resolve(assigning).finally(settled);
+  },
+  // The copy step, replaceable in tests; unset means utils/board-copy.js#copy_or_reuse_as_home.
+  basicCopyAsHome: null,
+
   homeBoardPending: computed('homeBoardKey', 'appState.currentUser.home_board_pending', function() {
     return !this.get('homeBoardKey') && !!this.appState.get('currentUser.home_board_pending');
   }),
@@ -392,6 +487,15 @@ export default AuthenticatedView.extend({
     //
     // Catches the <=550px `<select>` too — `handleTabSelect` (:71) sends this same action
     // rather than duplicating the logic.
+    toggleBasicHomeAssign: function() {
+      this._setBasicAssigning(!this.get('basicAssigningHome'));
+    },
+    // The tooltip's Cancel. Focus goes back to the button before the tooltip (and this Cancel) goes.
+    cancelBasicHomeAssign: function() {
+      var btn = document.querySelector('.ch-boards__set-home');
+      if (btn && btn.focus) { btn.focus(); }
+      this._setBasicAssigning(false);
+    },
     set_index_nav: function(nav) {
       this._super.apply(this, arguments);
       if(nav == 'boards') {
@@ -437,39 +541,12 @@ export default AuthenticatedView.extend({
       modal.success(i18n.t('switched_to_card_view', "Switched to Modern View. You can go back to Basic any time from the View menu."));
     },
 
-    // OVERRIDE. The parent's `toggle_extras` (authenticated-view.js:1669) only flips
-    // `show_main_extras`. That flag is read nowhere but this template, and this template
-    // is its only caller — but the action lives on the shared class, so it is overridden
-    // here rather than edited there, keeping the "no edits to authenticated-view.js"
-    // contract this file opens with.
-    //
-    // The drawer renders BELOW the Actions row (classic-view.hbs:705), so when that row
-    // sits mid-page the ten revealed tiles open past the bottom of the screen and the
-    // click reads as having done nothing. Scrolling the Extras card itself to the top
-    // puts the drawer in the space below it.
-    //
-    // ON OPEN ONLY. Scrolling on close would yank the page upward as the user is putting
-    // the drawer away, which is worse than not scrolling — this app's users include
-    // scanning and eye-gaze users for whom an unrequested viewport jump costs a
-    // re-acquire. `super` flips the flag first, so the value read here is the NEW one.
-    //
-    // DEFERRED, because the scroll depends on the drawer existing: until those ten tiles
-    // are in the DOM the page may not be tall enough to bring this row to the top, and
-    // the scroll would silently fall short.
-    //
-    // `requestAnimationFrame` and not `scheduleOnce('afterRender')`: Ember's render queue
-    // flushes synchronously before the browser hands out the next animation frame, so the
-    // drawer is in the DOM by the time this runs — and it keeps the component free of
-    // `@ember/runloop`, which `ember/no-runloop` forbids in new code.
-    toggle_extras: function() {
-      this._super.apply(this, arguments);
-      if(!this.get('show_main_extras')) { return; }
-      var _this = this;
-      window.requestAnimationFrame(function() {
-        if(_this.isDestroyed || _this.isDestroying) { return; }
-        scrollBelowHeader(document.querySelector('.ch-tile--extras-toggle'));
-      });
-    },
+    // `toggle_extras` OVERRIDE REMOVED 2026-10-09. It existed to scroll the Extras card to the
+    // top once the drawer had rendered, so the ten revealed tiles did not open past the bottom
+    // of the screen. The drawer no longer collapses and the card that opened it is now a plain
+    // Account link, so there is no open event to scroll for. The parent's action
+    // (authenticated-view.js:1669) is left untouched and simply has no caller here.
+
 
     // Menu open/close. Toggling the already-open one closes it.
     toggle_supervisee_menu: function(id) {
@@ -537,7 +614,7 @@ export default AuthenticatedView.extend({
      ({tab, extras, supervisee}); components/view-switcher.js reads it through
      utils/basic_landing.js modern_landing_for. Cleared when this page goes away, so a stale place
      can never send a switch made elsewhere. */
-  publish_basic_home_place: observer('currentTab', 'show_main_extras', 'openSuperviseeId', function() {
+  publish_basic_home_place: observer('currentTab', 'openSuperviseeId', function() {
     this._publish_basic_home_place();
   }),
   _publish_basic_home_place() {
@@ -546,13 +623,21 @@ export default AuthenticatedView.extend({
     var open = open_id != null && (this.get('decoratedSupervisees') || []).find(function(s) { return s && s.id === open_id; });
     this.get('app_state').set('basic_home_place', {
       tab: this.get('currentTab'),
-      extras: !!this.get('show_main_extras'),
+      // ALWAYS FALSE as of 2026-10-09, and this is load-bearing rather than tidying.
+      // `modern_landing_for` (utils/basic_landing.js) routes a Basic -> Modern switch to
+      // `user.extras` when `tab === 'main' && place.extras`. That was right while the drawer
+      // was a state a user had deliberately opened; with it permanently open, reporting true
+      // would send EVERY switch from the Actions tab to the Extras page instead of the Modern
+      // home. The key is kept rather than dropped so the shape of the published place is
+      // unchanged for its reader.
+      extras: false,
       supervisee: (open && open.user_name) || null
     });
   },
   willDestroyElement() {
     this._super(...arguments);
     this.get('app_state').set('basic_home_place', null);
+    this._setBasicAssigning(false);
   },
 
   /* The communicator list arriving after a caseload landing (see _expand_supervisee_card). */
@@ -562,4 +647,8 @@ export default AuthenticatedView.extend({
       this._expand_supervisee_card(this._awaiting_supervisee);
     }
   }),
+
+  /* The Speak card's board picture (authenticated-view.js#speakBoardImage) is a Modern home page card;
+     classic-view.hbs never shows it, so the Basic home page does not fetch that board (2026-10-13). */
+  _loadSpeakBoard() {},
 });

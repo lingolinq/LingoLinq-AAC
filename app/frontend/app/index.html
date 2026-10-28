@@ -61,8 +61,7 @@
     <!-- Focused View My Organizations illustration. CSS background, so no decoding="sync"
          is possible: this preload is what stops it painting after the rest of the card.
          MIRRORS the link in app/views/boards/index.html.erb; keep the two in sync. -->
-    <link rel="preload" as="image" href="/images/organizations-dark.webp" type="image/webp" fetchpriority="high">
-    <link rel="preload" as="image" href="/images/organization-dark.webp" type="image/webp" fetchpriority="high">
+    <link rel="preload" as="image" href="/images/organizations-focused.webp" type="image/webp" fetchpriority="high">
 
     <!-- Preload the guided-tour welcome-card map illustrations. These are CSS
          background-images on the tour's welcome step (.md-tour__step--welcome
@@ -355,16 +354,8 @@
           window.dispatchEvent(new CustomEvent('weblinger-script-load-failed'));
         }
       };
-      window.weblingerLoadFallback = function() {
-        var script = document.createElement('script');
-        script.src = 'https://app.covidspeak.org/weblinger.js/weblinger.js';
-        script.async = true;
-        script.onload = window.weblingerScriptLoaded;
-        script.onerror = window.weblingerScriptFailed;
-        document.head.appendChild(script);
-      };
     </script>
-    <script src="/weblinger/weblinger.js" async onload="weblingerScriptLoaded()" onerror="weblingerLoadFallback()"></script>
+    <script src="/weblinger/weblinger.js" async onload="weblingerScriptLoaded()" onerror="weblingerScriptFailed()"></script>
 
     <link rel="stylesheet" href="{{rootURL}}assets/vendor.css">
     <link rel="stylesheet" href="{{rootURL}}assets/frontend.css">
@@ -678,7 +669,7 @@
             company_name: 'Lingolinq',
             logo_url: '/images/LL_Logo_Line_Bright.png',
             full_domain: true,
-            support_url: 'https://lingolinq.zendesk.com',
+            support_url: 'https://app.lingolinq.com/contact',
             domain: window.location.host || 'localhost'
           };
         }

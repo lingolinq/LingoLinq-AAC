@@ -8,6 +8,34 @@ describe JsonApi::User do
   end
 
   describe "build_json" do
+    # A deleted district's rooms keep their links until its cleanup runs; they are not listed.
+    it "should not list rooms of a destroyed organization in supervised_units" do
+      o = Organization.create(:settings => {'total_licenses' => 10})
+      o2 = Organization.create(:settings => {'total_licenses' => 10})
+      unit = OrganizationUnit.create(:organization => o)
+      live_unit = OrganizationUnit.create(:organization => o2)
+      sup = User.create
+      comm = User.create
+      comm2 = User.create
+      o.add_supervisor(sup.user_name, false)
+      o2.add_supervisor(sup.user_name, false)
+      o.add_user(comm.user_name, false, false)
+      o2.add_user(comm2.user_name, false, false)
+      unit.add_supervisor(sup.user_name)
+      unit.add_communicator(comm.user_name)
+      live_unit.add_supervisor(sup.user_name)
+      live_unit.add_communicator(comm2.user_name)
+      Worker.process_queues
+      json = JsonApi::User.build_json(User.find(sup.id), permissions: User.find(sup.id))
+      expect(json['supervised_units'].map{|u| u['id'] }.sort).to eq([unit.global_id, live_unit.global_id].sort)
+
+      o.reload.destroy
+      Worker.flush_queues
+
+      json = JsonApi::User.build_json(User.find(sup.id), permissions: User.find(sup.id))
+      expect(json['supervised_units'].map{|u| u['id'] }).to eq([live_unit.global_id])
+    end
+
     it "should not include unlisted settings" do
       u = User.create(settings: {'hat' => 'black'})
       expect(JsonApi::User.build_json(u).keys).not_to be_include('hat')

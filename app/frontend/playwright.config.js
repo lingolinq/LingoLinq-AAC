@@ -57,5 +57,26 @@ module.exports = defineConfig({
       dependencies: ['setup'],
       use: { ...devices['Desktop Chrome'], storageState: 'e2e/.auth/user.json' },
     },
+    // The board page edit tour (2026-10-12).
+    {
+      name: 'board-edit-tour',
+      testMatch: /board-edit-tour\.spec\.js/,
+      dependencies: ['setup'],
+      use: { ...devices['Desktop Chrome'], storageState: 'e2e/.auth/user.json' },
+    },
+    // The #1141 review follow-ups (2026-10-22). Signs in as its own synthetic users
+    // (e2e/support/users-1141.rb), so it needs no setup project.
+    {
+      name: '1141-followups',
+      testMatch: /home-assign-and-preferences\.spec\.js/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    // Goal-chart date labels outside UTC (#1172). Signs in as its own synthetic user
+    // (e2e/support/goals-1172.rb), so it needs no setup project.
+    {
+      name: 'goal-charts',
+      testMatch: /goal-chart-labels\.spec\.js/,
+      use: { ...devices['Desktop Chrome'] },
+    },
   ],
 });

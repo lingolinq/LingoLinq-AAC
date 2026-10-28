@@ -42,9 +42,9 @@ function primeSpeakModeUser(attrs) {
     delete attrs.preferences;
   }
   var user = LingoLinq.store.createRecord('user', Object.assign({}, base, attrs || {}));
-  if (typeof user.reload !== 'function') {
-    user.reload = function() { return RSVP.resolve(user); };
-  }
+  // A store record always has reload, so stub it outright: in speak mode the check_inbox observer
+  // (app/services/app-state.js:3706-3734) reloads the user, a real fetch the test never waited for.
+  stub(user, 'reload', function() { return RSVP.resolve(user); });
   app_state.set('sessionUser', user);
   app_state.set('currentUser', user);
   return user;
@@ -90,9 +90,9 @@ function primeSessionUser(attrs) {
     delete attrs.preferences;
   }
   var user = LingoLinq.store.createRecord('user', Object.assign({}, base, attrs || {}));
-  if (typeof user.reload !== 'function') {
-    user.reload = function() { return RSVP.resolve(user); };
-  }
+  // Same as primeSpeakModeUser: a store record always has reload, so the old `typeof` guard never
+  // installed this stub; stub it outright so no test here reloads the user through the real store.
+  stub(user, 'reload', function() { return RSVP.resolve(user); });
   app_state.set('sessionUser', user);
   app_state.set('currentUser', user);
   return user;
@@ -421,7 +421,7 @@ describe('app_state', function() {
       app_state.set('currentUser', EmberObject.create({preferences: {speak_on_speak_mode: true}}));
       app_state.set('currentBoardState', {key: 'trade', id: '1_1'});
       setTimeout(function() { done = true; }, 500);
-      waitsFor(function() { return called; });
+      waitsFor(function() { return called && done; }); // and its own 500 ms timer, so it does not fire in a later test
       runs();
     });
   });
@@ -3109,7 +3109,7 @@ describe('app_state', function() {
       later(function() {
         waited = true;
       }, 500);
-      waitsFor(function() { return waited; });
+      waitsFor(function() { return waited && app_state.get('loading_overlay_message') == null; }); // and the overlay's own ~700 ms hide
       runs(function() {
         expect(noticed).toEqual(true);
         expect(app_state.get('speak_mode')).toEqual(false);
@@ -3124,4 +3124,140 @@ describe('app_state', function() {
       expect('test').toEqual('todo');
     });
   });
+
+  describe("teardown", function() {
+    // jump_to_board polls for the new board (runLater, every 200 ms) and holds the module-level
+    // buttonTracker.transitioning flag; neither may outlive the app-state that started them.
+    // The shared state these cases change is put back here, so a failed wait cannot leave it behind.
+    var savedScannerAppState, savedScanning, savedTransitioning;
+    beforeEach(function() {
+      savedScannerAppState = scanner.get('appState');
+      savedScanning = scanner.scanning;
+      savedTransitioning = teardownButtonTracker.transitioning;
+    });
+    afterEach(function() {
+      scanner.set('appState', savedScannerAppState);
+      scanner.scanning = savedScanning;
+      teardownButtonTracker.transitioning = savedTransitioning;
+    });
+
+    // Positive control for the next case: the reads it counts do happen while the service is alive.
+    it("polls for a board change while the service is alive", function() {
+      var svc = LingoLinq.appState;
+      // No router answers here, so the board-load overlay would paint after 200 ms and stay; it is not
+      // what this case checks.
+      stub(svc, '_debounceBoardLoadOverlay', function() {});
+      app_state.set('currentBoardState', {key: 'kick', id: '1_2'});
+      var reads = 0;
+      var realGet = svc.get;
+      svc.get = function(key) {
+        if (key === 'currentBoardState.key') { reads++; }
+        return realGet.apply(this, arguments);
+      };
+      app_state.jump_to_board({key: 'yodel', id: '1_1'});
+      waitsFor(function() { return reads > 0; });
+      runs(function() {
+        svc.get = realGet;
+        app_state.set('currentBoardState', {key: 'yodel', id: '1_1'}); // the poll finds it and stops
+        expect(reads > 0).toEqual(true);
+      });
+    });
+
+    it("stops polling for a board change once the service is destroyed", function() {
+      var svc = LingoLinq.appState;
+      app_state.set('currentBoardState', {key: 'kick', id: '1_2'});
+      app_state.jump_to_board({key: 'yodel', id: '1_1'});
+      var reads = 0;
+      var realGet = svc.get;
+      svc.get = function(key) {
+        if (key === 'currentBoardState.key') { reads++; }
+        return realGet.apply(this, arguments);
+      };
+      svc.destroy();
+      var waited = false;
+      setTimeout(function() { waited = true; }, 450);
+      waitsFor(function() { return waited; });
+      runs(function() {
+        expect(reads).toEqual(0);
+      });
+    });
+
+    it("detaches the scanner it drives when destroyed", function() {
+      var svc = LingoLinq.appState;
+      scanner.set('appState', svc);
+      scanner.scanning = true;
+      svc.destroy();
+      waitsFor(function() { return svc.isDestroyed; });
+      runs(function() {
+        expect(scanner.get('appState')).toEqual(null);
+        expect(scanner.scanning).toEqual(false);
+      });
+    });
+
+    it("ends the board transition it started when destroyed", function() {
+      var svc = LingoLinq.appState;
+      teardownButtonTracker.transitioning = true;
+      svc.destroy();
+      waitsFor(function() { return svc.isDestroyed; });
+      runs(function() {
+        expect(teardownButtonTracker.transitioning).toEqual(false);
+      });
+    });
+  });
+
+  /* THE FORCE-LOGOUT DIALOG SURVIVES NAVIGATION WHILE THE LOGOUT IS UNDER WAY. Every route
+     change closed every modal, so the Back button (or any link) dismissed the "Please Log Back
+     In" dialog and nothing re-prompted: the user was left on pages whose requests all fail. */
+  describe('global_transition: the force-logout dialog', function() {
+    function transitionWith(open_template, invalid_token, isAuthenticated, to_route) {
+      var closed = false;
+      // Only the main dialog outlet: close_board_preview also calls close(null, 'board-preview').
+      stub(modal, 'close', function(success, outlet) { if(!outlet || outlet === 'modal') { closed = true; } });
+      stub(modal, 'is_open', function(template) { return template === open_template; });
+      stub(app_state, 'refresh_session_user', function() { });
+      session.set('invalid_token', invalid_token);
+      session.set('isAuthenticated', isAuthenticated);
+      app_state.global_transition({to_route: to_route || 'user.boards'});
+      return closed;
+    }
+
+    it("stays open across a navigation while the logout is under way", function() {
+      expect(transitionWith('force-logout', true, false)).toEqual(false);
+    });
+
+    it("still closes once the user has signed back in", function() {
+      expect(transitionWith('force-logout', true, true)).toEqual(true);
+    });
+
+    it("never keeps any OTHER dialog open", function() {
+      expect(transitionWith('some-other-modal', true, false)).toEqual(true);
+    });
+
+    it("closes when the user is heading to the login page, which has its own form", function() {
+      expect(transitionWith('force-logout', true, false, 'login')).toEqual(true);
+    });
+
+    // `login` has a child route (router.js), so the leaf name global_transition receives for /login
+    // is `login.index` (routes/application.js#leafRouteName); `login.device` is the other child.
+    ['login.index', 'login.device'].forEach(function(route) {
+      it("closes on the way to " + route + ", the name the router really reports", function() {
+        expect(transitionWith('force-logout', true, false, route)).toEqual(true);
+      });
+    });
+
+    // The dialog's own links (components/login-form.hbs: "need help?", "forgot password", "sign
+    // up"): kept open over them, the user could not reach the page they asked for.
+    // Basic access (decided 2026-10-11): the dialog offers the public boards, so that route is an exit too.
+    it("closes on the way to basic access (offline_boards)", function() {
+      expect(transitionWith('force-logout', true, false, 'offline_boards')).toEqual(true);
+    });
+
+    ['forgot_login', 'forgot_password', 'register'].forEach(function(route) {
+      it("closes when the user follows the dialog's own link to " + route, function() {
+        expect(transitionWith('force-logout', true, false, route)).toEqual(true);
+      });
+    });
+  });
 });
+// Kept below the baselined lint rows so they do not shift (see .eslint-todo).
+import teardownButtonTracker from '../../utils/raw_events';

@@ -435,9 +435,15 @@ describe AiApiLog, :type => :model do
       expect(summary[:total_calls]).to eq(0)
     end
 
+    include ActiveSupport::Testing::TimeHelpers
+
+    # Noon UTC: daily_summary defaults to Date.current - 1 and the expectation reads it again, so a
+    # run crossing midnight UTC compared two different days.
     it "defaults to yesterday when no date is given" do
-      summary = AiApiLog.daily_summary
-      expect(summary[:date]).to eq((Date.current - 1).iso8601)
+      travel_to(Time.utc(2026, 6, 17, 12, 0, 0)) do
+        summary = AiApiLog.daily_summary
+        expect(summary[:date]).to eq((Date.current - 1).iso8601)
+      end
     end
   end
 

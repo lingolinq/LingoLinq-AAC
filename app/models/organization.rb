@@ -8,6 +8,7 @@ class Organization < ApplicationRecord
   secure_serialize :settings
   before_save :generate_defaults
   after_save :touch_parent
+  after_destroy :schedule_destroyed_org_cleanup
   has_many :licenses
   include Replicate
 
@@ -56,6 +57,9 @@ class Organization < ApplicationRecord
       link.data['state'] = prior['state']
       link.save!
     end
+    # A refresh that ran while the failed attach's link was in place granted this organization's
+    # home boards (attached_orgs), so view access is recomputed for the restored link.
+    User.schedule_board_cache_refresh(user, true)
   end
 
   def can_manage_user?(user)
@@ -300,6 +304,9 @@ class Organization < ApplicationRecord
         still_seated = self.licenses.where(user_id: user.id, status: 'active', seat_type: 'student').exists?
         UserLink.remove(user, self, 'org_user') unless still_seated
       end
+      # The removed link may have given the student this organization's home boards (an earlier
+      # invitation or unsponsored attach that a refresh had already turned into view access).
+      User.schedule_board_cache_refresh(user, true)
       if inactive_status
         raise "Seat #{license.global_id} is no longer active (#{inactive_status}); re-run the claim"
       end
@@ -731,6 +738,8 @@ class Organization < ApplicationRecord
       link.data['state']['pending'] = false
       link.save
       self.schedule(:org_assertions, user.global_id, 'supervisor')
+      # an approved supervisor now sees this org's home boards (attached_orgs, pending check)
+      User.schedule_board_cache_refresh(user)
     end
 #     if user.settings['supervisor_for'] && user.settings['supervisor_for'][self.global_id]
 #       self.add_supervisor(user.user_name, false)
@@ -748,6 +757,7 @@ class Organization < ApplicationRecord
     end
     UserLink.remove(user, self, 'org_supervisor')
     self.schedule(:org_assertions, user.global_id, 'supervisor')
+    User.schedule_board_cache_refresh(user, true)
 #     if user.settings['supervisor_for'] && user.settings['supervisor_for'][self.global_id]
 #       self.remove_supervisor(user.user_name)
 #       user.settings['supervisor_for'].delete(self.global_id)
@@ -874,22 +884,22 @@ class Organization < ApplicationRecord
   
   def self.sponsored?(user)
     links = UserLink.links_for(user)
-    !!links.detect{|l| l['type'] == 'org_user' && l['user_id'] == user.global_id && l['state']['sponsored'] }
+    existing_record_codes(links.select{|l| l['type'] == 'org_user' && l['user_id'] == user.global_id && l['state']['sponsored'] }.map{|l| l['record_code'] }).any?
   end
   
   def self.managed?(user)
     links = UserLink.links_for(user)
-    !!links.detect{|l| l['type'] == 'org_user' }
+    existing_record_codes(links.select{|l| l['type'] == 'org_user' }.map{|l| l['record_code'] }).any?
   end
   
   def self.supervisor?(user, premium=false)
     links = UserLink.links_for(user)
-    !!links.detect{|l| l['type'] == 'org_supervisor' && (!premium || l['state']['premium'])}
+    existing_record_codes(links.select{|l| l['type'] == 'org_supervisor' && (!premium || l['state']['premium'])}.map{|l| l['record_code'] }).any?
   end
   
   def self.manager?(user)
     links = UserLink.links_for(user)
-    res = !!links.detect{|l| l['type'] == 'org_manager' }
+    res = existing_record_codes(links.select{|l| l['type'] == 'org_manager' }.map{|l| l['record_code'] }).any?
     if res && !user.settings['possible_admin']
       user.schedule(:update_setting, 'possible_admin', true)
     end
@@ -951,7 +961,7 @@ class Organization < ApplicationRecord
 
   def self.manager_for?(manager, user, include_admin_managers=true)
     return false unless manager && user
-    manager_orgs = UserLink.links_for(manager).select{|l| l['type'] == 'org_manager' && l['user_id'] == manager.global_id && l['state']['full_manager'] }.map{|l| l['record_code'] }
+    manager_orgs = existing_record_codes(UserLink.links_for(manager).select{|l| l['type'] == 'org_manager' && l['user_id'] == manager.global_id && l['state']['full_manager'] }.map{|l| l['record_code'] })
     user_orgs = UserLink.links_for(user).select{|l| (l['type'] == 'org_user' || l['type'] == 'org_supervisor') && l['user_id'] == user.global_id && !l['state']['pending'] }.map{|l| l['record_code'] }
     if (manager_orgs & user_orgs).length > 0
       # if user and manager are part of the same org
@@ -1699,6 +1709,130 @@ class Organization < ApplicationRecord
         ue.process_profile(id, template && template.global_id, self)
       end
     end
+  end
+
+  # A destroyed organization keeps its user_links (no dependent: option) while attached_orgs
+  # skips it, so its members lose its home boards only when their view access is recomputed.
+  # The destroy only records that: one outbox row per member, written in bulk in the destroy's
+  # transaction (the durable fallback that hourly remote_remove_batch processes), and ONE job
+  # enqueued after commit that does the per-member work (Organization.clean_up_destroyed). Doing
+  # it inline loaded every member and enqueued one default-queue job each, inside the destroy.
+  def schedule_destroyed_org_cleanup
+    user_ids = self.attached_users('all').pluck(:id)
+    # moves each member's cache_key, which keys the cached permissions (Permissable), so a
+    # permission granted through this organization (manager_for?) is not served from the cache
+    User.where(id: user_ids).update_all(updated_at: Time.now)
+    User.persist_board_cache_refreshes(user_ids)
+    org_id = self.id
+    # durable fallback for the room cleanup, released by clean_up_destroyed when it finishes
+    # (the job is idempotent); RemoteAction#process_action re-queues it if the job is lost
+    # The district's supervisors and managers, with when each joined, for deciding which
+    # unknown-origin room links to remove (User.strip_rooms_from_supervision). Captured now, with
+    # the cleanup row, so the job does not depend on the membership links still being there.
+    RemoteAction.create(path: org_id.to_s, action: 'clean_up_destroyed_org', act_at: Time.now,
+      extra: {
+        'staff' => Organization.staff_since_for(Webhook.get_record_code(self), staff_user_ids),
+        'actor' => Organization.deleting_actor
+      }.to_json)
+    ActiveRecord.after_all_transactions_commit do
+      # default queue: everything it queues removes access (owner decision: revocations do not
+      # wait behind the slow queue)
+      Organization.schedule(:clean_up_destroyed, org_id, user_ids)
+    end
+    true
+  end
+
+  # Local ids of this organization's supervisors and managers, from the cached links that
+  # attached_users also reads, so the destroy decrypts only their membership links.
+  def staff_user_ids
+    links = UserLink.links_for(self).select{|l| ['org_supervisor', 'org_manager'].include?(l['type']) }
+    User.local_ids(links.map{|l| l['user_id'] }.uniq)
+  end
+
+  # {user id (string) => earliest org_supervisor/org_manager link created_at (iso8601 µs)}.
+  # user_ids limits the read to those users' links (nil reads every link of the organization).
+  def self.staff_since_for(record_code, user_ids=nil)
+    res = {}
+    scope = UserLink.where(record_code: record_code)
+    scope = scope.where(user_id: user_ids) if user_ids
+    scope.each do |link|
+      next unless ['org_supervisor', 'org_manager'].include?(link.data['type'])
+      key = link.user_id.to_s
+      res[key] = link.created_at if !res[key] || link.created_at < res[key]
+    end
+    res.transform_values{|at| at.utc.iso8601(6) }
+  end
+
+  # Who is deleting the organization, as ids only, from the request's PaperTrail whodunnit
+  # ("user:<id>.<controller>.<action>", or "user:<id>:as:<id>" when acting as another user;
+  # application_controller.rb). Anything else (a job, a console, an unauthenticated IP) records
+  # nothing.
+  def self.deleting_actor
+    who = PaperTrail.request.whodunnit.to_s
+    by = who[/\Auser:(\d+_\d+)/, 1]
+    return {} unless by
+    as = who[/:as:(\d+_\d+)/, 1]
+    {'deleted_by' => by, 'deleted_as' => as}.compact
+  end
+
+  # [staff since (user id => Time), actor ids] for a destroyed organization's cleanup, from the
+  # copy captured on its cleanup row. Rows written before the actor was recorded hold the staff
+  # map alone.
+  def self.destroyed_org_cleanup_context(org_id)
+    row = RemoteAction.where(path: org_id.to_s, action: 'clean_up_destroyed_org').where.not(extra: nil).first
+    data = (JSON.parse(row.extra) rescue nil) if row
+    data = {'staff' => data} if data && !data.key?('staff')
+    # the row is gone once a run completed; the membership links are not removed by the destroy
+    staff = (data && data['staff']) || staff_since_for("Organization:#{Organization.new(id: org_id).global_id}")
+    [staff.transform_values{|at| Time.iso8601(at) }, (data && data['actor']) || {}]
+  end
+
+  def self.clean_up_destroyed(org_id, user_ids=[])
+    # Rooms (organization units) and the supervision links they made outlive the organization,
+    # and a supervision link alone gives the supervisor the communicator's private boards
+    # (board_caching.rb supervisees). Remove_supervisor/remove_communicator need the
+    # organization, so the links are read from each unit and the destroyed org's rooms are taken
+    # off them (User.strip_rooms_from_supervision: only room-only links are removed, which
+    # schedules the supervisor's refresh).
+    units = OrganizationUnit.where(organization_id: org_id).to_a
+    unit_ids = units.map(&:global_id)
+    staff_since, actor = units.empty? ? [{}, {}] : destroyed_org_cleanup_context(org_id)
+    pairs = []
+    units.each do |unit|
+      links = UserLink.links_for(unit)
+      supervisors = User.find_all_by_global_id(links.select{|l| l['type'] == 'org_unit_supervisor' }.map{|l| l['user_id'] }.uniq)
+      communicators = User.find_all_by_global_id(links.select{|l| l['type'] == 'org_unit_communicator' }.map{|l| l['user_id'] }.uniq)
+      pairs += supervisors.product(communicators)
+    end
+    User.strip_rooms_from_pairs(pairs, unit_ids, staff_since, org_id, actor)
+    # The rooms' own links go last, once every pair read from them is stripped (an error above
+    # leaves them for the retry). Removing them ends the rooms' supervisor permissions
+    # (OrganizationUnit supervisor?) and their listing (supervised_units), and moves each room's
+    # updated_at so permissions cached for it are not served.
+    units.each do |unit|
+      UserLink.where(record_code: Webhook.get_record_code(unit)).select{|l| ['org_unit_supervisor', 'org_unit_communicator'].include?(l.data['type']) }.each(&:destroy)
+    end
+    RemoteAction.where(path: org_id.to_s, action: 'clean_up_destroyed_org').delete_all
+    User.where(id: user_ids).find_each(batch_size: 100) do |user|
+      user.schedule_once(:update_available_boards)
+    end
+    true
+  end
+
+  # The given organization record codes ("Organization:<global id>") whose organization still
+  # exists. A destroyed organization keeps its membership links (schedule_destroyed_org_cleanup),
+  # so a permission decided from those links reads them through this.
+  def self.existing_record_codes(record_codes)
+    return [] if record_codes.blank?
+    ids = Organization.local_ids(record_codes.map{|c| c.split(/:/)[1].to_s })
+    existing = Organization.where(id: ids).pluck(:id).map{|id| "Organization:#{Organization.new(id: id).global_id}" }
+    record_codes & existing
+  end
+
+  # Global ids of the organizations the user belongs to as an approved (not pending) supervisor or
+  # manager: the organizations a supervision consent can be made on behalf of.
+  def self.staff_org_ids(user)
+    attached_orgs(user).select{|o| ['supervisor', 'manager'].include?(o['type']) && !o['pending'] }.map{|o| o['id'] }.uniq
   end
 
   def update_user_available_boards

@@ -1,7 +1,7 @@
 require 'ffi'
 require 'spec_helper'
 
-describe SafeHttp do
+describe SafeHttp, own_resolver: true do
   describe '.blocked_address?' do
     it 'blocks cloud metadata, RFC1918, link-local, and CGN ranges' do
       expect(SafeHttp.blocked_address?('169.254.169.254')).to eq(true)

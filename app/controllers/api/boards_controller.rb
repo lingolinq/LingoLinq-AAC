@@ -559,7 +559,7 @@ class Api::BoardsController < ApplicationController
       render json: JsonApi::Progress.as_json(progress, wrapper: true).to_json
     else
       remote_path = "imports/boards/#{@api_user.global_id}/bundle-#{GoSecure.nonce('filename')}.json"
-      upload_params = Uploader.remote_upload_params(remote_path, 'application/json')
+      upload_params = Uploader.client_upload_params(remote_path, 'application/json')
       url = upload_params[:upload_url] + remote_path
       upload_params[:success_url] = "/api/v1/boards/from_json_bundle?url=#{CGI.escape(url)}"
       render json: { 'remote_upload' => upload_params }.to_json
@@ -975,7 +975,7 @@ class Api::BoardsController < ApplicationController
       type = (params['type'] == 'obz' ? 'obz' : 'obf')
       remote_path = "imports/boards/#{@api_user.global_id}/upload-#{GoSecure.nonce('filename')}.#{type}"
       content_type = "application/#{type}"
-      params = Uploader.remote_upload_params(remote_path, content_type)
+      params = Uploader.client_upload_params(remote_path, content_type)
       url = params[:upload_url] + remote_path
       params[:success_url] = "/api/v1/boards/imports?type=#{type}&url=#{CGI.escape(url)}"
       render json: {'remote_upload' => params}.to_json

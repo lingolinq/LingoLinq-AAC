@@ -497,7 +497,7 @@ var persistence = Service.extend({
         var find_local = lingoLinqExtras.storage.find_all(store, board_ids).then(function(list) {
           var res = [];
           list.forEach(function(item) {
-            if(item.data && item.data.id) {
+            if(item.data && item.data.id && !boardRevocation.is_revoked_raw(item.data.raw)) {
               // Only push to the memory cache if it's not already in
               // there, otherwise it might get overwritten if there
               // is a pending persistence.
@@ -574,7 +574,7 @@ var persistence = Service.extend({
       return board_ids;
     });
 
-    var get_boards = get_board_ids.then(function(ids) {
+    var get_boards = get_board_ids.then(boardRevocation.without_revoked).then(function(ids) {
       var promises = [];
       var boards = [];
       var loaded_boards = LingoLinq.store.peekAll('board');
@@ -2380,7 +2380,7 @@ var persistence = Service.extend({
           if(_this_sync.get('sync_progress.last_sync_stamp')) {
             _this_sync.set('last_sync_stamp', _this_sync.get('sync_progress.last_sync_stamp'));
           }
-          var errors = _this_sync.get('sync_progress.errors') || [];
+          var errors = _this_sync.get('sync_progress.errors') || []; boardRevocation.finish_sync(_this_sync, user_id, errors);
           errors.forEach(function(error) {
             if(error.board_key || error.board_id) {
               var status = statuses.find(function(s) { return (s.key && s.key == error.board_key); });
@@ -2628,7 +2628,7 @@ var persistence = Service.extend({
         });
         var complete = sync_supervisee.then(null, function(err) {
           console.log(err);
-          console.error("supervisee sync failed");
+          console.error("supervisee sync failed"); boardRevocation.note_failure(_this);
           modal.warning(i18n.t('supervisee_sync_failed', "Couldn't sync boards for supervisee \"" + supervisee.user_name + "\""));
           return RSVP.resolve({});
         });
@@ -2896,7 +2896,7 @@ var persistence = Service.extend({
     var allow_any_cached = false;
     var get_remote_revisions = RSVP.resolve({});
     if(user) {
-      get_remote_revisions = _this.ajax('/api/v1/users/' + user.get('id') + '/board_revisions', {type: 'GET'}).then(function(res) {
+      get_remote_revisions = boardRevocation.fetch_revisions(_this, user, function(opts) { return _this.ajax('/api/v1/users/' + user.get('id') + '/board_revisions', opts); }).then(function(res) {
         fresh_revisions = res;
         // Check for any missing or out-of-date boards here
         // instead of at request time, and make a batch request
@@ -3137,7 +3137,7 @@ var persistence = Service.extend({
           var id = next && (next.id || next.key);
           var key = next && next.key;
           var source = next && next.visit_source;
-          if(next && next.depth < 20 && id && !visited_boards.find(function(i) { return i == id; })) {
+          if(next && next.depth < 20 && id && !visited_boards.find(function(i) { return i == id; }) && !boardRevocation.skip_board(_this, user.get('id'), next)) {
             var local_full_set_revision = null;
 
             // check if there's a local copy that's already been loaded
@@ -3613,7 +3613,7 @@ var persistence = Service.extend({
                   return _this.time_promise(record.reload(), "reload changed record", 10000);
                 });
               } else {
-                return record.save();
+                return record.save(replay_save_options(object));
               }
             });
 
@@ -4264,7 +4264,7 @@ var persistence = Service.extend({
       if(_this.isDestroyed || _this.isDestroying) { return; }
       _this.set('online', false);
     });
-    setInterval(function() {
+    this._online_check_interval = setInterval(function() { // handle kept so the test harness can stop this wall-clock poller
       try {
         // Guard: ensure service is still valid before accessing properties
         if(!_this || typeof _this.get !== 'function' || _this.isDestroyed || _this.isDestroying) {
@@ -4739,7 +4739,7 @@ persistence.DSExtend = {
       } else {
         var record = _this.convert_model_to_json(store, type.modelName, obj);
         record[type.modelName].changed = true;
-        _this.store(type.modelName, record).then(function() {
+        keep_queued_keys(type.modelName, record).then(function() { return _this.store(type.modelName, record); }).then(function() {
           update_resolve(record);
         }, function() {
           update_reject({offline: true, error: "not online"});
@@ -4799,3 +4799,6 @@ persistence.allowInvalidTokenLocalFallback = function(err, type, id, still_onlin
 };
 
 export default persistence;
+// Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
+import boardRevocation from '../utils/board_revocation';
+import { keep_queued_keys, replay_save_options } from '../utils/preference_save';

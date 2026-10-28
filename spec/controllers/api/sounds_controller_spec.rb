@@ -307,5 +307,51 @@ describe Api::SoundsController, :type => :controller do
       expect(json['remote_upload']).to_not eq(nil)
       expect(json['remote_upload']['upload_url']).to_not eq(nil)
     end
+
+    it "should answer 503 instead of an unusable upload form when S3 is not configured" do
+      token_user
+      allow(Uploader).to receive(:client_uploads_configured?).and_call_original
+      allow(Uploader).to receive(:remote_upload_config).and_return({
+        upload_url: 'https://.s3.amazonaws.com/', access_key: '', secret: '', bucket_name: '', static_bucket_name: ''
+      })
+      post :import, params: {:type => 'zip'}
+      assert_error('File uploads are not available right now', 503)
+      expect(response.body).to_not match(/remote_upload/)
+    end
+  end
+
+  # No upload form can be issued: a create that needs a client upload must not leave a pending
+  # record behind, and reading a pending record must still work, just without the form.
+  describe "without S3 configured" do
+    before(:each) { allow(Uploader).to receive(:client_uploads_configured?).and_return(false) }
+
+    it "should answer 503 and keep no record when the create needs a client upload" do
+      token_user
+      expect {
+        post :create, params: {:sound => {'url' => 'https://www.example.com/file.mp3', 'content_type' => 'audio/mp3'}}
+      }.to_not change(ButtonSound, :count)
+      assert_error('File uploads are not available right now', 503)
+    end
+
+    it "should still create a record that needs no client upload" do
+      token_user
+      allow(Uploader).to receive(:valid_remote_url?).and_return(true)
+      post :create, params: {:sound => {'url' => 'https://www.example.com/file.mp3', 'content_type' => 'audio/mp3'}}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['sound']['pending']).to eq(false)
+      expect(json['meta']).to eq(nil)
+    end
+
+    it "should show a pending record without upload params" do
+      token_user
+      record = ButtonSound.create!(user: @user, settings: {'pending' => true, 'content_type' => 'audio/mp3'})
+      get :show, params: {:id => record.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['sound']['id']).to eq(record.global_id)
+      expect(json['sound']['pending']).to eq(true)
+      expect(json['meta']).to eq(nil)
+    end
   end
 end

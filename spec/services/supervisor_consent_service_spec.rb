@@ -48,6 +48,18 @@ describe SupervisorConsentService, :type => :model do
   end
 
   describe "#request_access" do
+    # An unknown permission level gets the same generic answer whether or not the account exists.
+    it "answers an unknown permission level the same for an existing and a missing account" do
+      supervisor = User.create
+      communicator = User.create
+      expect(SupervisorMailer).not_to receive(:schedule_delivery)
+      existing = service.request_access(supervisor: supervisor, lookup_key: communicator.user_name, permission_level: 'owner')
+      missing = service.request_access(supervisor: supervisor, lookup_key: 'no-such-user-anywhere', permission_level: 'owner')
+      expect(existing).to eq({ message: SupervisorConsentService::GENERIC_LOOKUP_MESSAGE })
+      expect(missing).to eq(existing)
+      expect(SupervisorRelationship.where(supervisor_user_id: supervisor.id).count).to eq(0)
+    end
+
     it "should create a pending relationship and generate token" do
       supervisor = User.create
       communicator = User.create
@@ -107,6 +119,87 @@ describe SupervisorConsentService, :type => :model do
       expect(SupervisorRelationship.count).to eq(0)
     end
 
+    # organization_id is an integer column; a global id ("1_123") was cast by Rails to 1123.
+    it "stores the shared organization's database id, not its global id" do
+      o = Organization.create
+      supervisor = User.create
+      communicator = User.create
+      o.add_supervisor(supervisor.user_name, false)
+      o.add_user(communicator.user_name, false, false)
+      allow(SupervisorMailer).to receive(:schedule_delivery)
+      service.request_access(supervisor: User.find(supervisor.id), lookup_key: communicator.user_name)
+      rel = SupervisorRelationship.last
+      expect(rel.organization_id).to eq(o.id)
+      expect(rel.organization).to eq(o)
+    end
+
+    it "stores the database id of an organization passed by global id" do
+      o = Organization.create
+      supervisor = User.create
+      communicator = User.create
+      o.add_supervisor(supervisor.user_name, false)
+      allow(SupervisorMailer).to receive(:schedule_delivery)
+      service.request_access(supervisor: User.find(supervisor.id), lookup_key: communicator.user_name, organization_id: o.global_id)
+      expect(SupervisorRelationship.last.organization_id).to eq(o.id)
+    end
+
+    # The request names an organization only when it is one of the supervisor's own.
+    it "does not store or name an organization the supervisor is not part of" do
+      own = Organization.create(settings: {'name' => 'Own District'})
+      other = Organization.create(settings: {'name' => 'Other District'})
+      supervisor = User.create
+      communicator = User.create
+      communicator.settings['email'] = 'comm@example.com'
+      communicator.save
+      own.add_supervisor(supervisor.user_name, false)
+      allow(SupervisorMailer).to receive(:schedule_delivery)
+      service.request_access(supervisor: User.find(supervisor.id), lookup_key: communicator.user_name, organization_id: other.global_id)
+      rel = SupervisorRelationship.last
+      expect(rel.communicator_user).to eq(communicator)
+      expect(rel.organization_id).to eq(nil)
+      mail = SupervisorMailer.consent_request(rel.global_id)
+      expect(mail.html_part.body.to_s).not_to include('Other District')
+      expect(mail.text_part.body.to_s).not_to include('Other District')
+    end
+
+    # The supervisor's own organizations are those they belong to as an approved supervisor or
+    # manager: a pending invitation or a communicator membership does not name the request.
+    it "does not store an organization the supervisor is only invited to or a communicator in" do
+      invited = Organization.create
+      member = Organization.create(settings: {'total_licenses' => 2})
+      supervisor = User.create
+      communicator = User.create
+      invited.add_supervisor(supervisor.user_name, true)
+      invited.add_user(communicator.user_name, false, false)
+      member.add_user(supervisor.user_name, false, false)
+      allow(SupervisorMailer).to receive(:schedule_delivery)
+      service.request_access(supervisor: User.find(supervisor.id), lookup_key: communicator.user_name)
+      expect(SupervisorRelationship.last.organization_id).to eq(nil)
+      expect(service.requested_organization_id).to eq(nil)
+
+      communicator2 = User.create
+      service.request_access(supervisor: User.find(supervisor.id), lookup_key: communicator2.user_name, organization_id: member.global_id)
+      expect(SupervisorRelationship.last.communicator_user).to eq(communicator2)
+      expect(SupervisorRelationship.last.organization_id).to eq(nil)
+      expect(service.requested_organization_id).to eq(nil)
+    end
+
+    it "keeps the supervisor's own organization when it is passed" do
+      own = Organization.create(settings: {'name' => 'Own District'})
+      supervisor = User.create
+      communicator = User.create
+      communicator.settings['email'] = 'comm@example.com'
+      communicator.save
+      own.add_supervisor(supervisor.user_name, false)
+      allow(SupervisorMailer).to receive(:schedule_delivery)
+      service.request_access(supervisor: User.find(supervisor.id), lookup_key: communicator.user_name, organization_id: own.global_id)
+      rel = SupervisorRelationship.last
+      expect(rel.organization_id).to eq(own.id)
+      expect(service.requested_organization_id).to eq(own.global_id)
+      mail = SupervisorMailer.consent_request(rel.global_id)
+      expect(mail.html_part.body.to_s).to include('Own District')
+    end
+
     it "should not create duplicate pending relationship" do
       supervisor = User.create
       communicator = User.create
@@ -147,6 +240,49 @@ describe SupervisorConsentService, :type => :model do
       expect(rel.activated_at).to be_present
       expect(rel.consent_responded_at).to be_present
       expect(communicator.reload.supervisor_user_ids).to include(supervisor.global_id)
+    end
+
+    # A request made on behalf of an organization is approved only while the supervisor still
+    # belongs to it as an approved supervisor or manager; otherwise it closes without a link.
+    def org_request
+      o = Organization.create
+      supervisor = User.create
+      communicator = User.create
+      o.add_supervisor(supervisor.user_name, false)
+      o.add_user(communicator.user_name, false, false)
+      allow(SupervisorMailer).to receive(:schedule_delivery)
+      service.request_access(supervisor: User.find(supervisor.id), lookup_key: communicator.user_name, organization_id: o.global_id)
+      rel = SupervisorRelationship.where(supervisor_user_id: supervisor.id, communicator_user_id: communicator.id).last
+      expect(rel.organization_id).to eq(o.id)
+      [o, supervisor, communicator, rel]
+    end
+
+    it "does not link a supervisor who left the request's organization" do
+      o, supervisor, communicator, rel = org_request
+      o.remove_supervisor(supervisor.user_name)
+      result = service.approve(token: rel.consent_response_token)
+      expect(result[:error]).to eq('invalid_or_expired_token')
+      expect(User.find(communicator.id).supervisor_user_ids).to eq([])
+      rel.reload
+      expect(rel.status).to eq('expired')
+      expect(rel.revocation_reason).to eq('supervisor_not_in_organization')
+      expect(rel.consent_response_token).to eq(nil)
+    end
+
+    it "does not link through the in-app approval a supervisor whose organization was destroyed" do
+      o, supervisor, communicator, rel = org_request
+      o.reload.destroy
+      result = service.approve_as_party(relationship: rel, actor: User.find(communicator.id))
+      expect(result[:error]).to eq('invalid_or_expired_token')
+      expect(User.find(communicator.id).supervisor_user_ids).to eq([])
+      expect(rel.reload.status).to eq('expired')
+    end
+
+    it "links a supervisor who still belongs to the request's organization" do
+      o, supervisor, communicator, rel = org_request
+      result = service.approve(token: rel.consent_response_token)
+      expect(result[:error]).to eq(nil)
+      expect(User.find(communicator.id).supervisor_user_ids).to eq([supervisor.global_id])
     end
 
     it "should return error for invalid token" do

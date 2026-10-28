@@ -1044,6 +1044,9 @@ export default Controller.extend({
   audio_target_available: computed(function() {
     return capabilities.installed_app && (capabilities.system == 'iOS' || capabilities.system == 'Android');
   }),
+  premium_voices_supported: computed(function() {
+    return capabilities.tts.premium_voices_supported();
+  }),
   update_can_record_tags: observer('model.id', function() {
     var _this = this;
     capabilities.nfc.available().then(function(res) {

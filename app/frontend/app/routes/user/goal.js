@@ -9,7 +9,7 @@ export default Route.extend({
   model: function(params) {
     var user = this.modelFor('user');
     user.set('subroute_name', i18n.t('goals', "goals"));
-    return this.store.findRecord('goal', params.goal_id);
+    return this.find_goal(params.goal_id);
   },
   setupController: function(controller, model) {
     var wait = resolve();
@@ -33,5 +33,19 @@ export default Route.extend({
         controller.send('cancel_edit');
       }
     });
-  }
+  },
+  // Fetches the goal again while online: only the goal's own request returns stats grouped at
+  // the viewer's midnight (adapters/goal.js, #1196), and a goal the goals list loaded holds the
+  // stored UTC grouping, which findRecord would hand straight back. If that fetch fails (a
+  // flaky connection), the goal already loaded is shown, as before.
+  find_goal: function(id) {
+    var store = this.store;
+    if(!this.persistence.get('online')) { return store.findRecord('goal', id); }
+    return store.findRecord('goal', id, {reload: true}).then(null, function(err) {
+      var loaded = store.peekRecord('goal', id);
+      if(loaded) { return loaded; }
+      throw err;
+    });
+  },
+  persistence: service('persistence')
 });

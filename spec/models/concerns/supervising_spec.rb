@@ -188,6 +188,26 @@ describe Supervising, :type => :model do
       User.link_supervisor_to_user(u2, u3)
       expect(u2.settings['preferences']['role']).to eq('supporter')
     end
+
+    # The auto-set supporter role is undone only when no supervisee is left, read from the
+    # supervision links (settings['supervisees'] is a legacy list the links no longer fill).
+    it "keeps an auto-set supporter role while the supervisor still has a supervisee" do
+      sup = User.create
+      direct = User.create
+      roomed = User.create
+      User.link_supervisor_to_user(sup, direct)
+      User.link_supervisor_to_user(User.find(sup.id), roomed, nil, true, 'room_a')
+      expect(User.find(sup.id).settings['preferences']['role']).to eq('supporter')
+
+      User.strip_rooms_from_supervision(User.find(sup.id), User.find(roomed.id), ['room_a'])
+
+      expect(User.find(roomed.id).supervisor_user_ids).to eq([])
+      expect(User.find(sup.id).settings['preferences']['role']).to eq('supporter')
+      expect(User.find(sup.id).settings['supporter_role_auto_set']).to eq(true)
+
+      User.unlink_supervisor_from_user(User.find(sup.id), User.find(direct.id))
+      expect(User.find(sup.id).settings['preferences']['role']).to eq('communicator')
+    end
     
     it "should set the org unit id if defined" do
       u1 = User.create
@@ -334,6 +354,114 @@ describe Supervising, :type => :model do
       User.unlink_supervisor_from_user(u1, u2, '1_3')
       expect(u2.reload.supervisor_links).to eq([])
       expect(u2.settings['supervisors']).to eq(nil)
+    end
+  end
+
+  # Recorded so an organization's deletion removes only links that rooms alone made
+  # (strip_rooms_from_supervision); kept outside 'state', so links_for output is unchanged.
+  describe "supervision link origin" do
+    def origin(sup, user)
+      UserLink.where(user_id: user.id, record_code: Webhook.get_record_code(sup)).detect{|l| l.data['type'] == 'supervisor' }.data['origin']
+    end
+
+    it "records a room-made link as room, and a later direct link turns it direct" do
+      sup = User.create
+      user = User.create
+      User.link_supervisor_to_user(sup, user, nil, true, '1_5')
+      expect(origin(sup, user)).to eq('room')
+      User.link_supervisor_to_user(User.find(sup.id), User.find(user.id))
+      expect(origin(sup, user)).to eq('direct')
+    end
+
+    it "keeps a direct origin when a room adds the link" do
+      sup = User.create
+      user = User.create
+      User.link_supervisor_to_user(sup, user)
+      User.link_supervisor_to_user(User.find(sup.id), User.find(user.id), nil, true, '1_5')
+      expect(origin(sup, user)).to eq('direct')
+    end
+
+    # A room taking itself off a link (OrganizationUnit#assert_supervision remove_*) only drops
+    # its id from a link that was made directly; the direct supervision stays.
+    it "keeps a direct link when the last room listing it is taken off" do
+      sup = User.create
+      user = User.create
+      User.link_supervisor_to_user(sup, user)
+      User.link_supervisor_to_user(User.find(sup.id), User.find(user.id), nil, true, '1_5')
+
+      User.unlink_supervisor_from_user(User.find(sup.id), User.find(user.id), '1_5')
+
+      link = UserLink.where(user_id: user.id, record_code: Webhook.get_record_code(sup)).detect{|l| l.data['type'] == 'supervisor' }
+      expect(link).not_to eq(nil)
+      expect(link.data['origin']).to eq('direct')
+      expect(link.data['state']['organization_unit_ids']).to eq([])
+      expect(User.find(user.id).supervisor_user_ids).to eq([sup.global_id])
+    end
+
+    # Links are cached per copy of the user (UserLink.links_for keys on updated_at); a caller's
+    # older copy must not hide a room that was added to the link since.
+    def room_ids(sup, user)
+      UserLink.where(user_id: user.id, record_code: Webhook.get_record_code(sup)).detect{|l| l.data['type'] == 'supervisor' }.data['state']['organization_unit_ids']
+    end
+
+    it "keeps a room added since the caller loaded the supervisee when another room links" do
+      sup = User.create
+      user = User.create
+      User.link_supervisor_to_user(sup, user, nil, true, 'room_a')
+      stale = User.find(user.id)
+      UserLink.links_for(stale)
+      # another link change (UserLink#touch_connections) moves the row on from the caller's copy
+      User.where(id: user.id).update_all(updated_at: 1.second.from_now)
+      User.link_supervisor_to_user(User.find(sup.id), User.find(user.id), nil, true, 'room_b')
+
+      User.link_supervisor_to_user(User.find(sup.id), stale, nil, true, 'room_c')
+
+      expect(room_ids(sup, user)).to eq(['room_a', 'room_b', 'room_c'])
+    end
+
+    it "keeps a room added since the caller loaded the supervisee when another room unlinks" do
+      sup = User.create
+      user = User.create
+      User.link_supervisor_to_user(sup, user, nil, true, 'room_a')
+      stale = User.find(user.id)
+      UserLink.links_for(stale)
+      # another link change (UserLink#touch_connections) moves the row on from the caller's copy
+      User.where(id: user.id).update_all(updated_at: 1.second.from_now)
+      User.link_supervisor_to_user(User.find(sup.id), User.find(user.id), nil, true, 'room_b')
+
+      User.unlink_supervisor_from_user(User.find(sup.id), stale, 'room_a')
+
+      expect(User.find(user.id).supervisor_user_ids).to eq([sup.global_id])
+      expect(room_ids(sup, user)).to eq(['room_b'])
+    end
+
+    it "removes a room-made link when the last room listing it is taken off" do
+      sup = User.create
+      user = User.create
+      User.link_supervisor_to_user(sup, user, nil, true, '1_5')
+
+      User.unlink_supervisor_from_user(User.find(sup.id), User.find(user.id), '1_5')
+
+      expect(User.find(user.id).supervisor_user_ids).to eq([])
+    end
+
+    it "treats an unrecorded link with no rooms as direct, and one with rooms as unknown" do
+      sup = User.create
+      user = User.create
+      User.link_supervisor_to_user(sup, user)
+      link = UserLink.where(user_id: user.id).detect{|l| l.data['type'] == 'supervisor' }
+      link.data.delete('origin')
+      link.save!
+      User.link_supervisor_to_user(User.find(sup.id), User.find(user.id), nil, true, '1_5')
+      expect(origin(sup, user)).to eq('direct')
+
+      sup2 = User.create
+      User.link_supervisor_to_user(sup2, User.find(user.id), nil, true, '1_6')
+      link2 = UserLink.where(user_id: user.id, record_code: Webhook.get_record_code(sup2)).first
+      link2.data.delete('origin')
+      link2.save!
+      User.link_supervisor_to_user(User.find(sup2.id), User.find(user.id), nil, true, '1_7')
+      expect(origin(sup2, user)).to eq(nil)
     end
   end
 
@@ -1299,6 +1427,121 @@ describe Supervising, :type => :model do
 
       expect(board_cache_remote_actions_for(sup).count).to eq(1)
       expect(ra.reload.act_at).to be <= Time.now + 1
+    end
+  end
+
+  # Organization.clean_up_destroyed reads a supervision link, decides, then unlinks or saves it.
+  # Unlocked, two district cleanups each wrote back the other's room, and a cleanup could remove a
+  # direct grant made while it ran. Deterministic: another transaction holds the supervisee's row
+  # lock while it changes the link, and the cleanup must read the link only after that commits
+  # (the pattern of supervisor_consent_service_spec "re-read committed state").
+  describe "room cleanup under concurrent link changes" do
+    self.use_transactional_tests = false
+
+    before(:each) do
+      @pre_user_ids = User.pluck(:id)
+      @pre_link_ids = UserLink.pluck(:id)
+      @pre_ra_ids = RemoteAction.pluck(:id)
+      @pre_audit_ids = AuditEvent.pluck(:id)
+    end
+
+    after(:each) do
+      next unless @pre_user_ids && @pre_link_ids && @pre_ra_ids && @pre_audit_ids
+      UserLink.where.not(id: @pre_link_ids).delete_all
+      RemoteAction.where.not(id: @pre_ra_ids).delete_all
+      AuditEvent.where.not(id: @pre_audit_ids).delete_all
+      User.where.not(id: @pre_user_ids).delete_all
+      Worker.flush_queues
+    end
+
+    def supervision_link(sup, comm)
+      UserLink.where(user_id: comm.id, record_code: Webhook.get_record_code(sup)).detect{|l| l.data['type'] == 'supervisor' }
+    end
+
+    # Runs the block in a transaction on its own connection that first locks the supervisee's
+    # row, and returns once the block has run; the transaction commits ~1.5s later. The thread's
+    # :committing_at is taken just before that commit.
+    def change_under_lock(comm, &block)
+      held = Queue.new
+      thread = Thread.new do
+        ActiveRecord::Base.connection_pool.with_connection do
+          User.transaction do
+            User.lock.find(comm.id)
+            block.call
+            held << :held
+            sleep 1.5
+            Thread.current[:committing_at] = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+          end
+        end
+      end
+      held.pop
+      thread
+    end
+
+    # Runs the block on this thread and checks it could finish only after the other transaction
+    # was about to commit, i.e. that it waited on the supervisee's lock rather than passing on a
+    # sleep that happened to be long enough.
+    def expect_waited_for(other, &block)
+      block.call
+      finished_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      other.join(20)
+      expect(other[:committing_at]).not_to eq(nil)
+      expect(finished_at).to be > other[:committing_at]
+    end
+
+    it "removes a room-made link when two district cleanups each take their own room off it" do
+      sup = User.create
+      comm = User.create
+      User.link_supervisor_to_user(sup, comm, nil, true, 'room_a')
+      User.link_supervisor_to_user(User.find(sup.id), User.find(comm.id), nil, true, 'room_b')
+      expect(supervision_link(sup, comm).data['origin']).to eq('room')
+      expect(supervision_link(sup, comm).data['state']['organization_unit_ids']).to eq(['room_a', 'room_b'])
+
+      other = change_under_lock(comm) do
+        User.strip_rooms_from_supervision(User.find(sup.id), User.find(comm.id), ['room_b'])
+      end
+      expect_waited_for(other) do
+        User.strip_rooms_from_supervision(User.find(sup.id), User.find(comm.id), ['room_a'])
+      end
+
+      expect(supervision_link(sup, comm)).to eq(nil)
+    end
+
+    it "keeps a direct grant made while a district cleanup runs" do
+      sup = User.create
+      comm = User.create
+      User.link_supervisor_to_user(sup, comm, nil, true, 'room_a')
+      expect(supervision_link(sup, comm).data['origin']).to eq('room')
+
+      other = change_under_lock(comm) do
+        User.link_supervisor_to_user(User.find(sup.id), User.find(comm.id))
+      end
+      expect_waited_for(other) do
+        User.strip_rooms_from_supervision(User.find(sup.id), User.find(comm.id), ['room_a'])
+      end
+
+      link = supervision_link(sup, comm)
+      expect(link).not_to eq(nil)
+      expect(link.data['origin']).to eq('direct')
+    end
+
+    # the other order: the grant must read the link after the cleanup's removal commits, or it
+    # saves onto the deleted row and the grant is lost
+    it "keeps a direct grant that waits on a district cleanup" do
+      sup = User.create
+      comm = User.create
+      User.link_supervisor_to_user(sup, comm, nil, true, 'room_a')
+
+      other = change_under_lock(comm) do
+        User.strip_rooms_from_supervision(User.find(sup.id), User.find(comm.id), ['room_a'])
+      end
+      expect_waited_for(other) do
+        User.link_supervisor_to_user(User.find(sup.id), User.find(comm.id))
+      end
+
+      link = supervision_link(sup, comm)
+      expect(link).not_to eq(nil)
+      expect(link.data['origin']).to eq('direct')
     end
   end
 end

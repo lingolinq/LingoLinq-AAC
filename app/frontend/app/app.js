@@ -1026,13 +1026,4 @@ window.LingoLinq.VERSION = window.app_version;
 // Set verboseDebug=true in console or localStorage lingolinq_verbose_debug='true' for verbose debug logs
 window.LingoLinq.verboseDebug = window.LingoLinq.verboseDebug || (typeof localStorage !== 'undefined' && localStorage.getItem('lingolinq_verbose_debug') === 'true');
 
-/* The Compressed View density axis. `on` is already resolved (flag AND preference, see
-   utils/compressed_view_state.js); only an exact `true` adds the class, and the class name is a
-   literal, so a garbage value can at most leave it off. Driven by sync_density_scope in
-   services/app-state.js. Board pages are not compressed: their styles never read this class. */
-LingoLinq.set_density_scope = function(on) {
-  if(typeof document === 'undefined' || !document.body) { return; }
-  document.body.classList.toggle('ll-density-compressed', on === true);
-};
-
 export default LingoLinq;

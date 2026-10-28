@@ -18,7 +18,7 @@ permissions:
 # in a group by default, independent of that setting ("any existing pending job or
 # workflow in the same concurrency group will be canceled and the new queued job or
 # workflow will take its place"). With a shared per-branch group, three merges inside
-# one CI window (build-and-test runs ~37 min) leave the middle run cancelled in the
+# one CI window (a CI run takes ~20 min) leave the middle run cancelled in the
 # queue. deploy-cloudrun.yml is `on: push` and deliberately NOT CI-gated, so that
 # commit would deploy with no validation run at all. Same reasoning, and the same
 # run-id remedy, as the concurrency note in deploy-cloudrun.yml.
@@ -115,75 +115,31 @@ jobs:
       - name: Run RSpec
         run: bundle exec rspec
 
-  build-and-test:
+  # Lint gates and the Ember build. The required check is `build-and-test` (the gate job at the end of
+  # this workflow), which waits for this job AND the Ember shards.
+  # Whether the frontend steps run comes from ember-shard-scope, the one classifier, so this job and
+  # the shards cannot disagree. `!cancelled()`: if the scope job fails, this job still runs every
+  # step (the Decide step below fails toward running), so the gate never sees it skipped.
+  lint-and-build:
+    needs: ember-shard-scope
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      # Keep the required build-and-test job present for every PR. GitHub does not
-      # report a path-filtered job at all, which can leave a required check pending.
-      # This classifier instead skips only the expensive frontend steps, and only
-      # when every current and previous (rename) path is documentation/audit data.
-      - name: Classify frontend impact
-        id: frontend-scope
-        continue-on-error: true
-        uses: actions/github-script@v8
-        with:
-          script: |
-            if (context.eventName !== 'pull_request') {
-              core.setOutput('run_frontend', 'true');
-              core.info('Protected-branch push: run the complete frontend suite.');
-              return;
-            }
-
-            const files = await github.paginate(github.rest.pulls.listFiles, {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.issue.number,
-              per_page: 100,
-            });
-            const allowed = (path) =>
-              path.startsWith('docs/') || path.startsWith('audit-reports/');
-            // GitHub caps listFiles at 3,000 paths. The payload's changed_files
-            // count lets us detect truncation and fail toward the full suite.
-            const reportedCount = context.payload.pull_request.changed_files;
-            const completeList =
-              Number.isInteger(reportedCount) && files.length === reportedCount;
-            if (!completeList) {
-              core.warning(
-                `PR reports ${reportedCount} changed files but the API returned ${files.length}; ` +
-                'run the full frontend suite.'
-              );
-            }
-            const documentationOnly =
-              completeList &&
-              files.length > 0 &&
-              files.every((file) =>
-                allowed(file.filename) &&
-                (!file.previous_filename || allowed(file.previous_filename))
-              );
-
-            core.setOutput('run_frontend', documentationOnly ? 'false' : 'true');
-            core.info(
-              documentationOnly
-                ? 'Documentation/audit-only PR: skip the frontend suite.'
-                : 'Frontend-relevant or unknown path present: run the frontend suite.'
-            );
-
-      # The classifier is an optimization, not a gate. If GitHub's files API or
-      # the classifier fails, default to the full suite rather than skipping tests.
+      # The classifier is an optimization, not a gate. If the scope job failed, was skipped, or left
+      # its output empty, default to the full suite rather than skipping lint and build.
       - name: Decide whether frontend suite is required
         id: frontend
         env:
-          CLASSIFIER_OUTCOME: ${{ steps.frontend-scope.outcome }}
-          CLASSIFIED_VALUE: ${{ steps.frontend-scope.outputs.run_frontend }}
+          SCOPE_RESULT: ${{ needs.ember-shard-scope.result }}
+          SCOPE_RUN: ${{ needs.ember-shard-scope.outputs.run }}
         run: |
-          if [ "$CLASSIFIER_OUTCOME" = "success" ] && [ "$CLASSIFIED_VALUE" = "false" ]; then
+          if [ "$SCOPE_RESULT" = "success" ] && [ "$SCOPE_RUN" = "false" ]; then
             echo "run=false" >> "$GITHUB_OUTPUT"
           else
             echo "run=true" >> "$GITHUB_OUTPUT"
@@ -191,7 +147,7 @@ jobs:
 
       - name: Documentation-only fast path
         if: steps.frontend.outputs.run == 'false'
-        run: echo "Frontend build and browser tests are not applicable to this documentation/audit-only PR."
+        run: echo "Frontend build and browser tests are not applicable to this documentation, audit, or instruction-file-only PR."
 
       - name: Setup Node 22
         if: steps.frontend.outputs.run == 'true'
@@ -237,29 +193,291 @@ jobs:
         working-directory: app/frontend
         run: npm run lint:js:ci
 
-      # Puppeteer downloads Chrome under ~/.cache/puppeteer, not inside node_modules.
-      # Restoring only node_modules leaves executablePath() pointing at a missing binary.
-      - name: Ensure Puppeteer Chrome is present
-        if: steps.frontend.outputs.run == 'true'
-        working-directory: app/frontend
-        run: npx puppeteer browsers install chrome
-
-      # Build once, in the test environment, and run the tests against that output.
-      # `ember test` without --path rebuilds the whole app (~1 min); the old development-env
-      # build here was discarded, and the test build compiles the same app code.
+      # The build stays here so a broken build fails this required check; the tests run in the
+      # ember-shard jobs below.
       - name: Build Ember app (test env)
         if: steps.frontend.outputs.run == 'true'
         working-directory: app/frontend
         run: npx ember build --environment=test --output-path=dist-test
 
-      - name: Run Ember tests (Chrome Headless)
-        if: steps.frontend.outputs.run == 'true'
+  # ---------------------------------------------------------------------------------------
+  # THE EMBER SUITE, as two parallel shards, required through the `build-and-test` gate job.
+  # lint-and-build runs the lint gates and the Ember build only; these jobs run every test. Promoted from shadow mode
+  # in #1118 after five consecutive runs on one commit in which both shards passed (each well under
+  # 20 minutes), ember-shard-coverage passed and the shards matched the full serial run.
+  # OPT-IN POOL: `pool` runs the modules listed in app/frontend/tests/parallel-pool.js (each
+  # proven to pass without the rest of the suite before it); `main` runs everything else in the
+  # original order, including every new module. tests/helpers/parallel-pool-filter.js turns
+  # ?pool=include|exclude into exact, complementary QUnit filters (not `--filter`: ember-cli
+  # lowercases it and the full list overflows the URL).
+  # Reproduce a shard locally: npx ember test --query "pool=include&timingStrict=1" (or
+  # pool=exclude). The shards run timing-strict (tests/helpers/fetch-probe.js timingStrict), so
+  # without timingStrict=1 a [queued-fetch] or [late-read] failure is only logged.
+  # ---------------------------------------------------------------------------------------
+  ember-shard-scope:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      run: ${{ steps.frontend.outputs.run }}
+    steps:
+      # The one frontend-impact classifier. lint-and-build, the shards, coverage and the
+      # build-and-test gate all read this job's `run` output (scripts/frontend-scope-classifier.test.py
+      # pins that). Keep this job present for every PR (the required build-and-test gate needs it):
+      # GitHub does not report a path-filtered job at all, which can leave a required check pending.
+      # This classifier instead skips only the expensive frontend work, and only when every current
+      # and previous (rename) path is documentation, audit data, or one of CLAUDE.md, AGENTS.md,
+      # GEMINI.md, or .github/copilot-instructions.md.
+      - name: Classify frontend impact
+        id: frontend-scope
+        continue-on-error: true
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            if (context.eventName !== 'pull_request') {
+              core.setOutput('run_frontend', 'true');
+              core.info('Protected-branch push: run the complete frontend suite.');
+              return;
+            }
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              per_page: 100,
+            });
+            const allowed = (path) =>
+              path.startsWith('docs/') ||
+              path.startsWith('audit-reports/') ||
+              path === 'CLAUDE.md' ||
+              path === 'AGENTS.md' ||
+              path === '.github/copilot-instructions.md' ||
+              path === 'GEMINI.md';
+            // GitHub caps listFiles at 3,000 paths. The payload's changed_files
+            // count lets us detect truncation and fail toward the full suite.
+            const reportedCount = context.payload.pull_request.changed_files;
+            const completeList =
+              Number.isInteger(reportedCount) && files.length === reportedCount;
+            if (!completeList) {
+              core.warning(
+                `PR reports ${reportedCount} changed files but the API returned ${files.length}; ` +
+                'run the full frontend suite.'
+              );
+            }
+            const documentationOnly =
+              completeList &&
+              files.length > 0 &&
+              files.every((file) =>
+                allowed(file.filename) &&
+                (!file.previous_filename || allowed(file.previous_filename))
+              );
+            core.setOutput('run_frontend', documentationOnly ? 'false' : 'true');
+            core.info(
+              documentationOnly
+                ? 'Documentation, audit, or instruction-file-only PR: skip the frontend suite.'
+                : 'Frontend-relevant or unknown path present: run the frontend suite.'
+            );
+
+      - name: Decide whether frontend suite is required
+        id: frontend
+        env:
+          CLASSIFIER_OUTCOME: ${{ steps.frontend-scope.outcome }}
+          CLASSIFIED_VALUE: ${{ steps.frontend-scope.outputs.run_frontend }}
+        run: |
+          if [ "$CLASSIFIER_OUTCOME" = "success" ] && [ "$CLASSIFIED_VALUE" = "false" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  ember-shard:
+    needs: ember-shard-scope
+    # Required: run unless the scope job SAID to skip. If the scope job itself failed its output is
+    # empty, and skipping here would report a required check as passing with no tests run.
+    if: ${{ !cancelled() && needs.ember-shard-scope.outputs.run != 'false' }}
+    name: ember-shard-${{ matrix.shard }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: pool
+            query: pool=include&timingStrict=1
+          - shard: main
+            query: pool=exclude&timingStrict=1
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Setup Node 22
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      # Same key as lint-and-build (Node major in the key: see the note there).
+      - name: Cache node_modules and Puppeteer Chrome
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: |
+            app/frontend/node_modules
+            ~/.cache/puppeteer
+          key: ${{ runner.os }}-node22-${{ hashFiles('app/frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node22-
+
+      - name: Install frontend dependencies
         working-directory: app/frontend
-        # A healthy full run finishes in ~34 min. Cap the step so a wedged
-        # runner (e.g. testem's iframe channel corrupted by a post-teardown
-        # stack overflow) fails fast instead of burning the 6h Actions ceiling.
+        run: npm install
+
+      - name: Ensure Puppeteer Chrome is present
+        working-directory: app/frontend
+        run: npx puppeteer browsers install chrome
+
+      - name: Build Ember app (test env)
+        working-directory: app/frontend
+        run: npx ember build --environment=test --output-path=dist-test
+
+      # Fails if the tests fail OR if the shard selected no tests at all, so a broken
+      # selection can never pass as an empty green shard.
+      - name: Run Ember tests, shard ${{ matrix.shard }}
+        working-directory: app/frontend
         timeout-minutes: 50
-        run: npx ember test --path dist-test
+        shell: bash
+        env:
+          SHARD: ${{ matrix.shard }}
+          SHARD_QUERY: ${{ matrix.query }}
+        run: |
+          start=$(date +%s)
+          status=0
+          npx ember test --path dist-test --query "$SHARD_QUERY" 2>&1 | tee ember-test.log || status=$?
+          tests=$(grep -oE '^# tests [0-9]+' ember-test.log | tail -1 | awk '{print $3}' || true)
+          # tests/helpers/apply-parallel-pool.js logs what QUnit selected for this shard and how many
+          # tests are registered in all. The shard must run exactly what it selected.
+          shard_line=$(grep -oE '\[SHARD\] selected=[0-9]+ registered=[0-9]+' ember-test.log | head -1 || true)
+          selected=$(printf '%s' "$shard_line" | sed -nE 's/.*selected=([0-9]+).*/\1/p')
+          registered=$(printf '%s' "$shard_line" | sed -nE 's/.*registered=([0-9]+).*/\1/p')
+          echo "### Ember shard ${SHARD}: ran ${tests:-0} of ${selected:-?} selected (${registered:-?} registered) in $(( ($(date +%s) - start) / 60 )) min (\`--query ${SHARD_QUERY}\`)" >> "$GITHUB_STEP_SUMMARY"
+          # The harness logs [queued-fetch] and [owner-gone] inside the test that hit them (tests/helpers/index.js,
+          # tests/test-helper.js); testem prints console output with the next test result, so the end-of-run
+          # lists (after the last result) never reach this log. The per-test lines go in the job summary
+          # through the report-only scripts/ci-late-work-summary.sh.
+          bash ../../scripts/ci-late-work-summary.sh ember-test.log "shard ${SHARD}" || true
+          if [ "${tests:-0}" -eq 0 ]; then
+            echo "::error::shard ${SHARD} ran 0 tests: the pool selection matched nothing"
+            exit 1
+          fi
+          if [ -z "$selected" ]; then
+            echo "::error::shard ${SHARD} logged no [SHARD] selection line: the pool selection did not run"
+            exit 1
+          fi
+          if [ "$tests" -ne "$selected" ]; then
+            echo "::error::shard ${SHARD} ran ${tests} tests but selected ${selected}: the run is incomplete"
+            exit 1
+          fi
+          # The shards must run timing-strict (tests/test-helper.js logs the mode when the run starts). If the
+          # query stopped switching it on, the timing checks would only log here, as in a local lenient run.
+          if ! grep -q '\[timing-strict\] on' ember-test.log; then
+            echo "::error::shard ${SHARD} did not run timing-strict (no [timing-strict] on line): its timing checks only logged"
+            exit 1
+          fi
+          # A queued fetch or a read on a destroyed service fails this required shard (timing-strict, owner
+          # decision when the shards became required). It may be an earlier test's late work, so make the
+          # cause hard to miss: an annotation on the PR's checks and a banner in the job summary.
+          if [ "$status" -ne 0 ] && grep -qE 'leak check: .*on a destroyed service|an Ember Data fetch was still queued when this test ended' ember-test.log; then
+            echo "::error title=Timing finding in Ember shard ${SHARD}::A test left late work behind (a queued Ember Data fetch or a read on a destroyed service). It may be an earlier test's: fix the leak, do not re-run until green. Reproduce one test: npx ember test --query timingStrict=1 --filter \"<test>\" (a pool= query would replace the filter)"
+            {
+              echo '> [!WARNING]'
+              echo '> **Timing finding:** a test left late work behind, possibly from an earlier test. Fix the leak, do not re-run until green (.claude/rules/testing-frontend.md section 5). Failing tests:'
+              grep -m 20 -E '^not ok' ember-test.log | sed 's/^/> /'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit "$status"
+
+  # What the shards can prove WITHOUT a full run: each ran exactly what it selected, both saw the
+  # same registered total, their selections add up to it, and no test ran in more than one shard.
+  # Required through the build-and-test gate, because no job runs the whole suite any more (a shard
+  # only checks itself, so two shards mis-wired to the same half each pass). It runs unless the scope
+  # job SAID to skip: a failed scope job leaves the output empty, so the shards and this job still
+  # run (fail toward running), and the gate passes only if they pass.
+  # The shards stay timing-strict: a timing finding from an earlier test can fail an
+  # unrelated PR (testing-frontend.md section 5), which is the point of running them strict.
+  ember-shard-coverage:
+    needs: [ember-shard-scope, ember-shard]
+    if: ${{ !cancelled() && needs.ember-shard-scope.outputs.run != 'false' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      # The job holds a token that can read this run's logs; keep it out of the checkout.
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Test the comparison script
+        run: python3 scripts/ci-shard-compare.test.py
+
+      - name: Check the shards cover every registered test exactly once
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # filter=latest: each job's most recent attempt, so after "Re-run failed jobs" a shard that
+          # passed earlier and was not re-run is still found.
+          jobs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs?filter=latest" --paginate --jq '.jobs[] | [.id, .name] | @tsv')"
+          for name in ember-shard-pool ember-shard-main; do
+            id="$(printf '%s\n' "$jobs" | awk -F'\t' -v n="$name" '$2 == n { print $1 }')"
+            if [ -z "$id" ]; then
+              echo "::error::job ${name} not found in this run"
+              exit 1
+            fi
+            # A job's log can 404 for a short while after the job completes: retry the fetch only.
+            for try in 1 2 3; do
+              if gh api --allow-escape-sequences "repos/${GITHUB_REPOSITORY}/actions/jobs/${id}/logs" > "${name}.log"; then break; fi
+              if [ "$try" -eq 3 ]; then echo "::error::could not fetch the ${name} log"; exit 1; fi
+              sleep 15
+            done
+          done
+          python3 scripts/ci-shard-compare.py --coverage ember-shard-pool.log ember-shard-main.log
+
+  # THE REQUIRED CHECK `build-and-test`: passes only if lint-and-build passed AND the Ember suite passed
+  # in both shards with coverage, or the scope job said this PR touches no frontend
+  # (docs, audit, or root instruction files only).
+  # Branch protection already requires `build-and-test` on develop, staging and main, so the Ember
+  # tests are required with no protection change. The shard checks themselves are not required:
+  # a skipped matrix job never reports its expanded names, which would leave a docs-only PR waiting.
+  # `always()`, not `!cancelled()`: a skipped required check counts as passing, so this must run and
+  # fail whenever anything it waits for did not succeed.
+  build-and-test:
+    needs: [lint-and-build, ember-shard-scope, ember-shard, ember-shard-coverage]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Lint, build and the Ember suite all passed
+        env:
+          LINT_AND_BUILD: ${{ needs.lint-and-build.result }}
+          SCOPE: ${{ needs.ember-shard-scope.result }}
+          SCOPE_RUN: ${{ needs.ember-shard-scope.outputs.run }}
+          SHARDS: ${{ needs.ember-shard.result }}
+          COVERAGE: ${{ needs.ember-shard-coverage.result }}
+        run: |
+          echo "lint-and-build=${LINT_AND_BUILD} scope=${SCOPE} (run=${SCOPE_RUN}) shards=${SHARDS} coverage=${COVERAGE}"
+          if [ "$LINT_AND_BUILD" != "success" ]; then
+            echo "::error::lint-and-build did not succeed (${LINT_AND_BUILD})"
+            exit 1
+          fi
+          if [ "$SCOPE" = "success" ] && [ "$SCOPE_RUN" = "false" ]; then
+            echo "Documentation, audit, or instruction-file-only change: the Ember suite is not required."
+            exit 0
+          fi
+          if [ "$SHARDS" != "success" ] || [ "$COVERAGE" != "success" ]; then
+            echo "::error::the Ember suite did not pass: shards=${SHARDS} coverage=${COVERAGE}"
+            exit 1
+          fi
 
   # Blocking gate for the audit/compliance system's own generated artifacts. These
   # are deterministic, stdlib-only checks (no gems, no network): render checks that
@@ -429,7 +647,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6, the commit codex-review.yml pins
+        with:
+          # These tests read the checkout and build throwaway repos; nothing here needs the token.
+          persist-credentials: false
 
       # Guards the codex-review envelope logic: status fail-closed mapping,
       # the prompt-injection guard, the per-chunk convergence policy, and the
@@ -437,6 +658,12 @@ jobs:
       # dependencies are needed.
       - name: Run codex-review envelope guard + convergence unit tests
         run: python3 scripts/codex-review-build-envelope.test.py
+
+      # Guards the last check before the review leaves the runner: each credential format the
+      # scan knows is found (also \u-escaped or split by zero-width characters), ordinary review
+      # text is not, and a hit is reported by check name only, never by value.
+      - name: Run codex-review secret-scan unit tests
+        run: python3 scripts/codex-review-secret-scan.test.py
 
       # Guards the chunked-evidence builder: deterministic diff, structural
       # index (added + removed symbols with real source lines), sub-cap chunk
@@ -455,12 +682,52 @@ jobs:
       - name: Run codex-review chunked-scope match tests
         run: python3 scripts/codex-review-chunked-scope.test.py
 
+      # Guards the one Classify frontend impact step (in ember-shard-scope) and
+      # every job that reads its decision. Reads this file with system Ruby's
+      # YAML parser and runs the classifier in Node; no PyYAML.
+      - name: Run frontend-scope classifier tests
+        run: python3 scripts/frontend-scope-classifier.test.py
+
       # Guards the path classifier that routes a diff away from the external
       # reviewer: data-bearing paths (including every path under db/language/)
       # block, and an empty diff, a git-quoted path, or a
       # git or grep failure exits 3 with no route written.
       - name: Run codex-review path-classifier tests
         run: bash -n scripts/codex-review-path-classifier.sh && scripts/tests/codex-review-path-classifier-test.sh
+
+      # The required data-bearing-paths gate decides with the classifier above, but its own suite
+      # first runs inside that gate after merge (data-bearing-paths.yml). Run it here too, so a change
+      # to the classifier or the check cannot reach develop and fail the gate on every PR.
+      - name: Run data-bearing path check tests
+        run: bash -n scripts/data-bearing-path-check.sh && bash scripts/tests/data-bearing-path-check-test.sh
+
+      # The codex hardening arguments (.github/codex/codex-exec-args.txt) checked against the real
+      # binary at the version codex-review.yml pins. codex ignores an unknown key silently, so this
+      # is the only check that each tool really is off. No API key, no model call; the test fails
+      # if the version installed here differs from the workflow's pin.
+      - name: Install the pinned Codex CLI
+        # Network step in a required job: retried so a registry blip does not fail every PR.
+        run: npm install -g --ignore-scripts --no-audit --no-fund --fetch-retries=5 @openai/codex@0.160.0
+
+      - name: Run codex hardening checks against the pinned Codex CLI
+        run: python3 scripts/codex-review-codex-args.test.py
+
+      # Static scan of the review workflow with zizmor, offline (no token, no online audits).
+      # Pinned release binary, checked against its published sha256 before it runs. Fails on any
+      # medium-or-higher finding under the strict "auditor" persona.
+      - name: Scan codex-review.yml with zizmor
+        env:
+          ZIZMOR_VERSION: 1.30.1
+          ZIZMOR_SHA256: e65324f4430c2717591937edcec90ccbefaf14c174f8ec9415e03ca875b46e1a
+        run: |
+          curl -sSfL --retry 3 --retry-delay 2 --retry-all-errors -o "$RUNNER_TEMP/zizmor.tgz" \
+            "https://github.com/zizmorcore/zizmor/releases/download/v${ZIZMOR_VERSION}/zizmor-x86_64-unknown-linux-gnu.tar.gz"
+          echo "${ZIZMOR_SHA256}  $RUNNER_TEMP/zizmor.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/zizmor.tgz" -C "$RUNNER_TEMP" zizmor
+          # --no-config and --no-ignores: a zizmor.yml or an inline `# zizmor: ignore[...]` added by a later
+          # PR cannot silence the scan.
+          "$RUNNER_TEMP/zizmor" --offline --no-config --no-ignores --persona auditor --min-severity medium .github/workflows/codex-review.yml
+
 
   security-scan:
     runs-on: ubuntu-latest

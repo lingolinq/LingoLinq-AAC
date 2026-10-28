@@ -38,6 +38,24 @@ describe Worker do
       expect(Worker.scheduled?(User, :bacon, 12)).to be_truthy
     end
 
+    # Resque forks a process per job, so in production a job's class never keeps the stamp
+    # BoyBand sets (boy_band.rb:155). In-process runs must match: a stale Board stamp made a
+    # later save in the same example skip its downstream track (upstream_downstream.rb:382-386).
+    it "leaves no scheduled stamp on the job's class after the job, as a forked worker would" do
+      # instance jobs carry a 'scheduled' stamp in their first (hash) argument, as real ones do
+      expect(Board).to receive(:halo) { expect(Board.last_scheduled_stamp).to eq(123) }
+      Worker.schedule(Board, :halo, {'scheduled' => 123})
+      Worker.process_queues
+      expect(Board.last_scheduled_stamp).to eq(nil)
+    end
+
+    it "leaves no scheduled stamp after a slow-queue job either" do
+      expect(Board).to receive(:halo) { expect(Board.last_scheduled_stamp).to eq(124) }
+      Worker.schedule_for(:slow, Board, :halo, {'scheduled' => 124})
+      Worker.process_queues
+      expect(Board.last_scheduled_stamp).to eq(nil)
+    end
+
     it "should load the domain override if set" do
       JsonApi::Json.set_host("https://whatever.com:1234")
       Worker.schedule(User, :last)
@@ -176,18 +194,24 @@ describe Worker do
   end
 
   describe "scheduled_actions" do
+    include ActiveSupport::Testing::TimeHelpers
+
+    # The scheduled job carries 'scheduled' => Time.now.to_i (boy_band scheduled_stamp), compared with
+    # a later Time.now.to_i; a fixed instant keeps a second boundary from falling between them.
     it "should have list actions" do
-      Worker.schedule(User, :something)
-      expect(Worker.scheduled_actions.length).to eq(1)
-      expect(Worker.scheduled_actions[-1].except('domain_id')).to eq({
-        'class' => 'Worker', 'args' => ['User', 'something']
-      })
-      u = User.create
-      u.schedule(:do_something, 'cool')
-      expect(Worker.scheduled_actions.length).to be >= 2
-      expect(Worker.scheduled_actions[-1].except('domain_id')).to eq({
-        'class' => 'Worker', 'args' => ['User', 'perform_action', {'id' => u.id, 'method' => 'do_something', 'scheduled' => Time.now.to_i, 'arguments' => ['cool']}]
-      })
+      travel_to(Time.utc(2026, 6, 15, 12, 0, 30)) do
+        Worker.schedule(User, :something)
+        expect(Worker.scheduled_actions.length).to eq(1)
+        expect(Worker.scheduled_actions[-1].except('domain_id')).to eq({
+          'class' => 'Worker', 'args' => ['User', 'something']
+        })
+        u = User.create
+        u.schedule(:do_something, 'cool')
+        expect(Worker.scheduled_actions.length).to be >= 2
+        expect(Worker.scheduled_actions[-1].except('domain_id')).to eq({
+          'class' => 'Worker', 'args' => ['User', 'perform_action', {'id' => u.id, 'method' => 'do_something', 'scheduled' => Time.now.to_i, 'arguments' => ['cool']}]
+        })
+      end
     end
   end
 

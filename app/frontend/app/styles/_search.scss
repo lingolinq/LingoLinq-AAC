@@ -263,9 +263,6 @@
 }
 .ub-find-board__panel .md-board-collection__header { padding: 14px 14px 10px; }
 .ub-find-board__panel .md-board-collection__body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-.ub-find-board__search-row { display: flex; gap: 8px; margin-bottom: 8px; }
-.ub-find-board__search-row > *:first-child { flex: 1 1 auto; min-width: 0; }
-.ub-find-board__locale-wrap { flex: 0 0 auto; min-width: 120px; }
 .ub-find-board__create { width: 100%; margin-top: 10px; justify-content: center; }
 
 /* Primary action buttons (Create a New Board, Open Board): keep the shared

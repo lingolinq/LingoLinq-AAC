@@ -272,4 +272,22 @@ module('Unit | Controller | user/board-detail view-mode actions', function(hooks
     assert.strictEqual(typeof this.controller.get('board_submenu_has_visible_items'), 'undefined',
       'and no visibility computed feeding a disclosure');
   });
+
+  test('Set as Home is hidden during a trial; the trial bar\'s "Use this board" is the way to adopt it', function(assert) {
+    // Tablet report (2026-10-13): in a trial's folder the row set the FOLDER as home, not the tried board.
+    this.controller.set('app_state', EmberObject.create({
+      sessionUser: userWithHome('bob/kb'),
+      referenced_user: userWithHome('bob/kb'),
+      board_detail_try_origin: { key: 'example/vocal-flair-40' },
+      board_detail_nav_history: [{ user_name: 'example', boardname: 'vocal-flair-40' }]
+    }));
+    this.controller.set('user', EmberObject.create({ user_name: 'example' }));
+    this.controller.set('boardname', 'places');
+    this.controller.set('model', board({ key: 'example/places' }));
+    assert.ok(this.controller.get('try_origin_board'), 'in the trial (a folder of the tried board)');
+    assert.false(this.controller.get('can_set_as_home'), 'row withheld while the trial bar shows');
+
+    this.controller.set('app_state.board_detail_try_origin', null);
+    assert.true(this.controller.get('can_set_as_home'), 'offered again once the trial ends');
+  });
 });

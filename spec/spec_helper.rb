@@ -1,5 +1,12 @@
 # This file is copied to spec/ when you run 'rails generate rspec:install'
 ENV["RAILS_ENV"] ||= 'test'
+# THE TEST PROCESS RUNS IN UTC, like CI (ubuntu-latest) and production (Cloud Run containers), whose
+# default zone it is. Some code turns times into dates in the machine's LOCAL zone (lib/stats.rb's
+# day ranges use `to_date` / `to_time` / `utc_offset`), so on a laptop in another zone the
+# date-boundary specs (stats_spec's daily summaries, Organization#usage_stats) failed after local
+# evening, once the UTC date had rolled over. Pinning the zone here makes a local run match CI at any
+# time of day (approved 2026-10-10). Ruby re-reads ENV['TZ'] when it is assigned.
+ENV['TZ'] = 'UTC'
 require 'dotenv'
 root = File.expand_path('..', __dir__)
 dotenv_paths = %w[.env.op.template .env.op.local .env .env.local].map do |name|
@@ -7,9 +14,18 @@ dotenv_paths = %w[.env.op.template .env.op.local .env .env.local].map do |name|
   path if File.exist?(path)
 end.compact
 Dotenv.load(*dotenv_paths) unless dotenv_paths.empty?
+# Started before the app loads, so files required while Rails boots (initializers, models they
+# reference) are measured too.
+require 'simplecov'
+SimpleCov.start 'rails'
 require File.expand_path("../../config/environment", __FILE__)
 require 'rspec/rails'
-require 'simplecov'
+# Specs never reach the internet: a request to anything but localhost fails with the URL it tried
+# (.claude/rules/testing.md, "External services"). Give the call a test double (`stub_request`, or a
+# stub of the method that makes it); never allow the host or turn this off for a spec. Default
+# answers for side-effect calls live in spec/support/outside_services.rb.
+require 'webmock/rspec'
+WebMock.disable_net_connect!(allow_localhost: true)
 
 # Requires supporting ruby files with custom matchers and macros, etc,
 # in spec/support/ and its subdirectories.
@@ -22,9 +38,31 @@ if defined?(ActiveRecord::Migration)
   ActiveRecord::Migration.check_all_pending!
 end
 
-SimpleCov.start 'rails'
+# Every example starts from empty test Redis namespaces, as it starts from a rolled-back database
+# (cleared before the run and before each example). Test runs leave keys there (job-scheduling
+# markers with a ~4 h expiry, masquerade dedupe keys), and locally the Redis db is shared with
+# development: leftovers let one example's state reach the next and made each run slower than the
+# last (the per-example KEYS scans below read every key in the db). Only keys under the test
+# namespaces are deleted; refuse to run if they are not test ones.
+TEST_REDIS_NAMESPACES = [Resque.redis.namespace, RedisInit.default.namespace, RedisInit.permissions.namespace].map(&:to_s)
+unless TEST_REDIS_NAMESPACES.all? { |ns| ns.match?(/\Alingolinq[a-z-]*-test\z/) }
+  raise "spec_helper: Redis namespaces #{TEST_REDIS_NAMESPACES.inspect} are not test namespaces; refusing to clear them"
+end
+
+TEST_REDIS_KEY_PREFIXES = TEST_REDIS_NAMESPACES.map { |ns| "#{ns}:" }
+
+def clear_test_redis_keys
+  raw = Resque.redis.redis
+  # One SCAN pass over the db (a MATCH still walks every key, so one pass per namespace would cost
+  # three walks of a shared development db), then an exact prefix check in Ruby: a glob `*` also
+  # matches ':', so the pattern alone could reach development keys that merely contain '-test:'.
+  keys = raw.scan_each(match: 'lingolinq*', count: 1000).select { |key| key.start_with?(*TEST_REDIS_KEY_PREFIXES) }
+  keys.each_slice(500) { |batch| raw.unlink(*batch) }
+end
 
 RSpec.configure do |config|
+  config.before(:suite) { clear_test_redis_keys }
+
   # ## Mock Framework
   #
   # If you prefer to use mocha, flexmock or RR, uncomment the appropriate line:
@@ -64,6 +102,7 @@ RSpec.configure do |config|
     # Controller specs are unaffected: they get the host from the request via
     # application_controller#set_host, which supplies the protocol.
     ENV['DEFAULT_HOST'] ||= 'test.host'  # ensure URL generation is consistent in specs
+    clear_test_redis_keys
     Time.zone = nil
     Worker.flush_queues
     # flush_queues empties the queue lists but leaves two separate Redis size
@@ -92,6 +131,9 @@ RSpec.configure do |config|
         post_url: 'https://example.com/',
         upload_params: {}
       )
+      # the same fake configuration for the guard in front of client-facing upload forms
+      # (Uploader.client_upload_params); specs of the guard itself call the original
+      allow(Uploader).to receive(:client_uploads_configured?).and_return(true)
     end
     RemoteAction.delete_all
     RedisInit.reset_queue_pressure_cache!
@@ -103,6 +145,10 @@ RSpec.configure do |config|
     RedisInit.default.del('domain_org_ids')
     Board.last_scheduled_stamp = nil
     BoardDownstreamButtonSet.last_scheduled_stamp = nil
+    # Uploader caches its S3 settings (bucket, keys) for the whole process; without this the first
+    # example to call it fixes them for every later example (e.g. a spec's temporary
+    # UPLOADS_S3_BUCKET leaking into later uploads)
+    Uploader.instance_variable_set('@remote_upload_config', nil)
     WordData.clear_lists
   end
 end

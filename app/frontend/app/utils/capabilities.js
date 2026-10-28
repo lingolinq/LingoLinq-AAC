@@ -97,7 +97,7 @@ var capabilities;
   }
 
   capabilities = window.capabilities || {};
-  capabilities.fallback_host = 'https://app.mylingolinq.com';
+  capabilities.fallback_host = 'https://app.lingolinq.com';
   capabilities.installed_app = !!capabilities.installed_app;
   capabilities.browserless = !!(capabilities.installed_app || navigator.standalone);
   /**
@@ -1067,6 +1067,11 @@ var capabilities;
         downloadable_voices: function() {
           return tts_voices.all();
         },
+        // Premium voices download through the native bridge, so this is the
+        // same condition tts_exec uses to reach it; the web has neither.
+        premium_voices_supported: function() {
+          return !!((window.cordova && window.cordova.exec) || window.extra_tts);
+        },
         init: function() {
           return capabilities.tts.tts_exec('init', null, function(promise, res) {
             promise.resolve(res);
@@ -1197,7 +1202,7 @@ var capabilities;
             };
             var check_one = function(type) {
               var check_type = (capabilities.sharing.types()[type] || {})[capabilities.system] || type;
-              window.plugins.socialsharing.canShareVia(check_type, 'message', 'message', 'https://www.mylingolinq.com/images/logo-new.png', 'https://www.mylingolinq.com', function() {
+              window.plugins.socialsharing.canShareVia(check_type, 'message', 'message', 'https://app.lingolinq.com/images/logo-new.png', 'https://www.lingolinq.com', function() {
                 valids.push(type);
                 all_done();
               }, function() {
@@ -2390,10 +2395,15 @@ var capabilities;
     }
 
   })();
+  // Returns a stop function that clears the intervals and listeners THIS call added. The app calls
+  // it once at load and never stops it; a caller that starts its own listening (tests) stops it,
+  // otherwise its intervals keep ticking for the rest of the page.
   capabilities.sensor_listen = function() {
+    var timers = [];
+    var onOrientation = null;
     if((window.screen && window.screen.orientation) || window.orientation !== null) {
       // iOS 
-      setInterval(function() {
+      timers.push(setInterval(function() {
         var layout = 'unknown';
         // layout - portrait-primary, portrait-secondary, landscape-primary, landscape-secondary
         if(window.screen && window.screen.orientation && window.screen.orientation.type) {
@@ -2425,14 +2435,14 @@ var capabilities;
           new_orientation.gamma = capabilities.last_orientation.gamma;
         }
         capabilities.last_orientation = new_orientation;        
-      }, 200);
+      }, 200));
     }
     if(window.DeviceOrientationEvent) {
       // iOS WKWebView requires user permission
       // (on each app load) before allowing access to this
       // event. The alternative is to add native support,
       // https://github.com/apache/cordova-plugin-device-motion/blob/master/src/ios/CDVAccelerometer.m
-      window.addEventListener('deviceorientation', function(event) {
+      onOrientation = function(event) {
         if(event.alpha !== null && event.alpha !== undefined) {
           var layout = 'unknown';
           // layout - portrait-primary, portrait-secondary, landscape-primary, landscape-secondary
@@ -2464,7 +2474,8 @@ var capabilities;
           };
           stashes.orientation = capabilities.last_orientation;
         }
-      });
+      };
+      window.addEventListener('deviceorientation', onOrientation);
     }
     if(window.plugin && window.plugin.volume && window.plugin.volume.setVolumeChangeCallback) {
       window.plugin.volume.setVolumeChangeCallback(function(vol) {
@@ -2473,7 +2484,7 @@ var capabilities;
       });
     }
     // TODO: https://github.com/brunovilar/cordova-plugins/tree/master/AmbientLight
-    setInterval(capabilities.update_brightness, 10000);
+    timers.push(setInterval(capabilities.update_brightness, 10000));
     var LightSensor = window.LightSensor || window.AmbientLightSensor;
     if(LightSensor) {
       try {
@@ -2486,10 +2497,11 @@ var capabilities;
         };
       } catch(e) { }
     }
-    window.addEventListener('devicelight', function(event) {
+    var onLight = function(event) {
       capabilities.last_lux = event.lux || event.value;
       stashes.ambient_light = capabilities.last_lux;
-    });
+    };
+    window.addEventListener('devicelight', onLight);
     if(capabilities.system != 'Android') {
       document.addEventListener('deviceready', function() {
         // on non-Android devices, just start listening right away
@@ -2506,6 +2518,11 @@ var capabilities;
     }
 
     // TODO: ProximitySensor?
+    return function stop() {
+      timers.forEach(function(timer) { clearInterval(timer); });
+      if(onOrientation) { window.removeEventListener('deviceorientation', onOrientation); }
+      window.removeEventListener('devicelight', onLight);
+    };
   };
   capabilities.sensor_listen();
 

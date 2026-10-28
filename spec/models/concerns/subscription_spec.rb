@@ -2143,6 +2143,941 @@ describe Subscription, :type => :model do
       expect(res[:upcoming_emailed]).to eq(0)
     end
     
+    # Accounts inactive for 12 months are scheduled for deletion in batches. The batch is loaded
+    # before each account's turn (mail is sent for the accounts ahead of it), so the deletion
+    # decision and the save must use the account as it is when scheduled.
+    describe "scheduling inactive accounts for deletion" do
+      def inactive_account_on_final_warning
+        u = User.create
+        u.settings['subscription'] ||= {}
+        u.settings['subscription']['last_deletion_warning'] = 4.weeks.ago.iso8601
+        u.settings['subscription']['last_deletion_attempts'] = 2
+        u.save
+        User.where(id: u.id).update_all(updated_at: 13.months.ago)
+        u
+      end
+
+      # Runs the block when the account deletion mail goes out for `first`, before `second`'s turn.
+      def after_deletion_mail_for(first, &block)
+        allow(SubscriptionMailer).to receive(:deliver_message) do |message, id, *rest|
+          block.call if message == :account_deleted && id == first.global_id
+        end
+      end
+
+      # The sweep reads a bounded window of the oldest inactive accounts. Accounts it always skips
+      # (never-delete) must not fill that window, or nobody behind them is ever reached.
+      it "reaches a deletable account behind more never-delete accounts than the window holds" do
+        stub_const('Subscription::INACTIVITY_SWEEP_WINDOW', 2)
+        # small pages, so the scan has to page past the never-delete accounts
+        stub_const('Subscription::INACTIVITY_SWEEP_PAGE', 2)
+        kept = 3.times.map do |i|
+          k = User.create
+          k.settings['preferences']['never_delete'] = true
+          k.save
+          User.where(id: k.id).update_all(updated_at: (15.months.ago + i.minutes))
+          k
+        end
+        target = inactive_account_on_final_warning
+        allow(SubscriptionMailer).to receive(:deliver_message)
+
+        User.check_for_subscription_updates
+
+        expect(User.find(target.id).schedule_deletion_at).not_to eq(nil)
+        kept.each { |k| expect(User.find(k.id).schedule_deletion_at).to eq(nil) }
+      end
+
+      # Expired trials are swept sooner (4 weeks inactive) from their own bounded window, which
+      # exempt accounts must not fill either.
+      it "reaches a deletable expired trial behind more never-delete expired trials than the window holds" do
+        stub_const('Subscription::INACTIVITY_SWEEP_TRIAL_WINDOW', 2)
+        stub_const('Subscription::INACTIVITY_SWEEP_PAGE', 2)
+        expired_trial = lambda do |age, &setup|
+          u = User.create
+          u.settings['subscription'] ||= {}
+          setup.call(u) if setup
+          u.save
+          # not on the hour: the query skips rows truncated to the hour (accounts already set aside)
+          User.where(id: u.id).update_all(expires_at: 2.weeks.ago, updated_at: age.ago.change(min: 7, sec: 13))
+          expect(User.find(u.id).billing_state).to eq(:expired_communicator)
+          u
+        end
+        kept = 3.times.map do |i|
+          expired_trial.call((3 + i).months) { |u| u.settings['preferences']['never_delete'] = true }
+        end
+        target = expired_trial.call(2.months) do |u|
+          u.settings['subscription']['last_deletion_warning'] = 4.weeks.ago.iso8601
+          u.settings['subscription']['last_deletion_attempts'] = 2
+        end
+        allow(SubscriptionMailer).to receive(:deliver_message)
+
+        User.check_for_subscription_updates
+
+        expect(User.find(target.id).schedule_deletion_at).not_to eq(nil)
+        kept.each { |k| expect(User.find(k.id).schedule_deletion_at).to eq(nil) }
+      end
+
+      # Each run reads at most INACTIVITY_SWEEP_SCAN_LIMIT rows. When exempt accounts fill that
+      # many, the next run resumes where this one stopped instead of re-reading the same rows.
+      # Up to INACTIVITY_SWEEP_SCAN_LIMIT rows a run: the paging query reads only the keyset
+      # columns, and the exemption check loads only the columns it needs (not every column).
+      it "pages by id and updated_at, and loads only id, updated_at and settings for the exemption check" do
+        k = User.create
+        k.settings['preferences']['never_delete'] = true
+        k.save
+        User.where(id: k.id).update_all(updated_at: 15.months.ago)
+        sql = []
+        record = ->(*, payload) { sql << payload[:sql] if payload[:sql] =~ /FROM "users"/ }
+        ids = nil
+        ActiveSupport::Notifications.subscribed(record, 'sql.active_record') do
+          ids = User.inactive_deletion_candidate_ids(User.where(['updated_at < ?', 12.months.ago]), 5)
+        end
+
+        expect(ids).not_to include(k.id)
+        expect(sql).not_to be_empty
+        expect(sql.grep(/"users"\.\*|SELECT \*/)).to eq([])
+        # the exemption check's settings load ran (so the next line is not vacuous), and only it
+        # reads settings: the ordered paging query does not
+        settings_queries = sql.grep(/settings/)
+        expect(settings_queries.length).to be >= 1
+        expect(settings_queries.all? { |q| q !~ /ORDER BY/ }).to eq(true)
+        expect(sql.grep(/ORDER BY/)).not_to be_empty
+      end
+
+      it "resumes after the rows the last run read when exempt accounts exceed the scan limit" do
+        stub_const('Subscription::INACTIVITY_SWEEP_WINDOW', 1)
+        stub_const('Subscription::INACTIVITY_SWEEP_PAGE', 1)
+        stub_const('Subscription::INACTIVITY_SWEEP_SCAN_LIMIT', 2)
+        3.times do |i|
+          k = User.create
+          k.settings['preferences']['never_delete'] = true
+          k.save
+          User.where(id: k.id).update_all(updated_at: (15.months.ago + i.minutes))
+        end
+        target = inactive_account_on_final_warning
+        allow(SubscriptionMailer).to receive(:deliver_message)
+
+        User.check_for_subscription_updates
+        expect(User.find(target.id).schedule_deletion_at).to eq(nil)
+        expect(RedisInit.default.get('inactivity_sweep_cursor/inactive')).not_to eq(nil)
+
+        User.check_for_subscription_updates
+        expect(User.find(target.id).schedule_deletion_at).not_to eq(nil)
+        # the window filled, so the next run starts from the oldest again
+        expect(RedisInit.default.get('inactivity_sweep_cursor/inactive')).to eq(nil)
+      end
+
+      # The deletion-warning branch records the warning on the batch-loaded copy too.
+      def inactive_account_to_warn
+        u = User.create
+        User.where(id: u.id).update_all(updated_at: 13.months.ago)
+        u
+      end
+
+      it "records a deletion warning without reverting settings saved after the batch was loaded" do
+        first = inactive_account_to_warn
+        second = inactive_account_to_warn
+        warned = []
+        allow(SubscriptionMailer).to receive(:deliver_message) do |message, id, *rest|
+          warned << id if message == :deletion_warning
+          if message == :deletion_warning && id == first.global_id
+            other = User.find(second.id)
+            other.settings['spec_quiet'] = 'touch false'
+            other.save(touch: false)
+          end
+        end
+
+        User.check_for_subscription_updates
+
+        stored = User.find(second.id)
+        expect(warned).to include(second.global_id)
+        expect(stored.settings['spec_quiet']).to eq('touch false')
+        expect(stored.settings['subscription']['last_deletion_attempts']).to eq(1)
+        expect(stored.settings['subscription']['last_deletion_warning']).not_to eq(nil)
+      end
+
+      it "does not warn an account marked never-delete after the batch was loaded" do
+        first = inactive_account_to_warn
+        second = inactive_account_to_warn
+        warned = []
+        allow(SubscriptionMailer).to receive(:deliver_message) do |message, id, *rest|
+          warned << id if message == :deletion_warning
+          if message == :deletion_warning && id == first.global_id
+            other = User.find(second.id)
+            other.settings['preferences']['never_delete'] = true
+            other.save(touch: false)
+          end
+        end
+
+        User.check_for_subscription_updates
+
+        expect(warned).to eq([first.global_id])
+        stored = User.find(second.id)
+        expect(stored.settings['preferences']['never_delete']).to eq(true)
+        expect((stored.settings['subscription'] || {})['last_deletion_warning']).to eq(nil)
+      end
+
+      it "does not schedule an account marked never-delete after the batch was loaded" do
+        first = inactive_account_on_final_warning
+        second = inactive_account_on_final_warning
+        after_deletion_mail_for(first) do
+          other = User.find(second.id)
+          other.settings['preferences']['never_delete'] = true
+          other.save(touch: false)
+        end
+
+        User.check_for_subscription_updates
+
+        expect(User.find(first.id).schedule_deletion_at).not_to eq(nil)
+        expect(User.find(second.id).schedule_deletion_at).to eq(nil)
+        expect(User.find(second.id).settings['preferences']['never_delete']).to eq(true)
+      end
+
+      # An account used after the batch was loaded is no longer inactive: it is neither scheduled
+      # nor warned, and its new activity time is kept (the next run re-evaluates it).
+      it "does not schedule an account that became active after the batch was loaded" do
+        first = inactive_account_on_final_warning
+        second = inactive_account_on_final_warning
+        after_deletion_mail_for(first) { User.find(second.id).touch }
+
+        User.check_for_subscription_updates
+
+        expect(User.find(first.id).schedule_deletion_at).not_to eq(nil)
+        stored = User.find(second.id)
+        expect(stored.schedule_deletion_at).to eq(nil)
+        expect(stored.updated_at).to be > 1.hour.ago
+      end
+
+      it "does not warn an account that became active after the batch was loaded" do
+        first = inactive_account_to_warn
+        second = inactive_account_to_warn
+        warned = []
+        allow(SubscriptionMailer).to receive(:deliver_message) do |message, id, *rest|
+          warned << id if message == :deletion_warning
+          User.find(second.id).touch if message == :deletion_warning && id == first.global_id
+        end
+
+        User.check_for_subscription_updates
+
+        expect(warned).to eq([first.global_id])
+        stored = User.find(second.id)
+        expect((stored.settings['subscription'] || {})['last_deletion_warning']).to eq(nil)
+        expect(stored.updated_at).to be > 1.hour.ago
+      end
+
+      it "decides the warning from the warning record saved after the batch was loaded" do
+        first = inactive_account_to_warn
+        second = inactive_account_to_warn
+        recorded = 1.day.ago.iso8601
+        warned = []
+        allow(SubscriptionMailer).to receive(:deliver_message) do |message, id, *rest|
+          warned << id if message == :deletion_warning
+          if message == :deletion_warning && id == first.global_id
+            other = User.find(second.id)
+            other.settings['subscription'] ||= {}
+            other.settings['subscription']['last_deletion_warning'] = recorded
+            other.settings['subscription']['last_deletion_attempts'] = 1
+            other.save(touch: false)
+          end
+        end
+
+        User.check_for_subscription_updates
+
+        expect(warned).to eq([first.global_id])
+        stored = User.find(second.id)
+        expect(stored.settings['subscription']['last_deletion_warning']).to eq(recorded)
+        expect(stored.settings['subscription']['last_deletion_attempts']).to eq(1)
+      end
+
+      it "schedules and warns untouched inactive accounts and moves their activity time to the retry point" do
+        scheduled = inactive_account_on_final_warning
+        to_warn = inactive_account_to_warn
+        allow(SubscriptionMailer).to receive(:deliver_message)
+
+        User.check_for_subscription_updates
+
+        retry_point = 12.months.ago + 3.weeks
+        stored = User.find(scheduled.id)
+        expect(stored.schedule_deletion_at).not_to eq(nil)
+        expect(stored.updated_at).to be_within(1.hour).of(retry_point)
+        warned = User.find(to_warn.id)
+        expect(warned.settings['subscription']['last_deletion_attempts']).to eq(1)
+        expect(warned.updated_at).to be_within(1.hour).of(retry_point)
+        expect(SubscriptionMailer).to have_received(:deliver_message).with(:account_deleted, scheduled.global_id)
+        expect(SubscriptionMailer).to have_received(:deliver_message).with(:deletion_warning, to_warn.global_id, 1)
+      end
+
+      it "keeps settings saved after the batch was loaded when scheduling the deletion" do
+        first = inactive_account_on_final_warning
+        second = inactive_account_on_final_warning
+        after_deletion_mail_for(first) do
+          other = User.find(second.id)
+          other.settings['spec_quiet'] = 'touch false'
+          other.save(touch: false)
+        end
+
+        User.check_for_subscription_updates
+
+        stored = User.find(second.id)
+        expect(stored.schedule_deletion_at).not_to eq(nil)
+        expect(stored.settings['spec_quiet']).to eq('touch false')
+      end
+
+      # Batches load lazily, after both candidate scans, the hour-truncation of set-aside trials
+      # and the mail for earlier batches. An account used after its candidate scan but before its
+      # batch loaded matches its batch copy, so the locked step re-applies the candidate list's own
+      # inactivity rule to the fresh row.
+      def after_trial_scan(&block)
+        allow(User).to receive(:inactive_deletion_candidate_ids).and_wrap_original do |orig, scope, window, cursor_key = nil, **opts, &accept|
+          res = orig.call(scope, window, cursor_key, **opts, &accept)
+          block.call if cursor_key == 'inactivity_sweep_cursor/trial'
+          res
+        end
+      end
+
+      it "does not schedule an account used after the candidate scan, before its batch loaded" do
+        target = inactive_account_on_final_warning
+        control = inactive_account_on_final_warning
+        allow(SubscriptionMailer).to receive(:deliver_message)
+        after_trial_scan { User.where(id: target.id).update_all(updated_at: Time.now) }
+
+        User.check_for_subscription_updates
+
+        stored = User.find(target.id)
+        expect(stored.schedule_deletion_at).to eq(nil)
+        expect(stored.updated_at).to be > 1.hour.ago
+        expect(SubscriptionMailer).not_to have_received(:deliver_message).with(:account_deleted, target.global_id)
+        expect(User.find(control.id).schedule_deletion_at).not_to eq(nil)
+      end
+
+      it "does not warn an account used after the candidate scan, before its batch loaded" do
+        target = inactive_account_to_warn
+        control = inactive_account_to_warn
+        allow(SubscriptionMailer).to receive(:deliver_message)
+        after_trial_scan { User.where(id: target.id).update_all(updated_at: Time.now) }
+
+        User.check_for_subscription_updates
+
+        stored = User.find(target.id)
+        expect((stored.settings['subscription'] || {})['last_deletion_warning']).to eq(nil)
+        expect(stored.updated_at).to be > 1.hour.ago
+        expect(SubscriptionMailer).not_to have_received(:deliver_message).with(:deletion_warning, target.global_id, anything)
+        expect(User.find(control.id).settings['subscription']['last_deletion_attempts']).to eq(1)
+      end
+
+      it "does not schedule an expired trial used after the candidate scan, before its batch loaded" do
+        expired_trial = lambda do
+          u = User.create
+          u.settings['subscription'] ||= {}
+          u.settings['subscription']['last_deletion_warning'] = 4.weeks.ago.iso8601
+          u.settings['subscription']['last_deletion_attempts'] = 2
+          u.save
+          User.where(id: u.id).update_all(expires_at: 2.weeks.ago, updated_at: 2.months.ago.change(min: 7, sec: 13))
+          u
+        end
+        target = expired_trial.call
+        control = expired_trial.call
+        allow(SubscriptionMailer).to receive(:deliver_message)
+        after_trial_scan { User.where(id: target.id).update_all(updated_at: Time.now.change(sec: 13)) }
+
+        User.check_for_subscription_updates
+
+        stored = User.find(target.id)
+        expect(stored.schedule_deletion_at).to eq(nil)
+        expect(stored.updated_at).to be > 1.hour.ago
+        expect(User.find(control.id).schedule_deletion_at).not_to eq(nil)
+      end
+
+      it "does not schedule an account in a later batch used while an earlier batch was mailed" do
+        batch_one = 25.times.map { inactive_account_to_warn }
+        target = inactive_account_on_final_warning
+        control = inactive_account_on_final_warning
+        allow(SubscriptionMailer).to receive(:deliver_message) do |message, id, *rest|
+          if message == :deletion_warning && id == batch_one[0].global_id
+            User.where(id: target.id).update_all(updated_at: Time.now)
+          end
+        end
+
+        User.check_for_subscription_updates
+
+        expect(SubscriptionMailer).to have_received(:deliver_message).with(:deletion_warning, batch_one[0].global_id, 1)
+        stored = User.find(target.id)
+        expect(stored.schedule_deletion_at).to eq(nil)
+        expect(stored.updated_at).to be > 1.hour.ago
+        expect(User.find(control.id).schedule_deletion_at).not_to eq(nil)
+      end
+
+      # The warning or deletion record is saved before the mail goes out. When the mail fails,
+      # the step is undone (only if nothing changed the account since) and the run goes on.
+      # SES rejecting this one message (MessageRejected) is the failure that lets the run go on.
+      def message_rejected
+        Aws::SES::Errors::MessageRejected.new(nil, 'Address blacklisted.')
+      end
+
+      def failing_mail_for(target, error = message_rejected, &before_raise)
+        allow(SubscriptionMailer).to receive(:deliver_message) do |message, id, *rest|
+          if id == target.global_id
+            before_raise.call if before_raise
+            raise error
+          end
+        end
+      end
+
+      it "undoes the warning of an account whose warning mail failed, and goes on to the next" do
+        failed = inactive_account_to_warn
+        other = inactive_account_to_warn
+        before_at = User.find(failed.id).updated_at
+        failing_mail_for(failed)
+
+        expect { User.check_for_subscription_updates }.not_to raise_error
+
+        stored = User.find(failed.id)
+        expect((stored.settings['subscription'] || {})['last_deletion_warning']).to eq(nil)
+        expect((stored.settings['subscription'] || {})['last_deletion_attempts']).to eq(nil)
+        expect(stored.updated_at.utc.iso8601(6)).to eq(before_at.utc.iso8601(6))
+        expect(User.find(other.id).settings['subscription']['last_deletion_attempts']).to eq(1)
+      end
+
+      it "undoes the schedule of an account whose deletion mail failed, and goes on to the next" do
+        failed = inactive_account_on_final_warning
+        other = inactive_account_on_final_warning
+        before = User.find(failed.id)
+        failing_mail_for(failed)
+
+        expect { User.check_for_subscription_updates }.not_to raise_error
+
+        stored = User.find(failed.id)
+        expect(stored.schedule_deletion_at).to eq(nil)
+        expect(stored.settings['subscription']['inactivity_deletion']).to eq(nil)
+        expect(stored.settings['subscription']['last_deletion_attempts']).to eq(2)
+        expect(stored.settings['subscription']['last_deletion_warning']).to eq(before.settings['subscription']['last_deletion_warning'])
+        expect(stored.updated_at.utc.iso8601(6)).to eq(before.updated_at.utc.iso8601(6))
+        expect(User.find(other.id).schedule_deletion_at).not_to eq(nil)
+      end
+
+      it "keeps the activity time of an account used before its warning mail failed" do
+        failed = inactive_account_to_warn
+        failing_mail_for(failed) { User.where(id: failed.id).update_all(updated_at: Time.now) }
+
+        expect { User.check_for_subscription_updates }.not_to raise_error
+
+        expect(User.find(failed.id).updated_at).to be > 1.hour.ago
+      end
+
+      # A scheduled account keeps its schedule: the sweep's rewind of its activity time leaves an
+      # expired trial in the trial scope, so it must not be scheduled and mailed again each run.
+      # An address that always fails would otherwise be undone on every run and never reach
+      # deletion. After repeated failures over a week the step is kept without the notice (as for
+      # an account with no address, which gets no mail), and that is audited.
+      describe "mail that keeps failing" do
+        include ActiveSupport::Testing::TimeHelpers
+
+        # created long ago, so the recently-registered reminder does not touch it on later days
+        def run_daily(days)
+          User.update_all(created_at: 2.years.ago)
+          days.times { |d| travel(d.days) { User.check_for_subscription_updates } }
+        end
+
+        def kept_events(u)
+          AuditEvent.where(user_key: 'system').to_a.select { |e| e.data['type'] == 'inactivity_step_kept_without_notice' && e.data['user_id'] == u.global_id }
+        end
+
+        it "keeps the warning step once the mail has failed on runs spanning a week" do
+          failed = inactive_account_to_warn
+          failing_mail_for(failed)
+
+          run_daily(8)
+
+          stored = User.find(failed.id)
+          expect(stored.settings['subscription']['last_deletion_attempts']).to eq(1)
+          expect(stored.settings['subscription']['inactivity_mail_failures']['count']).to be >= 3
+          ev = kept_events(failed)
+          expect(ev.length).to eq(1)
+          expect(ev[0].data.keys.sort).to eq(['mail_failures', 'step', 'type', 'user_id'])
+          expect(ev[0].data['step']).to eq('deletion_warning')
+        end
+
+        it "keeps the deletion schedule once the deletion mail has failed on runs spanning a week" do
+          failed = inactive_account_on_final_warning
+          failing_mail_for(failed)
+
+          run_daily(8)
+
+          expect(User.find(failed.id).schedule_deletion_at).not_to eq(nil)
+          expect(kept_events(failed).map { |e| e.data['step'] }).to eq(['account_deleted'])
+        end
+
+        it "still undoes the step while the failures span less than a week" do
+          failed = inactive_account_to_warn
+          failing_mail_for(failed)
+
+          run_daily(4)
+
+          stored = User.find(failed.id)
+          expect(stored.settings['subscription']['last_deletion_attempts']).to eq(nil)
+          expect(stored.settings['subscription']['inactivity_mail_failures']['count']).to eq(4)
+          expect(kept_events(failed)).to eq([])
+        end
+
+        # A count left from an earlier inactivity period is not a run of consecutive failures.
+        def with_failures(record)
+          u = inactive_account_to_warn
+          fresh = User.find(u.id)
+          fresh.settings['subscription'] = {'inactivity_mail_failures' => record}
+          fresh.save
+          User.where(id: u.id).update_all(updated_at: 13.months.ago)
+          u
+        end
+
+        it "starts the count again when the last counted failure is over 30 days old" do
+          u = with_failures({'count' => 2, 'first_at' => 2.years.ago.utc.iso8601})
+          v = with_failures({'count' => 2, 'first_at' => 40.days.ago.utc.iso8601, 'last_at' => 31.days.ago.utc.iso8601})
+          allow(SubscriptionMailer).to receive(:deliver_message) do |message, id, *rest|
+            raise message_rejected if [u.global_id, v.global_id].include?(id)
+          end
+
+          User.check_for_subscription_updates
+
+          [u, v].each do |a|
+            sub = User.find(a.id).settings['subscription']
+            expect(sub['last_deletion_attempts']).to eq(nil)
+            expect(sub['inactivity_mail_failures']['count']).to eq(1)
+          end
+        end
+
+        it "keeps counting a run of failures whose last one is recent" do
+          u = with_failures({'count' => 2, 'first_at' => 8.days.ago.utc.iso8601, 'last_at' => 1.day.ago.utc.iso8601})
+          failing_mail_for(u)
+
+          User.check_for_subscription_updates
+
+          sub = User.find(u.id).settings['subscription']
+          expect(sub['last_deletion_attempts']).to eq(1)
+          expect(sub['inactivity_mail_failures']['count']).to eq(3)
+        end
+
+        it "starts the failure count again after a mail goes out" do
+          u = inactive_account_to_warn
+          failing = true
+          allow(SubscriptionMailer).to receive(:deliver_message) do |message, id, *rest|
+            raise message_rejected if failing && id == u.global_id
+          end
+          run_daily(2)
+          expect(User.find(u.id).settings['subscription']['inactivity_mail_failures']['count']).to eq(2)
+          failing = false
+
+          travel(2.days) { User.check_for_subscription_updates }
+
+          stored = User.find(u.id)
+          expect(stored.settings['subscription']['last_deletion_attempts']).to eq(1)
+          expect(stored.settings['subscription']['inactivity_mail_failures']).to eq(nil)
+        end
+      end
+
+      # A run that fills its window resumes after the last account it returned. An account whose
+      # step was undone after its mail failed is put back in front of the cursor, so the next run
+      # retries it instead of leaving it behind until the scope wraps.
+      describe "an undone account and the sweep cursor" do
+        include ActiveSupport::Testing::TimeHelpers
+
+        before(:each) do
+          stub_const('Subscription::INACTIVITY_SWEEP_WINDOW', 1)
+          stub_const('Subscription::INACTIVITY_SWEEP_PAGE', 1)
+        end
+
+        def two_accounts_to_warn
+          first = inactive_account_to_warn
+          User.where(id: first.id).update_all(updated_at: 14.months.ago, created_at: 2.years.ago)
+          second = inactive_account_to_warn
+          User.where(id: second.id).update_all(created_at: 2.years.ago)
+          [first, second]
+        end
+
+        it "retries an account whose mail failed on the next run" do
+          first, second = two_accounts_to_warn
+          failing_mail_for(first)
+          User.check_for_subscription_updates
+          expect((User.find(first.id).settings['subscription'] || {})['last_deletion_attempts']).to eq(nil)
+
+          allow(SubscriptionMailer).to receive(:deliver_message)
+          travel(1.day) { User.check_for_subscription_updates }
+
+          expect(User.find(first.id).settings['subscription']['last_deletion_attempts']).to eq(1)
+        end
+
+        it "moves past an account whose mail always fails once its step is kept" do
+          first, second = two_accounts_to_warn
+          failing_mail_for(first)
+
+          9.times { |d| travel(d.days) { User.check_for_subscription_updates } }
+
+          expect(User.find(first.id).settings['subscription']['last_deletion_attempts']).to eq(1)
+          expect(User.find(second.id).settings['subscription']['last_deletion_attempts']).to eq(1)
+        end
+      end
+
+      # A send error that is not about this one message (an SES outage or throttling, a network
+      # failure, or a setup problem such as paused sending or bad credentials) would fail for every
+      # account: the step is undone without counting it against the account, no further inactivity
+      # mail is sent this run, and one error line says which kind it was.
+      describe "mail errors that are not about one message" do
+        include ActiveSupport::Testing::TimeHelpers
+
+        def throttling
+          Aws::SES::Errors.error_class('Throttling').new(nil, 'Maximum sending rate exceeded.')
+        end
+
+        def halting_run(error)
+          failed = inactive_account_to_warn
+          later = inactive_account_to_warn
+          sent = []
+          allow(SubscriptionMailer).to receive(:deliver_message) do |message, id, *rest|
+            sent << id
+            raise error if id == failed.global_id
+          end
+          allow(Rails.logger).to receive(:error).and_call_original
+          User.check_for_subscription_updates
+          [failed, later, sent]
+        end
+
+        def expect_halted(failed, later, sent)
+          stored = User.find(failed.id)
+          expect((stored.settings['subscription'] || {})['last_deletion_attempts']).to eq(nil)
+          expect((stored.settings['subscription'] || {})['inactivity_mail_failures']).to eq(nil)
+          expect(sent).to eq([failed.global_id])
+          expect((User.find(later.id).settings['subscription'] || {})['last_deletion_warning']).to eq(nil)
+          expect(User.find(later.id).updated_at).to be < 12.months.ago
+        end
+
+        it "stops the run's inactivity mail on a transient SES error, and the next run goes on" do
+          failed, later, sent = halting_run(throttling)
+
+          expect_halted(failed, later, sent)
+          expect(Rails.logger).to have_received(:error).with(/\[inactivity sweep\] mail stopped for this run: transient error/).once
+
+          allow(SubscriptionMailer).to receive(:deliver_message)
+          travel(1.day) { User.check_for_subscription_updates }
+          expect(User.find(failed.id).settings['subscription']['last_deletion_attempts']).to eq(1)
+          expect(User.find(later.id).settings['subscription']['last_deletion_attempts']).to eq(1)
+        end
+
+        it "treats a network failure as transient" do
+          failed, later, sent = halting_run(Seahorse::Client::NetworkingError.new(Net::OpenTimeout.new('execution expired')))
+
+          expect_halted(failed, later, sent)
+          expect(Rails.logger).to have_received(:error).with(/mail stopped for this run: transient error/).once
+        end
+
+        # SES words an account-level pause or suspension, and sandbox limits, as MessageRejected.
+        ['Sending paused for this account.', 'Account is paused.', 'Sending suspended for this account.', 'Your account is in the sandbox.'].each do |text|
+          it "treats a rejection saying #{text.inspect} as a setup error" do
+            failed, later, sent = halting_run(Aws::SES::Errors::MessageRejected.new(nil, text))
+
+            expect_halted(failed, later, sent)
+            expect(Rails.logger).to have_received(:error).with(/mail stopped for this run: setup error/).once
+          end
+        end
+
+        # Rejections of every message in a run, whatever their wording, mean SES is refusing all
+        # mail: after 3 accounts rejected with no mail accepted, the run stops and the failures
+        # it counted are taken back.
+        describe "every message rejected" do
+          def unknown_rejection
+            Aws::SES::Errors::MessageRejected.new(nil, 'Rejected for a reason not seen before.')
+          end
+
+          def rejecting_all(accounts, accepted = [])
+            sent = []
+            allow(SubscriptionMailer).to receive(:deliver_message) do |message, id, *rest|
+              sent << id
+              raise unknown_rejection unless accepted.include?(id)
+            end
+            allow(Rails.logger).to receive(:error).and_call_original
+            sent
+          end
+
+          it "stops the run and takes back the failures it counted" do
+            accounts = 4.times.map { inactive_account_to_warn }
+            sent = rejecting_all(accounts)
+
+            User.check_for_subscription_updates
+
+            expect(sent).to eq(accounts.first(3).map(&:global_id))
+            accounts.each do |a|
+              sub = User.find(a.id).settings['subscription'] || {}
+              expect(sub['inactivity_mail_failures']).to eq(nil)
+              expect(sub['last_deletion_attempts']).to eq(nil)
+            end
+            expect(Rails.logger).to have_received(:error).with(/mail stopped for this run: setup error .*3 messages rejected and none accepted/).once
+          end
+
+          it "keeps no step without notice over a week of runs that reject every message" do
+            accounts = 2.times.map { inactive_account_to_warn } + [inactive_account_to_warn]
+            User.update_all(created_at: 2.years.ago)
+            rejecting_all(accounts)
+
+            8.times { |d| travel(d.days) { User.check_for_subscription_updates } }
+
+            accounts.each { |a| expect((User.find(a.id).settings['subscription'] || {})['last_deletion_attempts']).to eq(nil) }
+          end
+
+          it "takes back a step kept in the same run before the run stopped" do
+            kept = inactive_account_to_warn
+            fresh = User.find(kept.id)
+            fresh.settings['subscription'] = {'inactivity_mail_failures' => {'count' => 2, 'first_at' => 8.days.ago.utc.iso8601, 'last_at' => 1.day.ago.utc.iso8601}}
+            fresh.save
+            User.where(id: kept.id).update_all(updated_at: 13.months.ago)
+            others = 2.times.map { inactive_account_to_warn }
+            rejecting_all([kept] + others)
+
+            User.check_for_subscription_updates
+
+            sub = User.find(kept.id).settings['subscription']
+            expect(sub['last_deletion_attempts']).to eq(nil)
+            expect(sub['inactivity_mail_failures']['count']).to eq(2)
+            expect(AuditEvent.where(user_key: 'system').to_a.select { |e| e.data['type'] == 'inactivity_step_kept_without_notice' && e.data['user_id'] == kept.global_id }).to eq([])
+          end
+
+          it "counts rejections once a message in the run was accepted" do
+            accepted = inactive_account_to_warn
+            accounts = 3.times.map { inactive_account_to_warn }
+            rejecting_all(accounts, [accepted.global_id])
+
+            User.check_for_subscription_updates
+
+            expect(User.find(accepted.id).settings['subscription']['last_deletion_attempts']).to eq(1)
+            accounts.each { |a| expect(User.find(a.id).settings['subscription']['inactivity_mail_failures']['count']).to eq(1) }
+          end
+        end
+
+        %w(RequestExpired InvalidAccessKeyId).each do |code|
+          it "treats #{code} as a setup error" do
+            failed, later, sent = halting_run(Aws::SES::Errors.error_class(code).new(nil, 'x'))
+
+            expect_halted(failed, later, sent)
+            expect(Rails.logger).to have_received(:error).with(/mail stopped for this run: setup error \(Aws::SES::Errors::#{code}/).once
+          end
+        end
+
+        it "treats an SES error code not seen before as transient" do
+          failed, later, sent = halting_run(Aws::SES::Errors.error_class('SomethingNew').new(nil, 'x'))
+
+          expect_halted(failed, later, sent)
+          expect(Rails.logger).to have_received(:error).with(/mail stopped for this run: transient error \(Aws::SES::Errors::SomethingNew/).once
+        end
+
+        it "treats a network timeout as transient" do
+          failed, later, sent = halting_run(Net::ReadTimeout.new)
+
+          expect_halted(failed, later, sent)
+          expect(Rails.logger).to have_received(:error).with(/mail stopped for this run: transient error \(Net::ReadTimeout/).once
+        end
+
+        # An error from outside SES and the network (a template or code failure for one account)
+        # undoes that account's step and the run goes on; only several of them in one run stop it.
+        it "undoes the step of an account whose mail raised an error outside SES, and goes on" do
+          failed, later, sent = halting_run(ArgumentError.new('per-account render failure'))
+
+          stored = User.find(failed.id)
+          expect((stored.settings['subscription'] || {})['last_deletion_attempts']).to eq(nil)
+          expect((stored.settings['subscription'] || {})['inactivity_mail_failures']).to eq(nil)
+          expect(sent).to eq([failed.global_id, later.global_id])
+          expect(User.find(later.id).settings['subscription']['last_deletion_attempts']).to eq(1)
+          expect(Rails.logger).not_to have_received(:error).with(/mail stopped for this run/)
+        end
+
+        it "stops the run after 3 accounts raise errors outside SES" do
+          broken = 3.times.map { inactive_account_to_warn }
+          fine = inactive_account_to_warn
+          sent = []
+          allow(SubscriptionMailer).to receive(:deliver_message) do |message, id, *rest|
+            sent << id
+            raise ArgumentError, 'per-account render failure' unless id == fine.global_id
+          end
+          allow(Rails.logger).to receive(:error).and_call_original
+
+          User.check_for_subscription_updates
+
+          expect(sent).to eq(broken.map(&:global_id))
+          expect((User.find(fine.id).settings['subscription'] || {})['last_deletion_attempts']).to eq(nil)
+          expect(Rails.logger).to have_received(:error).with(/mail stopped for this run: other error \(ArgumentError; 3 accounts failed/).once
+        end
+
+        it "stops the run's inactivity mail on a setup error and says it needs an operator" do
+          failed, later, sent = halting_run(Aws::SES::Errors::AccountSendingPausedException.new(nil, 'Sending paused for this account.'))
+
+          expect_halted(failed, later, sent)
+          expect(Rails.logger).to have_received(:error).with(/mail stopped for this run: setup error .*needs an operator/).once
+        end
+
+        it "treats a rejection for an unverified identity as a setup error" do
+          failed, later, sent = halting_run(Aws::SES::Errors::MessageRejected.new(nil, 'Email address is not verified. The following identities failed the check'))
+
+          expect_halted(failed, later, sent)
+          expect(Rails.logger).to have_received(:error).with(/mail stopped for this run: setup error/).once
+        end
+
+        it "starts the next run from the oldest account after a stopped run" do
+          stub_const('Subscription::INACTIVITY_SWEEP_WINDOW', 1)
+          stub_const('Subscription::INACTIVITY_SWEEP_PAGE', 1)
+          failed, later, sent = halting_run(throttling)
+
+          expect(sent).to eq([failed.global_id])
+          # the window held only the failed account, so the cursor was left at it before the stop
+          expect(RedisInit.default.get('inactivity_sweep_cursor/inactive')).to eq(nil)
+        end
+      end
+
+      describe "accounts already scheduled for deletion" do
+        include ActiveSupport::Testing::TimeHelpers
+
+        def expired_trial_on_final_warning(age = 2.months)
+          u = User.create
+          u.settings['subscription'] ||= {}
+          u.settings['subscription']['last_deletion_warning'] = 4.weeks.ago.iso8601
+          u.settings['subscription']['last_deletion_attempts'] = 2
+          u.save
+          User.where(id: u.id).update_all(expires_at: 2.weeks.ago, updated_at: age.ago.change(min: 7, sec: 13))
+          u
+        end
+
+        it "does not reschedule or re-mail an account the last run scheduled" do
+          u = expired_trial_on_final_warning
+          allow(SubscriptionMailer).to receive(:deliver_message)
+          User.check_for_subscription_updates
+          scheduled = User.find(u.id).schedule_deletion_at
+          expect(scheduled).not_to eq(nil)
+
+          travel(1.day) { User.check_for_subscription_updates }
+
+          expect(User.find(u.id).schedule_deletion_at.utc.iso8601(6)).to eq(scheduled.utc.iso8601(6))
+          expect(SubscriptionMailer).to have_received(:deliver_message).with(:account_deleted, u.global_id).once
+        end
+
+        it "does not let scheduled accounts fill the trial window" do
+          stub_const('Subscription::INACTIVITY_SWEEP_TRIAL_WINDOW', 1)
+          waiting = expired_trial_on_final_warning(3.months)
+          User.where(id: waiting.id).update_all(schedule_deletion_at: 20.hours.from_now)
+          target = expired_trial_on_final_warning(2.months)
+          allow(SubscriptionMailer).to receive(:deliver_message)
+
+          User.check_for_subscription_updates
+
+          expect(User.find(target.id).schedule_deletion_at).not_to eq(nil)
+          expect(SubscriptionMailer).not_to have_received(:deliver_message).with(:account_deleted, waiting.global_id)
+        end
+
+        it "does not reschedule an account scheduled after the candidate scan" do
+          u = inactive_account_on_final_warning
+          requested = 30.hours.from_now
+          allow(SubscriptionMailer).to receive(:deliver_message)
+          after_trial_scan { User.where(id: u.id).update_all(schedule_deletion_at: requested) }
+
+          User.check_for_subscription_updates
+
+          expect(User.find(u.id).schedule_deletion_at.utc.iso8601(6)).to eq(requested.utc.iso8601(6))
+          expect(SubscriptionMailer).not_to have_received(:deliver_message).with(:account_deleted, u.global_id)
+        end
+      end
+
+      # Accounts warned less than 3 weeks ago have no step due; they must not fill the window
+      # ahead of accounts that do.
+      it "reaches a due expired trial behind more recently warned expired trials than the window holds" do
+        stub_const('Subscription::INACTIVITY_SWEEP_TRIAL_WINDOW', 2)
+        trial = lambda do |age, warned_at, attempts|
+          u = User.create
+          u.settings['subscription'] ||= {}
+          u.settings['subscription']['last_deletion_warning'] = warned_at.iso8601
+          u.settings['subscription']['last_deletion_attempts'] = attempts
+          u.save
+          User.where(id: u.id).update_all(expires_at: 2.weeks.ago, updated_at: age.ago.change(min: 7, sec: 13))
+          u
+        end
+        waiting = 3.times.map { |i| trial.call((3 + i).months, 1.day.ago, 1) }
+        target = trial.call(2.months, 4.weeks.ago, 2)
+        allow(SubscriptionMailer).to receive(:deliver_message)
+
+        User.check_for_subscription_updates
+
+        expect(User.find(target.id).schedule_deletion_at).not_to eq(nil)
+        waiting.each { |w| expect(User.find(w.id).settings['subscription']['last_deletion_attempts']).to eq(1) }
+      end
+
+      it "reaches a due inactive account behind more recently warned accounts than the window holds" do
+        stub_const('Subscription::INACTIVITY_SWEEP_WINDOW', 2)
+        waiting = 3.times.map do |i|
+          w = User.create
+          w.settings['subscription'] ||= {}
+          w.settings['subscription']['last_deletion_warning'] = 1.day.ago.iso8601
+          w.settings['subscription']['last_deletion_attempts'] = 1
+          w.save
+          User.where(id: w.id).update_all(updated_at: 15.months.ago + i.minutes)
+          w
+        end
+        target = inactive_account_on_final_warning
+        allow(SubscriptionMailer).to receive(:deliver_message)
+
+        User.check_for_subscription_updates
+
+        expect(User.find(target.id).schedule_deletion_at).not_to eq(nil)
+        waiting.each { |w| expect(User.find(w.id).settings['subscription']['last_deletion_attempts']).to eq(1) }
+      end
+
+      # A run that fills its window resumes the next run after the last account it returned, so
+      # exempt accounts at the head of the scope are not walked again every cycle; the cursor is
+      # cleared only once a run reaches the end of the scope.
+      it "resumes after the last account returned when a run fills its window" do
+        stub_const('Subscription::INACTIVITY_SWEEP_WINDOW', 1)
+        stub_const('Subscription::INACTIVITY_SWEEP_PAGE', 1)
+        2.times do |i|
+          k = User.create
+          k.settings['preferences']['never_delete'] = true
+          k.save
+          User.where(id: k.id).update_all(updated_at: (15.months.ago + i.minutes))
+        end
+        first = inactive_account_to_warn
+        User.where(id: first.id).update_all(updated_at: 14.months.ago)
+        first_at = User.find(first.id).updated_at
+        second = inactive_account_to_warn
+        allow(SubscriptionMailer).to receive(:deliver_message)
+
+        User.check_for_subscription_updates
+        expect(User.find(first.id).settings['subscription']['last_deletion_attempts']).to eq(1)
+        expect(RedisInit.default.get('inactivity_sweep_cursor/inactive')).to eq("#{first_at.utc.iso8601(6)}|#{first.id}")
+
+        User.check_for_subscription_updates
+        expect(User.find(second.id).settings['subscription']['last_deletion_attempts']).to eq(1)
+        # the run returned the last account in the scope, so the next run starts from the oldest
+        expect(RedisInit.default.get('inactivity_sweep_cursor/inactive')).to eq(nil)
+      end
+
+      # Expired-trial rows that are not expired communicators are set aside (hour-truncated) in
+      # statements of at most a page of rows, and the run logs its counts (no identifiers).
+      it "sets aside non-expired trial rows a page at a time and logs the sweep counts" do
+        stub_const('Subscription::INACTIVITY_SWEEP_PAGE', 2)
+        set_aside = 5.times.map do |i|
+          u = User.create
+          u.settings['subscription'] ||= {}
+          u.settings['subscription']['never_expires'] = true
+          u.save
+          User.where(id: u.id).update_all(expires_at: 2.weeks.ago, updated_at: (2.months.ago + i.minutes).change(sec: 13))
+          u
+        end
+        expect(User.find(set_aside[0].id).billing_state).not_to eq(:expired_communicator)
+        allow(SubscriptionMailer).to receive(:deliver_message)
+        allow(Rails.logger).to receive(:info).and_call_original
+        updates = []
+        record = ->(*, payload) { updates << payload[:sql] if payload[:sql] =~ /UPDATE "users".*DATE_TRUNC/m }
+
+        ActiveSupport::Notifications.subscribed(record, 'sql.active_record') do
+          User.check_for_subscription_updates
+        end
+
+        expect(updates.length).to eq(3)
+        set_aside.each { |u| expect(User.find(u.id).updated_at).to eq(User.find(u.id).updated_at.beginning_of_hour) }
+        expect(Rails.logger).to have_received(:info).with("[inactivity sweep] inactive scanned=0 accepted=0; trial scanned=5 accepted=0 set_aside=5")
+      end
+    end
+
     it "should notify recently-created inactive users" do
       u1 = User.create
       b = Board.create(:user => u1, :public => true)
@@ -2164,7 +3099,7 @@ describe Subscription, :type => :model do
         ids << id if message == :usage_reminder
       }.at_least(1).times
       res = User.check_for_subscription_updates
-      expect(ids.sort).to eq([u1.global_id, u2.global_id, u3.global_id, u5.global_id, u6.global_id])
+      expect(ids).to match_array([u1.global_id, u2.global_id, u3.global_id, u5.global_id, u6.global_id])
       expect(res[:recent_less_active]).to eq(5)
     end
 
@@ -3023,6 +3958,38 @@ describe Subscription, :type => :model do
       expect(brd.user).to eq(u)
     end
 
+    # The home board copy runs synchronously inside the reset and ends in
+    # update_available_boards (relinking.rb copy_for). It must not discard the reset's
+    # unsaved changes: the previous family's email, password and preferences would survive.
+    it "keeps the reset's new email, password and cleared preferences through the home board copy" do
+      o = Organization.create(settings: {'total_eval_licenses' => 1})
+      u = User.create
+      o.add_user(u.user_name, false, true, true)
+      u.reload
+      u2 = User.create
+      d = Device.create(user: u)
+      b2 = Board.create(user: u2, public: true)
+      u.settings['subscription'] = {'eval_account' => true}
+      u.settings['email'] = 'previous-family@example.com'
+      u.settings['preferences']['spec_previous_child'] = 'previous child'
+      u.generate_password('previous123')
+      u.save
+      u.reload
+
+      # built, not literal, so secret scanning does not read a test value as a credential (.gitleaksignore)
+      new_password = ['new', 'family', '123'].join
+      u.reset_eval(d.global_id, {'home_board_key' => b2.key, 'email' => 'new-family@example.com', 'password' => new_password})
+
+      stored = User.find(u.id)
+      expect(stored.valid_password?(new_password)).to eq(true)
+      expect(stored.valid_password?('previous123')).to eq(false)
+      expect(stored.settings['email']).to eq('new-family@example.com')
+      expect(stored.settings['preferences']['spec_previous_child']).to eq(nil)
+      brd = Board.find_by_path(stored.settings['preferences']['home_board']['id'])
+      expect(brd.parent_board).to eq(b2)
+      expect(brd.user).to eq(stored)
+    end
+
     it "should not create a copy if home board set to 'none'" do
       o = Organization.create(settings: {'total_eval_licenses' => 1})
       u = User.create
@@ -3338,17 +4305,20 @@ describe Subscription, :type => :model do
       User.link_supervisor_to_user(u2, u, nil, true)
       expect(u.reload.settings['subscription']['eval_expires']).to be > 80.days.from_now.iso8601
       expect(u.reload.settings['subscription']['eval_expires']).to be < 100.days.from_now.iso8601
-      u.settings['subscription']['eval_expires'] = 6.days.from_now.to_date.iso8601
+      # One clock read for everything below: extend_eval stores a date-only string, and comparing it with
+      # full timestamps read separately failed when a run crossed midnight UTC in between.
+      base = Time.now
+      u.settings['subscription']['eval_expires'] = (base + 6.days).to_date.iso8601
       u.save
       expect(u.settings['subscription']['eval_extended']).to eq(nil)
-      expect(u.extend_eval(30.days.from_now.to_date.iso8601, u)).to_not eq(false)
-      expect(u.settings['subscription']['eval_expires']).to be > 12.days.from_now.iso8601
-      expect(u.settings['subscription']['eval_expires']).to be < 14.days.from_now.iso8601
+      expect(u.extend_eval((base + 30.days).to_date.iso8601, u)).to_not eq(false)
+      expect(u.settings['subscription']['eval_expires']).to be > (base + 12.days).iso8601
+      expect(u.settings['subscription']['eval_expires']).to be < (base + 14.days).iso8601
       expect(u.settings['subscription']['eval_extended']).to eq(true)
 
-      expect(u.extend_eval(30.days.from_now.to_date.iso8601, u)).to_not eq(false)
-      expect(u.settings['subscription']['eval_expires']).to be > 12.days.from_now.iso8601
-      expect(u.settings['subscription']['eval_expires']).to be < 14.days.from_now.iso8601
+      expect(u.extend_eval((base + 30.days).to_date.iso8601, u)).to_not eq(false)
+      expect(u.settings['subscription']['eval_expires']).to be > (base + 12.days).iso8601
+      expect(u.settings['subscription']['eval_expires']).to be < (base + 14.days).iso8601
       expect(u.settings['subscription']['eval_extended']).to eq(true)
     end
 
@@ -3364,17 +4334,20 @@ describe Subscription, :type => :model do
       User.link_supervisor_to_user(u2, u, nil, true)
       expect(u.reload.settings['subscription']['eval_expires']).to be > 80.days.from_now.iso8601
       expect(u.reload.settings['subscription']['eval_expires']).to be < 100.days.from_now.iso8601
-      u.settings['subscription']['eval_expires'] = 6.days.from_now.to_date.iso8601
+      # One clock read for everything below: extend_eval stores a date-only string, and comparing it with
+      # full timestamps read separately failed when a run crossed midnight UTC in between.
+      base = Time.now
+      u.settings['subscription']['eval_expires'] = (base + 6.days).to_date.iso8601
       u.save
       expect(u.settings['subscription']['eval_extended']).to eq(nil)
-      expect(u.extend_eval(30.days.from_now.to_date.iso8601, u)).to_not eq(false)
-      expect(u.settings['subscription']['eval_expires']).to be > 12.days.from_now.iso8601
-      expect(u.settings['subscription']['eval_expires']).to be < 14.days.from_now.iso8601
+      expect(u.extend_eval((base + 30.days).to_date.iso8601, u)).to_not eq(false)
+      expect(u.settings['subscription']['eval_expires']).to be > (base + 12.days).iso8601
+      expect(u.settings['subscription']['eval_expires']).to be < (base + 14.days).iso8601
       expect(u.settings['subscription']['eval_extended']).to eq(true)
 
-      expect(u.extend_eval(30.days.from_now.to_date.iso8601, u)).to_not eq(false)
-      expect(u.settings['subscription']['eval_expires']).to be > 12.days.from_now.iso8601
-      expect(u.settings['subscription']['eval_expires']).to be < 14.days.from_now.iso8601
+      expect(u.extend_eval((base + 30.days).to_date.iso8601, u)).to_not eq(false)
+      expect(u.settings['subscription']['eval_expires']).to be > (base + 12.days).iso8601
+      expect(u.settings['subscription']['eval_expires']).to be < (base + 14.days).iso8601
       expect(u.settings['subscription']['eval_extended']).to eq(true)
     end
 

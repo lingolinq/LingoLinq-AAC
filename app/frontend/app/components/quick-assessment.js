@@ -170,7 +170,7 @@ export default Component.extend({
           modal.error(msg);
         });
       } else {
-        stashes.log_event(assessment, this.get('model.user.id'));
+        stashes.log_event({assessment: assessment, goal_id: this.get('goal_id')}, this.get('model.user.id'));
         stashes.push_log(true);
         modal.close();
       }

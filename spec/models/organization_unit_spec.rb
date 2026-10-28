@@ -260,7 +260,7 @@ describe OrganizationUnit, :type => :model do
       u2 = User.create
       o.add_user(u2.global_id, false, false)
       expect(ou.add_communicator(u2.global_id)).to eq(true)
-      expect(ou.reload.all_user_ids.sort).to eq([u1.global_id, u2.global_id])
+      expect(ou.reload.all_user_ids).to match_array([u1.global_id, u2.global_id])
     end
   end
   
@@ -604,6 +604,7 @@ describe OrganizationUnit, :type => :model do
       expect(ou.add_supervisor(u3.user_name)).to eq(true)
       expect(ou.add_supervisor(u4.user_name)).to eq(true)
       ou.assert_supervision!
+      ou.remove_supervisor(u4.user_name)
 
       expect(User).to receive(:unlink_supervisor_from_user).with(u4, u1, ou.global_id)
       expect(User).to receive(:unlink_supervisor_from_user).with(u4, u2, ou.global_id)
@@ -676,6 +677,7 @@ describe OrganizationUnit, :type => :model do
       expect(ou.add_supervisor(u3.user_name)).to eq(true)
       expect(ou.add_supervisor(u4.user_name)).to eq(true)
       ou.assert_supervision!
+      ou.remove_communicator(u1.user_name)
 
       expect(User).to receive(:unlink_supervisor_from_user).with(u4, u1, ou.global_id)
       expect(User).to receive(:unlink_supervisor_from_user).with(u3, u1, ou.global_id)
@@ -702,6 +704,7 @@ describe OrganizationUnit, :type => :model do
       expect(ou.add_supervisor(u3.user_name)).to eq(true)
       expect(ou.add_supervisor(u4.user_name)).to eq(true)
       ou.assert_supervision!
+      ou.remove_communicator(u1.user_name)
 
       expect(User).to receive(:unlink_supervisor_from_user).with(u4, u1, ou.global_id)
       expect(User).to receive(:unlink_supervisor_from_user).with(u3, u1, ou.global_id)
@@ -729,6 +732,7 @@ describe OrganizationUnit, :type => :model do
       expect(ou.add_supervisor(u3.user_name)).to eq(true)
       expect(ou.add_supervisor(u4.user_name)).to eq(true)
       ou.assert_supervision!
+      ou.remove_supervisor(u4.user_name)
 
       expect(User).to receive(:unlink_supervisor_from_user).with(u4, u1, ou.global_id)
       expect(User).to receive(:unlink_supervisor_from_user).with(u4, u2, ou.global_id)
@@ -897,7 +901,7 @@ describe OrganizationUnit, :type => :model do
       ou.save
       ou.assert_goal
       expect(ou.settings['goal_assertions'][g.global_id]).to_not eq(nil)
-      expect(ou.settings['goal_assertions'][g.global_id]['user_ids'].sort).to eq([c1.global_id, c2.global_id])
+      expect(ou.settings['goal_assertions'][g.global_id]['user_ids']).to match_array([c1.global_id, c2.global_id])
       expect(g.active).to eq(true)
 
       ou.settings['goal_assertions']['removed_goal_id'] = g.global_id
@@ -930,7 +934,7 @@ describe OrganizationUnit, :type => :model do
       ou.save
       ou.assert_goal
       expect(ou.settings['goal_assertions'][g.global_id]).to_not eq(nil)
-      expect(ou.settings['goal_assertions'][g.global_id]['user_ids'].sort).to eq([c1.global_id, c2.global_id])
+      expect(ou.settings['goal_assertions'][g.global_id]['user_ids']).to match_array([c1.global_id, c2.global_id])
       expect(g.reload.active).to eq(true)
       expect(g.children_goals.length).to eq(2)
       expect(g.children_goals.sort_by(&:user_id)[0].active).to eq(true)
@@ -967,7 +971,7 @@ describe OrganizationUnit, :type => :model do
       ou.save
       ou.assert_goal
       expect(ou.settings['goal_assertions'][g.global_id]).to_not eq(nil)
-      expect(ou.settings['goal_assertions'][g.global_id]['user_ids'].sort).to eq([c1.global_id, c2.global_id])
+      expect(ou.settings['goal_assertions'][g.global_id]['user_ids']).to match_array([c1.global_id, c2.global_id])
       expect(g.reload.active).to eq(true)
       expect(g.children_goals.length).to eq(1)
       expect(g.children_goals.sort_by(&:user_id)[0].user).to eq(c2)
@@ -999,7 +1003,7 @@ describe OrganizationUnit, :type => :model do
       ou.save
       ou.assert_goal
       expect(ou.settings['goal_assertions'][g.global_id]).to_not eq(nil)
-      expect(ou.settings['goal_assertions'][g.global_id]['user_ids'].sort).to eq([c1.global_id, c2.global_id])
+      expect(ou.settings['goal_assertions'][g.global_id]['user_ids']).to match_array([c1.global_id, c2.global_id])
       expect(g.reload.active).to eq(true)
       expect(g.children_goals.length).to eq(2)
       expect(g.children_goals.sort_by(&:user_id)[0].user).to eq(c1)
@@ -1027,6 +1031,384 @@ describe OrganizationUnit, :type => :model do
       expect(g.children_goals.sort_by(&:user_id)[0].settings['template_id']).to eq(g.global_id)
       expect(g.children_goals.sort_by(&:user_id)[0].settings['organization_unit_id']).to eq(ou.global_id)
       expect(UserGoal.find_by(id: gc2)).to eq(nil)
+    end
+  end
+
+  # Deleting a room takes it off the supervision links it made (OrganizationUnit.clean_up_destroyed);
+  # the work runs in a job, so it is retried from a durable row until the job completes.
+  describe "destroy" do
+    def room_with_members
+      o = Organization.create
+      ou = OrganizationUnit.create(:organization => o)
+      sup = User.create
+      comm = User.create
+      o.add_supervisor(sup.user_name, false)
+      o.add_user(comm.user_name, false, false)
+      ou.add_supervisor(sup.user_name)
+      ou.add_communicator(comm.user_name)
+      Worker.process_queues
+      [o, ou, sup, comm]
+    end
+
+    it "removes the room's supervision links, retrying from its row when the job is lost" do
+      o, ou, sup, comm = room_with_members
+      expect(User.find(comm.id).supervisor_user_ids).to include(sup.global_id)
+
+      OrganizationUnit.find(ou.id).destroy
+      row = RemoteAction.where(action: 'clean_up_destroyed_unit', path: ou.global_id)
+      expect(row.count).to eq(1)
+      Worker.flush_queues
+      expect(User.find(comm.id).supervisor_user_ids).to include(sup.global_id)
+
+      Worker.process_queues
+      Worker.process_queues
+
+      expect(User.find(comm.id).supervisor_user_ids).not_to include(sup.global_id)
+      expect(row.count).to eq(0)
+      expect(UserLink.where(record_code: "OrganizationUnit:#{ou.global_id}").count).to eq(0)
+    end
+
+    it "keeps the room's links and its row when a removal cannot be recorded" do
+      o, ou, sup, comm = room_with_members
+      OrganizationUnit.find(ou.id).destroy
+      Worker.flush_queues
+      allow(Rails.logger).to receive(:error)
+      allow_any_instance_of(AuditEvent).to receive(:save!).and_raise(ActiveRecord::StatementInvalid.new('audit insert failed'))
+
+      expect { OrganizationUnit.clean_up_destroyed(ou.global_id) }.to raise_error(ActiveRecord::StatementInvalid)
+
+      expect(User.find(comm.id).supervisor_user_ids).to include(sup.global_id)
+      expect(RemoteAction.where(action: 'clean_up_destroyed_unit', path: ou.global_id).count).to eq(1)
+      expect(UserLink.where(record_code: "OrganizationUnit:#{ou.global_id}").count).to eq(2)
+    end
+  end
+
+  # Taking a member out of a room removes the room link at once and the pair's supervision in a
+  # job; the job is backed by a row (room_member_removal) kept until it completes.
+  describe "member removal" do
+    def room_members
+      o = Organization.create
+      ou = OrganizationUnit.create(:organization => o)
+      sup = User.create
+      comm = User.create
+      o.add_supervisor(sup.user_name, false)
+      o.add_user(comm.user_name, false, false)
+      ou.add_supervisor(sup.user_name)
+      ou.add_communicator(comm.user_name)
+      Worker.process_queues
+      expect(User.find(comm.id).supervisor_user_ids).to eq([sup.global_id])
+      [o, ou, sup, comm]
+    end
+
+    def removal_rows
+      RemoteAction.where(action: 'room_member_removal')
+    end
+
+    # A member put back in the room before a lost removal ran keeps the room's supervision: the
+    # pending removal row is dropped when they are re-added, so its retry does not strip them.
+    it "keeps the supervision of a supervisor re-added before a lost removal runs" do
+      o, ou, sup, comm = room_members
+      OrganizationUnit.find(ou.id).remove_supervisor(sup.user_name)
+      Worker.flush_queues
+      OrganizationUnit.find(ou.id).add_supervisor(sup.user_name)
+      expect(removal_rows.count).to eq(0)
+      Worker.process_queues
+      Worker.process_queues
+
+      expect(OrganizationUnit.find(ou.id).supervisor?(User.find(sup.id))).to eq(true)
+      expect(User.find(comm.id).supervisor_user_ids).to eq([sup.global_id])
+    end
+
+    # A removal job queued before the member was put back runs after the re-add: it finds them in
+    # the room again and only completes its row.
+    it "keeps the supervision of a member re-added when the queued removal runs afterwards" do
+      o, ou, sup, comm = room_members
+      OrganizationUnit.find(ou.id).remove_communicator(comm.user_name)
+      OrganizationUnit.find(ou.id).add_communicator(comm.user_name)
+      OrganizationUnit.find(ou.id).assert_supervision({'user_id' => comm.global_id, 'add_communicator' => comm.user_name})
+      expect(User.find(comm.id).supervisor_user_ids).to eq([sup.global_id])
+
+      # the removal job queued before the re-add, run late
+      OrganizationUnit.find(ou.id).assert_supervision({'user_id' => comm.global_id, 'remove_communicator' => comm.user_name})
+
+      expect(User.find(comm.id).supervisor_user_ids).to eq([sup.global_id])
+      expect(removal_rows.count).to eq(0)
+    end
+
+    # The pair is decided under the supervisee's lock, from the room's membership read under it:
+    # a re-add (or a removal) that lands after the job read the room, before it takes the lock,
+    # is what the pair's link follows. The other side's change is run where it would land, as the
+    # job is about to take the lock.
+    def on_first_lock(&change)
+      fired = false
+      allow(User).to receive(:with_supervision_lock).and_wrap_original do |orig, *args, &blk|
+        unless fired
+          fired = true
+          change.call
+        end
+        orig.call(*args, &blk)
+      end
+    end
+
+    it "keeps the supervision of a member re-added while the removal job runs" do
+      o, ou, sup, comm = room_members
+      OrganizationUnit.find(ou.id).remove_communicator(comm.user_name)
+      Worker.flush_queues
+      on_first_lock do
+        OrganizationUnit.find(ou.id).add_communicator(comm.user_name)
+        OrganizationUnit.find(ou.id).assert_supervision({'user_id' => comm.global_id, 'add_communicator' => comm.user_name})
+      end
+
+      OrganizationUnit.find(ou.id).assert_supervision({'user_id' => comm.global_id, 'remove_communicator' => comm.user_name})
+
+      expect(OrganizationUnit.find(ou.id).communicator?(User.find(comm.id))).to eq(true)
+      expect(User.find(comm.id).supervisor_user_ids).to eq([sup.global_id])
+      expect(removal_rows.count).to eq(0)
+    end
+
+    it "does not link a member removed while the add job runs" do
+      o, ou, sup, comm = room_members
+      User.unlink_supervisor_from_user(User.find(sup.id), User.find(comm.id), ou.global_id)
+      expect(User.find(comm.id).supervisor_user_ids).to eq([])
+      on_first_lock do
+        OrganizationUnit.find(ou.id).remove_communicator(comm.user_name)
+        OrganizationUnit.find(ou.id).assert_supervision({'user_id' => comm.global_id, 'remove_communicator' => comm.user_name})
+      end
+
+      OrganizationUnit.find(ou.id).assert_supervision({'user_id' => comm.global_id, 'add_communicator' => comm.user_name})
+
+      expect(OrganizationUnit.find(ou.id).communicator?(User.find(comm.id))).to eq(false)
+      expect(User.find(comm.id).supervisor_user_ids).to eq([])
+    end
+
+    # a re-add whose room link was not saved has not put the member back: the pending removal stays
+    it "keeps the pending removal when the re-add is not saved" do
+      o, ou, sup, comm = room_members
+      OrganizationUnit.find(ou.id).remove_supervisor(sup.user_name)
+      OrganizationUnit.find(ou.id).remove_communicator(comm.user_name)
+      expect(removal_rows.count).to eq(2)
+      allow_any_instance_of(UserLink).to receive(:save).and_return(false)
+
+      OrganizationUnit.find(ou.id).add_supervisor(sup.user_name)
+      OrganizationUnit.find(ou.id).add_communicator(comm.user_name)
+
+      expect(removal_rows.count).to eq(2)
+    end
+
+    it "completes a removal from its row when the job is lost" do
+      o, ou, sup, comm = room_members
+      OrganizationUnit.find(ou.id).remove_supervisor(sup.user_name)
+      expect(removal_rows.count).to eq(1)
+      Worker.flush_queues
+      expect(User.find(comm.id).supervisor_user_ids).to eq([sup.global_id])
+
+      Worker.process_queues
+      Worker.process_queues
+
+      expect(User.find(comm.id).supervisor_user_ids).to eq([])
+      expect(removal_rows.count).to eq(0)
+    end
+
+    it "completes a removal after the organization is destroyed when the job is lost" do
+      o, ou, sup, comm = room_members
+      OrganizationUnit.find(ou.id).remove_communicator(comm.user_name)
+      o.reload.destroy
+      Worker.flush_queues
+      expect(User.find(comm.id).supervisor_user_ids).to eq([sup.global_id])
+
+      Worker.process_queues
+      Worker.process_queues
+
+      expect(User.find(comm.id).supervisor_user_ids).to eq([])
+      expect(removal_rows.count).to eq(0)
+    end
+
+    it "releases the row when the removal job completes" do
+      o, ou, sup, comm = room_members
+      OrganizationUnit.find(ou.id).remove_supervisor(sup.user_name)
+      expect(removal_rows.count).to eq(1)
+      OrganizationUnit.find(ou.id).assert_supervision({'user_id' => sup.global_id, 'remove_supervisor' => sup.user_name})
+      expect(removal_rows.count).to eq(0)
+      expect(User.find(comm.id).supervisor_user_ids).to eq([])
+    end
+
+    # The queued removal is skipped once its room is gone (the job's record is not found), and the
+    # room no longer lists the member, so the room's deletion completes the removal.
+    it "removes the pair's room supervision when the room is deleted before the removal runs" do
+      o, ou, sup, comm = room_members
+      OrganizationUnit.find(ou.id).remove_supervisor(sup.user_name)
+      OrganizationUnit.find(ou.id).destroy
+      Worker.process_queues
+      Worker.process_queues
+
+      expect(User.find(comm.id).supervisor_user_ids).to eq([])
+      expect(removal_rows.count).to eq(0)
+    end
+
+    it "keeps a direct link without the room when the room is deleted before the removal runs" do
+      o, ou, sup, comm = room_members
+      User.link_supervisor_to_user(User.find(sup.id), User.find(comm.id))
+      OrganizationUnit.find(ou.id).remove_communicator(comm.user_name)
+      OrganizationUnit.find(ou.id).destroy
+      Worker.process_queues
+      Worker.process_queues
+
+      link = UserLink.where(user_id: comm.id, record_code: Webhook.get_record_code(sup)).detect{|l| l.data['type'] == 'supervisor' }
+      expect(link.data['state']['organization_unit_ids']).to eq([])
+      expect(User.find(comm.id).supervisor_user_ids).to eq([sup.global_id])
+      expect(removal_rows.count).to eq(0)
+    end
+
+    it "completes a removal from its row when the room was deleted and its cleanup is done" do
+      o, ou, sup, comm = room_members
+      OrganizationUnit.find(ou.id).remove_supervisor(sup.user_name)
+      Worker.flush_queues
+      OrganizationUnit.where(id: ou.id).delete_all
+
+      Worker.process_queues
+      Worker.process_queues
+
+      expect(User.find(comm.id).supervisor_user_ids).to eq([])
+      expect(removal_rows.count).to eq(0)
+    end
+  end
+
+  # While the district exists, a consent the family approved for the pair still stands whatever
+  # organization it names, the district included: deleting one room must not judge a link of
+  # unknown origin (every link made before origins were recorded) room-made over it. A district's
+  # own deletion still disregards consents scoped to it (organization_spec "still removes a legacy
+  # room link when the only approved consent is scoped to the district").
+  describe "room deletion with a family consent scoped to the district" do
+    def consented_room_pair
+      o = Organization.create
+      ou = OrganizationUnit.create(:organization => o)
+      sup = User.create
+      comm = User.create
+      o.add_supervisor(sup.user_name, false)
+      o.add_user(comm.user_name, false, false)
+      ou.add_supervisor(sup.user_name)
+      ou.add_communicator(comm.user_name)
+      Worker.process_queues
+      link = supervision_link(sup, comm)
+      link.data.delete('origin')
+      link.save!
+      rel = SupervisorRelationship.create!(supervisor_user: sup, communicator_user: comm, status: 'approved',
+        permission_level: 'edit_boards', initiated_by: 'supervisor', creation_method: 'request_access', organization_id: o.id)
+      [o, ou, sup, comm, rel]
+    end
+
+    def supervision_link(sup, comm)
+      UserLink.where(user_id: comm.id, record_code: Webhook.get_record_code(sup)).detect{|l| l.data['type'] == 'supervisor' }
+    end
+
+    it "keeps the link, without the room, when the room is deleted" do
+      o, ou, sup, comm, rel = consented_room_pair
+      OrganizationUnit.find(ou.id).destroy
+      Worker.process_queues
+      Worker.process_queues
+
+      expect(Organization.where(id: o.id).exists?).to eq(true)
+      link = supervision_link(sup, comm)
+      expect(link).not_to eq(nil)
+      expect(link.data['state']['organization_unit_ids']).to eq([])
+      expect(link.data['origin']).to eq(nil)
+      expect(User.find(comm.id).supervisor_user_ids).to eq([sup.global_id])
+      expect(rel.reload.status).to eq('approved')
+    end
+
+    it "keeps the link, without the room, when a removed member's room is deleted before the removal runs" do
+      o, ou, sup, comm, rel = consented_room_pair
+      OrganizationUnit.find(ou.id).remove_supervisor(sup.user_name)
+      OrganizationUnit.find(ou.id).destroy
+      Worker.process_queues
+      Worker.process_queues
+
+      link = supervision_link(sup, comm)
+      expect(link).not_to eq(nil)
+      expect(link.data['state']['organization_unit_ids']).to eq([])
+      expect(link.data['origin']).to eq(nil)
+      expect(User.find(comm.id).supervisor_user_ids).to eq([sup.global_id])
+    end
+
+    it "does not record the link as room-made when another room still lists it" do
+      o, ou, sup, comm, rel = consented_room_pair
+      ou2 = OrganizationUnit.create(:organization => o)
+      ou2.add_supervisor(sup.user_name)
+      ou2.add_communicator(comm.user_name)
+      Worker.process_queues
+      expect(supervision_link(sup, comm).data['state']['organization_unit_ids']).to eq([ou.global_id, ou2.global_id])
+
+      OrganizationUnit.find(ou.id).destroy
+      Worker.process_queues
+      Worker.process_queues
+
+      link = supervision_link(sup, comm)
+      expect(link.data['state']['organization_unit_ids']).to eq([ou2.global_id])
+      expect(link.data['origin']).to eq(nil)
+    end
+  end
+
+  # A room's add job (assert_supervision add_*) can have read the room, its organization and its
+  # members before the room or its district was deleted and cleaned up; the link it then makes
+  # must not put the deleted room back on the pair's supervision. Simulated with a copy of the
+  # room loaded (and its links read) before the deletion, as the job would hold it.
+  describe "a queued room link after the room is gone" do
+    def room_pair
+      o = Organization.create
+      ou = OrganizationUnit.create(:organization => o)
+      sup = User.create
+      comm = User.create
+      o.add_supervisor(sup.user_name, false)
+      o.add_user(comm.user_name, false, false)
+      ou.add_supervisor(sup.user_name)
+      ou.add_communicator(comm.user_name)
+      Worker.process_queues
+      stale = OrganizationUnit.find(ou.id)
+      stale.organization
+      UserLink.links_for(stale)
+      [o, ou, sup, comm, stale]
+    end
+
+    def supervision_link(sup, comm)
+      UserLink.where(user_id: comm.id, record_code: Webhook.get_record_code(sup)).detect{|l| l.data['type'] == 'supervisor' }
+    end
+
+    it "does not link again once the room is deleted and cleaned up" do
+      o, ou, sup, comm, stale = room_pair
+      OrganizationUnit.find(ou.id).destroy
+      Worker.process_queues
+      Worker.process_queues
+      expect(supervision_link(sup, comm)).to eq(nil)
+
+      stale.assert_supervision({'user_id' => comm.global_id, 'add_communicator' => comm.user_name})
+
+      expect(supervision_link(sup, comm)).to eq(nil)
+    end
+
+    it "does not link again once the district is deleted and cleaned up" do
+      o, ou, sup, comm, stale = room_pair
+      o.reload.destroy
+      Worker.process_queues
+      Worker.process_queues
+      expect(supervision_link(sup, comm)).to eq(nil)
+
+      stale.assert_supervision({'user_id' => sup.global_id, 'add_supervisor' => sup.user_name})
+
+      expect(supervision_link(sup, comm)).to eq(nil)
+    end
+
+    it "leaves a direct link without the deleted room" do
+      o, ou, sup, comm, stale = room_pair
+      User.link_supervisor_to_user(User.find(sup.id), User.find(comm.id))
+      OrganizationUnit.find(ou.id).destroy
+      Worker.process_queues
+      Worker.process_queues
+      expect(supervision_link(sup, comm).data['state']['organization_unit_ids']).to eq([])
+
+      stale.assert_supervision({'user_id' => comm.global_id, 'add_communicator' => comm.user_name})
+
+      expect(supervision_link(sup, comm).data['state']['organization_unit_ids']).to eq([])
+      expect(User.find(comm.id).supervisor_user_ids).to eq([sup.global_id])
     end
   end
 end

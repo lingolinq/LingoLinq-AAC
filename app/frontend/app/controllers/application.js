@@ -8,7 +8,24 @@ const CHROME_ROUTES = [
   'user.boards', 'user.extras', 'user.logs', 'user.log',
   'user.index', 'user.account', 'user.goals', 'user.goal', 'user.badges',
   'user.edit', 'user.recordings', 'user.stats', 'user.preferences',
-  'user.subscription', 'user.supervision', 'user.history', 'user.lessons', 'user.focus'
+  'user.subscription', 'user.supervision', 'user.history', 'user.lessons', 'user.focus',
+  /* The standalone home-board picker (2026-10-09). It is a top-level route, so it received
+     neither the Modern rail nor Basic's -- a user handed off here at the end of the home tour
+     had no navigation at all. It maps to no pill (utils/primary_nav.js), so `globalNavActive`
+     stays null and only the RAIL renders; the page keeps its own `md-pillnav` breadcrumb and
+     does not get a second nav. Basic view is unaffected by this list -- `showGlobalChrome`
+     returns false for it below, and the `ch-` rail is mounted in the page's own template. */
+  'board-picker',
+  /* Three more destinations the Modern dashboard links to directly but which were never in this
+     list, so they rendered with no account rail at all (2026-10-09 audit):
+       create-board-new  — the "Create a New Board" card
+       search            — `transitionTo('search')` from the dashboard
+       offline_boards    — `transitionTo('offline_boards')`
+     The rail is part of the app shell wrapping the outlet (templates/application.hbs), not of
+     each page's own markup, so a page needs no `md-shell` of its own to receive it — `search`
+     has none. None of the three maps to a pill (utils/primary_nav.js), so `globalNavActive`
+     stays null and they get the rail WITHOUT a second nav, exactly as board-picker does. */
+  'create-board-new', 'search', 'offline_boards'
 ];
 import { isTesting } from '@ember/debug';
 import EmberObject from '@ember/object';
@@ -164,19 +181,7 @@ export default Controller.extend({
     return !this.appState.get('currentBoardState');
   }),
 
-  /** Username segment for Board Alt route (user_id in URL). */
-  board_alt_username: computed('appState.currentBoardState.key', function() {
-    var key = this.get('appState.currentBoardState.key');
-    if (!key || key.indexOf('/') === -1) { return null; }
-    return key.split('/')[0];
-  }),
-  /** Boardname segment for Board Alt route (boardname in URL). */
-  board_alt_boardname: computed('appState.currentBoardState.key', function() {
-    var key = this.get('appState.currentBoardState.key');
-    if (!key || key.indexOf('/') === -1) { return null; }
-    return key.split('/').slice(1).join('/');
-  }),
-  /** True when the current page is the Board Alt view, used to toggle the sidebar button label/style. */
+  /** True when the current page is the Board Alt view. Drives the board-alt-view class and the eval controls. */
   on_board_alt: computed('appState.current_route', function() {
     return this.appState.get('current_route') === 'user.board-alt.index';
   }),
@@ -667,6 +672,13 @@ export default Controller.extend({
     return htmlSafe(s);
   }),
 
+  // Drives the sidebar "Predict" Yes/No control (2026-10-13). Reads the live preference on the
+  // on-screen user (referenced_user in Speak Mode, else currentUser); set_word_prediction writes it.
+  word_prediction_on: computed('app_state.referenced_user.preferences.word_suggestions', 'app_state.currentUser.preferences.word_suggestions', function() {
+    var u = this.get('app_state.referenced_user') || this.get('app_state.currentUser');
+    return !!(u && u.get('preferences.word_suggestions') === true);
+  }),
+
   actions: {
     toggleEvalPause: function() {
       if(obf.eval && obf.eval.toggle_pause) { obf.eval.toggle_pause(); }
@@ -683,9 +695,9 @@ export default Controller.extend({
       if(location.hostname == '127.0.0.1') {
         this.router.transitionTo('login');
         // location.href = "//localhost:" + location.port + "/login";
-      } else if(location.hostname == 'www.mylingolinq.com') {
-        location.href = "//app.mylingolinq.com/login";
       } else {
+        // Holds the line count of a removed legacy-hostname redirect so .eslint-todo
+        // rows below stay anchored; drop it at the next approved lint rebaseline.
         this.router.transitionTo('login');
       }
     },
@@ -995,7 +1007,7 @@ export default Controller.extend({
           if(option == 'starting') {
             board = _this.stashes.get('root_board_state') || _this.get('board').get('model');
           }
-          var board_user_name = emberGet(board, 'key').split(/\//)[1];
+          var board_user_name = emberGet(board, 'key').split(/\//)[0]; // the OWNER is before the slash (was [1], the slug, 2018-2026)
           var preferred_symbols = user.get('preferences.preferred_symbols') || 'original';
           var needs_confirmation = user.get('supervisees') || preferred_symbols != 'original' || board_user_name != user.get('user_name');
           var done = function(sync) {
@@ -1015,7 +1027,7 @@ export default Controller.extend({
             } else {
               if(_this.get('setup_footer')) {
                 _this.send('setup_go', 'forward');
-              }          
+              } else if(sync) { modal.success(i18n.t('board_set_as_home', "Great! This is now the user's home board!"), true); } // saved; auto-sync off or offline: still say so
             }
           }
           if(needs_confirmation && !option) {
@@ -1161,6 +1173,17 @@ export default Controller.extend({
     alert: function() {
       utterance.alert({button_triggered: true});
       this.send('hide_temporary_sidebar');
+    },
+    // The sidebar "Predict" Yes/No toggle (2026-10-13): turns word prediction in Speak Mode on/off
+    // by setting preferences.word_suggestions, the same preference board/index.js#166 and
+    // user/board-detail.js gate the prediction rail on. SETS a value (not a flip) so the segmented
+    // Yes/No control is idempotent; clicking the already-selected side is a no-op and never prompts.
+    // Gated by the ACTIVE speak-mode PIN: open_speak_mode_exit_pin resolves {correct_pin:true}
+    // immediately when no PIN is active (app-state.js), so the no-PIN case applies with no prompt.
+    // Dirty-bits preferences.device.updated so the raw preferences blob ships (Ember Data won't mark
+    // a nested set dirty on its own).
+    set_word_prediction: function(on) {
+      set_word_prediction(this.get('app_state'), on);
     },
     special: function(opts) {
       // sidebar actions (opts is often an EmberObject from sidebar_boards_with_fallbacks)
@@ -1778,8 +1801,8 @@ export default Controller.extend({
       modal.open('about-lingolinq');
     },
     full_screen: function() {
-      capabilities.fullscreen(true).then(null, function() {
-        modal.warning(i18n.t('fullscreen_failed', "Full Screen Mode failed to load"), true);
+      capabilities.fullscreen(true).then(null, () => {
+        if(this.isDestroyed || this.isDestroying) { return; } modal.warning(i18n.t('fullscreen_failed', "Full Screen Mode failed to load"), true);
       });
     },
     launch_board: function() {
@@ -2541,3 +2564,6 @@ export default Controller.extend({
     return false;
   })
 });
+
+// Imported last so the .eslint-todo rows above keep their lines.
+import { set_word_prediction } from '../utils/word_prediction_pref';

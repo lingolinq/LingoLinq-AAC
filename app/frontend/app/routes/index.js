@@ -12,6 +12,7 @@ import progress_tracker from '../utils/progress_tracker';
 import { onlyIfGenuinelyResolved, maybeShowSessionEntryGate, sessionEntryGatePending } from '../utils/article50_gate';
 import sessionHistory from '../utils/session_history';
 import { board_view_route } from '../utils/board_view';
+import { is_user_reload } from '../utils/reload_intent';
 
 export default Route.extend({
   router: service('router'),
@@ -34,7 +35,21 @@ export default Route.extend({
     // index.afterModel may replaceWith('user.home') — the origin
     // `transition.from` is preserved across that chain, so a recompute
     // there still resolves to "not login".
-    var login_entry = !this.appState.get('pending_index_nav') && (!from || /^login(\.|$)/.test(from_name));
+    // A USER-INITIATED RELOAD IS NOT A LAUNCH (2026-10-09). `is_user_reload()` is true only when
+    // the rail's "Reload" link wrote a marker for THIS url before calling `location.reload()`
+    // (utils/reload_intent.js). Without it a reload is indistinguishable from a boot — it has no
+    // `transition.from` either — and `setupController`'s `jump_to_speak` below re-landed the user
+    // in speak mode on a different page than the one they asked to reload.
+    //
+    // GUARDS EVERY CONSUMER, because it is part of the SINGLE write of `_index_login_entry` on the
+    // next line; the four reads (:131, :143, :189, :395) all happen after it. On `/:user_name/home`
+    // only :189 is live: routes/user/home.js:23 defines its own `afterModel` and never calls
+    // `this._super`, so this route's `afterModel` — and :131, :143, :395 with it — does not run there.
+    //
+    // The app's own 22 `location.reload()` calls are deliberately NOT marked — a post-sign-in or
+    // force-logout reboot (components/login-form.js:880, services/session.js:621) IS a launch and
+    // must keep opening speak mode for a communicator.
+    var login_entry = !is_user_reload() && !this.appState.get('pending_index_nav') && (!from || /^login(\.|$)/.test(from_name));
     this.appState.set('_index_login_entry', login_entry);
     return this._super.apply(this, arguments);
   },

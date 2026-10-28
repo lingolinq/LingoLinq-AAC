@@ -1,6 +1,7 @@
 require 'spec_helper'
 
 describe WeeklyStatsSummary, :type => :model do
+  include ActiveSupport::Testing::TimeHelpers
   it "should error if no index defined" do
     expect { WeeklyStatsSummary.create }.to raise_error("no summary index defined")
   end
@@ -229,85 +230,93 @@ describe WeeklyStatsSummary, :type => :model do
       expect(sum.data['word_travels']).to eq({'ok go ok' => 0.7})
     end
     
+    # Runs at a fixed mid-week instant: the weekyear checks below compare values read at different
+    # moments, so a run crossing Saturday-to-Sunday midnight UTC changed the week under it.
     it 'should include words available in user button sets' do
-      expect(WordData.standardized_words['good']).to eq(true)
-      expect(WordData.standardized_words['with']).to eq(true)
-      expect(WordData.standardized_words['when']).to eq(true)
-      ts = (Time.now.beginning_of_week(:sunday) + 4.days).to_i
+      travel_to(Time.utc(2026, 6, 17, 12, 0, 0)) do
+        expect(WordData.standardized_words['good']).to eq(true)
+        expect(WordData.standardized_words['with']).to eq(true)
+        expect(WordData.standardized_words['when']).to eq(true)
+        ts = (Time.now.beginning_of_week(:sunday) + 4.days).to_i
       
-      threes = ['me', 'me', 'that', 'that', 'baegwgaweg']
-      10.times do |i|
+        threes = ['me', 'me', 'that', 'that', 'baegwgaweg']
+        10.times do |i|
+          u = User.create(:settings => {'preferences' => {'allow_log_reports' => true}})
+          d = Device.create(:user => u)
+          b = Board.create(:user => u, :settings => {
+            'buttons' => [
+              {'id' => '1', 'label' => 'good'},
+              {'id' => '2', 'label' => 'with'},
+              {'id' => '3', 'label' => threes[i]}
+            ]
+          })
+          u.settings['preferences']['home_board'] = {'id' => b.global_id, 'key' => b.key}
+          u.save
+          BoardDownstreamButtonSet.update_for(b.global_id)
+          s1 = LogSession.process_new({'events' => [
+            {'type' => 'utterance', 'utterance' => {'text' => 'never again', 'buttons' => []}, 'geo' => ['13.0001', '12.0001'], 'timestamp' => ts.to_i}
+          ]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
+          WeeklyStatsSummary.update_for(s1.global_id)
+        end
+
+        sum = WeeklyStatsSummary.last
+        sum = WeeklyStatsSummary.track_trends(sum.weekyear)
+        expect(sum).to_not eq(nil)
+        expect(sum.data['available_words']['good'].length).to eq(10)
+        expect(sum.data['available_words']['with'].length).to eq(10)
+        expect(sum.data['available_words']['me']).to eq(nil)
+        expect(sum.data['available_words']['that']).to eq(nil)
+      end
+    end
+
+    # Runs at a fixed mid-week instant: the weekyear checks below compare values read at different
+    # moments, so a run crossing Saturday-to-Sunday midnight UTC changed the week under it.
+    it 'should include only public user home board roots' do
+      travel_to(Time.utc(2026, 6, 17, 12, 0, 0)) do
+        ts = (Time.now.beginning_of_week(:sunday) + 4.days).to_i
         u = User.create(:settings => {'preferences' => {'allow_log_reports' => true}})
-        d = Device.create(:user => u)
-        b = Board.create(:user => u, :settings => {
-          'buttons' => [
-            {'id' => '1', 'label' => 'good'},
-            {'id' => '2', 'label' => 'with'},
-            {'id' => '3', 'label' => threes[i]}
-          ]
-        })
+        b = Board.create(:user => u, :public => true)
         u.settings['preferences']['home_board'] = {'id' => b.global_id, 'key' => b.key}
         u.save
-        BoardDownstreamButtonSet.update_for(b.global_id)
         s1 = LogSession.process_new({'events' => [
           {'type' => 'utterance', 'utterance' => {'text' => 'never again', 'buttons' => []}, 'geo' => ['13.0001', '12.0001'], 'timestamp' => ts.to_i}
-        ]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
+        ]}, {:user => u, :author => u, :device => Device.create(:user => u), :ip_address => '1.2.3.4'})
         WeeklyStatsSummary.update_for(s1.global_id)
-      end
       
-      sum = WeeklyStatsSummary.last
-      sum = WeeklyStatsSummary.track_trends(sum.weekyear)
-      expect(sum).to_not eq(nil)
-      expect(sum.data['available_words']['good'].length).to eq(10)
-      expect(sum.data['available_words']['with'].length).to eq(10)
-      expect(sum.data['available_words']['me']).to eq(nil)
-      expect(sum.data['available_words']['that']).to eq(nil)
-    end
-    
-    it 'should include only public user home board roots' do
-      ts = (Time.now.beginning_of_week(:sunday) + 4.days).to_i
-      u = User.create(:settings => {'preferences' => {'allow_log_reports' => true}})
-      b = Board.create(:user => u, :public => true)
-      u.settings['preferences']['home_board'] = {'id' => b.global_id, 'key' => b.key}
-      u.save
-      s1 = LogSession.process_new({'events' => [
-        {'type' => 'utterance', 'utterance' => {'text' => 'never again', 'buttons' => []}, 'geo' => ['13.0001', '12.0001'], 'timestamp' => ts.to_i}
-      ]}, {:user => u, :author => u, :device => Device.create(:user => u), :ip_address => '1.2.3.4'})
-      WeeklyStatsSummary.update_for(s1.global_id)
-      
-      u2 = User.create(:settings => {'preferences' => {'allow_log_reports' => true}})
-      b2 = Board.create(:user => u2)
-      u2.settings['preferences']['home_board'] = {'id' => b2.global_id, 'key' => b2.key}
-      u2.save
-      s2 = LogSession.process_new({'events' => [
-        {'type' => 'utterance', 'utterance' => {'text' => 'never again', 'buttons' => []}, 'geo' => ['13.0001', '12.0001'], 'timestamp' => ts.to_i}
-      ]}, {:user => u2, :author => u2, :device => Device.create(:user => u2), :ip_address => '1.2.3.4'})
-      WeeklyStatsSummary.update_for(s2.global_id)
-      
-      5.times do |i|
-        u3 = User.create(:settings => {'preferences' => {'allow_log_reports' => true}})
-        b3 = Board.create(:user => u, :public => false, :parent_board => b)
-        u3.settings['preferences']['home_board'] = {'id' => b3.global_id, 'key' => b3.key}
-        u3.save
-        s3 = LogSession.process_new({'events' => [
+        u2 = User.create(:settings => {'preferences' => {'allow_log_reports' => true}})
+        b2 = Board.create(:user => u2)
+        u2.settings['preferences']['home_board'] = {'id' => b2.global_id, 'key' => b2.key}
+        u2.save
+        s2 = LogSession.process_new({'events' => [
           {'type' => 'utterance', 'utterance' => {'text' => 'never again', 'buttons' => []}, 'geo' => ['13.0001', '12.0001'], 'timestamp' => ts.to_i}
-        ]}, {:user => u3, :author => u3, :device => Device.create(:user => u3), :ip_address => '1.2.3.4'})
-        WeeklyStatsSummary.update_for(s3.global_id)
+        ]}, {:user => u2, :author => u2, :device => Device.create(:user => u2), :ip_address => '1.2.3.4'})
+        WeeklyStatsSummary.update_for(s2.global_id)
+
+        5.times do |i|
+          u3 = User.create(:settings => {'preferences' => {'allow_log_reports' => true}})
+          b3 = Board.create(:user => u, :public => false, :parent_board => b)
+          u3.settings['preferences']['home_board'] = {'id' => b3.global_id, 'key' => b3.key}
+          u3.save
+          s3 = LogSession.process_new({'events' => [
+            {'type' => 'utterance', 'utterance' => {'text' => 'never again', 'buttons' => []}, 'geo' => ['13.0001', '12.0001'], 'timestamp' => ts.to_i}
+          ]}, {:user => u3, :author => u3, :device => Device.create(:user => u3), :ip_address => '1.2.3.4'})
+          WeeklyStatsSummary.update_for(s3.global_id)
         
-        u4 = User.create
-        b4 = Board.create(:user => u, :public => false, :parent_board => b2)
-        u4.settings['preferences']['home_board'] = {'id' => b4.global_id, 'key' => b4.save}
-        u4.save
-        s4 = LogSession.process_new({'events' => [
-          {'type' => 'utterance', 'utterance' => {'text' => 'never again', 'buttons' => []}, 'geo' => ['13.0001', '12.0001'], 'timestamp' => ts.to_i}
-        ]}, {:user => u4, :author => u4, :device => Device.create(:user => u4), :ip_address => '1.2.3.4'})
-        WeeklyStatsSummary.update_for(s4.global_id)
-      end
+          u4 = User.create
+          b4 = Board.create(:user => u, :public => false, :parent_board => b2)
+          u4.settings['preferences']['home_board'] = {'id' => b4.global_id, 'key' => b4.save}
+          u4.save
+          s4 = LogSession.process_new({'events' => [
+            {'type' => 'utterance', 'utterance' => {'text' => 'never again', 'buttons' => []}, 'geo' => ['13.0001', '12.0001'], 'timestamp' => ts.to_i}
+          ]}, {:user => u4, :author => u4, :device => Device.create(:user => u4), :ip_address => '1.2.3.4'})
+          WeeklyStatsSummary.update_for(s4.global_id)
+        end
       
-      sum = WeeklyStatsSummary.last
-      sum = WeeklyStatsSummary.track_trends(sum.weekyear)
-      expect(sum.data['home_boards']).to_not eq({})
-      expect(sum.data['home_boards'][b.key].length).to eq(6)
+        sum = WeeklyStatsSummary.last
+        sum = WeeklyStatsSummary.track_trends(sum.weekyear)
+        expect(sum.data['home_boards']).to_not eq({})
+        expect(sum.data['home_boards'][b.key].length).to eq(6)
+      end
     end
     
     it 'should include word matches' do
@@ -408,6 +417,47 @@ describe WeeklyStatsSummary, :type => :model do
     end
     
       
+    # The target words are written after the summary is built. The write saved the whole settings
+    # column from the copy reloaded just before it, so a save landing in between was reverted.
+    it "stores a user's target words without reverting settings saved after the user was read" do
+      # the summary is created and updated in the same week: crossing a week boundary between
+      # the two skips the target-words write this example checks
+      travel_to(Time.now.utc.beginning_of_week(:sunday) + 3.days + 12.hours) do
+        u = User.create
+        u.settings['target_words'] = {'generated' => 2.days.ago.iso8601, 'list' => [{'word' => 'like'}], 'activities' => {'list' => []}}
+        u.save
+        summary = WeeklyStatsSummary.create(user_id: u.id, weekyear: WeeklyStatsSummary.date_to_weekyear(Date.today))
+        allow(Stats).to receive(:target_words).and_return({:watchwords => {:suggestions => [{'word' => 'want'}]}})
+        wrote = false
+        loaded = User.find(u.id)
+        allow(User).to receive(:find_by).and_call_original
+        allow(User).to receive(:find_by).with(id: u.id).and_return(loaded)
+        inject = lambda do
+          next if wrote
+          wrote = true
+          other = User.find(u.id)
+          other.settings['preferences']['spec_marker'] = 'normal save'
+          other.save
+          quiet = User.find(u.id)
+          quiet.settings['spec_quiet'] = 'touch false'
+          quiet.save(touch: false)
+        end
+        # the write lands after update! has read the copy it decides from: right after the reload
+        # (a whole-copy save) or just before the locked read (update_settings_locked)
+        allow(loaded).to receive(:reload).and_wrap_original { |original, *args| res = original.call(*args); inject.call; res }
+        allow(User).to receive(:update_settings_locked).and_wrap_original { |original, *args, **opts, &blk| inject.call; original.call(*args, **opts, &blk) }
+
+        summary.update!
+
+        expect(wrote).to eq(true)
+        stored = User.find(u.id)
+        expect(stored.settings['preferences']['spec_marker']).to eq('normal save')
+        expect(stored.settings['spec_quiet']).to eq('touch false')
+        expect(stored.settings['target_words']['list']).to eq([{'word' => 'want'}])
+        expect(stored.settings['target_words']['weekyear']).to eq(summary.weekyear)
+      end
+    end
+
     it "should include goal data" do
       u = User.create(:settings => {'preferences' => {'allow_log_reports' => true}})
       ts = (Time.now.beginning_of_week(:sunday) + 4.days).to_i
@@ -494,7 +544,10 @@ describe WeeklyStatsSummary, :type => :model do
       cweek = start.beginning_of_week(:sunday).cweek
       cwyear = start.beginning_of_week(:sunday).cwyear
       cw1 = (cwyear * 100) + cweek
-      cw2 = (cwyear * 100) + cweek + 1
+      # The following week, computed as the app does: `cweek + 1` is not a real ISO week when the Sunday
+      # on or before start is in its ISO year's last week, and add_to_trends raised Date::Error (early
+      # February 2027, 2028, ...).
+      cw2 = WeeklyStatsSummary.date_to_weekyear(start + 7.days)
       
       sum1 = WeeklyStatsSummary.create(:user_id => 0, :weekyear => cw1, :data => {
         'totals' => {
@@ -633,7 +686,7 @@ describe WeeklyStatsSummary, :type => :model do
       cweek = start.beginning_of_week(:sunday).cweek
       cwyear = start.beginning_of_week(:sunday).cwyear
       cw1 = (cwyear * 100) + cweek
-      cw2 = (cwyear * 100) + cweek + 1
+      cw2 = WeeklyStatsSummary.date_to_weekyear(start + 7.days)
       
       sum1 = WeeklyStatsSummary.create(:user_id => 0, :weekyear => cw1, :data => {
         'totals' => {
@@ -682,7 +735,7 @@ describe WeeklyStatsSummary, :type => :model do
       cweek = start.beginning_of_week(:sunday).cweek
       cwyear = start.beginning_of_week(:sunday).cwyear
       cw1 = (cwyear * 100) + cweek
-      cw2 = (cwyear * 100) + cweek + 1
+      cw2 = WeeklyStatsSummary.date_to_weekyear(start + 7.days)
       start = 4.months.ago.to_date
       cweek = start.beginning_of_week(:sunday).cweek
       cwyear = start.beginning_of_week(:sunday).cwyear
@@ -741,7 +794,7 @@ describe WeeklyStatsSummary, :type => :model do
       cweek = start.beginning_of_week(:sunday).cweek
       cwyear = start.beginning_of_week(:sunday).cwyear
       cw1 = (cwyear * 100) + cweek
-      cw2 = (cwyear * 100) + cweek + 1
+      cw2 = WeeklyStatsSummary.date_to_weekyear(start + 7.days)
       
       sum1 = WeeklyStatsSummary.create(:user_id => 0, :weekyear => cw1, :data => {
         'totals' => {
@@ -788,7 +841,7 @@ describe WeeklyStatsSummary, :type => :model do
       cweek = start.beginning_of_week(:sunday).cweek
       cwyear = start.beginning_of_week(:sunday).cwyear
       cw1 = (cwyear * 100) + cweek
-      cw2 = (cwyear * 100) + cweek + 1
+      cw2 = WeeklyStatsSummary.date_to_weekyear(start + 7.days)
       
       sum1 = WeeklyStatsSummary.create(:user_id => 0, :weekyear => cw1, :data => {
         'totals' => {
@@ -904,6 +957,10 @@ describe WeeklyStatsSummary, :type => :model do
   end
 
   describe "trends_for" do
+    # A fixed mid-week instant: the weekyear expected below is computed after the sessions were created,
+    # so a run crossing Saturday-to-Sunday midnight UTC compared two different weeks.
+    around { |example| travel_to(Time.utc(2026, 6, 17, 12, 0, 0)) { example.run } }
+
     it "should summarize trends only for the specified users" do
       ts = (3.weeks.ago.beginning_of_week(:sunday) + 4.days).to_i
       u = User.create(:settings => {'preferences' => {'allow_log_reports' => true}})

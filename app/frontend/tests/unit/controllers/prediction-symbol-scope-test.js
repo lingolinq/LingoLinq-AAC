@@ -4,7 +4,7 @@ import { A } from '@ember/array';
 import RSVP from 'rsvp';
 import BoardDetailController from 'frontend/controllers/user/board-detail';
 import word_suggestions from 'frontend/utils/word_suggestions';
-import LingoLinq from 'frontend/app';
+import { standInGlobals } from 'frontend/tests/helpers/stand-in-globals';
 
 function svc(map) {
   return EmberObject.create({
@@ -24,14 +24,21 @@ function svc(map) {
    confidently WRONG symbol — worse for a symbol-reliant user than a missing one. The key just
    has to be scoped to the SET rather than to the individual board within it. */
 module('Unit | Controller | prediction symbol scope', function(hooks) {
+  /* No app is booted here, but the controller reads the app's globals: the store, and
+     `persistence.url_cache` (board-detail.js `_locally_cached_image_url`, through the util that
+     forwards to window.persistence). Left alone, those were whatever an earlier test's torn-down
+     app left behind, so a cached url from that app could decide which symbol these tests saw. */
+  standInGlobals(hooks, {
+    store: () => ({ peekAll: function() { return A([]); }, peekRecord: function() { return null; } }),
+    persistence: () => ({ url_cache: {} })
+  });
+
   hooks.beforeEach(function() {
     this._o = {
       attach: word_suggestions.attach_image_for_label,
       sets: word_suggestions.button_sets_for_board_ids,
-      store: LingoLinq.store,
       Image: window.Image
     };
-    LingoLinq.store = { peekAll: function() { return A([]); }, peekRecord: function() { return null; } };
     word_suggestions.button_sets_for_board_ids = function() { return []; };
     const created = [];
     this.created = created;
@@ -40,7 +47,6 @@ module('Unit | Controller | prediction symbol scope', function(hooks) {
   hooks.afterEach(function() {
     word_suggestions.attach_image_for_label = this._o.attach;
     word_suggestions.button_sets_for_board_ids = this._o.sets;
-    LingoLinq.store = this._o.store;
     window.Image = this._o.Image;
   });
 

@@ -1277,6 +1277,16 @@ class User < ApplicationRecord
     FeatureFlags.ai_pref_value(val)
   end
 
+  # Did this account explicitly turn the master "Allow AI features" preference off? True
+  # only for a recognizable "off" (FeatureFlags.ai_pref_value == false); never set, blank,
+  # or any other value is not an opt-out. Read by ButtonSound#schedule_transcription, which
+  # runs for accounts that never chose but not for one that opted out.
+  def self.ai_features_opted_out?(user)
+    prefs = user && user.settings.is_a?(Hash) && user.settings['preferences']
+    return false unless prefs.is_a?(Hash)
+    FeatureFlags.ai_pref_value(prefs['ai_features_enabled']) == false
+  end
+
   def registration_country
     c = self.settings && self.settings['country']
     return c if c.present?
@@ -2161,6 +2171,72 @@ class User < ApplicationRecord
     self.settings['edit_key']
   end
 
+  # Read-modify-write of settings on a freshly read, row-locked copy of the user. settings is
+  # one serialized column written whole on save (secure_serialize, go_secure
+  # persist_secure_object), so saving a copy loaded before slow work reverts every settings
+  # change made since; assert_current_record! (processable.rb:95) compares updated_at and misses
+  # writes saved with touch: false. Yields the locked copy; the block changes only the keys it
+  # owns and returns false to skip the save. Saves with save_method (default save(touch:)).
+  # The lock is held through the save and its callbacks, so do slow work before calling.
+  # Returns the saved copy, false when the block declined, nil when the user no longer exists.
+  def self.update_settings_locked(user_id, touch: true, save_method: nil, save_args: [])
+    User.transaction do
+      fresh = User.lock.find_by(id: user_id)
+      next nil unless fresh
+      fresh.settings ||= {}
+      next false if yield(fresh) == false
+      save_method ? fresh.send(save_method, *save_args) : fresh.save(touch: touch)
+      fresh
+    end
+  end
+
+  # Blocks must end explicitly with true (save) or false (skip): only an exact false skips, so a
+  # block ending in, say, settings.delete would skip the save whenever the deleted value is false.
+  #
+  # update_settings_locked for this user, then copies onto this copy only what was written: the
+  # top-level settings keys the block changed, and the columns the save changed that this copy
+  # has no pending change of its own for. It never reloads: a synchronous caller can hold unsaved
+  # changes on this object (Subscription#reset_eval -> copy_to_home_board -> Relinking#copy_for
+  # -> update_available_boards), and a reload discarded them.
+  #
+  # Copy-back contract:
+  # - settings: only keys the BLOCK changed. Keys the save itself writes (save_with_sync's
+  #   sync_stamp_reason, generate_defaults' edit_key and the like) are stored but not copied
+  #   back, so this copy's values for them can be older than the row's.
+  # - columns: every column the save changed (sync_stamp, boards_updated_at, schedule_deletion_at,
+  #   updated_at) is copied onto this object, except columns the caller changed itself, and
+  #   updated_at unless this copy was current: a stale copy keeps it, so assert_current_record!
+  #   still raises. updated_at can move on this object: code comparing it around a call (claim_user's
+  #   attempt_stamp) must not run this helper inside that window (spec in organization_spec, claim_user).
+  def update_settings_locked(**opts, &block)
+    written_keys = []
+    res = User.update_settings_locked(self.id, **opts) do |fresh|
+      before = fresh.settings.deep_dup
+      out = block.call(fresh)
+      written_keys = (before.keys | fresh.settings.keys).select{|k| before[k] != fresh.settings[k] }
+      out
+    end
+    copy_locked_write(res, written_keys) if res
+    res
+  end
+
+  def copy_locked_write(fresh, written_keys)
+    pending_columns = self.changed - ['settings']
+    self.settings ||= {}
+    written_keys.each do |key|
+      if fresh.settings.key?(key)
+        self.settings[key] = fresh.settings[key].deep_dup
+      else
+        self.settings.delete(key)
+      end
+    end
+    columns = fresh.saved_changes.keys - ['id', 'settings'] - pending_columns
+    columns -= ['updated_at'] unless self.updated_at&.floor(6) == fresh.attribute_before_last_save('updated_at')&.floor(6)
+    columns.each{|col| self[col] = fresh[col] }
+    clear_attribute_changes(columns)
+  end
+  private :copy_locked_write
+
   def save_with_sync(reason)
     self.sync_stamp = Time.now
     self.settings ||= {}
@@ -2255,8 +2331,9 @@ class User < ApplicationRecord
       return false
     end
     if ts && frd
-      self.settings['tracked_boards_at'] = Time.now.to_i
-      self.save
+      # Only this key, on a locked fresh copy (update_settings_locked): saving the worker's copy
+      # wrote the whole settings column back over anything saved since it was loaded.
+      self.update_settings_locked { |fresh| fresh.settings['tracked_boards_at'] = Time.now.to_i; true }
     end
 
     
@@ -2343,10 +2420,19 @@ class User < ApplicationRecord
     # TODO: sharding
     board_ids_to_recalculate += Board.where(:id => orphan_board_ids).select('id').map(&:global_id)
     if self.settings['home_board_changed'] || self.settings['sidebar_changed']
-      self.settings.delete('home_board_changed')
-      self.settings.delete('sidebar_changed')
+      # Cleared on a locked fresh copy (update_settings_locked): this copy was loaded before the
+      # walk above, and saving it reverted settings saved meanwhile. A flag is cleared only while
+      # the boards it refers to are still the ones this run tracked; a change saved during the
+      # run sets it again for its own run.
+      tracked = (self.settings['preferences'] || {}).slice('home_board', 'sidebar_boards').to_json
       @do_track_boards = false
-      self.save
+      self.update_settings_locked do |fresh|
+        current = (fresh.settings['preferences'] || {}).slice('home_board', 'sidebar_boards')
+        next false unless current.to_json == tracked
+        fresh.settings.delete('home_board_changed')
+        fresh.settings.delete('sidebar_changed')
+        true
+      end
     end
     # to regenerates stats?
     if !RedisInit.any_queue_pressure?
@@ -2520,11 +2606,11 @@ class User < ApplicationRecord
       # remembered choice across sessions. Unset => each surface applies its own
       # default (board-detail dark, create-board-new light).
       'board_dark_mode',
-      # Compressed View (feature flag compressed_view): tighter app shell and Modern home
-      # page. Boolean, no server default (absent = off), coerced in
-      # sanitize_dashboard_preferences!. Read with `=== true` in
-      # app/frontend/app/utils/compressed_view_state.js.
-      'compressed_view',
+      # 'compressed_view' (Compressed View) was accepted here until 2026-10-10, when the
+      # feature was removed. It is no longer a preference, so a client sending it is ignored;
+      # a stored value is left in place and read by nothing (no backfill was landed).
+      # These lines are kept so the line numbers below, which audit findings and compliance
+      # docs cite, do not move.
       # Boards-page arrangement: 'side-by-side' (Folders 1/4 left, Boards 3/4 right)
       # or 'top-down' (the original stacked order). Persisted per USER, not per
       # device, so the choice follows the user to a new login/browser — localStorage
@@ -2565,6 +2651,40 @@ class User < ApplicationRecord
   GUIDED_TOUR_PROGRESS_PARAMS = ['guided_tours_completed', 'guided_tours_autoshown']
   GUIDED_TOUR_MAX_KEYS = 50
   GUIDED_TOUR_MAX_KEY_LENGTH = 64
+
+  # SAVES THAT NAME WHAT THEY CHANGED (Scot's review of #1141, 2026-10-15; issue #1134).
+  # A device recording one small change (a tour marked as shown, the Prediction toggle)
+  # sends the WHOLE preferences object it holds, and every key below is written as sent,
+  # so a tablet with an old copy of the account could switch AI consent back on after a
+  # parent or SLP turned it off, or drop a tour finished elsewhere. Such a save lists the
+  # keys it changed in `preference_keys`: a top-level preference name, or
+  # 'progress.<attr>' for one PROGRESS_PARAMS entry. On an existing account the request's
+  # preferences are cut down to those keys before anything below reads them. (Guided-tour
+  # maps are merged with the stored ones on every save.) Anything other than an Array of
+  # Strings is ignored, and a save without the list is applied as before. The list can
+  # only remove keys, and it is read from what users_controller#update already reduced
+  # to what this caller may write.
+  def self.listed_preference_keys(params)
+    list = params['preference_keys']
+    return nil unless list.is_a?(Array) && list.all? { |k| k.is_a?(String) }
+    list
+  end
+
+  def self.reduce_to_listed_preferences(prefs, listed)
+    reduced = {}
+    listed.each do |name|
+      if name.start_with?('progress.')
+        attr = name.sub(/\Aprogress\./, '')
+        next unless PROGRESS_PARAMS.include?(attr) && prefs['progress'].is_a?(Hash) && prefs['progress'].key?(attr)
+        reduced['progress'] ||= {}
+        reduced['progress'][attr] = prefs['progress'][attr]
+      elsif prefs.key?(name)
+        reduced[name] = prefs[name]
+      end
+    end
+    reduced
+  end
+
   def process_params(params, non_user_params)
     # Defensive guard: `settings['admin']` may only be set via
     # non_user_params['admin'] (see ~line 1485 below). Strip any
@@ -2775,6 +2895,9 @@ class User < ApplicationRecord
       self.settings['user_notifications_cutoff'] = Time.now.utc.iso8601
     end
     self.settings['preferences'] ||= {}
+    listed_keys = User.listed_preference_keys(params)
+    listed_save = !!(listed_keys && self.id && params['preferences'].is_a?(Hash))
+    params['preferences'] = User.reduce_to_listed_preferences(params['preferences'], listed_keys) if listed_save
     if !non_user_params['updater'] || non_user_params['updater'].global_id != self.global_id
       if params['preferences']
         params['preferences'].delete('private_logging') 
@@ -2807,6 +2930,8 @@ class User < ApplicationRecord
     end
     if params['preferences']
       CONFIRMATION_PREFERENCE_PARAMS.each do |key|
+        # A key the request leaves out (or sends as nil) is never written below, so it is not a change.
+        next if params['preferences'][key].nil?
         if params['preferences'][key] != self.settings['preferences'][key]
           self.settings['confirmation_log'] ||= []
           self.settings['confirmation_log'] << {
@@ -3080,6 +3205,7 @@ class User < ApplicationRecord
     self.settings['preferences']['stretch_buttons'] = nil if self.settings['preferences']['stretch_buttons'] == 'none'
     self.settings['preferences']['progress'] ||= {}
     if params['preferences'] && params['preferences']['progress']
+      tours_stored = GUIDED_TOUR_PROGRESS_PARAMS.map { |a| [a, self.settings['preferences']['progress'][a]] }.to_h
       PROGRESS_PARAMS.each do |attr|
         self.settings['preferences']['progress'][attr] = params['preferences']['progress'][attr] if params['preferences']['progress'][attr]
       end
@@ -3093,6 +3219,12 @@ class User < ApplicationRecord
       GUIDED_TOUR_PROGRESS_PARAMS.each do |tour_attr|
         val = self.settings['preferences']['progress'][tour_attr]
         next if val.nil?
+        # Merged with the stored map, stored entries first, so the cap below never drops one already
+        # stored. Tours are only ever added (nothing resets a map), so a device holding an old copy must
+        # not drop a tour recorded elsewhere, whatever kind of save carries it (issue #1134).
+        if val.is_a?(Hash) && tours_stored[tour_attr].is_a?(Hash)
+          val = tours_stored[tour_attr].merge(val)
+        end
         if val.is_a?(Hash)
           cleaned = {}
           val.each do |k, v|
@@ -3429,11 +3561,11 @@ class User < ApplicationRecord
       prefs.delete('dashboard_layout')
     end
 
-    # compressed_view: a real boolean. The PREFERENCE_PARAMS loop already turns 'true' and
-    # 'false' into booleans; anything else is stored as off.
-    if prefs.has_key?('compressed_view')
-      prefs['compressed_view'] = (prefs['compressed_view'] == true)
-    end
+    # (compressed_view was coerced to a boolean here until 2026-10-10. Compressed View was
+    # removed then and the key is no longer in PREFERENCE_PARAMS, so it cannot be written;
+    # a stored value is left in place and read by nothing (no backfill was landed).
+    # Kept as five lines so the line numbers below, which audit findings and compliance docs
+    # cite, do not move.)
 
     # dashboard_sections: { known_key => boolean }.
     if prefs.has_key?('dashboard_sections')

@@ -6,10 +6,12 @@ is kept under 200 lines. Everything else loads on demand:
 | Where | Loads when | Holds |
 |---|---|---|
 | `app/frontend/CLAUDE.md` | you read files under `app/frontend/` | Ember commands, test-run discipline, 5.12 gotchas, frontend map |
+| `.claude/rules/testing-frontend.md` | touching frontend tests, e2e, `ci.yml` or `app/frontend/app/**` | the frontend testing standards: which test, isolation, deferred-work guards, running, CI |
 | `.claude/rules/compliance-docs.md` | touching `docs/legal/**` or `audit-reports/**` | register governance, attested-doc rules |
 | `.claude/rules/data-bearing-paths.md` | touching fixtures, seeds, cassettes, migrations, `db/language/` | the Tier 1 data boundary |
 | `.claude/rules/deploy.md` | touching the deploy workflow, Dockerfile, `scripts/gcp/` | Cloud Run facts |
 | `.claude/rules/github-pr.md` | opening or updating a PR without `gh` | the credential route and its handling rules |
+| `.claude/rules/testing.md` | touching `spec/**` or `.rspec` | no network in specs, test credentials, Redis state, clock-dependent examples |
 | `/fix-proposal` skill | before a bug fix or behaviour change in application code | fact sheet, red test first, proposal review, falsification |
 | `/pr-preflight` skill | before opening or pushing to a PR | P1 to P6 checks and the PR body block |
 | `AGENTS.md`, `.github/copilot-instructions.md` | Codex and Copilot | the same rules in short form; change them in the same PR |
@@ -87,6 +89,13 @@ everything else in this file.
     goes green, and merging with `--admin`. Stop, name the test and the verified reason it
     fails, and wait. Rewriting a test is legitimate only when the specification it
     encodes actually changed and the approval you were given says so.
+15. **Agents never add the `synthetic-data` label.** That label is a person's
+    statement that they looked at every changed data file and none of it is real. Agents
+    run under a person's GitHub account, so the `data-bearing-paths` check cannot tell
+    an agent from that person: never add the label (including `gh pr create --label` or
+    `gh pr edit --add-label`), never post a `data-bearing-approval/*` status, and never
+    ask for either to be done on your behalf. When a PR needs it, say so and let the
+    reviewer add it after reading the data.
 
 ## Branching (mandatory before any code change)
 
@@ -99,9 +108,9 @@ everything else in this file.
   (`docs/scot-branch-naming-convention-f3117a76`). Teammates use that form or
   `<dev>/<type>/<slug>`; both are accepted. Never rename an existing branch.
 - **Hotfixes are the one exception:** an urgent production fix branches from `main` with
-  type `hotfix` (`hotfix/scot-<slug>`), opens a PR directly against `main` (Scot
-  approves), and is merged back to `develop` immediately afterwards. Hotfix and release
-  branches are made by hand, not by the launcher. See `CONTRIBUTING.md`.
+  type `hotfix` (`hotfix/scot-<slug>`), opens a PR directly against `main` (any one senior
+  dev approves; see `CONTRIBUTING.md` section 7), and is merged back to `develop` at once.
+  Hotfix and release branches are made by hand, not by the launcher.
 - **Stay on the active feature branch** when the request is part of work already in
   progress on it (CI failures, review feedback, follow-ups). Do not spawn a side branch
   and merge back unless asked.
@@ -189,11 +198,15 @@ test DB `lingolinq-test`. Deploy prep: `bin/deploy_prep`, `rake extras:mobile`,
 - **Backend:** RSpec in `spec/` mirroring the tree. `bundle exec rspec`,
   `bundle exec rspec spec/models/user_spec.rb:42`. Local runs need the DB user in the
   environment (the `RAILS_ENV=test DB_USER=... PGPASSWORD=...` prefix in
-  `docs/PRE_COMMIT_CHECKLIST.md`). `AuditEvent` rows commit outside the RSpec transaction
-  and the test DB can carry orphaned rows; scope any `delete_all` to the describe block.
+  `docs/PRE_COMMIT_CHECKLIST.md`). `AuditEvent` writes on the same connection as the example
+  and rolls back with it, but rows written outside an example (a `rails runner` or console
+  against the test DB) persist, so the test DB can carry orphaned rows; scope any `delete_all`
+  to the describe block.
 - **Frontend:** QUnit via `cd app/frontend && ember test`; read the run-shape rules in
   `app/frontend/CLAUDE.md` before interpreting a failure.
 - Reconcile totals against a known-good baseline before claiming a delta.
+- **Standards** (which kind of test, isolation enforced by the leak check, e2e, CI gates):
+  `.claude/rules/testing-frontend.md`; RSpec: `.claude/rules/testing.md`.
 
 ## Before a PR
 
@@ -212,6 +225,19 @@ wrong diff and records a pass it did not earn. That guard lives at a
 LingoLinq-internal path: if you cannot reach `~/ai-company-brain/`, you are not set up to
 run this pass, so stop and hand it to someone who is rather than proceeding without it.
 Codex-specific invocation detail lives in `AGENTS.md`. The Codex GitHub connector is set to review every PR automatically; that review skips the PII pre-flight and is neither dual-review pass, so confirm a PR actually got it rather than assuming. A `@codex review` comment requests one; it posts under your GitHub account, so ask before posting. No repository rule requests Copilot code review (an author's own Copilot settings may still request one).
+A PR that adds or changes a data-bearing path (fixtures, factories, seeds, migrations, VCR
+cassettes, data rake tasks, data files, `db/language/`), any file under `.github/workflows/`,
+or the check's own files fails the `data-bearing-paths/<base>` status until a reviewer with
+write access confirms every changed data file is synthetic (and has looked at any workflow
+change) and adds the `synthetic-data` label (never an agent: rule 15). That records an
+approval as a commit status on the current head commit for that base, and the label is
+removed; after a later push, add it again. `develop` is squash-only, so a PR to it is
+judged by its net diff. PRs to `staging` and `main` are checked commit by commit for
+changes that never went through `develop`; a merge commit counts only for what it adds
+beyond its parents, so a release merge of `develop` does not trip again. The author may
+approve their own PR, and anyone with write access can get past the check deliberately (it
+guards against mistakes and fork PRs). This repo is public: never push real user data,
+since a pushed branch is published whether or not it merges.
 
 ## Audit and compliance system
 

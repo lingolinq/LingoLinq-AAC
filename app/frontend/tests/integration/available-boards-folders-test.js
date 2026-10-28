@@ -3,6 +3,7 @@ import { render, click } from '@ember/test-helpers';
 import { hbs } from 'ember-cli-htmlbars';
 import * as QUnit from 'qunit';
 import EmberObject from '@ember/object';
+import { foldersLayout } from 'frontend/utils/folders_panel_state';
 
 /*
  * Folders accordion on the user boards page (`available-boards-section`).
@@ -23,6 +24,18 @@ import EmberObject from '@ember/object';
  */
 QUnit.module('Integration | available-boards-section folders accordion', function(hooks) {
   setupRenderingTest(hooks);
+
+  /* These tests cover the STACKED layout's expand/collapse. The test browser is 1440px wide, which
+     is side-by-side, where the panel is always open (requested 2026-10-11, utils/folders_panel_state.js);
+     pin the layout so they keep testing the accordion. Approved by Traci 2026-10-11. */
+  var priorSideBySide;
+  hooks.beforeEach(function() {
+    priorSideBySide = foldersLayout.get('sideBySide');
+    foldersLayout.set('sideBySide', false);
+  });
+  hooks.afterEach(function() {
+    foldersLayout.set('sideBySide', priorSideBySide);
+  });
 
   hooks.beforeEach(function() {
     // foldersExpanded is restored from localStorage in init(); clear it so the

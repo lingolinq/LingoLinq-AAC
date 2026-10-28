@@ -21,6 +21,14 @@
 # USAGE
 #   scripts/codex-review-path-classifier.sh <base-sha> <head-sha>
 #   (in GitHub Actions: pass github.event.pull_request.base.sha / head.sha)
+#   scripts/codex-review-path-classifier.sh --paths-from <file>
+#   (path-list mode: classify the newline-separated paths in <file> instead of a git
+#   diff; scripts/data-bearing-path-check.sh uses it for a merge commit's combined
+#   diff. The same exit-3 rules apply: an empty list or a git-quoted path fails.)
+#   scripts/codex-review-path-classifier.sh --data-bearing-only <either form above>
+#   (for scripts/data-bearing-path-check.sh, which sends nothing to a reviewer: skips the
+#   UTF-8 check that only protects the reviewer steps, and writes only data_bearing, so a
+#   reviewer step given this flag finds no route and never runs.)
 #
 # OUTPUT
 #   Writes these `key=value` lines to $GITHUB_OUTPUT (with GITHUB_OUTPUT unset they
@@ -36,8 +44,10 @@
 #
 # EXIT CODES
 #   0  classified; the route above was written
-#   3  nothing was classified: a git diff failure, an empty diff, a git-quoted
-#      path the patterns cannot read, or a grep failure. No route is written and
+#   3  nothing was classified: a git diff failure, an empty diff, an unreadable
+#      --paths-from file, a git-quoted path the patterns cannot read, a grep
+#      failure, or (on a route to a reviewer) a path that is not valid UTF-8.
+#      No route is written and
 #      the step fails, so the job stops before any reviewer runs (fail closed).
 #
 # ENV
@@ -45,8 +55,18 @@
 #
 set -euo pipefail
 
-BASE_SHA="${1:?usage: $0 <base-sha> <head-sha>}"
-HEAD_SHA="${2:?usage: $0 <base-sha> <head-sha>}"
+DATA_BEARING_ONLY=false
+if [ "${1:-}" = --data-bearing-only ]; then
+  DATA_BEARING_ONLY=true
+  shift
+fi
+PATHS_FROM=""
+if [ "${1:-}" = --paths-from ]; then
+  PATHS_FROM="${2:-}"
+else
+  BASE_SHA="${1:?usage: $0 <base-sha> <head-sha> | --paths-from <file>}"
+  HEAD_SHA="${2:?usage: $0 <base-sha> <head-sha> | --paths-from <file>}"
+fi
 CODEX_COMPLIANCE_PATHS="${CODEX_COMPLIANCE_PATHS:-allow}"
 
 # ---------------------------------------------------------------------------
@@ -54,6 +74,8 @@ CODEX_COMPLIANCE_PATHS="${CODEX_COMPLIANCE_PATHS:-allow}"
 # RISKY_PATTERNS. Keep in sync by hand (FLAG-2: no cross-repo `source`).
 # Bias toward OVER-blocking: a false positive costs a manual re-route to
 # claude-deep; a false negative would leak PHI/PII to a no-BAA model.
+# Matched in any letter case (grep -i below): an export named STUDENTS.CSV or a
+# Fixtures/ directory is the same data to the reviewer.
 # ---------------------------------------------------------------------------
 DATA_BEARING_PATTERNS=(
   '(^|/)(spec|test)/.*fixtures/'
@@ -68,7 +90,7 @@ DATA_BEARING_PATTERNS=(
   '(^|/)lib/tasks/.*(seed|import|export|backfill|load|sync).*\.rake$'
   '(^|/)(spec|test)/(cassettes|vcr_cassettes|vcr)/'
   '(^|/)db/.*\.sql$'
-  '\.(sql|dump|csv|tsv|ndjson|xlsx|xls|parquet)$'
+  '\.(sql|dump|csv|tsv|ndjson|jsonl|har|log|xlsx|xls|parquet)$'
   '(^|/)(fixtures|seeds|sample_data|test_data|data|exports?)/.*\.(json|ya?ml|xml)$'
   '(^|/)(fixtures|seeds|sample_data|test_data)/'
 )
@@ -96,8 +118,13 @@ die3() { echo "classifier: ERROR: $*. Nothing was classified; failing closed." >
 # --no-renames lists a rename as a delete plus an add, so both the old and the new
 # name are classified. --no-relative keeps a diff.relative setting from trimming
 # the paths the anchored patterns read.
-paths="$($GITQ diff --name-only --no-renames --no-relative "$BASE_SHA...$HEAD_SHA")" \
-  || die3 "git diff $BASE_SHA...$HEAD_SHA failed"
+if [ "${1:-}" = --paths-from ]; then
+  # cat fails on a missing, unreadable or empty file name, or a directory.
+  paths="$(cat -- "$PATHS_FROM")" || die3 "could not read the --paths-from file '$PATHS_FROM'"
+else
+  paths="$($GITQ diff --name-only --no-renames --no-relative "$BASE_SHA...$HEAD_SHA")" \
+    || die3 "git diff $BASE_SHA...$HEAD_SHA failed"
+fi
 
 # An empty listing is not evidence of a clean diff, so it cannot route to a reviewer.
 if [ -z "$(printf '%s' "$paths" | tr -d '[:space:]')" ]; then
@@ -126,7 +153,7 @@ select_paths quoted "$paths" "" '^"'
 
 data_bearing=false
 for pat in "${DATA_BEARING_PATTERNS[@]}"; do
-  select_paths match "$paths" "" "$pat"
+  select_paths match "$paths" "-i" "$pat"
   if [ -n "$match" ]; then
     data_bearing=true
     break
@@ -139,7 +166,7 @@ fi
 
 compliance_path=false
 for pat in "${COMPLIANCE_PATTERNS[@]}"; do
-  select_paths match "$paths" "" "$pat"
+  select_paths match "$paths" "-i" "$pat"
   if [ -n "$match" ]; then
     compliance_path=true
     break
@@ -152,6 +179,26 @@ elif [ "$compliance_path" = "true" ] && [ "$CODEX_COMPLIANCE_PATHS" = "block" ];
   reviewer_route="claude-deep"
 else
   reviewer_route="codex"
+fi
+
+# A route that sends the diff to a reviewer hands it names that are read as UTF-8
+# (core.quotepath=false writes them raw; codex-review-assemble-prompt.py read_required
+# decodes strictly), so a name that is not UTF-8 would crash the reviewer steps. Stop here
+# instead. A blocked diff reaches no reviewer and keeps its route. Python's strict decoder
+# is the one the reviewer steps use; glibc iconv also accepts sequences that are not UTF-8
+# (past U+10FFFF, the old 5-byte form), so it is not enough alone. Either checker failing
+# for any reason, missing included, fails closed too.
+if [ "$reviewer_route" != "blocked" ] && [ "$DATA_BEARING_ONLY" = false ]; then
+  printf '%s\n' "$paths" | iconv -f UTF-8 -t UTF-8 >/dev/null 2>&1 \
+    || die3 "a path in the diff is not valid UTF-8, or the UTF-8 check failed"
+  printf '%s\n' "$paths" | python3 -I -c 'import sys; sys.stdin.buffer.read().decode("utf-8")' >/dev/null 2>&1 \
+    || die3 "a path in the diff is not valid UTF-8, or the UTF-8 check failed"
+fi
+
+if [ "$DATA_BEARING_ONLY" = true ]; then
+  echo "data_bearing=$data_bearing" | tee -a "${GITHUB_OUTPUT:-/dev/stdout}" >/dev/null
+  echo "classifier: data_bearing=$data_bearing (data-bearing-only: no route written)" >&2
+  exit 0
 fi
 
 {

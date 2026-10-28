@@ -1,6 +1,20 @@
 # Capacitor 7 kickoff + offline boards
 
-Sibling shell: [`lingolinq_mobile`](file:///home/melis/repos/lingolinq_mobile) (`com.lingolinq.app`).  
+> **2026-10-23: the shell is moving to Capacitor 8.** Google Play requires new apps and app
+> updates to target Android 16 (API level 36) from August 31, 2026
+> ([Play target API requirement](https://support.google.com/googleplay/android-developer/answer/11926878)),
+> and Capacitor 7 can only target API 35
+> ([Capacitor target SDK](https://capacitorjs.com/docs/android/setting-target-sdk)). The
+> offline design below is unchanged by the move and the shell's `www/` bridges are not
+> rewritten. Building the shell now needs Node 22+, JDK 21+, Android SDK platform 36 and, for
+> iOS, Xcode 26 ([Capacitor 8 upgrade guide](https://capacitorjs.com/docs/updating/8-0)); the
+> shell README lists them once the Capacitor 8 change merges. The "Manual smoke" section below is also the
+> definition of done for the Capacitor 8 move. This file keeps its name because other docs
+> refer to it. Status and open issues: [capacitor-8-stop2-handoff.md](./capacitor-8-stop2-handoff.md).
+> Plan: [capacitor-8-stop1-handoff.md](./capacitor-8-stop1-handoff.md). Progress:
+> [2026-10-23_capacitor-8-move.md](../task-management/2026-10-23_capacitor-8-move.md).
+
+Sibling shell: [`lingolinq/lingolinq_mobile`](https://github.com/lingolinq/lingolinq_mobile) (`com.lingolinq.app`).\
 Monorepo branch: `feat/melissa-capacitor-7-kickoff`.
 
 ## Offline MVP (this pass)
@@ -28,7 +42,7 @@ grep api_host www/init.js
 adb reverse tcp:5000 tcp:5000   # local API
 ```
 
-`capacitor.config.json` sets `CapacitorSQLite.androidIsEncryption` / `iosIsEncryption` to `false` for unencrypted MVP DBs.
+`capacitor.config.json` holds the `CapacitorSQLite` encryption options (`androidIsEncryption` / `iosIsEncryption`); their release setting requires internal privacy and security sign-off.
 
 ## Manual smoke (definition of done)
 
@@ -43,4 +57,4 @@ Free-disk warning may no-op (Filesystem has no portable free-space API); accepta
 ## Related docs
 
 - [native-bridge-inventory.md](./native-bridge-inventory.md) — rows 1–2 status
-- Shell README offline section — `lingolinq_mobile/README.md`
+- Shell README offline section: [`lingolinq_mobile/README.md`](https://github.com/lingolinq/lingolinq_mobile/blob/master/README.md)

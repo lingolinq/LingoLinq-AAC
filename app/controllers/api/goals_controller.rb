@@ -47,7 +47,7 @@ class Api::GoalsController < ApplicationController
     goal = UserGoal.find_by_global_id(params['id'])
     return unless exists?(goal, params['id'])
     return unless allowed?(goal, 'view')
-    render json: JsonApi::Goal.as_json(goal, :wrapper => true, :permissions => @api_user).to_json
+    render json: JsonApi::Goal.as_json(goal, :wrapper => true, :permissions => @api_user, :time_zone => viewer_time_zone(goal)).to_json
   end
   
   def create
@@ -90,7 +90,7 @@ class Api::GoalsController < ApplicationController
 
     admin_org = Organization.admin
     if goal.process(goal_data, {:author => @api_user, :allow_global => admin_org && admin_org.allows?(@api_user, 'edit')})
-      render json: JsonApi::Goal.as_json(goal, :wrapper => true, :permissions => @api_user).to_json
+      render json: JsonApi::Goal.as_json(goal, :wrapper => true, :permissions => @api_user, :time_zone => viewer_time_zone(goal)).to_json
     else
       api_error 400, {error: 'update failed', errors: goal.processing_errors}
     end
@@ -103,5 +103,26 @@ class Api::GoalsController < ApplicationController
 
     goal.destroy
     render json: JsonApi::Goal.as_json(goal, :wrapper => true).to_json
+  end
+
+  private
+
+  # The viewer's time zone (?tz=) regroups a goal's days at their own midnight (#1196). Asking
+  # with many zones would narrow when each session happened, so it is honoured only for a viewer
+  # who may read this communicator's logs anyway, by the rules of logs#index: the communicator,
+  # or a supervisor with supervise or set_goals (neither is granted to a modeling-only link),
+  # with no private logging and no logging cutoff for that viewer. Anyone else gets the stored
+  # UTC grouping.
+  def viewer_time_zone(goal)
+    zone = params['tz']
+    user = goal.user
+    return nil unless zone.is_a?(String) && zone.present? && user && @api_user
+    # The real user decides, as in logs#index, so an admin acting as the communicator is a viewer.
+    return zone if user == (@true_user || @api_user)
+    scopes = api_permission_scopes
+    return nil unless user.allows?(@api_user, 'supervise', scopes) || user.allows?(@api_user, 'set_goals', scopes)
+    return nil if user.modeling_only? || user.private_logging?
+    return nil if user.effective_logging_cutoff_for(@api_user, nil)
+    zone
   end
 end

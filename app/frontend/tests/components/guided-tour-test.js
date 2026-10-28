@@ -127,7 +127,9 @@ describe('guided-tour auto-open vs the Art. 50 notice', function() {
   // the "never hold" mutation is what reddens them. The ceiling change itself is
   // pinned by the stuck-gate case and the default-value case below.
   itAsync('holds while the gate is pending under the ceiling, and runs once it clears', async function() {
-    component.set('art50_tour_due_max_ms', 400);
+    // Ceiling far above the sleeps, as in the case above: at 400 ms a timer waking 250 ms late on a busy
+    // headless runner expired it and the tour never ran.
+    component.set('art50_tour_due_max_ms', 2000);
     gatePending = true;
     component._scheduleAutoOpen();
     await sleep(150);
@@ -138,7 +140,9 @@ describe('guided-tour auto-open vs the Art. 50 notice', function() {
   });
 
   itAsync('the open-check still holds when a pending phase ends with the notice opening', async function() {
-    component.set('art50_tour_due_max_ms', 400);
+    // Ceiling far above the sleeps, as in the case above: at 400 ms a timer waking 250 ms late on a busy
+    // headless runner expired it and the tour never ran.
+    component.set('art50_tour_due_max_ms', 2000);
     gatePending = true;
     component._scheduleAutoOpen();
     await sleep(150);
@@ -368,12 +372,12 @@ describe('guided-tour auto-open vs the Art. 50 notice', function() {
     expect(starts.home).toEqual(1);
   });
 
-  itAsync('the resume allowlist: gate hosts for everyone, caseload only for a supporter', async function() {
+  itAsync('the resume allowlist: gate hosts for everyone, never the caseload page', async function() {
     expect(component._autoOpenRouteAllowed('user.home', false)).toEqual(true);
     expect(component._autoOpenRouteAllowed('user.home', true)).toEqual(true);
     expect(component._autoOpenRouteAllowed('index', false)).toEqual(true);
     expect(component._autoOpenRouteAllowed('bento', false)).toEqual(true);
-    expect(component._autoOpenRouteAllowed('caseload', true)).toEqual(true);
+    expect(component._autoOpenRouteAllowed('caseload', true)).toEqual(false); // no caseload tour since 2026-10-12 (approved)
     expect(component._autoOpenRouteAllowed('caseload', false)).toEqual(false);
     expect(component._autoOpenRouteAllowed('user.extras', false)).toEqual(false);
     expect(component._autoOpenRouteAllowed('user.extras', true)).toEqual(false);

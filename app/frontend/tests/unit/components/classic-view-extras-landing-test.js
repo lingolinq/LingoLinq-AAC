@@ -3,10 +3,18 @@ import EmberObject from '@ember/object';
 import Service from '@ember/service';
 import { setupTest } from '../../helpers';
 
-/* ARRIVING FROM THE EXTRAS PAGE (a switch to Basic, utils/basic_landing.js): the Basic home page
- * opens its Extras drawer and scrolls to it. It does that through `toggle_extras`, the action the
- * Extras card sends, so the arrival gets the click's own open-and-scroll behaviour (pinned by
- * classic-view-extras-scroll-test.js) rather than a second copy of it.
+/* ARRIVING FROM THE EXTRAS PAGE (a switch to Basic, utils/basic_landing.js).
+ *
+ * REWRITTEN 2026-10-09. This used to assert that the arrival OPENED the Extras drawer and scrolled
+ * to it. The drawer no longer collapses — its tiles are always on the page and the slot that
+ * toggled it is now a plain Account link — so there is nothing to open and nothing to scroll to;
+ * landing on the Actions tab is the whole handoff. The companion
+ * classic-view-extras-scroll-test.js was retired with the override it pinned.
+ *
+ * What is still worth pinning, and is what these tests now cover: the pending flag is CONSUMED on
+ * arrival. If it survived it would re-fire on the next navigation, and app-state clears it on
+ * account switch for the same reason (services/app-state.js:2194) — a handoff leaking into another
+ * user's session is the failure this guards.
  */
 module('Unit | Component | classic-view Extras landing', function(hooks) {
   setupTest(hooks);
@@ -43,19 +51,19 @@ module('Unit | Component | classic-view Extras landing', function(hooks) {
      (learnings-archive/2026-09.md, #1073), so every test here hit the 15s timeout in CI. */
   function frame() { return new Promise(function(r) { window.requestAnimationFrame(function() { window.requestAnimationFrame(r); }); }); }
 
-  test('arriving with the Extras drawer handed off opens it and scrolls to it', async function(assert) {
+  test('a handed-off arrival consumes the flag and moves the page nowhere', async function(assert) {
     var t = setup(this, true);
     t.component.didInsertElement();
     await frame();
-    assert.true(t.component.get('show_main_extras'), 'the drawer is open');
-    assert.strictEqual(t.scrolls.length, 1, 'and the Extras card was scrolled into view');
+    assert.notOk(t.component._pending_open_extras, 'the handoff was consumed, so it cannot re-fire');
+    assert.strictEqual(t.scrolls.length, 0, 'and nothing scrolled — there is no drawer to reveal');
   });
 
-  test('an ordinary arrival leaves the drawer closed and the page where it is', async function(assert) {
+  test('an ordinary arrival leaves the page where it is', async function(assert) {
     var t = setup(this, false);
     t.component.didInsertElement();
     await frame();
-    assert.notOk(t.component.get('show_main_extras'), 'the drawer stays closed');
+    assert.notOk(t.component._pending_open_extras, 'no handoff pending');
     assert.strictEqual(t.scrolls.length, 0, 'no scroll');
   });
 });

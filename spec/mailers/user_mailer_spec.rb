@@ -447,6 +447,9 @@ describe UserMailer, :type => :mailer do
   end
   
   describe "new_user_registration" do
+    # examples below assign these directly; a leaked IPLOCATE_API_KEY sends later specs to the network
+    restore_env_after_each('NEW_REGISTRATION_EMAIL', 'IPLOCATE_API_KEY')
+
     it "should use the ENV recipient address" do
       u = User.create
       ENV['NEW_REGISTRATION_EMAIL'] = 'asdf@example.com'
@@ -588,6 +591,30 @@ describe UserMailer, :type => :mailer do
   end
   
   describe "usage_reminder" do
+    it "should not include screenshot images in any section" do
+      u = User.create(:settings => {'name' => 'stacy', 'email' => 'stacy@example.com'})
+      html = message_body(UserMailer.usage_reminder(u.global_id), :html)
+      expect(html).to match(/Getting Started/)
+      expect(html).to match(/reporting and logging built-in/)
+      expect(html).not_to match(/<img/)
+      expect(html).not_to match(/amazonaws/)
+
+      u.settings['preferences']['role'] = 'supporter'
+      u.save
+      html = message_body(UserMailer.usage_reminder(u.global_id), :html)
+      expect(html).to match(/signed up as a supervisor/)
+      expect(html).not_to match(/<img/)
+      expect(html).not_to match(/amazonaws/)
+
+      u.settings['preferences']['role'] = 'communicator'
+      u.save
+      Device.create(:user => u)
+      html = message_body(UserMailer.usage_reminder(u.global_id), :html)
+      expect(html).to match(/Doing More/)
+      expect(html).not_to match(/<img/)
+      expect(html).not_to match(/amazonaws/)
+    end
+
     it "should generate a message to the specified user" do
       u = User.create(:settings => {'name' => 'stacy', 'email' => 'stacy@example.com'})
       m = UserMailer.usage_reminder(u.global_id)
@@ -970,6 +997,6 @@ describe UserMailer, :type => :mailer do
     end
   end
   
-  it "should have a default reply-to of noreply@mylingolinq.com"
+  it "should have a default reply-to address"
   it "should have specs for the mailer erb templates"
 end

@@ -184,7 +184,7 @@ module UpstreamDownstream
       changes.each{|k, vals| updates[k] = vals[1] }
       updates['last_tracked'] = Time.now.to_i
       board.generate_stats
-      board.update_setting(updates, nil, :save_without_post_processing)
+      board.update_setting(updates, nil, :save_tracked_downstream)
       if (downstream_boards_changed || downstream_buttons_count_changed) && !downstream_ids_changed && !buttons_changed && RedisInit.queue_pressure?
         # If queues are backed up, and all that's changed is the revision hash then 
         # instead of scheduling heavy tracks for all upstream boards, just change 
@@ -204,6 +204,19 @@ module UpstreamDownstream
     
     Rails.logger.info('done tracking!')
     true
+  end
+
+  # The save track_downstream_boards! hands update_setting, which runs it now or, when the row
+  # moved meanwhile, later from a stashed job. Deep sharees' cached shared-board lists include
+  # downstream_board_ids (sharing.rb all_shared_board_ids_for), so when those changed they are
+  # expired here, after the write: expiring before it let a rebuild in between read the old ids
+  # under the new stamp and keep them as current.
+  def save_tracked_downstream
+    stored = Board.find_by(id: self.id)
+    previous = ((stored && stored.settings) || {})['downstream_board_ids'] || []
+    res = self.save_without_post_processing
+    self.expire_deep_shared_lists! if res && previous.sort != (self.settings['downstream_board_ids'] || []).sort
+    res
   end
 
   def possible_home_board?
