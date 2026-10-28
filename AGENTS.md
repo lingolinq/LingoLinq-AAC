@@ -113,13 +113,12 @@ run neither pass.)
 **Neither of you can discharge the adversarial pass.** Codex has no such skill at all,
 and while an `adversary-review` file is installed for Antigravity it only instructs
 spawning Claude's `adversary` subagent, which is Claude-only. Name the reviewer who owes
-that pass. A second, CI-side route for the senior-dev
-pass exists, the `Codex Review` workflow (`.github/workflows/codex-review.yml`),
-dispatched by the n8n W1 orchestrator and reporting the `codex-review/deep-pass` commit
-status; per that workflow's own header, status-stamped 2026-10-03, it is disabled in
-Actions (last run 2026-09-28) and not in the required set on `develop`, `staging` or `main`.
-Nothing re-verifies that stamp, so confirm it against branch protection before relying on
-it. A green CI run is not the dual review.
+that pass. There is no CI-side route for the senior-dev pass: the `Codex Review` workflow
+(`codex-review.yml`, dispatched by n8n W1, reporting `codex-review/deep-pass`) was retired
+on 2026-10-27, its keys revoked and its workflow, prompts and scripts removed. The
+`codex-review-tests` CI job keeps its name only because it is a required check; it now runs
+the frontend-scope, path-classifier and data-bearing-path suites. A green CI run is not the
+dual review.
 
 The Codex GitHub connector is set to review every PR automatically. That review skips the
 PII pre-flight and is neither pass; confirm a PR actually got it rather than assuming. A
