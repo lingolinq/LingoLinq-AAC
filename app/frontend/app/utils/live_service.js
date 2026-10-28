@@ -12,8 +12,9 @@ export function live_service(svc) {
 /* The test a deferred-work guard uses: true only when an owner WAS captured and has since been torn
    down. Nothing captured (an undefined or null owner) is not "gone": the work runs, as it did before
    the guards existed. `if(!live_service(owner)) return;` also returned for a missing owner, which
-   stopped switch scanning restarting after a selection (scanner.appState is unset when the
-   highlight controller set the scanner up). */
+   stopped switch scanning restarting after a selection whenever scanner.appState was unset (before
+   check_scanning first sets it; until 2026-10 also after every highlight open, whose controller
+   declared no appState). */
 export function owner_gone(owner) {
   var gone = !!owner && !live_service(owner);
   if(gone && owner_gone_listener) { owner_gone_listener(owner); }

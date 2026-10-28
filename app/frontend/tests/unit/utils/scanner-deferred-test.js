@@ -28,9 +28,10 @@ module('Unit | Utility | scanner deferred reset and restart', function(hooks) {
     assert.strictEqual(this.calls.start, 1, 'the restart ran');
   });
 
-  // In production scanner.appState is often unset when a selection is made: the highlight
-  // controller passed to scanner.setup has no appState. Nothing captured means no app was torn
-  // down, so the restart and reset run, as they always did (2026-10-10 review, switch scanning).
+  // scanner.appState can be unset when a selection is made (before check_scanning first sets it;
+  // until 2026-10 also after every highlight open, whose controller declared no appState). Nothing
+  // captured means no app was torn down, so the restart and reset run, as they always did
+  // (2026-10-10 review, switch scanning).
   test('they still run when no app was captured', function(assert) {
     assert.expect(2);
     scanner_reset_for(undefined)();

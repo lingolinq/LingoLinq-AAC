@@ -69,14 +69,23 @@ describe('HighlightController', 'controller:highlight', function() {
 //   }
 // });
 describe('HighlightController scanner hand-off', function() {
-  var testOwner, saved;
+  var testOwner, saved, opened;
   beforeEach(function() {
     testOwner = this.owner;
+    opened = null;
+    var appState = testOwner.lookup('service:app-state');
     saved = { appState: scanner.get('appState'), controller: scanner.controller, highlight: modal.highlight_controller,
       last: modal.last_controller, settings: modal.settings_for['highlight'],
-      frameController: frame_listener.controller, frameAppState: frame_listener.appState };
+      frameController: frame_listener.controller, frameAppState: frame_listener.appState,
+      user: appState.get('currentUser'), lastOptions: scanner.last_options, interval: scanner.interval };
   });
   afterEach(function() {
+    // Undone here, not at the end of each test, so a failure part-way cannot leak an open
+    // highlight or a fake user into later tests.
+    if(opened) { opened.closing(); }
+    testOwner.lookup('service:app-state').set('currentUser', saved.user);
+    scanner.last_options = saved.lastOptions;
+    scanner.interval = saved.interval;
     scanner.set('appState', saved.appState);
     scanner.controller = saved.controller;
     modal.highlight_controller = saved.highlight;
@@ -96,24 +105,30 @@ describe('HighlightController scanner hand-off', function() {
     scanner.set('appState', null);
     // controllers/highlight.js actions.opening copies its model from settings_for['highlight'].
     modal.settings_for['highlight'] = { left: 0, top: 0, width: 10, height: 10 };
+    opened = controller;
     controller.send('opening');
     expect(scanner.controller).toEqual(controller);
     expect(scanner.get('appState') === appState).toEqual(true);
-    controller.closing();
   });
 
-  // The symptom, through the exact read: start()'s guard (utils/scanner.js:189) evaluates
-  // `this.get('appState.currentUser.preferences.device.scanning')` and stops scanning when it is falsy.
-  it("lets start()'s preference guard see the scanning preference after it opens", function() {
+  // The symptom: after a switch selection the scanner restarts through start(), whose preference
+  // guard (utils/scanner.js:189) stopped scanning because the highlight had left appState unset.
+  // The real start() runs here with #speak present; with no options it returns right after its
+  // guards, so the test sees the guard's decision without starting a scan.
+  it("does not stop scanning in start() after a highlight opens", function() {
     var appState = testOwner.lookup('service:app-state');
     var controller = testOwner.lookup('controller:highlight');
-    var savedUser = appState.get('currentUser');
     appState.set('currentUser', EmberObject.create({preferences: {device: {scanning: true}}}));
     scanner.set('appState', null);
     modal.settings_for['highlight'] = { left: 0, top: 0, width: 10, height: 10 };
+    opened = controller;
     controller.send('opening');
-    expect(scanner.get('appState.currentUser.preferences.device.scanning')).toEqual(true);
-    controller.closing();
-    appState.set('currentUser', savedUser);
+    var stopped = false;
+    stub(scanner, 'find_elem', function(str) { return str === '#speak' ? {length: 1} : {length: 0}; });
+    stub(scanner, 'stop', function() { stopped = true; });
+    scanner.interval = null;
+    scanner.last_options = null;
+    scanner.start();
+    expect(stopped).toEqual(false);
   });
 });
