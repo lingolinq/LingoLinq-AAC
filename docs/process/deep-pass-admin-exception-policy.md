@@ -5,8 +5,10 @@ merge into LingoLinq-AAC.
 
 > **Retired 2026-10-27:** the CI Codex review gate was retired (Scot), its keys
 > revoked, and `codex-review.yml`, `.github/codex/` and the gate's scripts
-> removed. `codex-review/deep-pass` can no longer be posted, so this policy has
-> nothing to apply to. Bringing a CI review gate back is a new approval, not a
+> removed. Nothing posts `codex-review/deep-pass` and it is not a required
+> check on any branch, so this policy has nothing to apply to. Any token with
+> commit-status write access could still post that context, so a future
+> required check of that name would need to pin which app may post it. Bringing a CI review gate back is a new approval, not a
 > revival of this one. The text below is kept as the record.
 
 > **Operational note, 2026-09-12:** the premises below have moved.

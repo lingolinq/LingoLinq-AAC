@@ -153,7 +153,7 @@
 | Agent config - security-reviewer | git | `.claude/agents/security-reviewer.md` | published | SOC2 | Scot Wahlquist | 2026-07-22 | 2027-07-22 | no | `99a8fdf648ef` |  |
 | api-auditor agent definition | git | `.claude/agents/api-auditor.md` | published |  | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `36ec97453ced` |  |
 | code-hygiene-auditor agent definition | git | `.claude/agents/code-hygiene-auditor.md` | published |  | Scot Wahlquist | 2026-08-12 | 2027-02-12 | no | `19ccf329ac59` |  |
-| compliance-officer agent definition | git | `.claude/agents/compliance-officer.md` | published |  | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `01a1f642b241` |  |
+| compliance-officer agent definition | git | `.claude/agents/compliance-officer.md` | published |  | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `de8e69cec51a` |  |
 | dependency-auditor agent definition | git | `.claude/agents/dependency-auditor.md` | published |  | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `7a8bcfe2fd9c` |  |
 | infra-auditor agent definition | git | `.claude/agents/infra-auditor.md` | published | SOC2 | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `ce22bcef0d21` |  |
 | privacy-auditor agent definition | git | `.claude/agents/privacy-auditor.md` | published | GDPR, FERPA, COPPA, HIPAA | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `50c82520ba45` |  |

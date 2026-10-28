@@ -670,6 +670,12 @@ jobs:
       - name: Run codex-review path-classifier tests
         run: bash -n scripts/codex-review-path-classifier.sh && scripts/tests/codex-review-path-classifier-test.sh
 
+      # The same classifier against a real git repository: git-quoted names (tab, newline,
+      # quote, backslash), a compliance rename, and uppercase data-file extensions. Moved from
+      # codex-review-chunked-scope.test.py when the CI Codex review gate was removed.
+      - name: Run codex-review path-classifier real-repo tests
+        run: python3 scripts/codex-review-path-classifier-repo.test.py
+
       # The required data-bearing-paths gate decides with the classifier above, but its own suite
       # first runs inside that gate after merge (data-bearing-paths.yml). Run it here too, so a change
       # to the classifier or the check cannot reach develop and fail the gate on every PR.

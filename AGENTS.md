@@ -117,7 +117,7 @@ that pass. There is no CI-side route for the senior-dev pass: the `Codex Review`
 (`codex-review.yml`, dispatched by n8n W1, reporting `codex-review/deep-pass`) was retired
 on 2026-10-27, its keys revoked and its workflow, prompts and scripts removed. The
 `codex-review-tests` CI job keeps its name only because it is a required check; it now runs
-the frontend-scope, path-classifier and data-bearing-path suites. A green CI run is not the
+the frontend-scope, path-classifier (shell and real-repo) and data-bearing-path suites. A green CI run is not the
 dual review.
 
 The Codex GitHub connector is set to review every PR automatically. That review skips the

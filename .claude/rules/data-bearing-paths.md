@@ -30,7 +30,7 @@ regardless of the surrounding task:
   `db/language/vendor/` included. The rule matches the brain review guard; a change to it
   is made in the classifier and in the brain guard together.
 - The classifier fails closed: an empty diff, a git-quoted path, or a git or grep failure
-  exits 3, writes no route, and stops the review job.
+  exits 3, writes no route, and fails the `data-bearing-paths` check.
 - Before committing a fixture, cassette, or seed, confirm it holds synthetic data only.
   The local development database is per-machine; a prior confirmation on one machine
   does not carry over.
