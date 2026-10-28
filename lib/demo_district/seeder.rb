@@ -122,7 +122,7 @@ module DemoDistrict
           public: false,
           buttons: CORE_BOARD_BUTTONS.map(&:dup),
           grid: { rows: CORE_BOARD_GRID[:rows], columns: CORE_BOARD_GRID[:columns], order: CORE_BOARD_GRID[:order].map(&:dup) }
-        }, { user: supervisors.first, key: BOARD_KEY })
+        }, { user: supervisors.first, key: BOARD_KEY.dup }) # Board#process_params edits the key in place (sub!)
         log.call("  Created district core board (20 buttons)")
       end
 
