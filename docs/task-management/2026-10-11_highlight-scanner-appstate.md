@@ -188,3 +188,49 @@ registration next to the existing `LingoLinq.appState = this` it mirrors).
 - Verification: one build; fixed bundle frame_listener 49/49, HighlightController 3/3; mutant without
   the registration fails exactly the 3 new frame_listener tests; mutant without the highlight
   `appState` fails exactly the 2 highlight hand-off tests. lint:js:ci new=0.
+
+## Re-verification on current develop (2026-10-28)
+
+The branch had sat since 2026-10-11 while develop moved 31 commits, including #1118, which rewrote
+the scanner's restart path. Merged `origin/develop` (`71690f86a`; one conflict, the learnings archive,
+both sides kept). Net diff against develop unchanged: 6 files, +348/-2.
+
+Still necessary, no overlap with #1118 (CONFIRMED):
+- `controllers/highlight.js` on develop still declares no `appState`, and `scanner.setup`
+  (`utils/scanner.js:159`) still reads `controller.get('appState')`, so every highlight open leaves
+  `scanner.appState` undefined. Nothing on develop sets `frame_listener.appState`.
+- #1118's `owner_gone` (`utils/live_service.js`) lets the restart RUN when no owner was captured; its
+  own comment names this gap. The restart then calls `start()`, whose preference guard
+  (`scanner.js:189`) reads the same undefined `appState` and stops. The two changes are complementary.
+- `check_scanning` (`services/app-state.js:2060`) re-sets `scanner.appState` only when something calls
+  it, which is why classic recovered on its own and modern with auto-home off did not.
+
+Origin: before `3b80dc494` (2026-01-27) both utils imported the `app_state` singleton directly, so
+this failure could not happen. The pre-migration build could not be run against today's backend (no
+board-detail view; session lost on reload; `/api/v1/users/cache` HTTP 400; board renders 0 buttons),
+so "the original scanner worked at runtime" stays UNVERIFIED; the code-level claim is CONFIRMED.
+
+Unit runs (one test build, then one combined mutant build: develop's `highlight.js` and
+`app-state.js` with this branch's tests):
+- fixed: HighlightController 3/3, frame_listener 49/49, "scanner" 81 (77 pass, 4 skip, 0 fail).
+- mutant: exactly the 5 new tests fail (2 highlight hand-off, 3 frame_listener), nothing else.
+- `npm run lint:js:ci`: new=0.
+
+Runtime (`switch-scanning-qa.mjs` from `traci/test/switch-scanning-qa-script`, Rails on 5000, each
+build served with `ember serve --proxy http://127.0.0.1:5000`, user `example`):
+
+| Scenario | develop | fixed |
+|---|---|---|
+| modern speak button | stopped, never resumed | resumes 24 ms, 1 s steps |
+| modern three in a row | fails (stopped after the first) | all three, ~20 ms resumes |
+| modern folder | resumes 1102 ms | 77 ms |
+| modern step + quick presses | stopped | resumes 333 ms, no previous-board words |
+| modern auto-home + quick presses | 1052 ms | 157 ms, only the selected word |
+| classic speak button | 1119 ms | 19 ms |
+| classic step + quick presses | stopped at end | keeps scanning |
+| classic three/folder/auto-home, both axes | same | same |
+
+A live sample of the scanner every second showed `scanner.appState` missing on develop from the second
+step on, and present on the fixed build; both scan the same order. The first fixed run timed out on
+every scenario right after the develop run; a rerun alone and the sample both passed. Cause not found.
+Pre-existing on both builds: a `board-icon` "calling set on destroyed object" page error.
