@@ -343,8 +343,9 @@ describe DemoDistrict do
 
       # Each student who used the device got a primary goal from their SLP and a check-in
       # note, which is what moves the Goals tile and the room's weekly goal faces.
-      expect(res[:goals_created]).to be > 0
-      expect(res[:goal_notes]).to eq(res[:goals_created])
+      expect(res[:goals_created]).to eq(20)
+      with_sessions = LogSession.where(user_id: communicators.map(&:id), log_type: 'session').distinct.count(:user_id)
+      expect(res[:goal_notes]).to eq(with_sessions)
       notes = LogSession.where(user_id: communicators.map(&:id), log_type: 'note')
       expect(notes.count).to eq(res[:goal_notes])
       notes.each do |n|
@@ -359,6 +360,24 @@ describe DemoDistrict do
       expect(res[:supervisor_days]).to be > 0
       daily = LogSession.where(log_type: 'daily_use', user_id: org.supervisors.map(&:id))
       expect(daily.map { |d| d.data['days'].keys }.flatten.uniq).to eq(['2026-10-20'])
+
+      # A run killed after the sessions but before the notes and SLP days (simulated by
+      # removing them) is caught up by the next run, which writes no new sessions.
+      LogSession.where(user_id: communicators.map(&:id), log_type: 'note').destroy_all
+      daily.destroy_all
+      again = travel_to(now) { DemoDistrict.refresh!(organization: org.reload, now: now) }
+      expect(again[:sessions_created]).to eq(0)
+      expect(again[:goals_created]).to eq(0)
+      expect(again[:goal_notes]).to eq(with_sessions)
+      expect(LogSession.where(log_type: 'daily_use', user_id: org.supervisors.map(&:id)).map { |d| d.data['days'].keys }.flatten.uniq).to eq(['2026-10-20'])
+    end
+
+    it "refuses when a board already has the district board's key" do
+      Board.create(user: User.create, settings: { 'name' => 'Spec Board' }).update_column(:key, DemoDistrict::Seeder::BOARD_KEY)
+      expect(Board.where(key: DemoDistrict::Seeder::BOARD_KEY).count).to eq(1)
+      before_count = Organization.count
+      expect { DemoDistrict.create_district!(password: 'spec-demo-password') }.to raise_error(DemoDistrict::RefusedError, /board/)
+      expect(Organization.count).to eq(before_count)
     end
 
     it "refuses a missing or short password and creates nothing" do

@@ -80,3 +80,36 @@ Branch `claude/demo-district-rolling-activity-uhzmsk`, from develop at a01becefd
 
 - RSpec could not run in this session: Ruby 3.4 downloads are blocked by the session's network
   policy (403), and only Ruby 3.3.6 is installed. All files pass `ruby -c`. CI runs the full suite.
+
+## Independent review (local subagent, read-only) and dispositions
+
+No Critical or High findings.
+
+**Medium (all fixed):**
+
+- **M1:** the goal-note cursor query could not use an index. It now filters by `user_id`, so the
+  `(user_id, goal_id)` index serves it.
+- **M2:** `create_district!` could adopt an existing board with the district's key. It now
+  refuses instead.
+- **M3:** a killed backfill left permanent gaps in goal notes and SLP daily activity. Both are now
+  rebuilt from what is stored rather than what one run remembers:
+  - goal notes cover every day with sessions since the goal's latest note, on the caught-up path
+    too;
+  - SLP days fill any date in the backfill horizon where the SLP authored sessions or notes but
+    daily_use has no entry.
+  - A spec simulates the killed run.
+
+**Low:**
+
+- **Fixed:**
+  - L1: `create_district!` reloads each student before setting preferences. The seed keeps its old
+    behaviour (no reload), since it is a refactor.
+  - L2: rooms are reloaded before `assert_supervision!`.
+  - L5: goal-note and goal-creation failures now count as refresh failures. Since the notes now
+    catch themselves up, a later run retries them.
+- **Accepted:**
+  - L3: the daily rebuild overwrites `models`/`modeled` for an SLP day that a presenter used live
+    in the last 14 days.
+  - L4: lunch modeling is credited to the room's SLP; the district has no classroom-staff
+    accounts.
+  - L6: in production, changed profiles switch pattern from the backfill on.

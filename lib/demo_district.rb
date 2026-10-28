@@ -108,6 +108,9 @@ module DemoDistrict
     end
     taken = User.where(user_name: Seeder.user_names).pluck(:user_name)
     raise RefusedError, "user names already taken: #{taken.sort.join(', ')}" if taken.any?
+    # Seeder.build! reuses a board with this key; a fresh district must not adopt one it
+    # does not own.
+    raise RefusedError, "a board with key #{Seeder::BOARD_KEY.inspect} already exists" if Board.where(key: Seeder::BOARD_KEY).exists?
 
     # No surrounding transaction, matching db/seeds.rb: user and board saves schedule
     # background jobs that a worker could pick up before an outer transaction committed. A
@@ -121,7 +124,8 @@ module DemoDistrict
       district = Seeder.build!(org, password: password, log: ->(msg) { log(msg.strip) })
       board_ref = { 'id' => district[:board].global_id, 'key' => district[:board].key }
       district[:students].each do |entry|
-        student = entry[:user]
+        # add_user saved the student's settings through another copy; start from those.
+        student = entry[:user].reload
         Seeder.prepare_student!(student)
         # A brand-new student has no session for refresh! to take a board from, so give
         # them the district board as their home board. Reports aggregate only with
@@ -133,7 +137,7 @@ module DemoDistrict
       # Link each room's SLP to its students now rather than waiting for the job adding them
       # scheduled: refresh! picks a session's author (who models) from the student's
       # supervisors, and a backfill run straight after this would otherwise find none.
-      district[:units].each(&:assert_supervision!)
+      district[:units].each { |unit| unit.reload.assert_supervision! }
     rescue => e
       log("FAILED building #{org.global_id} part way: #{e.class}: #{e.message}")
       raise
@@ -183,7 +187,7 @@ module DemoDistrict
     recent = ((yesterday - (SUPERVISOR_DAYS_WINDOW - 1))..yesterday).to_a
     supervisors.each do |sup|
       begin
-        result[:supervisor_days] += record_supervisor_days!(sup, touched[sup.id] + recent)
+        result[:supervisor_days] += record_supervisor_days!(sup, touched[sup.id] + recent + unrecorded_supervisor_days(sup, yesterday))
       rescue => e
         result[:failures] << "#{sup.user_name} daily activity: #{e.class}: #{e.message}"
       end
@@ -216,6 +220,8 @@ module DemoDistrict
         weeks = Set[weekyear_for(latest.started_at)]
         flush_summaries(user, weeks, result)
         result[:failures] << "#{user.user_name} weekly summaries #{weeks.to_a.join(', ')}" if weeks.any?
+        # Catches up goal notes a killed earlier run did not reach.
+        write_goal_notes(user, author_for(org, user, latest), yesterday, result, touched)
       end
       return
     end
@@ -248,7 +254,6 @@ module DemoDistrict
     pending_weeks = Set.new
     pending_weeks << weekyear_for(latest.started_at) if latest
     latest_created_at = nil
-    day_ends = {}
     (start_date..yesterday).each do |date|
       next if marked_days.include?(date)
       made = generator.generate_day(date)
@@ -274,10 +279,7 @@ module DemoDistrict
         pending_weeks << weekyear_for(s.started_at)
         latest_created_at = [latest_created_at, s.started_at].compact.max
       end
-      if made.any?
-        day_ends[date] = made.map { |s| s.ended_at || s.started_at }.max
-        touched[generator.author.id] << date
-      end
+      touched[generator.author.id] << date if made.any?
       if date == yesterday || weekyear_for(date + 1) != weekyear_for(date)
         flush_summaries(user, pending_weeks, result)
       end
@@ -286,19 +288,21 @@ module DemoDistrict
     if pending_weeks.any?
       result[:failures] << "#{user.user_name} weekly summaries #{pending_weeks.to_a.sort.join(', ')}"
     end
+    write_goal_notes(user, generator.author, yesterday, result, touched)
     return unless latest_created_at
 
-    write_goal_notes(user, generator.author, day_ends, result, touched)
     result[:goals_tracked] += 1 if track_goal(user, latest_created_at)
   end
 
   # Gives a demo communicator with no primary goal one (authored by their SLP), then logs a
-  # goal check-in note on the user's cadence across the days this run filled. The notes are
+  # goal check-in note on the user's cadence across the days since the goal's latest note
+  # that hold sessions. Working from what is stored, not from what this run wrote, means a
+  # run killed before reaching a user's notes is caught up by the next one. The notes are
   # what the room's weekly goal faces and the Goals tile read, and saving one is how the app
   # itself moves primary_goal last_tracked. A user whose primary goal is not a real active
   # goal of theirs keeps the plain last_tracked bump in track_goal.
-  def write_goal_notes(user, author, day_ends, result, touched)
-    return if day_ends.empty? || author.nil? || author.id == user.id
+  def write_goal_notes(user, author, yesterday, result, touched)
+    return if author.nil? || author.id == user.id || !demo_email?(author)
     user.reload
     if user.settings['primary_goal'].blank?
       _, profile = UsageGenerator.profile_for(user)
@@ -307,7 +311,10 @@ module DemoDistrict
         'active' => true,
         'primary' => true
       }, { user: user, author: author })
-      return unless created.persisted?
+      unless created.persisted?
+        result[:failures] << "#{user.user_name} primary goal: #{created.processing_errors.join(', ').presence || 'not saved'}"
+        return
+      end
       result[:goals_created] += 1
       user.reload
     end
@@ -315,8 +322,19 @@ module DemoDistrict
     return unless goal && goal.user_id == user.id && goal.active
 
     tz = UsageGenerator.time_zone
-    last_note = LogSession.where(goal_id: goal.id, log_type: 'note').where('started_at IS NOT NULL').order('started_at DESC').first
+    # user_id first, so the (user_id, goal_id) index serves this.
+    last_note = LogSession.where(user_id: user.id, goal_id: goal.id, log_type: 'note').where('started_at IS NOT NULL').order('started_at DESC').first
     last_date = last_note && last_note.started_at.in_time_zone(tz).to_date
+    from = last_date ? last_date + 1 : yesterday - (MAX_BACKFILL_DAYS - 1)
+    return if from > yesterday
+    # Each day since then that holds sessions, and when its last one ended.
+    day_ends = {}
+    LogSession.where(user_id: user.id, log_type: 'session',
+                     started_at: tz.local(from.year, from.month, from.day)..tz.local(yesterday.year, yesterday.month, yesterday.day).end_of_day)
+              .pluck(:started_at, :ended_at).each do |started, ended|
+      date = started.in_time_zone(tz).to_date
+      day_ends[date] = [day_ends[date], ended || started].compact.max
+    end
     cadence = GOAL_CADENCE_DAYS.min + (user.id.to_i % GOAL_CADENCE_DAYS.size)
     _, profile = UsageGenerator.profile_for(user)
     statuses = GOAL_STATUSES[profile[:skill]] || GOAL_STATUSES[:intermediate]
@@ -330,8 +348,8 @@ module DemoDistrict
         'goal_status' => statuses.sample
       }, { user: user, author: author, device: device })
       unless note.persisted?
-        log("WARN #{user.user_name}: goal note on #{date} not saved")
-        next
+        result[:failures] << "#{user.user_name} goal note on #{date}: not saved"
+        return
       end
       note.data['seed_marker'] = SEED_MARKER
       note.save!
@@ -343,7 +361,22 @@ module DemoDistrict
       last_date = date
     end
   rescue => e
-    log("WARN #{user.user_name}: goal notes: #{e.class}: #{e.message}")
+    result[:failures] << "#{user.user_name} goal notes: #{e.class}: #{e.message}"
+  end
+
+  # Dates within the backfill horizon on which the supervisor authored sessions or notes but
+  # their daily_use log has no entry, such as days a killed run wrote but never recorded.
+  # Reads only started_at and the one daily_use row, so it is cheap to run every day.
+  def unrecorded_supervisor_days(supervisor, yesterday)
+    tz = UsageGenerator.time_zone
+    from = yesterday - (MAX_BACKFILL_DAYS - 1)
+    authored = LogSession.where(author_id: supervisor.id, log_type: %w[session note])
+                         .where.not(user_id: supervisor.id)
+                         .where(started_at: tz.local(from.year, from.month, from.day)..tz.local(yesterday.year, yesterday.month, yesterday.day).end_of_day)
+                         .pluck(:started_at).map { |t| t.in_time_zone(tz).to_date }.uniq
+    daily = LogSession.find_by(log_type: 'daily_use', user_id: supervisor.id)
+    recorded = ((daily && daily.data && daily.data['days']) || {}).keys
+    authored.reject { |date| recorded.include?(date.iso8601) }
   end
 
   # Rebuilds a supervisor's daily activity (the 'daily_use' log the app keeps for each
