@@ -112,7 +112,9 @@ gem 'faraday', '>= 2.14.3'
 gem 'clowne', '~> 1.4' # Declarative model cloning DSL for board copy optimization
 
 gem 'sinatra', '~> 4.2'
-gem 'sanitize'
+# GHSA-wgw9-qhqg-8hv5 (CSS nesting bypasses the property and protocol allowlists in <style>,
+# which Processable#process_html allows through Sanitize::Config::RELAXED); ensure >= 7.0.1
+gem 'sanitize', '>= 7.0.1'
 gem 'anthropic', '~> 1.36'
 gem 'ruby-openai', '~> 7.0'  # Used for Gemini fallback (OpenAI-compatible endpoint)
 
