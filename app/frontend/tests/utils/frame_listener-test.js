@@ -739,6 +739,7 @@ describe("frame_listener", function() {
     });
 
     it('should call handle_action with the correct data', function() {
+      frame.setAttribute('src', window.location.href); // the frame is configured for the sender's site
       var response = null;
       stub(frame_listener, 'session_window', function() { return window; });
       stub(frame_listener, 'respond', function(source, r) { response = r; });
@@ -748,6 +749,80 @@ describe("frame_listener", function() {
         expect(response).toEqual({callback_id: undefined, aac_shim: true, status: 'ready', session_id: 'asdf', user_token: undefined, code: undefined, system_token: 'LingoLinqAAC'});
       });
 
+    });
+  });
+
+  // An integration types into the sentence bar and speaks in the user's voice, and status hands it
+  // the user_token. Only the site the integration was configured with may do that (its iframe src),
+  // and replies go only to that site, never to '*', which would reach whatever page the frame has
+  // navigated to. (MDN, Window.postMessage: check event.origin, name an exact targetOrigin.)
+  describe('integration origin and payload checks', function() {
+    it('ignores a message from the frame once it is on a site other than the configured one', function() {
+      frame.setAttribute('src', 'https://tool.example.com/board');
+      var response = null, handled = false;
+      stub(frame_listener, 'session_window', function() { return window; });
+      stub(frame_listener, 'handle_action', function() { handled = true; });
+      stub(frame_listener, 'respond', function(source, r) { response = r; });
+      window.postMessage({aac_shim: true, session_id: 'asdf', action: 'add_text', text: 'hi'}, '*');
+      waitsFor(function() { return response; });
+      runs(function() {
+        expect(response.error).toEqual('message came from wrong window');
+        expect(handled).toEqual(false);
+      });
+    });
+
+    it('replies only to the configured site', function() {
+      frame.setAttribute('src', window.location.href);
+      var response = null, target = null;
+      stub(frame_listener, 'session_window', function() { return window; });
+      stub(frame_listener, 'respond', function(source, r, origin) { response = r; target = origin; });
+      window.postMessage({aac_shim: true, session_id: 'asdf', action: 'status'}, '*');
+      waitsFor(function() { return response; });
+      runs(function() {
+        expect(response.status).toEqual('ready');
+        expect(target).toEqual(window.location.origin);
+      });
+    });
+
+    it('never posts a reply to every origin', function() {
+      var posted = [];
+      var source = { postMessage: function(msg, origin) { posted.push(origin); } };
+      frame_listener.respond(source, {a: 1}, 'https://tool.example.com');
+      frame_listener.respond(source, {a: 1});
+      expect(posted).toEqual(['https://tool.example.com']);
+    });
+
+    it('does not trust a frame whose configured address is not a web page', function() {
+      frame.setAttribute('src', 'data:text/html,<p>hi</p>');
+      expect(frame_listener.session_origin()).toEqual(null);
+      frame.removeAttribute('src');
+      expect(frame_listener.session_origin()).toEqual(null);
+    });
+
+    it('rejects text that is not a string or is longer than a sentence needs', function() {
+      var added = null, data = null;
+      stub(app_state, 'activate_button', function(a, b) { added = b; });
+      frame_listener.handle_action({action: 'add_text', text: new Array(502).join('a'), respond: function(d) { data = d; }});
+      expect(data && data.error).toEqual('text must be a string of at most 500 characters');
+      frame_listener.handle_action({action: 'add_text', text: {label: 'hi'}, respond: function(d) { data = d; }});
+      expect(data && data.error).toEqual('text must be a string of at most 500 characters');
+      expect(added).toEqual(null);
+    });
+
+    it('rejects a picture that is not a web address', function() {
+      var added = null, data = null;
+      stub(app_state, 'activate_button', function(a, b) { added = b; });
+      frame_listener.handle_action({action: 'add_text', text: 'hats', image_url: 'javascript:alert(1)', respond: function(d) { data = d; }});
+      expect(data && data.error).toEqual('image_url must be an http or https address');
+      expect(added).toEqual(null);
+    });
+
+    it('does not speak over-long text', function() {
+      var spoken = [], data = null;
+      stub(speecher, 'speak_text', function(text) { spoken.push(text); });
+      frame_listener.handle_action({action: 'speak_text', text: new Array(502).join('a'), respond: function(d) { data = d; }});
+      expect(data && data.error).toEqual('text must be a string of at most 500 characters');
+      expect(spoken).toEqual([]);
     });
   });
 });

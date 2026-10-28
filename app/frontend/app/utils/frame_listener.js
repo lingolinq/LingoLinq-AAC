@@ -18,7 +18,7 @@ var frame_listener = EmberObject.extend({
   handle_action: function(data) {
     data.respond = data.respond || function() { };
     // TODO: event to set dim_header and small_header if desired
-    if(data.action == 'listen') {
+    if(frame_listener.payload_error(data)) { data.respond({error: frame_listener.payload_error(data)}); } else if(data.action == 'listen') {
       this.listen(data);
     } else if(data.action == 'stop_listening') {
       this.stop_listening(data);
@@ -265,9 +265,9 @@ var frame_listener = EmberObject.extend({
     // TODO: check for a parent window, embed mode, and notification authorization,
     // and postMessage if it's allowed
   },
-  respond: function(source, message) {
-    if(source && message) {
-      source.postMessage(message, '*');
+  respond: function(source, message, origin) {
+    if(source && message && origin) {
+      source.postMessage(message, origin);
     }
   },
   session_window: function(session_id) {
@@ -286,7 +286,7 @@ window.addEventListener('message', function(event) {
     event.data.respond = function(obj) {
       obj.aac_shim = true;
       obj.callback_id = event.data.callback_id;
-      frame_listener.respond(event.source, obj);
+      frame_listener.respond(event.source, obj, frame_listener.session_origin());
     };
     if(!event.data.session_id) {
       event.data.respond({error: 'session_id required, but not sent'});
@@ -294,7 +294,7 @@ window.addEventListener('message', function(event) {
     } else if(!session_window) {
       event.data.respond({error: 'message came from unknown source'});
       return;
-    } else if(event.source != session_window) {
+    } else if(event.source != session_window || event.origin !== frame_listener.session_origin()) {
       event.data.respond({error: 'message came from wrong window'});
       return;
     }
@@ -305,5 +305,34 @@ window.addEventListener('message', function(event) {
 window.addEventListener('resize', function() {
   runDebounce(frame_listener, frame_listener.size_targets, 100);
 });
+
+// Placed last so the baselined lint row above keeps its line number (.eslint-todo).
+// An integration may only talk to the app from the site it was configured with: the origin of the
+// frame's src (the integration's board_render_url). The src attribute keeps that address even after
+// the page inside the frame navigates elsewhere. Anything that is not an http(s) page has no origin
+// to trust (a data: frame's origin is "null").
+frame_listener.session_origin = function() {
+  var src = $("#integration_frame").attr('src');
+  if(!src) { return null; }
+  try {
+    var url = new URL(src, window.location.href);
+    return (url.protocol == 'https:' || url.protocol == 'http:') ? url.origin : null;
+  } catch(e) {
+    return null;
+  }
+};
+// Text an integration adds or speaks goes out in the user's voice, so it must be plain text no longer
+// than a sentence needs, and a picture must be a web address.
+var MAX_INTEGRATION_TEXT = 500;
+frame_listener.payload_error = function(data) {
+  if(data.action != 'add_text' && data.action != 'speak_text') { return null; }
+  if(data.text != null && (typeof data.text != 'string' || data.text.length > MAX_INTEGRATION_TEXT)) {
+    return 'text must be a string of at most ' + MAX_INTEGRATION_TEXT + ' characters';
+  }
+  if(data.image_url != null && !/^https?:\/\//i.test(String(data.image_url))) {
+    return 'image_url must be an http or https address';
+  }
+  return null;
+};
 
 export default frame_listener;
