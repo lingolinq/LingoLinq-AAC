@@ -5410,6 +5410,178 @@ describe("persistence-sync", function() {
       });
     });
   });
+
+  // A sync the app starts on its own (a reason is passed) fails quietly and backs off; only a sync
+  // the user started (no reason, 'manual_sync') shows the error popup. Decided 2026-10-26 when the
+  // automatic checks were restored (docs/task-management/2026-10-26_restore-persistence-setup.md).
+  var failSyncFor1340 = function(reason, errors) {
+    cancelSyncTailWork();
+    unloadSyncStoreRecords();
+    persistence.set('sync_log', null);
+    persistence.set('sync_progress', null);
+    persistence.set('sync_status', null);
+    persistence.set('auto_sync_backoff_until', null);
+    persistence.set('auto_sync_failures', 0);
+    stub(modal, 'error', function(msg) { errors.push(msg); });
+    stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+    stubOnPersistence('sync_user', function() { return RSVP.resolve(); });
+    stubOnPersistence('sync_boards', function() { return RSVP.resolve({}); });
+    queryLog.defineFixture({
+      method: 'GET',
+      type: 'user',
+      response: RSVP.resolve({user: {id: '1340', user_name: 'fred'}}),
+      id: "1340"
+    });
+    var prevFind = LingoLinq.store.findRecord;
+    stub(LingoLinq.store, 'findRecord', function(type, id) {
+      return prevFind.apply(this, arguments).then(function(record) {
+        if (type === 'user' && String(id) === '1340' && record) {
+          stub(record, 'reload', function() {
+            return RSVP.reject({error: 'failed to retrieve user details'});
+          });
+        }
+        return record;
+      });
+    });
+    var state = {done: false};
+    persistence.sync(1340, null, null, reason).then(function() { state.done = true; }, function() { state.done = true; });
+    return state;
+  };
+
+  it("should not show the error popup for a failed automatic sync, and should back off", function() {
+    db_wait(function() {
+      var errors = [];
+      var before = (new Date()).getTime();
+      var state = failSyncFor1340('sync_stamp_changed:a:b', errors);
+      waitsFor(function() { return state.done && persistence.get('sync_status') === 'failed'; });
+      runs(function() {
+        expect(errors.length).toEqual(0);
+        expect(persistence.get('auto_sync_backoff_until') > before).toEqual(true);
+        persistence.set('auto_sync_backoff_until', null);
+        persistence.set('auto_sync_failures', 0);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+      });
+    });
+  });
+
+  it("should still show the error popup for a failed sync the user started", function() {
+    db_wait(function() {
+      var errors = [];
+      var state = failSyncFor1340(undefined, errors);
+      waitsFor(function() { return state.done && persistence.get('sync_status') === 'failed'; });
+      runs(function() {
+        expect(errors).toEqual(['failed to retrieve user details']);
+        expect(persistence.get('auto_sync_backoff_until')).toEqual(null);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+      });
+    });
+  });
+
+  // Pushing to the cloud, changing the home board and updating the sidebar start a sync with a
+  // reason, but the user started them, so a failure still shows the popup and does not back off.
+  it("should still show the error popup for a failed sync the user started with a reason", function() {
+    db_wait(function() {
+      var errors = [];
+      var state = failSyncFor1340('push_to_cloud', errors);
+      waitsFor(function() { return state.done && persistence.get('sync_status') === 'failed'; });
+      runs(function() {
+        expect(errors).toEqual(['failed to retrieve user details']);
+        expect(persistence.get('auto_sync_backoff_until')).toEqual(null);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+      });
+    });
+  });
+
+  // The sync check runs on every refresh_stamp tick. A long sync's event time is its start, and
+  // last_sync_at is written only after the lastSync store resolves, so the finished sync must
+  // record its event time when its status changes or the next tick starts a second full sync.
+  it("should record the sync event time when a sync finishes, before the lastSync store resolves", function() {
+    db_wait(function() {
+      cancelSyncTailWork();
+      unloadSyncStoreRecords();
+      persistence.set('sync_progress', null);
+      persistence.set('sync_status', null);
+      stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+      stubOnPersistence('sync_user', function() { return RSVP.resolve(); });
+      stubOnPersistence('sync_boards', function() { return RSVP.resolve({}); });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'user',
+        response: RSVP.resolve({user: {id: '1340', user_name: 'fred'}}),
+        id: "1340"
+      });
+      var svc = window.persistence;
+      var at_finish = null;
+      var finished = false;
+      var store_done = false;
+      // Read just after the status change (once every observer of it has run, as the check's next
+      // tick would) but before the lastSync store resolves.
+      var watcher = function() {
+        var status = svc.get('sync_status');
+        if(!finished && (status === 'succeeded' || status === 'finished')) {
+          finished = true;
+          Promise.resolve().then(function() {
+            at_finish = {event_at: svc.get('last_sync_event_at'), store_done: store_done};
+          });
+        }
+      };
+      var store_watcher = function() { store_done = true; };
+      svc.addObserver('last_sync_at', store_watcher);
+      var done = false;
+      persistence.sync(1340).then(function() { done = true; }, function() { done = true; });
+      // As if the sync had started long ago.
+      svc.set('last_sync_event_at', 1);
+      svc.addObserver('sync_status', watcher);
+      waitsFor(function() { return done && at_finish !== null; });
+      runs(function() {
+        svc.removeObserver('sync_status', watcher);
+        svc.removeObserver('last_sync_at', store_watcher);
+        expect(at_finish.store_done).toEqual(false);
+        expect(at_finish.event_at > 1).toEqual(true);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+      });
+    });
+  });
+
+  // last_sync_at drives the sync check observer synchronously, so a finished sync must record its
+  // event time first; otherwise the check still sees the sync's start time and can start a second
+  // full sync straight away after a long one.
+  it("should record the sync event time before last_sync_at on success", function() {
+    db_wait(function() {
+      cancelSyncTailWork();
+      unloadSyncStoreRecords();
+      persistence.set('sync_progress', null);
+      persistence.set('sync_status', null);
+      stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+      stubOnPersistence('sync_user', function() { return RSVP.resolve(); });
+      stubOnPersistence('sync_boards', function() { return RSVP.resolve({}); });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'user',
+        response: RSVP.resolve({user: {id: '1340', user_name: 'fred'}}),
+        id: "1340"
+      });
+      var svc = window.persistence;
+      var seen = [];
+      var watcher = function() { seen.push(svc.get('last_sync_event_at')); };
+      var done = false;
+      persistence.sync(1340).then(function() { done = true; }, function() { done = true; });
+      var started_at = persistence.get('last_sync_event_at');
+      svc.addObserver('last_sync_at', watcher);
+      waitsFor(function() { return done && seen.length > 0; });
+      runs(function() {
+        svc.removeObserver('last_sync_at', watcher);
+        expect(persistence.get('sync_status') === 'succeeded' || persistence.get('sync_status') === 'finished').toEqual(true);
+        expect(seen[0] > started_at).toEqual(true);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+      });
+    });
+  });
 });
 // Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
 import boardRevocation from '../../utils/board_revocation';

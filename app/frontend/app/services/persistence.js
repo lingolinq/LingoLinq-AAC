@@ -2413,9 +2413,9 @@ var persistence = Service.extend({
           }
           console.log('synced!');
           _this_sync.store('settings', {last_sync: last_sync, stamps: sync_stamps}, 'lastSync').then(function(res) {
-            _this_sync.set('last_sync_at', res.last_sync);
-            _this_sync.set('sync_stamps', res.stamps);
             _this_sync.set('last_sync_event_at', (new Date()).getTime());
+            _this_sync.set('sync_stamps', res.stamps);
+            _this_sync.set('last_sync_at', res.last_sync);
           }, function() {
             debugger;
           });
@@ -2472,7 +2472,7 @@ var persistence = Service.extend({
         });
         _this_sync.set('last_sync_event_at', (new Date()).getTime());
         _this_sync.set('sync_log', log);
-        if(err && err.error) {
+        if(err && err.error && !_this_sync.sync_is_automatic()) {
           modal.error(err.error);
         }
         console.log(err);
@@ -3985,13 +3985,16 @@ var persistence = Service.extend({
         if(!stashesSvc.get_object || typeof stashesSvc.get_object !== 'function') { return; }
         if(!stashesSvc.get_object('just_logged_in', false)) { return; }
         if(!stashesSvc.get('auth_settings')) { return; }
-        stashesSvc.persist_object('just_logged_in', null, false);
+        if(svc._post_login_check_pending) { return; }
+        svc._post_login_check_pending = true;
         runLater(function() {
+          svc._post_login_check_pending = false;
           if(svc.isDestroyed || svc.isDestroying) { return; }
           if(typeof svc.check_for_needs_sync === 'function') {
             svc.check_for_needs_sync(true);
+            stashesSvc.persist_object('just_logged_in', null, false);
           }
-        }, 10 * 1000);
+        }, svc.post_login_sync_delay || 10 * 1000);
       } catch(e) {
         console.warn('schedulePostLoginSyncIfNeeded:', e);
       }
@@ -4797,6 +4800,125 @@ persistence.allowInvalidTokenLocalFallback = function(err, type, id, still_onlin
   var modelName = type && type.modelName;
   return !(modelName === 'user' && (id === 'self' || id === 'me'));
 };
+
+// Sync startup and checks restored 2026-10-26. CoughDrop ran these for every view from its
+// persistence setup() and observers; the January 2026 service migration switched them off
+// (887351945), so a new device never synced on its own and only Modern view prepared local files.
+// See docs/task-management/2026-10-26_restore-persistence-setup.md. Added with reopen, after the
+// class, so the ESLint baseline rows above do not shift.
+var AUTO_SYNC_BACKOFF_MS = 30 * 60 * 1000;
+var AUTO_SYNC_BACKOFF_MAX_MS = 6 * 60 * 60 * 1000;
+persistence.reopen({
+  init() {
+    this._super(...arguments);
+    if(!isTesting()) {
+      this.start_sync_state();
+    }
+  },
+  // Load the device's last sync time (setup(); a device with no saved sync sets 1, which starts its
+  // first sync through check_for_needs_sync's 48-hour branch), turn on the periodic check, and
+  // prepare local files once the device is ready.
+  start_sync_state: function() {
+    var _this = this;
+    _this.set('_sync_checks_enabled', true);
+    _this.setup();
+    if(lingoLinqExtras && lingoLinqExtras.advance && typeof lingoLinqExtras.advance.watch === 'function') {
+      lingoLinqExtras.advance.watch('device', function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        _this.prepare_local_files();
+      });
+    }
+  },
+  // Detect device file storage and prime the local file caches, once per app start. Without this,
+  // synced pictures are not saved as files (prime_caches and the file writers read local_system).
+  // Modern view's board route waits on the same promise (routes/user/board-detail.js).
+  prepare_local_files: function() {
+    var _this = this;
+    if(_this.get('primed')) { return RSVP.resolve(); }
+    if(!_this.stashes || typeof _this.stashes.get !== 'function' || !_this.stashes.get('auth_settings')) {
+      return RSVP.resolve();
+    }
+    if(_this._prepare_local_files_promise) { return _this._prepare_local_files_promise; }
+    var ensure_local = RSVP.resolve();
+    var local = _this.get('local_system');
+    if(!local || local.available === undefined) {
+      ensure_local = capabilities.storage.status().then(function(res) {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        if(res.available && !res.requires_confirmation) {
+          res.allowed = true;
+        }
+        _this.set('local_system', res);
+      }, function() {
+        return RSVP.resolve();
+      });
+    }
+    var clear_if_unprimed = function() {
+      if(!_this.get('primed')) { _this._prepare_local_files_promise = null; }
+    };
+    _this._prepare_local_files_promise = ensure_local.then(function() {
+      var local_after = _this.get('local_system');
+      if(_this.isDestroyed || _this.isDestroying || !local_after || !local_after.available || !local_after.allowed) {
+        return RSVP.resolve();
+      }
+      return _this.prime_caches(true).then(null, function() {
+        return RSVP.resolve();
+      });
+    }).then(clear_if_unprimed, clear_if_unprimed);
+    return _this._prepare_local_files_promise;
+  },
+  // CoughDrop re-ran the sync check on every app tick and whenever last_sync_at changed. The method
+  // limits server stamp checks to the user's interval. Off until start_sync_state runs.
+  sync_check_watcher: observer('refresh_stamp', 'last_sync_at', function() {
+    if(!this.get('_sync_checks_enabled') || this.isDestroyed || this.isDestroying) { return; }
+    this.check_for_needs_sync();
+  }),
+  check_for_needs_sync: function(force) {
+    // A forced check skips the method's own "already syncing" test; never start a second sync.
+    if(this.get('syncing')) { return false; }
+    // After the web sign-in that skips the reload, the open database is still the signed-out one,
+    // and syncing would write this user's boards into it. Wait for the next app start.
+    if(!this.local_db_is_current_user()) { return false; }
+    if(force !== true && this.get('auto_sync_backoff_until') > (new Date()).getTime()) { return false; }
+    return this._super(...arguments);
+  },
+  // The database is chosen once per app start from the signed-in user (capabilities.setup_database).
+  // Unknown (no database name, or signed out) counts as the current user's.
+  local_db_is_current_user: function() {
+    var match = (capabilities.db_name || '').match(/^lingolinqStorage::(.*)===/);
+    var auth = this.stashes && typeof this.stashes.get_object === 'function' && this.stashes.get_object('auth_settings', true);
+    if(!match || !auth || !auth.user_name) { return true; }
+    return match[1] === auth.user_name;
+  },
+  sync: function(user_id, force, ignore_supervisees, sync_reason) {
+    if(!ignore_supervisees) {
+      this._root_sync_reason = sync_reason || 'manual_sync';
+    }
+    return this._super(...arguments);
+  },
+  // Only check_for_needs_sync starts a sync with these reasons. Every other sync came from something
+  // the user did (the Sync button, pushing to the cloud, changing the home board or the sidebar),
+  // and supervisee syncs share their root sync's reason.
+  sync_is_automatic: function() {
+    return /^(long_time_since_sync|sync_stamp_changed):/.test(this._root_sync_reason || '');
+  },
+  // A sync the app started on its own backs off after failing (30 minutes, doubling to 6 hours)
+  // instead of retrying every interval; a sync that completes resets it. Decided 2026-10-26.
+  sync_backoff_watcher: observer('sync_status', function() {
+    var status = this.get('sync_status');
+    if(status === 'succeeded' || status === 'finished') {
+      // last_sync_at is set only once the lastSync store resolves; until then the check would see
+      // this sync's start time and could start another full sync, so record the finish now.
+      this.set('last_sync_event_at', (new Date()).getTime());
+      this.set('auto_sync_failures', 0);
+      this.set('auto_sync_backoff_until', null);
+    } else if(status === 'failed' && this.sync_is_automatic()) {
+      var failures = (this.get('auto_sync_failures') || 0) + 1;
+      var wait = Math.min(AUTO_SYNC_BACKOFF_MS * Math.pow(2, failures - 1), AUTO_SYNC_BACKOFF_MAX_MS);
+      this.set('auto_sync_failures', failures);
+      this.set('auto_sync_backoff_until', (new Date()).getTime() + wait);
+    }
+  })
+});
 
 export default persistence;
 // Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
