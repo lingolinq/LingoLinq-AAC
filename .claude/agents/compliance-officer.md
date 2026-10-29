@@ -51,10 +51,11 @@ Scot's attestation. You are the role the Phase 0 plan calls out as the missing *
 - **Tier 2 output.** Your output is PII-free (code `file:line` or public regulation text), so
   any approved reviewer may see it under the two-tier policy. The hard rule is the global one:
   no identifiable data to non-BAA external models, not a blanket Claude-only mandate. Real
-  data is kept out of commits: the `data-bearing-paths` merge gate (which reads
+  data is kept out of commits by the author's own check before pushing; this repo is public, so
+  a pushed branch is already published. The `data-bearing-paths` merge gate (which reads
   `scripts/codex-review-path-classifier.sh`, vendored from the brain's `codex-review-guard.sh`)
-  fails a PR that changes a data-bearing path until a person confirms the data is synthetic,
-  and local reviews run the brain's `review-preflight.sh` first. Nothing in CI sits in front
+  fails a PR that changes a data-bearing path until a person confirms the data is synthetic
+  (it gates merges, not publication), and local reviews run the brain's `review-preflight.sh` first. Nothing in CI sits in front
   of the Codex GitHub connector, which reviews every PR when it opens; the CI Codex review
   gate that the classifier once routed was retired on 2026-10-27.
 

@@ -48,7 +48,7 @@
 | Accessibility Conformance Report (ACR / VPAT) | git | `docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md` | draft | WCAG | Scot Wahlquist | 2026-06-16 | 2026-09-16 | no | `e68ef80b2638` | school-dpa-package, security-review, grant |
 | Accessibility Conformance Report (ACR / VPAT) (branded) | Drive | [open](https://docs.google.com/document/d/1ez60NG2PVKnkcjjbz4NgHOeL_0OcQtVkdhToImcnihs/edit) | draft | WCAG | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | (supplied) | compliance-records-set-2026-06, school-dpa-package |
 | AI Governance Memo | git | `docs/legal/AI_GOVERNANCE_MEMO.md` | superseded | GDPR, COPPA | Scot Wahlquist | 2026-08-04 | 2026-10-22 | 2026-08-04 | `f35f99bd8b29` | compliance-records-set-2026-06, security-review |
-| AI Governance Memo (2026-08-24 successor) | git | `docs/legal/2026-08-24_ai-governance-memo.md` | draft | GDPR, COPPA, EU_AI_Act | Scot Wahlquist | 2026-08-24 | 2026-11-24 | no | `0d3c00cf0d34` | security-review |
+| AI Governance Memo (2026-08-24 successor) | git | `docs/legal/2026-08-24_ai-governance-memo.md` | draft | GDPR, COPPA, EU_AI_Act | Scot Wahlquist | 2026-08-24 | 2026-11-24 | no | `1e2b230133cb` | security-review |
 | AI Governance Memo (branded) | Drive | [open](https://docs.google.com/document/d/1HEuWT7cS5zPmGI-o9SB2zsc1DJgArEAlCgJz0ECJK9U/edit) | published | GDPR, COPPA | Scot Wahlquist | 2026-06-19 | 2026-09-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06 |
 | Anthropic Business Associate Agreement (2026-05-06) | Drive | [open](https://drive.google.com/file/d/1sL3di9GRP4hlids-baZDT26n3SKjzwD5/view) | draft | HIPAA | Scot Wahlquist | 2026-07-22 | 2027-07-22 | no | (supplied) | baa |
 | Article 50(1) Disclosure - Production Feature-Flag Verification | git | `docs/legal/2026-08-23_article-50-production-flag-verification.md` | draft | GDPR, EU_AI_Act | Scot Wahlquist | 2026-08-23 | 2026-11-23 | no | `761492d309ec` |  |
@@ -153,7 +153,7 @@
 | Agent config - security-reviewer | git | `.claude/agents/security-reviewer.md` | published | SOC2 | Scot Wahlquist | 2026-07-22 | 2027-07-22 | no | `99a8fdf648ef` |  |
 | api-auditor agent definition | git | `.claude/agents/api-auditor.md` | published |  | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `36ec97453ced` |  |
 | code-hygiene-auditor agent definition | git | `.claude/agents/code-hygiene-auditor.md` | published |  | Scot Wahlquist | 2026-08-12 | 2027-02-12 | no | `19ccf329ac59` |  |
-| compliance-officer agent definition | git | `.claude/agents/compliance-officer.md` | published |  | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `de8e69cec51a` |  |
+| compliance-officer agent definition | git | `.claude/agents/compliance-officer.md` | published |  | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `aef1a8592d97` |  |
 | dependency-auditor agent definition | git | `.claude/agents/dependency-auditor.md` | published |  | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `7a8bcfe2fd9c` |  |
 | infra-auditor agent definition | git | `.claude/agents/infra-auditor.md` | published | SOC2 | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `ce22bcef0d21` |  |
 | privacy-auditor agent definition | git | `.claude/agents/privacy-auditor.md` | published | GDPR, FERPA, COPPA, HIPAA | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `50c82520ba45` |  |
