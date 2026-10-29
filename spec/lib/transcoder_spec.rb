@@ -31,10 +31,28 @@ describe Transcoder do
   end
 
   describe "handle_event" do
-    # These get_job responses are OpenStructs, so they accept members the SDK does
-    # not have (output_file_paths is not on a real OutputDetail). Green here does
-    # not mean the read path works; see
-    # docs/task-management/2026-09-18_mediaconvert-sdk-setting-keys.md.
+    # These get_job responses are OpenStructs that supply only what a real GetJob
+    # has: user_metadata and the output destination. The output paths come from
+    # the COMPLETE event (outputGroupDetails), as on a real MediaConvert job; the
+    # SDK-shaped versions are in "handle_event against an SDK-shaped GetJob".
+    def file_group_job(user_metadata)
+      OpenStruct.new({
+        user_metadata: user_metadata,
+        settings: OpenStruct.new({output_groups: [OpenStruct.new({
+          output_group_settings: OpenStruct.new({
+            file_group_settings: OpenStruct.new({destination: 's3://lingolinq-test-uploads/some/'})
+          })
+        })]})
+      })
+    end
+
+    def output_group_details(outputs)
+      {'outputGroupDetails' => [{
+        'type' => 'FILE_GROUP',
+        'outputDetails' => outputs.map { |path, ms| {'outputFilePaths' => [path], 'durationInMs' => ms}.compact }
+      }]}
+    end
+
     def eventbridge_message(job_id, status, extra={})
       {
         'detail-type' => 'MediaConvert Job State Change',
@@ -58,28 +76,12 @@ describe Transcoder do
       expect(Transcoder.handle_event({'Message' => eventbridge_message('jobby', 'COMPLETE')})).to eq(false)
     end
 
-    it "should update the sound for audio COMPLETE events using GetJob durationInMs" do
+    it "should update the sound for audio COMPLETE events using the event's durationInMs" do
       config = OpenStruct.new
-      job = OpenStruct.new({
-        user_metadata: {
-          'audio_id' => 'sound_id',
-          'conversion_type' => 'audio',
-          'transcoding_key' => 'bacon'
-        },
-        output_group_details: [
-          OpenStruct.new({
-            output_details: [
-              OpenStruct.new({
-                duration_in_ms: 12000,
-                output_file_paths: ['s3://lingolinq-test-uploads/some/file.mp3']
-              }),
-              OpenStruct.new({
-                duration_in_ms: 12000,
-                output_file_paths: ['s3://lingolinq-test-uploads/some/file.wav']
-              })
-            ]
-          })
-        ]
+      job = file_group_job({
+        'audio_id' => 'sound_id',
+        'conversion_type' => 'audio',
+        'transcoding_key' => 'bacon'
       })
       expect(Transcoder).to receive(:config).and_return(config)
       expect(config).to receive(:get_job).with({id: 'jobby'}).and_return(OpenStruct.new({job: job}))
@@ -96,31 +98,19 @@ describe Transcoder do
           'content_type' => 'audio/wav'
         }
       })
-      res = Transcoder.handle_event({'Message' => eventbridge_message('jobby', 'COMPLETE')})
+      res = Transcoder.handle_event({'Message' => eventbridge_message('jobby', 'COMPLETE', output_group_details([
+        ['s3://lingolinq-test-uploads/some/file.mp3', 12000],
+        ['s3://lingolinq-test-uploads/some/file.wav', 12000]
+      ]))})
       expect(res).to eq(true)
     end
 
     it "should update the video for video COMPLETE events" do
       config = OpenStruct.new
-      job = OpenStruct.new({
-        user_metadata: {
-          'video_id' => 'video_id',
-          'conversion_type' => 'video',
-          'transcoding_key' => 'bacon'
-        },
-        output_group_details: [
-          OpenStruct.new({
-            output_details: [
-              OpenStruct.new({
-                duration_in_ms: 12000,
-                output_file_paths: ['s3://lingolinq-test-uploads/some/file.mp4']
-              }),
-              OpenStruct.new({
-                output_file_paths: ['s3://lingolinq-test-uploads/some/file.mp4.0000001.jpg']
-              })
-            ]
-          })
-        ]
+      job = file_group_job({
+        'video_id' => 'video_id',
+        'conversion_type' => 'video',
+        'transcoding_key' => 'bacon'
       })
       expect(Transcoder).to receive(:config).and_return(config)
       expect(config).to receive(:get_job).with({id: 'jobby'}).and_return(OpenStruct.new({job: job}))
@@ -133,28 +123,19 @@ describe Transcoder do
         'transcoding_key' => 'bacon',
         'thumbnail_filename' => 'some/file.mp4.0000001.jpg'
       })
-      res = Transcoder.handle_event({'Message' => eventbridge_message('jobby', 'COMPLETE')})
+      res = Transcoder.handle_event({'Message' => eventbridge_message('jobby', 'COMPLETE', output_group_details([
+        ['s3://lingolinq-test-uploads/some/file.mp4', 12000],
+        ['s3://lingolinq-test-uploads/some/file.mp4.0000001.jpg', nil]
+      ]))})
       expect(res).to eq(true)
     end
 
-    it "should fall back to a 7-digit jpg thumbnail guess when GetJob lists no still" do
+    it "should fall back to a 7-digit jpg thumbnail guess when the event lists no still" do
       config = OpenStruct.new
-      job = OpenStruct.new({
-        user_metadata: {
-          'video_id' => 'video_id',
-          'conversion_type' => 'video',
-          'transcoding_key' => 'bacon'
-        },
-        output_group_details: [
-          OpenStruct.new({
-            output_details: [
-              OpenStruct.new({
-                duration_in_ms: 12000,
-                output_file_paths: ['s3://lingolinq-test-uploads/some/file.mp4']
-              })
-            ]
-          })
-        ]
+      job = file_group_job({
+        'video_id' => 'video_id',
+        'conversion_type' => 'video',
+        'transcoding_key' => 'bacon'
       })
       expect(Transcoder).to receive(:config).and_return(config)
       expect(config).to receive(:get_job).with({id: 'jobby'}).and_return(OpenStruct.new({job: job}))
@@ -167,7 +148,9 @@ describe Transcoder do
         'transcoding_key' => 'bacon',
         'thumbnail_filename' => 'some/file.mp4.0000001.jpg'
       })
-      res = Transcoder.handle_event({'Message' => eventbridge_message('jobby', 'COMPLETE')})
+      res = Transcoder.handle_event({'Message' => eventbridge_message('jobby', 'COMPLETE', output_group_details([
+        ['s3://lingolinq-test-uploads/some/file.mp4', 12000]
+      ]))})
       expect(res).to eq(true)
     end
 
@@ -364,6 +347,106 @@ describe Transcoder do
         expect(Transcoder).to receive(:config).and_return(stubbed_client)
         res = Transcoder.convert_video(v.global_id, 'd/e/f', 'qwert')
         expect(res).to eq({job_id: 'stub-job'})
+      end
+    end
+  end
+
+  describe "handle_event against an SDK-shaped GetJob" do
+    # GetJob's OutputDetail has no file paths (aws-sdk-mediaconvert types.rb,
+    # OutputDetail = duration_in_ms, video_details). AWS documents them on the
+    # EventBridge COMPLETE event instead, detail.outputGroupDetails[].outputDetails[]
+    # .outputFilePaths (docs.aws.amazon.com/mediaconvert/latest/ug/file-group.html).
+    # The events below follow that documented shape; the client is a real
+    # stub_responses client, so GetJob cannot grow members the SDK lacks.
+    def stubbed_get_job(user_metadata)
+      client = Aws::MediaConvert::Client.new(region: 'us-west-2', stub_responses: true)
+      client.stub_responses(:get_job, {job: {
+        id: 'jobby',
+        role: 'arn:aws:iam::123:role/MediaConvert',
+        settings: {output_groups: [{output_group_settings: {
+          type: 'FILE_GROUP_SETTINGS',
+          file_group_settings: {destination: 's3://lingolinq-test-uploads/some/dir/'}
+        }}]},
+        user_metadata: user_metadata,
+        # A different duration from the event's, so reading it from here fails.
+        output_group_details: [{output_details: [{duration_in_ms: 99000}]}]
+      }})
+      expect(Transcoder).to receive(:config).and_return(client)
+    end
+
+    def complete_message(outputs)
+      {
+        'detail-type' => 'MediaConvert Job State Change',
+        'source' => 'aws.mediaconvert',
+        'detail' => {
+          'jobId' => 'jobby',
+          'status' => 'COMPLETE',
+          'outputGroupDetails' => [{
+            'type' => 'FILE_GROUP',
+            'outputDetails' => outputs.map { |path, ms| {'outputFilePaths' => [path], 'durationInMs' => ms}.compact }
+          }]
+        }
+      }.to_json
+    end
+
+    env_wrap({'UPLOADS_S3_BUCKET' => 'lingolinq-test-uploads'}) do
+      it "should update the sound from the COMPLETE event's output paths" do
+        stubbed_get_job({'audio_id' => 'sound_id', 'conversion_type' => 'audio', 'transcoding_key' => 'bacon'})
+        bs = ButtonSound.create
+        expect(ButtonSound).to receive(:find_by_global_id).with('sound_id').and_return(bs)
+        expect(bs).to receive(:update_media_object).with({
+          'filename' => 'some/dir/file.mp3',
+          'duration' => 12,
+          'content_type' => 'audio/mp3',
+          'transcoding_key' => 'bacon',
+          'secondary_output' => {
+            'filename' => 'some/dir/file.wav',
+            'duration' => 12,
+            'content_type' => 'audio/wav'
+          }
+        })
+        res = Transcoder.handle_event({'Message' => complete_message([
+          ['s3://lingolinq-test-uploads/some/dir/file.mp3', 12000],
+          ['s3://lingolinq-test-uploads/some/dir/file.wav', 12000]
+        ])})
+        expect(res).to eq(true)
+      end
+
+      it "should update the video and its still from the COMPLETE event's output paths" do
+        stubbed_get_job({'video_id' => 'video_id', 'conversion_type' => 'video', 'transcoding_key' => 'bacon'})
+        v = UserVideo.create
+        expect(UserVideo).to receive(:find_by_global_id).with('video_id').and_return(v)
+        expect(v).to receive(:update_media_object).with({
+          'filename' => 'some/dir/file.mp4',
+          'duration' => 12,
+          'content_type' => 'video/mp4',
+          'transcoding_key' => 'bacon',
+          'thumbnail_filename' => 'some/dir/file.mp4.0000003.jpg'
+        })
+        res = Transcoder.handle_event({'Message' => complete_message([
+          ['s3://lingolinq-test-uploads/some/dir/file.mp4', 12000],
+          ['s3://lingolinq-test-uploads/some/dir/file.mp4.0000003.jpg', nil]
+        ])})
+        expect(res).to eq(true)
+      end
+
+      # Exact match on the GetJob destination: a sibling bucket that shares the
+      # prefix, another record's directory, and a directory nested under ours
+      # (record directories are id digits, so some/dir/ is a prefix of some/dir/0/).
+      [
+        's3://some-other-bucket/some/dir/file.mp3',
+        's3://lingolinq-test-uploads-evil/some/dir/file.mp3',
+        's3://lingolinq-test-uploads/other/dir/file.mp3',
+        's3://lingolinq-test-uploads/some/dir/0/file.mp3'
+      ].each do |path|
+        it "should not point a record at #{path}" do
+          stubbed_get_job({'audio_id' => 'sound_id', 'conversion_type' => 'audio', 'transcoding_key' => 'bacon'})
+          bs = ButtonSound.create
+          expect(ButtonSound).to receive(:find_by_global_id).with('sound_id').and_return(bs)
+          expect(bs).to_not receive(:update_media_object)
+          res = Transcoder.handle_event({'Message' => complete_message([[path, 12000]])})
+          expect(res).to eq(false)
+        end
       end
     end
   end

@@ -35,7 +35,7 @@ module Transcoder
     end
     return true unless complete_status?(status)
 
-    files = output_files(job)
+    files = output_files(job, detail)
     new_record = {
       'transcoding_key' => meta['transcoding_key']
     }
@@ -198,18 +198,35 @@ module Transcoder
     meta.with_indifferent_access
   end
 
-  def self.output_files(job)
-    groups = job.respond_to?(:output_group_details) ? job.output_group_details : nil
-    return [] unless groups
+  # GetJob's OutputDetail has no file paths (aws-sdk-mediaconvert OutputDetail is
+  # duration_in_ms + video_details only); the EventBridge COMPLETE event carries
+  # them in detail.outputGroupDetails[].outputDetails[].outputFilePaths. The
+  # event body is only as trusted as its SNS sender, so a path is kept only when
+  # its directory is exactly a destination this job was given, read from GetJob.
+  def self.output_files(job, detail={})
+    destinations = job_destinations(job)
+    groups = detail.is_a?(Hash) ? detail['outputGroupDetails'] : nil
     Array(groups).flat_map do |group|
-      details = group.respond_to?(:output_details) ? group.output_details : nil
+      details = group.is_a?(Hash) ? group['outputDetails'] : nil
       Array(details).flat_map do |out|
-        paths = out.respond_to?(:output_file_paths) ? out.output_file_paths : nil
-        duration_ms = out.respond_to?(:duration_in_ms) ? out.duration_in_ms : nil
-        Array(paths).map do |path|
-          {key: s3_key_from_uri(path), duration_in_ms: duration_ms}
+        next [] unless out.is_a?(Hash)
+        Array(out['outputFilePaths']).filter_map do |path|
+          dir, _slash, name = path.to_s.rpartition('/')
+          next if name == '' || !destinations.include?("#{dir}/")
+          {key: s3_key_from_uri(path), duration_in_ms: out['durationInMs']}
         end
       end
+    end
+  end
+
+  def self.job_destinations(job)
+    settings = job.respond_to?(:settings) ? job.settings : nil
+    groups = settings.respond_to?(:output_groups) ? settings.output_groups : nil
+    Array(groups).filter_map do |group|
+      group_settings = group.respond_to?(:output_group_settings) ? group.output_group_settings : nil
+      file_group = group_settings.respond_to?(:file_group_settings) ? group_settings.file_group_settings : nil
+      destination = file_group.respond_to?(:destination) ? file_group.destination.to_s : ''
+      destination if destination.end_with?('/')
     end
   end
 
