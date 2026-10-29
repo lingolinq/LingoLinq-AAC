@@ -424,11 +424,14 @@ Each finding was checked by hand:
   details; `authenticated-view.hbs` has none. With quiet automatic failures, a Modern-view user
   whose first sync fails is told nothing. Options: a small non-modal failed state in Modern view,
   or keep the first-device sync loud.
+  Decided 2026-10-28 (Traci): option A, unflagged. See "Sync-failed notice in Modern view" below.
 - **Pre-existing, not fixed: reconnect forces a check that skips the back-off**
   (`/adversary-review`, Medium, PLAUSIBLE). `on_connect` (`:3945-3958`) calls
   `check_for_needs_sync(true)` on every offline-to-online flip; it is identical on develop, where
   each failure also showed a popup. Each reconnect after a failed sync retries a full sync. Not
   caused by this change; now quiet.
+  Fixed in this PR 2026-10-28 at Traci's request (no follow-up issue). See "Reconnect respects the
+  back-off" below.
 - **Not fixed (Low, by decision):** pointer comments at the class methods the reopen block wraps
   (would move more baseline rows); back-off doubling, cap and reset tests; a test tied to the real
   DB-name builder; `_root_sync_reason` shared between overlapping syncs; the owner check running
@@ -438,3 +441,116 @@ Each finding was checked by hand:
   two-failures 48-hour rule.
 - Results after the fix: the 66 sync startup and sync tests pass (1 skip); `npm run lint:js:ci`
   new=0.
+
+## Sync-failed notice in Modern view (2026-10-28)
+
+Traci chose the non-modal failed state, with no feature flag (a fix to the behaviour this branch
+changed, not a new feature).
+
+- **Where the failure is read (CONFIRMED).** `persistence.sync_status` is set to `'failed'` in the
+  failure branch of `sync` (`services/persistence.js:2443`) and `stashes.last_sync_status` to
+  `'failed'` beside it (`:2454`). `stashes.persist` calls `this.set` (`services/stashes.js:266`),
+  and the stash is restored from localStorage at startup (`:136-144`), so it survives a reload,
+  which `sync_status` does not.
+- **Every shape (CONFIRMED).** `sync_status`: empty, `syncing` (`:1852`, `:2043`), `finished`
+  (synced with some board errors, `:2401`), `succeeded` (`:2408`), `failed` (`:2443`).
+  `last_sync_status`: null, `finished`, `succeeded`, `failed`.
+- **Rule** (`components/dashboard/authenticated-view.js`, `sync_failed_notice`, in a reopen block
+  at the end of the file so the line-anchored ESLint baseline does not shift; the file already
+  places later additions there): hidden unless `sync_able` (extras ready, not an external-device
+  account, the same gate as the classic sync row); a non-empty `sync_status` decides it (shown
+  only for `failed`, hidden while a retry runs); with an empty `sync_status` (after a reload) the
+  stashed `last_sync_status == 'failed'` decides it.
+- **UI** (`authenticated-view.hbs`, Home tab, below the pending-approval notices): reuses the
+  `md-pending-notice` card (`role="status"`). Text: new key `sync_failed_notice` ("Sync failed.
+  Some boards may not be ready to use offline.") plus `sync_status_error` when set. Buttons: "Try
+  Again" (existing key `try_again`, calls the existing `sync` action, shown only online) and "Sync
+  Details" (existing key `sync_details`, opens the existing details modal through `extraAction`).
+- **Tests:** `tests/unit/components/dashboard-sync-failed-notice-test.js`, 5 tests, red before the
+  computed existed (5 of 5 failed). Mutation: replacing the stash read with `return false` turns
+  "still shows after a reload" red (1 failure); restored from a copy.
+- **Live check** (local dev server, headless Chrome, example user switched to Modern view and back):
+  the notice renders with `role="status"`; Try Again calls `persistence.sync('self', true)`; Sync
+  Details opens the modal; after a reload with an empty `sync_status` and the stash `failed` the
+  notice still shows; offline hides Try Again; a success removes it. The local dev DB needed the two
+  pending develop migrations (`20261013120000`, `20261018120000`) before the API would answer.
+- **Known limit:** the notice does not say why the sync failed beyond `sync_status_error`; the
+  details modal holds the log for the session only.
+- Results: dashboard filter 118 of 118 pass; `npm run lint:js:ci` new=0; template lint clean.
+- Full suite, timing-strict shards: include 1684 tests, 0 fail, 7 skip; exclude 2145 tests, 0 fail,
+  30 skip. Against the last full run (1684 / 2139) the exclude total is up 6: these 5 tests and the
+  startup-throws test added after that run.
+
+## Reconnect respects the back-off (2026-10-28)
+
+- **Mechanism (CONFIRMED).** `on_connect` (`services/persistence.js:3945`) runs on every change of
+  `online` and, 500 ms after the device comes online, calls `check_for_needs_sync(true)` (`:3958`).
+  The wrapper in the reopen block let any forced check past the back-off, so after a failed
+  automatic sync each reconnect could start the full sync again (the 48-hour branch for a device
+  still on the first-sync marker, or the forced stamp check).
+- **Every forced caller (CONFIRMED).** Reconnect (`:3958`) and the post-login check (`:3994`). The
+  copies in `utils/persistence.js` (`:3975`, `:4092`) belong to the module's own object, whose
+  `online` is set only when it is created (`:4259`); every online event and the 30 s poller write
+  the service through `getPersistence()` (`:109-118`), so those observers never fire.
+- **Fix.** `on_connect` passes a second argument, `check_for_needs_sync(true, 'reconnect')` (the
+  same line, so no baseline row moves). The wrapper lets only a forced check that is not a reconnect
+  skip the back-off. Outside a back-off a reconnect is still forced, so it checks the stamp at once
+  as before. Rejected: passing a non-`true` value from `on_connect`, which would also drop the
+  immediate check when there is no back-off.
+- **Test.** "a reconnect waits out the back-off, and still checks at once outside it"
+  (`tests/unit/services/persistence-sync-startup-test.js`, guards module). It drives a real
+  offline-to-online flip. `sync_testing` is on only for the flip (other app code polls while it is
+  on), and `stashes.push_log` is stubbed, because coming online also drains the usage log
+  (`services/stashes.js` drain_on_reconnect), which arms a 15-minute timer that `settled()` waits
+  for (found with a probe of the pending run-loop timers). Red before the fix (stamp request during
+  the back-off); mutation: `on_connect` back to `check_for_needs_sync(true)` turns it red; restored
+  from a copy. The earlier back-off test's assertion message said "(sign-in, reconnect)"; it now
+  says sign-in only, with the assertion unchanged.
+- Results: startup 13/13, persistence-sync 54 (1 skip), check_for_needs_sync 16, stashes reconnect
+  7, all passing; `npm run lint:js:ci` new=0.
+- Full suite, timing-strict shards: include 1684 tests, 0 fail, 7 skip; exclude 2146 tests, 0 fail,
+  30 skip (one more than the run before it: the new reconnect test).
+
+## Local adversarial review of the notice and the reconnect fix (adversary-local, 2026-10-28)
+
+Two `adversary-local` reviewers, one per change, briefed with the questions and not the author's
+conclusions. No Critical or High. Each finding was checked against the code before acting.
+
+- **Medium, CONFIRMED, fixed: an automatic sync that failed because the device went offline was no
+  longer retried on reconnect.** The failure branch records "Must be online to sync"
+  (`services/persistence.js:2459`) and `sync_backoff_watcher` counted it like any automatic failure,
+  so with reconnect now respecting the back-off the retry waited 30 minutes to 6 hours. Fix: a
+  failure while `online` is false does not back off (the reconnect retries it, as before this
+  branch); failures while online still do. The stashes log upload clears its own back-off on
+  reconnect for the same reason (`services/stashes.js:838-842`).
+- **Medium, PLAUSIBLE, fixed: after the no-reload sign-out (`auth_spa_transition`, a per-user beta
+  flag, not on by default), the previous user's failure showed to the next user and Try Again could
+  sync into the previous user's database.** CONFIRMED parts: the service has no `clear_user_state`
+  (only app-state has one; `services/session.js:897` calls it only if present), and Try Again calls
+  `sync` directly, which skips the database-owner guard. Fix: the notice is hidden while
+  `local_db_is_current_user()` is false. Basic view's Sync row has the same stale status and was
+  not changed.
+- **Low, CONFIRMED, fixed: a cancelled sync showed as "Sync failed" and, through the stash, after
+  every reload.** `cancel_sync` makes `board_lookup` reject `{error: 'canceled'}` (`:2735`), which
+  reaches the root failure branch. Fix, in the reopen block (an edit in the failure branch would
+  move 12 baseline rows): `cancel_sync` records `root_sync_canceled`; the root `sync` wrapper resets
+  it and, when a cancelled sync rejects, puts back the `last_sync_status` it had before; the notice
+  ignores a failed status from a cancelled sync. Side effect: a cancel no longer counts toward the
+  two-failures 48-hour pause. Basic view still shows "Sync Failed" in the session after a cancel.
+- **Left, Low:** focus drops after Try Again (the card is removed while the sync runs); `role="status"`
+  on a card with buttons (same as the approval notices); no period after the appended error text;
+  during a back-off a reconnect no longer refreshes unread counts (token restore still runs); no
+  test of the notice's buttons (the live check covered them).
+- **Checked and correct:** reconnect and post-login are the only forced callers; the
+  `utils/persistence.js` copy never fires; sync does not get stuck after the back-off (the 500 ms
+  tick re-checks); a failed manual sync does not set the back-off; the new tests fail for the right
+  reason; the edit to the earlier assertion message was legitimate.
+- **Tests, each red first and each turned red again by removing its fix (restored from copies):**
+  "an automatic sync that failed offline does not back off; one that failed online does" (startup
+  guards); "hidden while the open database belongs to another user" and "hidden after the user
+  cancels a sync" (notice); "should not remember a cancelled sync as a failed one"
+  (`tests/utils/persistence-sync-test.js`, a real sync whose board step cancels).
+- Results: startup 14, notice 7, persistence-sync 55 (1 skip), check_for_needs_sync 17, stashes
+  reconnect 7, dashboard 120, all passing; `npm run lint:js:ci` new=0.
+- Full suite, timing-strict shards: include 1685 tests, 0 fail, 7 skip; exclude 2149 tests, 0 fail,
+  30 skip (4 more than the run before: the 4 new tests).
