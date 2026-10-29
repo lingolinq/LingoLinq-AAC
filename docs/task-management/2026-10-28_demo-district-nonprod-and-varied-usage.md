@@ -211,3 +211,29 @@ Demo accounts are shared logins and never need mail, so their email is now off.
   treat an unset job as nonprod.
 - **Not covered:** `db/seeds.rb` builds the district through `Seeder.build!` with its own
   `SEED_DEMO_DATA` opt-in, outside this guard.
+
+## Follow-up: third dual review
+
+- **Facts (CONFIRMED):**
+  - `create_district!` saved the org with `demo_data` on before building, and its cleanup ran only from
+    `rescue => e`, which a timeout (SignalException) or a killed job never reaches.
+  - `Processable#generate_unique_key` gives a numbered name when the requested one is taken, and
+    `Seeder.build!` checked only that the account saved.
+  - `author_for` returned the latest session's author on a demo email alone, without the
+    `org.supervisor?` check its fallback branch has.
+  - `turn_email_off` had no per-member rescue and runs before any student is processed.
+- **Change:**
+  - The flag goes on only after the build, students and supervision links are done;
+    `unflag_partial_district` was removed as dead.
+  - `Seeder.refuse_renamed!` stops the build when a user name or the board key came back
+    numbered. It runs after the account's email is off, so a numbered account left behind has none.
+  - `author_for` requires `org.supervisor?(author)`.
+  - A member that fails in the email-off step is reported as a refresh failure at the end.
+  - The runbook says a half-built org is left unflagged and must be removed, not flagged.
+- **Verification:** 6 new examples, all red against the previous code. Three files: 66 examples,
+  0 failures. Mutations, each red then restored from git: flag set up front; drop the SLP, student
+  or board name check; student check before email off; drop the org-supervisor check; drop the
+  per-member rescue.
+- **Not done (Low, tracked in the review record):** busy spec for `flag_organization!`, release
+  check after a successful refresh, a cap on goal-note catch-up, the lunch-modeling rate spec, and
+  an alert on repeated busy skips.
