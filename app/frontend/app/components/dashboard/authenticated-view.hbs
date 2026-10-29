@@ -89,6 +89,24 @@
         </div>
       </section>
       {{/if}}
+      {{!-- Sync failed. Automatic syncs fail without a popup, so this is the Modern view's
+           only sign that the boards may not be ready offline (sync_failed_notice). --}}
+      {{#if this.sync_failed_notice}}
+      <section class="md-pending-notice" role="status" data-test-sync-failed-notice>
+        <span class="md-pending-notice__icon" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 14.3-4.8"/><polyline points="18 2 18 8 12 8"/><path d="M20 12a8 8 0 0 1-14.3 4.8"/><polyline points="6 22 6 16 12 16"/></svg>
+        </span>
+        <div class="md-pending-notice__body">
+          <p class="md-pending-notice__text">{{t "Sync failed. Some boards may not be ready to use offline." key="sync_failed_notice"}}{{#if (persistence-value 'sync_status_error')}} {{persistence-value 'sync_status_error'}}{{/if}}</p>
+          <div class="md-pending-notice__actions">
+            {{#if (persistence-online)}}
+              <button type="button" class="md-btn md-btn--primary" {{on "click" this.onSync}}>{{t "Try Again" key="try_again"}}</button>
+            {{/if}}
+            <button type="button" class="md-btn md-btn--ghost" {{on "click" (fn this.onExtraAction "sync_details")}}>{{t "Sync Details" key="sync_details"}}</button>
+          </div>
+        </div>
+      </section>
+      {{/if}}
     {{/if}}
 
 <section class="md-grid md-grid--dashboard {{this.dashboardLayoutClass}} {{if (and (is-equal this.activeTab "home") this.showGettingStarted) "md-grid--with-getting-started"}} {{if (is-equal this.activeTab "home") this.gridClassString}}" style={{if (is-equal this.activeTab "home") this.gridStyle}} aria-label={{t "Dashboard" key="dashboard"}}>

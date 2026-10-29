@@ -112,6 +112,7 @@ module('Unit | Route | user/board-detail scanning re-arm after grid build', func
     stub(modal, 'is_open', function() { return false; });
     stub(scanner, 'get', function(key) {
       if(key === 'appState.currentUser.preferences.device.scanning') { return true; }
+      if(key === 'appState.speak_mode') { return true; } // the scanner only runs in speak mode
       return null;
     });
     stub(editManager, 'find_button', function(id) { return { id: id, label: 'btn-' + id }; });

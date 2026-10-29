@@ -5037,6 +5037,7 @@
   "sync_done": "Sync Done!",
   "up_to_date": "Synced and ready for offline",
   "sync_failed": "Sync Failed, see details below",
+  "sync_failed_notice": "Sync failed. Some boards may not be ready to use offline.",
   "syncing_ellipsis": "Syncing...",
   "communication_set_board": "0 boards || 1 board || %{n} boards",
   "initializing_lower": "initializing...",

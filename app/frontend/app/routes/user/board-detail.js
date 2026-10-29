@@ -7,7 +7,6 @@ import speecher from '../../utils/speecher';
 import editManager from '../../utils/edit_manager';
 import contentGrabbers from '../../utils/content_grabbers';
 import persistence from '../../utils/persistence';
-import capabilities from '../../utils/capabilities';
 import boardDetailCache from '../../utils/board_detail_cache';
 import boardCacheDiag from '../../utils/board_cache_diag';
 import scanner from '../../utils/scanner';
@@ -25,45 +24,14 @@ export default Route.extend({
 
   // Load offline url_cache from IndexedDB/filesystem before building buttons
   // so _make_btn can resolve local image URLs (mirrors legacy fast_html).
+  // The app also does this at startup for every view; this joins the same promise
+  // (persistence.prepare_local_files in services/persistence.js).
   _maybe_prime_caches: function() {
     var persistenceSvc = this.persistence;
-    if(!persistenceSvc || persistenceSvc.get('primed')) {
+    if(!persistenceSvc || typeof persistenceSvc.prepare_local_files !== 'function') {
       return RSVP.resolve();
     }
-    if(!this.stashes || !this.stashes.get('auth_settings')) {
-      return RSVP.resolve();
-    }
-    if(this._prime_caches_promise) {
-      return this._prime_caches_promise;
-    }
-    var ensure_local = RSVP.resolve();
-    var local = persistenceSvc.get('local_system');
-    if(!local || local.available === undefined) {
-      ensure_local = capabilities.storage.status().then(function(res) {
-        if(res.available && !res.requires_confirmation) {
-          res.allowed = true;
-        }
-        persistenceSvc.set('local_system', res);
-      }, function() {
-        return RSVP.resolve();
-      });
-    }
-    var route = this;
-    var clearPrimePromiseIfUnprimed = function() {
-      if(!persistenceSvc.get('primed')) {
-        route._prime_caches_promise = null;
-      }
-    };
-    this._prime_caches_promise = ensure_local.then(function() {
-      var localAfter = persistenceSvc.get('local_system');
-      if(!localAfter || !localAfter.available || !localAfter.allowed) {
-        return RSVP.resolve();
-      }
-      return persistenceSvc.prime_caches(true).then(null, function() {
-        return RSVP.resolve();
-      });
-    }).then(clearPrimePromiseIfUnprimed, clearPrimePromiseIfUnprimed);
-    return this._prime_caches_promise;
+    return persistenceSvc.prepare_local_files();
   },
 
   // Build the symbol grid, warm current-board images, prefetch linked boards.
