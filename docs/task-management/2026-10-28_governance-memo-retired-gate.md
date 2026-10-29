@@ -58,7 +58,13 @@ Low follow-ups, folded in here.
   `STUDENTS.CSV`, `spec/Fixtures/a.yml`, `exports/a.jsonl`, `x/a.har` and `x/a.log` all pass (rc 0)
   while `students.csv` and `spec/fixtures/a.yml` are blocked (rc 2), 2026-10-28. Needs a brain change.
 - The `data-bearing-paths` workflow depends on an Actions policy that allows `pull_request_target`
-  from 2026-11-02; it fails closed (no status, merge blocked), so the memo does not list it as a gap.
+  from 2026-11-02. A missing status blocks every merge on `main` and every non-admin merge on `develop`
+  and `staging` (where `enforce_admins` is false, already stated in the memo), so the memo does not list
+  it as a separate gap. Whether the event policy is set was not checked.
+- The classifier has no rule for some data-format extensions, for example `.sqlite`, `.sqlite3`, `.db`,
+  `.xlsm`, `.gz`, `.zip`, `.obf`, `.obz`. Adding them is a classifier change (a `CONTROL_FILES` edit).
+- Memo section 7's vendor-terms item does not name OpenAI, whose consumer ChatGPT account the Codex
+  connector runs on.
 
 - The moved real-repo test's docstring and the PR 1225 task log's "still NAME" list are slightly off
   (PR 1225 fix review, Low 4).
