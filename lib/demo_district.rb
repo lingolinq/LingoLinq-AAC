@@ -148,11 +148,12 @@ module DemoDistrict
       raise RefusedError, "a board with key #{Seeder.board_key.inspect} already exists" if Board.where(key: Seeder.board_key).exists?
 
       # No surrounding transaction, matching db/seeds.rb: user and board saves schedule
-      # background jobs that a worker could pick up before an outer transaction committed. A
-      # failure part way is logged with the organization's id and the flag is taken off it,
-      # so refresh! leaves the partial district alone; a rerun refuses until it is removed.
+      # background jobs that a worker could pick up before an outer transaction committed.
+      # The flag goes on only once the build has finished, so a run stopped part way (an
+      # error, or a job timeout or kill that no rescue sees) leaves an organization refresh!
+      # ignores; a rerun refuses until it is removed.
       org = Organization.new
-      org.settings = Seeder.org_settings
+      org.settings = Seeder.org_settings.except(FLAG)
       org.admin = nil
       org.save!
       begin
@@ -174,24 +175,17 @@ module DemoDistrict
         # supervisors, and a backfill run straight after this would otherwise find none.
         district[:units].each { |unit| unit.reload.assert_supervision! }
       rescue => e
-        log("FAILED building #{org.global_id} part way: #{e.class}: #{e.message}")
-        unflag_partial_district(org)
+        log("FAILED building #{org.global_id} part way, left unflagged: #{e.class}: #{e.message}")
         raise
       end
+      org.reload
+      org.settings[FLAG] = true
+      org.save!
       log("created #{org.global_id} (#{Seeder::ORG_NAME}), flagged #{FLAG}")
       org
     end
   end
 
-  def unflag_partial_district(org)
-    partial = Organization.find_by(id: org.id)
-    return unless partial && partial.settings.is_a?(Hash)
-    partial.settings.delete(FLAG)
-    partial.save!
-    log("took #{FLAG} off #{partial.global_id}")
-  rescue => e
-    log("WARN could not take #{FLAG} off #{org.global_id}: #{e.class}: #{e.message}")
-  end
 
   # One-off for environments whose demo accounts were created before Seeder.build! turned
   # their email off: runs Seeder.disable_email! on every seeded demo user name and on every
@@ -220,7 +214,13 @@ module DemoDistrict
     changed = 0
     problems = {}
     users.uniq(&:id).each do |user|
-      status = Seeder.disable_email!(user.reload)
+      # One member that cannot be loaded or saved (deleted mid-run) must not stop the others.
+      status = begin
+        Seeder.disable_email!(user.reload)
+      rescue => e
+        log("#{user.user_name}: turning email off failed: #{e.class}: #{e.message}")
+        :failed
+      end
       changed += 1 if status == :disabled
       problems[user.user_name] = status if %i[pending failed].include?(status)
     end
@@ -635,7 +635,7 @@ module DemoDistrict
   # else any demo supervisor of theirs, else the communicator themselves.
   def author_for(org, user, latest)
     author = latest&.author
-    return author if author && author.id != user.id && demo_email?(author)
+    return author if author && author.id != user.id && demo_email?(author) && org.supervisor?(author)
     supervisor = user.supervisors.detect { |s| demo_email?(s) && org.supervisor?(s) }
     supervisor || user
   end

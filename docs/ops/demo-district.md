@@ -100,9 +100,13 @@ Then read the `DEMO_ORG` lines from that execution's logs. What you see decides 
   - the district board already exists;
   - another demo run is in progress.
 
-  It never adopts an existing account or board, even one that appears while it runs. If it
-  stops partway, the error names the half-built org and the demo flag is taken off it, so the
-  daily refresh leaves it alone. A rerun refuses until that org and its users are removed.
+  It never adopts an existing account or board, even one that appears while it runs. If one of
+  the names is taken while it runs, it stops and names the numbered account it made instead.
+  The demo flag goes on only once the whole district is built, so a run that stops partway for
+  any reason (an error, a timeout, a killed job) leaves an unflagged org the daily refresh
+  ignores. A rerun refuses until that org and its users, including any numbered account, are
+  removed. Do not flag such a half-built org: it looks like the production case above, but
+  remove it instead.
 
   The password you pass is visible in that execution's configuration to anyone who can view
   Cloud Run jobs in the project.
@@ -118,8 +122,8 @@ gcloud logging read \
 ```
 
 The `refreshed ... through <date>` line has the counts. A `SKIP` line names a member that was
-left alone; blank out those user names before sharing the log. A run that times out or fails
-partway can simply be run again.
+left alone; blank out those user names before sharing the log. A refresh that times out or
+fails partway can simply be run again (for `create_district!`, see above).
 
 ## Environments
 

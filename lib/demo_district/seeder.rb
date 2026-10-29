@@ -117,6 +117,7 @@ module DemoDistrict
           raise "could not create #{profile[:user_name]}: #{slp.errored? ? slp.processing_errors.join(', ') : 'not saved'}" unless slp.persisted?
         end
         disable_email_before_linking!(slp)
+        refuse_renamed!('user', slp.user_name, profile[:user_name])
         org.add_supervisor(slp.user_name, false, true) # pending=false, premium=true
         log.call("  Created SLP: #{slp.user_name}")
         slp
@@ -136,6 +137,7 @@ module DemoDistrict
         }, { user: supervisors.first, key: BOARD_KEY.dup }) # Board#process_params edits the key in place (sub!)
         log.call("  Created district core board (20 buttons)")
       end
+      refuse_renamed!('board', board.key, board_key)
 
       org.settings['default_home_board'] = {
         'id' => board.global_id,
@@ -161,6 +163,7 @@ module DemoDistrict
           raise "could not create #{profile[:user_name]}: #{student.errored? ? student.processing_errors.join(', ') : 'not saved'}" unless student.persisted?
         end
         disable_email_before_linking!(student)
+        refuse_renamed!('user', student.user_name, profile[:user_name])
         org.add_user(student.user_name, false, true, false) # pending=false, sponsored=true, eval=false
         log.call("  Created student: #{student.user_name} (#{profile[:skill]}, #{profile[:freq]} freq)")
         { user: student, profile: profile }
@@ -192,6 +195,14 @@ module DemoDistrict
 
     def self.refuse_to_adopt!(existing, what, adopt)
       raise DemoDistrict::RefusedError, "#{what} already exists; refusing to adopt it" if existing && !adopt
+    end
+
+    # User.process_new and Board.process_new give a numbered name when theirs was taken after
+    # the lookup above (Processable#generate_unique_key); the district needs its exact names.
+    # Checked after the account's email is off, so a numbered account left behind has none.
+    def self.refuse_renamed!(what, got, wanted)
+      return if got == wanted
+      raise DemoDistrict::RefusedError, "#{what} #{wanted} was taken while building; created #{got} instead (remove it)"
     end
 
     # Student preferences: logging on, communicator role, default device settings.

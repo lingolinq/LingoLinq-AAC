@@ -134,6 +134,26 @@ describe DemoDistrict do
       expect(res[:emails_turned_off]).to eq(1)
     end
 
+    it "turns email off for the other members when one fails, and fails the run only at the end" do
+      o = org_with('demo_data' => true)
+      demo = member(o, 'kid@demoschooldistrict.org')
+      gone = member(o, 'kid2@demoschooldistrict.org')
+      prior_session(demo, Time.utc(2026, 10, 15, 18, 0, 0))
+      gone_name = gone.user_name
+      # Deleted after the run has listed the members, so reloading it raises.
+      allow(DemoDistrict).to receive(:org_members).and_wrap_original do |orig, org|
+        members = orig.call(org)
+        User.where(id: gone.id).delete_all
+        members
+      end
+
+      expect {
+        travel_to(now) { DemoDistrict.refresh!(organization: o.reload, now: now) }
+      }.to raise_error(DemoDistrict::RefreshError, /#{gone_name} email not turned off/)
+      expect(demo.reload.settings['email_disabled']).to eq(true)
+      expect(rolling_sessions(demo)).not_to eq([])
+    end
+
     it "skips the run while another run holds the demo lock" do
       o = org_with('demo_data' => true)
       demo = member(o, 'kid@demoschooldistrict.org')
@@ -511,6 +531,46 @@ describe DemoDistrict do
       holding_demo_lock { }
     end
 
+    # The app gives a new account a numbered name when its own was taken after the lookup
+    # (Processable#generate_unique_key), so the build must refuse rather than carry on.
+    %w[marcus_williams_slp tessa_campbell].each do |taken|
+      it "refuses #{taken} when it is taken between its lookup and the account's creation" do
+        intruder = nil
+        allow(User).to receive(:process_new).and_wrap_original do |orig, params, *rest|
+          if params[:user_name] == taken && !intruder
+            intruder = User.create(user_name: taken, settings: { 'email' => 'someone@example.com' })
+          end
+          orig.call(params, *rest)
+        end
+        expect { DemoDistrict.create_district!(password: 'spec-demo-password') }.to raise_error(DemoDistrict::RefusedError, /created #{taken}_1 instead/)
+        expect(Organization.attached_orgs(intruder.reload)).to eq([])
+        # The numbered account left behind has its email off and belongs to no organization.
+        numbered = User.find_by(user_name: "#{taken}_1")
+        expect(numbered.settings['email_disabled']).to eq(true)
+        expect(Organization.attached_orgs(numbered)).to eq([])
+        expect(DemoDistrict.demo_organization).to eq(nil)
+      end
+    end
+
+    it "refuses a district board key taken between its lookup and the board's creation" do
+      allow(Board).to receive(:process_new).and_wrap_original do |orig, params, opts|
+        Board.create(user: opts[:user], key: DemoDistrict::Seeder.board_key)
+        orig.call(params, opts)
+      end
+      expect { DemoDistrict.create_district!(password: 'spec-demo-password') }.to raise_error(DemoDistrict::RefusedError, /board/)
+      expect(DemoDistrict.demo_organization).to eq(nil)
+    end
+
+    it "leaves a district stopped part way unflagged, even by an exception no rescue catches" do
+      # A job timeout or kill: the build stops without running any rescue.
+      stop = Class.new(Exception)
+      allow(DemoDistrict::Seeder).to receive(:prepare_student!).and_raise(stop)
+      expect { DemoDistrict.create_district!(password: 'spec-demo-password') }.to raise_error(stop)
+      expect(Organization.all.count { |o| (o.settings || {})['name'] == 'Demo School District' }).to eq(1)
+      expect(DemoDistrict.demo_organization).to eq(nil)
+      holding_demo_lock { }
+    end
+
     it "refuses while another run holds the demo lock, and creates nothing" do
       before_count = Organization.count
       expect {
@@ -579,6 +639,19 @@ describe DemoDistrict do
       kid.reload
       expect(kid.settings['password_resets']).to eq([])
       expect(kid.valid_reset_token?('spec-token')).to eq(false)
+    end
+  end
+
+  describe "author_for" do
+    it "credits the latest session's author only when they supervise in the organization" do
+      o = org_with('demo_data' => true, 'total_supervisor_licenses' => 5)
+      kid = member(o, 'kid@demoschooldistrict.org')
+      slp = User.create(settings: { 'email' => 'slp@demoschooldistrict.org' })
+      o.add_supervisor(slp.user_name, false, true)
+      stranger = User.create(settings: { 'email' => 'stranger@demoschooldistrict.org' })
+
+      expect(DemoDistrict.author_for(o.reload, kid, LogSession.new(author: stranger))).not_to eq(stranger)
+      expect(DemoDistrict.author_for(o, kid, LogSession.new(author: slp))).to eq(slp)
     end
   end
 
