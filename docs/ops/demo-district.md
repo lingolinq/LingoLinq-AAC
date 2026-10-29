@@ -80,8 +80,10 @@ Then read the `DEMO_ORG` lines from that execution's logs. What you see decides 
   --args='exec,rails,runner,pp DemoDistrict.disable_demo_emails!; DemoDistrict.flag_organization!("Demo School District"); pp DemoDistrict.refresh!'
   ```
 
-- **No such org, or its members are not demo accounts (nonprod's "Demo" org):** build a fresh
-  district, then backfill 90 days.
+- **No such org, or its members are not demo accounts (nonprod's "Demo" org; nonprod only):**
+  build a fresh district, then backfill 90 days. `create_district!` runs only in
+  `lingolinq-migrate-dev` or `lingolinq-migrate-staging`, read from the job name Cloud Run sets;
+  never create a job with either name in `lingolinq-prod`.
 
   ```bash
   read -rs DEMO_PW   # the demo accounts' password; no commas
@@ -91,6 +93,7 @@ Then read the `DEMO_ORG` lines from that execution's logs. What you see decides 
   ```
 
   `create_district!` refuses, and writes nothing, in any of these cases:
+  - it is not running in one of those two jobs;
   - an org is already flagged;
   - an org already has the name `Demo School District`;
   - any of the 23 demo user names is taken;

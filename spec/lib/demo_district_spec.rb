@@ -428,6 +428,40 @@ describe DemoDistrict do
       expect(Board.count).to eq(boards)
     end
 
+    # Every deployed environment runs RAILS_ENV=production; only the Cloud Run job name
+    # (CLOUD_RUN_JOB, set by Cloud Run) tells nonprod from production.
+    describe "in a deployed environment" do
+      before { allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('production')) }
+
+      def expect_refused_outside_nonprod
+        before_count = Organization.count
+        expect { DemoDistrict.create_district!(password: 'spec-demo-password') }.to raise_error(DemoDistrict::RefusedError, /nonprod/)
+        expect(Organization.count).to eq(before_count)
+        expect(User.where(user_name: names).count).to eq(0)
+      end
+
+      env_wrap('CLOUD_RUN_JOB' => nil) do
+        it "refuses outside a Cloud Run job, and creates nothing" do
+          expect_refused_outside_nonprod
+        end
+      end
+
+      env_wrap('CLOUD_RUN_JOB' => 'lingolinq-migrate') do
+        it "refuses in the production migrate job, and creates nothing" do
+          expect_refused_outside_nonprod
+        end
+      end
+
+      %w[lingolinq-migrate-dev lingolinq-migrate-staging].each do |job|
+        env_wrap('CLOUD_RUN_JOB' => job) do
+          it "passes the environment check in #{job}" do
+            # An empty password stops it at the next check, before anything is written.
+            expect { DemoDistrict.create_district!(password: '') }.to raise_error(DemoDistrict::RefusedError, /a password for the demo accounts is required/)
+          end
+        end
+      end
+    end
+
     it "refuses a missing or short password and creates nothing" do
       expect { DemoDistrict.create_district!(password: '') }.to raise_error(DemoDistrict::RefusedError, /password/)
       expect { DemoDistrict.create_district!(password: 'short') }.to raise_error(DemoDistrict::RefusedError, /at least/)

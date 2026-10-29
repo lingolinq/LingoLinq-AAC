@@ -44,6 +44,11 @@ module DemoDistrict
   # Postgres advisory lock ("DEMO") held by refresh!, create_district! and flag_organization!,
   # so two runs never interleave.
   LOCK_KEY = 0x44454D4F
+  # The Cloud Run jobs create_district! may run in. Every deployed environment runs
+  # RAILS_ENV=production, so only the job name (CLOUD_RUN_JOB, which Cloud Run sets and does
+  # not let a job override) tells nonprod from production. Job names are unique only within a
+  # project: never create a job with one of these names in lingolinq-prod.
+  NONPROD_JOBS = %w[lingolinq-migrate-dev lingolinq-migrate-staging].freeze
 
   class RefusedError < StandardError; end
   # Another run holds LOCK_KEY.
@@ -120,7 +125,11 @@ module DemoDistrict
   # the build run under LOCK_KEY, and Seeder.build! (adopt: false) refuses an account or
   # board that appears after the checks. The new organization is admin nil, not false:
   # organizations.admin is uniquely indexed and the existing demo org may already hold false.
+  # It runs only in a NONPROD_JOBS job (and in specs).
   def create_district!(password:)
+    unless Rails.env.test? || NONPROD_JOBS.include?(ENV['CLOUD_RUN_JOB'])
+      raise RefusedError, "create_district! runs only in a nonprod migrate job (#{NONPROD_JOBS.join(', ')}); this is #{ENV['CLOUD_RUN_JOB'].inspect}"
+    end
     raise RefusedError, "a password for the demo accounts is required" if password.to_s.strip.empty?
     if password.to_s.length < Passwords::MIN_PASSWORD_LENGTH
       raise RefusedError, "the demo account password must be at least #{Passwords::MIN_PASSWORD_LENGTH} characters"
