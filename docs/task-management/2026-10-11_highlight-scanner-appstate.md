@@ -324,3 +324,17 @@ button at `:163-174` and `:516-519`) edits the user's own last word: it finishes
 punctuation (`+?`) attaches even to a finished word. Traci chose to refuse it: `text_has_action` now treats a
 segment starting with `+` like one starting with `:`. `2+2` still passes. Test red on the previous
 `frame_listener.js`, green after (61/61). (2) Rule 14 approval for the edited test: recorded in the PR body.
+
+### Review of the follow-up commits (`8cf736e74..1341aa9be`), 2026-10-28
+
+Senior-dev: approve with comments; its M1 (different tokenizer) and M2 (check fails open before
+`find_special_action` exists) do not hold: utterance extracts the token with the same `/:[^\s\&]+/`
+(`utils/utterance.js:156`), and `Button.load_actions()` runs in app-state setup (`services/app-state.js:415`)
+before any frame exists. Red-team: do not block. Fixed:
+- `:battery-level` read `app_state.get('battery')`, an object (`services/app-state.js:295-301`), so the earlier fix
+  would have said "[object Object] percent battery left". It now reads `battery.level` (already a percentage)
+  and says "Unknown" when there is none. Value test added; the earlier test checked only the shape.
+- utterance's inline scan can start a token inside an earlier colon run (`I:m:bleep` runs `:bleep`), which the
+  non-overlapping match missed; `text_has_action` now tries every colon as a token start.
+- The speak_text test now asserts the reply and the shown text (it passed even with no reply).
+Month names stay English (`moment.locale` is never set; same as `:next-month`, `:last-month`).

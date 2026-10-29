@@ -839,6 +839,12 @@ describe("frame_listener", function() {
       data = null;
       frame_listener.handle_action({action: 'add_text', text: 'I have :battery-level ok', respond: function(d) { data = d; }});
       expect(data && data.error).toEqual('text may not contain app actions');
+      data = null;
+      frame_listener.handle_action({action: 'add_text', text: 'at 10:30 I:m:bleep ok', respond: function(d) { data = d; }});
+      expect(data && data.error).toEqual('text may not contain app actions');
+      data = null;
+      frame_listener.handle_action({action: 'add_text', text: 'x :a :q:roll-dice(6) y', respond: function(d) { data = d; }});
+      expect(data && data.error).toEqual('text may not contain app actions');
       expect(added).toEqual(null);
     });
 
@@ -860,11 +866,12 @@ describe("frame_listener", function() {
     });
 
     it('speaks colons and accepts an empty picture, since neither runs anything', function() {
-      var spoken = [], data = null, added = null;
-      stub(speecher, 'speak_text', function(text) { spoken.push(text); });
+      var silent = [], data = null, added = null;
+      stub(utterance, 'silent_speak_button', function(b) { silent.push(b.label); });
       stub(app_state, 'activate_button', function(a, b) { added = b; });
       frame_listener.handle_action({action: 'speak_text', text: ':) see you at 10:30', respond: function(d) { data = d; }});
-      expect(data && data.error).toEqual(undefined);
+      expect(data).toEqual({spoken: true, vocalized: false}); // not in speak mode: shown, not spoken
+      expect(silent).toEqual([':) see you at 10:30']);
       frame_listener.handle_action({action: 'add_text', text: 'hats', image_url: '', respond: function(d) { data = d; }});
       expect(data).toEqual({added: true});
       expect(added && added.label).toEqual('hats');

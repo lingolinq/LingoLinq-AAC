@@ -2103,7 +2103,7 @@ Button.load_actions = function() {
       inline_description: "battery",
       description: i18n.t('battery_level', "Speak the current battery level"),
       content: function() {
-        return [{text: (app_state.get('battery') || i18n.t('unknown', "Unknown")) + " " + i18n.t('percent_battery_left', "percent battery left")}];
+        var level = app_state.get('battery.level'); return [{text: (level != null && isFinite(level) ? level : i18n.t('unknown', "Unknown")) + " " + i18n.t('percent_battery_left', "percent battery left")}];
       }
     },
     {

@@ -712,6 +712,18 @@ describe('utterance', function() {
       expect(bad).toEqual([]);
     });
 
+    it("says the battery level as a number for :battery-level", function() {
+      var saved = app_state.get('battery');
+      try {
+        app_state.set('battery', {level: 85, charging: false});
+        expect(LingoLinq.find_special_action(':battery-level').content()).toEqual([{text: "85 percent battery left"}]);
+        app_state.set('battery', null);
+        expect(LingoLinq.find_special_action(':battery-level').content()).toEqual([{text: "Unknown percent battery left"}]);
+      } finally {
+        app_state.set('battery', saved);
+      }
+    });
+
     it("says the name of the month for :current-month", function() {
       var action = LingoLinq.find_special_action(':current-month');
       expect(utterance.combine_content(action.content())).toEqual([{text: window.moment().format('MMMM')}]);
