@@ -153,7 +153,8 @@ the minimized-disclosure guard (`ruby scripts/minimized-disclosure-guard.rb --ch
 or its test (`scripts/tests/minimized-disclosure-guard-test.sh`), and its legal-naming check uses a
 different base than CI, so a local green can still be a CI red. It writes
 local artifacts only and never pushes to Notion/Drive (those sync in their own CI workflows).
-Run `scripts/regenerate-register.sh --check` to verify without writing (mirror CI locally).
+Run `scripts/regenerate-register.sh --check` to verify without regenerating artifacts; its
+attestation harness edits `docs/legal/AI_GOVERNANCE_MEMO.md` for a moment and restores it.
 
 If citation-check is red, a promoted snippet does not resolve at its sha (usually the sha is not
 fetched locally, or the snippet was not copied verbatim). Fix the evidence and re-run; do not

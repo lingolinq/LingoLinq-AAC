@@ -101,7 +101,8 @@ everything else in this file.
 
 - **Never edit on `main`, `staging`, or `develop`.** Branch from `develop` for all
   regular work, in your own worktree (the launcher, or
-  `git fetch origin develop && git worktree add -b <new-branch> <path> origin/develop`). Never `git checkout -b` or switch
+  `git fetch origin develop && git worktree add --no-track -b <new-branch> <path> origin/develop`,
+  then `git push -u origin <new-branch>`). Never `git checkout -b` or switch
   branches in a checkout another session shares.
 - **Name:** a developer handle plus a `<type>` (`fix`, `feat`, `chore`, `docs`, `perf`,
   `refactor`, `test`, `compliance`, `security`). Scot's branches are always
