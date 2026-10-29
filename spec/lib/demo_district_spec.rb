@@ -411,6 +411,55 @@ describe DemoDistrict do
       expect(existing.settings['email']).to eq('someone@example.com')
       expect(existing.settings.dig('preferences', 'home_board')).to eq(nil)
     end
+
+    it "turns email off for every account it creates" do
+      DemoDistrict.create_district!(password: 'spec-demo-password')
+      users = User.where(user_name: names).to_a
+      expect(users.length).to eq(names.length)
+      expect(users.map { |u| [u.user_name, u.settings['email_disabled']] }).to all(satisfy { |_, disabled| disabled == true })
+    end
+  end
+
+  describe "disable_demo_emails!" do
+    it "turns email off for existing demo accounts and drops their reset codes, once" do
+      slp = User.create(user_name: 'sarah_chen_slp', settings: { 'email' => 'sarah.chen@demoschooldistrict.org' })
+      kid = User.create(user_name: 'aiden_parker', settings: { 'email' => 'aiden_parker@demoschooldistrict.org',
+                                                               'password_resets' => [{ 'timestamp' => Time.now.to_i, 'code' => 'spec-code' }] })
+
+      expect(DemoDistrict.disable_demo_emails!).to eq(2)
+      expect(slp.reload.settings['email_disabled']).to eq(true)
+      expect(kid.reload.settings['email_disabled']).to eq(true)
+      expect(kid.settings['password_resets']).to eq([])
+      expect(DemoDistrict.disable_demo_emails!).to eq(0)
+    end
+
+    it "also covers a demo member of the flagged organization with another user name" do
+      o = org_with('demo_data' => true)
+      extra = member(o, 'extra@demoschooldistrict.org')
+      outsider = member(o, 'outsider@example.com')
+      expect(DemoDistrict.disable_demo_emails!).to eq(1)
+      expect(extra.reload.settings['email_disabled']).to eq(true)
+      expect(outsider.reload.settings['email_disabled']).to eq(nil)
+    end
+
+    it "leaves an account with a demo user name but another email alone" do
+      someone = User.create(user_name: 'ruby_adams', settings: { 'email' => 'someone@example.com' })
+      expect(DemoDistrict.disable_demo_emails!).to eq(0)
+      expect(someone.reload.settings['email_disabled']).to eq(nil)
+    end
+  end
+
+  describe "Seeder.disable_email!" do
+    it "acts only on an @demoschooldistrict.org account" do
+      someone = User.create(user_name: 'ruby_adams', settings: { 'email' => 'someone@example.com' })
+      expect(DemoDistrict::Seeder.disable_email!(someone)).to eq(:skipped)
+      expect(someone.reload.settings['email_disabled']).to eq(nil)
+
+      kid = User.create(user_name: 'aiden_parker', settings: { 'email' => 'aiden_parker@demoschooldistrict.org' })
+      expect(DemoDistrict::Seeder.disable_email!(kid)).to eq(:disabled)
+      expect(kid.reload.settings['email_disabled']).to eq(true)
+      expect(DemoDistrict::Seeder.disable_email!(kid)).to eq(:skipped)
+    end
   end
 
   describe "record_supervisor_days!" do

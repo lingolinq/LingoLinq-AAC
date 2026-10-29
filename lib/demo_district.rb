@@ -146,6 +146,25 @@ module DemoDistrict
     org
   end
 
+  # One-off for environments whose demo accounts were created before Seeder.build! turned
+  # their email off: runs Seeder.disable_email! on every seeded demo user name and on every
+  # @demoschooldistrict.org member of the flagged organization. Each account is reloaded
+  # just before it is written, and one saved elsewhere mid-run is queued and logged rather
+  # than stopping the rest. Safe to rerun. Returns the number of accounts changed.
+  def disable_demo_emails!
+    users = User.where(user_name: Seeder.user_names).to_a
+    org = demo_organization
+    users += (org.approved_users(false).to_a + org.supervisors.to_a + org.managers.to_a) if org
+    changed = 0
+    users.uniq(&:id).each do |user|
+      status = Seeder.disable_email!(user.reload)
+      changed += 1 if status == :disabled
+      log("#{user.user_name}: email not turned off (#{status})") if %i[pending failed].include?(status)
+    end
+    log("email turned off for #{changed} demo account(s)")
+    changed
+  end
+
   # Extends the flagged organization's demo activity through yesterday. Pass organization:
   # to target one explicitly; it is refused unless it carries the flag. With no flagged
   # organization (most non-production environments) this logs and does nothing.

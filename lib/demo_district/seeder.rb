@@ -107,6 +107,7 @@ module DemoDistrict
           })
           raise "could not create #{profile[:user_name]}: #{slp.errored? ? slp.processing_errors.join(', ') : 'not saved'}" unless slp.persisted?
         end
+        disable_email_before_linking!(slp)
         org.add_supervisor(slp.user_name, false, true) # pending=false, premium=true
         log.call("  Created SLP: #{slp.user_name}")
         slp
@@ -148,6 +149,7 @@ module DemoDistrict
           })
           raise "could not create #{profile[:user_name]}: #{student.errored? ? student.processing_errors.join(', ') : 'not saved'}" unless student.persisted?
         end
+        disable_email_before_linking!(student)
         org.add_user(student.user_name, false, true, false) # pending=false, sponsored=true, eval=false
         log.call("  Created student: #{student.user_name} (#{profile[:skill]}, #{profile[:freq]} freq)")
         { user: student, profile: profile }
@@ -195,6 +197,30 @@ module DemoDistrict
       student.settings['preferences']['auto_home_return'] = true
       student.settings['preferences']['clear_on_vocalize'] = true
       student.save!
+    end
+
+    # Demo accounts are shared logins that never need mail, so their email is turned off
+    # (settings['email_disabled'], which Api::UsersController#forgot_password and
+    # Notifiable#channels_for check) and any outstanding password reset codes are dropped.
+    # Acts only on an @demoschooldistrict.org account (DemoDistrict.demo_email?), never on
+    # another account that happens to hold a demo user name. Returns :disabled, :skipped
+    # (not a demo account, or already off), :pending (the account was saved elsewhere first,
+    # so Processable#update_setting queued the change) or :failed.
+    def self.disable_email!(user)
+      return :skipped unless DemoDistrict.demo_email?(user)
+      return :skipped if user.settings['email_disabled'] == true
+      case user.update_setting({ 'email_disabled' => true, 'password_resets' => [] })
+      when true then :disabled
+      when 'pending' then :pending
+      else :failed
+      end
+    end
+
+    # Called before add_supervisor / add_user, which save the user through a copy they load
+    # themselves; after them this copy is stale and update_setting would only queue the change.
+    def self.disable_email_before_linking!(user)
+      status = disable_email!(user)
+      raise "could not turn email off for #{user.user_name}: #{status}" if %i[pending failed].include?(status)
     end
   end
 end
