@@ -41,8 +41,13 @@ module DemoDistrict
   SUPERVISOR_DAYS_WINDOW = 14
   # Supporter minutes counted for each session they authored, for the activity level.
   SUPERVISOR_MINUTES_PER_SESSION = 3
+  # Postgres advisory lock ("DEMO") held by refresh!, create_district! and flag_organization!,
+  # so two runs never interleave.
+  LOCK_KEY = 0x44454D4F
 
   class RefusedError < StandardError; end
+  # Another run holds LOCK_KEY.
+  class BusyError < RefusedError; end
   # Raised at the end of a refresh that could not finish some user's sessions or summaries,
   # after every other user has been processed, so the scheduler run is recorded as failed.
   class RefreshError < StandardError; end
@@ -71,18 +76,38 @@ module DemoDistrict
   # One-off: set the flag on the non-admin organization whose name matches exactly.
   # Refuses unless exactly one organization matches and no other organization is flagged.
   def flag_organization!(name)
-    matches = []
-    Organization.where(admin: [false, nil]).find_each { |org| matches << org if (org.settings || {})['name'] == name }
-    raise RefusedError, "expected exactly one organization named #{name.inspect}, found #{matches.length}" unless matches.length == 1
-    org = matches.first
-    existing = demo_organization
-    if existing && existing.id != org.id
-      raise RefusedError, "organization #{existing.global_id} is already flagged #{FLAG}"
+    with_write_lock do
+      matches = []
+      Organization.where(admin: [false, nil]).find_each { |org| matches << org if (org.settings || {})['name'] == name }
+      raise RefusedError, "expected exactly one organization named #{name.inspect}, found #{matches.length}" unless matches.length == 1
+      org = matches.first
+      existing = demo_organization
+      if existing && existing.id != org.id
+        raise RefusedError, "organization #{existing.global_id} is already flagged #{FLAG}"
+      end
+      org.settings[FLAG] = true
+      org.save!
+      log("flagged #{org.global_id} (#{name}) as #{FLAG}")
+      org
     end
-    org.settings[FLAG] = true
-    org.save!
-    log("flagged #{org.global_id} (#{name}) as #{FLAG}")
-    org
+  end
+
+  # Runs the block holding LOCK_KEY, taken and released on one connection (a session-level
+  # lock belongs to the session that took it). Raises BusyError when another session holds
+  # it. A failed release is logged, never raised, so it cannot hide the block's own error.
+  def with_write_lock
+    ActiveRecord::Base.connection_pool.with_connection do |conn|
+      raise BusyError, "another demo run is in progress" unless conn.select_value("SELECT pg_try_advisory_lock(#{LOCK_KEY})")
+      begin
+        yield
+      ensure
+        begin
+          log("WARN the demo lock was not held at release") unless conn.select_value("SELECT pg_advisory_unlock(#{LOCK_KEY})")
+        rescue => e
+          log("WARN could not release the demo lock: #{e.class}: #{e.message}")
+        end
+      end
+    end
   end
 
   # One-off: build a fresh, flagged Demo School District (lib/demo_district/seeder.rb) for an
@@ -91,84 +116,120 @@ module DemoDistrict
   #
   # It creates, and never adopts: it refuses if any organization is already flagged, if one
   # is already named Seeder::ORG_NAME, or if any of the district's user names is taken,
-  # because an existing account with one of those names may be a real person. The new
-  # organization is admin nil, not false: organizations.admin is uniquely indexed and the
-  # existing demo org may already hold false.
+  # because an existing account with one of those names may be a real person. The checks and
+  # the build run under LOCK_KEY, and Seeder.build! (adopt: false) refuses an account or
+  # board that appears after the checks. The new organization is admin nil, not false:
+  # organizations.admin is uniquely indexed and the existing demo org may already hold false.
   def create_district!(password:)
     raise RefusedError, "a password for the demo accounts is required" if password.to_s.strip.empty?
     if password.to_s.length < Passwords::MIN_PASSWORD_LENGTH
       raise RefusedError, "the demo account password must be at least #{Passwords::MIN_PASSWORD_LENGTH} characters"
     end
-    existing = demo_organization
-    raise RefusedError, "organization #{existing.global_id} is already flagged #{FLAG}" if existing
-    named = []
-    Organization.find_each { |org| named << org if (org.settings || {})['name'] == Seeder::ORG_NAME }
-    if named.any?
-      raise RefusedError, "an organization named #{Seeder::ORG_NAME.inspect} already exists (#{named.map(&:global_id).join(', ')})"
-    end
-    taken = User.where(user_name: Seeder.user_names).pluck(:user_name)
-    raise RefusedError, "user names already taken: #{taken.sort.join(', ')}" if taken.any?
-    # Seeder.build! reuses a board with this key; a fresh district must not adopt one it
-    # does not own.
-    raise RefusedError, "a board with key #{Seeder::BOARD_KEY.inspect} already exists" if Board.where(key: Seeder::BOARD_KEY).exists?
-
-    # No surrounding transaction, matching db/seeds.rb: user and board saves schedule
-    # background jobs that a worker could pick up before an outer transaction committed. A
-    # failure part way is logged with the organization's id, and a rerun refuses until the
-    # partial district is removed.
-    org = Organization.new
-    org.settings = Seeder.org_settings
-    org.admin = nil
-    org.save!
-    begin
-      district = Seeder.build!(org, password: password, log: ->(msg) { log(msg.strip) })
-      board_ref = { 'id' => district[:board].global_id, 'key' => district[:board].key }
-      district[:students].each do |entry|
-        # add_user saved the student's settings through another copy; start from those.
-        student = entry[:user].reload
-        Seeder.prepare_student!(student)
-        # A brand-new student has no session for refresh! to take a board from, so give
-        # them the district board as their home board. Reports aggregate only with
-        # allow_log_reports on (db/seeds.rb sets it after generating usage).
-        student.settings['preferences']['home_board'] = board_ref
-        student.settings['preferences']['allow_log_reports'] = true
-        student.save!
+    with_write_lock do
+      existing = demo_organization
+      raise RefusedError, "organization #{existing.global_id} is already flagged #{FLAG}" if existing
+      named = []
+      Organization.find_each { |org| named << org if (org.settings || {})['name'] == Seeder::ORG_NAME }
+      if named.any?
+        raise RefusedError, "an organization named #{Seeder::ORG_NAME.inspect} already exists (#{named.map(&:global_id).join(', ')})"
       end
-      # Link each room's SLP to its students now rather than waiting for the job adding them
-      # scheduled: refresh! picks a session's author (who models) from the student's
-      # supervisors, and a backfill run straight after this would otherwise find none.
-      district[:units].each { |unit| unit.reload.assert_supervision! }
-    rescue => e
-      log("FAILED building #{org.global_id} part way: #{e.class}: #{e.message}")
-      raise
+      taken = User.where(user_name: Seeder.user_names).pluck(:user_name)
+      raise RefusedError, "user names already taken: #{taken.sort.join(', ')}" if taken.any?
+      # A fresh district must not adopt a board it does not own.
+      raise RefusedError, "a board with key #{Seeder.board_key.inspect} already exists" if Board.where(key: Seeder.board_key).exists?
+
+      # No surrounding transaction, matching db/seeds.rb: user and board saves schedule
+      # background jobs that a worker could pick up before an outer transaction committed. A
+      # failure part way is logged with the organization's id and the flag is taken off it,
+      # so refresh! leaves the partial district alone; a rerun refuses until it is removed.
+      org = Organization.new
+      org.settings = Seeder.org_settings
+      org.admin = nil
+      org.save!
+      begin
+        district = Seeder.build!(org, password: password, adopt: false, log: ->(msg) { log(msg.strip) })
+        board_ref = { 'id' => district[:board].global_id, 'key' => district[:board].key }
+        district[:students].each do |entry|
+          # add_user saved the student's settings through another copy; start from those.
+          student = entry[:user].reload
+          Seeder.prepare_student!(student)
+          # A brand-new student has no session for refresh! to take a board from, so give
+          # them the district board as their home board. Reports aggregate only with
+          # allow_log_reports on (db/seeds.rb sets it after generating usage).
+          student.settings['preferences']['home_board'] = board_ref
+          student.settings['preferences']['allow_log_reports'] = true
+          student.save!
+        end
+        # Link each room's SLP to its students now rather than waiting for the job adding them
+        # scheduled: refresh! picks a session's author (who models) from the student's
+        # supervisors, and a backfill run straight after this would otherwise find none.
+        district[:units].each { |unit| unit.reload.assert_supervision! }
+      rescue => e
+        log("FAILED building #{org.global_id} part way: #{e.class}: #{e.message}")
+        unflag_partial_district(org)
+        raise
+      end
+      log("created #{org.global_id} (#{Seeder::ORG_NAME}), flagged #{FLAG}")
+      org
     end
-    log("created #{org.global_id} (#{Seeder::ORG_NAME}), flagged #{FLAG}")
-    org
+  end
+
+  def unflag_partial_district(org)
+    partial = Organization.find_by(id: org.id)
+    return unless partial && partial.settings.is_a?(Hash)
+    partial.settings.delete(FLAG)
+    partial.save!
+    log("took #{FLAG} off #{partial.global_id}")
+  rescue => e
+    log("WARN could not take #{FLAG} off #{org.global_id}: #{e.class}: #{e.message}")
   end
 
   # One-off for environments whose demo accounts were created before Seeder.build! turned
   # their email off: runs Seeder.disable_email! on every seeded demo user name and on every
-  # @demoschooldistrict.org member of the flagged organization. Each account is reloaded
-  # just before it is written, and one saved elsewhere mid-run is queued and logged rather
-  # than stopping the rest. Safe to rerun. Returns the number of accounts changed.
+  # member of the flagged organization (it acts only on @demoschooldistrict.org accounts).
+  # refresh! repeats it for the flagged organization's members every day. Safe to rerun.
+  # Returns the number of accounts changed.
   def disable_demo_emails!
     users = User.where(user_name: Seeder.user_names).to_a
     org = demo_organization
-    users += (org.approved_users(false).to_a + org.supervisors.to_a + org.managers.to_a) if org
-    changed = 0
-    users.uniq(&:id).each do |user|
-      status = Seeder.disable_email!(user.reload)
-      changed += 1 if status == :disabled
-      log("#{user.user_name}: email not turned off (#{status})") if %i[pending failed].include?(status)
-    end
+    users += org_members(org) if org
+    changed, problems = turn_email_off(users)
+    problems.each { |name, status| log("#{name}: email not turned off (#{status})") }
     log("email turned off for #{changed} demo account(s)")
     changed
   end
 
+  def org_members(org)
+    org.approved_users(false).to_a + org.supervisors.to_a + org.managers.to_a
+  end
+
+  # Seeder.disable_email! on each account, reloaded just before it is written so
+  # Processable#update_setting does not refuse a stale copy. Returns the number changed and
+  # { user_name => status } for each change that was queued (:pending, applied later by its
+  # job) or :failed.
+  def turn_email_off(users)
+    changed = 0
+    problems = {}
+    users.uniq(&:id).each do |user|
+      status = Seeder.disable_email!(user.reload)
+      changed += 1 if status == :disabled
+      problems[user.user_name] = status if %i[pending failed].include?(status)
+    end
+    [changed, problems]
+  end
+
   # Extends the flagged organization's demo activity through yesterday. Pass organization:
   # to target one explicitly; it is refused unless it carries the flag. With no flagged
-  # organization (most non-production environments) this logs and does nothing.
+  # organization (most non-production environments) this logs and does nothing. While
+  # another run holds LOCK_KEY it does nothing and returns { skipped_busy: true }.
   def refresh!(organization: nil, now: Time.now)
+    with_write_lock { refresh_locked!(organization, now) }
+  rescue BusyError => e
+    log("#{e.message}; skipping this run")
+    { skipped_busy: true }
+  end
+
+  def refresh_locked!(organization, now)
     org = organization
     if org
       raise RefusedError, "organization #{org.global_id} is not flagged #{FLAG}; refusing to write demo data" unless flagged?(org)
@@ -184,10 +245,20 @@ module DemoDistrict
     result = {
       organization: org.global_id, through: yesterday.iso8601, communicators: 0,
       sessions_created: 0, summaries_updated: 0, goals_tracked: 0, goals_created: 0, goal_notes: 0,
-      supervisor_days: 0, profiles_refreshed: 0, skipped_users: [], failures: []
+      supervisor_days: 0, profiles_refreshed: 0, emails_turned_off: 0, skipped_users: [], failures: []
     }
     # author id => dates this run wrote sessions or notes for, so their daily activity is rebuilt
     touched = Hash.new { |h, k| h[k] = Set.new }
+
+    # Demo accounts added since the district was built get their email turned off too.
+    result[:emails_turned_off], email_problems = turn_email_off(org_members(org))
+    email_problems.each do |name, status|
+      if status == :failed
+        result[:failures] << "#{name} email not turned off"
+      else
+        log("#{name}: turning email off was queued (#{status})")
+      end
+    end
 
     communicators = org.approved_users(false)
     communicators.each do |user|
@@ -197,6 +268,8 @@ module DemoDistrict
       end
       refresh_communicator(org, user, yesterday, result, touched)
     end
+    demo_communicators = communicators.select { |u| demo_email?(u) }
+    demo_ids = demo_communicators.map(&:id)
 
     supervisors = org.supervisors.to_a.select do |user|
       next true if demo_email?(user)
@@ -206,12 +279,12 @@ module DemoDistrict
     recent = ((yesterday - (SUPERVISOR_DAYS_WINDOW - 1))..yesterday).to_a
     supervisors.each do |sup|
       begin
-        result[:supervisor_days] += record_supervisor_days!(sup, touched[sup.id] + recent + unrecorded_supervisor_days(sup, yesterday))
+        dates = touched[sup.id] + recent + unrecorded_supervisor_days(sup, yesterday, demo_ids)
+        result[:supervisor_days] += record_supervisor_days!(sup, dates, communicator_ids: demo_ids)
       rescue => e
         result[:failures] << "#{sup.user_name} daily activity: #{e.class}: #{e.message}"
       end
     end
-    demo_communicators = communicators.select { |u| demo_email?(u) }
     result[:profiles_refreshed] += refresh_profiles(org, 'communicator', demo_communicators, now)
     result[:profiles_refreshed] += refresh_profiles(org, 'supervisor', supervisors, now)
 
@@ -383,13 +456,14 @@ module DemoDistrict
     result[:failures] << "#{user.user_name} goal notes: #{e.class}: #{e.message}"
   end
 
-  # Dates within the backfill horizon on which the supervisor authored sessions or notes but
-  # their daily_use log has no entry, such as days a killed run wrote but never recorded.
-  # Reads only started_at and the one daily_use row, so it is cheap to run every day.
-  def unrecorded_supervisor_days(supervisor, yesterday)
+  # Dates within the backfill horizon on which the supervisor authored sessions or notes for
+  # one of communicator_ids (the flagged organization's demo communicators) but their
+  # daily_use log has no entry, such as days a killed run wrote but never recorded. Reads only
+  # started_at and the one daily_use row, so it is cheap to run every day.
+  def unrecorded_supervisor_days(supervisor, yesterday, communicator_ids)
     tz = UsageGenerator.time_zone
     from = yesterday - (MAX_BACKFILL_DAYS - 1)
-    authored = LogSession.where(author_id: supervisor.id, log_type: %w[session note])
+    authored = LogSession.where(author_id: supervisor.id, user_id: communicator_ids, log_type: %w[session note])
                          .where.not(user_id: supervisor.id)
                          .where(started_at: tz.local(from.year, from.month, from.day)..tz.local(yesterday.year, yesterday.month, yesterday.day).end_of_day)
                          .pluck(:started_at).map { |t| t.in_time_zone(tz).to_date }.uniq
@@ -400,15 +474,16 @@ module DemoDistrict
 
   # Rebuilds a supervisor's daily activity (the 'daily_use' log the app keeps for each
   # supporter, which a room reads for its supervisor rows and modeled words) for each date
-  # from the sessions they authored and the notes they wrote that day, so a rerun gives the
+  # from the sessions they authored and the notes they wrote that day for communicator_ids
+  # (the demo communicators, so nobody else's words reach a demo room), so a rerun gives the
   # same answer. Shape and activity levels follow the app's own track_daily_use
   # (app/frontend/app/services/stashes.js). Returns the number of days written.
-  def record_supervisor_days!(supervisor, dates)
+  def record_supervisor_days!(supervisor, dates, communicator_ids:)
     tz = UsageGenerator.time_zone
     gid = supervisor.global_id
     days = dates.to_a.uniq.sort.filter_map do |date|
       range = tz.local(date.year, date.month, date.day)..tz.local(date.year, date.month, date.day).end_of_day
-      authored = LogSession.where(author_id: supervisor.id, started_at: range).where.not(user_id: supervisor.id)
+      authored = LogSession.where(author_id: supervisor.id, user_id: communicator_ids, started_at: range).where.not(user_id: supervisor.id)
       sessions = authored.where(log_type: 'session').to_a
       notes = authored.where(log_type: 'note').count
       next if sessions.empty? && notes == 0

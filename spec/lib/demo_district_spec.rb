@@ -36,6 +36,19 @@ describe DemoDistrict do
     LogSession.where(user_id: user.id).select { |s| (s.data || {})['seed_marker'] == DemoDistrict::SEED_MARKER }
   end
 
+  # Holds the demo write lock from a second database session for the block. It has to be a
+  # separate session: transactional fixtures pin the example to one connection, and an
+  # advisory lock is re-entrant within the session that holds it. Taking the lock with try
+  # also fails the example if an earlier run left it held.
+  def holding_demo_lock
+    cfg = ActiveRecord::Base.connection_db_config.configuration_hash
+    other = PG.connect({ dbname: cfg[:database], host: cfg[:host], port: cfg[:port], user: cfg[:username], password: cfg[:password] }.compact)
+    expect(other.exec("SELECT pg_try_advisory_lock(#{DemoDistrict::LOCK_KEY})").getvalue(0, 0)).to eq('t')
+    yield
+  ensure
+    other&.close
+  end
+
   describe "refresh!" do
     it "refuses an organization that is not flagged demo_data" do
       o = org_with
@@ -107,6 +120,28 @@ describe DemoDistrict do
       res = travel_to(now) { DemoDistrict.refresh!(organization: o.reload, now: now) }
       expect(res[:sessions_created]).to eq(0)
       expect(rolling_sessions(demo).length).to eq(first)
+    end
+
+    it "turns email off for a demo member added after seeding, and leaves anyone else's alone" do
+      o = org_with('demo_data' => true)
+      demo = member(o, 'kid@demoschooldistrict.org')
+      outsider = member(o, 'parent@example.com')
+      prior_session(demo, Time.utc(2026, 10, 20, 18, 0, 0))
+
+      res = travel_to(now) { DemoDistrict.refresh!(organization: o.reload, now: now) }
+      expect(demo.reload.settings['email_disabled']).to eq(true)
+      expect(outsider.reload.settings['email_disabled']).to eq(nil)
+      expect(res[:emails_turned_off]).to eq(1)
+    end
+
+    it "skips the run while another run holds the demo lock" do
+      o = org_with('demo_data' => true)
+      demo = member(o, 'kid@demoschooldistrict.org')
+      prior_session(demo, Time.utc(2026, 10, 15, 18, 0, 0))
+
+      res = holding_demo_lock { travel_to(now) { DemoDistrict.refresh!(organization: o.reload, now: now) } }
+      expect(res).to eq({ skipped_busy: true })
+      expect(rolling_sessions(demo)).to eq([])
     end
   end
 
@@ -209,6 +244,8 @@ describe DemoDistrict do
       }.to raise_error(DemoDistrict::RefreshError, /#{demo.user_name} sessions on 2026-10-1[69]: StandardError: boom/)
       # The cursor did not move past the failed day.
       expect(LogSession.where(user_id: demo.id).maximum(:started_at)).to eq(Time.utc(2026, 10, 15, 18, 0, 0))
+      # The failed run let go of the demo lock.
+      holding_demo_lock { }
     end
 
     it "removes a partly written day so the cursor stays before it and the next run redoes the whole day" do
@@ -373,11 +410,22 @@ describe DemoDistrict do
     end
 
     it "refuses when a board already has the district board's key" do
-      Board.create(user: User.create, settings: { 'name' => 'Spec Board' }).update_column(:key, DemoDistrict::Seeder::BOARD_KEY)
-      expect(Board.where(key: DemoDistrict::Seeder::BOARD_KEY).count).to eq(1)
+      Board.create(user: User.create, settings: { 'name' => 'Spec Board' }).update_column(:key, DemoDistrict::Seeder.board_key)
+      expect(Board.where(key: 'sarah_chen_slp/demo_district_home').count).to eq(1)
       before_count = Organization.count
       expect { DemoDistrict.create_district!(password: 'spec-demo-password') }.to raise_error(DemoDistrict::RefusedError, /board/)
       expect(Organization.count).to eq(before_count)
+    end
+
+    it "reuses the district board on a second build (db/seeds.rb reruns)" do
+      org = Organization.create(settings: DemoDistrict::Seeder.org_settings)
+      quiet = ->(_msg) {}
+      first = DemoDistrict::Seeder.build!(org, password: 'spec-demo-password', log: quiet, adopt: true)
+      expect(first[:board].key).to eq('sarah_chen_slp/demo_district_home')
+      boards = Board.count
+      second = DemoDistrict::Seeder.build!(org.reload, password: 'spec-demo-password', log: quiet, adopt: true)
+      expect(second[:board].id).to eq(first[:board].id)
+      expect(Board.count).to eq(boards)
     end
 
     it "refuses a missing or short password and creates nothing" do
@@ -410,6 +458,32 @@ describe DemoDistrict do
       existing.reload
       expect(existing.settings['email']).to eq('someone@example.com')
       expect(existing.settings.dig('preferences', 'home_board')).to eq(nil)
+    end
+
+    it "refuses, without adopting it, an account that takes a demo user name after the up-front check" do
+      intruder = nil
+      allow(DemoDistrict::Seeder).to receive(:build!).and_wrap_original do |orig, *args, **kwargs|
+        intruder = User.create(user_name: 'tessa_campbell', settings: { 'email' => 'someone@example.com' })
+        orig.call(*args, **kwargs)
+      end
+      expect { DemoDistrict.create_district!(password: 'spec-demo-password') }.to raise_error(DemoDistrict::RefusedError, /tessa_campbell/)
+      intruder.reload
+      expect(Organization.attached_orgs(intruder)).to eq([])
+      expect(intruder.settings['email_disabled']).to eq(nil)
+      expect(intruder.settings.dig('preferences', 'home_board')).to eq(nil)
+      # The half-built district is no longer flagged, so refresh! leaves it alone, and the
+      # failed run let go of the demo lock.
+      expect(DemoDistrict.demo_organization).to eq(nil)
+      holding_demo_lock { }
+    end
+
+    it "refuses while another run holds the demo lock, and creates nothing" do
+      before_count = Organization.count
+      expect {
+        holding_demo_lock { DemoDistrict.create_district!(password: 'spec-demo-password') }
+      }.to raise_error(DemoDistrict::RefusedError, /in progress/)
+      expect(Organization.count).to eq(before_count)
+      expect(User.where(user_name: names).count).to eq(0)
     end
 
     it "turns email off for every account it creates" do
@@ -460,6 +534,18 @@ describe DemoDistrict do
       expect(kid.reload.settings['email_disabled']).to eq(true)
       expect(DemoDistrict::Seeder.disable_email!(kid)).to eq(:skipped)
     end
+
+    it "drops reset codes from an account whose email is already off" do
+      kid = User.create(user_name: 'aiden_parker', settings: {
+        'email' => 'aiden_parker@demoschooldistrict.org', 'email_disabled' => true,
+        'password_resets' => [{ 'timestamp' => Time.now.to_i, 'code' => 'spec-code', 'token' => 'spec-token' }]
+      })
+      expect(kid.valid_reset_token?('spec-token')).to eq(true)
+      expect(DemoDistrict::Seeder.disable_email!(kid)).to eq(:disabled)
+      kid.reload
+      expect(kid.settings['password_resets']).to eq([])
+      expect(kid.valid_reset_token?('spec-token')).to eq(false)
+    end
   end
 
   describe "record_supervisor_days!" do
@@ -476,16 +562,33 @@ describe DemoDistrict do
       expect(made).not_to eq([])
       modeled = made.map { |s| s.data['events'].select { |e| e['modeling'] } }.flatten
 
-      expect(DemoDistrict.record_supervisor_days!(slp, [date, date - 1])).to eq(1)
+      expect(DemoDistrict.record_supervisor_days!(slp, [date, date - 1], communicator_ids: [kid.id])).to eq(1)
       day = LogSession.find_by(log_type: 'daily_use', user_id: slp.id).data['days']['2026-10-20']
       expect(day['models']).to eq(modeled.length)
       expect(day['modeled'].sort).to eq(modeled.map { |e| e['button']['label'].downcase }.sort)
       expect(day['activity_level']).to be_between(1, 5)
 
-      DemoDistrict.record_supervisor_days!(slp, [date])
+      DemoDistrict.record_supervisor_days!(slp, [date], communicator_ids: [kid.id])
       again = LogSession.where(log_type: 'daily_use', user_id: slp.id)
       expect(again.count).to eq(1)
       expect(again.first.data['days']['2026-10-20']).to eq(day)
+    end
+
+    it "counts only the demo communicators' sessions, not one the SLP authored for anyone else" do
+      srand(20261021)
+      o = org_with('demo_data' => true)
+      kid = member(o, 'kid@demoschooldistrict.org')
+      outsider = User.create(settings: { 'email' => 'outsider@example.com' })
+      slp = User.create(settings: { 'email' => 'slp@demoschooldistrict.org', 'name' => 'Spec SLP' })
+      gen = DemoDistrict::UsageGenerator.new(student: outsider, profile: { name: 'Outsider', user_name: outsider.user_name, skill: :beginner, freq: :high, modeling_rate: 0.5 },
+                                             index: 0, author: slp, board: { 'id' => '1_1', 'key' => 'example/home' },
+                                             device: Device.create(user: outsider))
+      date = Date.new(2026, 10, 20)
+      expect(gen.generate_day(date)).not_to eq([])
+
+      expect(DemoDistrict.unrecorded_supervisor_days(slp, date, [kid.id])).to eq([])
+      expect(DemoDistrict.record_supervisor_days!(slp, [date], communicator_ids: [kid.id])).to eq(0)
+      expect(LogSession.find_by(log_type: 'daily_use', user_id: slp.id)).to eq(nil)
     end
   end
 

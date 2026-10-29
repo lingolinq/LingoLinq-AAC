@@ -533,7 +533,7 @@ elsif !DEMO_ALREADY_SEEDED
   demo_org.save!
   puts "  Created org: Demo School District (ID: #{demo_org.global_id})"
 
-  district = DemoDistrict::Seeder.build!(demo_org, password: demo_password)
+  district = DemoDistrict::Seeder.build!(demo_org, password: demo_password, adopt: true)
   supervisors = district[:supervisors]
   district_board = district[:board]
   students = district[:students]
@@ -633,7 +633,7 @@ elsif !DEMO_ALREADY_SEEDED
   puts "\n  Recording supervisor daily activity..."
   seeded_dates = (1..90).map { |days_ago| days_ago.days.ago.to_date }
   supervisors.each do |slp|
-    puts "    #{slp.user_name}: #{DemoDistrict.record_supervisor_days!(slp, seeded_dates)} days"
+    puts "    #{slp.user_name}: #{DemoDistrict.record_supervisor_days!(slp, seeded_dates, communicator_ids: students.map { |s| s[:user].id })} days"
   end
 
   puts "\n" + "=" * 60

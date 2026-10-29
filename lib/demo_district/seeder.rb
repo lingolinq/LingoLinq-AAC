@@ -85,14 +85,23 @@ module DemoDistrict
       SLP_PROFILES.map { |p| p[:user_name] } + UsageGenerator::STUDENT_PROFILES.map { |p| p[:user_name] }
     end
 
-    # Builds the supervisors, core board, students and classrooms inside org, reusing any
-    # that already exist (by user name, board key, classroom name). Returns
+    # The district board's key. Board#generate_board_key (app/models/concerns/processable.rb)
+    # always prefixes the owner's user name, and the first SLP owns the board.
+    def self.board_key
+      "#{SLP_PROFILES.first[:user_name]}/#{BOARD_KEY}"
+    end
+
+    # Builds the supervisors, core board, students and classrooms inside org. With adopt: true
+    # (db/seeds.rb reruns) it reuses any that already exist (by user name, board key,
+    # classroom name); with adopt: false (DemoDistrict.create_district!) an existing user or
+    # board raises DemoDistrict::RefusedError instead. Returns
     # { supervisors: [User], board: Board, students: [{ user: User, profile: Hash }],
     #   units: [OrganizationUnit] }. Room supervision (each SLP supervising their room's
     # students) is linked by a background job that adding room members schedules.
-    def self.build!(org, password:, log: ->(msg) { puts msg })
+    def self.build!(org, password:, adopt:, log: ->(msg) { puts msg })
       supervisors = SLP_PROFILES.map do |profile|
         slp = User.find_by(user_name: profile[:user_name])
+        refuse_to_adopt!(slp, "user #{profile[:user_name]}", adopt)
         unless slp
           slp = User.process_new({
             name: profile[:name],
@@ -116,7 +125,8 @@ module DemoDistrict
       # Add first supervisor as a manager too (district admin)
       org.add_manager(supervisors.first.user_name, true)
 
-      board = Board.find_by(key: BOARD_KEY)
+      board = Board.find_by(key: board_key)
+      refuse_to_adopt!(board, "board #{board_key}", adopt)
       unless board
         board = Board.process_new({
           name: 'Demo District Core Board',
@@ -135,6 +145,7 @@ module DemoDistrict
 
       students = UsageGenerator::STUDENT_PROFILES.map do |profile|
         student = User.find_by(user_name: profile[:user_name])
+        refuse_to_adopt!(student, "user #{profile[:user_name]}", adopt)
         unless student
           student = User.process_new({
             name: profile[:name],
@@ -179,6 +190,10 @@ module DemoDistrict
       { supervisors: supervisors, board: board, students: students, units: units }
     end
 
+    def self.refuse_to_adopt!(existing, what, adopt)
+      raise DemoDistrict::RefusedError, "#{what} already exists; refusing to adopt it" if existing && !adopt
+    end
+
     # Student preferences: logging on, communicator role, default device settings.
     def self.prepare_student!(student)
       student.settings['preferences'] ||= {}
@@ -204,11 +219,11 @@ module DemoDistrict
     # Notifiable#channels_for check) and any outstanding password reset codes are dropped.
     # Acts only on an @demoschooldistrict.org account (DemoDistrict.demo_email?), never on
     # another account that happens to hold a demo user name. Returns :disabled, :skipped
-    # (not a demo account, or already off), :pending (the account was saved elsewhere first,
-    # so Processable#update_setting queued the change) or :failed.
+    # (not a demo account, or already off with no reset codes), :pending (the account was
+    # saved elsewhere first, so Processable#update_setting queued the change) or :failed.
     def self.disable_email!(user)
       return :skipped unless DemoDistrict.demo_email?(user)
-      return :skipped if user.settings['email_disabled'] == true
+      return :skipped if user.settings['email_disabled'] == true && user.settings['password_resets'].blank?
       case user.update_setting({ 'email_disabled' => true, 'password_resets' => [] })
       when true then :disabled
       when 'pending' then :pending

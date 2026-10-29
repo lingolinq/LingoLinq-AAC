@@ -53,6 +53,15 @@ describe 'scheduler:dispatch rake task' do
       expect(DemoDistrict).to receive(:refresh!).and_return({ skipped_org: true })
       expect { Rake::Task['scheduler:dispatch'].invoke }.not_to raise_error
     end
+
+    # Another demo run (a manual rake demo:refresh or create_district!) holds the lock and is
+    # doing the work, so this one skips without failing the dispatch.
+    it 'treats a demo refresh skipped for another run in progress as done, not failed' do
+      expect(DemoDistrict).to receive(:refresh!).and_return({ skipped_busy: true })
+      expect {
+        expect { Rake::Task['scheduler:dispatch'].invoke }.not_to raise_error
+      }.to output(/refresh_demo_district\] done: another demo run is in progress/).to_stdout
+    end
   end
 
   # These cover the failure-handling contract added on 2026-09-04, which previously shipped
