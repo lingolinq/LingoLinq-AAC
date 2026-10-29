@@ -22,9 +22,9 @@ module('Unit | Utility | scanner start outside speak mode', function(hooks) {
     this.savedLastOptions = scanner.last_options;
     scanner.interval = null;
     scanner.last_options = null;
-    this.appState = (speak_mode) => EmberObject.create({
+    this.appState = (speak_mode, scanning = true) => EmberObject.create({
       speak_mode: speak_mode,
-      currentUser: EmberObject.create({ preferences: { device: { scanning: true } } })
+      currentUser: EmberObject.create({ preferences: { device: { scanning: scanning } } })
     });
   });
   hooks.afterEach(function() {
@@ -36,6 +36,12 @@ module('Unit | Utility | scanner start outside speak mode', function(hooks) {
 
   test('it stops instead of scanning when the app is not in speak mode', function(assert) {
     scanner.set('appState', this.appState(false));
+    scanner.start();
+    assert.strictEqual(this.stopped, 1, 'scanning was stopped, not resumed');
+  });
+
+  test('it stops in speak mode when the user has scanning turned off', function(assert) {
+    scanner.set('appState', this.appState(true, false));
     scanner.start();
     assert.strictEqual(this.stopped, 1, 'scanning was stopped, not resumed');
   });

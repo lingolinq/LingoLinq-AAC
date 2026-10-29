@@ -322,14 +322,18 @@ frame_listener.session_origin = function() {
   }
 };
 // Text an integration adds or speaks goes out in the user's voice, so it must be plain text no longer
-// than a sentence needs, and a picture must be a web address.
+// than a sentence needs, it may not carry app actions (a ":home" or ":clear" segment, alone or after
+// "&&", is run as an action by utterance.specialty_button), and a picture must be a web address.
 var MAX_INTEGRATION_TEXT = 500;
 frame_listener.payload_error = function(data) {
   if(data.action != 'add_text' && data.action != 'speak_text') { return null; }
   if(data.text != null && (typeof data.text != 'string' || data.text.length > MAX_INTEGRATION_TEXT)) {
     return 'text must be a string of at most ' + MAX_INTEGRATION_TEXT + ' characters';
   }
-  if(data.image_url != null && !/^https?:\/\//i.test(String(data.image_url))) {
+  if(data.text && /(^|&&)\s*:/.test(data.text)) {
+    return 'text may not contain app actions';
+  }
+  if(data.image_url != null && (typeof data.image_url != 'string' || !/^https?:\/\//i.test(data.image_url))) {
     return 'image_url must be an http or https address';
   }
   return null;

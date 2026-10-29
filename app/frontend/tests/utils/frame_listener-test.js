@@ -817,6 +817,36 @@ describe("frame_listener", function() {
       expect(added).toEqual(null);
     });
 
+    it('accepts text of exactly 500 characters', function() {
+      var added = null, data = null;
+      stub(app_state, 'activate_button', function(a, b) { added = b; });
+      frame_listener.handle_action({action: 'add_text', text: new Array(501).join('a'), respond: function(d) { data = d; }});
+      expect(data).toEqual({added: true});
+      expect(added && added.label.length).toEqual(500);
+    });
+
+    it('rejects text that would run an app action instead of being said', function() {
+      var added = null, data = null;
+      stub(app_state, 'activate_button', function(a, b) { added = b; });
+      frame_listener.handle_action({action: 'add_text', text: ':clear', respond: function(d) { data = d; }});
+      expect(data && data.error).toEqual('text may not contain app actions');
+      data = null;
+      frame_listener.handle_action({action: 'add_text', text: 'hi && :home', respond: function(d) { data = d; }});
+      expect(data && data.error).toEqual('text may not contain app actions');
+      data = null;
+      frame_listener.handle_action({action: 'add_text', text: 'time: noon', respond: function(d) { data = d; }});
+      expect(data).toEqual({added: true});
+      expect(added && added.label).toEqual('time: noon');
+    });
+
+    it('rejects a picture address that is not a string', function() {
+      var added = null, data = null;
+      stub(app_state, 'activate_button', function(a, b) { added = b; });
+      frame_listener.handle_action({action: 'add_text', text: 'hats', image_url: ['https://www.example.com/pic.png'], respond: function(d) { data = d; }});
+      expect(data && data.error).toEqual('image_url must be an http or https address');
+      expect(added).toEqual(null);
+    });
+
     it('does not speak over-long text', function() {
       var spoken = [], data = null;
       stub(speecher, 'speak_text', function(text) { spoken.push(text); });

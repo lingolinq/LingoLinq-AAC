@@ -287,7 +287,11 @@ Fix (`utils/frame_listener.js`): refuse messages whose origin is not that of the
 reply to that origin only; refuse non-string or over-500-character text and a non-http(s) `image_url`.
 Not done here: `sandbox` on the iframe, the `interrupt: true` product question, a backend scheme check on
 `board_render_url`, and the first-message `data-session_id` claim (`session_window` runs before the
-origin check; a wrong-origin page can only fix the session id, not act).
+origin check, so any window holding a reference to the app, such as a page opened from a board
+button without `noopener`, can pin `data-session_id` before the integration's first message; the
+integration's targets and listeners then drop out, so switch users cannot reach them. It cannot add or speak text).
+Also added after review: `add_text`/`speak_text` refuse text with an app-action segment (`:clear`,
+`hi && :home`; `utterance.specialty_button` would run it) and a non-string `image_url`.
 
 Unit runs: fixed build frame_listener 56/56, "scanner" 83 (79 pass, 4 skip), HighlightController 3/3.
 Mutant build (the pre-fix `scanner.js` and `frame_listener.js` from `97dbf59d0`): exactly the 8 new tests
