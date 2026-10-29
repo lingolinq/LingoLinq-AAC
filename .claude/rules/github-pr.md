@@ -1,8 +1,8 @@
 # Opening a PR from this machine
 
-Two obvious routes are dead ends here — do not spend a turn rediscovering them:
-- **`gh` CLI is not installed** (`gh not found`).
-- **The MCP GitHub server rejects its credentials** ("Bad credentials").
+Use `gh` when `command -v gh` finds it and `gh auth status` reports a login. When it does not,
+or on a machine without it, the route below applies. The MCP GitHub server has rejected its
+credentials here ("Bad credentials"); do not spend a turn on it.
 
 What works is the OAuth token git already uses for pushes, held by the configured
 credential helper. This checkout is used from both macOS and WSL on Windows, so the

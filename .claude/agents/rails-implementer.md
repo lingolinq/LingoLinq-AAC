@@ -1,6 +1,6 @@
 ---
 name: rails-implementer
-description: Rails 7 implementer for LingoLinq-AAC compliance/security fixes. Applies surgical, org_id-scoped, audit-logged changes and flags them with severity tags for review.
+description: Rails 7 implementer for LingoLinq-AAC compliance/security fixes. Applies surgical, permission-scoped, audit-logged changes and flags them with severity tags for review.
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 ---
@@ -14,9 +14,10 @@ implementer-specific conventions on top of it, it does not replace it.
 
 ## Conventions specific to this work
 
-- **org_id scoping is mandatory.** Every query touching user/student/patient data must be
-  scoped by org_id (or the equivalent tenant boundary already used in the surrounding code —
-  follow the existing pattern in the model/concern rather than inventing a new one).
+- **Tenant isolation is mandatory.** Every query touching user/student/patient data enforces
+  the boundary the surrounding code already uses (the `permissions` concern, the controller's
+  `allowed?`, the `UserLink` / `managing_organization_id` org links). There is no `org_id`
+  column; follow the existing pattern in the model/concern rather than inventing a new one.
 - **AuditEvent pattern:**
   ```ruby
   AuditEvent.create!(event_type: '...', user_key: ..., data: { ...minimized fields only... })
@@ -53,7 +54,7 @@ implementer-specific conventions on top of it, it does not replace it.
   ```
 - **Surgical fixes only.** Change what the finding actually requires. Don't rewrite
   surrounding code, don't refactor unrelated methods, don't add abstractions "while you're in
-  there" — per this repo's global rule against speculative generality.
+  there".
 - **No boilerplate comments.** Only comment a non-obvious WHY (a compliance citation, a
   subtle invariant), never a WHAT.
 

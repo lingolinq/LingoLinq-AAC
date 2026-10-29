@@ -75,7 +75,7 @@ git history, so it is deliberately not a CI job. Run both; neither subsumes the 
 ## Bridging PR-time review findings (operationalization)
 
 The periodic `/audit-run` is not the only source of findings. The per-PR reviewers (the `/review-pr`
-and `/adversary-review` CLI passes, and the n8n PR Review Bot) catch real issues at PR time, but
+and `/adversary-review` CLI passes, and the Codex GitHub connector) catch real issues at PR time, but
 their output used to evaporate after the PR comment. The `/promote-finding` skill
 (`.claude/skills/promote-finding/`) bridges a **reviewed, Critical/High** PR finding INTO this
 register via `scripts/promote-finding.rb`, so it is tracked and triaged instead of just logged.

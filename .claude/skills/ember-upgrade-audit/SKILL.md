@@ -19,9 +19,9 @@ Historical sweep + fix log (dedup against it): `docs/ember-5.12-migration-findin
 | Slice | Scope |
 |-------|-------|
 | `utils-services` | `app/frontend/app/utils/`, `app/frontend/app/services/` (remember the twin-file rule) |
-| `components` | `app/frontend/app/components/` (+ their templates under `templates/components/`) |
+| `components` | `app/frontend/app/components/` (JS and co-located `.hbs`) |
 | `controllers` | `app/frontend/app/controllers/` |
-| `templates` | `app/frontend/app/templates/` (excluding `templates/components/`) |
+| `templates` | `app/frontend/app/templates/` (route templates) |
 | `data-layer` | `app/frontend/app/models/`, `adapters/`, `serializers/`, `transforms/`, store usage anywhere |
 | `boot-routing` | `app/frontend/app/routes/`, `router.js`, `app.js`, `initializers/`, `helpers/`, `mixins/` |
 | `build-tests` | `app/frontend/{package.json, ember-cli-build.js, config/, tests/}` |
@@ -98,10 +98,8 @@ syntax, `component:` lookup of a route-driven controller.
 - Detect: direct greps per API (list + exact patterns in KNOWN-ISSUES.md).
 - `{{action}}` nuance (verified 2026-07-16): the modifier/helper is **deprecated in
   5.x (RFC 1006), removed in 6.0** — it still works in 5.12. A live usage is a LOW
-  `removed-api-action-modifier` finding (6.0 blocker), not breakage. Known live usages:
-  `templates/register.hbs:32,340,351` (modifier form); other `{{action` greps in
-  `create-board-new.js:2088`, `board-detail-grid.hbs:45`, `button-settings.hbs:14` are
-  comments — non-findings.
+  `removed-api-action-modifier` finding (6.0 blocker), not breakage. Several `{{action` grep
+  hits sit inside JS/HBS comments; those are non-findings, so check each hit before flagging.
 - One deliberate shim exists: `components/available-boards-section.js` local
   `sendAction` — not the removed API; not a finding.
 
@@ -148,7 +146,7 @@ rather than assuming a supported configuration.) Checklist +
 version-band table: KNOWN-ISSUES.md §Build.
 
 ### Class 11 — Two-way template binds to non-settable / mis-typed targets
-Surfaced by staging fix #621 (2026-07-16, LEARNINGS entries). Two shapes:
+Two shapes:
 - **`<Textarea @value={{this.x}}>` / `<Input @value={{this.x}}>` where `x` is a
   GET-ONLY computed** → every keystroke calls the missing setter →
   `Cannot read properties of undefined (reading 'call')` crash. Detect: for each
@@ -197,9 +195,9 @@ manual UI verification.
   defects there are LOW unless reachability is proven.
 - **Verified-safe list (do NOT re-flag; migration doc "Deliberate skips" +
   "Verified-safe"):** e.g. `components/start-codes.js` sort path,
-  `controllers/organization/rooms.js:25`, `utils/button.js:742`, `board/index.js:1003`
-  `button_levels` (manual trigger), eval render-path arrays (wholesale set),
-  `_stashes.js:425` (guarded). Full lists in the doc. Re-flag ONLY if the file changed
+  `controllers/organization/rooms.js` `max_session_count`, `utils/button.js` `translations`
+  (wholesale re-set), `controllers/board/index.js` `button_levels` (manual trigger), eval
+  render-path arrays (wholesale set), the guarded path in `utils/_stashes.js`. Full lists in the doc. Re-flag ONLY if the file changed
   after 2026-07-09 (`git log -1 --format=%cs -- <file>`).
 
 ## Finding schema (canonical; mirrors FINDINGS-EMBER.json)

@@ -1,13 +1,13 @@
 ---
 name: audit-run
-description: Orchestrate a full LingoLinq-AAC audit. Stamps the audited SHA + diff, fans out the read-only domain finders in parallel, reconciles results into the findings register, runs the adversary verifier, and validates citations. User-invoked only (/audit-run). Replaces the legacy workflows/full-audit.md.
+description: Orchestrate a full LingoLinq-AAC audit. Stamps the audited SHA + diff, fans out the read-only domain finders in parallel, reconciles results into the findings register, runs the adversary verifier, and validates citations. User-invoked only (/audit-run).
 disable-model-invocation: true
 allowed-tools: Read, Grep, Glob, Bash, Agent
 ---
 
 # /audit-run: LingoLinq audit orchestrator
 
-This is the supported replacement for `workflows/full-audit.md`. It runs in the trusted main
+It runs in the trusted main
 session (NOT a read-only finder), so it may use full tools and MCP. The finders it spawns are
 read-only by construction. The register `audit-reports/FINDINGS.json` is the single source of
 truth and must never regress: this runbook only ever ADDS findings or marks them `open`. Only
@@ -20,8 +20,8 @@ light run**. The cadence is tracked in `audit-reports/compliance-calendar.json`
 `/compliance-status`. Cadence dates are advisory scheduling, NOT a compliance claim.
 
 - **Quarterly full:** run all steps below (1-7). Finders scan their full scope; the run renders
-  the quarterly unified report. Schedule early in the weekly Pro/Max plan window (heavy parallel
-  Opus consumes weekly caps).
+  the quarterly unified report. Schedule it when plan usage headroom allows; the finders run in
+  parallel.
 - **Monthly light:** run steps 0-5 ONLY, with the **diff since the last run** as the finder
   scope. "Last run" is the register's own `meta.auditedSha`, NOT a base branch: an audit is run
   ON the base (`develop`), so `origin/develop...HEAD` resolves to ZERO files and would silently
@@ -179,7 +179,7 @@ Present to Scot:
 - Remind: only Scot closes, downgrades, or accepts risk. Nothing customer-facing leaves without
   his sign-off (plan section 5.6).
 
-## Step 7: Run log (built in Phase 4)
+## Step 7: Run log
 Two layers, both code/path evidence only - no student/patient data, no finding bodies with PII,
 no secrets:
 1. **Per-tool examination log (automatic).** Each finder has a PostToolUse hook

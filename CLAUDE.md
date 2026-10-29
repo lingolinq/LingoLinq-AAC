@@ -1,7 +1,7 @@
 # CLAUDE.md
 
-Guidance for Claude Code in LingoLinq-AAC. This file holds the repo-wide rules only and
-is kept under 200 lines. Everything else loads on demand:
+Guidance for Claude Code in LingoLinq-AAC. This file holds the repo-wide rules only.
+Everything else loads on demand:
 
 | Where | Loads when | Holds |
 |---|---|---|
@@ -10,7 +10,7 @@ is kept under 200 lines. Everything else loads on demand:
 | `.claude/rules/compliance-docs.md` | touching `docs/legal/**` or `audit-reports/**` | register governance, attested-doc rules |
 | `.claude/rules/data-bearing-paths.md` | touching fixtures, seeds, cassettes, migrations, `db/language/` | the Tier 1 data boundary |
 | `.claude/rules/deploy.md` | touching the deploy workflow, Dockerfile, `scripts/gcp/` | Cloud Run facts |
-| `.claude/rules/github-pr.md` | opening or updating a PR without `gh` | the credential route and its handling rules |
+| `.claude/rules/github-pr.md` | every session (no `paths:`); applies when opening or updating a PR without `gh` | the credential route and its handling rules |
 | `.claude/rules/testing.md` | touching `spec/**` or `.rspec` | no network in specs, test credentials, Redis state, clock-dependent examples |
 | `/fix-proposal` skill | before a bug fix or behaviour change in application code | fact sheet, red test first, proposal review, falsification |
 | `/pr-preflight` skill | before opening or pushing to a PR | P1 to P6 checks and the PR body block |
@@ -100,8 +100,9 @@ everything else in this file.
 ## Branching (mandatory before any code change)
 
 - **Never edit on `main`, `staging`, or `develop`.** Branch from `develop` for all
-  regular work: `git checkout develop && git pull && git checkout -b <new-branch>`.
-  Prefer an isolated worktree when other sessions share the checkout.
+  regular work, in your own worktree (the launcher, or
+  `git worktree add -b <new-branch> <path> origin/develop`). Never `git checkout -b` or switch
+  branches in a checkout another session shares.
 - **Name:** a developer handle plus a `<type>` (`fix`, `feat`, `chore`, `docs`, `perf`,
   `refactor`, `test`, `compliance`, `security`). Scot's branches are always
   `<type>/scot-<kebab-slug>`, the launcher form; its 8-hex token is part of the name
@@ -255,4 +256,4 @@ and `audit-reports/README.md`). Findings never contain student or patient data.
 ## Notes
 
 - License AGPLv3; contributor agreement required; OpenAAC Slack for questions.
-- Ember history: 3.28 to 4.12 (#437) to 5.12 (#490, 2026-07-08). Target 5.12 APIs.
+- Target Ember 5.12 APIs.

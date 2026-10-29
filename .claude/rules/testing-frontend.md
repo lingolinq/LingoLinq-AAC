@@ -13,7 +13,7 @@ paths:
 
 How LingoLinq tests are written, run, read and changed for the frontend (QUnit: unit, integration,
 acceptance) and end-to-end UI (Playwright), and how the CI gates treat them. RSpec has its own rule
-file, `.claude/rules/testing.md` (added by PR #1117: no network in specs, test credentials, Redis state, the clock). Root `CLAUDE.md` Rules 0.11,
+file, `.claude/rules/testing.md` (no network in specs, test credentials, Redis state, the clock). Root `CLAUDE.md` Rules 0.11,
 0.12 and 0.14 still apply and win on conflict; `app/frontend/CLAUDE.md` has the Ember run mechanics.
 The history behind each rule is in `docs/task-management/2026-10-05_ci-test-stalls.md`.
 
@@ -55,7 +55,7 @@ about a flag pins it rather than inheriting whatever is set (see `tests/unit/uti
 
 ## 3. Backend (RSpec)
 
-See `.claude/rules/testing.md` (added by PR #1117).
+See `.claude/rules/testing.md`.
 
 ## 4. Frontend unit and integration (QUnit)
 
@@ -197,8 +197,7 @@ callback in `afterEach`, or a later test's message resolves this test's promise.
   synchronous plain QUnit test; after an async or jasmine-style test the fetch is usually flushed
   before the wait runs). To find them all, delay every FetchManager flush past the post-test settle
   (`ember test --query "probeDelay=1500"`, `tests/test-helper.js`). `.github/workflows/ember-fetch-probe.yml`
-  runs it on demand (Actions tab) once it is on the default branch, `develop`, against any branch
-  that has it; a weekly schedule is added after the first green whole-suite run.
+  runs it on demand (Actions tab) against any branch that has it; a weekly schedule is added after the first green whole-suite run.
 
 **DOM.** Remove every element the test (or app code it drives) appends to `<body>`. Elements the
 app creates once and caches for the page lifetime still leak between tests: the test that triggers

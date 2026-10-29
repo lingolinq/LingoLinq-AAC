@@ -60,8 +60,7 @@ id if still open):
 - `lib/purchasing2.rb` — an apparently abandoned Stripe Checkout Session rewrite, never wired in.
 - `app/frontend/app/components/stats/num-rows1.js` through `num-rows4.js` — no template, no
   references anywhere.
-- `app/frontend/app/components/stats/parts-of-speech-flow.js` — superseded by
-  `stats/parts-of-speech-pie`.
+- `app/frontend/app/components/stats/parts-of-speech-flow.js` — a superseded parts-of-speech chart.
 - `app/frontend/app/components/setup/extra-supervisors.js` — reachable only via a dynamic
   `{{component}}` dispatch whose allowlist never includes it; verify the same allowlist
   (`app/frontend/app/controllers/setup.js`) before ruling on any `setup/*` component.
@@ -86,7 +85,6 @@ never set `verified-closed`: only Scot closes findings, and the adversary verifi
 first. If nothing meets the confidence bar, return `"findings": []` with a short `"note"` — an
 empty result is a valid, honest outcome for this domain.
 
-No `memory: project` directive here on purpose: the other five finders declare one, but with no
-Write tool and `audit-readonly-guard.sh` denying writes unconditionally, that policy can never
-actually persist anything (see finding `LL-e14ca0ff04`). Don't re-add it to this agent until
-that defect is resolved system-wide.
+`memory:` is intentionally unset: with no Write tool and `audit-readonly-guard.sh` denying writes
+unconditionally, a memory policy could never persist anything. A fresh run re-verifies against live
+code at the audited SHA.

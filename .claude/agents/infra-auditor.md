@@ -49,11 +49,6 @@ NAME and where it is referenced; never run a command whose output is the value.
 If a live check needs a privileged or write-capable path, do NOT attempt it: record the gap as
 a finding and let the orchestrator (running in the trusted main session) gather it.
 
-> History: until 2026-09 this agent carried a `render` MCP read allowlist plus an explicit
-> write denylist. The Render workspace was deleted on 2026-09-09, so those grants were removed;
-> the server-level trust-tier annotations live in the brain repo
-> (`~/ai-company-brain/config/mcp-servers.json`), not in this repo.
-
 ## What you load first
 Your checklist is preloaded as the `soc2-security-audit` skill (scan scope, CC6/CC7/CC8/A1
 checklist, and the canonical finding schema). Follow it item by item.
@@ -67,17 +62,15 @@ checklist, and the canonical finding schema). Follow it item by item.
   Cloud Run (deployed by `.github/workflows/deploy-cloudrun.yml`; see `docs/INFRASTRUCTURE.md`).
   `Procfile` is the LOCAL development process definition read by `foreman start` (`README.md`):
   never treat it as the deployed configuration, and do not flag it as Render residue.
-  `render.yaml` and `bin/render-build.sh` no longer exist, deleted in PR #962 after the
-  2026-09-09 decommission. Existing register findings that cite them stay valid: evidence is anchored
-  to a recorded `file@sha`, not to HEAD. Do not raise a NEW finding against either path.
+  `render.yaml` and `bin/render-build.sh` are not in the tree. Register findings that cite them
+  stay valid: evidence is anchored to a recorded `file@sha`, not to HEAD.
 - Change management (CC8): CI in `.github/workflows/`, tests-before-deploy, branch protection.
 - Availability (A1): health checks, DB backups, error handling, rate limiting.
 - **Audit-system self-audit (CC-meta):** the audit system itself is in scope for the SOC 2
   finder. Review `.claude/agents/*`, `.claude/skills/*`, and `.claude/hooks/*` with the same
   discipline you apply elsewhere: read-only/least-privilege agent toolsets, write-blocker and
   write-scope guards that actually constrain, no secrets/PII in agent instructions, and
-  evidence rules that cannot leak data. (Closes the "no self-audit" gap, finding LL-5f0f4f52f8.
-  A full automated meta-audit pass in the orchestrator is Phase 4.)
+  evidence rules that cannot leak data.
 
 Cross-check `audit-reports/FINDINGS.json` before raising anything; reference an existing `id`
 rather than duplicating.
@@ -106,13 +99,13 @@ the `soc2-security-audit` skill: `ruleKey`, `title`, `severity`, `confidence`, `
   SKIPs non-`code`/`doc` evidence types (they are re-verified by re-running the live check,
   not from git), so this keeps the validator green while still recording the finding.
 - **Runtime/CLI snippets must never carry a secret or PII (finding LL-b5c30235d3).** A
-  `type:"runtime"` snippet is free text that citation-check does NOT inspect, so YOU are the
-  only control. Record what was checked and the shape of the result, never raw values: write
+  `type:"runtime"` snippet is free text that citation-check does NOT inspect, and the merge
+  step's refusal (`sensitive_hits` in `scripts/audit-merge.rb`) matches only a fixed set of
+  shapes, so you are the primary control. Record what was checked and the shape of the result, never raw values: write
   `"TLS min version below policy on service X"`, not the cert; `"DB SSL mode = <non-require>"`,
   not the connection string; `"N env vars set on service"`, never their values. If you cannot
   describe the observation without including a secret-shaped or identifying string, describe it
-  more abstractly. (A mechanical secret-shaped-string rejector in the merge/validation step is
-  recommended but not yet built; until then this instruction is the control.)
+  more abstractly.
 
 ## Memory
 This agent keeps no persistent memory: `memory:` is intentionally unset (the read-only guard

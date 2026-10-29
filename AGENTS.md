@@ -103,22 +103,16 @@ the head SHA you actually reviewed, and the verdict.
 
 **Antigravity: the `review-pr` skill IS installed for you**
 (`~/.gemini/antigravity-cli/skills/review-pr/`), so this is not a missing capability. You
-are retired from the review rotation on QUOTA grounds: per
-`ai-company-brain/instructions/ANTIGRAVITY.md` the weekly remote-agent quota was cut to
-roughly one usable thread and the senior-dev pass moved to Codex. Do not run it as a
-matter of course; route it to Codex and name who ran it. (The separate consumer Gemini
-CLI was retired 2026-06-12 and has no skill surface at all; if that is what you are, you
-run neither pass.)
+are not in the review rotation (quota; `ai-company-brain/instructions/ANTIGRAVITY.md`). Do
+not run it as a matter of course; route it to Codex and name who ran it. A consumer Gemini
+CLI has no skill surface and runs neither pass.
 
 **Neither of you can discharge the adversarial pass.** Codex has no such skill at all,
 and while an `adversary-review` file is installed for Antigravity it only instructs
 spawning Claude's `adversary` subagent, which is Claude-only. Name the reviewer who owes
-that pass. There is no CI-side route for the senior-dev pass: the `Codex Review` workflow
-(`codex-review.yml`, dispatched by n8n W1, reporting `codex-review/deep-pass`) was retired
-on 2026-10-27, its keys revoked and its workflow, prompts and scripts removed. The
-`codex-review-tests` CI job keeps its name only because it is a required check; it now runs
-the frontend-scope, path-classifier (shell and real-repo) and data-bearing-path suites. A green CI run is not the
-dual review.
+that pass. There is no CI-side route for the senior-dev pass. The required
+`codex-review-tests` CI job runs the frontend-scope, path-classifier (shell and real-repo)
+and data-bearing-path suites; a green CI run is not the dual review.
 
 The Codex GitHub connector is set to review every PR automatically. That review skips the
 PII pre-flight and is neither pass; confirm a PR actually got it rather than assuming. A
@@ -137,10 +131,9 @@ deploy workflow, `Dockerfile`, `config/environments/production.rb`,
 before touching `spec/**`, `.rspec`, `config/application.rb`, `.env.op.template` or
 `.github/workflows/ci.yml` read `.claude/rules/testing.md` (specs never reach the network; outside services start unconfigured, and a spec that tests one sets fake
 values itself);
-before opening or updating a pull request read `.claude/rules/github-pr.md` (the `gh`
-CLI is not installed and the MCP GitHub server's credentials are rejected, so the route
-is the git credential helper's OAuth token, which must never be echoed or written to a
-tracked file).
+before opening or updating a pull request without a working `gh` read
+`.claude/rules/github-pr.md` (the route is the git credential helper's OAuth token, which
+must never be echoed or written to a tracked file).
 For a bug fix or behaviour change in application code, the fact-sheet and red-test
 discipline is `.claude/skills/fix-proposal/SKILL.md`; only a change that cannot alter
 runtime behaviour (docs, agent instructions, comments) skips it.

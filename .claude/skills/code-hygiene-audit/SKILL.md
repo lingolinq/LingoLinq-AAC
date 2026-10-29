@@ -82,8 +82,7 @@ code is dead. Each needs a concrete `file:line` anchor, not a vibe — cite the 
 
 6. **Comment restates the code with no added information.** A comment whose content is fully
    derivable from the identifier names on the next line (e.g. `# increment the counter` above
-   `counter += 1`, or a multi-paragraph docstring on a one-line trivial method). Per this repo's
-   own convention (CLAUDE.md: comments only for non-obvious WHY, never WHAT), this is a defect,
+   `counter += 1`, or a multi-paragraph docstring on a one-line trivial method). This is a defect,
    not style. Do NOT flag a comment that documents a non-obvious constraint, workaround, or
    invariant — only ones that are pure restatement.
 
