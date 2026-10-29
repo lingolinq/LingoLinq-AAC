@@ -6,6 +6,7 @@ import * as emberDebug from '@ember/debug';
 import { stub, restoreStubs } from 'frontend/tests/helpers/jasmine';
 import lingoLinqExtras from 'frontend/utils/extras';
 import capabilities from 'frontend/utils/capabilities';
+import LingoLinq from 'frontend/app';
 
 /*
  * CoughDrop's persistence ran a startup routine on every app start (`setup()`, called from
@@ -203,9 +204,61 @@ module('Unit | Service | persistence sync startup', function(hooks) {
       stub(emberDebug, 'isTesting', function() { return false; });
       assert.false(this.svc.check_for_needs_sync(), 'the tick check is skipped during the back-off');
       assert.strictEqual(this.requests.length, 0, 'no stamp request during the back-off');
-      assert.true(this.svc.check_for_needs_sync(true), 'a forced check (sign-in, reconnect) still runs');
+      assert.true(this.svc.check_for_needs_sync(true), 'the forced sign-in check still runs');
       this.svc.set('last_sync_stamp', null);
       this.svc.set('auto_sync_backoff_until', null);
+    });
+
+    // A sync that failed because the device went offline is retried when it comes back online
+    // (on_connect), so it does not back off; one that failed while online does.
+    test('an automatic sync that failed offline does not back off; one that failed online does', function(assert) {
+      var svc = this.svc;
+      // Coming online also uploads the usage log (stashes drain_on_reconnect), which arms a
+      // 15-minute timer; that upload has its own tests.
+      stub(svc.stashes, 'push_log', function() {});
+      svc._root_sync_reason = 'sync_stamp_changed:a:b';
+
+      svc.set('online', false);
+      svc.set('sync_status', 'failed');
+      assert.strictEqual(svc.get('auto_sync_backoff_until'), null, 'no back-off after an offline failure');
+
+      svc.set('sync_status', null);
+      svc.set('online', true);
+      svc.set('sync_status', 'failed');
+      assert.true(svc.get('auto_sync_backoff_until') > (new Date()).getTime(), 'an online failure backs off');
+
+      svc.set('sync_status', null);
+      svc.set('auto_sync_backoff_until', null);
+      svc.set('auto_sync_failures', 0);
+      svc._root_sync_reason = null;
+    });
+
+    // on_connect forces a check every time the device comes back online. After a failed automatic
+    // sync that retried the full sync on each reconnect, so on a flaky network it never backed off.
+    test('a reconnect waits out the back-off, and still checks at once outside it', async function(assert) {
+      if(LingoLinq.session) { stub(LingoLinq.session, 'restore', function() {}); }
+      var svc = this.svc;
+      // Coming online also uploads the usage log (stashes drain_on_reconnect), which arms a
+      // 15-minute timer; that upload has its own tests.
+      stub(svc.stashes, 'push_log', function() {});
+      // on_connect reads sync_testing only when online changes (its delayed check does not), and
+      // other app code polls while it is on, so it is on for the flip alone.
+      var reconnect = async function() {
+        svc.set('online', false);
+        var saved = Object.getOwnPropertyDescriptor(LingoLinq, 'sync_testing');
+        LingoLinq.sync_testing = true;
+        svc.set('online', true);
+        if(saved) { Object.defineProperty(LingoLinq, 'sync_testing', saved); } else { delete LingoLinq.sync_testing; }
+        await settled();
+      };
+
+      svc.set('auto_sync_backoff_until', (new Date()).getTime() + 60000);
+      await reconnect();
+      assert.strictEqual(this.requests.length, 0, 'no stamp request on a reconnect during the back-off');
+
+      svc.set('auto_sync_backoff_until', null);
+      await reconnect();
+      assert.strictEqual(this.requests.length, 1, 'a reconnect with no back-off checks the stamp at once');
     });
   });
 

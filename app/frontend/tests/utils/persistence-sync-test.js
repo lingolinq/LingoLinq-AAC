@@ -5582,6 +5582,43 @@ describe("persistence-sync", function() {
       });
     });
   });
+
+  // Cancelling a sync ends in its failure branch, which stashes last_sync_status 'failed'. The user
+  // stopped it, so the device keeps the last real result: the Modern home notice reads it after a
+  // reload, and the two-failures pause counts it.
+  it("should not remember a cancelled sync as a failed one", function() {
+    db_wait(function() {
+      cancelSyncTailWork();
+      unloadSyncStoreRecords();
+      persistence.set('sync_progress', null);
+      persistence.set('sync_status', null);
+      stashes.persist('last_sync_status', 'succeeded');
+      var errors = [];
+      stub(modal, 'error', function(msg) { errors.push(msg); });
+      stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+      stubOnPersistence('sync_user', function() { return RSVP.resolve(); });
+      stubOnPersistence('sync_boards', function() {
+        persistence.cancel_sync();
+        return RSVP.reject({error: 'canceled'});
+      });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'user',
+        response: RSVP.resolve({user: {id: '1340', user_name: 'fred'}}),
+        id: "1340"
+      });
+      var done = false;
+      persistence.sync(1340).then(function() { done = true; }, function() { done = true; });
+      waitsFor(function() { return done; });
+      runs(function() {
+        expect(persistence.get('sync_status')).toEqual('failed');
+        expect(stashes.get('last_sync_status')).toEqual('succeeded');
+        stashes.persist('last_sync_status', null);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+      });
+    });
+  });
 });
 // Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
 import boardRevocation from '../../utils/board_revocation';

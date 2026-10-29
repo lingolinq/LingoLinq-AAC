@@ -3955,7 +3955,7 @@ var persistence = Service.extend({
         runLater(function() {
           if(_this.isDestroyed || _this.isDestroying) { return; }
           if(_this.stashes && typeof _this.stashes.get === 'function' && _this.stashes.get('auth_settings')) {
-            _this.check_for_needs_sync(true);
+            _this.check_for_needs_sync(true, 'reconnect');
           }
           if(typeof _this.getBrowserToken === 'function') {
             _this.tokens = {};
@@ -4878,13 +4878,16 @@ persistence.reopen({
     if(!this.get('_sync_checks_enabled') || this.isDestroyed || this.isDestroying) { return; }
     this.check_for_needs_sync();
   }),
-  check_for_needs_sync: function(force) {
+  check_for_needs_sync: function(force, trigger) {
     // A forced check skips the method's own "already syncing" test; never start a second sync.
     if(this.get('syncing')) { return false; }
     // After the web sign-in that skips the reload, the open database is still the signed-out one,
     // and syncing would write this user's boards into it. Wait for the next app start.
     if(!this.local_db_is_current_user()) { return false; }
-    if(force !== true && this.get('auto_sync_backoff_until') > (new Date()).getTime()) { return false; }
+    // Only the sign-in check skips the back-off. A reconnect (on_connect) is forced so it checks at
+    // once, but on a flaky network it would otherwise retry the failed sync on every reconnect.
+    var skips_backoff = force === true && trigger !== 'reconnect';
+    if(!skips_backoff && this.get('auto_sync_backoff_until') > (new Date()).getTime()) { return false; }
     return this._super(...arguments);
   },
   // The database is chosen once per app start from the signed-in user (capabilities.setup_database).
@@ -4896,9 +4899,23 @@ persistence.reopen({
     return match[1] === auth.user_name;
   },
   sync: function(user_id, force, ignore_supervisees, sync_reason) {
-    if(!ignore_supervisees) {
-      this._root_sync_reason = sync_reason || 'manual_sync';
-    }
+    if(ignore_supervisees) { return this._super(...arguments); }
+    this._root_sync_reason = sync_reason || 'manual_sync';
+    this.set('root_sync_canceled', false);
+    // A cancelled sync ends in the failure branch, which stashes last_sync_status 'failed'. The user
+    // stopped it, so put back the last real result (read after a reload by the Modern home notice,
+    // and by the two-failures pause).
+    var _this = this;
+    var last_status = this.stashes && this.stashes.get('last_sync_status');
+    return this._super(...arguments).then(null, function(err) {
+      if(_this.get('root_sync_canceled') && !_this.isDestroyed && _this.stashes) {
+        _this.stashes.persist('last_sync_status', last_status);
+      }
+      return RSVP.reject(err);
+    });
+  },
+  cancel_sync: function() {
+    if(this.get('sync_progress')) { this.set('root_sync_canceled', true); }
     return this._super(...arguments);
   },
   // Only check_for_needs_sync starts a sync with these reasons. Every other sync came from something
@@ -4917,7 +4934,8 @@ persistence.reopen({
       this.set('last_sync_event_at', (new Date()).getTime());
       this.set('auto_sync_failures', 0);
       this.set('auto_sync_backoff_until', null);
-    } else if(status === 'failed' && this.sync_is_automatic()) {
+    } else if(status === 'failed' && this.sync_is_automatic() && this.get('online')) {
+      // Not after a failure while offline: coming back online retries that one (on_connect).
       var failures = (this.get('auto_sync_failures') || 0) + 1;
       var wait = Math.min(AUTO_SYNC_BACKOFF_MS * Math.pow(2, failures - 1), AUTO_SYNC_BACKOFF_MAX_MS);
       this.set('auto_sync_failures', failures);
