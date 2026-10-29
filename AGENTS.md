@@ -131,9 +131,9 @@ deploy workflow, `Dockerfile`, `config/environments/production.rb`,
 before touching `spec/**`, `.rspec`, `config/application.rb`, `.env.op.template` or
 `.github/workflows/ci.yml` read `.claude/rules/testing.md` (specs never reach the network; outside services start unconfigured, and a spec that tests one sets fake
 values itself);
-before opening or updating a pull request without a working `gh` read
-`.claude/rules/github-pr.md` (the route is the git credential helper's OAuth token, which
-must never be echoed or written to a tracked file).
+before opening or updating a pull request read `.claude/rules/github-pr.md` (ask the user
+first; use `gh` when it is installed and logged in, otherwise the git credential helper's
+OAuth token; never print the credential or write it to a tracked file).
 For a bug fix or behaviour change in application code, the fact-sheet and red-test
 discipline is `.claude/skills/fix-proposal/SKILL.md`; only a change that cannot alter
 runtime behaviour (docs, agent instructions, comments) skips it.

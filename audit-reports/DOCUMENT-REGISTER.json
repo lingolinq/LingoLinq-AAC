@@ -3466,7 +3466,7 @@
       "lastReviewed": "2026-07-22",
       "nextReviewDue": "2027-07-22",
       "attestation": {},
-      "contentHash": "94e8a5bf8c192965d9ba3c126c63ca0fd1d1f155ced64fb9b4c873b074544615",
+      "contentHash": "b297ed2041522aa06c493b5cc9ca8f5e14b0f55d08ffd4bea96e3ee40bdfd9b7",
       "bundles": [],
       "mirrors": [],
       "retention": {
@@ -3483,7 +3483,7 @@
     },
     {
       "title": "Agent config - rails-implementer",
-      "description": "Applies surgical, org_id-scoped, audit-logged Rails fixes for compliance and security findings.",
+      "description": "Applies surgical, permission-scoped, audit-logged Rails fixes for compliance and security findings.",
       "type": "agent-config",
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
@@ -3495,7 +3495,7 @@
       "lastReviewed": "2026-07-22",
       "nextReviewDue": "2027-07-22",
       "attestation": {},
-      "contentHash": "a6f03d2f7a55c010a7ee0b645529b5b120e8e84d1f03059ea93f547b0b6ed701",
+      "contentHash": "11f49914136d0df3b4b2e81dc3b79c187dbe70909f3a578040d4c3433cf543e8",
       "bundles": [],
       "mirrors": [],
       "retention": {

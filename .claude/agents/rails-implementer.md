@@ -16,8 +16,9 @@ implementer-specific conventions on top of it, it does not replace it.
 
 - **Tenant isolation is mandatory.** Every query touching user/student/patient data enforces
   the boundary the surrounding code already uses (the `permissions` concern, the controller's
-  `allowed?`, the `UserLink` / `managing_organization_id` org links). There is no `org_id`
-  column; follow the existing pattern in the model/concern rather than inventing a new one.
+  `allowed?`, the `UserLink` / `managing_organization_id` org links, and
+  `where(organization_id: ...)` on org-owned tables such as organization_units, licenses and
+  eval_protocols); follow the existing pattern in the model/concern rather than inventing a new one.
 - **AuditEvent pattern:**
   ```ruby
   AuditEvent.create!(event_type: '...', user_key: ..., data: { ...minimized fields only... })

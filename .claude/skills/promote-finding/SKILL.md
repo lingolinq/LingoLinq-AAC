@@ -7,8 +7,8 @@ allowed-tools: Read, Grep, Glob, Bash
 
 # /promote-finding: bridge a PR review finding into the register
 
-The Codex GitHub connector and the `/review-pr` + `/adversary-review` CLI passes post findings to a PR
-comment and a Google Chat thread, and then they evaporate. The one store with a lifecycle, the
+The Codex GitHub connector posts its review on the PR, and the `/review-pr` + `/adversary-review`
+CLI passes post findings to a PR comment and a Google Chat thread; then they evaporate. The one store with a lifecycle, the
 findings register `audit-reports/FINDINGS.json`, is fed only by the periodic `/audit-run` and never
 sees PR-time findings. This skill closes that gap: it promotes a **reviewed, real, Critical/High**
 PR finding INTO the register as `status: "open"` so it gets tracked and triaged instead of just
@@ -51,8 +51,11 @@ mechanical: `scripts/promote-finding.rb` refuses to write any other status or di
 
 Get the findings from ONE of:
 - a `/review-pr` or `/adversary-review` run you just did in this session (read its output), or
-- the Codex GitHub connector's review on the PR (`gh pr view <PR#> --comments`, or the REST
-  route in `.claude/rules/github-pr.md` where `gh` is unavailable). Read it yourself; you are the
+- the Codex GitHub connector's review on the PR. Its findings are mostly inline review comments,
+  which `gh pr view --comments` does not show: read
+  `gh api --paginate repos/lingolinq/LingoLinq-AAC/pulls/<PR#>/reviews` and
+  `gh api --paginate repos/lingolinq/LingoLinq-AAC/pulls/<PR#>/comments` (or the same endpoints
+  through the route in `.claude/rules/github-pr.md` where `gh` is unavailable). Read it yourself; you are the
   promotion gate, and it is advisory input you re-judge, not a source you forward verbatim.
 
 You decide which findings are REAL and worth tracking. Do not promote speculative or duplicate
@@ -145,8 +148,10 @@ scripts/regenerate-register.sh          # gate on citation-check, render all art
 
 This gates on `citation-check` first (refuses to render onto a register whose evidence does not
 resolve), renders every derived artifact in dependency order, then re-runs the exact `--check`
-verifications CI uses, so a green run here covers every `audit-artifacts-integrity` check except
-the minimized-disclosure guard (`ruby scripts/minimized-disclosure-guard.rb --check --base-ref <base>`). It writes
+verifications CI uses, so a green run here covers most of `audit-artifacts-integrity`. It does not run
+the minimized-disclosure guard (`ruby scripts/minimized-disclosure-guard.rb --check --base-ref <base>`)
+or its test (`scripts/tests/minimized-disclosure-guard-test.sh`), and its legal-naming check uses a
+different base than CI, so a local green can still be a CI red. It writes
 local artifacts only and never pushes to Notion/Drive (those sync in their own CI workflows).
 Run `scripts/regenerate-register.sh --check` to verify without writing (mirror CI locally).
 

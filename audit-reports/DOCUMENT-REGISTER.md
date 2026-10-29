@@ -149,8 +149,8 @@
 | accessibility-auditor agent definition | git | `.claude/agents/accessibility-auditor.md` | published | WCAG | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `1f2d3971e933` |  |
 | Agent config - diff-compliance-check | git | `.claude/agents/diff-compliance-check.md` | published | FERPA, COPPA, HIPAA | Scot Wahlquist | 2026-07-22 | 2027-07-22 | no | `210bb4f92e18` |  |
 | Agent config - ember-upgrade-auditor | git | `.claude/agents/ember-upgrade-auditor.md` | published |  | Scot Wahlquist | 2026-07-22 | 2027-07-22 | no | `55a17f7dfa47` |  |
-| Agent config - rails-implementer | git | `.claude/agents/rails-implementer.md` | published | SOC2 | Scot Wahlquist | 2026-07-22 | 2027-07-22 | no | `a6f03d2f7a55` |  |
-| Agent config - security-reviewer | git | `.claude/agents/security-reviewer.md` | published | SOC2 | Scot Wahlquist | 2026-07-22 | 2027-07-22 | no | `94e8a5bf8c19` |  |
+| Agent config - rails-implementer | git | `.claude/agents/rails-implementer.md` | published | SOC2 | Scot Wahlquist | 2026-07-22 | 2027-07-22 | no | `11f49914136d` |  |
+| Agent config - security-reviewer | git | `.claude/agents/security-reviewer.md` | published | SOC2 | Scot Wahlquist | 2026-07-22 | 2027-07-22 | no | `b297ed204152` |  |
 | api-auditor agent definition | git | `.claude/agents/api-auditor.md` | published |  | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `36ec97453ced` |  |
 | code-hygiene-auditor agent definition | git | `.claude/agents/code-hygiene-auditor.md` | published |  | Scot Wahlquist | 2026-08-12 | 2027-02-12 | no | `c4daef8b8aaa` |  |
 | compliance-officer agent definition | git | `.claude/agents/compliance-officer.md` | published |  | Scot Wahlquist | 2026-06-21 | 2026-12-21 | no | `3ea74164fb9c` |  |
