@@ -552,4 +552,24 @@ class ApplicationController < ActionController::Base
     Rails.logger.error('masquerade audit log failed: ' + e.class.to_s)
     :failed
   end
+
+  # The communicator an AI word-prediction request is made for (#1063). A supervisor speaking as
+  # someone sends their id as user_id (frontend utils/ai_word_predictor.js); without it the request
+  # is for the signed-in person, as before. Renders an error and returns nil when the id is unknown
+  # or the signed-in person cannot model for that account.
+  def ai_prediction_communicator
+    return @api_user if params['user_id'].blank?
+    user = User.find_by_path(params['user_id'])
+    return nil unless exists?(user, params['user_id'])
+    return nil unless allowed?(user, 'model')
+    user
+  end
+
+  # The communicator's own AI block, on top of the signed-in person's: pending or revoked COPPA
+  # consent, a school hand-back with no parent consent (User#school_handoff_blocks_ai?), or an EU
+  # under-16 without EU parental consent.
+  def ai_blocked_for_communicator?(communicator)
+    return false if !communicator || communicator == @api_user
+    FeatureFlags.coppa_blocks_ai_for?(communicator) || FeatureFlags.eu_under16_blocks_ai_for?(communicator)
+  end
 end

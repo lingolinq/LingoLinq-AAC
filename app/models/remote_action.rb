@@ -26,6 +26,10 @@ class RemoteAction < ApplicationRecord
     elsif ra.action == 'notify_unassigned'
       user_id, org_id = ra.path.split(/::/, 2)
       UserMailer.schedule_delivery(:organization_unassigned, user_id, org_id)
+    elsif ra.action == 'notify_school_handoff'
+      # Written by User#begin_family_offboarding_consents! in the same lock as the hand-back.
+      user_id, org_id = ra.path.split(/::/, 2)
+      UserMailer.schedule_delivery(:school_handoff_notice, user_id, org_id)
     elsif ra.action == 'upload_button_set'
       board_id, user_id = ra.path.split(/::/, 2)
       BoardDownstreamButtonSet.schedule_for(:slow, :update_for, board_id, true)

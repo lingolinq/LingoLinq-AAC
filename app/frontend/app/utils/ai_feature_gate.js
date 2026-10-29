@@ -115,8 +115,34 @@ function euAiConsentRequired(user) {
   return !!userAttr(user, 'eu_under_16') && !userAttr(user, 'eu_ai_parental_consent_active');
 }
 
+// Mirrors FeatureFlags.coppa_blocks_ai_for?: consent pending, or a school hand-back with no
+// parent consent yet (school_handoff_ai_blocked, lib/json_api/user.rb; #1063).
 function coppaAiBlocked(user) {
-  return !!userAttr(user, 'coppa_parental_consent_pending');
+  return !!userAttr(user, 'coppa_parental_consent_pending') || !!userAttr(user, 'school_handoff_ai_blocked');
+}
+
+/**
+ * The AI block on the person whose words prediction sends (currentUser, the communicator in speak
+ * mode): COPPA consent pending, a school hand-back with no parent consent, or an EU under-16
+ * without EU consent. Mirrors ApplicationController#ai_blocked_for_communicator? (#1063).
+ */
+function communicatorAiBlocked(appState) {
+  if(!appState || typeof appState.get !== 'function') { return false; }
+  var user = appState.get('currentUser');
+  return coppaAiBlocked(user) || euAiConsentRequired(user);
+}
+
+/**
+ * The user_id a word-prediction request names: the communicator's id when the signed-in person
+ * is speaking as someone else, otherwise null, and the server judges the signed-in person alone.
+ * 'self' is the offline copy's key for the signed-in person, not an id the server knows.
+ */
+function predictionCommunicatorId(appState) {
+  if(!appState || typeof appState.get !== 'function') { return null; }
+  var currentId = userAttr(appState.get('currentUser'), 'id');
+  if(!currentId || currentId === 'self') { return null; }
+  if(currentId === userAttr(appState.get('sessionUser'), 'id')) { return null; }
+  return currentId;
 }
 
 /**
@@ -235,6 +261,8 @@ export default {
   prefExplicitlyEnabled: prefExplicitlyEnabled,
   euAiConsentRequired: euAiConsentRequired,
   coppaAiBlocked: coppaAiBlocked,
+  communicatorAiBlocked: communicatorAiBlocked,
+  predictionCommunicatorId: predictionCommunicatorId,
   authoringUser: authoringUser,
   authoringFlagEnabled: authoringFlagEnabled,
   authoringFeatureEnabled: authoringFeatureEnabled,
@@ -253,6 +281,8 @@ export {
   prefExplicitlyEnabled,
   euAiConsentRequired,
   coppaAiBlocked,
+  communicatorAiBlocked,
+  predictionCommunicatorId,
   authoringUser,
   authoringFlagEnabled,
   authoringFeatureEnabled,

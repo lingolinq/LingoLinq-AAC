@@ -1047,6 +1047,12 @@ export default Controller.extend({
   premium_voices_supported: computed(function() {
     return capabilities.tts.premium_voices_supported();
   }),
+  // A school handed this child back and no parent has consented (#1063). The server stores AI
+  // prefs as off while this holds (User#process_params), applying the EU rule first, so the
+  // EU consent step keeps priority here too.
+  schoolHandoffAiBlocked: computed('model.school_handoff_ai_blocked', 'euAiConsentRequired', function() {
+    return !!this.get('model.school_handoff_ai_blocked') && !this.get('euAiConsentRequired');
+  }),
   update_can_record_tags: observer('model.id', function() {
     var _this = this;
     capabilities.nfc.available().then(function(res) {
@@ -1184,8 +1190,9 @@ export default Controller.extend({
       this.set('pending_preferences.sidebar_boards', activeSidebar);
 
       var _this = this;
-      // Defense: never persist AI enable prefs for EU under-16 without active consent.
-      if(this.get('euAiConsentRequired')) {
+      // Defense: never persist AI enable prefs for EU under-16 without active consent, or for a
+      // handed-back child before a parent consents.
+      if(this.get('euAiConsentRequired') || this.get('schoolHandoffAiBlocked')) {
         ['ai_features_enabled', 'ai_board_generation', 'ai_word_prediction', 'ai_board_suggestions', 'ai_symbol_search'].forEach(function(key) {
           _this.set('pending_preferences.' + key, false);
         });
@@ -1236,7 +1243,7 @@ export default Controller.extend({
         }
       }
       // Ensure forced-off AI prefs are written even when orig was also false/nil.
-      if(this.get('euAiConsentRequired')) {
+      if(this.get('euAiConsentRequired') || this.get('schoolHandoffAiBlocked')) {
         ['ai_features_enabled', 'ai_board_generation', 'ai_word_prediction', 'ai_board_suggestions', 'ai_symbol_search'].forEach(function(key) {
           user.set('preferences.' + key, false);
         });
@@ -1258,6 +1265,16 @@ export default Controller.extend({
       });
     },
     ai_feature_click: function(prefKey, event) {
+      // Hand-back block: stop a turn-on and say why. A turn-off keeps its native toggle, since
+      // cancelling the click would put the tick back.
+      if(this.get('schoolHandoffAiBlocked')) {
+        if(!this.get('pending_preferences.' + prefKey)) {
+          if(event && event.preventDefault) { event.preventDefault(); }
+          this.set('handoffAiRefused', true);
+        }
+        this.set('pending_preferences.' + prefKey, false);
+        return;
+      }
       // Without EU consent gate, allow the native checkbox toggle + sync Ember.
       if(!this.get('euAiConsentRequired')) {
         if(event && event.target && typeof event.target.checked === 'boolean') {
