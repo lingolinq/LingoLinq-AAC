@@ -2054,7 +2054,7 @@ Button.load_actions = function() {
       },
       content: function(match) {
         var n_days = (match && parseInt(match[1], 10)) || 1;
-        var now = window.moment().add(-1 * n_days, 'day');
+        var now = window.moment().add(n_days, 'day');
         return [{text: now.format('dddd')}];
       }
     },

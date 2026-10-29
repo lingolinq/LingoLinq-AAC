@@ -724,6 +724,11 @@ describe('utterance', function() {
       }
     });
 
+    it("says the day after today for :tomorrow-day", function() {
+      var action = LingoLinq.find_special_action(':tomorrow-day(1)');
+      expect(action.content(':tomorrow-day(1)'.match(action.match))).toEqual([{text: window.moment().add(1, 'day').format('dddd')}]);
+    });
+
     it("says the name of the month for :current-month", function() {
       var action = LingoLinq.find_special_action(':current-month');
       expect(utterance.combine_content(action.content())).toEqual([{text: window.moment().format('MMMM')}]);

@@ -771,6 +771,20 @@ describe("frame_listener", function() {
       });
     });
 
+    it('still refuses a message from the configured site that is not from the integration frame', function() {
+      frame.setAttribute('src', window.location.href); // the origin matches, so only the window check can refuse it
+      var response = null, handled = false;
+      stub(frame_listener, 'session_window', function() { return {}; });
+      stub(frame_listener, 'handle_action', function() { handled = true; });
+      stub(frame_listener, 'respond', function(source, r) { response = r; });
+      window.postMessage({aac_shim: true, session_id: 'asdf', action: 'status'}, '*');
+      waitsFor(function() { return response; });
+      runs(function() {
+        expect(response.error).toEqual('message came from wrong window');
+        expect(handled).toEqual(false);
+      });
+    });
+
     it('replies only to the configured site', function() {
       frame.setAttribute('src', window.location.href);
       var response = null, target = null;
@@ -881,6 +895,9 @@ describe("frame_listener", function() {
       var added = null, data = null;
       stub(app_state, 'activate_button', function(a, b) { added = b; });
       frame_listener.handle_action({action: 'add_text', text: 'hats', image_url: ['https://www.example.com/pic.png'], respond: function(d) { data = d; }});
+      expect(data && data.error).toEqual('image_url must be an http or https address');
+      data = null;
+      frame_listener.handle_action({action: 'add_text', text: 'hats', image_url: 'https://www.example.com/' + new Array(2030).join('a'), respond: function(d) { data = d; }});
       expect(data && data.error).toEqual('image_url must be an http or https address');
       expect(added).toEqual(null);
     });

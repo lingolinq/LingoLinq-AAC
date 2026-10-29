@@ -333,7 +333,7 @@ frame_listener.payload_error = function(data) {
   if(data.action == 'add_text' && data.text && frame_listener.text_has_action(data.text)) {
     return 'text may not contain app actions';
   }
-  if(data.image_url != null && data.image_url !== '' && (typeof data.image_url != 'string' || !/^https?:\/\//i.test(data.image_url))) {
+  if(data.image_url != null && data.image_url !== '' && (typeof data.image_url != 'string' || data.image_url.length > 2048 || !/^https?:\/\//i.test(data.image_url))) {
     return 'image_url must be an http or https address';
   }
   return null;

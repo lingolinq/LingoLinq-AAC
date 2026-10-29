@@ -313,8 +313,9 @@ Senior-dev pass: approve with comments. Red-team: do not block. Fixed from them:
   content is a list of text pieces (`tests/utils/utterance-test.js`).
 - Docs: observer count (nine), learnings headings, the QA-collision cause marked unconfirmed, the renamed test.
 
-Not changed: the speak_text test in `frame_listener-test.js` still sets the real speak mode (it waits for its
-effect); the reported test-frame navigation does not happen (the fixture is a `div`); `respond` has one caller.
+Not changed: the speak_text test in `frame_listener-test.js` still sets the real speak mode, deliberately: it checks that the speak-mode read goes
+through this app's real app-state, which a stub would bypass (it has no wait; the observers' work is
+guarded and the mode is restored); the reported test-frame navigation does not happen (the fixture is a `div`); `respond` has one caller.
 
 ### Codex connector review (on `9b76395bf`), 2026-10-28
 
@@ -338,3 +339,11 @@ before any frame exists. Red-team: do not block. Fixed:
   non-overlapping match missed; `text_has_action` now tries every colon as a token start.
 - The speak_text test now asserts the reply and the shown text (it passed even with no reply).
 Month names stay English (`moment.locale` is never set; same as `:next-month`, `:last-month`).
+
+### Full-PR red-team (origin/develop `5de92d2b1` ... `c84665788`), 2026-10-28
+
+Do not block; three Lows, all checked. Fixed: a new test pins the source-window check when the origin
+matches (the develop test reaches 'wrong window' through the origin check alone); `image_url` capped at 2048
+characters; the log sentence above corrected. Also folded in, adjacent on develop: `:tomorrow-day` subtracted
+days (`utils/button.js:2057`) and said yesterday's weekday; it now adds them, with a value test. Not done
+here, added to #1235: a rate limit on integration add_text / speak_text messages.
