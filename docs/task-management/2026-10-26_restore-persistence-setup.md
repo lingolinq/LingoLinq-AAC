@@ -535,8 +535,11 @@ conclusions. No Critical or High. Each finding was checked against the code befo
   reaches the root failure branch. Fix, in the reopen block (an edit in the failure branch would
   move 12 baseline rows): `cancel_sync` records `root_sync_canceled`; the root `sync` wrapper resets
   it and, when a cancelled sync rejects, puts back the `last_sync_status` it had before; the notice
-  ignores a failed status from a cancelled sync. Side effect: a cancel no longer counts toward the
-  two-failures 48-hour pause. Basic view still shows "Sync Failed" in the session after a cancel.
+  ignores a failed status from a cancelled sync. Side effect: a cancel no longer counts as the first
+  of the two failures behind the 48-hour pause (a cancel right after a real failure still starts it:
+  the failure branch reads the stash at `:2446` before the wrapper restores it, as on develop). A
+  cancelled automatic sync still starts the 30-minute back-off, on purpose (see the canonical
+  passes below). Basic view still shows "Sync Failed" in the session after a cancel.
 - **Left, Low:** focus drops after Try Again (the card is removed while the sync runs); `role="status"`
   on a card with buttons (same as the approval notices); no period after the appended error text;
   during a back-off a reconnect no longer refreshes unread counts (token restore still runs); no
@@ -554,3 +557,40 @@ conclusions. No Critical or High. Each finding was checked against the code befo
   reconnect 7, dashboard 120, all passing; `npm run lint:js:ci` new=0.
 - Full suite, timing-strict shards: include 1685 tests, 0 fail, 7 skip; exclude 2149 tests, 0 fail,
   30 skip (4 more than the run before: the 4 new tests).
+
+## Canonical review passes on the follow-up commits (2026-10-28)
+
+PII preflight: `review-preflight.sh range` exited 0.
+`REVIEWED=range 068e1f15b8a11797c0c0a634cff45478077604ef (068e1f15b8a11797c0c0a634cff45478077604ef) ... origin/traci/fix/restore-persistence-setup (262dd948aced3e5b4a1c8e86df1d5342f3eac10d) in /Users/traciday/Documents/GitHub/lingolinq/LingoLinq-AAC`
+
+- `/review-pr` (senior-dev pass, read only the preflight's `DIFF_FILE`): **Approve with
+  comments.** No Critical or High.
+- `/adversary-review` (ai-company-brain `agents/adversary.md`): **Ship.** No Critical, High or
+  Medium; four Low.
+
+Each finding was checked by hand:
+
+- **Refuted (`/review-pr`, Medium): the `sync` wrapper assumes `_super` returns a promise.** Every
+  return path of the class `sync` is a promise (`services/persistence.js:2000`, `:2483`).
+- **Kept by decision (`/review-pr` Medium, `/adversary-review` Low): a cancelled automatic sync
+  still starts the back-off.** CONFIRMED (`:4937` does not read `root_sync_canceled`). Not changed:
+  without the back-off, the next stamp interval (about 5 minutes, `:4021-4024`) would restart the
+  automatic sync the user just stopped; with it, the restart waits 30 minutes. The task-log wording
+  above is corrected.
+- **Refuted (`/review-pr`, Low): `'reconnect'` reaches the class `check_for_needs_sync`.** It reads
+  only `force` and never `arguments` (`:4004`).
+- **Left, Low (`/adversary-review`, PLAUSIBLE): a cancel can still be remembered as failed** when an
+  unguarded root sync (home board change, sidebar update) starts before the cancelled one rejects;
+  the wrapper's flag is service-wide. The next sync overwrites it. Keying the cancel to the
+  `sync_id` would close it.
+- **Left, Low (`/adversary-review`, CONFIRMED): a supervisor's sync of a supervisee's profile drives
+  the supervisor's home notice** (`controllers/user/index.js:1454` runs a root sync for the viewed
+  profile; the status is device-wide). No cross-account leak: the stash is flushed at sign-out and
+  the appended error text is one of two fixed strings (`:2455-2460`). Basic view behaves the same.
+- **Left, Low (`/adversary-review`, PLAUSIBLE): the offline exemption depends on event order.** If
+  the failure lands before the `offline` event (or a captive portal keeps `navigator.onLine` true),
+  the back-off starts and the reconnect waits it out. The usual case is covered (`all_wait` lets a
+  real drop be seen first); the Modern notice's Try Again is the user's way out.
+- **Left, Low (`/review-pr`):** the notice does not depend on the database-owner inputs (only
+  matters under the beta no-reload sign-out); the startup catch only logs; only `en.json` carries
+  the new key (the normal pattern).
