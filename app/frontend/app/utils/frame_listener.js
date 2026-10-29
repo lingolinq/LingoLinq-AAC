@@ -322,21 +322,33 @@ frame_listener.session_origin = function() {
   }
 };
 // Text an integration adds or speaks goes out in the user's voice, so it must be plain text no longer
-// than a sentence needs, it may not carry app actions (a ":home" or ":clear" segment, alone or after
-// "&&", is run as an action by utterance.specialty_button), and a picture must be a web address.
+// than a sentence needs, and a picture must be a web address. Text added to the sentence bar may not
+// carry app actions either; speak_text only speaks, so it has no action path.
 var MAX_INTEGRATION_TEXT = 500;
 frame_listener.payload_error = function(data) {
   if(data.action != 'add_text' && data.action != 'speak_text') { return null; }
   if(data.text != null && (typeof data.text != 'string' || data.text.length > MAX_INTEGRATION_TEXT)) {
     return 'text must be a string of at most ' + MAX_INTEGRATION_TEXT + ' characters';
   }
-  if(data.text && /(^|&&)\s*:/.test(data.text)) {
+  if(data.action == 'add_text' && data.text && frame_listener.text_has_action(data.text)) {
     return 'text may not contain app actions';
   }
-  if(data.image_url != null && (typeof data.image_url != 'string' || !/^https?:\/\//i.test(data.image_url))) {
+  if(data.image_url != null && data.image_url !== '' && (typeof data.image_url != 'string' || !/^https?:\/\//i.test(data.image_url))) {
     return 'image_url must be an http or https address';
   }
   return null;
 };
+
+// add_text's text becomes a button's vocalization, which is read for actions in two places:
+// app-state's specialty_actions runs any "&&"-separated segment that starts with ":" (":home",
+// ":clear"; utterance.specialty_button classifies them), and utterance.set_button_list runs inline
+// ":tokens" anywhere in the text that LingoLinq.find_special_action resolves (":battery-level",
+// ":bleep", ":roll-dice(6)"). A colon that is not an action ("10:30", "time: noon") is fine.
+frame_listener.text_has_action = function(text) {
+  if(/(^|&&)\s*:/.test(text)) { return true; }
+  var find = LingoLinq.find_special_action;
+  return (text.match(/:[^\s&]+/g) || []).some(function(token) { return !!(find && find(token)); });
+};
+import LingoLinq from '../app'; // placed last with the helpers above (.eslint-todo); imports are hoisted
 
 export default frame_listener;

@@ -176,7 +176,8 @@ registration next to the existing `LingoLinq.appState = this` it mirrors).
 - Fixed: the observer behaviour was untested. `frame_listener-test.js` "resizes integration targets
   when speak mode changes" pins it (fails with the registration removed).
 - Fixed: the first review's F2 (test pinned the wiring, not the symptom). `highlight-test.js` "lets
-  start()'s preference guard see the scanning preference after it opens" evaluates the exact read at
+  start()'s preference guard see the scanning preference after it opens" (since 2026-10-28 "does not
+  stop scanning in start() after a highlight opens", which runs the real start()) evaluates the exact read at
   `utils/scanner.js:189` (fails with the highlight's `appState` removed).
 - Test hygiene: the speak-mode tests restore state in afterEach, so a failure cannot leak speak mode,
   the board or the overlay into later tests.
@@ -296,3 +297,21 @@ Also added after review: `add_text`/`speak_text` refuse text with an app-action 
 Unit runs: fixed build frame_listener 56/56, "scanner" 83 (79 pass, 4 skip), HighlightController 3/3.
 Mutant build (the pre-fix `scanner.js` and `frame_listener.js` from `97dbf59d0`): exactly the 8 new tests
 fail. `node scripts/eslint-todo-gate.js`: new=0.
+
+### Final review round (2026-10-28, head `8cf736e74`)
+
+Senior-dev pass: approve with comments. Red-team: do not block. Fixed from them:
+- **Inline actions in integration text (red-team Medium, CONFIRMED in code).** `utterance.set_button_list` runs
+  inline `:tokens` anywhere in a vocalization (`utils/utterance.js:151-158,201-214`), and the earlier check only
+  looked at the start and `&&` segments. `frame_listener.text_has_action` now also rejects any `:token` that
+  `LingoLinq.find_special_action` resolves. The rule applies to `add_text` only: `speak_text` goes to
+  `speecher.speak_text` or `silent_speak_button`, neither of which runs actions. An empty `image_url` counts as absent.
+- **`:battery-level` and `:current-month` crashed the sentence bar (pre-existing, any board author).**
+  `process_inline_content` concatenates `content()` and `combine_content` reads `.text` of each piece
+  (`utils/utterance.js:454-470`); these two returned a bare string and the placeholder `"DATE"`
+  (`utils/button.js:2067,2106`). Both now return `[{text}]`, the month by name. Test: every inline action's
+  content is a list of text pieces (`tests/utils/utterance-test.js`).
+- Docs: observer count (nine), learnings headings, the QA-collision cause marked unconfirmed, the renamed test.
+
+Not changed: the speak_text test in `frame_listener-test.js` still sets the real speak mode (it waits for its
+effect); the reported test-frame navigation does not happen (the fixture is a `div`); `respond` has one caller.

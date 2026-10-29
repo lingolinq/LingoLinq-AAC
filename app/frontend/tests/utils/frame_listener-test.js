@@ -834,9 +834,27 @@ describe("frame_listener", function() {
       frame_listener.handle_action({action: 'add_text', text: 'hi && :home', respond: function(d) { data = d; }});
       expect(data && data.error).toEqual('text may not contain app actions');
       data = null;
-      frame_listener.handle_action({action: 'add_text', text: 'time: noon', respond: function(d) { data = d; }});
+      frame_listener.handle_action({action: 'add_text', text: 'hi&&:home', respond: function(d) { data = d; }});
+      expect(data && data.error).toEqual('text may not contain app actions');
+      data = null;
+      frame_listener.handle_action({action: 'add_text', text: 'I have :battery-level ok', respond: function(d) { data = d; }});
+      expect(data && data.error).toEqual('text may not contain app actions');
+      expect(added).toEqual(null);
+      data = null;
+      frame_listener.handle_action({action: 'add_text', text: 'time: noon at 10:30', respond: function(d) { data = d; }});
       expect(data).toEqual({added: true});
-      expect(added && added.label).toEqual('time: noon');
+      expect(added && added.label).toEqual('time: noon at 10:30');
+    });
+
+    it('speaks colons and accepts an empty picture, since neither runs anything', function() {
+      var spoken = [], data = null, added = null;
+      stub(speecher, 'speak_text', function(text) { spoken.push(text); });
+      stub(app_state, 'activate_button', function(a, b) { added = b; });
+      frame_listener.handle_action({action: 'speak_text', text: ':) see you at 10:30', respond: function(d) { data = d; }});
+      expect(data && data.error).toEqual(undefined);
+      frame_listener.handle_action({action: 'add_text', text: 'hats', image_url: '', respond: function(d) { data = d; }});
+      expect(data).toEqual({added: true});
+      expect(added && added.label).toEqual('hats');
     });
 
     it('rejects a picture address that is not a string', function() {
