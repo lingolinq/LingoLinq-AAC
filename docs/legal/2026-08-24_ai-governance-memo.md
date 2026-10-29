@@ -141,6 +141,14 @@ prior attestation.
 in place, so no claim is made here about when the flag became enabled, nor about the flag's state on
 or before the 2026-08-02 Article 50 obligation date.
 
+**Later correction, 2026-10-28 (issue #1227).** Sections 4 and 4.1 said the data-bearing boundary
+was enforced by the brain's `codex-review-guard.sh` and, CI-side, by
+`scripts/codex-review-path-classifier.sh`. The CI Codex review gate that used the classifier was
+retired on 2026-10-27 and removed by PR #1225, and the brain guard is a review-time tripwire, not
+the control. Both passages now carry a dated correction that states the controls where the
+two-tier policy places them (section 4.1). No other claim changed, and this successor remains
+unattested.
+
 ---
 
 ## 1. Purpose
@@ -331,8 +339,11 @@ The stance LingoLinq takes, and that this memo records:
   no-PHI-in-diffs rule, and for the product path the PiiScrubber, are the real controls.
 - This is why the developer reviewer is restricted to sanitized diffs and is barred from
   identifiable and data-bearing content. PII-free compliance *documents* (the audit register)
-  are Tier 2 and may be reviewed; the boundary is data-bearing content, enforced by
-  `codex-review-guard.sh` (see section 4.1, resolved 2026-07-12). **Path corrected 2026-08-30:** that script lives at `~/ai-company-brain/scripts/codex-review-guard.sh`, not in this repo; this repo carries a vendored copy of its data-bearing `RISKY_PATTERNS` as `scripts/codex-review-path-classifier.sh` (which adds a Guard B for `docs/legal/**` and `audit-reports/**`).
+  are Tier 2 and may be reviewed; the boundary is data-bearing content (see section 4.1, resolved
+  2026-07-12). **Path corrected 2026-08-30:** that script lives at `~/ai-company-brain/scripts/codex-review-guard.sh`, not in this repo; this repo carries a vendored copy of its data-bearing `RISKY_PATTERNS` as `scripts/codex-review-path-classifier.sh` (which adds a Guard B for `docs/legal/**` and `audit-reports/**`).
+  **Corrected 2026-10-28 (issue #1227):** this bullet said the boundary was "enforced by
+  `codex-review-guard.sh`". That script is a review-time tripwire, not the control. Section 4.1
+  states which checks exist and what each one does.
 
 ### 4.1 RESOLVED (2026-07-12): DeepSeek and the audit register
 
@@ -359,9 +370,35 @@ option.
 data can be in the stream, not on the compliance-surface label. Tier 1 (runtime / user-data
 paths) stays on BAA/ZDR-verified models. Tier 2 (code diffs, CI output, and PII-free compliance
 documents) **permits** any approved reviewer -- a DeepSeek or Codex pass included -- but does
-**not require** one. The hard boundary (no identifiable or data-bearing content on a no-BAA
-route) is enforced by `~/ai-company-brain/scripts/codex-review-guard.sh` and, CI-side, by its vendored copy `scripts/codex-review-path-classifier.sh` in this repo, which block fixtures / seeds / factories /
-migrations / cassettes / data dumps, NOT `audit-reports/**` or `docs/legal/**`.
+**not require** one. The hard boundary is no identifiable or data-bearing content on a no-BAA
+route.
+
+**Corrected 2026-10-28 (issue #1227):** this paragraph said the boundary "is enforced by
+`~/ai-company-brain/scripts/codex-review-guard.sh` and, CI-side, by its vendored copy
+`scripts/codex-review-path-classifier.sh` in this repo". That overstated both. The CI side ended
+when the CI Codex review gate (`codex-review.yml`) was retired on 2026-10-27 (Scot) and removed by
+PR #1225. The two-tier policy places the controls as follows (ai-company-brain
+`instructions/shared/compliance.md`, "Where the control sits", Scot, 2026-10-09):
+
+- **Real data is kept out of commits. This is the control.** This repository is public, so a
+  pushed branch is published whether or not it merges. The author's own check before pushing is
+  the only step ahead of publication, and a mistaken push of real data is an incident to handle,
+  not something a later check blocks.
+- **The `data-bearing-paths/<base>` merge check** is a required status on `develop`, `staging`
+  and `main`. It reads `scripts/codex-review-path-classifier.sh` and fails a pull request that
+  adds or changes a data-bearing path (fixtures, seeds, factories, migrations, cassettes, data
+  dumps, `db/language/**`) until a reviewer with write access confirms the data is synthetic by
+  adding the `synthetic-data` label. It gates merges only. It does not stop a reviewer from
+  reading the diff, and it cannot unpublish a pushed branch.
+- **`codex-review-guard.sh`**, run through the brain's `scripts/review-preflight.sh`, stops a
+  local review run (`/review-pr`, `/dual-review`) whose diff touches a data-bearing path. It is a
+  tripwire, not the control: it reads path names only, so real rows pasted into an ordinary file
+  pass it.
+- **The Codex GitHub connector** reviews every pull request on this repository when it opens,
+  with no path check in front of it.
+
+Neither check treats `audit-reports/**` or `docs/legal/**` as data-bearing; those paths stay
+Tier 2.
 
 **Net effect:** the current bot skip on compliance-path diffs is now a permitted **confidentiality
 preference**, not a policy requirement. Either running or skipping an approved reviewer on a

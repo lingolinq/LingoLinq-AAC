@@ -442,6 +442,24 @@ printf 'README.md\nspec/fixtures/caf\351.yml\n' > "$WORK/paths-list"
 db_only 'path list: a Latin-1 fixture is data-bearing' true --paths-from "$WORK/paths-list"
 db_only 'path list: a missing file fails closed' ERR3 --paths-from "$WORK/no-such-list"
 
+echo "== data-bearing-only mode: every dump extension, in either letter case =="
+# Issue #1227 (2026-10-28): the gate runs the classifier only in this mode, and no case tested
+# most arms of the extension pattern here. Each path below matches that pattern and no other, so
+# dropping one arm, or matching case-sensitively in this mode, turns its case red.
+for ext in sql dump csv tsv ndjson jsonl har log xlsx xls parquet; do
+  for p in "tmp/report.$ext" "TMP/REPORT.$(printf '%s' "$ext" | tr '[:lower:]' '[:upper:]')"; do
+    printf '%s\n' "$p" > "$WORK/paths-list"
+    db_only "path list: $p is data-bearing" true --paths-from "$WORK/paths-list"
+  done
+done
+head="$(commit_paths 'TMP/REPORT.PARQUET')"
+db_only 'diff: TMP/REPORT.PARQUET is data-bearing' true "$BASE" "$head"
+# Pass side: a name that only starts like a listed extension is not data-bearing.
+for p in 'tmp/report.xlsm' 'tmp/report.sqlite3' 'tmp/notes.logic' 'tmp/report.csv.md'; do
+  printf '%s\n' "$p" > "$WORK/paths-list"
+  db_only "path list: $p is not data-bearing" false --paths-from "$WORK/paths-list"
+done
+
 echo
 if [ "$fails" -eq 0 ]; then
   echo "codex-review-path-classifier-test: OK ($total cases)"
