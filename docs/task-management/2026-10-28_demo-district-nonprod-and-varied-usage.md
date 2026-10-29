@@ -186,3 +186,28 @@ Demo accounts are shared logins and never need mail, so their email is now off.
     - drop the unflag.
 - **Not done:** two mailers outside this module ignore `email_disabled`. They are app-wide and
   outside this PR.
+
+## Follow-up: environment guard on create_district! (round-1 F2)
+
+- **Facts (CONFIRMED 2026-10-29):**
+  - `RAILS_ENV=production` on the prod and both nonprod migrate jobs (`gcloud run jobs describe`), so
+    `Rails.env` cannot tell them apart.
+  - Cloud Run sets `CLOUD_RUN_JOB` to the job's name, and the runtime contract's variables are
+    reserved (docs.cloud.google.com/run/docs/container-contract). `bin/docker-entrypoint` ends in
+    `exec "$@"` and keeps the environment.
+  - Nonprod's migrate jobs are `lingolinq-migrate-dev` and `lingolinq-migrate-staging`; no prod job
+    has either name. Job names are unique only per project (`lingolinq-utility-dedupe-dryrun` is in
+    both).
+- **Change:** `create_district!` refuses unless `CLOUD_RUN_JOB` is in `DemoDistrict::NONPROD_JOBS`
+  or it runs under specs. The development environment is not exempt: a local shell can point
+  `DATABASE_URL` at another database. The runbook marks the build branch nonprod only and warns
+  against reusing those job names in prod.
+- **Rejected:** an operator-supplied opt-in variable (it travels with a copied command, so the code
+  still could not tell environments apart), and a `DEFAULT_HOST` check (its values are secret refs,
+  unverified here).
+- **Verification:** 2 of 4 new examples red at a1639f9bc ("nothing was raised"); the 2 nonprod
+  examples guard against an over-strict check. Three files: 60 examples, 0 failures. Mutations, each
+  red then restored: drop the guard; allow `lingolinq-migrate`; drop `lingolinq-migrate-staging`;
+  treat an unset job as nonprod.
+- **Not covered:** `db/seeds.rb` builds the district through `Seeder.build!` with its own
+  `SEED_DEMO_DATA` opt-in, outside this guard.
