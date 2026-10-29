@@ -10,6 +10,18 @@ runs it by hand.
 It writes only into the one organization flagged `settings['demo_data'] == true`, and only for
 members whose email ends in `@demoschooldistrict.org`. Anyone else is skipped and logged.
 
+## Demo accounts never receive email
+
+The demo accounts are shared logins, so their email is off (`settings['email_disabled']`). The
+seed and `create_district!` turn it off as they create each account. Accounts created before
+that (an environment seeded earlier) need `DemoDistrict.disable_demo_emails!` once. It covers
+the 23 demo user names and any `@demoschooldistrict.org` member of the flagged org, leaves any
+other account alone, and is safe to rerun:
+
+```bash
+--args='exec,rails,runner,pp DemoDistrict.disable_demo_emails!'
+```
+
 For each demo student, it fills every school day from their latest session through the last
 finished school day (America/Los_Angeles), with these rules:
 
@@ -54,10 +66,10 @@ gcloud run jobs execute <migrate-job> --project <project> --region us-central1 -
 Then read the `DEMO_ORG` lines from that execution's logs. What you see decides the next step:
 
 - **The demo org exists and its members have `@demoschooldistrict.org` emails (production):**
-  flag it by name, then backfill.
+  flag it by name, turn the demo accounts' email off, then backfill.
 
   ```bash
-  --args='exec,rails,runner,DemoDistrict.flag_organization!("Demo School District"); pp DemoDistrict.refresh!'
+  --args='exec,rails,runner,DemoDistrict.flag_organization!("Demo School District"); pp DemoDistrict.disable_demo_emails!; pp DemoDistrict.refresh!'
   ```
 
 - **No such org, or its members are not demo accounts (nonprod's "Demo" org):** build a fresh

@@ -113,3 +113,30 @@ No Critical or High findings.
   - L4: lunch modeling is credited to the room's SLP; the district has no classroom-staff
     accounts.
   - L6: in production, changed profiles switch pattern from the backfill on.
+
+## Follow-up: demo accounts never receive email (dual review)
+
+Demo accounts are shared logins and never need mail, so their email is now off.
+
+- **Facts (CONFIRMED):**
+  - `settings['email_disabled']` is read by `Api::UsersController#forgot_password` (it filters
+    disabled accounts before scheduling the mail) and `Notifiable#channels_for`.
+  - Its only other writer is `UserMailer.bounce_email`, via `Processable#update_setting`, and
+    nothing clears it.
+  - `update_setting` refuses a stale copy (`assert_current_record!`) and queues the change
+    instead, so the flag must be written before `add_supervisor` / `add_user`, which save the
+    user through a copy they load themselves.
+- **Change:**
+  - `Seeder.disable_email!` sets the flag and drops outstanding reset codes, only for an
+    `@demoschooldistrict.org` account.
+  - `build!` calls it on each account before linking it, so `db/seeds.rb` and `create_district!`
+    both get it.
+  - `DemoDistrict.disable_demo_emails!` covers accounts created earlier. It reloads each
+    account before writing and logs, rather than stops on, one saved elsewhere mid-run.
+  - The runbook adds it to the production flag-and-backfill command.
+- **Verification:**
+  - Red first: 3 new examples failed before the change.
+  - `spec/lib/demo_district_spec.rb` plus `spec/lib/demo_district/usage_generator_spec.rb`:
+    40 examples, 0 failures (local, private test DB).
+  - Mutations, each red then restored: dropping the `build!` call, dropping the
+    `demo_email?` guard, dropping the reset-code clear.
