@@ -2064,7 +2064,7 @@ Button.load_actions = function() {
       inline_description: "this month",
       description: i18n.t('current_month', "Speak the name of the current month"),
       content: function() {
-        return "DATE";
+        return [{text: window.moment().format('MMMM')}];
       }
     },
     {
@@ -2103,7 +2103,7 @@ Button.load_actions = function() {
       inline_description: "battery",
       description: i18n.t('battery_level', "Speak the current battery level"),
       content: function() {
-        return (app_state.get('battery') || i18n.t('unknown', "Unknown")) + " " + i18n.t('percent_battery_left', "percent battery left");
+        return [{text: (app_state.get('battery') || i18n.t('unknown', "Unknown")) + " " + i18n.t('percent_battery_left', "percent battery left")}];
       }
     },
     {

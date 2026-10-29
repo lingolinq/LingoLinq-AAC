@@ -697,4 +697,24 @@ describe('utterance', function() {
       waitForSuggestionRefresh();
     });
   });
+
+  // utterance.process_inline_content concatenates each inline action's content() and combine_content
+  // reads every piece's .text, so content() must return a list of {text} pieces. :battery-level returned
+  // a bare string and :current-month the placeholder "DATE": either one in a vocalization threw inside
+  // add_button, and every later selection threw before it was spoken until the sentence was cleared.
+  describe("inline action content", function() {
+    it("gives every inline action's content as a list of text pieces", function() {
+      var bad = [];
+      LingoLinq.special_actions.filter(function(a) { return a.inline && a.content; }).forEach(function(action) {
+        var pieces = [].concat(action.content(null));
+        if(!pieces.every(function(p) { return p && p.text != null; })) { bad.push(action.action); }
+      });
+      expect(bad).toEqual([]);
+    });
+
+    it("says the name of the month for :current-month", function() {
+      var action = LingoLinq.find_special_action(':current-month');
+      expect(utterance.combine_content(action.content())).toEqual([{text: window.moment().format('MMMM')}]);
+    });
+  });
 });
