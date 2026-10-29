@@ -343,9 +343,11 @@ frame_listener.payload_error = function(data) {
 // app-state's specialty_actions runs any "&&"-separated segment that starts with ":" (":home",
 // ":clear"; utterance.specialty_button classifies them), and utterance.set_button_list runs inline
 // ":tokens" anywhere in the text that LingoLinq.find_special_action resolves (":battery-level",
-// ":bleep", ":roll-dice(6)"). A colon that is not an action ("10:30", "time: noon") is fine.
+// ":bleep", ":roll-dice(6)"). A segment starting with "+" edits the user's own last word instead of
+// adding one ("+t" finishes a word being spelled, "+?" turns a statement into a question), so it is
+// refused too: an integration adds its own words. A colon that is not an action ("10:30") is fine.
 frame_listener.text_has_action = function(text) {
-  if(/(^|&&)\s*:/.test(text)) { return true; }
+  if(/(^|&&)\s*[:+]/.test(text)) { return true; }
   var find = LingoLinq.find_special_action;
   return (text.match(/:[^\s&]+/g) || []).some(function(token) { return !!(find && find(token)); });
 };

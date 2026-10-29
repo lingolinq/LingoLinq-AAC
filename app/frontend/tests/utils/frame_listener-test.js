@@ -840,6 +840,19 @@ describe("frame_listener", function() {
       frame_listener.handle_action({action: 'add_text', text: 'I have :battery-level ok', respond: function(d) { data = d; }});
       expect(data && data.error).toEqual('text may not contain app actions');
       expect(added).toEqual(null);
+    });
+
+    it("rejects text that would edit the user's own last word", function() {
+      var added = null, data = null;
+      stub(app_state, 'activate_button', function(a, b) { added = b; });
+      frame_listener.handle_action({action: 'add_text', text: '+?', respond: function(d) { data = d; }});
+      expect(data && data.error).toEqual('text may not contain app actions');
+      data = null;
+      frame_listener.handle_action({action: 'add_text', text: 'hi && +t', respond: function(d) { data = d; }});
+      expect(data && data.error).toEqual('text may not contain app actions');
+      expect(added).toEqual(null);
+      frame_listener.handle_action({action: 'add_text', text: '2+2', respond: function(d) { data = d; }});
+      expect(data).toEqual({added: true});
       data = null;
       frame_listener.handle_action({action: 'add_text', text: 'time: noon at 10:30', respond: function(d) { data = d; }});
       expect(data).toEqual({added: true});

@@ -315,3 +315,12 @@ Senior-dev pass: approve with comments. Red-team: do not block. Fixed from them:
 
 Not changed: the speak_text test in `frame_listener-test.js` still sets the real speak mode (it waits for its
 effect); the reported test-frame navigation does not happen (the fixture is a `div`); `respond` has one caller.
+
+### Codex connector review (on `9b76395bf`), 2026-10-28
+
+Two P1 comments. (1) Reject the full action grammar: its inline example (`hello :bleep world`) was already
+fixed in `a5234f267`; its `+` point was open. A `+` segment (`utils/utterance.js:144`, merged into the prior
+button at `:163-174` and `:516-519`) edits the user's own last word: it finishes a word being spelled, and
+punctuation (`+?`) attaches even to a finished word. Traci chose to refuse it: `text_has_action` now treats a
+segment starting with `+` like one starting with `:`. `2+2` still passes. Test red on the previous
+`frame_listener.js`, green after (61/61). (2) Rule 14 approval for the edited test: recorded in the PR body.
