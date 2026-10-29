@@ -13,6 +13,8 @@ import capabilities from '../../utils/capabilities';
 import app_state from '../../utils/app_state';
 import scanner from '../../utils/scanner';
 import frame_listener from '../../utils/frame_listener';
+import speecher from '../../utils/speecher';
+import utterance from '../../utils/utterance';
 import LingoLinq from '../../app';
 
 describe("frame_listener", function() {
@@ -737,6 +739,7 @@ describe("frame_listener", function() {
     });
 
     it('should call handle_action with the correct data', function() {
+      frame.setAttribute('src', window.location.href); // the frame is configured for the sender's site
       var response = null;
       stub(frame_listener, 'session_window', function() { return window; });
       stub(frame_listener, 'respond', function(source, r) { response = r; });
@@ -747,5 +750,241 @@ describe("frame_listener", function() {
       });
 
     });
+  });
+
+  // An integration types into the sentence bar and speaks in the user's voice, and status hands it
+  // the user_token. Only the site the integration was configured with may do that (its iframe src),
+  // and replies go only to that site, never to '*', which would reach whatever page the frame has
+  // navigated to. (MDN, Window.postMessage: check event.origin, name an exact targetOrigin.)
+  describe('integration origin and payload checks', function() {
+    it('ignores a message from the frame once it is on a site other than the configured one', function() {
+      frame.setAttribute('src', 'https://tool.example.com/board');
+      var response = null, handled = false;
+      stub(frame_listener, 'session_window', function() { return window; });
+      stub(frame_listener, 'handle_action', function() { handled = true; });
+      stub(frame_listener, 'respond', function(source, r) { response = r; });
+      window.postMessage({aac_shim: true, session_id: 'asdf', action: 'add_text', text: 'hi'}, '*');
+      waitsFor(function() { return response; });
+      runs(function() {
+        expect(response.error).toEqual('message came from wrong window');
+        expect(handled).toEqual(false);
+      });
+    });
+
+    it('still refuses a message from the configured site that is not from the integration frame', function() {
+      frame.setAttribute('src', window.location.href); // the origin matches, so only the window check can refuse it
+      var response = null, handled = false;
+      stub(frame_listener, 'session_window', function() { return {}; });
+      stub(frame_listener, 'handle_action', function() { handled = true; });
+      stub(frame_listener, 'respond', function(source, r) { response = r; });
+      window.postMessage({aac_shim: true, session_id: 'asdf', action: 'status'}, '*');
+      waitsFor(function() { return response; });
+      runs(function() {
+        expect(response.error).toEqual('message came from wrong window');
+        expect(handled).toEqual(false);
+      });
+    });
+
+    it('replies only to the configured site', function() {
+      frame.setAttribute('src', window.location.href);
+      var response = null, target = null;
+      stub(frame_listener, 'session_window', function() { return window; });
+      stub(frame_listener, 'respond', function(source, r, origin) { response = r; target = origin; });
+      window.postMessage({aac_shim: true, session_id: 'asdf', action: 'status'}, '*');
+      waitsFor(function() { return response; });
+      runs(function() {
+        expect(response.status).toEqual('ready');
+        expect(target).toEqual(window.location.origin);
+      });
+    });
+
+    it('never posts a reply to every origin', function() {
+      var posted = [];
+      var source = { postMessage: function(msg, origin) { posted.push(origin); } };
+      frame_listener.respond(source, {a: 1}, 'https://tool.example.com');
+      frame_listener.respond(source, {a: 1});
+      expect(posted).toEqual(['https://tool.example.com']);
+    });
+
+    it('does not trust a frame whose configured address is not a web page', function() {
+      frame.setAttribute('src', 'data:text/html,<p>hi</p>');
+      expect(frame_listener.session_origin()).toEqual(null);
+      frame.removeAttribute('src');
+      expect(frame_listener.session_origin()).toEqual(null);
+    });
+
+    it('rejects text that is not a string or is longer than a sentence needs', function() {
+      var added = null, data = null;
+      stub(app_state, 'activate_button', function(a, b) { added = b; });
+      frame_listener.handle_action({action: 'add_text', text: new Array(502).join('a'), respond: function(d) { data = d; }});
+      expect(data && data.error).toEqual('text must be a string of at most 500 characters');
+      frame_listener.handle_action({action: 'add_text', text: {label: 'hi'}, respond: function(d) { data = d; }});
+      expect(data && data.error).toEqual('text must be a string of at most 500 characters');
+      expect(added).toEqual(null);
+    });
+
+    it('rejects a picture that is not a web address', function() {
+      var added = null, data = null;
+      stub(app_state, 'activate_button', function(a, b) { added = b; });
+      frame_listener.handle_action({action: 'add_text', text: 'hats', image_url: 'javascript:alert(1)', respond: function(d) { data = d; }});
+      expect(data && data.error).toEqual('image_url must be an http or https address');
+      expect(added).toEqual(null);
+    });
+
+    it('accepts text of exactly 500 characters', function() {
+      var added = null, data = null;
+      stub(app_state, 'activate_button', function(a, b) { added = b; });
+      frame_listener.handle_action({action: 'add_text', text: new Array(501).join('a'), respond: function(d) { data = d; }});
+      expect(data).toEqual({added: true});
+      expect(added && added.label.length).toEqual(500);
+    });
+
+    it('rejects text that would run an app action instead of being said', function() {
+      var added = null, data = null;
+      stub(app_state, 'activate_button', function(a, b) { added = b; });
+      frame_listener.handle_action({action: 'add_text', text: ':clear', respond: function(d) { data = d; }});
+      expect(data && data.error).toEqual('text may not contain app actions');
+      data = null;
+      frame_listener.handle_action({action: 'add_text', text: 'hi && :home', respond: function(d) { data = d; }});
+      expect(data && data.error).toEqual('text may not contain app actions');
+      data = null;
+      frame_listener.handle_action({action: 'add_text', text: 'hi&&:home', respond: function(d) { data = d; }});
+      expect(data && data.error).toEqual('text may not contain app actions');
+      data = null;
+      frame_listener.handle_action({action: 'add_text', text: 'I have :battery-level ok', respond: function(d) { data = d; }});
+      expect(data && data.error).toEqual('text may not contain app actions');
+      data = null;
+      frame_listener.handle_action({action: 'add_text', text: 'at 10:30 I:m:bleep ok', respond: function(d) { data = d; }});
+      expect(data && data.error).toEqual('text may not contain app actions');
+      data = null;
+      frame_listener.handle_action({action: 'add_text', text: 'x :a :q:roll-dice(6) y', respond: function(d) { data = d; }});
+      expect(data && data.error).toEqual('text may not contain app actions');
+      expect(added).toEqual(null);
+    });
+
+    it("rejects text that would edit the user's own last word", function() {
+      var added = null, data = null;
+      stub(app_state, 'activate_button', function(a, b) { added = b; });
+      frame_listener.handle_action({action: 'add_text', text: '+?', respond: function(d) { data = d; }});
+      expect(data && data.error).toEqual('text may not contain app actions');
+      data = null;
+      frame_listener.handle_action({action: 'add_text', text: 'hi && +t', respond: function(d) { data = d; }});
+      expect(data && data.error).toEqual('text may not contain app actions');
+      expect(added).toEqual(null);
+      frame_listener.handle_action({action: 'add_text', text: '2+2', respond: function(d) { data = d; }});
+      expect(data).toEqual({added: true});
+      data = null;
+      frame_listener.handle_action({action: 'add_text', text: 'time: noon at 10:30', respond: function(d) { data = d; }});
+      expect(data).toEqual({added: true});
+      expect(added && added.label).toEqual('time: noon at 10:30');
+    });
+
+    it('speaks colons and accepts an empty picture, since neither runs anything', function() {
+      var silent = [], data = null, added = null;
+      stub(utterance, 'silent_speak_button', function(b) { silent.push(b.label); });
+      stub(app_state, 'activate_button', function(a, b) { added = b; });
+      frame_listener.handle_action({action: 'speak_text', text: ':) see you at 10:30', respond: function(d) { data = d; }});
+      expect(data).toEqual({spoken: true, vocalized: false}); // not in speak mode: shown, not spoken
+      expect(silent).toEqual([':) see you at 10:30']);
+      frame_listener.handle_action({action: 'add_text', text: 'hats', image_url: '', respond: function(d) { data = d; }});
+      expect(data).toEqual({added: true});
+      expect(added && added.label).toEqual('hats');
+    });
+
+    it('rejects a picture address that is not a string', function() {
+      var added = null, data = null;
+      stub(app_state, 'activate_button', function(a, b) { added = b; });
+      frame_listener.handle_action({action: 'add_text', text: 'hats', image_url: ['https://www.example.com/pic.png'], respond: function(d) { data = d; }});
+      expect(data && data.error).toEqual('image_url must be an http or https address');
+      data = null;
+      frame_listener.handle_action({action: 'add_text', text: 'hats', image_url: 'https://www.example.com/' + new Array(2030).join('a'), respond: function(d) { data = d; }});
+      expect(data && data.error).toEqual('image_url must be an http or https address');
+      expect(added).toEqual(null);
+    });
+
+    it('does not speak over-long text', function() {
+      var spoken = [], data = null;
+      stub(speecher, 'speak_text', function(text) { spoken.push(text); });
+      frame_listener.handle_action({action: 'speak_text', text: new Array(502).join('a'), respond: function(d) { data = d; }});
+      expect(data && data.error).toEqual('text must be a string of at most 500 characters');
+      expect(spoken).toEqual([]);
+    });
+  });
+});
+
+describe("frame_listener without a highlight", function() {
+  var testOwner, savedAppState, cleanup;
+  beforeEach(function() {
+    testOwner = this.owner;
+    savedAppState = frame_listener.appState;
+    cleanup = null;
+  });
+  afterEach(function() {
+    if(cleanup) { cleanup(); }
+    frame_listener.appState = savedAppState;
+  });
+
+  // frame_listener.setup() (utils/frame_listener.js:16) runs only when a highlight opens (scanning,
+  // button search, modeling; utils/scanner.js:160 via controllers/highlight.js:50), so an integration
+  // that sent add_text before any highlight hit `this.appState.get` on undefined (frame_listener.js:115).
+  it("reaches this app's app-state for add_text when no highlight has opened", function() {
+    var appState = testOwner.lookup('service:app-state');
+    expect(frame_listener.appState === appState).toEqual(true);
+    var added = null, responded = null;
+    stub(appState, 'activate_button', function(button, obj) { added = obj; });
+    frame_listener.handle_action({action: 'add_text', text: 'hats', respond: function(d) { responded = d; }});
+    expect(added && added.label).toEqual('hats');
+    expect(responded).toEqual({added: true});
+  });
+  // New with the registration in services/app-state.js init: the size_targets observer
+  // (utils/frame_listener.js:207) watches appState.speak_mode, which was never set before.
+  it("resizes integration targets when speak mode changes", function() {
+    var appState = testOwner.lookup('service:app-state');
+    var stashes = testOwner.lookup('service:stashes');
+    var savedMode = stashes.get('current_mode'), savedBoard = appState.get('currentBoardState');
+    var savedTargets = frame_listener.get('targets');
+    var overlay = document.createElement('div');
+    overlay.id = 'integration_overlay';
+    overlay.style.cssText = 'position: absolute; left: 0; top: 0; width: 200px; height: 100px;';
+    document.body.appendChild(overlay);
+    var dom = document.createElement('div');
+    cleanup = function() {
+      if(overlay.parentNode) { overlay.parentNode.removeChild(overlay); }
+      frame_listener.set('targets', savedTargets);
+      stashes.set('current_mode', savedMode);
+      appState.set('currentBoardState', savedBoard);
+    };
+    frame_listener.set('targets', [{dom: dom, target: {width_percent: 0.5, height_percent: 0.5, left_percent: 0.25, top_percent: 0.1}}]);
+    appState.set('currentBoardState', {id: '1_1', key: 'example/one'});
+    stashes.set('current_mode', 'speak');
+    waitsFor(function() { return dom.style.width === '100px'; });
+    runs(function() {
+      expect(dom.style.height).toEqual('50px');
+      expect(dom.style.left).toEqual('50px');
+      expect(dom.style.top).toEqual('10px');
+    });
+  });
+
+  it("speaks an integration's speak_text aloud only in speak mode, through this app's app-state", function() {
+    var appState = testOwner.lookup('service:app-state');
+    var stashes = testOwner.lookup('service:stashes');
+    var savedMode = stashes.get('current_mode'), savedBoard = appState.get('currentBoardState');
+    cleanup = function() {
+      stashes.set('current_mode', savedMode);
+      appState.set('currentBoardState', savedBoard);
+    };
+    var spoken = [], silent = [];
+    stub(speecher, 'speak_text', function(text) { spoken.push(text); });
+    stub(utterance, 'silent_speak_button', function(button) { silent.push(button.label); });
+    stashes.set('current_mode', 'speak');
+    appState.set('currentBoardState', {id: '1_1', key: 'example/one'});
+    var res = null;
+    frame_listener.handle_action({action: 'speak_text', text: 'hello', respond: function(d) { res = d; }});
+    expect(spoken).toEqual(['hello']);
+    expect(res).toEqual({spoken: true, vocalized: true});
+    stashes.set('current_mode', 'default');
+    frame_listener.handle_action({action: 'speak_text', text: 'quiet', respond: function(d) { res = d; }});
+    expect(silent).toEqual(['quiet']);
+    expect(res).toEqual({spoken: true, vocalized: false});
   });
 });

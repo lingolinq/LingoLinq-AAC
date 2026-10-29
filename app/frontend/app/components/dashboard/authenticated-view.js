@@ -1931,4 +1931,27 @@ AuthenticatedView.reopen({
   })
 });
 
+/* THE SYNC-FAILED NOTICE on the home page (2026-10-28). Automatic syncs fail without a popup, and
+   two failures in a row pause them for 48 hours (services/persistence.js, the failure branch of
+   sync), so this notice is the Modern view's sign that the boards may not be ready offline.
+   sync_status is empty again after a reload; the stashed last_sync_status carries the failure
+   across it until the next sync finishes. Kept last so the line-anchored lint baseline holds. */
+AuthenticatedView.reopen({
+  init: function() {
+    this._super(...arguments);
+    var _this = this;
+    this.onSync = function() { _this.send('sync'); };
+  },
+  sync_failed_notice: computed('sync_able', 'persistence.{sync_status,root_sync_canceled}', 'stashes.last_sync_status', function() {
+    if(!this.get('sync_able')) { return false; }
+    // After a sign-out that skips the reload, the open database is still the previous user's: their
+    // failure is not this user's, and Try Again would sync into that database.
+    if(!this.get('persistence').local_db_is_current_user()) { return false; }
+    var status = this.get('persistence.sync_status');
+    // A sync the user cancelled ends as failed; they stopped it, so it is not reported.
+    if(status) { return status == 'failed' && !this.get('persistence.root_sync_canceled'); }
+    return this.get('stashes.last_sync_status') == 'failed';
+  })
+});
+
 export default AuthenticatedView;
