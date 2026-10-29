@@ -10,11 +10,13 @@ runs it by hand.
 It writes only into the one organization flagged `settings['demo_data'] == true`, and only for
 members whose email ends in `@demoschooldistrict.org`. Anyone else is skipped and logged.
 
-## Demo accounts never receive email
+## Demo account email is off
 
-The demo accounts are shared logins, so their email is off (`settings['email_disabled']`). The
-seed and `create_district!` turn it off as they create each account. Accounts created before
-that (an environment seeded earlier) need `DemoDistrict.disable_demo_emails!` once. It covers
+The demo accounts are shared logins, so their email is off (`settings['email_disabled']`),
+which stops password reset email and the notifications that check that setting. The seed and
+`create_district!` turn it off as they create each account, and each daily refresh turns it off
+for any demo member added to the org since. Accounts created before that (an environment
+seeded earlier) need `DemoDistrict.disable_demo_emails!` once. It covers
 the 23 demo user names and any `@demoschooldistrict.org` member of the flagged org, leaves any
 other account alone, and is safe to rerun:
 
@@ -33,8 +35,13 @@ finished school day (America/Los_Angeles), with these rules:
   authored. The room pages read it.
 - **Reports:** weekly summaries are rebuilt for every week touched.
 
-Everything it writes carries `seed_marker = 'DEMO_DISTRICT_ROLLING'`. A day that already has one is
-skipped, so reruns are safe.
+Every session and goal note it writes carries `seed_marker = 'DEMO_DISTRICT_ROLLING'`. A day that
+already has one is skipped, so reruns are safe. The primary goals, SLP activity days and SLP
+devices it adds carry no marker.
+
+Two demo runs never overlap: `refresh!`, `create_district!` and `flag_organization!` share one
+database lock. A refresh that finds another run in progress does nothing, and the scheduler
+reports it as skipped, not failed.
 
 ## Who shows what
 
@@ -55,7 +62,8 @@ The daily job does nothing until an org carries the flag. Run each one-off throu
 environment's migrate job, with `rails runner`, so the console guard records an AuditEvent.
 Set `USER_KEY` to your own email.
 
-**Before writing anything,** list the candidate orgs. This step is read-only:
+**Before writing anything,** list the candidate orgs. This step changes no data; like every
+runner, it writes one AuditEvent:
 
 ```bash
 gcloud run jobs execute <migrate-job> --project <project> --region us-central1 --wait \
@@ -66,10 +74,10 @@ gcloud run jobs execute <migrate-job> --project <project> --region us-central1 -
 Then read the `DEMO_ORG` lines from that execution's logs. What you see decides the next step:
 
 - **The demo org exists and its members have `@demoschooldistrict.org` emails (production):**
-  flag it by name, turn the demo accounts' email off, then backfill.
+  turn the demo accounts' email off, flag the org by name, then backfill.
 
   ```bash
-  --args='exec,rails,runner,DemoDistrict.flag_organization!("Demo School District"); pp DemoDistrict.disable_demo_emails!; pp DemoDistrict.refresh!'
+  --args='exec,rails,runner,pp DemoDistrict.disable_demo_emails!; DemoDistrict.flag_organization!("Demo School District"); pp DemoDistrict.refresh!'
   ```
 
 - **No such org, or its members are not demo accounts (nonprod's "Demo" org):** build a fresh
@@ -85,10 +93,13 @@ Then read the `DEMO_ORG` lines from that execution's logs. What you see decides 
   `create_district!` refuses, and writes nothing, in any of these cases:
   - an org is already flagged;
   - an org already has the name `Demo School District`;
-  - any of the 23 demo user names is taken.
+  - any of the 23 demo user names is taken;
+  - the district board already exists;
+  - another demo run is in progress.
 
-  It never adopts an existing account. If it stops partway, the error names the half-built org.
-  A rerun refuses until that org and its users are removed.
+  It never adopts an existing account or board, even one that appears while it runs. If it
+  stops partway, the error names the half-built org and the demo flag is taken off it, so the
+  daily refresh leaves it alone. A rerun refuses until that org and its users are removed.
 
   The password you pass is visible in that execution's configuration to anyone who can view
   Cloud Run jobs in the project.

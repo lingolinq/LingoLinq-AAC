@@ -114,7 +114,7 @@ No Critical or High findings.
     accounts.
   - L6: in production, changed profiles switch pattern from the backfill on.
 
-## Follow-up: demo accounts never receive email (dual review)
+## Follow-up: demo account email is off (dual review)
 
 Demo accounts are shared logins and never need mail, so their email is now off.
 
@@ -140,3 +140,49 @@ Demo accounts are shared logins and never need mail, so their email is now off.
     40 examples, 0 failures (local, private test DB).
   - Mutations, each red then restored: dropping the `build!` call, dropping the
     `demo_email?` guard, dropping the reset-code clear.
+
+## Follow-up: second dual review
+
+- **Facts (CONFIRMED):**
+  - `create_district!` checked the user names, then `Seeder.build!` looked each one up again and
+    reused whatever it found, with no lock around either.
+  - The supervisor daily-activity queries selected by author only, so a session an SLP authored
+    for someone outside the district reached the room's modeled words
+    (`Api::UnitsController#stats` reads the SLP's `daily_use` log unscoped).
+  - `Board#generate_board_key` always prefixes the owner's user name, so the district board is
+    `sarah_chen_slp/demo_district_home`; the lookup by `demo_district_home` never matched, and
+    each seed rerun made another board.
+  - `mail_message` takes its channel from the caller label, which on Ruby 3.4 is
+    `UserMailer#password_changed`, so the `channels_for` exemption list never matches and those
+    notices honour `email_disabled`.
+- **Change:**
+  - One Postgres advisory lock (`DemoDistrict::LOCK_KEY`) around `refresh!`, `create_district!`
+    and `flag_organization!`, taken and released on one connection. A busy `refresh!` returns
+    `{ skipped_busy: true }`, which `scheduler:dispatch` reports as done.
+  - `Seeder.build!` takes a required `adopt:`. `create_district!` passes `false`, which refuses an
+    existing user or board, and takes the demo flag off a district it could not finish.
+    `db/seeds.rb` passes `true`.
+  - `refresh!` turns email off for the flagged org's demo members on every run, and
+    `Seeder.disable_email!` clears reset codes on an account whose email is already off.
+  - Both supervisor queries take the demo communicators' ids.
+  - `Seeder.board_key` is the real key, used by `build!` and by the `create_district!` guard.
+  - The runbook wording matches the code: what carries `seed_marker`, the AuditEvent the
+    listing step writes, and email-off before flagging.
+- **Verification:**
+  - 10 new or changed examples, plus one existing call given the new keyword. Four were red
+    at head for the defect itself: email-off, adoption, reset codes and the scheduler abort.
+    Six were red only because the new constant, method or keyword did not exist yet, so the
+    mutations below are their real proof.
+  - Three files (`demo_district_spec.rb`, `usage_generator_spec.rb`, `tasks/scheduler_spec.rb`):
+    56 examples, 0 failures.
+  - Mutations, each red then restored from git:
+    - drop the refresh email-off;
+    - drop the lock, or drop its release;
+    - pass `adopt: true`;
+    - drop either supervisor filter;
+    - restore the old skip;
+    - restore the old board lookup, or the old guard key;
+    - drop the scheduler busy branch;
+    - drop the unflag.
+- **Not done:** two mailers outside this module ignore `email_disabled`. They are app-wide and
+  outside this PR.
