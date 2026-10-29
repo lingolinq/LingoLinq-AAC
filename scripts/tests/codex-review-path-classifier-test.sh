@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 #
 # codex-review-path-classifier-test.sh - proves scripts/codex-review-path-classifier.sh
-# routes each path shape the way its consumer (codex-review.yml) depends on.
+# classifies each path shape the way its consumer depends on. Its consumer today is
+# scripts/data-bearing-path-check.sh (the data-bearing-paths merge gate), which runs it
+# with --data-bearing-only; the route cases date from the retired codex-review.yml.
 #
 # WHY THIS EXISTS
-#   The classifier decides whether a PR diff may go to an external reviewer with no
-#   BAA. A pattern that silently stops matching, or a failure that reads as "no
-#   match", sends a data-bearing diff out. Every case below runs the real script
+#   The classifier decides whether a PR changes a data-bearing path, which the merge
+#   gate holds until a person confirms the data is synthetic. A pattern that silently
+#   stops matching, or a failure that reads as "no match", lets a data-bearing change
+#   merge unexamined. Every case below runs the real script
 #   against a real two-commit range (or a stubbed git or grep for shapes git cannot
 #   produce) and checks the route it writes to GITHUB_OUTPUT, or that it exits 3
 #   and writes nothing.
@@ -454,8 +457,9 @@ for ext in sql dump csv tsv ndjson jsonl har log xlsx xls parquet; do
 done
 head="$(commit_paths 'TMP/REPORT.PARQUET')"
 db_only 'diff: TMP/REPORT.PARQUET is data-bearing' true "$BASE" "$head"
-# Pass side: a name that only starts like a listed extension is not data-bearing.
-for p in 'tmp/report.xlsm' 'tmp/report.sqlite3' 'tmp/notes.logic' 'tmp/report.csv.md'; do
+# Pass side: names that end in a listed extension's letters without its dot, or where the
+# extension is not last. They fail if the pattern drops its \. or its $ anchor.
+for p in 'tmp/mysql' 'CHANGELOG' 'tmp/notes.logic' 'tmp/report.csv.md'; do
   printf '%s\n' "$p" > "$WORK/paths-list"
   db_only "path list: $p is not data-bearing" false --paths-from "$WORK/paths-list"
 done
