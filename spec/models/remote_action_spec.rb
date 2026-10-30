@@ -395,6 +395,18 @@ describe RemoteAction, :type => :model do
       expect(ra.reload.act_at).to be > 23.hours.from_now
     end
 
+    it "is not dispatched again once reported while the delete switch is off, and is once it is on" do
+      ra = RemoteAction.create!(action: 'transcode_family_sweep', path: 'sounds/1/2/x', extra: 'ButtonSound::1_2', act_at: 1.minute.ago, created_at: 2.days.ago)
+      allow(Worker).to receive(:schedule_for)
+      expect(ra.process_action).to eq(:keep)
+      expect(ra.reload.act_at).to be > 23.hours.from_now
+      expect(Worker).to_not have_received(:schedule_for)
+
+      Setting.set('transcode_sweep_delete', 'true')
+      expect(ra.process_action).to eq(:keep)
+      expect(Worker).to have_received(:schedule_for).with(:slow, Uploader, :remote_remove_transcode_family, 'sounds/1/2/x', 'ButtonSound::1_2', ra.created_at.to_i).once
+    end
+
     it "is reported by the 3-month purge like the other kept actions" do
       allow(Rails.logger).to receive(:error)
       RemoteAction.create!(action: 'transcode_family_sweep', path: 'sounds/1/2/x', act_at: 1.day.from_now, created_at: 4.months.ago)

@@ -2973,6 +2973,33 @@ describe Uploader do
       expect(Rails.logger).to have_received(:info).with(/report-only owner=ButtonSound::1_123 matched=1 unmatched=0/)
     end
 
+    it "should stay report-only for any switch value but 'true'" do
+      Setting.set('transcode_sweep_delete', 'false')
+      tombstone(sound_stem)
+      listing(sound_stem, ["#{sound_stem}v1.mp3"])
+      expect(s3_client).to_not receive(:delete_object)
+      Uploader.remote_remove_transcode_family(sound_stem, 'ButtonSound::1_123', 2.days.ago.to_i)
+      expect(RemoteAction.where(action: 'transcode_family_sweep').count).to eq(1)
+    end
+
+    it "should delete a re-transcoded video's still, which the scary-delete guard must accept" do
+      tombstone(video_stem)
+      still = "#{video_stem}v1_1_123_abc-#{'c' * 128}v2.mp4.0000001.jpg"
+      listing(video_stem, [still])
+      expect_delete(still)
+      expect(Uploader.remote_remove_transcode_family(video_stem, 'UserVideo::1_123', 2.days.ago.to_i)).to eq(true)
+      expect(RemoteAction.where(action: 'transcode_family_sweep').count).to eq(0)
+    end
+
+    it "should drop the row without listing when its owner is a live record with this stem" do
+      owner = ButtonSound.create(:user => User.create, :settings => {})
+      stem = owner.file_path + owner.file_prefix
+      tombstone(stem)
+      expect(s3_client).to_not receive(:list_objects_v2)
+      expect(Uploader.remote_remove_transcode_family(stem, "ButtonSound::#{owner.global_id}", 2.days.ago.to_i)).to eq(false)
+      expect(RemoteAction.where(action: 'transcode_family_sweep').count).to eq(0)
+    end
+
     it "should keep the row when the listing fails" do
       tombstone(sound_stem)
       expect(s3_client).to receive(:list_objects_v2).and_raise(Aws::S3::Errors::AccessDenied.new(nil, 'denied'))

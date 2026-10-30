@@ -609,7 +609,7 @@ describe MediaObject, :type => :model do
     it "should add the stem of stored keys when it differs from the recomputed one (a rotated key)" do
       s = transcoded_sound
       stored_stem = "#{s.file_path}#{s.global_id}-#{'b' * 128}"
-      s.settings['prior_full_filenames'] = ["#{stored_stem}v1723500000.mp3", 'sounds/1/2/3/1_5-abcdef.m4a']
+      s.settings['prior_full_filenames'] = ["#{stored_stem}v1723500000.mp3", 'sounds/1/2/3/1_5-abcdef.m4a', "sounds/9/9/1_99-#{'d' * 128}v1.mp3"]
       s.save
       s.destroy
       expect(sweep_rows.pluck(:path).sort).to eq([s.file_path + s.file_prefix, stored_stem].sort)

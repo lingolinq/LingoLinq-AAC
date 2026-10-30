@@ -28,6 +28,8 @@ class RemoteAction < ApplicationRecord
       # after the destroy, so a job still running then is caught); pushed out a day first, so the
       # hourly batch does not enqueue it again while that job is pending.
       ra.update_column(:act_at, Uploader::TRANSCODE_SWEEP_SETTLE.from_now)
+      # While deletes are off a row is reported in its first day only, not re-listed daily for months.
+      return :keep if !Uploader.transcode_sweep_delete? && ra.created_at < Uploader::TRANSCODE_SWEEP_SETTLE.ago
       Worker.schedule_for(:slow, Uploader, :remote_remove_transcode_family, ra.path, ra.extra, ra.created_at.to_i)
       return :keep
     elsif ra.action == 'notify_unassigned'

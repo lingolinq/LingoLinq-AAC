@@ -203,7 +203,10 @@ module MediaObject
       return true unless transcoded
       stored = [settings['full_filename'], settings['thumbnail_filename'], settings.dig('secondary_output', 'filename')]
       stored += Array(settings['prior_full_filenames']) + Array(settings['prior_thumbnail_stems'])
-      stems += stored.map { |key| Uploader.transcode_family_stem(key) }
+      # Only stems of this record's own keys: its folder and global_id (the hash may differ after a
+      # key rotation).
+      own = "#{self.file_path}#{self.global_id}-"
+      stems += stored.map { |key| Uploader.transcode_family_stem(key) }.select { |stem| stem.to_s.start_with?(own) }
     rescue StandardError => e
       # Unreadable settings: write the recomputed stem anyway, since whether it transcoded is unknown.
       Rails.logger.error("Transcode family stems unreadable for #{self.class.name} #{self.global_id}: #{e.class}")

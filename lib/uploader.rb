@@ -354,10 +354,10 @@ module Uploader
   end
 
   # A re-transcode output (transcode_family_key?): <stem>v<ts>, one or more _<global_id>-<hex>v<ts>,
-  # then mp3|wav|mp4. It has more '-' segments than the generic remote_remove rule allows; keep this
+  # then mp3|wav (sounds) or mp4 and its stills (videos). It has more '-' segments than the generic remote_remove rule allows; keep this
   # as narrow as the thumbnail rule above: record-shaped folder and stems, anchored start-to-end.
   def self.transcoded_output_chain_key?(remote_path)
-    !!remote_path.to_s.match(/\A(?:sounds|videos)\/(?:\d\/)+\w+-\h{128}v\d+(?:_\w+-\h{128}v\d+)+\.(?:mp3|wav|mp4)\z/)
+    !!remote_path.to_s.match(/\A(?:sounds\/(?:\d\/)+\w+-\h{128}v\d+(?:_\w+-\h{128}v\d+)+\.(?:mp3|wav)|videos\/(?:\d\/)+\w+-\h{128}v\d+(?:_\w+-\h{128}v\d+)+\.mp4(?:\.(?:\d{5}|\d{7})\.(?:jpg|png))?)\z/)
   end
 
   def self.elastic_transcoder_thumbnail_key?(remote_path)
@@ -544,10 +544,23 @@ module Uploader
   # transcode outputs that no record still uses. Until Setting 'transcode_sweep_delete' is 'true'
   # it only counts (a dark launch: rows are kept, so turning it on later catches up). Logs carry
   # the owner's global_id and counts, never the stem or a key.
+  def self.transcode_sweep_delete?
+    Setting.get_cached('transcode_sweep_delete') == 'true'
+  end
+
   def self.remote_remove_transcode_family(stem, owner=nil, requested_at=nil)
     row = RemoteAction.where(action: 'transcode_family_sweep', path: stem)
     unless stem.to_s.match?(TRANSCODE_FAMILY_STEM)
       Rails.logger.error("Uploader.remote_remove_transcode_family dropped a row with no record stem owner=#{owner}")
+      row.delete_all
+      return false
+    end
+    # A stem whose record is live again (restored with the same id and created_at) is not an orphan.
+    klass_name, global_id = owner.to_s.split('::', 2)
+    klass = {'ButtonSound' => ButtonSound, 'UserVideo' => UserVideo}[klass_name]
+    live = klass && global_id && klass.find_by_global_id(global_id)
+    if live && live.file_path + live.file_prefix == stem
+      Rails.logger.error("Uploader.remote_remove_transcode_family dropped a row whose owner is live owner=#{owner}")
       row.delete_all
       return false
     end
@@ -565,7 +578,7 @@ module Uploader
     matched = keys.select { |key| transcode_family_key?(stem, key) }
     # The original upload is <stem>.<ext>; anything else under the stem is a name this code does not know.
     unmatched = keys.reject { |key| matched.include?(key) || key[stem.length..-1].to_s.match?(/\A\.\w+\z/) }
-    unless Setting.get('transcode_sweep_delete') == 'true'
+    unless transcode_sweep_delete?
       Rails.logger.info("Uploader.remote_remove_transcode_family report-only owner=#{owner} matched=#{matched.length} unmatched=#{unmatched.length}")
       return true
     end
