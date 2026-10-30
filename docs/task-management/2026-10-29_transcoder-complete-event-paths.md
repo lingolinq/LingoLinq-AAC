@@ -47,8 +47,9 @@ role set, so every staging recording that converts will hit this.
 `spec/lib/transcoder_spec.rb`, `describe "handle_event against an SDK-shaped GetJob"`: a real
 `stub_responses` client for `GetJob` (cannot carry `output_file_paths`) plus a COMPLETE event in
 the documented shape. Audio and video examples fail on develop (`handle_event` returns false);
-21 existing examples pass. The third example (path outside the uploads bucket is ignored)
-passes today vacuously and is a guard for the new code; its mutation is below.
+21 existing examples pass. The guard examples (paths outside the destination, unsafe names)
+and the GetJob-status examples pass on develop only vacuously; they guard the new code, and
+their mutations are in "Red-team pass on the branch".
 
 ## Candidate fixes
 
@@ -86,9 +87,9 @@ and the controller spec rewrite on 2026-10-30.
 
 ## Mutations that must turn the tests red
 
-- Revert `output_files` to read from `job`: audio and video examples red.
-- Remove the bucket check: the outside-bucket example red.
-- Read `durationInMs` from nowhere (duration nil): audio example red on `'duration' => 12`.
+First round (run 2026-10-29, each restored from a copy): paths read from GetJob again, 5 red;
+destination check removed, 4 red; prefix match instead of exact, 1 red; duration dropped, 5
+red; bucket-only check, 3 red. The second round is under "Red-team pass on the branch".
 
 ## Adversary review of this proposal (2026-10-29) and what changed
 
