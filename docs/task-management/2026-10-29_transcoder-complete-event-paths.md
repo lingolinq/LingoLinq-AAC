@@ -101,9 +101,9 @@ Verdict: proceed with candidate 1, with a stronger guard. Each finding checked b
   compares the body's `TopicArn`. The controller routes on the `x-amz-sns-topic-arn` header
   (`callbacks_controller.rb:5,26`), which the sender sets. Any AWS account can publish a
   genuinely signed message from its own topic. Today that only lets it log an error on a
-  record; once paths come from the event it could repoint a child's button sound. Changes:
-  (1) the controller requires the body's `TopicArn` to be in `SNS_ARNS` for Notification
-  messages (red test in `callbacks_controller_spec`); (2) an output path is accepted only when
+  record; once paths come from the event it could repoint a child's button sound. Proposed
+  changes: (1) the controller requires the body's `TopicArn` to be in `SNS_ARNS` for
+  Notification messages (not done, see below); (2, done) an output path is accepted only when
   its directory exactly equals the destination in the trusted `GetJob` response
   (`job.settings.output_groups[].output_group_settings.file_group_settings.destination`,
   `types.rb:6110-6112`), which also pins the bucket.
@@ -121,6 +121,17 @@ Verdict: proceed with candidate 1, with a stronger guard. Each finding checked b
   here.
 - **Low, deferred.** A COMPLETE with no usable outputs returns 400 without
   `media_object_error`. Worth doing once a real event is seen; kept out to keep one change.
+
+## Body `TopicArn` check: not done (accepted Low, 2026-10-30)
+
+Change (1) in the adversary section, requiring the signed body's `TopicArn` to be in
+`SNS_ARNS`, was left out by Traci's decision. With the destination guard, a forged but
+genuinely signed message from a foreign topic needs a live job ID from our account and can
+only name files inside that job's own output folder: at worst one recording points at a
+not-yet-written file until the real COMPLETE or the daily retry, or gets a fake error logged.
+Nothing is disclosed. Against that, the check would reject every real completion in any
+environment whose `SNS_ARNS` is wrong, and would need edits to about five existing controller
+examples. Revisit if the callback ever accepts anything less constrained than the destination.
 
 ## Risks and open questions
 
