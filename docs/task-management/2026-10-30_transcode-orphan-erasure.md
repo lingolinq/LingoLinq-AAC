@@ -94,7 +94,10 @@ key, a key still in use by another row's `url`, and names that only start like o
   again a day later; after 3 months the existing purge drops and reports it (add the action to
   `KEPT_UNTIL_DONE_ACTIONS`). Logs carry the owner global_id and counts, never keys.
 - Deploy order: a row written by a dev-web destroy before staging knows the action is kept by the
-  final `else` and processed once it does. No job is enqueued for an unknown method.
+  final `else` and processed once it does, but only by a build that has that `else` (#1117,
+  6192c55a8, on develop only; origin/main cbfeb2043 and origin/staging a9bfdd703 delete every due
+  row). Nonprod is safe in practice because the staging scheduler has no trigger
+  (`lib/tasks/scheduler.rake:2-6`); see "Rollback" below. No job is enqueued for an unknown method.
 
 **A: list and delete at destroy only (queued job).** Rejected: misses outputs written after the
 destroy (shape 1), has no retry when listing fails, and dev web would enqueue a method the staging
@@ -181,6 +184,41 @@ examples, only the 16 new examples failing.
 1. Read the report lines for a few days: `Uploader.remote_remove_transcode_family report-only
    owner=... matched=N unmatched=M`. Any `unmatched` above 0 means a name this code does not know:
    stop and look before enabling.
-2. Enable through the audited console: `Setting.set('transcode_sweep_delete', 'true')`. Kept rows
-   are swept on the next hourly batch. Rows not swept within 3 months are purged and reported
-   (`kept_remote_actions_purged`).
+2. Enable through the audited console: `Setting.set('transcode_sweep_delete', 'true')` (it busts
+   the Redis cache `Setting.get_cached` reads). Each kept row is swept when its `act_at` comes due,
+   within a day of the flip. Rows not swept within 3 months are purged and reported
+   (`kept_remote_actions_purged`), so keep the report-only period to days or weeks, not months.
+
+## Rollback
+
+The delete kill switch is the Setting (`Setting.set('transcode_sweep_delete', nil)`), not a code
+rollback. A rollback of production below #1117 (any build without `RemoteAction#process_action`'s
+unknown-action `else`, such as main cbfeb2043) deletes every due `transcode_family_sweep` row
+without a log line, losing the backlog. Before such a rollback, export the rows
+(`RemoteAction.where(action: 'transcode_family_sweep')`) and restore them afterwards.
+
+## Red-team pass on the implementation (2026-10-30) and what changed
+
+`REVIEWED=range origin/develop (e4be8b26a657c8d64a573ae6ef0eae66d2ef03a8) ... HEAD
+(ff79ed26fbdbafe50626fa3b4a83d4ebaf98adcf)`. Senior-dev pass: no Critical/High/Medium.
+Adversary pass, no Critical/High; each finding checked by hand:
+- **Medium, CONFIRMED, fixed.** Report-only rows never settle, so each was re-dispatched and
+  re-listed daily for 3 months. Now `process_action` dispatches a row while deletes are off only
+  in its first day (`created_at` within `TRANSCODE_SWEEP_SETTLE`), then just pushes `act_at` a
+  day. Rows still live up to 3 months on `remote_actions`, which has only a primary-key index
+  (`db/schema.rb:565-572`); an `(action, path)` index is a schema change left to Traci's call.
+- **Low, CONFIRMED, fixed in this doc.** The deploy-order claim and the rollback hazard above.
+- **Low, CONFIRMED, fixed.** A re-transcoded video still matched the sweep but failed every
+  `remote_remove` guard; `transcoded_output_chain_key?` now covers stills (videos only).
+- **Low, PLAUSIBLE, fixed.** Stems from stored keys must start with `file_path + global_id + '-'`,
+  and a row whose owner is live again with the same stem is dropped without listing.
+- Test gap closed: `'false'` stays report-only (a `.present?` mutant now fails).
+- Pre-existing, outside this diff (High on its own, PLAUSIBLE): `Uploadable#process_url` adopts
+  any uploads-bucket URL and `schedule_remote_removal_if_unique` counts only same-class rows, so a
+  ButtonSound created with another user's image or video URL and then destroyed deletes it. Not in
+  FINDINGS.json; it goes with the URL owner check already planned (#1239 triage).
+
+Mutations for these (each restored from a copy; all killed): report-only re-listing restored, 1
+red; own-stem pinning removed, 1; live-owner check removed, 1; stills left out of the chain guard,
+1; switch read with `.present?`, 1. Local run: the same eight spec files, 417 examples, 0
+failures, 2 pending (pending on develop).
