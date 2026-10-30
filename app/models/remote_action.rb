@@ -6,7 +6,7 @@ class RemoteAction < ApplicationRecord
   # Actions whose row process_action keeps (:keep) until their job deletes it on completion, other
   # than the delete retries (Uploader::REMOTE_DELETE_RETRY_ACTIONS). The 3-month purge reports
   # these (Uploader.report_purged_kept_remote_actions).
-  KEPT_UNTIL_DONE_ACTIONS = ['clean_up_destroyed_org', 'clean_up_destroyed_unit', 'room_member_removal', 'update_available_boards'].freeze
+  KEPT_UNTIL_DONE_ACTIONS = ['clean_up_destroyed_org', 'clean_up_destroyed_unit', 'room_member_removal', 'transcode_family_sweep', 'update_available_boards'].freeze
 
   def process_action
     ra = self
@@ -23,6 +23,13 @@ class RemoteAction < ApplicationRecord
         Worker.schedule_for(:slow, Uploader, :retry_remote_delete, ra.action, ra.path, ra.extra, ra.created_at.to_i)
         return :keep
       end
+    elsif ra.action == 'transcode_family_sweep'
+      # Kept until Uploader.remote_remove_transcode_family settles it (a clean sweep at least a day
+      # after the destroy, so a job still running then is caught); pushed out a day first, so the
+      # hourly batch does not enqueue it again while that job is pending.
+      ra.update_column(:act_at, Uploader::TRANSCODE_SWEEP_SETTLE.from_now)
+      Worker.schedule_for(:slow, Uploader, :remote_remove_transcode_family, ra.path, ra.extra, ra.created_at.to_i)
+      return :keep
     elsif ra.action == 'notify_unassigned'
       user_id, org_id = ra.path.split(/::/, 2)
       UserMailer.schedule_delivery(:organization_unassigned, user_id, org_id)

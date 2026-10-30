@@ -1,0 +1,134 @@
+# Transcode outputs no record points at survive erasure (LL-c4566fa37f)
+
+Date: 2026-10-30. Finding: LL-c4566fa37f (`audit-reports/FINDINGS.json`, medium, open, untriaged;
+disposition and closure are Scot's). Branch `traci/fix/transcode-orphan-erasure` from `develop`
+e4be8b26a. Found again by the red-team pass on #1239 (task log
+`2026-10-29_transcoder-complete-event-paths.md`, "Open items triage"). Learnings consulted:
+LEARNINGS.md "`after_all_transactions_commit` is not a durable outbox" (write a same-transaction
+RemoteAction), "`Worker.process_queues` destroys the RemoteActions it processes", "log opaque
+global_ids or nothing".
+
+## Symptom
+
+A ButtonSound or UserVideo can have MediaConvert (or legacy Elastic Transcoder) outputs in S3 that
+no settings field records. `MediaObject#remove_derivative_remote_data` deletes only keys held in
+settings, so account erasure (Flusher -> destroy) leaves those files: a child's recorded voice or
+video outliving GDPR Art. 17 / COPPA deletion.
+
+## Fact sheet
+
+- **(a) Where is the value read?** CONFIRMED. Erasure reads only settings:
+  `remove_derivative_remote_data` (`app/models/concerns/media_object.rb:113-187`) collects
+  `secondary_output`, `thumbnail_filename`, `prior_thumbnail_stems`, `prior_full_filenames` and an
+  abandoned `full_filename`; Uploadable's `after_destroy` removes `url` if no same-class row uses it
+  (`uploadable.rb:137-145`). Output keys reach settings only through `update_media_object`
+  (`media_object.rb:24-74`), called from `Transcoder.handle_event` (`lib/transcoder.rb`, `if record`).
+- **(b) All shapes (writers of an unrecorded output).** CONFIRMED.
+  1. Record destroyed while its job runs: the COMPLETE finds `record` nil and returns true; nothing
+     is written (`lib/transcoder.rb`, `record.update_media_object(new_record) if record`).
+  2. COMPLETE never handled: 400 (no usable outputs, or every COMPLETE on develop, since
+     `output_files` reads paths GetJob lacks, fixed by #1239), 503 retries exhausted (#1239), or SNS
+     delivery lost. The daily retry (`button_sound.rb:147-166`) then re-transcodes up to 2 more times
+     within 2 weeks, so one recording can leave up to 3 jobs' outputs.
+  3. Outputs written before a job ERRORs (MediaConvert behaviour; PLAUSIBLE, not observed).
+  The prefix of every job is `file_path + file_prefix + "v" + ts` (`media_object.rb:87`), a local
+  variable that is never saved.
+- **(c) Cross-file claims.**
+  - Output names. CONFIRMED by reading `lib/transcoder.rb` `name_modifier_for`: the input stem is
+    the basename of `full_filename` without its extension; on a first transcode that is
+    `file_prefix`, so the modifier is `v<ts>` and outputs are `<file_prefix>v<ts>.mp3`, `.wav`,
+    `.mp4`, and the still `<file_prefix>v<ts>.mp4.0000001.jpg`. Legacy Elastic Transcoder used
+    `"#{prefix}.mp3"` (first commit b26af61fa) and 5-digit stills
+    (`Uploader.transcoded_thumbnail_key?`, `lib/uploader.rb:352-354`).
+  - Key shape. CONFIRMED by a test-DB run: `sounds/8/1/8/1_818_b89ddf69ef0d0500994e3a3b-<128 hex>.wav`.
+    `file_path` is every digit of the id (`uploadable.rb:72-75`); `file_prefix` is
+    `global_id + "-" + sha512(global_id, created_at)` (`uploadable.rb:67-70`), and that sha512
+    includes `SECURE_ENCRYPTION_KEY` (`go_secure.rb`), so a recomputed `file_prefix` differs from
+    the stored one if the key was ever rotated.
+  - Another record using one of these keys: only through `url` (copies share `url`,
+    `board.rb:1607-1615`); `full_filename` and `secondary_output` are written only from the record's
+    own id/hash or its own job (`uploadable.rb:58`, `media_object.rb:34,68`). Checked by the #1239
+    adversary pass.
+  - `RemoteAction#process_action` keeps (`:keep`) a row whose action the running build does not
+    know (`app/models/remote_action.rb`, final `else`); `Uploader.remote_remove_batch` processes due
+    rows hourly (`act_at < now`) and purges rows older than 3 months, reporting
+    `KEPT_UNTIL_DONE_ACTIONS` counts (`lib/uploader.rb:302-322`).
+  - Dev web and staging worker share Redis and the database; a new job method is runnable only
+    once it reaches `staging` (`docs/INFRASTRUCTURE.md` "Staging and dev").
+  - Production: `s3:ListBucket` on the uploads bucket is granted to the deployed credential
+    (FINDINGS.json, LL-854b1d3853 notes, verified 2026-08-17). Nonprod: not in the repo.
+
+## Red test
+
+`spec/models/concerns/media_object_spec.rb`: destroying a ButtonSound that has had a transcode
+scheduled writes one `RemoteAction` (`transcode_family_sweep`, path = the record's stem) in the
+destroy's own transaction. Fails on develop (no row). `spec/lib/uploader_spec.rb`, new
+`describe "remote_remove_transcode_family"` with a `stub_responses` S3 client listing: deletes
+`<stem>v1.mp3`, `<stem>v1.wav`, `<stem>v2.mp4`, `<stem>v2.mp4.0000001.jpg`, `<stem>v3.mp4.00001.png`;
+keeps the original upload `<stem>.wav`, a key in a nested folder (`<dir>0/...`), another record's
+key, a key still in use by another row's `url`, and names that only start like ours
+(`<stem>vx.mp3`, `<stem>v1.mp3.bak`). Fails on develop (no method).
+
+## Candidate fixes
+
+**D (proposed): a durable tombstone swept twice.**
+- In `MediaObject`, an `after_destroy` (inside the destroy transaction, so it commits or rolls back
+  with the delete) writes `RemoteAction(action: 'transcode_family_sweep', path: stem,
+  extra: "<Class>::<global_id>", act_at: now)` when the record ever had a transcode
+  (`settings['transcoding_attempted']`, or any `transcoding_keys`/`prior_transcoding_keys`). One row
+  per stem (find_or_initialize, as `record_remote_delete_retry` does).
+- Stems: from the stored keys first (`full_filename`, `prior_full_filenames`, `secondary_output`
+  basenames, cut at `-<128 hex>`), plus the recomputed `file_path + file_prefix`; uniq. Covers a
+  rotated key.
+- `RemoteAction#process_action`, new branch: schedule
+  `Uploader.remote_remove_transcode_family(path, extra, created_at)` and return `:keep`, moving
+  `act_at` a day out first (as the delete retries do) so the hourly batch does not enqueue it again
+  while the job is pending.
+- `Uploader.remote_remove_transcode_family(stem, owner, created_at)`: skip (row kept) when S3 is not
+  configured or has no credentials; `list_remote_keys_with_prefix(stem)`; keep only keys matching
+  `\A<escaped stem>v\d+\.(?:mp3|wav|mp4|mp4\.(?:\d{5}|\d{7})\.(?:jpg|png))\z` (no `/` possible
+  after the stem, so no nested folder); skip any key `remote_path_in_use?` (`uploader.rb:105-111`);
+  `remote_remove` the rest (its scary-delete guard still applies). The row is deleted only when the
+  listing succeeded, every delete succeeded, and the row is at least `SETTLE` (1 day) old, so a job
+  that finishes after the destroy is caught by the second sweep. Otherwise the row stays and runs
+  again a day later; after 3 months the existing purge drops and reports it (add the action to
+  `KEPT_UNTIL_DONE_ACTIONS`). Logs carry the owner global_id and counts, never keys.
+- Deploy order: a row written by a dev-web destroy before staging knows the action is kept by the
+  final `else` and processed once it does. No job is enqueued for an unknown method.
+
+**A: list and delete at destroy only (queued job).** Rejected: misses outputs written after the
+destroy (shape 1), has no retry when listing fails, and dev web would enqueue a method the staging
+worker lacks until promotion.
+
+**B: save each job's prefix at schedule time; delete `prefix.*` at destroy.** Rejected alone: same
+timing gap as A, and the prefix still lives only in settings that die with the record. Its
+exact-keys advantage is folded into D (stems read from stored keys).
+
+**E: a COMPLETE for a destroyed record deletes the event's outputs.** Rejected as the mechanism: it
+deletes on the say-so of an SNS body (only as trusted as its sender) and misses lost webhooks. D
+covers the same case from our own data.
+
+**F: cancel the in-flight MediaConvert job on destroy.** Rejected alone: the job id is not stored,
+and outputs already written still need the sweep.
+
+## Risks and open questions
+
+- `SETTLE` = 1 day assumes a job finishes within a day of the destroy. Short audio and video jobs
+  on the on-demand queue take minutes; a job delayed past a day leaves its outputs. Longer windows
+  keep the tombstone (which holds a stem with an opaque global_id) longer.
+- Listing needs `s3:ListBucket`: granted in production; nonprod unverified. Without it the row
+  retries daily and is purged, reported, at 3 months: no deletion, no regression.
+- Mass erasure: one row per transcoded record, one listing call each, spread by the hourly batch.
+- Spec impact: the destroy writes a RemoteAction instead of enqueuing or calling S3, so the
+  `media_object_spec` examples that use an `instance_double` S3 client or `match_array` the
+  scheduled keys should be unaffected; anything that counts RemoteAction rows after a destroy may
+  change. Rule 14 approval: Traci, 2026-10-30, "show me after".
+- Out of scope, found alongside: bucket versioning without a noncurrent-version expiry (needs a
+  read of the bucket's lifecycle configuration); a ButtonSound may take another user's file URL
+  with no owner check, which keeps that file "in use" past its owner's erasure.
+
+## Mutations that must turn the tests red
+
+Drop the in-use check; loosen the regex to a prefix match; drop the `v\d+`; delete the row on the
+first successful sweep (ignore `SETTLE`); write the row in `after_destroy_commit` instead of
+`after_destroy`; let the new action fall into the thumbnail-family branch of `retry_remote_delete`.
