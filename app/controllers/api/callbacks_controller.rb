@@ -30,7 +30,9 @@ class Api::CallbacksController < ApplicationController
         end
         Rails.logger.warn(json_body.to_json)
         res = Transcoder.handle_event(json_body)
-        if res
+        if res == :retry
+          api_error 503, {error: 'job not complete yet'}
+        elsif res
           render json: {handled: true}
         else
           api_error 400, {error: 'event not handled'}

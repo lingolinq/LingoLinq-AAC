@@ -149,6 +149,7 @@ describe Api::CallbacksController, :type => :controller do
           expect(job_args[:user_metadata]['audio_id']).to eq(bs.global_id)
           expect(job_args[:settings][:inputs][0][:file_input]).to eq("s3://lingolinq-test-uploads/sounds/4/3/0-something.wav")
           job.user_metadata = job_args[:user_metadata].with_indifferent_access
+          job.status = 'COMPLETE'
           # GetJob echoes the destination the job was submitted with; the output
           # paths themselves arrive in the COMPLETE event below.
           destination = job_args[:settings][:output_groups][0][:output_group_settings][:file_group_settings][:destination]
@@ -205,6 +206,19 @@ describe Api::CallbacksController, :type => :controller do
         expect(response).to be_successful
         json = JSON.parse(response.body)
         expect(json).to eq({'handled' => true})
+      end
+
+      it "should answer 503 so SNS redelivers when GetJob has not caught up with the event" do
+        v = OpenStruct.new
+        expect(Aws::SNS::MessageVerifier).to receive(:new).and_return(v)
+        expect(v).to receive(:authentic?).and_return(true)
+        expect(Transcoder).to receive(:handle_event).and_return(:retry)
+        request.headers['x-amz-sns-message-type'] = 'Notification'
+        request.headers['x-amz-sns-topic-arn'] = 'arn:aws:sns:us-west-2:123:lingolinq-mediaconvert-events'
+        post 'callback', body: {a: '1'}.to_json
+        expect(response.status).to eq(503)
+        json = JSON.parse(response.body)
+        expect(json['error']).to eq('job not complete yet')
       end
     end
 

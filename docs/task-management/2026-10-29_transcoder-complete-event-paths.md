@@ -62,10 +62,9 @@ passes today vacuously and is a guard for the new code; its mutation is below.
    extension, all present on `GetJob`). Works without the event, but re-implements AWS's file
    naming, which is exactly what failed with errorCode 1040. Rejected.
 
-Guard added with option 1: ignore any output path whose bucket is not `UPLOADS_S3_BUCKET`. The
-SNS message is signature-checked (`callbacks_controller.rb:27-29`), so this is defence in depth:
-without it, `s3_key_from_uri` strips any bucket and the record's URL would be built from a key
-in a bucket we never wrote.
+The first draft guarded only the bucket. The adversary review below replaced that with the
+destination-equality guard, and the red-team pass on the finished branch added the name
+allowlist and the GetJob status check (see "Red-team pass on the branch").
 
 ## Existing specs this changes (needs approval, Rule 14)
 
@@ -125,13 +124,48 @@ Verdict: proceed with candidate 1, with a stronger guard. Each finding checked b
 ## Body `TopicArn` check: not done (accepted Low, 2026-10-30)
 
 Change (1) in the adversary section, requiring the signed body's `TopicArn` to be in
-`SNS_ARNS`, was left out by Traci's decision. With the destination guard, a forged but
-genuinely signed message from a foreign topic needs a live job ID from our account and can
-only name files inside that job's own output folder: at worst one recording points at a
-not-yet-written file until the real COMPLETE or the daily retry, or gets a fake error logged.
-Nothing is disclosed. Against that, the check would reject every real completion in any
-environment whose `SNS_ARNS` is wrong, and would need edits to about five existing controller
-examples. Revisit if the callback ever accepts anything less constrained than the destination.
+`SNS_ARNS`, was left out by Traci's decision. The first rationale given for that ("only files
+inside that job's own folder", "until the real COMPLETE or the daily retry") was WRONG; the
+red-team pass below disproved both, and Traci then approved the two checks that make it true.
+With them in place, a forged but genuinely signed message from a foreign topic:
+- needs a live job ID from our account (not guessable, not in API responses);
+- does nothing while the job is SUBMITTED or PROGRESSING, or after ERROR or CANCELED, because
+  GetJob's own status must be COMPLETE;
+- can name only plain file names inside that record's own folder (`uploadable.rb:72-75`: the
+  folder is every digit of the record id, so it is not shared), i.e. that record's own outputs.
+Residual: in the seconds between a job really completing and its real event arriving, a forger
+could complete the record with its own (real) output names; the real event is then ignored.
+Nothing is disclosed. Against the TopicArn check: it would reject every real completion in any
+environment whose `SNS_ARNS` is wrong, and needs edits to about five existing controller
+examples. Revisit if the callback ever accepts anything less constrained than this.
+
+## Red-team pass on the branch (2026-10-30) and what changed
+
+`REVIEWED=range origin/develop (92195340588aa8d39a28ac7d814e0e5d6aa5aa93) ... HEAD
+(03ad24c2ab620cfc1435e025f7cf2291caf3e3c0)`. Senior-dev pass: no Critical/High (one Medium
+withdrawn after checking `uploadable.rb:72-75`). Adversary pass, each checked by hand:
+- **Medium, CONFIRMED, fixed.** The guard checked the directory, not the name. The stored URL
+  is upload_url + key (`media_object.rb:63`), `best_url` unescapes it when it holds `%20`
+  (`uploadable.rb:48`), and browsers read `\` as `/` and resolve `..`, so a name like
+  `..\..\sounds\9\9\x.mp3` escaped. Fix: names must match `\A[A-Za-z0-9._-]+\z`; every name the
+  builders produce does (`<global_id>-<sha512hex>` from `uploadable.rb:67-70` plus the
+  `name_modifier_for` suffix and extension).
+- **Low, CONFIRMED, fixed.** A forged COMPLETE was permanent: it drops the transcoding key
+  (`media_object.rb:33`), so the real event is ignored, and the daily retry skips urls ending
+  `.mp3`/`.mp4` (`button_sound.rb:148,158`). Fix: GetJob's `status` must be COMPLETE.
+  SUBMITTED/PROGRESSING returns `:retry`, answered 503: SNS retries only 5xx and 429, and treats
+  every other error, 400 included, as permanent (AWS SNS "message delivery retries", read
+  2026-10-30). ASSUMED: GetJob agrees with the event by the time it arrives; if it lags past the
+  retry policy (default HTTP/S policy: 3 retries, 20 s apart, unless the subscription sets its
+  own; not checked), the record is left for the daily retry.
+- **Low, CONFIRMED, fixed.** A non-numeric, negative or overflowing `durationInMs` raised
+  (500) or was stored; now it is ignored (duration nil).
+- **Low, CONFIRMED, open pending approval.** The `:348` comment still says "the fix must invert
+  this example", and `output_files`' `detail={}` default exists only for that call.
+
+Mutations (each restored from a copy): name check removed, 3 red; `%` allowed, 2 red; GetJob
+status check removed, 2 red; `:retry` removed, 2 red; controller 503 removed, 1 red; duration
+guard back to nil-only, 5 red.
 
 ## Risks and open questions
 

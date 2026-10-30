@@ -37,6 +37,7 @@ describe Transcoder do
     # SDK-shaped versions are in "handle_event against an SDK-shaped GetJob".
     def file_group_job(user_metadata)
       OpenStruct.new({
+        status: 'COMPLETE',
         user_metadata: user_metadata,
         settings: OpenStruct.new({output_groups: [OpenStruct.new({
           output_group_settings: OpenStruct.new({
@@ -358,10 +359,11 @@ describe Transcoder do
     # .outputFilePaths (docs.aws.amazon.com/mediaconvert/latest/ug/file-group.html).
     # The events below follow that documented shape; the client is a real
     # stub_responses client, so GetJob cannot grow members the SDK lacks.
-    def stubbed_get_job(user_metadata)
+    def stubbed_get_job(user_metadata, status='COMPLETE')
       client = Aws::MediaConvert::Client.new(region: 'us-west-2', stub_responses: true)
       client.stub_responses(:get_job, {job: {
         id: 'jobby',
+        status: status,
         role: 'arn:aws:iam::123:role/MediaConvert',
         settings: {output_groups: [{output_group_settings: {
           type: 'FILE_GROUP_SETTINGS',
@@ -437,7 +439,13 @@ describe Transcoder do
         's3://some-other-bucket/some/dir/file.mp3',
         's3://lingolinq-test-uploads-evil/some/dir/file.mp3',
         's3://lingolinq-test-uploads/other/dir/file.mp3',
-        's3://lingolinq-test-uploads/some/dir/0/file.mp3'
+        's3://lingolinq-test-uploads/some/dir/0/file.mp3',
+        # The name must not walk out of the directory either: the stored URL is
+        # bucket + key (media_object.rb:63), best_url unescapes it when it holds
+        # %20 (uploadable.rb:48), and a browser reads \\ as / and resolves ..
+        's3://lingolinq-test-uploads/some/dir/..\\..\\other\\dir\\file.mp3',
+        's3://lingolinq-test-uploads/some/dir/%20%2F..%2F..%2Fother%2Fdir%2Ffile.mp3',
+        's3://lingolinq-test-uploads/some/dir/0%2Ffile.mp3'
       ].each do |path|
         it "should not point a record at #{path}" do
           stubbed_get_job({'audio_id' => 'sound_id', 'conversion_type' => 'audio', 'transcoding_key' => 'bacon'})
@@ -446,6 +454,53 @@ describe Transcoder do
           expect(bs).to_not receive(:update_media_object)
           res = Transcoder.handle_event({'Message' => complete_message([[path, 12000]])})
           expect(res).to eq(false)
+        end
+      end
+
+      # The event's status is only as trusted as its SNS sender; GetJob's is AWS's own.
+      %w[SUBMITTED PROGRESSING].each do |status|
+        it "should ask for a redelivery when GetJob still reports #{status}" do
+          stubbed_get_job({'audio_id' => 'sound_id', 'conversion_type' => 'audio', 'transcoding_key' => 'bacon'}, status)
+          bs = ButtonSound.create
+          expect(ButtonSound).to receive(:find_by_global_id).with('sound_id').and_return(bs)
+          expect(bs).to_not receive(:update_media_object)
+          res = Transcoder.handle_event({'Message' => complete_message([
+            ['s3://lingolinq-test-uploads/some/dir/file.mp3', 12000]
+          ])})
+          expect(res).to eq(:retry)
+        end
+      end
+
+      %w[ERROR CANCELED].each do |status|
+        it "should not complete a record whose GetJob reports #{status}" do
+          stubbed_get_job({'audio_id' => 'sound_id', 'conversion_type' => 'audio', 'transcoding_key' => 'bacon'}, status)
+          bs = ButtonSound.create
+          expect(ButtonSound).to receive(:find_by_global_id).with('sound_id').and_return(bs)
+          expect(bs).to_not receive(:update_media_object)
+          res = Transcoder.handle_event({'Message' => complete_message([
+            ['s3://lingolinq-test-uploads/some/dir/file.mp3', 12000]
+          ])})
+          expect(res).to eq(false)
+        end
+      end
+
+      [{'ms' => 1}, [1], true, -1, :overflow].each do |duration|
+        it "should store no duration when the event's durationInMs is #{duration.inspect}" do
+          stubbed_get_job({'audio_id' => 'sound_id', 'conversion_type' => 'audio', 'transcoding_key' => 'bacon'})
+          bs = ButtonSound.create
+          expect(ButtonSound).to receive(:find_by_global_id).with('sound_id').and_return(bs)
+          expect(bs).to receive(:update_media_object).with({
+            'filename' => 'some/dir/file.mp3',
+            'duration' => nil,
+            'content_type' => 'audio/mp3',
+            'transcoding_key' => 'bacon'
+          })
+          # 1e400 parses to Infinity; to_json would write null, so it is spliced in.
+          message = complete_message([
+            ['s3://lingolinq-test-uploads/some/dir/file.mp3', duration == :overflow ? 12345 : duration]
+          ]).sub('12345', '1e400')
+          res = Transcoder.handle_event({'Message' => message})
+          expect(res).to eq(true)
         end
       end
     end

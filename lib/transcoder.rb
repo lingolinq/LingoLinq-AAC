@@ -34,6 +34,12 @@ module Transcoder
       return true
     end
     return true unless complete_status?(status)
+    # The event's status is only as trusted as its SNS sender; GetJob's is AWS's
+    # own. A real COMPLETE that outruns GetJob gets :retry, which the controller
+    # answers with a 503 so SNS redelivers it (SNS retries only 5xx and 429).
+    job_status = job.respond_to?(:status) ? job.status.to_s : ''
+    return :retry if %w[SUBMITTED PROGRESSING].include?(job_status)
+    return false unless complete_status?(job_status)
 
     files = output_files(job, detail)
     new_record = {
@@ -202,7 +208,10 @@ module Transcoder
   # duration_in_ms + video_details only); the EventBridge COMPLETE event carries
   # them in detail.outputGroupDetails[].outputDetails[].outputFilePaths. The
   # event body is only as trusted as its SNS sender, so a path is kept only when
-  # its directory is exactly a destination this job was given, read from GetJob.
+  # its directory is exactly a destination this job was given, read from GetJob,
+  # and its name cannot leave that directory once it is a URL (no / \ % etc).
+  OUTPUT_NAME = /\A[A-Za-z0-9._-]+\z/
+
   def self.output_files(job, detail={})
     destinations = job_destinations(job)
     groups = detail.is_a?(Hash) ? detail['outputGroupDetails'] : nil
@@ -212,7 +221,7 @@ module Transcoder
         next [] unless out.is_a?(Hash)
         Array(out['outputFilePaths']).filter_map do |path|
           dir, _slash, name = path.to_s.rpartition('/')
-          next if name == '' || !destinations.include?("#{dir}/")
+          next if !name.match?(OUTPUT_NAME) || !destinations.include?("#{dir}/")
           {key: s3_key_from_uri(path), duration_in_ms: out['durationInMs']}
         end
       end
@@ -232,7 +241,7 @@ module Transcoder
 
   def self.duration_seconds(file)
     ms = file && file[:duration_in_ms]
-    return nil if ms.nil?
+    return nil unless ms.is_a?(Numeric) && ms.finite? && ms >= 0
     (ms.to_f / 1000).to_i
   end
 
