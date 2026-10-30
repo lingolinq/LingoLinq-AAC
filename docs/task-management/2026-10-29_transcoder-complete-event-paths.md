@@ -190,3 +190,96 @@ guard back to nil-only, 5 red.
   proven on its own.
 - Durations: `durationInMs` sits beside each path in the event; today's code reads it from
   `GetJob`, where it does exist. Reading both from the event keeps them paired per output.
+
+## Open items triage (2026-10-30, Traci: fix in this PR only if real, review proposals first)
+
+Each item checked against the code before deciding. Verdicts are for the adversary to falsify.
+
+1. **Forged ERROR replays grow `media_object_errors`.** Real in mechanism
+   (`transcoder.rb:32-35`, `media_object.rb:76-81`), unreachable in practice: needs a live job ID
+   from our MediaConvert account, which no API response carries, and nothing reads the field
+   (`git grep media_object_errors`: writer only). Proposed: no change.
+2. **A late, older job repoints the record.** Not a real harm: both jobs transcode the same
+   source; a forced re-transcode happens only while the url does not end `.mp3`/`.mp4`
+   (`button_sound.rb:148,158`), so the "older" output has the same content. Proposed: no change.
+3. **COMPLETE with no usable outputs returns 400 without `media_object_error`.** Not a real
+   harm: nothing reads `media_object_errors`; the controller already logs the body
+   (`callbacks_controller.rb:31`). Proposed: no change.
+4. **Video predicted to hit 1040.** Not established. The prediction assumed the frame-capture
+   output (RAW, FRAME_CAPTURE) gets an empty extension like RAW mp3/wav did. AWS's frame-capture
+   sample (`mediaconvert/latest/ug/file-group-with-frame-capture-output.html`, read 2026-10-30)
+   shows the still as `file.0000036.jpg`, i.e. the codec supplies `.jpg`, so `<base><mod>.mp4`
+   (frame capture, before numbering and `.jpg`) need not equal the mp4's path. Setting
+   `extension: 'jpg'` cannot be verified offline either way. Proposed: no change; the staging
+   video smoke test decides.
+5. **Transcode outputs the record never recorded survive erasure.** REAL (latent).
+   `remove_derivative_remote_data` (`media_object.rb:113-187`) deletes only keys held in
+   settings. Outputs land at `prefix.<ext>` where `prefix = file_path + file_prefix + "v" + ts`
+   (`media_object.rb:87`) and the name is `<input stem><name_modifier>.<ext>`
+   (`transcoder.rb:name_modifier_for`): first transcode `<file_prefix>v<ts>.mp3/.wav/.mp4` and
+   video still `<file_prefix>v<ts>.mp4.0000001.jpg`. Any job whose COMPLETE is dropped (400 on a
+   shape mismatch, 503 retries exhausted) or whose outputs were written before an ERROR leaves
+   files nothing points at, and account erasure (Flusher -> destroy -> this callback) misses them:
+   a child's voice recording outliving erasure (GDPR Art. 17, COPPA deletion).
+
+### Proposal for 5
+
+Candidate A (proposed): sweep the record's transcode family at destroy.
+- `remove_derivative_remote_data`: when `settings['transcoding_attempted']`, schedule
+  `Uploader.remote_remove_transcode_family(file_path + file_prefix + 'v', class, global_id)`.
+  `file_prefix` is `global_id + '-' + sha512(global_id, created_at)` (`uploadable.rb:67-70`), so
+  the stem is unique to this record and covers every transcode it ever ran, including ones from
+  before this change (no backfill).
+- `Uploader.remote_remove_transcode_family(stem, ...)`: `list_remote_keys_with_prefix(stem)`;
+  keep only keys matching `\A<escaped stem>\d+\.(?:mp3|wav|mp4|mp4\.\d{7}\.jpg)\z`; for each, skip
+  it if `remote_path_in_use?(key)` (`uploader.rb:105-111`, another ButtonSound/UserVideo/
+  ButtonImage row still points at it, e.g. a copy), else `remote_remove(key)` (its scary-delete
+  guard still applies; `transcoded_thumbnail_key?` covers the video still). Listing failure (nil)
+  logs and returns false; there is no guessed fallback because the timestamps are unknowable.
+  Credentials missing: same `remote_delete_ready?` deferral as the thumbnail family, with a new
+  retry action `delete_transcode_family_retry` dispatched in `retry_remote_delete`.
+- The original upload (`<file_prefix>.<ext>`, no `v`) is not matched: hex never contains `v`.
+Candidate B: save each prefix in settings at schedule time and delete `prefix.*` keys at
+destroy. Rejected: misses every job scheduled before the change, and adds a settings write.
+Candidate C: attach an SNS dead-letter queue. Rejected as the fix: it only makes a dropped
+event visible; nothing would delete the files.
+
+Risks / open questions:
+- Another record using one of these keys: only through `url` (copies share `url`,
+  `board.rb:1607-1615`), which `remote_path_in_use?` checks per key. `full_filename` and
+  `secondary_output` are written only from the record's own id/hash or its own job
+  (`uploadable.rb:58`, `media_object.rb:34,68`), so no other row can hold them. Not a risk.
+- `s3:ListBucket` on the uploads bucket is unverified in deployed envs (same caveat as the
+  thumbnail family); without it the sweep logs and deletes nothing (no regression).
+- Re-transcode names (`<stem>v<ts1>_<file_prefix>v<ts2>.mp3`) only arise when the input is an
+  earlier output; that needs a forced re-transcode after a success, which
+  `schedule_missing_transcodings` does not do. The strict regex excludes them; they stay covered
+  only if they ever became `full_filename`/`prior_full_filenames`.
+- Existing `remove_derivative_remote_data` specs that `expect(Worker).to receive(:schedule)` for
+  one call may need the new call allowed (Rule 14, approved "show me after").
+Test: a destroyed ButtonSound with `transcoding_attempted` schedules the family sweep; the
+Uploader method (stubbed S3 list) deletes `stem` + `123.mp3/.wav`, keeps the original upload,
+another record's key, a key still in use, and a non-matching name; nil listing deletes nothing.
+Mutations: drop the in-use check; loosen the regex to a prefix match; drop the `v`.
+
+### Adversary review of the triage (2026-10-30) and decision
+
+Items 1-4: the review could not show any of them is a real, reachable problem; no change.
+Item 5 is real and is the existing register finding LL-c4566fa37f (`audit-reports/FINDINGS.json`;
+closure is Scot's), not a new issue. Candidate A as written is not enough and not safe to ship
+here: it misses the registered "record destroyed mid-job" trigger (a COMPLETE for a destroyed
+record returns true and keeps nothing, `transcoder.rb:74-75`), records no retry when listing
+fails (`uploader.rb:63-75`), would fall into the thumbnail branch of `retry_remote_delete`
+(`uploader.rb:92-95`), and would queue a job the staging worker cannot run until promotion
+(dev web and staging worker share Redis, `docs/INFRASTRUCTURE.md:137-145`). It also breaks a
+different set of existing specs than predicted (`media_object_spec.rb:274,342,356,544`).
+The over-deletion question is closed: two records share an object only through `url`.
+This branch already shrinks LL-c4566fa37f: on develop every real COMPLETE is dropped.
+Item 5 moves to its own PR against LL-c4566fa37f.
+
+Found alongside, both pre-existing: (a) the upload buckets are documented "versioning on"
+(`docs/INFRASTRUCTURE.md:171`) and no noncurrent-version expiry exists in the repo, so a
+`remote_remove` may leave the voice data as an old version (PLAUSIBLE until the bucket's
+lifecycle configuration is read); (b) a ButtonSound may take another user's file URL with no
+owner check (`button_sound.rb:298-299` -> `uploadable.rb:86-90`), which makes that file "in
+use" and keeps it past the owner's erasure. Both belong with the item 5 erasure work.
