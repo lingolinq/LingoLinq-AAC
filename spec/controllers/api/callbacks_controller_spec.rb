@@ -149,20 +149,15 @@ describe Api::CallbacksController, :type => :controller do
           expect(job_args[:user_metadata]['audio_id']).to eq(bs.global_id)
           expect(job_args[:settings][:inputs][0][:file_input]).to eq("s3://lingolinq-test-uploads/sounds/4/3/0-something.wav")
           job.user_metadata = job_args[:user_metadata].with_indifferent_access
-          job.output_group_details = [
-            OpenStruct.new({
-              output_details: [
-                OpenStruct.new({
-                  duration_in_ms: 111_000,
-                  output_file_paths: ["s3://lingolinq-test-uploads/#{prefix}.mp3"]
-                }),
-                OpenStruct.new({
-                  duration_in_ms: 111_000,
-                  output_file_paths: ["s3://lingolinq-test-uploads/#{prefix}.wav"]
-                })
-              ]
-            })
-          ]
+          # GetJob echoes the destination the job was submitted with; the output
+          # paths themselves arrive in the COMPLETE event below.
+          destination = job_args[:settings][:output_groups][0][:output_group_settings][:file_group_settings][:destination]
+          expect(destination).to eq("s3://lingolinq-test-uploads/#{File.dirname(prefix)}/")
+          job.settings = OpenStruct.new(output_groups: [
+            OpenStruct.new(output_group_settings: OpenStruct.new(
+              file_group_settings: OpenStruct.new(destination: destination)
+            ))
+          ])
         }.and_return(resp)
 
         expect(config).to receive(:get_job).with({id: 'onetwo'}).and_return(resp)
@@ -180,7 +175,14 @@ describe Api::CallbacksController, :type => :controller do
           'source' => 'aws.mediaconvert',
           'detail' => {
             'jobId' => 'onetwo',
-            'status' => 'COMPLETE'
+            'status' => 'COMPLETE',
+            'outputGroupDetails' => [{
+              'type' => 'FILE_GROUP',
+              'outputDetails' => [
+                {'outputFilePaths' => ["s3://lingolinq-test-uploads/#{prefix}.mp3"], 'durationInMs' => 111_000},
+                {'outputFilePaths' => ["s3://lingolinq-test-uploads/#{prefix}.wav"], 'durationInMs' => 111_000}
+              ]
+            }]
           }
         }.to_json }.to_json
         expect(response).to be_successful

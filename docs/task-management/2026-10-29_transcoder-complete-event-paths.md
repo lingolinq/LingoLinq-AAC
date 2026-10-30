@@ -74,9 +74,16 @@ The specification these encode changed: paths come from the event, not from `Get
   GetJob and send an event without paths. Proposed: move the paths into the event (same
   expected `update_media_object` arguments), keeping the `OpenStruct` GetJob for metadata only.
 - `:174` (ERROR) is unaffected; its paths are never read.
-- `:348` "should find no output files on an SDK-shaped GetJob response" is the tripwire whose
-  own comment says "The fix must invert this example." Proposed: invert it to assert the files
-  come from the event when GetJob has none.
+- `:348` "should find no output files on an SDK-shaped GetJob response" is kept unchanged (it
+  pins the real SDK shape; see the review below). The positive case sits beside it in
+  `describe "handle_event against an SDK-shaped GetJob"`.
+- `spec/controllers/api/callbacks_controller_spec.rb:125` "should handle transcoding" put the
+  paths on an `OpenStruct` GetJob too. Rewritten the same way (approved 2026-10-30): the fake
+  GetJob echoes the destination the real `audio_job` builder submitted, and the paths travel
+  in the COMPLETE event. Red against develop's `lib/transcoder.rb`, green with the fix.
+
+Approval: Traci approved the `:61`, `:103`, `:140` rewrites and keeping `:348` on 2026-10-29,
+and the controller spec rewrite on 2026-10-30.
 
 ## Mutations that must turn the tests red
 
