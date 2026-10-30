@@ -130,8 +130,11 @@ inside that job's own folder", "until the real COMPLETE or the daily retry") was
 red-team pass below disproved both, and Traci then approved the two checks that make it true.
 With them in place, a forged but genuinely signed message from a foreign topic:
 - needs a live job ID from our account (not guessable, not in API responses);
-- does nothing while the job is SUBMITTED or PROGRESSING, or after ERROR or CANCELED, because
-  GetJob's own status must be COMPLETE;
+- cannot complete a record while the job is SUBMITTED or PROGRESSING, or after ERROR or
+  CANCELED, because GetJob's own status must be COMPLETE. The ERROR branch is NOT gated
+  (unchanged, live-proven 2026-09-19): a forged ERROR, replayable without limit, still appends
+  an attacker-chosen code to `settings['media_object_errors']` (`transcoder.rb:33`,
+  `media_object.rb:76-81`). Nothing reads that field; pre-existing, accepted Low;
 - can name only plain file names inside that record's own folder (`uploadable.rb:72-75`: the
   folder is every digit of the record id, so it is not shared), i.e. that record's own outputs.
 Residual: in the seconds between a job really completing and its real event arriving, a forger
@@ -159,8 +162,9 @@ withdrawn after checking `uploadable.rb:72-75`). Adversary pass, each checked by
   2026-10-30). ASSUMED: GetJob agrees with the event by the time it arrives; if it lags past the
   retry policy (default HTTP/S policy: 3 retries, 20 s apart, unless the subscription sets its
   own; not checked), the record is left for the daily retry.
-- **Low, CONFIRMED, fixed.** A non-numeric, negative or overflowing `durationInMs` raised
-  (500) or was stored; now it is ignored (duration nil).
+- **Low, CONFIRMED, fixed.** A non-numeric, negative or infinite (`1e400`) `durationInMs` raised
+  (500) or was stored; now it is ignored (duration nil). Huge finite values are still stored,
+  as the owner can already set any duration (`button_sound.rb:301`).
 - **Low, CONFIRMED, fixed (approved 2026-10-30).** The `:348` comment still said "the fix must
   invert this example"; it now says what the example pins. `output_files`' `detail={}` default
   existed only for that call, so it is gone and the call passes `{}`. The assertion is unchanged.
@@ -170,6 +174,14 @@ status check removed, 2 red; `:retry` removed, 2 red; controller 503 removed, 1 
 guard back to nil-only, 5 red.
 
 ## Risks and open questions
+
+- A real COMPLETE that is dropped (503 retries exhausted while GetJob lags, or a 400 because an
+  event shape differs from the docs) leaves that job's mp3/wav in S3 recorded nowhere. The
+  erasure sweep (`media_object.rb:113-165`) lists only keys held in settings, and the prefix
+  (`media_object.rb:87`) is never saved, so those voice derivatives would outlive account
+  erasure. The 400 route predates this branch (2026-09-18 log); the 503 route is new but narrow.
+  Before the staging smoke test: attach a dead-letter queue to the nonprod SNS subscription, or
+  (follow-up) save the prefix at schedule time so the sweep can list `prefix*`.
 
 - A real COMPLETE event has never been seen here (ASSUMED shape above). Staging smoke test with
   synthetic audio is the proof; until then this is "documented shape", not "proven".
