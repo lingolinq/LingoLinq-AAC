@@ -136,10 +136,13 @@ With them in place, a forged but genuinely signed message from a foreign topic:
   an attacker-chosen code to `settings['media_object_errors']` (`transcoder.rb:33`,
   `media_object.rb:76-81`). Nothing reads that field; pre-existing, accepted Low;
 - can name only plain file names inside that record's own folder (`uploadable.rb:72-75`: the
-  folder is every digit of the record id, so it is not shared), i.e. that record's own outputs.
-Residual: in the seconds between a job really completing and its real event arriving, a forger
-could complete the record with its own (real) output names; the real event is then ignored.
-Nothing is disclosed. Against the TopicArn check: it would reject every real completion in any
+  folder is every digit of the record id, so it is not shared). The name need not exist, so
+  "that record's own outputs" was too strong (corrected 2026-10-30, second review).
+Residual: once a job is COMPLETE and before its real event arrives (or for good, if the real
+event was lost), a forger could complete the record with any allowed name in its folder,
+including one that does not exist. The real event is then ignored and the daily retry skips the
+url, so the button stays silent and the real outputs go untracked. Nothing is disclosed, and it
+still needs the live job ID above. Against the TopicArn check: it would reject every real completion in any
 environment whose `SNS_ARNS` is wrong, and needs edits to about five existing controller
 examples. Revisit if the callback ever accepts anything less constrained than this.
 
@@ -164,7 +167,10 @@ withdrawn after checking `uploadable.rb:72-75`). Adversary pass, each checked by
   own; not checked), the record is left for the daily retry.
 - **Low, CONFIRMED, fixed.** A non-numeric, negative or infinite (`1e400`) `durationInMs` raised
   (500) or was stored; now it is ignored (duration nil). Huge finite values are still stored,
-  as the owner can already set any duration (`button_sound.rb:301`).
+  as the owner can already set any duration (`button_sound.rb:301`). Correction (second
+  review): a JSON integer of 309+ digits is a finite Integer, `to_f` makes it Infinity and
+  `to_i` raises FloatDomainError, so that form still gives a 500. Nothing is written, so it was
+  left as is (see "Second review" below).
 - **Low, CONFIRMED, fixed (approved 2026-10-30).** The `:348` comment still said "the fix must
   invert this example"; it now says what the example pins. `output_files`' `detail={}` default
   existed only for that call, so it is gone and the call passes `{}`. The assertion is unchanged.
@@ -283,3 +289,23 @@ Found alongside, both pre-existing: (a) the upload buckets are documented "versi
 lifecycle configuration is read); (b) a ButtonSound may take another user's file URL with no
 owner check (`button_sound.rb:298-299` -> `uploadable.rb:86-90`), which makes that file "in
 use" and keeps it past the owner's erasure. Both belong with the item 5 erasure work.
+
+## Second review (2026-10-30, Traci: fix only real issues)
+
+`REVIEWED=PR lingolinq/LingoLinq-AAC#1239 at 7130d0e8d7abad2fa47e886b87b0e32d7e2d82df`.
+Senior-dev pass: Approve with comments, Lows only. Adversary pass: ship, Lows only. Each was
+checked by hand; no code change came out of it.
+- **Integer-overflow `durationInMs` gives a 500.** CONFIRMED (Ruby probe). Not a real issue:
+  it needs a signed message for a live job, nothing is written, and the message is the sender's
+  own. Only the claim above was wrong, and it is corrected.
+- **No parent-directory rejection example.** CONFIRMED gap; a `start_with?` mutant would pass.
+  The exact-match code is correct today, so there is no defect; not done.
+- **Forged names need not exist.** CONFIRMED; the residual in "Body TopicArn check" is
+  corrected. Still gated on a live job ID, so it stays an accepted Low.
+- **Video destination not pinned; `..` passes `OUTPUT_NAME`.** Not real: both jobs use
+  `file_group_settings` (`transcoder.rb:125,150,254-260`), and only names ending
+  `.mp3/.wav/.mp4/.jpg/.png` are used (`transcoder.rb:49-64`).
+- **The callback logs the full body (pre-existing, `callbacks_controller.rb:31`).** Real: a
+  COMPLETE's `outputFilePaths` are working links to public-read recordings in Cloud Logging.
+  The staging smoke test reads that line, so trimming it to jobId and status follows the smoke
+  test, in the erasure work rather than a new issue.
