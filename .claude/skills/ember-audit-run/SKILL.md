@@ -89,9 +89,13 @@ causes: dotted-quads, `NNN_NNN` literals).
    ```
    node scripts/ember-route-crawl.mjs \
      --base http://localhost:8184 \
-     --routes scripts/ember-crawl-routes.json \
      --out /tmp/ember-crawl.json
    ```
+   Without `--routes`, discovery reads static paths from `router.js` only; nested routes are
+   not composed, so treat it as a floor. `--routes <file>` (a JSON array of paths) REPLACES
+   discovery, so the file must list every route to cover: static, nested and parameterized.
+   Keep it outside the repo (e.g. `/tmp/ember-crawl-routes.json`): its paths carry dev-data
+   usernames and board keys, and this repo is public.
    Auth: export `CRAWL_STORAGE_STATE=/path/to/state.json` (a Playwright storage-state
    file captured from a logged-in DEV session — never production credentials).
 2. The script emits finder-shaped JSON (`domain: "ember-runtime"`, findings with

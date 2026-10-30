@@ -1,13 +1,13 @@
 ---
 name: audit-run
-description: Orchestrate a full LingoLinq-AAC audit. Stamps the audited SHA + diff, fans out the read-only domain finders in parallel, reconciles results into the findings register, runs the adversary verifier, and validates citations. User-invoked only (/audit-run). Replaces the legacy workflows/full-audit.md.
+description: Orchestrate a full LingoLinq-AAC audit. Stamps the audited SHA + diff, fans out the read-only domain finders in parallel, reconciles results into the findings register, runs the adversary verifier, and validates citations. User-invoked only (/audit-run).
 disable-model-invocation: true
 allowed-tools: Read, Grep, Glob, Bash, Agent
 ---
 
 # /audit-run: LingoLinq audit orchestrator
 
-This is the supported replacement for `workflows/full-audit.md`. It runs in the trusted main
+It runs in the trusted main
 session (NOT a read-only finder), so it may use full tools and MCP. The finders it spawns are
 read-only by construction. The register `audit-reports/FINDINGS.json` is the single source of
 truth and must never regress: this runbook only ever ADDS findings or marks them `open`. Only
@@ -20,8 +20,8 @@ light run**. The cadence is tracked in `audit-reports/compliance-calendar.json`
 `/compliance-status`. Cadence dates are advisory scheduling, NOT a compliance claim.
 
 - **Quarterly full:** run all steps below (1-7). Finders scan their full scope; the run renders
-  the quarterly unified report. Schedule early in the weekly Pro/Max plan window (heavy parallel
-  Opus consumes weekly caps).
+  the quarterly unified report. Schedule it when plan usage headroom allows; the finders run in
+  parallel.
 - **Monthly light:** run steps 0-5 ONLY, with the **diff since the last run** as the finder
   scope. "Last run" is the register's own `meta.auditedSha`, NOT a base branch: an audit is run
   ON the base (`develop`), so `origin/develop...HEAD` resolves to ZERO files and would silently
@@ -179,7 +179,7 @@ Present to Scot:
 - Remind: only Scot closes, downgrades, or accepts risk. Nothing customer-facing leaves without
   his sign-off (plan section 5.6).
 
-## Step 7: Run log (built in Phase 4)
+## Step 7: Run log
 Two layers, both code/path evidence only - no student/patient data, no finding bodies with PII,
 no secrets:
 1. **Per-tool examination log (automatic).** Each finder has a PostToolUse hook
@@ -209,11 +209,11 @@ never published here; it stays DRAFT until Scot signs.
 
 ## Related: promoting PR-time findings
 `/audit-run` is the periodic source, but PR-time reviews catch issues too. To pull a reviewed
-**Critical/High** finding from a `/review-pr` / `/adversary-review` pass or the n8n PR bot into this
-same register, use the **`/promote-finding`** skill (`.claude/skills/promote-finding/`). It is the
+**Critical/High** finding from a `/review-pr` / `/adversary-review` pass or the Codex GitHub connector's
+PR review into this same register, use the **`/promote-finding`** skill (`.claude/skills/promote-finding/`). It is the
 manual, Claude-operated counterpart to this orchestrator (same deterministic-merge + only-Scot
 governance via `scripts/promote-finding.rb`), kept manual on purpose: a human is the
-false-positive triage gate and the n8n bot is never given write access to the register (which is
+false-positive triage gate and no automated reviewer is given write access to the register (which is
 PII-free, Tier 2 content -- a reviewer *seeing* it is fine; the concern is automated *writes*). See `audit-reports/README.md` ("Bridging PR-time
 review findings").
 
