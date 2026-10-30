@@ -19,8 +19,12 @@ implementer-specific conventions on top of it, it does not replace it.
   `allowed?`, the `UserLink` / `managing_organization_id` org links, and
   `where(organization_id: ...)` on org-owned tables such as organization_units, licenses and
   eval_protocols); follow the existing pattern in the model/concern rather than inventing a new one.
-  Scope `organization_id` only by an org that passed `allowed?` or came from the requesting
-  user's `Organization.attached_orgs`, never by an id taken from params alone.
+  Scope `organization_id` only by an org that passed `allowed?` with the permission the
+  action needs (for example `'edit'` before writing an org-owned row), never by an id taken
+  from params alone. `Organization.attached_orgs` also lists pending and plain-member links,
+  so it is not proof of edit rights; where existing code relies on it, it filters on
+  `type`, `pending` and `full_manager` (as `ApplicationController`'s masquerade check
+  does), and so should yours.
 - **AuditEvent pattern:**
   ```ruby
   AuditEvent.create!(event_type: '...', user_key: ..., data: { ...minimized fields only... })

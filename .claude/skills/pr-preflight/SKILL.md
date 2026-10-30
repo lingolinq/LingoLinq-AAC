@@ -39,12 +39,16 @@ and lists any uncovered path under "Not covered", never omits it.
 ## P3. Generated artifacts and git metadata (compliance or register PRs)
 
 These cover most of the CI job `audit-artifacts-integrity`. The wrapper does not run the
-minimized-disclosure guard or its test, and its legal-naming check uses a different base than
-CI, so also run `ruby scripts/minimized-disclosure-guard.rb --check --base-ref origin/develop`
-and `scripts/tests/minimized-disclosure-guard-test.sh`. Prefer the wrapper:
+minimized-disclosure guard or its test, and its legal-naming check compares against
+`origin/staging` while CI compares against the PR's base, so run the wrapper and then the
+base-pinned checks, with `<base>` the PR's base branch (`gh pr view <n> --json baseRefName`):
 
 ```
 scripts/regenerate-register.sh --check    # verify only; omit --check to regenerate
+base=$(git merge-base HEAD origin/<base>)
+ruby scripts/legal-naming-check.rb --base-ref "$base" --check
+ruby scripts/minimized-disclosure-guard.rb --check --base-ref "$base"
+scripts/tests/minimized-disclosure-guard-test.sh
 ```
 
 Or the individual checks:

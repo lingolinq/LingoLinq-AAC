@@ -24,6 +24,9 @@ include children and clinical patients; FERPA, HIPAA, GDPR and COPPA apply.
   `hotfix` from `main` only for urgent production fixes, merged back to `develop`. PRs
   target `develop`; `develop` promotes to `staging` from a freeze branch
   (`release/develop-into-staging-YYYY-MM-DD`), then a release PR goes `staging` to `main`.
+  Work in your own worktree: the isolated launcher (`codex-ll`) for new CLI tasks, a fresh
+  Worktree for Codex desktop tasks, and `git worktree add` only where neither exists. Never
+  `git checkout -b` or switch branches in a checkout another session shares.
 - **i18n and quotes.** No raw user-facing text. Templates use
   `{{t "text" key='key'}}`, JS uses `i18n.t('key', "text")`. User-facing strings take
   double quotes; every other string takes single quotes (the generator depends on it).

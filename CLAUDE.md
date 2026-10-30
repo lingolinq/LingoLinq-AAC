@@ -100,10 +100,13 @@ everything else in this file.
 ## Branching (mandatory before any code change)
 
 - **Never edit on `main`, `staging`, or `develop`.** Branch from `develop` for all
-  regular work, in your own worktree (the launcher, or
-  `git fetch origin develop && git worktree add --no-track -b <new-branch> <path> origin/develop`,
-  then `git push -u origin <new-branch>`). Never `git checkout -b` or switch
-  branches in a checkout another session shares.
+  regular work, in your own worktree. Start new tasks with the isolated launcher, which
+  takes the ownership lock; to continue a task in an existing worktree, stop its previous
+  writer and use the launcher's `--attach PATH`. Only where the launcher is not installed,
+  create the worktree by hand with
+  `git fetch origin develop && git worktree add --no-track -b <new-branch> <path> origin/develop`
+  and set the upstream on your first push (`git push -u origin <new-branch>`). Never
+  `git checkout -b` or switch branches in a checkout another session shares.
 - **Name:** a developer handle plus a `<type>` (`fix`, `feat`, `chore`, `docs`, `perf`,
   `refactor`, `test`, `compliance`, `security`). Scot's branches are always
   `<type>/scot-<kebab-slug>`, the launcher form; its 8-hex token is part of the name

@@ -209,11 +209,11 @@ never published here; it stays DRAFT until Scot signs.
 
 ## Related: promoting PR-time findings
 `/audit-run` is the periodic source, but PR-time reviews catch issues too. To pull a reviewed
-**Critical/High** finding from a `/review-pr` / `/adversary-review` pass or the n8n PR bot into this
-same register, use the **`/promote-finding`** skill (`.claude/skills/promote-finding/`). It is the
+**Critical/High** finding from a `/review-pr` / `/adversary-review` pass or the Codex GitHub connector's
+PR review into this same register, use the **`/promote-finding`** skill (`.claude/skills/promote-finding/`). It is the
 manual, Claude-operated counterpart to this orchestrator (same deterministic-merge + only-Scot
 governance via `scripts/promote-finding.rb`), kept manual on purpose: a human is the
-false-positive triage gate and the n8n bot is never given write access to the register (which is
+false-positive triage gate and no automated reviewer is given write access to the register (which is
 PII-free, Tier 2 content -- a reviewer *seeing* it is fine; the concern is automated *writes*). See `audit-reports/README.md` ("Bridging PR-time
 review findings").
 
