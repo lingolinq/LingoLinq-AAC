@@ -222,3 +222,16 @@ Mutations for these (each restored from a copy; all killed): report-only re-list
 red; own-stem pinning removed, 1; live-owner check removed, 1; stills left out of the chain guard,
 1; switch read with `.present?`, 1. Local run: the same eight spec files, 417 examples, 0
 failures, 2 pending (pending on develop).
+
+## Codex review: destroy racing the first transcode save (accepted Low, 2026-10-30)
+
+Codex P2 on `media_object.rb:203`. CONFIRMED mechanism: `schedule_transcoding` enqueues before
+the flags are saved (`media_object.rb:83-96`), and erasure loads every sound and video, then
+destroys them one by one (`flusher.rb:456-459`). A copy loaded before the first upload's save
+is destroyed with no transcode flags, so no tombstone is written, while the job, which bails
+only if the record is already gone (`transcoder.rb:72-74`), may still submit. The outputs are
+then orphaned. Reaching it needs a new recording uploaded during that user's own erasure;
+production has MediaConvert off today, so it cannot happen there yet. Codex's suggested fix
+(persist before enqueue) does not close it, since the stale copy predates both. The full fix
+(always tombstone ButtonSound/UserVideo destroys; the stem comes from the id and key, not
+settings) was proposed and not taken: Traci, 2026-10-30, very low likelihood, accepted.
