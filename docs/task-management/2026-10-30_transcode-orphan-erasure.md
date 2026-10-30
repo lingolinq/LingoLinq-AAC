@@ -127,8 +127,60 @@ and outputs already written still need the sweep.
   read of the bucket's lifecycle configuration); a ButtonSound may take another user's file URL
   with no owner check, which keeps that file "in use" past its owner's erasure.
 
-## Mutations that must turn the tests red
+## Adversary review of the proposal (2026-10-30) and what changed
 
-Drop the in-use check; loosen the regex to a prefix match; drop the `v\d+`; delete the row on the
-first successful sweep (ignore `SETTLE`); write the row in `after_destroy_commit` instead of
-`after_destroy`; let the new action fall into the thumbnail-family branch of `retry_remote_delete`.
+Verdict "implement with changes". Each finding checked by hand; all accepted:
+- **Medium, CONFIRMED.** An `after_destroy` runs after Uploadable's `after_destroy` has already
+  queued the url delete (Uploadable is included first, `button_sound.rb:4-5`), so a raise there
+  would roll back the destroy but not that job. Now a `before_destroy`, inside
+  `RemoteAction.transaction(requires_new: true)` with a rescue; unreadable settings still write the
+  recomputed stem.
+- **Medium, CONFIRMED.** Three existing examples go red: `media_object_spec.rb:274,342,356` use a
+  strict `instance_double` S3 client and `Worker.process_queues`, which runs every RemoteAction
+  regardless of `act_at`. Fixed in the shared `stub_real_s3_removal` helper (an empty
+  `list_objects_v2`), the only existing-spec edit. Approved by Traci 2026-10-30 ("show me after").
+- **Medium, CONFIRMED.** An empty or unrecognised listing looked like success, video names are
+  unverified, and the staging scheduler has no trigger (`lib/tasks/scheduler.rake:2-6`), so the
+  first real run would be production. Now: names under the stem that are neither an output nor the
+  original upload are counted (`unmatched`), logged at error and keep the row; and the sweep ships
+  report-only (Traci chose a dark launch, 2026-10-30): `Setting 'transcode_sweep_delete'` must be
+  `'true'` before anything is deleted. A Setting, not an ENV var, because every Cloud Run variable
+  is listed by hand in `deploy-cloudrun.yml` (`--set-env-vars` replaces the set).
+- **Medium, accepted.** Forward-only: outputs of records destroyed before this ships are not
+  covered. The backlog cleanup (a dry-run-first rake task with the same matcher) is the next PR
+  (Traci, 2026-10-30). LL-c4566fa37f must not be proposed closed on this PR alone; closure also
+  depends on the uploads bucket's noncurrent-version lifecycle (versioning is on,
+  `docs/INFRASTRUCTURE.md:171`).
+- **Low, CONFIRMED.** Per-class names (sounds mp3/wav; videos mp4 and 5- or 7-digit stills), the
+  re-transcode chain `v<ts>(_<global_id>-<hex>v<ts>)*`, and a stem-shape guard on write and sweep.
+  The chain names fail `remote_remove`'s generic guard, so a narrow anchored exception was added
+  (`Uploader.transcoded_output_chain_key?`, beside `transcoded_thumbnail_key?`).
+- **Low, CONFIRMED.** `list_remote_keys_with_prefix` logged the prefix; it takes a `log_label` now,
+  and the sweep logs the owner's global_id and counts, never a key (delete errors log the class).
+- **Low, CONFIRMED.** A blank bucket drops the row, as `remote_delete_ready?` does; a bucket without
+  credentials keeps it.
+- **Low.** Tests added for every failure branch (listing fails, a delete fails, credentials
+  missing, blank bucket, bad stem, untranscoded record, rotated key, purge report).
+The retry-dispatch trap from the #1239 review does not arise: the new action is not a
+`REMOTE_DELETE_RETRY_ACTIONS` entry and `record_remote_delete_retry` is never called for it.
+
+## Mutations (each restored from a copy; all killed)
+
+M1 in-use check removed, 1 red; M2 prefix match instead of the name grammar, 3; M3 any tail after
+the stem, 2; M4 settle window ignored, 1; M5 written in `after_destroy_commit`, 1; M6 no savepoint,
+1; M7 delete switch ignored, 6; M8 stored-key stems dropped, 1; M9 unexpected names ignored, 2;
+M10 guard exception removed, 1; M11 stem logged by the listing, 1; M12 blank bucket keeps the row, 1.
+
+Local run: `media_object_spec`, `remote_action_spec`, `uploader_spec`, `flusher_spec`,
+`button_sound_spec`, `user_video_spec`, `transcoder_spec`, `setting_spec`: 413 examples, 0
+failures, 2 pending (both pending on develop). Baseline before the change: the same files, 406
+examples, only the 16 new examples failing.
+
+## Going live (after the release reaches production)
+
+1. Read the report lines for a few days: `Uploader.remote_remove_transcode_family report-only
+   owner=... matched=N unmatched=M`. Any `unmatched` above 0 means a name this code does not know:
+   stop and look before enabling.
+2. Enable through the audited console: `Setting.set('transcode_sweep_delete', 'true')`. Kept rows
+   are swept on the next hourly batch. Rows not swept within 3 months are purged and reported
+   (`kept_remote_actions_purged`).
