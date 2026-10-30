@@ -19,27 +19,31 @@ module DemoDistrict
     LONG_BASE = -122.6765
 
     # The twenty demo communicators. Order matters: the index picks each student's device,
-    # heat map and classroom in db/seeds.rb.
+    # heat map and classroom in db/seeds.rb. Optional keys, so a demo can show that every
+    # student has different needs:
+    #   schedule:      :daily (default), :sporadic or :lunch_and_speech (see SCHEDULES)
+    #   heat:          a HEAT_MAP_PROFILES key, instead of the one the index picks
+    #   modeling_rate: share of button presses a partner models, instead of the skill default
     STUDENT_PROFILES = [
-      { name: 'Aiden Parker',      user_name: 'aiden_parker',      age: 6,  skill: :beginner,     freq: :low },
+      { name: 'Aiden Parker',      user_name: 'aiden_parker',      age: 6,  skill: :beginner,     freq: :low, schedule: :sporadic },
       { name: 'Bella Martinez',    user_name: 'bella_martinez',    age: 8,  skill: :intermediate, freq: :high },
       { name: 'Charlie Kim',       user_name: 'charlie_kim',       age: 5,  skill: :beginner,     freq: :medium },
       { name: 'Daisy Johnson',     user_name: 'daisy_johnson',     age: 7,  skill: :intermediate, freq: :medium },
       { name: 'Ethan Brown',       user_name: 'ethan_brown',       age: 9,  skill: :advanced,     freq: :high },
       { name: 'Fiona Davis',       user_name: 'fiona_davis',       age: 6,  skill: :beginner,     freq: :low },
       { name: 'Gabriel Wilson',    user_name: 'gabriel_wilson',    age: 10, skill: :advanced,     freq: :high },
-      { name: 'Hannah Lee',        user_name: 'hannah_lee',        age: 7,  skill: :intermediate, freq: :medium },
-      { name: 'Isaac Thompson',    user_name: 'isaac_thompson',    age: 5,  skill: :beginner,     freq: :low },
+      { name: 'Hannah Lee',        user_name: 'hannah_lee',        age: 7,  skill: :intermediate, freq: :medium, heat: :top_right_blocked },
+      { name: 'Isaac Thompson',    user_name: 'isaac_thompson',    age: 5,  skill: :beginner,     freq: :low, schedule: :lunch_and_speech, heat: :full_access },
       { name: 'Jasmine Nguyen',    user_name: 'jasmine_nguyen',    age: 8,  skill: :intermediate, freq: :high },
       { name: 'Kevin Anderson',    user_name: 'kevin_anderson',    age: 11, skill: :advanced,     freq: :medium },
       { name: 'Luna Garcia',       user_name: 'luna_garcia',       age: 6,  skill: :beginner,     freq: :medium },
-      { name: 'Mason Clark',       user_name: 'mason_clark',       age: 9,  skill: :intermediate, freq: :low },
+      { name: 'Mason Clark',       user_name: 'mason_clark',       age: 9,  skill: :intermediate, freq: :low, schedule: :sporadic },
       { name: 'Nora White',        user_name: 'nora_white',        age: 7,  skill: :intermediate, freq: :high },
       { name: 'Oliver Harris',     user_name: 'oliver_harris',     age: 8,  skill: :advanced,     freq: :high },
-      { name: 'Penelope Scott',    user_name: 'penelope_scott',    age: 5,  skill: :beginner,     freq: :low },
-      { name: 'Quinn Taylor',      user_name: 'quinn_taylor',      age: 10, skill: :advanced,     freq: :medium },
+      { name: 'Penelope Scott',    user_name: 'penelope_scott',    age: 5,  skill: :beginner,     freq: :low, modeling_rate: 0.4 },
+      { name: 'Quinn Taylor',      user_name: 'quinn_taylor',      age: 10, skill: :advanced,     freq: :medium, heat: :top_right_blocked },
       { name: 'Ruby Adams',        user_name: 'ruby_adams',        age: 6,  skill: :beginner,     freq: :medium },
-      { name: 'Sam Mitchell',      user_name: 'sam_mitchell',      age: 7,  skill: :intermediate, freq: :low },
+      { name: 'Sam Mitchell',      user_name: 'sam_mitchell',      age: 7,  skill: :intermediate, freq: :low, schedule: :sporadic },
       { name: 'Tessa Campbell',    user_name: 'tessa_campbell',    age: 9,  skill: :advanced,     freq: :high }
     ].freeze
 
@@ -71,8 +75,15 @@ module DemoDistrict
       left_bias:      { x_range: 0.02..0.55, y_range: 0.05..0.95 }, # Right-hand motor difficulty
       top_left_quad:  { x_range: 0.02..0.50, y_range: 0.02..0.50 }, # Limited reach
       bottom_right:   { x_range: 0.45..0.95, y_range: 0.45..0.95 }, # Physical positioning
-      center_cluster: { x_range: 0.25..0.75, y_range: 0.25..0.75 }  # Center access only
+      center_cluster: { x_range: 0.25..0.75, y_range: 0.25..0.75 }, # Center access only
+      # Visual impairment: cannot see or reach the top right of the board. percent_y is
+      # measured from the top, so that is x above 0.5 with y below 0.5.
+      top_right_blocked: { x_range: 0.05..0.95, y_range: 0.05..0.95, exclude: { x_above: 0.5, y_below: 0.5 } }
     }.freeze
+
+    # The profiles a student's index picks from when it names none. Fixed, so adding a
+    # profile above never moves an existing student to a different pattern.
+    INDEXED_HEAT_MAP_PROFILES = %i[full_access left_bias top_left_quad bottom_right center_cluster].freeze
 
     # Device/system profiles
     DEVICE_PROFILES = [
@@ -115,6 +126,18 @@ module DemoDistrict
     # Modeling rate varies by skill (beginners get more modeling)
     MODELING_RATES = { beginner: 0.20, intermediate: 0.10, advanced: 0.05 }.freeze
 
+    # When a student's sessions happen.
+    #   :daily            every school day (bar absences), sessions_per_day of them
+    #   :sporadic         the same, but on only about SPORADIC_DAY_RATE of school days
+    #   :lunch_and_speech one lunchtime session each school day (the only time classroom
+    #                     staff model with them) plus a weekly speech session with the SLP on
+    #                     Thursday afternoon, for a student who otherwise does not use the device
+    SCHEDULES = %i[daily sporadic lunch_and_speech].freeze
+    SPORADIC_DAY_RATE = 0.3
+    LUNCH_SLOT = { hour: 12, minute_span: 20, modeling_rate: 0.6 }.freeze
+    SPEECH_SLOT = { hour: 14, minute_span: 10, modeling_rate: 0.3 }.freeze
+    SPEECH_WDAY = 4 # Thursday
+
     # The seeded history grows from 1.0 to about 1.45 over its 90 days. Rolling days hold the
     # end of that curve so new activity reads as a continuation, not a step change.
     STEADY_GROWTH_FACTOR = 1.45
@@ -152,6 +175,16 @@ module DemoDistrict
       device
     end
 
+    # A supervisor's device, for the goal notes and daily activity they author. Idempotent.
+    def self.ensure_supervisor_device!(supervisor)
+      device = Device.find_or_initialize_by(user: supervisor, developer_key_id: 0)
+      device.device_key = "seed-supervisor-#{supervisor.id}" if device.device_key.blank?
+      device.settings ||= {}
+      device.settings['name'] ||= "#{supervisor.settings['name'].to_s.split.first || supervisor.user_name}'s Laptop"
+      device.save!
+      device
+    end
+
     attr_reader :student, :profile, :index, :author, :board, :device, :seed_marker, :errors
 
     # board is a {'id' => ..., 'key' => ...} reference. seed_marker, when set, is written to
@@ -168,16 +201,17 @@ module DemoDistrict
       @skill = profile[:skill]
       @vocab = CORE_VOCAB[@skill]
       @dev_profile = DEVICE_PROFILES[index % DEVICE_PROFILES.length]
-      heat_keys = HEAT_MAP_PROFILES.keys
-      @heat_profile_name = heat_keys[index % heat_keys.length]
-      @heat_profile = HEAT_MAP_PROFILES[@heat_profile_name]
+      @heat_profile_name = profile[:heat] || INDEXED_HEAT_MAP_PROFILES[index % INDEXED_HEAT_MAP_PROFILES.length]
+      @heat_profile = HEAT_MAP_PROFILES.fetch(@heat_profile_name)
       methods = ACCESS_METHODS[@skill]
       @access_method = methods[index % methods.length]
-      @modeling_rate = MODELING_RATES[@skill]
+      @modeling_rate = profile[:modeling_rate] || MODELING_RATES[@skill]
+      @schedule = profile[:schedule] || :daily
+      raise ArgumentError, "unknown schedule #{@schedule.inspect}" unless SCHEDULES.include?(@schedule)
     end
 
     def description
-      "#{@dev_profile[:name_suffix]}, #{@heat_profile_name}"
+      "#{@dev_profile[:name_suffix]}, #{@heat_profile_name}, #{@schedule}"
     end
 
     # Generates one school day of sessions and returns the LogSessions created.
@@ -187,15 +221,16 @@ module DemoDistrict
 
       # Add some day-to-day randomness
       day_variability = rand(0.5..1.5)
-      base_sessions_per_day = @vocab[:sessions_per_day][profile[:freq]]
-      sessions_today = [(base_sessions_per_day * day_variability * growth_factor).round, 1].max
+      slots = day_slots(date, day_variability, growth_factor)
 
       return [] if absent?(date)
 
       created = []
-      sessions_today.times do
-        session_start = self.class.time_zone.local(date.year, date.month, date.day, FIRST_HOUR + rand(HOUR_SPAN), rand(60), 0)
-        events = build_events(session_start.to_i, day_variability, growth_factor)
+      slots.each do |slot|
+        # A slot without an hour is anywhere in the school day (the :daily pattern).
+        hour = slot[:hour] || FIRST_HOUR + rand(HOUR_SPAN)
+        session_start = self.class.time_zone.local(date.year, date.month, date.day, hour, rand(slot[:minute_span] || 60), 0)
+        events = build_events(session_start.to_i, day_variability, growth_factor, slot[:modeling_rate] || @modeling_rate)
         begin
           created << create_session!(events)
         rescue => e
@@ -215,9 +250,44 @@ module DemoDistrict
       Random.new(Zlib.crc32("#{student.id}:#{date.iso8601}")).rand(10) == 0
     end
 
+    # Whether a :sporadic student uses the device on a school day. Keyed on student and date
+    # like absent?, so a rerun reaches the same answer.
+    def sporadic_day?(date)
+      Random.new(Zlib.crc32("#{student.id}:#{date.iso8601}:sporadic")).rand < SPORADIC_DAY_RATE
+    end
+
+    # The sessions a school day holds under the student's schedule. Each slot may set :hour,
+    # :minute_span and :modeling_rate; an empty slot uses the school-day defaults.
+    def day_slots(date, day_variability, growth_factor)
+      case @schedule
+      when :lunch_and_speech
+        date.wday == SPEECH_WDAY ? [LUNCH_SLOT, SPEECH_SLOT] : [LUNCH_SLOT]
+      when :sporadic
+        sporadic_day?(date) ? Array.new(sessions_on(day_variability, growth_factor)) { {} } : []
+      else
+        Array.new(sessions_on(day_variability, growth_factor)) { {} }
+      end
+    end
+
     private
 
-    def build_events(ts, day_variability, growth_factor)
+    def sessions_on(day_variability, growth_factor)
+      base_sessions_per_day = @vocab[:sessions_per_day][profile[:freq]]
+      [(base_sessions_per_day * day_variability * growth_factor).round, 1].max
+    end
+
+    def touch_position
+      x = rand(@heat_profile[:x_range])
+      y = rand(@heat_profile[:y_range])
+      exclude = @heat_profile[:exclude]
+      while exclude && x > exclude[:x_above] && y < exclude[:y_below]
+        x = rand(@heat_profile[:x_range])
+        y = rand(@heat_profile[:y_range])
+      end
+      [x, y]
+    end
+
+    def build_events(ts, day_variability, growth_factor, modeling_rate)
       events = []
       event_id = 1
 
@@ -230,13 +300,12 @@ module DemoDistrict
         current_utterance_words << word
 
         # Determine button position using heat map profile
-        pct_x = rand(@heat_profile[:x_range])
-        pct_y = rand(@heat_profile[:y_range])
+        pct_x, pct_y = touch_position
 
         # Depth: mostly home board (0), some sub-board navigation
         depth = (rand < 0.2 && @skill != :beginner) ? rand(1..2) : 0
 
-        is_modeled = rand < @modeling_rate
+        is_modeled = rand < modeling_rate
         pos = WORD_POS[word] || 'other'
         is_core = CORE_WORDS.include?(word)
 
