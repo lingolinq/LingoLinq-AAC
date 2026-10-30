@@ -261,7 +261,14 @@ task "scheduler:dispatch" => :environment do
     run_task.call("refresh_demo_district") do
       require_relative '../demo_district'
       res = DemoDistrict.refresh!
-      res[:skipped_org] ? "no flagged demo organization" : "#{res[:sessions_created]} sessions, #{res[:summaries_updated]} summaries, #{res[:goals_tracked]} goals, #{res[:profiles_refreshed]} profiles through #{res[:through]}; skipped #{res[:skipped_users].length} users"
+      if res[:skipped_org]
+        "no flagged demo organization"
+      elsif res[:skipped_busy]
+        # Another run (rake demo:refresh, create_district!) holds the lock and does the work.
+        "another demo run is in progress; skipped"
+      else
+        "#{res[:sessions_created]} sessions, #{res[:summaries_updated]} summaries, #{res[:goals_tracked]} goals, #{res[:profiles_refreshed]} profiles through #{res[:through]}; skipped #{res[:skipped_users].length} users"
+      end
     end
   end
 
