@@ -161,8 +161,9 @@ withdrawn after checking `uploadable.rb:72-75`). Adversary pass, each checked by
   own; not checked), the record is left for the daily retry.
 - **Low, CONFIRMED, fixed.** A non-numeric, negative or overflowing `durationInMs` raised
   (500) or was stored; now it is ignored (duration nil).
-- **Low, CONFIRMED, open pending approval.** The `:348` comment still says "the fix must invert
-  this example", and `output_files`' `detail={}` default exists only for that call.
+- **Low, CONFIRMED, fixed (approved 2026-10-30).** The `:348` comment still said "the fix must
+  invert this example"; it now says what the example pins. `output_files`' `detail={}` default
+  existed only for that call, so it is gone and the call passes `{}`. The assertion is unchanged.
 
 Mutations (each restored from a copy): name check removed, 3 red; `%` allowed, 2 red; GetJob
 status check removed, 2 red; `:retry` removed, 2 red; controller 503 removed, 1 red; duration

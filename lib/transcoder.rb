@@ -212,7 +212,7 @@ module Transcoder
   # and its name cannot leave that directory once it is a URL (no / \ % etc).
   OUTPUT_NAME = /\A[A-Za-z0-9._-]+\z/
 
-  def self.output_files(job, detail={})
+  def self.output_files(job, detail)
     destinations = job_destinations(job)
     groups = detail.is_a?(Hash) ? detail['outputGroupDetails'] : nil
     Array(groups).flat_map do |group|
