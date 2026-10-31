@@ -56,7 +56,7 @@ context, required work, and the source basis remain visible with the schedule.
 ### Monthly light /audit-run (diff-since-last-run scope, no full re-scan)
 
 - **Drafts:** Diff-scoped run: finders scan only what changed since the last run (orchestrator steps 0-5), reconcile + adversary-verify new/regressed findings, citation-check green. No quarterly report render unless something material surfaces.
-- **Watch:** Light run is steps 0-5 only (no full re-scan, no quarterly report). Catches regressions between heavy runs without burning plan-cap headroom. nextDue is advisory scheduling, not a compliance claim. 2026-09-17: before the October light run, complete the Q3 make-up pass Scot approved with the partial-coverage restamp (finders spawned so checklist skills and the read-only guard load, verified by a guard canary; bundle-audit; AWS account-level read).
+- **Watch:** Light run is steps 0-5 plus its run-log line (no full re-scan, no quarterly report). Catches regressions between heavy runs without burning plan-cap headroom. nextDue is advisory scheduling, not a compliance claim. 2026-09-17: before the October light run, complete the Q3 make-up pass Scot approved with the partial-coverage restamp (finders spawned so checklist skills and the read-only guard load, verified by a guard canary; bundle-audit; AWS account-level read).
 - **Basis:** plan 5.1, 9.1; .claude/skills/audit-run cadence section
 - **Linked findings:** (none recorded)
 
@@ -172,7 +172,7 @@ context, required work, and the source basis remain visible with the schedule.
 | **2026-04-22** | **passed enforceable** | Written data-retention policy with enforced deletion; written information security program; expanded PI (voiceprints,... | COPPA |
 | **2026-08-02** | **passed enforceable** | Disclose AI interaction to users; label synthetic/AI-generated content; deepfake identification. Applies to ANY in-sc... | EU AI Act |
 | 2026-12-02 | upcoming | The 2026-12-02 grace on the Article 50(2) machine-readable marking sub-obligation comes from the Digital Omnibus on A... | EU AI Act |
-| 2027-04-24 | upcoming | WCAG 2.1 AA for web content of large public entities (April-2026 IFR extended the date). Small entities: 2028-04. Lin... | WCAG |
+| 2027-04-26 | upcoming | WCAG 2.1 AA for web content of large public entities (April-2026 IFR extended the date). Small entities and special d... | WCAG |
 | 2027-12-02 | upcoming | High-risk obligations for Annex III systems (deferred from earlier by the Digital Omnibus). An AAC word predictor is ... | EU AI Act |
 | (conditional) | conditional | EAA enforceable since 2025-06. LingoLinq is likely inside the microenterprise exemption (<10 staff AND <EUR 2M turnov... | EAA |
 | (conditional) | conditional | docs/legal/SUBPROCESSORS.md §2 commits to 30 days advance notice before any subprocessor change that affects a tenant... | GDPR |

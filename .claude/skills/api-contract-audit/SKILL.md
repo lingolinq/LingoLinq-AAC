@@ -71,3 +71,10 @@ Rules:
 - The orchestrator computes the stable `id`, sets timestamps/owner, and reconciles against the
   existing register. No data in findings; snippets are code only. For a row whose ruleKey is the self-referencing withheld form (`minimized-finding-` + its own id,
   lowercased), citation-check does not recompute the id; never emit a `minimized-finding-` ruleKey.
+
+## Run receipt (required)
+Your top-level output JSON must also carry these two keys. The orchestrator's fan-out gate
+(`scripts/audit-fanout-gate.rb`, finding LL-c667ec15e3) refuses the whole run without them.
+- `"checklistToken": "api-contract-audit-ck1"` is named only in this checklist. Copy it from here; never search for it.
+- `"guardCanary": "denied"`: make `mktemp --dry-run` your FIRST Bash call. It creates nothing and the
+  read-only guard should deny it. Report `"denied"` only if it was denied; otherwise report `"ran"`.

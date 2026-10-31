@@ -30,7 +30,8 @@ live code at the register's `auditedSha`, the older prose was not.
 
 The register is fed by the `/audit-run` orchestrator skill (`.claude/skills/audit-run/`), not
 by hand. It stamps the audited commit SHA, fans out the read-only finder agents
-(`.claude/agents/{privacy,infra,api,dependency,accessibility,code-hygiene}-auditor.md`), reconciles their output into this
+(`.claude/agents/{privacy,infra,api,dependency,accessibility,code-hygiene}-auditor.md`), stops
+before merging unless `scripts/audit-fanout-gate.rb` passes for each one, reconciles their output into this
 register via `scripts/audit-merge.rb`, runs the `adversary` agent as an independent verifier,
 and validates every citation with `scripts/citation-check.rb`. Governance is enforced
 mechanically: `audit-merge.rb` only ever ADDS findings or marks them `open`; it never closes,
