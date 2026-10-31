@@ -5422,9 +5422,9 @@ describe User, :type => :model do
     end
 
     it 'defaults disclosures_version: to LingoLinq::AiConsentDisclosures::CURRENT_VERSION when the kwarg is omitted (VPC Phase 2)' do
-      expect(LingoLinq::AiConsentDisclosures::CURRENT_VERSION).to eq(1)
+      expect(LingoLinq::AiConsentDisclosures::CURRENT_VERSION).to eq(2)
       u = User.create
-      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.grant_ai_consent!(disclosures_version: 2, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
       u.reload
       expect(u.ai_consent_granted?).to eq(true)
     end

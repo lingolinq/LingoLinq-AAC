@@ -36,7 +36,7 @@ class User < ApplicationRecord
     managing_organization_id.nil? && expires_at && expires_at > Time.now
   end
 
-  before_save :generate_defaults
+  before_save :generate_defaults, :force_blocked_ai_prefs_off
   after_save :track_boards
   after_save :notify_of_changes
 #  replicated_model
@@ -420,6 +420,17 @@ class User < ApplicationRecord
       coppa_parental_consent_declined?
   end
 
+  # A school handed this account back to the family (#1063). begin_family_offboarding_consents!
+  # writes school_authorization_ended only for an attested or assumed under-13, so the school's
+  # authorization is gone and nothing has replaced it until a parent consents. It never blocks
+  # access; FeatureFlags.coppa_blocks_ai_for? and CoppaSentryScrub.child_user? read it. The EU AI
+  # consent counts, because it is the only consent an EU family can give for this account.
+  def school_handoff_blocks_ai?
+    ended = self.settings && self.settings['school_authorization_ended']
+    return false unless ended.is_a?(Hash) && ended.present?
+    !coppa_parental_consent_active? && !eu_ai_parental_consent_active?
+  end
+
   # Compliance Kernel profile for this user (nil when flag OFF).
   def compliance_profile(request: nil)
     return nil unless FeatureFlags.compliance_workflow_kernel_enabled?
@@ -528,6 +539,8 @@ class User < ApplicationRecord
   # Under-13 needs family COPPA when leaving an org. Prefer manager-attested
   # birth month/year from the remove dialog; also repair pending/revoked COPPA.
   # School-authorization alone is NOT enough (org New User has no age).
+  # No longer called by begin_family_offboarding_consents!, which since #1063
+  # never writes settings['coppa'].
   def requires_coppa_offboarding?(attested_under_13: nil)
     return false unless JsonApi::Json.coppa_parental_consent_enabled?
     return false if coppa_parental_consent_active?
@@ -546,34 +559,45 @@ class User < ApplicationRecord
     parent
   end
 
-  # Org seat reclaim → family account. Uses manager-attested birth month/year
-  # from the remove dialog + releasing org jurisdiction (US/EU):
-  # under-13 → COPPA pending (optional parent email);
-  # under-16 → AI prefs off; EU org also sets eu_under_16 for parental re-consent
+  # How long after a hand-back the legacy "sponsorship removed" mail for the same organization is
+  # skipped (UserMailer#organization_unassigned): the school_handoff_notice already told the family.
+  SCHOOL_HANDOFF_NOTICE_SUPERSEDES = 7.days
+
+  # Org seat reclaim → family account (#1063). Uses manager-attested birth month/year from the
+  # remove dialog + releasing org jurisdiction (US/EU):
+  # under-13 with school_authorization on file → the school authorization ends and the account
+  # is sent an informational notice (RemoteAction notify_school_handoff). Nothing gates access:
+  # settings['coppa'] is never written here, so a signup or revoked consent record stays as it was.
+  # under-16 (and under-13) → AI prefs off; EU org also sets eu_under_16 for parental re-consent
   # when they re-enable AI in preferences.
   # force_under_13: automated license expiry (no manager attestation) when
-  # school_authorization is still on file.
-  # skip_if_supported_elsewhere: re-check, under this method's user lock, that no other
-  # organization still supports the student (License.active_seat_elsewhere?). The callers check
-  # before calling, but a claim can seat the student between that check and this lock;
-  # Organization#claim_user takes the same user lock to seat them, so the answer here is
-  # current. When another organization does support them, only the age attestation is recorded
-  # and nothing else changes; the method returns false.
-  def begin_family_offboarding_consents!(org: nil, parent_email: nil, actor: nil, birth_month: nil, birth_year: nil, force_under_13: false, skip_if_supported_elsewhere: false)
+  # school_authorization is still on file; recorded as age_basis 'unknown_assumed_under_13'.
+  # skip_if_supported_elsewhere: re-check, under this method's user lock, that no organization
+  # still sponsors the student (License.sponsored_elsewhere?, with departing_had_link passed
+  # through). The callers check before calling, and this re-check sees any claim that finished
+  # before the lock. It does not close the window while a claim is in flight:
+  # Organization#claim_user writes the seat under the same user lock but the link after it, and
+  # a seat without its link does not count (accepted, #1063 Q2). When an organization does
+  # sponsor them, only the age attestation is recorded and nothing else changes; the method
+  # returns false.
+  def begin_family_offboarding_consents!(org: nil, actor: nil, birth_month: nil, birth_year: nil, force_under_13: false, skip_if_supported_elsewhere: false, departing_had_link: false)
     attested_under_13 = self.class.age_under_threshold?(
       birth_month: birth_month, birth_year: birth_year, age: 13
     )
-    attested_under_13 = true if force_under_13 && attested_under_13.nil?
+    age_basis = attested_under_13.nil? ? nil : 'attested'
+    if force_under_13 && attested_under_13.nil?
+      attested_under_13 = true
+      age_basis = 'unknown_assumed_under_13'
+    end
     attested_under_16 = self.class.age_under_threshold?(
       birth_month: birth_month, birth_year: birth_year, age: 16
     )
     org_jurisdiction = org.respond_to?(:jurisdiction) ? org.jurisdiction : nil
-    did_coppa = false
+    did_handoff = false
     did_ai = false
-    send_coppa_email = false
     self.with_lock(requires_new: true) do
       self.settings ||= {}
-      if skip_if_supported_elsewhere && License.active_seat_elsewhere?(self, org)
+      if skip_if_supported_elsewhere && License.sponsored_elsewhere?(self, org, departing_had_link: departing_had_link)
         if birth_month.present? && birth_year.present?
           stamp_offboarding_age_attestation(birth_month, birth_year, org_jurisdiction)
           self.save!
@@ -598,68 +622,70 @@ class User < ApplicationRecord
             )
           end
         end
-      end
-
-      if requires_coppa_offboarding?(attested_under_13: attested_under_13)
-        school = self.settings['school_authorization']
-        if school.is_a?(Hash) && school.present?
-          ended = school.dup
-          ended['ended_at'] = Time.now.utc.iso8601
-          ended['ended_org_id'] = org && org.global_id
-          self.settings['school_authorization_ended'] = ended
-          self.settings.delete('school_authorization')
-        end
-        parent = parent_email.to_s.strip
-        started_at = Time.now.utc.iso8601
-        deadline_at = 14.days.from_now.utc.iso8601
-        blob = {
-          'pending_parent_consent' => true,
-          'offboarding' => true,
-          'offboarding_started_at' => started_at,
-          'offboarding_deadline_at' => deadline_at
-        }
-        if parent.present?
-          parent = self.class.validate_parent_consent_email!(
-            parent,
-            child_email: (self.settings['email'] || '')
-          )
-          blob['parent_email'] = process_string(parent)
-          blob['parent_consent_token'] = GoSecure.nonce('parent_consent')
-          blob['parent_consent_expires_at'] = deadline_at
-          blob['needs_parent_email'] = false
-          send_coppa_email = true
+      elsif age_basis == 'unknown_assumed_under_13'
+        # An assumed under-13 is also under 16: set eu_under_16 the way the branch above does for a
+        # known age, so turning AI back on goes through EU parental consent (#1063 finding 4).
+        # Nothing else in registration is written for an age that was never attested.
+        eu = if org && org.respond_to?(:eu_jurisdiction?) && org.eu_jurisdiction?
+          true
+        elsif org && org.respond_to?(:us_jurisdiction?) && org.us_jurisdiction?
+          false
         else
-          blob['needs_parent_email'] = true
+          country = registration_country
+          !!(country && LingoLinq::Jurisdiction.eu?(country))
         end
-        self.settings['coppa'] = blob
-        did_coppa = true
+        if eu
+          self.settings['registration'] ||= {}
+          self.settings['registration']['eu_under_16'] = true
+        end
       end
 
-      # Under-16: turn AI prefs off now. No parent email at remove — for EU
-      # orgs, parental consent runs when they try to turn AI back on.
-      if attested_under_16 || eu_under_16?
+      # The transition fires only while school_authorization is on file and removes it in the same
+      # locked write, so a repeat finds nothing to end and sends no second notice.
+      school = self.settings['school_authorization']
+      if attested_under_13 && school.is_a?(Hash) && school.present? &&
+         JsonApi::Json.coppa_parental_consent_enabled? && !coppa_parental_consent_active?
+        now = Time.now.utc.iso8601
+        ended = school.dup
+        ended['ended_at'] = now
+        ended['ended_org_id'] = org && org.global_id
+        ended['age_basis'] = age_basis
+        ended['handoff_notice_at'] = now if org
+        self.settings['school_authorization_ended'] = ended
+        self.settings.delete('school_authorization')
+        did_handoff = true
+      end
+
+      # Under-16, and an under-13 whose age is only assumed: turn AI prefs off now. An EU under-16 needs
+      # parental consent to turn them back on; a handed-back child stays off until a parent consents.
+      if attested_under_16 || attested_under_13 || eu_under_16?
         apply_eu_ai_offboarding_reset!
         did_ai = true
       end
 
-      if did_coppa || did_ai || (birth_month.present? && birth_year.present?)
+      if did_handoff || did_ai || (birth_month.present? && birth_year.present?)
         self.save!
-        if did_coppa
+        if did_handoff
           record_id = SecureRandom.uuid
           AuditEvent.create!(
             user_key: self.global_id,
             data: {
-              'type' => 'parental_consent_offboarding_started',
+              'type' => 'school_authorization_handoff',
               'organization_id' => org && org.global_id,
               'actor_id' => actor && (actor.respond_to?(:global_id) ? actor.global_id : actor),
-              'parent_email_provided' => send_coppa_email,
-              'attested_under_13' => !!attested_under_13,
+              'age_basis' => age_basis,
               'org_jurisdiction' => org_jurisdiction,
               'record_id' => record_id
             },
-            event_type: 'parental_consent_offboarding_started',
+            event_type: 'school_authorization_handoff',
             record_id: record_id
           )
+          # Written in the same lock as the transition, so the notice is recorded exactly when the
+          # hand-back is. The hourly scheduler:dispatch turns it into one mail job
+          # (RemoteAction#process_action); delivery is not retried.
+          if org
+            RemoteAction.create!(path: "#{self.global_id}::#{org.global_id}", act_at: Time.now, action: 'notify_school_handoff')
+          end
         end
         if did_ai
           record_id = SecureRandom.uuid
@@ -679,13 +705,16 @@ class User < ApplicationRecord
         end
       end
     end
-    if did_coppa
-      devices.each(&:invalidate_cached_keys)
-      if send_coppa_email
-        UserMailer.schedule_parent_consent_delivery(:parental_consent_request, self.global_id)
-      end
-    end
-    did_coppa || did_ai
+    did_handoff || did_ai
+  end
+
+  # Was the school_handoff_notice for this organization queued recently enough that the legacy
+  # organization_unassigned mail for the same removal would repeat it?
+  def recent_school_handoff_notice_for?(org)
+    ended = self.settings && self.settings['school_authorization_ended']
+    return false unless org && ended.is_a?(Hash) && ended['ended_org_id'] == org.global_id
+    at = Time.iso8601(ended['handoff_notice_at'].to_s) rescue nil
+    !!(at && at > SCHOOL_HANDOFF_NOTICE_SUPERSEDES.ago)
   end
 
   # Record a manager's birth month/year attestation WITHOUT starting offboarding. Used by
@@ -695,6 +724,10 @@ class User < ApplicationRecord
   # birth date on file as under 13. Writes nothing else (no COPPA, no AI reset, no under_16).
   def record_offboarding_age_attestation!(birth_month: nil, birth_year: nil, org: nil)
     return false unless birth_month.present? && birth_year.present?
+    # A non-sponsoring removal reaches here without Organization#remove_user's date check. A date
+    # age_under_threshold? cannot classify would otherwise count as an age on file for
+    # License.expire_stale_licenses! and stop the assumed-under-13 hand-back.
+    return false if self.class.age_under_threshold?(birth_month: birth_month, birth_year: birth_year, age: 13).nil?
     org_jurisdiction = org.respond_to?(:jurisdiction) ? org.jurisdiction : nil
     self.with_lock(requires_new: true) do
       self.settings ||= {}
@@ -705,6 +738,10 @@ class User < ApplicationRecord
   end
 
   def stamp_offboarding_age_attestation(birth_month, birth_year, org_jurisdiction)
+    # Every caller reaches here, including begin_family_offboarding_consents! with parental consent
+    # off, when Organization#remove_user does not check the date. A date age_under_threshold?
+    # cannot classify would otherwise count as an age on file for License.expire_stale_licenses!.
+    return if self.class.age_under_threshold?(birth_month: birth_month, birth_year: birth_year, age: 13).nil?
     self.settings['registration'] ||= {}
     self.settings['registration']['offboarding_birth_month'] = birth_month.to_i
     self.settings['registration']['offboarding_birth_year'] = birth_year.to_i
@@ -760,9 +797,9 @@ class User < ApplicationRecord
     true
   end
 
-  # True when an offboarded minor's pending COPPA window has ended (token /
-  # deadline expiry) or the guardian explicitly declined — ready for
-  # export-then-delete. Already-scheduled rows are skipped. An in-flight
+  # True when the guardian declined a legacy offboarding consent request (blobs
+  # written before #1063) — ready for export-then-delete. Already-scheduled rows
+  # are skipped. An in-flight
   # claim (offboarding_export_started_at) also blocks until it goes stale so
   # concurrent callers cannot each run Exporter.export_user.
   OFFBOARDING_EXPORT_CLAIM_STALE = 6.hours
@@ -785,13 +822,9 @@ class User < ApplicationRecord
         # Bad stamp should not permanently block; fall through to due checks.
       end
     end
-    return true if c['parent_consent_declined_at'].present?
-    return false unless c['pending_parent_consent']
-    deadline = c['parent_consent_expires_at'].presence || c['offboarding_deadline_at']
-    return false if deadline.blank?
-    Time.iso8601(deadline) < Time.now.utc
-  rescue ArgumentError
-    false
+    # Only a parent's decline makes an offboarding account due (#1063 D1, D6). A pending request
+    # past its deadline no longer does: consent expiry never deletes an account.
+    c['parent_consent_declined_at'].present?
   end
 
   # Parent declines the pending consent link (same token as grant). Offboarding
@@ -1514,6 +1547,21 @@ class User < ApplicationRecord
   # Org offboarding: force AI prefs off and invalidate any EU AI parental
   # consent so family re-enable requires a new parent grant. Caller is
   # responsible for save! / audit when used inside begin_family_offboarding.
+  # The EU under-16 and school hand-back AI rules (#1063) on every save, not only through
+  # process_params, which applies them first and logs them: a save that writes preferences another
+  # way (Subscription#transfer_eval_to through save_with_sync) must not store AI on while the block
+  # holds. Only values that read as on are turned off; an unset key stays unset, since an explicit
+  # off also stops voice transcription (User.ai_features_opted_out?).
+  def force_blocked_ai_prefs_off
+    prefs = self.settings && self.settings['preferences']
+    return true unless prefs.is_a?(Hash)
+    return true unless (eu_under_16? && !eu_ai_parental_consent_active?) || school_handoff_blocks_ai?
+    EU_AI_PREF_KEYS.each do |k|
+      prefs[k] = false if FeatureFlags::AI_PREF_TRUE_VALUES.include?(prefs[k])
+    end
+    true
+  end
+
   def apply_eu_ai_offboarding_reset!
     self.settings ||= {}
     self.settings['preferences'] ||= {}
@@ -2992,7 +3040,16 @@ class User < ApplicationRecord
       EU_AI_PREF_KEYS.each { |k| self.settings['preferences'][k] = false }
       product_improvement_keys.each { |k| self.settings['preferences'][k] = false }
     end
-    if eu_under_16? && !eu_ai_parental_consent_active?
+    eu_ai_forced = eu_under_16? && !eu_ai_parental_consent_active?
+    if eu_ai_forced
+      EU_AI_PREF_KEYS.each { |k| self.settings['preferences'][k] = false }
+    end
+    # A child a school handed back (#1063) gets the same treatment until a parent consents: the
+    # server gate (FeatureFlags.coppa_blocks_ai_for?) is read for the signed-in person, so a
+    # stored "on" would still reach AI when a supervisor speaks as the child. The preferences
+    # page shows why the switch stays off (json 'school_handoff_ai_blocked').
+    handoff_ai_forced = !eu_ai_forced && school_handoff_blocks_ai?
+    if handoff_ai_forced
       EU_AI_PREF_KEYS.each { |k| self.settings['preferences'][k] = false }
     end
     if eu_under_16?
@@ -3002,7 +3059,8 @@ class User < ApplicationRecord
     # when, and the old and new value. Compared after normalization and the EU
     # override above, so a save that omits the keys, repeats a value, or sends a
     # dropped blank records nothing. A value the EU rule set, rather than the
-    # one this save asked for, is marked 'source' => 'eu_forced'.
+    # one this save asked for, is marked 'source' => 'eu_forced' ('handoff_forced'
+    # for the hand-back rule).
     EU_AI_PREF_KEYS.each do |key|
       before = ai_prefs_before[key]
       after = self.settings['preferences'][key]
@@ -3012,7 +3070,7 @@ class User < ApplicationRecord
       # request with no signed-in user (a sign-up) to a fixed system actor.
       whodunnit = PaperTrail.request.whodunnit
       updater_id = if non_user_params['updater'] then non_user_params['updater'].global_id
-                   elsif forced then 'system:eu_rule'
+                   elsif forced then (handoff_ai_forced ? 'system:handoff_rule' : 'system:eu_rule')
                    elsif whodunnit.to_s.start_with?('unauthenticated') then 'system:unauthenticated'
                    else whodunnit end
       entry = {
@@ -3022,7 +3080,7 @@ class User < ApplicationRecord
         'to' => after,
         'timestamp' => Time.now.utc.iso8601
       }
-      entry['source'] = 'eu_forced' if forced
+      entry['source'] = (handoff_ai_forced ? 'handoff_forced' : 'eu_forced') if forced
       entry['operator'] = non_user_params['operator'].global_id if non_user_params['operator']
       self.settings['confirmation_log'] ||= []
       self.settings['confirmation_log'] << entry

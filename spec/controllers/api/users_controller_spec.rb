@@ -2151,7 +2151,7 @@ describe Api::UsersController, :type => :controller do
         'authorized_at' => Time.now.utc.iso8601
       }
       u.save!
-      u.begin_family_offboarding_consents!(org: nil, birth_month: Time.now.utc.month, birth_year: Time.now.utc.year - 10)
+      seed_legacy_offboarding_consent!(u)
       expect(u.reload.coppa_needs_parent_email?).to eq(true)
       post :resend_parental_consent, params: {
         :client_id => 'browser',
@@ -2186,7 +2186,7 @@ describe Api::UsersController, :type => :controller do
         'authorized_at' => Time.now.utc.iso8601
       }
       u.save!
-      u.begin_family_offboarding_consents!(org: nil, birth_month: Time.now.utc.month, birth_year: Time.now.utc.year - 10)
+      seed_legacy_offboarding_consent!(u)
       expect(u.reload.coppa_needs_parent_email?).to eq(true)
       expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:parental_consent_request, u.global_id).once
       post :submit_parental_consent_email, params: {
@@ -2220,7 +2220,7 @@ describe Api::UsersController, :type => :controller do
         'authorized_at' => Time.now.utc.iso8601
       }
       u.save!
-      u.begin_family_offboarding_consents!(org: nil, birth_month: Time.now.utc.month, birth_year: Time.now.utc.year - 10)
+      seed_legacy_offboarding_consent!(u)
       post :submit_parental_consent_email, params: {
         :client_id => 'browser',
         :client_secret => token,

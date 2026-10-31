@@ -94,6 +94,33 @@ describe AiConsent::DisclosuresController, :type => :controller do
     end
   end
 
+  describe "GET show for version 2 (#1063 hand-back wording)" do
+    let(:old_sentence) { 'continued family use follows the applicable parent or guardian authorization process' }
+
+    it "serves the current version with the hand-back sentence" do
+      get :show, params: {version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION.to_s}
+      expect(response.status).to eq(200)
+      body = CGI.unescapeHTML(response.body)
+      expect(body).to include('data-disclosure-version="2"')
+      expect(body).to include(LingoLinq::AiConsentDisclosures.content_hash(2))
+      expect(body).to include(I18n.t('ai_consent_disclosures.v2.no_consent_body'))
+      # Scoped to the accounts the hand-back applies to (User#begin_family_offboarding_consents!
+      # ends school_authorization only for an under-13), and the notice only goes to an email on file.
+      expect(body).to include("If that authorization stood in for a parent's consent, the account passes to the parent or guardian, with a notice sent to the account's email address if it has one, and AI features stay off until a parent or guardian gives consent.")
+      expect(body).not_to include('AI features then stay off')
+      expect(body).not_to include(old_sentence)
+      expect(body).not_to include('translation missing')
+    end
+
+    it "still serves version 1 with its original text" do
+      get :show, params: {version: '1'}
+      expect(response.status).to eq(200)
+      body = CGI.unescapeHTML(response.body)
+      expect(body).to include('data-disclosure-version="1"')
+      expect(body).to include(old_sentence)
+    end
+  end
+
   describe "GET show for art50_vN (EU AI Act Article 50(1) disclosure, VPC Phase 3)" do
     it "renders 200 with the Article 50 root div and the matching content hash" do
       get :show, params: {version: 'art50_v1'}
