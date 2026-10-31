@@ -287,3 +287,22 @@ Traci asked for it in this PR.
 - Or the choice moves to the button rather than the shared image.
 - The tests must run the real `save_record` (stub the request with `persistence.ajax` or `queryLog`, not `save_record`), so the dedupe is exercised.
 - Offline picks, where permissions are unknown, stay out of scope.
+
+### Decision and handoff (2026-10-30, Traci: "follow best practice")
+Copy-on-write: a user's choice never changes a record they cannot edit; they get their own record.
+The work goes on this branch in a fresh session (rule 13 stop in this one).
+
+**For the next session (fix-proposal discipline; facts below are CONFIRMED in this log):**
+1. **Red test first.** In `tests/utils/picture_grabber-test.js`, do NOT stub `contentGrabbers.save_record`; stub the request instead (`queryLog.defineFixture` POST image, as the license tests near line 470 do).
+   - Case: a loaded record with the same URL and `permissions: {edit: false}`, no `preserve_source_image`.
+   - Expect a POST for a new image with `preserve_source_image: true`, no PUT of the shared record, and the resolved record being the new one.
+   - Owner case: PUT in place, unchanged.
+2. **The fix:**
+   - `save_record`'s same-URL dedupe (`services/content-grabbers.js:161-177`) must not collapse a new record into a saved one the user cannot edit (`permissions.edit === false`).
+   - `save_image_preview` must skip the PUT for a known non-editable match and create the own record. The reverted diff is a starting point for this part only.
+   - The "server refused" check must decide from the response's `permissions.edit`, never from `preserve_source_image` (the server omits it when false, `lib/json_api/image.rb:45`).
+3. **Check before claiming it works:**
+   - the parallel same-URL saves the dedupe exists for (the comment at `:128-130`) still share one record when the user can edit it;
+   - one copy per URL per session (later picks prefer the editable copy).
+4. **Out of scope:** offline picks with unknown permissions (the server ignores the change, as now).
+5. **Then:** mutation-test each piece, run the picture-grabber and create-board-new modules and the full Ember suite (Node 22, `app/frontend/CLAUDE.md` run-shape rules), have it adversarially reviewed, and push.
