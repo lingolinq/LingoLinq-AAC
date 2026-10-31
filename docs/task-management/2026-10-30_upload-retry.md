@@ -355,3 +355,6 @@ The work goes on this branch in a fresh session (rule 13 stop in this one).
     same defined order, had 8366 examples, 0 failures. No other checkout's test log changed in that window.
     Cause not found and not reproduced; its error output was not kept (filtered to the summary). Recorded
     as unexplained; CI is the next independent run.
+  - four more full runs at `b7d677a29` (Traci asked), sequential, complete output kept: 8366 examples,
+    0 failures each (22:23, 22:27, 22:31, 22:35). Totals after the setup step: 1 failing run of 6. The
+    failing run's cause is still unknown.
