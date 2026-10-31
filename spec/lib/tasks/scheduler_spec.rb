@@ -18,6 +18,8 @@ describe 'scheduler:dispatch rake task' do
     allow(LogSession).to receive(:check_possible_mergers).and_return(0)
     allow(Uploader).to receive(:remote_remove_batch)
     allow(UserGoal).to receive(:advance_goals).and_return(goal_count_double)
+    allow(ButtonImage).to receive(:schedule_for)
+    allow(ButtonSound).to receive(:schedule_for)
   end
 
   def stub_daily_collaborators
@@ -101,6 +103,12 @@ describe 'scheduler:dispatch rake task' do
       expect { Rake::Task['scheduler:dispatch'].invoke }.to raise_error(SystemExit)
     end
 
+    it 'enqueues the failed-upload retry sweep at 6 AM too' do
+      expect(ButtonImage).to receive(:schedule_for).with(:slow, :retry_failed_uploads)
+      expect(ButtonSound).to receive(:schedule_for).with(:slow, :retry_failed_uploads)
+      Rake::Task['scheduler:dispatch'].invoke
+    end
+
     it 'exits zero when every task succeeds' do
       expect { Rake::Task['scheduler:dispatch'].invoke }.not_to raise_error
     end
@@ -119,6 +127,15 @@ describe 'scheduler:dispatch rake task' do
 
     it 'does not invoke DemoDistrict.refresh!' do
       expect(DemoDistrict).not_to receive(:refresh!)
+      Rake::Task['scheduler:dispatch'].invoke
+    end
+
+    # The sweep loads embedded pictures, so it runs on a worker, never inside this Job.
+    it 'enqueues the failed-upload retry sweep without running it' do
+      expect(ButtonImage).to receive(:schedule_for).with(:slow, :retry_failed_uploads)
+      expect(ButtonSound).to receive(:schedule_for).with(:slow, :retry_failed_uploads)
+      expect(ButtonImage).not_to receive(:retry_failed_uploads)
+      expect(ButtonSound).not_to receive(:retry_failed_uploads)
       Rake::Task['scheduler:dispatch'].invoke
     end
   end

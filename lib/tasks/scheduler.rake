@@ -272,6 +272,14 @@ task "scheduler:dispatch" => :environment do
     end
   end
 
+  # Hourly, after the daily block. Only enqueues: the sweep loads embedded pictures one at a
+  # time, which belongs on a worker, not in this 512Mi Job (Uploadable.retry_failed_uploads).
+  run_task.call("retry_failed_uploads") do
+    ButtonImage.schedule_for(:slow, :retry_failed_uploads)
+    ButtonSound.schedule_for(:slow, :retry_failed_uploads)
+    "enqueued for images and sounds"
+  end
+
   if failed.any?
     msg = "#{failed.size} scheduled task(s) FAILED: #{failed.join(', ')}"
     puts "[#{Time.now.utc.iso8601}] === Scheduler Dispatch FAILED: #{msg} ==="

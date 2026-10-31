@@ -1178,4 +1178,190 @@ describe Uploadable, :type => :model do
       bi.assert_raster
     end
   end
+
+  # A failed server-side S3 post used to leave an SVG rescheduling itself on every save and a
+  # PNG embedded with nothing retrying it (lingolinq_mobile#3). These fake S3 as configured
+  # and make the post fail.
+  describe "failed upload retries" do
+    let(:svg) { 'data:image/svg+xml,' + CGI.escape('<svg xmlns="http://www.w3.org/2000/svg"><circle cx="5" cy="5" r="4"/></svg>') }
+    let(:big_svg) { 'data:image/svg+xml,' + CGI.escape('<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0' + (' L1 1' * 120_000) + '"/></svg>') }
+    let(:png) { "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==" }
+    let(:mp3) { "data:audio/mpeg;base64,#{Base64.strict_encode64('ID3fake')}" }
+    before(:each) do
+      allow(Uploader).to receive(:client_uploads_configured?).and_return(true)
+      allow(Uploader).to receive(:remote_upload_params).and_call_original
+    end
+
+    def upload_jobs(record)
+      ['slow', 'default', 'priority'].flat_map { |q| Resque.peek(q, 0, 1000).to_a }.select do |job|
+        args = job['args'] || []
+        args[0] == record.class.to_s && args[2].is_a?(Hash) && args[2]['id'] == record.id && args[2]['method'] == 'upload_to_remote'
+      end
+    end
+
+    def fail_post
+      allow(Typhoeus).to receive(:post).and_return(OpenStruct.new(success?: false))
+    end
+
+    def failed_image(source, settings = {'content_type' => 'image/png'})
+      bi = ButtonImage.create(user: u, settings: settings)
+      fail_post
+      bi.upload_to_remote(source)
+      Worker.flush_queues
+      bi.reload
+    end
+
+    def age(record, hours)
+      record.settings['upload_failed_at'] = hours.hours.ago.to_i
+      record.save
+      Worker.flush_queues
+      record.reload
+    end
+
+    it "does not reschedule a failed SVG upload when the record is saved" do
+      bi = ButtonImage.create(user: u, settings: {'content_type' => 'image/svg+xml', 'data_uri' => svg})
+      Worker.flush_queues
+      fail_post
+      bi.upload_to_remote(Uploadable::UPLOAD_FROM_STORED_DATA_URI)
+      expect(upload_jobs(bi)).to eq([])
+      bi.reload.save
+      expect(upload_jobs(bi)).to eq([])
+    end
+
+    it "queues no second upload of an SVG while the first one runs" do
+      bi = ButtonImage.create(user: u, settings: {'content_type' => 'image/svg+xml', 'data_uri' => svg})
+      Worker.flush_queues
+      allow(Typhoeus).to receive(:post).and_return(OpenStruct.new(success?: true))
+      bi.upload_to_remote(Uploadable::UPLOAD_FROM_STORED_DATA_URI)
+      expect(bi.reload.url).to be_present
+      expect(upload_jobs(bi)).to eq([])
+    end
+
+    it "lets later saves schedule again after an upload raised" do
+      bi = ButtonImage.create(user: u, settings: {'content_type' => 'image/svg+xml', 'data_uri' => svg})
+      Worker.flush_queues
+      allow(bi).to receive(:resolve_upload_source).and_raise(RuntimeError, 'boom')
+      expect { bi.upload_to_remote(Uploadable::UPLOAD_FROM_STORED_DATA_URI) }.to raise_error(RuntimeError, 'boom')
+      bi.save
+      expect(upload_jobs(bi).length).to eq(1)
+    end
+
+    it "does not reschedule a failed SVG upload too large to embed" do
+      expect(big_svg.bytesize).to be > Uploadable::DATA_URI_STORE_MAX_BYTES
+      bi = ButtonImage.create(user: u, settings: {'content_type' => 'image/svg+xml', 'data_uri' => big_svg})
+      Worker.flush_queues
+      fail_post
+      bi.upload_to_remote(Uploadable::UPLOAD_FROM_STORED_DATA_URI)
+      expect(upload_jobs(bi)).to eq([])
+    end
+
+    it "keeps showing the embedded picture after a failed upload" do
+      bi = failed_image(png)
+      expect(bi.data).to eq(png)
+      expect(bi.url).to eq(nil)
+      expect(bi.settings['upload_failed_at']).to be_present
+    end
+
+    it "retries a failed PNG once its back-off has passed, and only once per back-off" do
+      bi = failed_image(png)
+      ButtonImage.retry_failed_uploads
+      expect(upload_jobs(bi)).to eq([])
+      bi = age(bi, 2)
+      ButtonImage.retry_failed_uploads
+      expect(upload_jobs(bi).length).to eq(1)
+      expect(upload_jobs(bi)[0]['args'][2]['arguments']).to eq([Uploadable::UPLOAD_FROM_STORED_DATA_URI])
+      expect(bi.reload.settings['upload_failures']).to eq(1)
+      ButtonImage.retry_failed_uploads
+      expect(upload_jobs(bi).length).to eq(1)
+    end
+
+    it "waits longer after each attempt" do
+      bi = failed_image(png)
+      bi.settings['upload_failures'] = 2
+      bi.settings['upload_retry_at'] = 3.hours.ago.to_i
+      bi = age(bi, 3)
+      ButtonImage.retry_failed_uploads
+      expect(upload_jobs(bi)).to eq([])
+      bi.settings['upload_retry_at'] = 5.hours.ago.to_i
+      bi.settings['upload_failed_at'] = 5.hours.ago.to_i
+      bi.save
+      Worker.flush_queues
+      ButtonImage.retry_failed_uploads
+      expect(upload_jobs(bi).length).to eq(1)
+    end
+
+    it "retries a failed SVG through the sweep" do
+      bi = failed_image(svg, {'content_type' => 'image/svg+xml', 'data_uri' => svg})
+      bi = age(bi, 2)
+      ButtonImage.retry_failed_uploads
+      expect(upload_jobs(bi).length).to eq(1)
+    end
+
+    it "stops after six attempts" do
+      bi = failed_image(png)
+      bi.settings['upload_failures'] = 6
+      bi = age(bi, 1000)
+      ButtonImage.retry_failed_uploads
+      expect(upload_jobs(bi)).to eq([])
+    end
+
+    it "never schedules a record that has not failed, such as a client upload in progress" do
+      bi = ButtonImage.create(user: u, data: png, settings: {'content_type' => 'image/png', 'data_uri' => png})
+      Worker.flush_queues
+      ButtonImage.retry_failed_uploads
+      expect(upload_jobs(bi)).to eq([])
+    end
+
+    it "leaves failures older than two weeks alone" do
+      bi = age(failed_image(png), 2)
+      bi.update_column(:updated_at, 3.weeks.ago)
+      ButtonImage.retry_failed_uploads
+      expect(upload_jobs(bi)).to eq([])
+    end
+
+    it "schedules no more than the limit in one run" do
+      images = 3.times.map { age(failed_image(png), 2) }
+      ButtonImage.retry_failed_uploads(limit: 2)
+      expect(images.map { |i| upload_jobs(i).length }.sum).to eq(2)
+    end
+
+    it "clears the failure state when a retry succeeds" do
+      bi = failed_image(png)
+      allow(Typhoeus).to receive(:post).and_return(OpenStruct.new(success?: true))
+      bi.upload_to_remote(Uploadable::UPLOAD_FROM_STORED_DATA_URI)
+      bi.reload
+      expect(bi.url).to be_present
+      expect(bi.data).to eq(nil)
+      expect(bi.settings['upload_failed_at']).to eq(nil)
+      expect(bi.settings['upload_failures']).to eq(nil)
+      expect(bi.settings['upload_retry_at']).to eq(nil)
+    end
+
+    it "clears the failure state when new picture data is stored" do
+      bi = failed_image(png)
+      bi.settings['upload_failures'] = 6
+      bi.process({'url' => svg, 'content_type' => 'image/svg+xml'}, {user: u})
+      bi.reload
+      expect(bi.settings['upload_failed_at']).to eq(nil)
+      expect(bi.settings['upload_failures']).to eq(nil)
+    end
+
+    it "runs when the scheduler enqueues it" do
+      bi = age(failed_image(png), 2)
+      expect(ButtonImage).to receive(:retry_failed_uploads).and_call_original
+      ButtonImage.schedule_for(:slow, :retry_failed_uploads)
+      Worker.process_queues
+      expect(bi.reload.settings['upload_failures']).to eq(1)
+    end
+
+    it "retries a failed sound" do
+      bs = ButtonSound.create(user: u, settings: {})
+      fail_post
+      bs.upload_to_remote(mp3)
+      Worker.flush_queues
+      bs = age(bs.reload, 2)
+      ButtonSound.retry_failed_uploads
+      expect(upload_jobs(bs).length).to eq(1)
+    end
+  end
 end
