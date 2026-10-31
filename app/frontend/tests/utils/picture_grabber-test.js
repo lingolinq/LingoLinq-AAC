@@ -710,6 +710,24 @@ describe('pictureGrabber', function() {
           });
         });
 
+        it('tries a match of unknown ownership before one known not to be editable', function() {
+          pictureGrabber.setup(button, controller);
+          var url = 'https://example.com/mixed-7.png';
+          push_image('1_9107', url, {permissions: {edit: false}});
+          push_image('1_9108', url);
+          // the unknown one turns out to be someone else's too
+          expect_put('1_9108', {id: '1_9108', url: url, permissions: {edit: false}});
+          var posted = expect_post(url, '1_9118');
+          var res = pick(url);
+          waitsFor(function() { return res.done; });
+          runs(function() {
+            expect(res.error).toEqual(undefined);
+            expect(requests('PUT').length).toEqual(1);
+            expect(posted.preserve).toEqual(true);
+            expect(res.image && res.image.get('id')).toEqual('1_9118');
+          });
+        });
+
         it('reuses someone else\'s picture as it is when it already keeps its source', function() {
           pictureGrabber.setup(button, controller);
           var url = 'https://example.com/kept-5.png';

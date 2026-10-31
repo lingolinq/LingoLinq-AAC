@@ -134,6 +134,36 @@ describe("contentGrabbers", function() {
         });
       });
 
+      // Images loaded with a board carry no permissions (board.rb images_and_sounds_for), so
+      // "unknown" is the usual state; such a record may be someone else's.
+      it("saves a new record that keeps its picture instead of sharing one of unknown ownership that does not", function() {
+        var url = 'https://example.com/dedupe-4.png';
+        var saved = push_image('1_9204', url);
+        queryLog.defineFixture({
+          method: 'POST',
+          type: 'image',
+          compare: function(s) { return s.get('url') == url && s.get('preserve_source_image') === true; },
+          response: RSVP.resolve({image: {id: '1_9214', url: url, preserve_source_image: true, permissions: {edit: true}}})
+        });
+        var res = save({url: url, preserve_source_image: true});
+        waitsFor(function() { return res.done; });
+        runs(function() {
+          expect(res.error).toEqual(undefined);
+          expect(res.record === saved).toEqual(false);
+          expect(res.record && res.record.get('id')).toEqual('1_9214');
+        });
+      });
+
+      it("shares one of unknown ownership that already keeps its picture", function() {
+        var url = 'https://example.com/dedupe-5.png';
+        var saved = push_image('1_9205', url, {preserve_source_image: true});
+        var res = save({url: url, preserve_source_image: true});
+        waitsFor(function() { return res.done; });
+        runs(function() {
+          expect(res.record === saved).toEqual(true);
+        });
+      });
+
       it("saves a new record that keeps its picture instead of sharing one the user cannot edit", function() {
         var url = 'https://example.com/dedupe-3.png';
         var saved = push_image('1_9203', url, {permissions: {edit: false}});

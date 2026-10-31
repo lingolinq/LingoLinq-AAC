@@ -158,16 +158,21 @@ var contentGrabbers = Service.extend({
         pendingMap[normalized_url] = deferred.promise;
         pendingRecordMap[normalized_url] = object;
 
-        // Already-saved record with same URL: use it (no need to save again). Not one the user
-        // cannot edit when this record keeps its picture: the server ignores their changes to it,
-        // so the choice would be lost (copy-on-write, save_image_preview).
+        // Already-saved record with same URL: use it (no need to save again). When this record
+        // keeps its picture, only one the user can edit, or one of unknown ownership that keeps
+        // its picture too: the server ignores changes from someone who cannot edit a record, and
+        // board-loaded images carry no permissions (copy-on-write, save_image_preview).
         var keeps_source = !!object.get('preserve_source_image');
+        var can_share = function(img) {
+          if(!keeps_source) { return true; }
+          var edit = img.get('permissions.edit');
+          return edit === true || (edit !== false && !!img.get('preserve_source_image'));
+        };
         var existing_saved = LingoLinq.store.peekAll('image').find(function(img) {
           var img_url = img.get('url');
           return img_url && persistenceService.normalize_url(img_url) === normalized_url &&
                  !img.get('isNew') && !img.get('isDeleted') &&
-                 img.get('id') !== object.get('id') &&
-                 !(keeps_source && img.get('permissions.edit') === false);
+                 img.get('id') !== object.get('id') && can_share(img);
         });
 
         if(existing_saved) {
@@ -1522,14 +1527,16 @@ var pictureGrabber = EmberObject.extend({
       };
 
       // Check if an image with this URL already exists (saved or in-flight), preferring one the
-      // user can edit
+      // user can edit, then one of unknown ownership, then one they cannot edit
       var matching_images = forceNewRecord ? [] : LingoLinq.store.peekAll('image').filter(function(img) {
         if(img.get('isDeleted')) { return false; }
         var img_url = img.get('url');
         if(!img_url || persistenceService.normalize_url(img_url) !== normalized_url) { return false; }
         return true;
       });
-      var existing_image = matching_images.find(function(img) { return img.get('permissions.edit'); }) || matching_images[0];
+      var existing_image = matching_images.find(function(img) { return img.get('permissions.edit') === true; }) ||
+        matching_images.find(function(img) { return img.get('permissions.edit') !== false; }) ||
+        matching_images[0];
 
       // The server ignores changes from someone who cannot edit an image (a library picture, or
       // another user's; images_controller#update), so their "keep my chosen picture" goes on a
