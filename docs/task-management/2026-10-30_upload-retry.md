@@ -270,3 +270,20 @@ registered on this machine.
   - The success branch now clears `transcoding_attempted` when the record had failed, so its save schedules transcoding again.
   - Test "transcodes a sound once a retried upload succeeds": red before, green after.
 - **Low: the sweep loads whole rows to filter them.** Recorded, as before.
+
+## "Keep my chosen picture" for non-owners: first attempt reverted (2026-10-30)
+Traci asked for it in this PR.
+
+**The attempt:** `save_image_preview` would prefer an editable match, skip the PUT for a known non-editable record, and save a new own record with `preserve_source_image`.
+
+**Review result:** CONFIRMED by me to do nothing in production.
+1. **The copy collapses back into the shared record.** `save_image_preview` saves new records through `save_record`. For an http(s) image, `save_record` first looks for an already-saved record with the same normalised URL (`content-grabbers.js:161-177`), unloads the new record and resolves with that one, which is the shared record. My five QUnit tests stubbed `save_record`, so they never ran that dedupe and passed for the wrong reason.
+2. **The "server refused" check can never fire.** `JsonApi::Image` writes `preserve_source_image` only when it is true (`lib/json_api/image.rb:45`), so a refused update's response leaves the client's local `true` in place.
+
+**Reverted from the working tree; nothing was committed.** The diff is kept outside the repo. This was the second test in this branch that passed for the wrong reason (after the oversize-SVG shape), so I stopped here under rule 13.
+
+**What a working fix needs (open):**
+- The new record must not be collapsed into the shared one. That means a `save_record` path that keeps same-URL records separate when the match cannot be edited. The server already creates a new id for each POST.
+- Or the choice moves to the button rather than the shared image.
+- The tests must run the real `save_record` (stub the request with `persistence.ajax` or `queryLog`, not `save_record`), so the dedupe is exercised.
+- Offline picks, where permissions are unknown, stay out of scope.
