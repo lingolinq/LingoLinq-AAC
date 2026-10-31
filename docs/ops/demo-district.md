@@ -83,7 +83,10 @@ Then read the `DEMO_ORG` lines from that execution's logs. What you see decides 
 - **No such org, or its members are not demo accounts (nonprod's "Demo" org; nonprod only):**
   build a fresh district, then backfill 90 days. `create_district!` runs only in
   `lingolinq-migrate-dev` or `lingolinq-migrate-staging`, read from the job name Cloud Run sets;
-  never create a job with either name in `lingolinq-prod`.
+  never create a job with either name in `lingolinq-prod`. The jobs a run enqueues reach the
+  nonprod worker only from the deploy that gives these Jobs the workers' namespace suffix
+  (see `docs/INFRASTRUCTURE.md`, "Console and one-off work"); runs before it left them in a
+  namespace no worker reads.
 
   ```bash
   read -rs DEMO_PW   # the demo accounts' password; no commas

@@ -228,6 +228,15 @@ job with overridden args. It sets `USER_KEY`, which the audited-session control 
 in production and which attributes record writes via PaperTrail. `rake`, other
 `bin/rails` subcommands, and `psql` are not audited; prefer the console.
 
+The migrate Job carries the workers' `REDIS_NAMESPACE_SUFFIX`, and the deploy refuses to run it
+when its suffix differs from the draining worker pool's (in dev, staging's shared pool). Before
+that change, nonprod migrate Jobs had no suffix, so every job a one-off run enqueued went to the
+`lingolinq` namespace, which no nonprod worker reads (lingolinq_mobile#3). The fix reaches each
+Job at its next deploy, and `lingolinq-migrate-staging` only once the workflow change is on
+`staging`. `lingolinq-migrate-dev` runs the develop image while the shared worker runs staging's,
+so a one-off there that enqueues a job class or arguments that exist only on develop fails on
+the worker; use `lingolinq-migrate-staging` for one-offs whose code is on staging.
+
 ## Key environment variables
 
 Required for each web service and its worker: `DATABASE_URL`, `REDIS_URL`,
