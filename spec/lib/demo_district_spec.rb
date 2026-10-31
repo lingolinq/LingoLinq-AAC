@@ -365,6 +365,15 @@ describe DemoDistrict do
   describe "create_district!" do
     let(:names) { DemoDistrict::Seeder.user_names }
 
+    it "builds a premium district, so its org page shows the communicator and eval statistics" do
+      # db/seeds.rb assigns these settings too.
+      expect(DemoDistrict::Seeder.org_settings['premium']).to eq(true)
+      org = DemoDistrict.create_district!(password: 'spec-demo-password')
+
+      expect(org.reload.settings['premium']).to eq(true)
+      expect(JsonApi::Organization.build_json(org)['premium']).to eq(true)
+    end
+
     it "builds a flagged district whose every member qualifies for refresh!, and refresh! fills it" do
       org = DemoDistrict.create_district!(password: 'spec-demo-password')
 

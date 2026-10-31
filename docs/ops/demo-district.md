@@ -111,6 +111,10 @@ Then read the `DEMO_ORG` lines from that execution's logs. What you see decides 
   The password you pass is visible in that execution's configuration to anyone who can view
   Cloud Run jobs in the project.
 
+  The district is built as a premium org, so its org page shows the communicator and eval
+  statistics. A district built before that (nonprod's first, 2026-10-30) needs it once by hand:
+  a site admin opens the org's Settings and ticks Premium.
+
 ## Reading the result
 
 `--wait` shows progress only. The summary is in the execution's logs:
