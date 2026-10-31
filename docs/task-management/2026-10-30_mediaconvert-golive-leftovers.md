@@ -1,7 +1,7 @@
 # MediaConvert go-live leftovers (#981)
 
 Date: 2026-10-30. Branch `traci/fix/mediaconvert-golive-leftovers` from develop `fd514a167`
-(#1239 merged). Traci: "make sure the issues in 981 are still real and fully fix them".
+(#1239 merged). Line numbers in the fact sheets are at `fd514a167`, before this branch's edits. Traci: "make sure the issues in 981 are still real and fully fix them".
 
 LEARNINGS consulted: `LEARNINGS.md:38` (PiiScrubber and `filter_parameters` never touch explicit
 `Rails.logger` lines; Cloud Run ships stdout to Cloud Logging; log opaque ids or nothing).
@@ -44,8 +44,9 @@ Fact sheet:
 
 Fix: return the number of records actually queued: the else branch, and only when
 `settings['full_filename']` is present (otherwise `schedule_transcoding` queues nothing,
-`media_object.rb:85`). Red test: 2 sounds due, 1 at max attempts, 1 in progress, 1 with no
-full_filename, 1 video due, 2 videos skipped; expect 3 and `Worker.schedule` exactly 3 times.
+`media_object.rb:85`). Red test (as shipped, after the second review): sounds 2 due, 1 at max
+attempts, 1 in progress, 1 with no full_filename; videos 2 due, 1 at max, 2 in progress, 1 with
+no full_filename; expect 4 and `Worker.schedule` exactly 4 times.
 Mutations: end on the `.each` again; count without the full_filename check.
 
 ## Fix 2: the MediaConvert callback logs the whole notification
@@ -63,7 +64,8 @@ Fact sheet:
 
 Fix (best practice: keep what diagnosis needs, drop what grants access, log before the remote
 call, never let logging fail the request):
-- `Transcoder.loggable_event(json_body)`: parse `Message` when it is JSON, deep-copy, replace
+- `Transcoder.loggable_event(json_body)`: parse `Message` when it is JSON, rebuild the hashes
+  and arrays (the caller's body is never changed), replace
   every run of 32+ hex characters in any string with `[hex]`, replace any `transcoding_key`
   value with `[redacted]`, `to_json` (escapes newlines, so no log-line injection), cap at 4000
   characters. Rescues everything and returns a fixed marker string.
@@ -72,8 +74,8 @@ call, never let logging fail the request):
 
 Red tests: realistic COMPLETE (distinct `transcoding_key`, real-shaped hex keys) and ERROR with
 a path in `errorMessage`, through the controller with a StringIO logger: the hex and the
-`transcoding_key` are absent; job id, status and path shape present. A get_job that raises
-still leaves the line. Mutations: restore `json_body.to_json`; drop the `transcoding_key`
+`transcoding_key` are absent; job id, status and path shape present. A `handle_event` that
+raises (stubbed) still leaves the line. Mutations: restore `json_body.to_json`; drop the `transcoding_key`
 redaction; log after `handle_event`.
 
 ## Fix 3: the AWS SDK logs request parameters
@@ -101,7 +103,8 @@ Fact sheet:
 Fix: `config/initializers/aws_logging.rb` sets `Aws.config[:log_formatter]` to the SDK's own
 pattern minus `:request_params` and `:error_message` (the `short` preset plus retries). Shared
 config, approved by Traci 2026-10-30. Red test: a stubbed S3 `head_object` and a stubbed SNS
-`publish` with a StringIO logger log the operation but not the key, phone number or message.
+`publish` with a StringIO logger log the operation but not the key, the email's contents or the
+SMS message (the SDK already filtered `phone_number`).
 Mutation: remove the initializer line.
 
 ## Fix 4: the SMS and confirmation branches (part of LL-fba170716e)
@@ -148,10 +151,10 @@ uploader, `spec/initializers`, `spec/mailers`: 605 examples, 0 failures, 4 pendi
 
 ## For Scot (not changed here)
 
-- **Historical exposure.** Until this deploys, production Cloud Logging may hold SDK lines
-  with S3 keys (working links), raw SES emails (reset codes are valid 3 hours,
-  `passwords.rb:64`; note text) and outbound SMS text. Decide retention, exclusion or purge.
-  Not read from here: no `gcloud` on this machine.
+- **Note, no action needed (Traci, 2026-10-30).** Until this deploys, Cloud Logging may hold
+  SDK lines with S3 keys, the first 1000 characters of raw SES emails (reset codes are valid 3
+  hours, `passwords.rb:64`, so long expired) and outbound SMS text. No purge: Traci decided the
+  lines already logged need no action. Not read from here: no `gcloud` on this machine.
 - **Register.** The SDK leak is not in FINDINGS.json. LL-fba170716e's SMS logging part is fixed
   here; its confirmation-signature and body-size parts are not, and its remediation text
   ("mirror the transcoding branch") is stale. Closure and wording are Scot's.
@@ -165,3 +168,26 @@ submit-before-upload questions); a dead-letter queue on the nonprod subscription
 Cloud Armor admits `POST /api/v1/callback`, prod topic subscribed, prod role ARN set; #965
 retries; the backfill decision (it must reset `extra_transcoding_attempts` and
 `transcoding_in_progress`, since unconfigured prod used both retries).
+
+## Implementation reviews (2026-10-30)
+
+`REVIEWED=range origin/develop (fd514a16775c5f38b81eb15779c2087be04c2783) ... HEAD
+(f1d9f7e5247cbfa3edc1d932344aed774718858c)`. Senior-dev: Approve with comments, Lows only.
+Adversary: ship with conditions, no Critical/High. Each checked by hand. Fixed in `a517019f7`:
+- invalid UTF-8 (a JSON-escaped lone surrogate) made the redaction raise and blanked the line:
+  strings are scrubbed first, and the fallback keeps a job-id-shaped id;
+- `Signature`, `SigningCertURL`, `UnsubscribeURL` are left out of the line (UnsubscribeURL can
+  unsubscribe an endpoint confirmed without authentication);
+- the cap and the fallback had no test; the confirmation example now restores `SNS_ARNS`
+  through `env_wrap`; the logging examples also assert no 32+ hex run;
+- the `reject_event` comment said "never event-supplied text"; the id is the event's, accepted
+  by GetJob, and the comment now says so. Fact-sheet corrections above.
+Mutations, all killed: no scrub; keep the dropped fields; no cap; no job id in the fallback; an
+unsanitized fallback id.
+Not done: the count copies `schedule_transcoding`'s full_filename guard instead of using its
+result (`schedule_transcoding` returns true either way; the spec pins today's rule); file:line
+citations in comments (the repo's own convention).
+Pre-existing, Traci to decide: a genuinely signed SNS message from any AWS account, replayed with
+an `sms_inbound` header, reaches `RemoteTarget.process_inbound` (the verifier does not bind the
+topic). `SNS_ARNS` cannot hold the SMS topic (one ARN per environment), so the fix would bind the
+signed `TopicArn` to our account and the SMS name.
