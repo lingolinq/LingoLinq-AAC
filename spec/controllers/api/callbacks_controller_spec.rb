@@ -262,5 +262,131 @@ describe Api::CallbacksController, :type => :controller do
         # process_inbound
       end
     end
+
+    # Cloud Run ships every log line to Cloud Logging, and the upload buckets are public-read, so a
+    # logged S3 key is a working link to a recording. The 128-hex digest is the secret part of a key.
+    describe "logging" do
+      let(:io) { StringIO.new }
+      let(:digest) { 'e' * 128 }
+      let(:transcoding_key) { 'feedfacecafebeef00112233' }
+      let(:key) { "sounds/1/7/1_17_0123456789abcdef01234567-#{digest}v1789854837" }
+
+      around(:each) do |example|
+        original = Rails.logger
+        Rails.logger = Logger.new(io)
+        example.run
+      ensure
+        Rails.logger = original
+      end
+
+      def authentic!(result=true)
+        v = OpenStruct.new
+        expect(Aws::SNS::MessageVerifier).to receive(:new).and_return(v)
+        expect(v).to receive(:authentic?).and_return(result)
+      end
+
+      def mediaconvert_event(detail)
+        request.headers['x-amz-sns-message-type'] = 'Notification'
+        request.headers['x-amz-sns-topic-arn'] = 'arn:aws:sns:us-west-2:123:lingolinq-mediaconvert-nonprod'
+        {'Type' => 'Notification', 'MessageId' => '6b2d8a51-1c2e-5b0f-9d1a-2f3e4d5c6b7a', 'Message' => {
+          'detail-type' => 'MediaConvert Job State Change', 'source' => 'aws.mediaconvert', 'detail' => detail
+        }.to_json}.to_json
+      end
+
+      def complete_detail
+        {'jobId' => '1789855178463-xw2g13', 'status' => 'COMPLETE',
+          'userMetadata' => {'audio_id' => '1_17_0123456789abcdef01234567', 'conversion_type' => 'audio', 'transcoding_key' => transcoding_key},
+          'outputGroupDetails' => [{'type' => 'FILE_GROUP', 'outputDetails' => [
+            {'outputFilePaths' => ["s3://lingolinq-test-uploads/#{key}.mp3"], 'durationInMs' => 1000}
+          ]}]}
+      end
+
+      it "should log a COMPLETE event's shape without its keys or transcoding_key" do
+        authentic!
+        expect(Transcoder).to receive(:handle_event).and_return(true)
+        post 'callback', body: mediaconvert_event(complete_detail)
+        expect(response).to be_successful
+        expect(io.string).to include('1789855178463-xw2g13')
+        expect(io.string).to include('COMPLETE')
+        expect(io.string).to include('sounds/1/7/1_17_0123456789abcdef01234567-')
+        expect(io.string).to_not include(digest)
+        expect(io.string).to_not include(transcoding_key)
+      end
+
+      it "should log an ERROR event's code without the path in its message" do
+        authentic!
+        expect(Transcoder).to receive(:handle_event).and_return(true)
+        post 'callback', body: mediaconvert_event({'jobId' => '1789855178463-xw2g13', 'status' => 'ERROR', 'errorCode' => 1040,
+          'errorMessage' => "Duplicate output paths [s3://lingolinq-dev-uploads/#{key}] found in input job."})
+        expect(response).to be_successful
+        expect(io.string).to include('1040')
+        expect(io.string).to include('Duplicate output paths')
+        expect(io.string).to_not include(digest)
+      end
+
+      it "should log the event before asking AWS about the job" do
+        authentic!
+        expect(Transcoder).to receive(:handle_event).and_raise(Aws::MediaConvert::Errors::ServiceError.new(nil, 'boom'))
+        expect { post 'callback', body: mediaconvert_event(complete_detail) }.to raise_error(Aws::MediaConvert::Errors::ServiceError)
+        expect(io.string).to include('1789855178463-xw2g13')
+      end
+
+      env_wrap({'MEDIACONVERT_ROLE_ARN' => 'arn:aws:iam::123:role/MediaConvert', 'UPLOADS_S3_BUCKET' => 'lingolinq-test-uploads'}) do
+        it "should log why it rejected an event, without keys" do
+          authentic!
+          job = OpenStruct.new(id: '1789855178463-xw2g13', status: 'COMPLETE',
+            user_metadata: complete_detail['userMetadata'],
+            settings: OpenStruct.new(output_groups: [OpenStruct.new(output_group_settings: OpenStruct.new(
+              file_group_settings: OpenStruct.new(destination: 's3://lingolinq-test-uploads/other/dir/')))]))
+          config = OpenStruct.new
+          expect(config).to receive(:get_job).and_return(OpenStruct.new(job: job))
+          expect(Transcoder).to receive(:config).and_return(config)
+          post 'callback', body: mediaconvert_event(complete_detail)
+          expect(response.status).to eq(400)
+          expect(io.string).to match(/Transcoder.handle_event rejected job=1789855178463-xw2g13: no mp3 output/)
+          expect(io.string).to_not include(digest)
+          expect(io.string).to_not include(transcoding_key)
+        end
+      end
+
+      it "should not log a confirmation's token" do
+        ENV['SNS_ARNS'] = 'bacon,fried'
+        client = OpenStruct.new
+        expect(Aws::SNS::Client).to receive(:new).and_return(client)
+        expect(client).to receive(:confirm_subscription)
+        request.headers['x-amz-sns-message-type'] = 'SubscriptionConfirmation'
+        request.headers['x-amz-sns-topic-arn'] = 'fried'
+        post 'callback', body: {:Token => 'tokentokentoken', :SubscribeURL => 'https://sns.example/confirm?Token=tokentokentoken'}.to_json
+        expect(response).to be_successful
+        expect(io.string).to include('fried')
+        expect(io.string).to_not include('tokentokentoken')
+      end
+
+      def sms_body
+        {'Message' => {'originationNumber' => '+15551234567', 'destinationNumber' => '+15558675309', 'messageBody' => 'private words'}.to_json}.to_json
+      end
+
+      it "should not log an inbound SMS it could not verify" do
+        authentic!(false)
+        request.headers['x-amz-sns-message-type'] = 'Notification'
+        request.headers['x-amz-sns-topic-arn'] = 'fried:sms_inbound:chicken'
+        post 'callback', body: sms_body
+        expect(response.status).to eq(401)
+        expect(io.string).to_not include('5551234567')
+        expect(io.string).to_not include('private words')
+      end
+
+      it "should not log a verified inbound SMS's number or text" do
+        authentic!
+        expect(RemoteTarget).to receive(:process_inbound).and_return(true)
+        request.headers['x-amz-sns-message-type'] = 'Notification'
+        request.headers['x-amz-sns-topic-arn'] = 'fried:sms_inbound:chicken'
+        post 'callback', body: sms_body
+        expect(response).to be_successful
+        expect(io.string).to include('INBOUND SMS NOTIFICATION')
+        expect(io.string).to_not include('5551234567')
+        expect(io.string).to_not include('private words')
+      end
+    end
   end
 end

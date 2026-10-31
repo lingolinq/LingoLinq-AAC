@@ -12,7 +12,6 @@ class Api::CallbacksController < ApplicationController
       valid_arns = (ENV['SNS_ARNS'] || '').split(/,/)
       if valid_arns.include?(topic_arn)
         token = json_body['Token'] || json_body['token']
-        Rails.logger.warn(json_body.to_json)
         cred = Aws::Credentials.new(ENV['AWS_KEY'], ENV['AWS_SECRET'])
         client = Aws::SNS::Client.new(region: ENV['SNS_REGION'], credentials: cred, retry_limit: 2, retry_backoff: lambda { |c| sleep(3) })
         client.confirm_subscription({topic_arn: topic_arn, token: token, authenticate_on_unsubscribe: 'true'})
@@ -28,7 +27,8 @@ class Api::CallbacksController < ApplicationController
         if !verifier.authentic?(body)
           return api_error 401, {error: 'inauthentic message'}
         end
-        Rails.logger.warn(json_body.to_json)
+        # Before handle_event, so an event whose GetJob raises still leaves its line.
+        Rails.logger.warn(Transcoder.loggable_event(json_body))
         res = Transcoder.handle_event(json_body)
         if res == :retry
           api_error 503, {error: 'job not complete yet'}
@@ -38,12 +38,12 @@ class Api::CallbacksController < ApplicationController
           api_error 400, {error: 'event not handled'}
         end
       elsif topic_arn.match(/LingoLinqSMSInbound/) || topic_arn.match(/sms_inbound/)
-        Rails.logger.warn("INBOUND SMS NOTIFICATION")
-        Rails.logger.warn(json_body.to_json)
         verifier = Aws::SNS::MessageVerifier.new
         if !verifier.authentic?(body)
           return api_error 401, {error: 'inauthentic message'}
         end
+        # The body holds the sender's number and the message text: never log it.
+        Rails.logger.warn("INBOUND SMS NOTIFICATION")
         message = JSON.parse(json_body['Message'])
         res = RemoteTarget.process_inbound(message)
         if res
