@@ -306,3 +306,25 @@ The work goes on this branch in a fresh session (rule 13 stop in this one).
    - one copy per URL per session (later picks prefer the editable copy).
 4. **Out of scope:** offline picks with unknown permissions (the server ignores the change, as now).
 5. **Then:** mutation-test each piece, run the picture-grabber and create-board-new modules and the full Ember suite (Node 22, `app/frontend/CLAUDE.md` run-shape rules), have it adversarially reviewed, and push.
+
+## Copy-on-write implemented (2026-10-30, same session at Traci's request)
+- **`f58019d97`:**
+  - `save_image_preview` saves a new record of the user's own for a known non-editable match, without a PUT, and does the same when the PUT response has `permissions.edit === false`.
+  - `save_record`'s same-URL dedupe no longer merges a record that keeps its picture into a non-editable one.
+  - Tests run the real `save_record`; only the adapter is faked (queryLog fixtures).
+  - The three tests for the new behaviour, and dedupe test 3, failed on the base code for the right reasons. Six mutations, each red. The "no editable preference" mutation first survived, so test 4 was tightened to assert the PUT and the kept flag.
+- **Review of `f58019d97`** (local adversary): no Critical or High. One Medium, CONFIRMED by me:
+  - the copy could still merge into a sibling same-URL record whose permissions are unknown, which is the usual state for board-loaded images (`board.rb:2544`), and such a record may be someone else's.
+- **`8e203e54d` fixes it:**
+  - When the new record keeps its picture, the dedupe shares only a record the user can edit, or one of unknown ownership that keeps its picture too.
+  - Matches are ranked editable, then unknown, then not editable.
+  - Two dedupe tests and one picking test: the "unknown" ones were red before.
+  - Four mutations, each red.
+  - Picking plus dedupe: 11 examples, 0 failures.
+- **Recorded, not changed:**
+  - **Low:** after a refused PUT, the shared record keeps a stale local `preserve_source_image: true` until reload. The user's new copy is in the store and preferred, so a later pick uses the copy.
+  - **Low, by design:** a known non-editable record that already keeps its picture is reused rather than copied.
+  - **Low, pre-existing:** an in-flight save of the same URL wins.
+  - **Out of scope:** offline picks with unknown permissions.
+- **Lint:** the touched files have the same 15 `ember/no-runloop` errors as the base code, none in changed lines.
+- Full Ember suite (Node 22) at 8e203e54d: 3870 tests, 3828 pass, 37 skip, 5 todo, 0 fail; no browser timeouts (complete run).
