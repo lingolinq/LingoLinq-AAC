@@ -10,9 +10,10 @@ import {
   runs,
   stub
 } from 'frontend/tests/helpers/jasmine';
-import { fake_dbman } from 'frontend/tests/helpers/ember_helper';
+import { fake_dbman, queryLog } from 'frontend/tests/helpers/ember_helper';
 import RSVP from 'rsvp';
 import contentGrabbers from '../../utils/content_grabbers';
+import LingoLinq from '../../app';
 import EmberObject from '@ember/object';
 import persistence from '../../utils/persistence';
 import app_state from '../../utils/app_state';
@@ -97,6 +98,61 @@ describe("contentGrabbers", function() {
   });
 
   describe("save_record", function() {
+    // Same-URL images share one saved record (parallel saves, Ember Data identity), except that a
+    // record keeping its picture is never merged into one the user cannot edit: the server
+    // ignores their changes to it (copy-on-write, pictureGrabber.save_image_preview).
+    describe("with a saved image of the same URL", function() {
+      var push_image = function(id, url, attrs) {
+        return LingoLinq.store.push({ data: {
+          id: id, type: 'image', attributes: Object.assign({ url: url }, attrs || {})
+        }});
+      };
+      var save = function(attrs) {
+        var res = {done: false};
+        var rec = LingoLinq.store.createRecord('image', attrs);
+        contentGrabbers.save_record(rec).then(function(r) { res.record = r; res.done = true; }, function(e) { res.error = e; res.done = true; });
+        return res;
+      };
+
+      it("shares it for a new record that does not keep its picture", function() {
+        var url = 'https://example.com/dedupe-1.png';
+        var saved = push_image('1_9201', url, {permissions: {edit: false}});
+        var res = save({url: url});
+        waitsFor(function() { return res.done; });
+        runs(function() {
+          expect(res.record === saved).toEqual(true);
+        });
+      });
+
+      it("shares one the user can edit even when the new record keeps its picture", function() {
+        var url = 'https://example.com/dedupe-2.png';
+        var saved = push_image('1_9202', url, {permissions: {edit: true}});
+        var res = save({url: url, preserve_source_image: true});
+        waitsFor(function() { return res.done; });
+        runs(function() {
+          expect(res.record === saved).toEqual(true);
+        });
+      });
+
+      it("saves a new record that keeps its picture instead of sharing one the user cannot edit", function() {
+        var url = 'https://example.com/dedupe-3.png';
+        var saved = push_image('1_9203', url, {permissions: {edit: false}});
+        queryLog.defineFixture({
+          method: 'POST',
+          type: 'image',
+          compare: function(s) { return s.get('url') == url && s.get('preserve_source_image') === true; },
+          response: RSVP.resolve({image: {id: '1_9213', url: url, preserve_source_image: true, permissions: {edit: true}}})
+        });
+        var res = save({url: url, preserve_source_image: true});
+        waitsFor(function() { return res.done; });
+        runs(function() {
+          expect(res.error).toEqual(undefined);
+          expect(res.record === saved).toEqual(false);
+          expect(res.record && res.record.get('id')).toEqual('1_9213');
+        });
+      });
+    });
+
     it("should return a promise", function() {
       var obj = EmberObject.extend({
         save: function() { return RSVP.reject(); }

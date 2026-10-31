@@ -600,6 +600,130 @@ describe('pictureGrabber', function() {
         });
       });
 
+      // A picked picture whose URL matches a loaded record the user cannot edit (a library picture,
+      // or another user's): the server ignores their changes to it (images_controller#update), so
+      // "keep my chosen picture" goes on a record they own (copy-on-write). These run the real
+      // save_record and its same-URL dedupe; only the adapter is faked (queryLog fixtures).
+      describe('reusing a loaded picture with the same URL', function() {
+        var push_image = function(id, url, attrs) {
+          return LingoLinq.store.push({ data: {
+            id: id,
+            type: 'image',
+            attributes: Object.assign({ url: url, width: 10, height: 10 }, attrs || {})
+          }});
+        };
+        var pick = function(url) {
+          var res = {done: false};
+          pictureGrabber.save_image_preview({
+            url: url, width: 10, height: 10, license: {type: 'CC By'}
+          }).then(function(img) { res.image = img; res.done = true; }, function(err) { res.error = err; res.done = true; });
+          return res;
+        };
+        var requests = function(method) {
+          return queryLog.filter(function(e) { return e.method == method && e.type && e.type.modelName == 'image'; });
+        };
+        var expect_post = function(url, new_id) {
+          var posted = {};
+          queryLog.defineFixture({
+            method: 'POST',
+            type: 'image',
+            compare: function(s) {
+              if(s.get('url') == url) { posted.preserve = s.get('preserve_source_image'); return true; }
+              return false;
+            },
+            response: RSVP.resolve({image: {id: new_id, url: url, preserve_source_image: true, permissions: {edit: true}}})
+          });
+          return posted;
+        };
+        var expect_put = function(id, response_image) {
+          queryLog.defineFixture({
+            method: 'PUT',
+            type: 'image',
+            compare: function(s) { return (s.id || (s.get && s.get('id'))) == id; },
+            response: RSVP.resolve({image: response_image})
+          });
+        };
+
+        it('saves the choice on a new record when the picture is someone else\'s', function() {
+          pictureGrabber.setup(button, controller);
+          var url = 'https://example.com/shared-1.png';
+          var shared = push_image('1_9101', url, {permissions: {edit: false}});
+          var posted = expect_post(url, '1_9111');
+          var res = pick(url);
+          waitsFor(function() { return res.done; });
+          runs(function() {
+            expect(res.error).toEqual(undefined);
+            expect(requests('PUT').length).toEqual(0);
+            expect(posted.preserve).toEqual(true);
+            expect(res.image && res.image.get('id')).toEqual('1_9111');
+            expect(res.image && res.image.get('preserve_source_image')).toEqual(true);
+            expect(shared.get('preserve_source_image')).toNotEqual(true);
+          });
+        });
+
+        it('saves the choice on a new record when the server answers that it cannot edit the picture', function() {
+          pictureGrabber.setup(button, controller);
+          var url = 'https://example.com/shared-2.png';
+          push_image('1_9102', url);
+          // what a refused update returns: the picture as it is, without preserve_source_image
+          expect_put('1_9102', {id: '1_9102', url: url, permissions: {edit: false}});
+          var posted = expect_post(url, '1_9112');
+          var res = pick(url);
+          waitsFor(function() { return res.done; });
+          runs(function() {
+            expect(res.error).toEqual(undefined);
+            expect(requests('PUT').length).toEqual(1);
+            expect(posted.preserve).toEqual(true);
+            expect(res.image && res.image.get('id')).toEqual('1_9112');
+          });
+        });
+
+        it('updates the picture in place for someone who can edit it', function() {
+          pictureGrabber.setup(button, controller);
+          var url = 'https://example.com/own-3.png';
+          push_image('1_9103', url, {permissions: {edit: true}});
+          expect_put('1_9103', {id: '1_9103', url: url, preserve_source_image: true, permissions: {edit: true}});
+          var res = pick(url);
+          waitsFor(function() { return res.done; });
+          runs(function() {
+            expect(res.error).toEqual(undefined);
+            expect(requests('POST').length).toEqual(0);
+            expect(res.image && res.image.get('id')).toEqual('1_9103');
+            expect(res.image && res.image.get('preserve_source_image')).toEqual(true);
+          });
+        });
+
+        it('prefers a matching picture the user can edit', function() {
+          pictureGrabber.setup(button, controller);
+          var url = 'https://example.com/both-4.png';
+          push_image('1_9104', url, {permissions: {edit: false}});
+          push_image('1_9105', url, {permissions: {edit: true}});
+          expect_put('1_9105', {id: '1_9105', url: url, preserve_source_image: true, permissions: {edit: true}});
+          var res = pick(url);
+          waitsFor(function() { return res.done; });
+          runs(function() {
+            expect(res.error).toEqual(undefined);
+            expect(requests('POST').length).toEqual(0);
+            expect(requests('PUT').length).toEqual(1);
+            expect(res.image && res.image.get('id')).toEqual('1_9105');
+            expect(res.image && res.image.get('preserve_source_image')).toEqual(true);
+          });
+        });
+
+        it('reuses someone else\'s picture as it is when it already keeps its source', function() {
+          pictureGrabber.setup(button, controller);
+          var url = 'https://example.com/kept-5.png';
+          push_image('1_9106', url, {permissions: {edit: false}, preserve_source_image: true, content_type: 'image/png', license: {type: 'CC By'}});
+          var res = pick(url);
+          waitsFor(function() { return res.done; });
+          runs(function() {
+            expect(res.error).toEqual(undefined);
+            expect(requests('PUT').length + requests('POST').length).toEqual(0);
+            expect(res.image && res.image.get('id')).toEqual('1_9106');
+          });
+        });
+      });
+
       it('stamps preserve_source_image on a user-chosen picture so speak mode cannot swap it', function() {
         pictureGrabber.setup(button, controller);
         var image = null;

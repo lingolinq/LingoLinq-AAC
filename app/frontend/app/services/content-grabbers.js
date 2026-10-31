@@ -158,12 +158,16 @@ var contentGrabbers = Service.extend({
         pendingMap[normalized_url] = deferred.promise;
         pendingRecordMap[normalized_url] = object;
 
-        // Already-saved record with same URL: use it (no need to save again)
+        // Already-saved record with same URL: use it (no need to save again). Not one the user
+        // cannot edit when this record keeps its picture: the server ignores their changes to it,
+        // so the choice would be lost (copy-on-write, save_image_preview).
+        var keeps_source = !!object.get('preserve_source_image');
         var existing_saved = LingoLinq.store.peekAll('image').find(function(img) {
           var img_url = img.get('url');
           return img_url && persistenceService.normalize_url(img_url) === normalized_url &&
                  !img.get('isNew') && !img.get('isDeleted') &&
-                 img.get('id') !== object.get('id');
+                 img.get('id') !== object.get('id') &&
+                 !(keeps_source && img.get('permissions.edit') === false);
         });
 
         if(existing_saved) {
@@ -1498,13 +1502,42 @@ var pictureGrabber = EmberObject.extend({
         return pendingMap[normalized_url];
       }
 
-      // Check if an image with this URL already exists (saved or in-flight)
-      var existing_image = forceNewRecord ? null : LingoLinq.store.peekAll('image').find(function(img) {
+      var save_new_image = function() {
+        var image = LingoLinq.store.createRecord('image', {
+          url: normalized_url,
+          content_type: window.cg.inferImageContentType(normalized_url, preview.content_type, force_content_type),
+          width: data.width,
+          height: data.height,
+          hc: preview.hc,
+          external_id: preview.external_id,
+          search_term: preview.search_term,
+          button_label: label || preview.suggestion,
+          preserve_source_image: true,
+          license: _this.normalize_preview_license(preview),
+          protected: preview.protected,
+          protected_source: preview.protected_source,
+          finding_user_name: preview.finding_user_name
+        });
+        return window.cg.save_record(image);
+      };
+
+      // Check if an image with this URL already exists (saved or in-flight), preferring one the
+      // user can edit
+      var matching_images = forceNewRecord ? [] : LingoLinq.store.peekAll('image').filter(function(img) {
         if(img.get('isDeleted')) { return false; }
         var img_url = img.get('url');
         if(!img_url || persistenceService.normalize_url(img_url) !== normalized_url) { return false; }
         return true;
       });
+      var existing_image = matching_images.find(function(img) { return img.get('permissions.edit'); }) || matching_images[0];
+
+      // The server ignores changes from someone who cannot edit an image (a library picture, or
+      // another user's; images_controller#update), so their "keep my chosen picture" goes on a
+      // record they own (copy-on-write). Decided from permissions.edit, never from
+      // preserve_source_image: the server omits that key when false (json_api/image.rb).
+      if(existing_image && !existing_image.get('isNew') && existing_image.get('permissions.edit') === false) {
+        return existing_image.get('preserve_source_image') ? RSVP.resolve(existing_image) : save_new_image();
+      }
 
       if(existing_image) {
         if(!existing_image.get('preserve_source_image')) {
@@ -1528,6 +1561,9 @@ var pictureGrabber = EmberObject.extend({
         var dirtyAttrs = existing_image.changedAttributes && existing_image.changedAttributes();
         if(existing_image.get('hasDirtyAttributes') && !(dirtyAttrs && dirtyAttrs.url && !existing_image.get('isNew'))) {
           return existing_image.save().then(function() {
+            if(existing_image.get('permissions.edit') === false) {
+              return save_new_image();
+            }
             return existing_image;
           });
         }
@@ -1538,22 +1574,7 @@ var pictureGrabber = EmberObject.extend({
         }
       }
 
-      var image = LingoLinq.store.createRecord('image', {
-        url: normalized_url,
-        content_type: window.cg.inferImageContentType(normalized_url, preview.content_type, force_content_type),
-        width: data.width,
-        height: data.height,
-        hc: preview.hc,
-        external_id: preview.external_id,
-        search_term: preview.search_term,
-        button_label: label || preview.suggestion,
-        preserve_source_image: true,
-        license: _this.normalize_preview_license(preview),
-        protected: preview.protected,
-        protected_source: preview.protected_source,
-        finding_user_name: preview.finding_user_name
-      });
-      return window.cg.save_record(image);
+      return save_new_image();
     });
     return save_image;
   },
