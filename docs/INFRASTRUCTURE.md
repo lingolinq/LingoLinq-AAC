@@ -218,6 +218,12 @@ database, wrong Redis namespace, or worker down); S3 access denied on images mea
 bucket policy narrower than `*`; silent job failures sit in the Resque failed queue
 (`RedisInit.errors` in a console).
 
+Seeds and board imports (`db:seed`, the `lingolinq:import_*` and `openaac:` tasks) upload
+pictures, so they run where the app's full environment is: the scheduler Job pattern
+(`docs/ops/staging-translate-library-job.md`), not a boot-secrets-only migrate Job. In a
+deployed environment without S3 the importer refuses before creating any board
+(`Uploader.ensure_deployed_uploads_configured!`, lingolinq_mobile#3).
+
 Redis namespace isolation uses `REDIS_NAMESPACE_SUFFIX` (`config/initializers/resque.rb`);
 staging and dev share `-dev` on the nonprod Redis.
 

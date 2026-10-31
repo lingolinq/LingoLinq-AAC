@@ -684,6 +684,16 @@ module Uploader
     raise RemoteCredentialsMissing, 'S3 credentials or bucket not configured; upload form not issued' unless client_uploads_configured?
   end
 
+  # Every deployed surface runs RAILS_ENV=production. One without S3 (the migrate Jobs) used to
+  # finish a library import with each picture embedded in the database, because
+  # Uploadable#upload_to_remote falls back to the data URI when the post fails
+  # (lingolinq_mobile#3). Imports call this before creating anything; upload_to_remote calls it
+  # as a backstop. Development and test keep the fallback.
+  def self.ensure_deployed_uploads_configured!
+    return unless Rails.env.production?
+    raise RemoteCredentialsMissing, 'S3 credentials or bucket not configured; server-side uploads and imports must run where S3 is (the scheduler Job pattern)' unless client_uploads_configured?
+  end
+
   def self.client_upload_params(remote_path, content_type, **opts)
     ensure_client_uploads_configured!
     remote_upload_params(remote_path, content_type, **opts)

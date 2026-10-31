@@ -173,6 +173,35 @@ describe Uploadable, :type => :model do
     # examples check the real presigned upload target
     before(:each) { allow(Uploader).to receive(:remote_upload_params).and_call_original }
 
+    # The backstop behind the importer's own check (lingolinq_mobile#3): a deployed surface without
+    # S3 must not fall back to embedding the picture. spec_helper fakes S3 as configured when
+    # AWS_SECRET is blank, so these set both sides explicitly.
+    describe "without S3 configured" do
+      let(:uri) { "data:image/webp;base64,UklGRjIAAABXRUJQVlA4ICYAAACyAgCdASoCAAEALmk0mk0iIiIiIgBoSygABc6zbAAA/v56QAAAAA==" }
+      before { allow(Uploader).to receive(:client_uploads_configured?).and_return(false) }
+
+      it "refuses in a deployed environment, before posting or changing the record" do
+        bi = ButtonImage.create(user: u, settings: {'pending_url' => 'http://example.com/p.png'})
+        settings = bi.reload.settings.dup
+        url = bi.url
+        allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('production'))
+        expect(Typhoeus).not_to receive(:post)
+        expect { bi.upload_to_remote(uri) }.to raise_error(Uploader::RemoteCredentialsMissing)
+        expect(bi.settings).to eq(settings)
+        bi.reload
+        expect(bi.data).to eq(nil)
+        expect(bi.url).to eq(url)
+        expect(bi.settings).to eq(settings)
+      end
+
+      it "keeps the embedded fallback in development and test" do
+        bi = ButtonImage.create(user: u, settings: {})
+        expect(Typhoeus).to receive(:post).and_return(OpenStruct.new(:success? => false))
+        bi.upload_to_remote(uri)
+        expect(bi.data).to eq(uri)
+      end
+    end
+
     it "should fail unless the record is saved" do
       s = ButtonSound.new
       expect { s.upload_to_remote("") }.to raise_error("must have id first")

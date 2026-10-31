@@ -243,6 +243,7 @@ module Uploadable
 
   def upload_to_remote(source, rasterize=false)
     raise "must have id first" unless self.id
+    Uploader.ensure_deployed_uploads_configured!
     # The saves made during an upload (full_filename's first save, the result) must not schedule
     # another upload of the same record from check_for_pending.
     @uploading_to_remote = true
