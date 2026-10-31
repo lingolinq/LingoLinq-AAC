@@ -144,7 +144,9 @@ class ButtonSound < ApplicationRecord
     params[:upload_url] + self.settings['secondary_output']['filename']
   end
   
+  # Returns the number of records queued; the scheduler logs it (scheduler.rake:62,153).
   def self.schedule_missing_transcodings
+    scheduled = 0
     ButtonSound.where("url NOT LIKE '%.mp3'").where(['created_at > ?', 2.weeks.ago]).each do |bs|
       if bs.settings['extra_transcoding_attempts'] && bs.settings['extra_transcoding_attempts'] > 1
       elsif bs.settings['transcoding_in_progress'] && bs.updated_at > 48.hours.ago
@@ -152,6 +154,8 @@ class ButtonSound < ApplicationRecord
         bs.settings['extra_transcoding_attempts'] ||= 0
         bs.settings['extra_transcoding_attempts'] += 1
         bs.schedule_transcoding(true)
+        # schedule_transcoding queues nothing without a full_filename (media_object.rb:85)
+        scheduled += 1 if bs.settings['full_filename']
       end
     end
 
@@ -162,8 +166,10 @@ class ButtonSound < ApplicationRecord
         bs.settings['extra_transcoding_attempts'] ||= 0
         bs.settings['extra_transcoding_attempts'] += 1
         bs.schedule_transcoding(true)
+        scheduled += 1 if bs.settings['full_filename']
       end
     end
+    scheduled
   end
   
   
