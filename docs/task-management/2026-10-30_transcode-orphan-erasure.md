@@ -121,7 +121,9 @@ and outputs already written still need the sweep.
   keep the tombstone (which holds a stem with an opaque global_id) longer.
 - Listing needs `s3:ListBucket`: granted in production; nonprod unverified. Without it the row
   retries daily and is purged, reported, at 3 months: no deletion, no regression.
-- Mass erasure: one row per transcoded record, one listing call each, spread by the hourly batch.
+- Mass erasure: one row per transcoded record, one listing call each. Not spread: every row from
+  one erasure comes due in the same hourly batch, and again together a day later (corrected in
+  the second review).
 - Spec impact: the destroy writes a RemoteAction instead of enqueuing or calling S3, so the
   `media_object_spec` examples that use an `instance_double` S3 client or `match_array` the
   scheduled keys should be unaffected; anything that counts RemoteAction rows after a destroy may
@@ -183,7 +185,8 @@ examples, only the 16 new examples failing.
 
 1. Read the report lines for a few days: `Uploader.remote_remove_transcode_family report-only
    owner=... matched=N unmatched=M`. Any `unmatched` above 0 means a name this code does not know:
-   stop and look before enabling.
+   stop and look before enabling. A user can cause one: `content_type` is not validated, and a few
+   MIME types have a dotted first extension (`warc.gz`). Find the row by its `extra` owner.
 2. Enable through the audited console: `Setting.set('transcode_sweep_delete', 'true')` (it busts
    the Redis cache `Setting.get_cached` reads). Each kept row is swept when its `act_at` comes due,
    within a day of the flip. Rows not swept within 3 months are purged and reported
@@ -192,7 +195,9 @@ examples, only the 16 new examples failing.
 ## Rollback
 
 The delete kill switch is the Setting (`Setting.set('transcode_sweep_delete', nil)`), not a code
-rollback. A rollback of production below #1117 (any build without `RemoteAction#process_action`'s
+rollback. It covers only the sweep: the `transcoded_output_chain_key?` exception to
+`remote_remove`'s scary-delete guard is live as soon as this ships, for every existing caller
+(re-transcode names there used to raise). A rollback of production below #1117 (any build without `RemoteAction#process_action`'s
 unknown-action `else`, such as main cbfeb2043) deletes every due `transcode_family_sweep` row
 without a log line, losing the backlog. Before such a rollback, export the rows
 (`RemoteAction.where(action: 'transcode_family_sweep')`) and restore them afterwards.
@@ -235,3 +240,31 @@ production has MediaConvert off today, so it cannot happen there yet. Codex's su
 (persist before enqueue) does not close it, since the stale copy predates both. The full fix
 (always tombstone ButtonSound/UserVideo destroys; the stem comes from the id and key, not
 settings) was proposed and not taken: Traci, 2026-10-30, very low likelihood, accepted.
+
+## Second full review (2026-10-30, Traci: fix only real issues)
+
+`REVIEWED=PR lingolinq/LingoLinq-AAC#1240 at fc6df3c5fff085225d8e648a28acf39c9a63dd3b`.
+Senior-dev pass: Approve with comments, Lows only. Adversary pass: one Medium, four Lows.
+- **Medium, CONFIRMED, fixed.** An original stored at exactly the stem (a content type with no
+  MIME extension: `audio/mp3`, used by every TTS sound, `lib/tts.rb:46`; also `audio/x-m4a`,
+  `audio/wave`, `video/mov`; `uploadable.rb:52-61`) counted as unmatched, so its row never
+  settled and the go-live check fired on benign data. Fix: `key == stem` is the original
+  (`uploader.rb:580`). The proposal was red-teamed first: it changes classification only,
+  since `transcode_family_key?` needs a `v<digits>` tail, so the stem is never matched or
+  deleted. Option B was chosen over the optional-group regex, which also accepted keys shorter
+  than the stem. Three new examples were red first; mutants (drop `key == stem`; an over-broad
+  dotless tail) are both killed. No existing example was changed.
+- **Doc corrections:** "spread by the hourly batch" was wrong; the guard exception is outside
+  the kill switch; go-live step 1 notes that a user can create unmatched names.
+- **Not real, so not done:**
+  - a restore with the same id: no code path restores a sound or video, and PaperTrail
+    `reify` raises on secure_serialize;
+  - a falsy `remote_remove`: with no checksum, nil means already gone;
+  - a non-hash `secondary_output`: only ever a Hash or nil (`transcoder.rb:50`,
+    `button_sound.rb:125`);
+  - a daily burst: each row dispatches at most twice;
+  - a production blank bucket: it breaks every upload, and the existing deletes behave the same;
+  - a truncated or capped listing: more than 1000 objects under one stem;
+  - report-only logging at info;
+  - the live-owner stem comparison has no test: a test gap, not a defect;
+  - jitter.
