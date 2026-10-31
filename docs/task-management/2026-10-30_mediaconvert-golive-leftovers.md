@@ -1,7 +1,8 @@
 # MediaConvert go-live leftovers (#981)
 
 Date: 2026-10-30. Branch `traci/fix/mediaconvert-golive-leftovers` from develop `fd514a167`
-(#1239 merged). Line numbers in the fact sheets are at `fd514a167`, before this branch's edits. Traci: "make sure the issues in 981 are still real and fully fix them".
+(#1239 merged). Line numbers in the fact sheets are at `fd514a167`, before this branch's
+edits. Traci: "make sure the issues in 981 are still real and fully fix them".
 
 LEARNINGS consulted: `LEARNINGS.md:38` (PiiScrubber and `filter_parameters` never touch explicit
 `Rails.logger` lines; Cloud Run ships stdout to Cloud Logging; log opaque ids or nothing).
@@ -185,9 +186,17 @@ Adversary: ship with conditions, no Critical/High. Each checked by hand. Fixed i
 Mutations, all killed: no scrub; keep the dropped fields; no cap; no job id in the fallback; an
 unsanitized fallback id.
 Not done: the count copies `schedule_transcoding`'s full_filename guard instead of using its
-result (`schedule_transcoding` returns true either way; the spec pins today's rule); file:line
-citations in comments (the repo's own convention).
-Pre-existing, Traci to decide: a genuinely signed SNS message from any AWS account, replayed with
-an `sms_inbound` header, reaches `RemoteTarget.process_inbound` (the verifier does not bind the
-topic). `SNS_ARNS` cannot hold the SMS topic (one ARN per environment), so the fix would bind the
-signed `TopicArn` to our account and the SMS name.
+result (`schedule_transcoding` returns true either way; the spec pins today's rule). Declined:
+removing the file:line citations from comments (the repo's own convention).
+Pre-existing, accepted Low (Traci, 2026-10-30): a genuinely signed SNS message from any AWS
+account, replayed with an `sms_inbound` header, reaches `RemoteTarget.process_inbound` (the
+verifier does not bind the topic). It needs an attacker's own AWS account plus a real contact's
+number and ours, and yields only a fake message, so it is not worth the effort to anyone. The
+fix, if ever wanted: bind the signed `TopicArn` to our account and the SMS name (`SNS_ARNS`
+holds one ARN per environment, so it cannot carry the SMS topic).
+
+Follow-up review: `REVIEWED=range f1d9f7e52 (f1d9f7e5247cbfa3edc1d932344aed774718858c) ... HEAD
+(2b09881ea7d9924aa108ff5b90958b04861c008e)`. Approve with comments, Lows only. Not real: hash keys
+are not redacted (AWS fixes the event's keys; `userMetadata` keys are ours); the fallback would
+log a 32-80 char hex job id (real ids are `<13 digits>-<6 chars>`, after verification); the
+surrogate example lacks `authentic!` (it calls it, spec line 354). Fixed: two task-log wordings.
