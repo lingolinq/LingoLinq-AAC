@@ -74,7 +74,8 @@ gcloud run jobs execute <migrate-job> --project <project> --region us-central1 -
 Then read the `DEMO_ORG` lines from that execution's logs. What you see decides the next step:
 
 - **The demo org exists and its members have `@demoschooldistrict.org` emails (production):**
-  turn the demo accounts' email off, flag the org by name, then backfill.
+  turn the demo accounts' email off, flag the org by name, then backfill. Production's
+  district is already a premium org.
 
   ```bash
   --args='exec,rails,runner,pp DemoDistrict.disable_demo_emails!; DemoDistrict.flag_organization!("Demo School District"); pp DemoDistrict.refresh!'
@@ -110,6 +111,10 @@ Then read the `DEMO_ORG` lines from that execution's logs. What you see decides 
 
   The password you pass is visible in that execution's configuration to anyone who can view
   Cloud Run jobs in the project.
+
+  The district is built as a premium org, so its org page shows the communicator and eval
+  statistics to the org's managers (`sarah_chen_slp`). A district built before that (nonprod's first, 2026-10-30) needs it once by hand:
+  a site admin opens the org's Settings and ticks Premium.
 
 ## Reading the result
 

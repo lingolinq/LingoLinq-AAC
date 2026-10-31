@@ -67,6 +67,10 @@ module DemoDistrict
         # Explicit opt-in for DemoDistrict.refresh! (lib/demo_district.rb), which only ever
         # writes synthetic activity into an organization carrying this flag.
         'demo_data' => true,
+        # Turns on the org's premium features, as on a paying district: among them the org
+        # page's communicator and eval statistics (lib/json_api/organization.rb,
+        # templates/organization/index.hbs), Trainings, and room messages and goals.
+        'premium' => true,
         'total_licenses' => 30,
         'total_eval_licenses' => 5,
         'total_supervisor_licenses' => 10,
