@@ -328,3 +328,30 @@ The work goes on this branch in a fresh session (rule 13 stop in this one).
   - **Out of scope:** offline picks with unknown permissions.
 - **Lint:** the touched files have the same 15 `ember/no-runloop` errors as the base code, none in changed lines.
 - Full Ember suite (Node 22) at 8e203e54d: 3870 tests, 3828 pass, 37 skip, 5 todo, 0 fail; no browser timeouts (complete run).
+
+## Combined with the other issue #3 branches (2026-10-30, at Traci's request: one PR)
+- Committed each worktree's fix on its own branch, then cherry-picked onto this one, one commit each:
+  `9067b3cba` (migrate-job-namespace, log `2026-10-30_migrate-job-namespace.md`), `d4be75036`
+  (sync-bounded-reads, log `2026-10-30_sync-bounded-reads.md`), `4bc12a07b` (import-requires-s3, log
+  `2026-10-30_import-requires-s3.md`). All four branches shared the base `e4be8b26a`.
+- One conflict, `upload_to_remote` (`app/models/concerns/uploadable.rb`): both added a first line. Order
+  chosen: `Uploader.ensure_deployed_uploads_configured!`, then `@uploading_to_remote = true`, so a refusal
+  leaves the flag unset (the method-level `ensure` clears it anyway).
+- Interaction checked: in a deployed environment without S3, a retried upload raises at that check; the
+  sweep counts the attempt before scheduling (`retry_failed_uploads`), so it stops after
+  `UPLOAD_RETRY_LIMIT`.
+- The workflow change means the PR needs the `synthetic-data` label from a reviewer (an agent never adds it).
+- Tests on the combined head `4bc12a07b`:
+  - touched RSpec files: 887 examples, 0 failures.
+  - full Ember (Node 22): 3876 tests, 3834 pass, 37 skip, 5 todo, 0 fail (3870 before plus the 6 sqlite
+    batch tests); complete run.
+  - full RSpec before `rails extras:assert_js`: 8366 examples, 4 failures. CONFIRMED all four are the
+    missing build placeholder `vendor.js`: in a throwaway worktree at the same head they failed without the
+    setup step (the test log shows `couldn't find file 'vendor.js'` for the throttling spec's `GET "/"`) and
+    passed after it. CI runs that step (`ci.yml:79`) and its rspec job passed on `e4be8b26a`; README.md:67
+    lists it. The earlier "4 baseline failures" in these logs were this setup gap, not code failures.
+  - full RSpec after the setup step: one run had 52 failures (seed, import, sidebar, deduper, board and
+    button-set specs); three of them passed when run alone; an immediate rerun of the full suite, same head,
+    same defined order, had 8366 examples, 0 failures. No other checkout's test log changed in that window.
+    Cause not found and not reproduced; its error output was not kept (filtered to the summary). Recorded
+    as unexplained; CI is the next independent run.
