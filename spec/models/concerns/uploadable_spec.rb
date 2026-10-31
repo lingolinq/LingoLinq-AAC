@@ -1290,6 +1290,20 @@ describe Uploadable, :type => :model do
       expect(upload_jobs(bi).length).to eq(1)
     end
 
+    # Every writer of an image's data_uri also stores data (button_image.rb:226-227,
+    # uploadable.rb:447-448), so an SVG too large to embed is still a sweep candidate.
+    it "retries a failed SVG too large to embed, created the way the app creates it" do
+      bi = ButtonImage.process_new({'url' => big_svg, 'content_type' => 'image/svg+xml'}, {:user => u})
+      expect(bi.data).to be_present
+      Worker.flush_queues
+      fail_post
+      bi.upload_to_remote(Uploadable::UPLOAD_FROM_STORED_DATA_URI)
+      bi = age(bi.reload, 2)
+      expect(bi.settings['errored_pending_url']).to be_present
+      ButtonImage.retry_failed_uploads
+      expect(upload_jobs(bi).length).to eq(1)
+    end
+
     it "retries a failed SVG through the sweep" do
       bi = failed_image(svg, {'content_type' => 'image/svg+xml', 'data_uri' => svg})
       bi = age(bi, 2)
@@ -1352,6 +1366,21 @@ describe Uploadable, :type => :model do
       ButtonImage.schedule_for(:slow, :retry_failed_uploads)
       Worker.process_queues
       expect(bi.reload.settings['upload_failures']).to eq(1)
+    end
+
+    # The first save during an upload (full_filename) already schedules transcoding of a file not
+    # yet in S3 (media_object.rb:83-94, :194), so a sound retried successfully must transcode again.
+    it "transcodes a sound once a retried upload succeeds" do
+      bs = ButtonSound.create(user: u, settings: {})
+      fail_post
+      bs.upload_to_remote(mp3)
+      bs.reload
+      expect(bs.settings['transcoding_attempted']).to eq(true)
+      Worker.flush_queues
+      allow(Typhoeus).to receive(:post).and_return(OpenStruct.new(success?: true))
+      bs.upload_to_remote(Uploadable::UPLOAD_FROM_STORED_DATA_URI)
+      expect(bs.reload.url).to be_present
+      expect(Worker.scheduled?(Transcoder, :convert_audio, bs.global_id, anything, anything) || Resque.peek('default', 0, 100).to_a.any? { |j| j['args'][0] == 'Transcoder' && j['args'][2] == bs.global_id }).to eq(true)
     end
 
     it "retries a failed sound" do

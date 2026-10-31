@@ -123,6 +123,13 @@ describe Api::ImagesController, :type => :controller do
       expect(JSON.parse(response.body)['meta']['remote_upload']).to be_present
     end
 
+    it "is given on the response to creating the image" do
+      token_user
+      post :create, params: {:image => {'content_type' => 'image/png'}}
+      expect(response).to be_successful
+      expect(JSON.parse(response.body)['meta']['remote_upload']).to be_present
+    end
+
     it "is not given to another user" do
       owner = User.create
       s = ButtonImage.create(:user => owner, :settings => {'content_type' => 'image/png', 'pending' => true})
@@ -165,7 +172,9 @@ describe Api::ImagesController, :type => :controller do
       png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
       s = ButtonImage.create(:user => owner, :settings => {'content_type' => 'image/png', 'license' => {'type' => 'private'}})
       token_user
+      allow(Rails.logger).to receive(:warn).and_call_original
       put :update, params: {:id => s.global_id, :image => {:license => {'type' => 'CC-By'}, :url => png, :content_type => 'image/png'}}
+      expect(Rails.logger).to have_received(:warn).with(/image update refused.*#{s.global_id}/)
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json['image']['id']).to eq(s.global_id)
@@ -173,6 +182,16 @@ describe Api::ImagesController, :type => :controller do
       s.reload
       expect(s.settings['license']).to eq({'type' => 'private'})
       expect(s.data).to eq(nil)
+    end
+
+    it "should not let a read-only supervisor update the communicator's image" do
+      token_user
+      communicator = User.create
+      User.link_supervisor_to_user(@user, communicator, nil, false)
+      s = ButtonImage.create(:user => communicator.reload, :settings => {'content_type' => 'image/png', 'license' => {'type' => 'private'}})
+      put :update, params: {:id => s.global_id, :image => {:license => {'type' => 'CC-By'}}}
+      expect(response).to be_successful
+      expect(s.reload.settings['license']).to eq({'type' => 'private'})
     end
 
     it "should let a supervisor with edit rights update the communicator's image" do

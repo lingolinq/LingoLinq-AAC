@@ -339,6 +339,9 @@ module Uploadable
         self.settings['data_uri'] = nil
         self.settings['pending_url'] = nil
         self.data = nil if self.respond_to?(:data=)
+        # A failed attempt already ran transcoding against a file that was not in S3 (MediaObject
+        # schedules it on full_filename's first save); let this save schedule it again.
+        self.settings.delete('transcoding_attempted') if self.settings['upload_failed_at'] && self.respond_to?(:schedule_transcoding)
         clear_upload_failure
         self.save
       else

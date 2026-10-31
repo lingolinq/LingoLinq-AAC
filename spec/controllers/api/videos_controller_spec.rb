@@ -27,6 +27,13 @@ describe Api::VideosController, type: :controller do
       expect(JSON.parse(response.body)['meta']['remote_upload']).to be_present
     end
 
+    it "is given on the response to creating the video" do
+      token_user
+      post :create, params: {:video => {'content_type' => 'video/mp4'}}
+      expect(response).to be_successful
+      expect(JSON.parse(response.body)['meta']['remote_upload']).to be_present
+    end
+
     it "is not given to another user" do
       owner = User.create
       v = UserVideo.create(:user => owner, :settings => {'content_type' => 'video/mp4', 'pending' => true})

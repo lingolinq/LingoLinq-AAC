@@ -241,3 +241,32 @@ Recorded, not fixed here:
   - the 200-unchanged reply clears the sync queue's `changed` flag;
   - the 4 approved spec edits loosened no assertion.
 - **Pre-existing, noted:** the confirmation key is deterministic (`uploadable.rb:41-43`), and `upload_success` does not check `pending`. Re-running it is harmless once the signed form has expired.
+
+## Canonical review passes (2026-10-30)
+Preflight `review-preflight.sh range origin/develop traci/fix/upload-retry` exited 0:
+`REVIEWED=range origin/develop (e4be8b26a657c8d64a573ae6ef0eae66d2ef03a8) ... traci/fix/upload-retry (f5bcf9dc6d23b00dfdedc8d38a713182a26be429) in /Users/traciday/Documents/GitHub/lingolinq/LingoLinq-AAC-upload-retry`.
+Both passes read only that diff file. They ran as subagents following
+`~/ai-company-brain/commands/review-pr.md` and `agents/adversary.md`, because neither command is
+registered on this machine.
+
+### Senior-dev pass: request changes (1 High, 3 Medium)
+- **High, REFUTED by me: "an oversized SVG that fails is never retried".**
+  - Every writer of an image's `data_uri` also stores `data` (`button_image.rb:226-227`, `uploadable.rb:447-448`), so the record stays a sweep candidate. The reviewer could see only the diff, and my earlier test built the record in a shape the app never creates.
+  - Added "retries a failed SVG too large to embed, created the way the app creates it". It goes red if the oversize branch drops `data`.
+  - Related but not a regression: sound imports store `data_uri` without `data` (`board.rb:1572`, `button_sound.rb:283`). An oversized failed sound was never retried before this branch either, and still is not.
+- **Medium, fixed: refused updates left no trace.** A refused image update now writes a `Rails.logger.warn`; the test goes red without it.
+- **Medium, added: the missing permission examples.**
+  - A read-only supervisor's image update is refused and the image is unchanged.
+  - The image and video create responses carry the form.
+  - Dropping the create flag does not turn the last two red, because the creator of an image or video is always its owner, so ownership alone gives the form. The flag matters for sounds, where the read-only supervisor example covers it.
+- **Medium, open: non-owners lose `preserve_source_image` on reused records** (also raised by the adversary pass).
+
+### Canonical adversary pass: ship with conditions (0 Critical, 0 High, 3 Medium, 2 Low)
+- **Medium: the hole is described on a public branch before production is patched.** That is a decision for Traci (hotfix to `main`, and/or trimming this log).
+- **Medium: `preserve_source_image` for non-owners.** Open, as above.
+- **Medium: no log on refused updates.** Fixed, as above.
+- **Low, CONFIRMED and fixed: a sound retried successfully was never transcoded.**
+  - `full_filename`'s first save fires `MediaObject#schedule_transcoding` (`media_object.rb:83-94`, `:194`) against a file not yet in S3 and sets `transcoding_attempted`.
+  - The success branch now clears `transcoding_attempted` when the record had failed, so its save schedules transcoding again.
+  - Test "transcodes a sound once a retried upload succeeds": red before, green after.
+- **Low: the sweep loads whole rows to filter them.** Recorded, as before.

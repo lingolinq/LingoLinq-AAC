@@ -48,6 +48,7 @@ class Api::ImagesController < ApplicationController
     # replay them on sync, where one rejected save fails that sync and every later one
     # (services/persistence.js sync_changed).
     unless image.allows?(@api_user, 'edit')
+      Rails.logger.warn("image update refused: user #{@api_user && @api_user.global_id} cannot edit image #{image.global_id}")
       render json: JsonApi::Image.as_json(image, :wrapper => true, :permissions => @api_user).to_json
       return
     end
