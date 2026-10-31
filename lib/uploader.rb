@@ -576,8 +576,9 @@ module Uploader
     keys = list_remote_keys_with_prefix(stem, log_label: "transcode family owner=#{owner}")
     return false if keys.nil?
     matched = keys.select { |key| transcode_family_key?(stem, key) }
-    # The original upload is <stem>.<ext>; anything else under the stem is a name this code does not know.
-    unmatched = keys.reject { |key| matched.include?(key) || key[stem.length..-1].to_s.match?(/\A\.\w+\z/) }
+    # The original upload is <stem>.<ext>, or exactly <stem> when its content type has no extension
+    # (uploadable.rb:52-61); anything else under the stem is a name this code does not know.
+    unmatched = keys.reject { |key| matched.include?(key) || key == stem || key[stem.length..-1].to_s.match?(/\A\.\w+\z/) }
     unless transcode_sweep_delete?
       Rails.logger.info("Uploader.remote_remove_transcode_family report-only owner=#{owner} matched=#{matched.length} unmatched=#{unmatched.length}")
       return true

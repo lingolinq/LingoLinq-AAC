@@ -2943,6 +2943,37 @@ describe Uploader do
       expect_no_logged_stem(sound_stem)
     end
 
+    # A content type MIME::Types has no extension for (audio/mp3, every TTS sound) stores the
+    # original at exactly the stem (uploadable.rb:52-61).
+    it "should treat an original stored at exactly the stem as the original, and settle the row" do
+      tombstone(sound_stem)
+      listing(sound_stem, [sound_stem, "#{sound_stem}v1.mp3"])
+      expect_delete("#{sound_stem}v1.mp3")
+      expect(s3_client).to_not receive(:delete_object).with(bucket: bucket, key: sound_stem)
+      expect(Uploader.remote_remove_transcode_family(sound_stem, 'ButtonSound::1_123', 2.days.ago.to_i)).to eq(true)
+      expect(RemoteAction.where(action: 'transcode_family_sweep').count).to eq(0)
+      expect(Rails.logger).to have_received(:info).with(/matched=1 deleted=1 in_use=0 failed=0 unmatched=0/)
+    end
+
+    it "should report an original stored at exactly the stem as no unexpected name in report-only mode" do
+      Setting.set('transcode_sweep_delete', nil)
+      tombstone(sound_stem)
+      listing(sound_stem, [sound_stem, "#{sound_stem}v1.mp3"])
+      expect(s3_client).to_not receive(:delete_object)
+      expect(Uploader.remote_remove_transcode_family(sound_stem, 'ButtonSound::1_123', 2.days.ago.to_i)).to eq(true)
+      expect(Rails.logger).to have_received(:info).with(/report-only owner=ButtonSound::1_123 matched=1 unmatched=0/)
+    end
+
+    it "should still report an unknown name with no extension" do
+      tombstone(sound_stem)
+      listing(sound_stem, [sound_stem, "#{sound_stem}v1", "#{sound_stem}x"])
+      expect(s3_client).to_not receive(:head_object)
+      expect(s3_client).to_not receive(:delete_object)
+      Uploader.remote_remove_transcode_family(sound_stem, 'ButtonSound::1_123', 2.days.ago.to_i)
+      expect(RemoteAction.where(action: 'transcode_family_sweep').count).to eq(1)
+      expect(Rails.logger).to have_received(:error).with(/unmatched=2/)
+    end
+
     it "should skip a key another record still uses" do
       tombstone(sound_stem)
       key = "#{sound_stem}v1.mp3"
