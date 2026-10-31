@@ -455,6 +455,7 @@ describe DemoDistrict do
       second = DemoDistrict::Seeder.build!(org.reload, password: 'spec-demo-password', log: quiet, adopt: true)
       expect(second[:board].id).to eq(first[:board].id)
       expect(Board.count).to eq(boards)
+      expect(org.reload.settings['premium']).to eq(true)
     end
 
     # Every deployed environment runs RAILS_ENV=production; only the Cloud Run job name
