@@ -18,19 +18,15 @@ findings from `scripts/ember-route-crawl.mjs`.
 Framework-upgrade bugs are engineering findings, not compliance findings. Mixing them
 would pollute the compliance headline (open Critical/High count) that `/compliance-status`
 reports. Both registers share the identical merge + citation machinery — the scripts are
-register-path parameterized:
+register-path parameterized. The merge itself runs from `/ember-audit-run`, which gates the finders
+first and passes each slice's file in its own `--in` (Steps 2b and 3). The checks afterwards:
 
 ```
-ruby scripts/audit-merge.rb --register audit-reports/ember-upgrade/FINDINGS-EMBER.json \
-  --sha <auditedSha> --ref <ref> --date <YYYY-MM-DD> \
-  --in /tmp/ember-finder-*.json \
-  --out audit-reports/ember-upgrade/FINDINGS-EMBER.json --summary /tmp/ember-audit-summary.json
 ruby scripts/citation-check.rb audit-reports/ember-upgrade/FINDINGS-EMBER.json
 ruby scripts/register-lint.rb audit-reports/ember-upgrade/FINDINGS-EMBER.json
 ```
 
-`--sha` restamps this register's audit pointer, which is correct for the whole-tree slice fan-out
-above. A single finding filed OUTSIDE a full run takes `--sha <trueCommit> --no-restamp` instead,
+`--sha` restamps this register's audit pointer, which is correct for a whole-tree slice fan-out. A single finding filed OUTSIDE a full run takes `--sha <trueCommit> --no-restamp` instead,
 which anchors `evidence.sha` at the real commit and leaves `meta` untouched. See
 `audit-reports/README.md`, "The audit pointer vs. the evidence anchor".
 

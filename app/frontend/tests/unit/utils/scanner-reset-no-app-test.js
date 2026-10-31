@@ -3,9 +3,9 @@ import scanner, { scanner_reset_for } from 'frontend/utils/scanner';
 import modal from 'frontend/utils/modal';
 
 /*
- * The production state for switch scanning: the highlight controller passed to scanner.setup has no
- * appState, so scanner.appState is unset when a selection schedules the reset (utils/scanner.js, the
- * runLater(scanner_reset_for(...)) after an axes selection). The REAL scanner.reset must still run
+ * scanner.appState can be unset when a selection schedules the reset (utils/scanner.js, the
+ * runLater(scanner_reset_for(...)) after an axes selection): before check_scanning first sets it, and
+ * until 2026-10 after every highlight open, whose controller declared no appState. The REAL scanner.reset must still run
  * then: cancel the pending scan step, close the highlight, and ask scanning to start again. Only the
  * parts that touch the DOM are replaced here; scanner.reset itself is not. (What start() then does with
  * appState unset, stop first and resume through check_scanning, is unchanged from develop.)

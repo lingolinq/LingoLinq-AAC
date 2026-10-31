@@ -697,4 +697,41 @@ describe('utterance', function() {
       waitForSuggestionRefresh();
     });
   });
+
+  // utterance.process_inline_content concatenates each inline action's content() and combine_content
+  // reads every piece's .text, so content() must return a list of {text} pieces. :battery-level returned
+  // a bare string and :current-month the placeholder "DATE": either one in a vocalization threw inside
+  // add_button, and every later selection threw before it was spoken until the sentence was cleared.
+  describe("inline action content", function() {
+    it("gives every inline action's content as a list of text pieces", function() {
+      var bad = [];
+      LingoLinq.special_actions.filter(function(a) { return a.inline && a.content; }).forEach(function(action) {
+        var pieces = [].concat(action.content(null));
+        if(!pieces.every(function(p) { return p && p.text != null; })) { bad.push(action.action); }
+      });
+      expect(bad).toEqual([]);
+    });
+
+    it("says the battery level as a number for :battery-level", function() {
+      var saved = app_state.get('battery');
+      try {
+        app_state.set('battery', {level: 85, charging: false});
+        expect(LingoLinq.find_special_action(':battery-level').content()).toEqual([{text: "85 percent battery left"}]);
+        app_state.set('battery', null);
+        expect(LingoLinq.find_special_action(':battery-level').content()).toEqual([{text: "Unknown percent battery left"}]);
+      } finally {
+        app_state.set('battery', saved);
+      }
+    });
+
+    it("says the day after today for :tomorrow-day", function() {
+      var action = LingoLinq.find_special_action(':tomorrow-day(1)');
+      expect(action.content(':tomorrow-day(1)'.match(action.match))).toEqual([{text: window.moment().add(1, 'day').format('dddd')}]);
+    });
+
+    it("says the name of the month for :current-month", function() {
+      var action = LingoLinq.find_special_action(':current-month');
+      expect(utterance.combine_content(action.content())).toEqual([{text: window.moment().format('MMMM')}]);
+    });
+  });
 });

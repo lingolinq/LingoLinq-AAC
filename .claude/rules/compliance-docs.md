@@ -9,8 +9,9 @@ paths:
 - `audit-reports/FINDINGS.json` and `audit-reports/DOCUMENT-REGISTER.json` are the
   single source of truth. Rendered `.md` files and Notion pages are generated from them;
   never hand-edit a rendered artifact.
-- Before every push that touches these paths run `scripts/regenerate-register.sh --check`
-  (it mirrors the `audit-artifacts-integrity` CI job). If a FAIL names an **attested**
+- Before every push that touches these paths run `scripts/regenerate-register.sh --check`.
+  It covers most of the `audit-artifacts-integrity` CI job, not all of it: also run the
+  disclosure guard and the base-pinned naming check listed in `/pr-preflight` P3. If a FAIL names an **attested**
   row, stop: attested bytes are frozen. Supersede with a new dated file through
   `/re-attest-record`; never edit the attested file in place.
 - Only Scot closes a finding, downgrades severity, accepts risk, or attests a document.

@@ -64,8 +64,8 @@ other — check both for every tile-level alt/aria/role finding:
 2. **Fast-HTML string path:** the `fast_html` builder in `app/frontend/app/utils/button.js`
    (hand-built HTML string, not a template — alt/aria attributes are concatenated here).
 
-The Home landing renders via `app/frontend/app/templates/components/dashboard/authenticated-view.hbs`
-(the live authenticated home; `index/authenticated.hbs` is dead). Other AAC surfaces to cover:
+The Home landing renders via `app/frontend/app/components/dashboard/authenticated-view.hbs`
+(the live authenticated home). Other AAC surfaces to cover:
 the sentence box / utterance bar, scanning-mode UI, and the speak-mode launch UI.
 
 ## Scan strategy (static only)
@@ -76,8 +76,7 @@ the sentence box / utterance bar, scanning-mode UI, and the speak-mode launch UI
   icon-only buttons (e.g. `.la-modal-close`) missing `aria-label`; form inputs without an
   associated `<label for>` / `aria-label`. (1.3.1, 4.1.2)
 - **Focus visibility:** interactive selectors in `app/frontend/app/styles/app.scss` with no
-  `:focus-visible` (or `:focus`) rule (the 2026-04-11 pass found `.la-btn`, `.md-caseload__action*`,
-  `.la-find-button-result`, `.la-modal-close`, `.la-find-button-cancel` missing one). (2.4.7)
+  `:focus-visible` (or `:focus`) rule. (2.4.7)
 - **Semantics / landmarks / headings:** missing landmark roles, skipped heading levels, `tabindex`
   > 0, positive-tabindex focus traps detectable in markup. (1.3.1, 2.4.1, 2.4.6)
 - **Language:** missing/incorrect `lang` on `<html>` or language-switched regions. (3.1.1, 3.1.2)

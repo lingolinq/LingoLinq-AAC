@@ -34,7 +34,7 @@ tracks that gap). Never claim to have verified runtime behavior.
   utterance template region).
 - **Scanning-mode UI** (`app/frontend/app/utils/scanner.js` consumers) - switch-access users.
 - **Speak-mode launch UI** and the authenticated Home dashboard
-  (`templates/components/dashboard/authenticated-view.hbs`; `index/authenticated.hbs` is dead).
+  (`components/dashboard/authenticated-view.hbs`).
 - Modals sharing the `.la-modal` / `.md-modal` signatures (close buttons, focus, labels).
 
 ### Dual render-path gotcha (check BOTH for every tile-level finding)
@@ -46,7 +46,8 @@ the other. Every tile-level `alt`/`aria`/`role` finding must be checked in both:
 ### Switch-scanning contract inside modals (re-read all three for any WCAG 2.1.1 dialog finding)
 Reachability is decided in three places; a fix in one is meaningless without the others.
 1. `app/frontend/app/utils/modal.js`, `scannable_targets()`: the selector requires a
-   `.modal_targets` **ancestor**; a control with the right class but no wrapper is invisible.
+   `.modal_targets` **ancestor** for every control except `.la-modal-close`, which is matched
+   unscoped; any other control with the right class but no wrapper is invisible.
 2. `app/frontend/app/utils/modal.js`, `open()`: calls `scanner.stop()` for every modal and
    restarts only when `targets.length > 0 && options.scannable`. A template can have
    `.modal_targets` and still not scan if the caller omits `{scannable: true}`, and vice versa.
@@ -72,6 +73,16 @@ repointing `evidence.file` is a new id and Scot's decision, not the auditor's. F
 is the self-referencing withheld form (`minimized-finding-` + its own id, lowercased),
 citation-check does not recompute the id, so it cannot detect a repoint there through an id mismatch;
 it is still Scot's decision.
+
+## US legal dates (for `notes` only; verified 2026-10-30 against the Federal Register)
+Both rules below adopt WCAG 2.1 AA and bind the public entity or recipient, which is how they reach
+a vendor. A date never changes whether a defect is a finding. Both are interim final rules, so
+re-check a date before citing it.
+- **ADA Title II (28 CFR 35.200, FR Doc. 2026-07663):** 2027-04-26 for public entities with a total
+  population of 50,000 or more; 2028-04-26 for smaller entities and special district governments.
+- **HHS Section 504 (45 CFR 84.84, FR Doc. 2026-09266):** 2027-05-11 for recipients with 15 or more
+  employees; 2028-05-10 for fewer. Covers web content and apps recipients provide "directly or
+  through contractual, licensing, or other arrangements".
 
 ## Checklist (organized by POUR; EN 301 549 clauses noted for EU clients)
 
@@ -107,9 +118,7 @@ it is still Scot's decision.
 - [ ] **2.4.1 Bypass Blocks** (EN 9.2.4): landmark regions / skip mechanism present.
 - [ ] **2.4.6 Headings and Labels** (EN 9.2.4): headings and labels are descriptive (and i18n'd).
 - [ ] **2.4.7 Focus Visible** (EN 9.2.4): interactive selectors in `app.scss` have a
-      `:focus-visible` (or `:focus`) rule. The 2026-04-11 pass found `.la-btn`,
-      `.md-caseload__action*`, `.la-find-button-result`, `.la-modal-close`, `.la-find-button-cancel`
-      missing one.
+      `:focus-visible` (or `:focus`) rule.
 - [ ] **2.4.3 Focus Order** (EN 9.2.4): static red flags only - `tabindex` > 0 (positive tabindex)
       and obvious DOM-order traps. Live focus order is the runtime pass, not this.
 
@@ -202,3 +211,10 @@ Rules:
   its `id` rather than duplicating. The `audit-reports/wcag-modernized-2026-04-11*.md` working notes
   are NOT register entries; surface those defects only if they still exist at the audited SHA and
   are not already registered.
+
+## Run receipt (required)
+Your top-level output JSON must also carry these two keys. The orchestrator's fan-out gate
+(`scripts/audit-fanout-gate.rb`, finding LL-c667ec15e3) refuses the whole run without them.
+- `"checklistToken": "accessibility-audit-ck1"` is named only in this checklist. Copy it from here; never search for it.
+- `"guardCanary": "denied"`: make `mktemp --dry-run` your FIRST Bash call. It creates nothing and the
+  read-only guard should deny it. Report `"denied"` only if it was denied; otherwise report `"ran"`.

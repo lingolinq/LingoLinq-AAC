@@ -30,7 +30,8 @@ live code at the register's `auditedSha`, the older prose was not.
 
 The register is fed by the `/audit-run` orchestrator skill (`.claude/skills/audit-run/`), not
 by hand. It stamps the audited commit SHA, fans out the read-only finder agents
-(`.claude/agents/{privacy,infra,api,dependency,accessibility,code-hygiene}-auditor.md`), reconciles their output into this
+(`.claude/agents/{privacy,infra,api,dependency,accessibility,code-hygiene}-auditor.md`), stops
+before merging unless `scripts/audit-fanout-gate.rb` passes for each one, reconciles their output into this
 register via `scripts/audit-merge.rb`, runs the `adversary` agent as an independent verifier,
 and validates every citation with `scripts/citation-check.rb`. Governance is enforced
 mechanically: `audit-merge.rb` only ever ADDS findings or marks them `open`; it never closes,
@@ -75,15 +76,15 @@ git history, so it is deliberately not a CI job. Run both; neither subsumes the 
 ## Bridging PR-time review findings (operationalization)
 
 The periodic `/audit-run` is not the only source of findings. The per-PR reviewers (the `/review-pr`
-and `/adversary-review` CLI passes, and the n8n PR Review Bot) catch real issues at PR time, but
+and `/adversary-review` CLI passes, and the Codex GitHub connector) catch real issues at PR time, but
 their output used to evaporate after the PR comment. The `/promote-finding` skill
 (`.claude/skills/promote-finding/`) bridges a **reviewed, Critical/High** PR finding INTO this
 register via `scripts/promote-finding.rb`, so it is tracked and triaged instead of just logged.
 
 Promotion is **manual and Claude-operated, never automatic** (not a hook, not an n8n step):
 `FINDINGS.json` is the compliance SSOT (PII-free, Tier 2), and AI reviewers carry a 5-15%
-false-positive rate, so a human decides which findings are real enough to track (and the n8n bot
-is never given write access to the register). `promote-finding.rb` obeys the same governance as `audit-merge.rb`: it
+false-positive rate, so a human decides which findings are real enough to track (and no automated
+reviewer is given write access to the register). `promote-finding.rb` obeys the same governance as `audit-merge.rb`: it
 promotes Critical/High only, accepts **code/path evidence only** (a finding whose text carries a
 PII or secret shape is REFUSED, never redacted-in), adds findings as `open` with disposition
 `untriaged`, flags regressions of Scot-closed findings, and never closes, downgrades, or triages.

@@ -1760,7 +1760,7 @@
       "lastReviewed": "2026-06-16",
       "nextReviewDue": "2026-09-16",
       "attestation": {},
-      "contentHash": "f278c664860babab871c2e7946ec0f8333856af71ae2e9339a984aa885eb07be",
+      "contentHash": "33493104468eed4fbdae292dd75c85969857b2b2009d4ba7b41d8ecc631d0626",
       "bundles": [
         "compliance-records-set-2026-06"
       ],
@@ -1794,7 +1794,7 @@
       "lastReviewed": "2026-06-16",
       "nextReviewDue": "2026-12-16",
       "attestation": {},
-      "contentHash": "9d8fab998898f76d92bdee11416713e7999e1562cb1186c03d87d4707e081c8d",
+      "contentHash": "a61e3e545b360da6940595f33b136eb2423db9b07c27b43e99df524a043227a4",
       "bundles": [],
       "mirrors": [],
       "id": "DOC-b35f7a3444",
@@ -1853,7 +1853,7 @@
       "lastReviewed": "2026-06-21",
       "nextReviewDue": "2027-06-21",
       "attestation": {},
-      "contentHash": "e43ea8a1af6e9a0b6489e9ec2944a40d3536e4866db9b761ee07dd86d4ec094a",
+      "contentHash": "ea0931abe4e630e417aa2422e924f5cdbd81ed01a4aa055f69fb307235a8d7f5",
       "bundles": [],
       "mirrors": [],
       "id": "DOC-a936b01d6a",
@@ -1878,7 +1878,7 @@
       "lastReviewed": "2026-06-21",
       "nextReviewDue": "2026-12-21",
       "attestation": {},
-      "contentHash": "01a1f642b241d6fe41f6f36518e1be9610623509d1d523ce9db0292f96b10187",
+      "contentHash": "d4bd703d99a92f8cdfab291aafa53cdebd7b1324c3f9483cc19a508d5fdcf48f",
       "bundles": [],
       "mirrors": [],
       "id": "DOC-d9f17c6919",
@@ -1939,7 +1939,7 @@
       "lastReviewed": "2026-06-21",
       "nextReviewDue": "2026-12-21",
       "attestation": {},
-      "contentHash": "ce22bcef0d2168aa8f6730194d264ec7b78e389f3cbd70a38014e4925c03f512",
+      "contentHash": "82714162f980fb0bd3c437a170412070894c0955c9c01a6c2448a7f74caf32e2",
       "bundles": [],
       "mirrors": [],
       "id": "DOC-75b4889dfd",
@@ -1993,7 +1993,7 @@
       "lastReviewed": "2026-06-21",
       "nextReviewDue": "2026-12-21",
       "attestation": {},
-      "contentHash": "7a8bcfe2fd9c5d2adde773057f00bead603276ca7614448f35700753c4ef2070",
+      "contentHash": "93c827ce68944b3a3829e0d6948a67af41762d4b0bcc6d9bef2545cbab9adb2d",
       "bundles": [],
       "mirrors": [],
       "id": "DOC-2c8d32b86c",
@@ -2022,7 +2022,7 @@
       "lastReviewed": "2026-06-21",
       "nextReviewDue": "2026-12-21",
       "attestation": {},
-      "contentHash": "9ba80546fdbabe7c50c162e2833387d4594fb925fca57623cb525216ace594f6",
+      "contentHash": "1f2d3971e9336c8b974d7b0a4bc13adcb8db6f133002c1f165b313c00bbd75c0",
       "bundles": [],
       "mirrors": [],
       "id": "DOC-a04fd87b5c",
@@ -3437,7 +3437,7 @@
       "lastReviewed": "2026-07-22",
       "nextReviewDue": "2027-07-22",
       "attestation": {},
-      "contentHash": "3ec5a0034774f60b09d68c2b558286c6515aa1ab7da569d2e2cdbc9b20605e07",
+      "contentHash": "210bb4f92e18674b17d4659316d692f3ba0adedbfdebecb49a22eba19c2beb95",
       "bundles": [],
       "mirrors": [],
       "retention": {
@@ -3454,7 +3454,7 @@
     },
     {
       "title": "Agent config - security-reviewer",
-      "description": "Read-only reviewer for org_id scoping gaps, AuditEvent lifecycle gaps, serializer permission leaks, and audit payload minimization violations.",
+      "description": "Read-only reviewer for permission/tenant-check gaps, AuditEvent lifecycle gaps, serializer permission leaks, and audit payload minimization violations.",
       "type": "agent-config",
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
@@ -3466,7 +3466,7 @@
       "lastReviewed": "2026-07-22",
       "nextReviewDue": "2027-07-22",
       "attestation": {},
-      "contentHash": "99a8fdf648ef51479800d49d30bf6f05b0e04b3bd2eff2ff501a98928468b04c",
+      "contentHash": "b297ed2041522aa06c493b5cc9ca8f5e14b0f55d08ffd4bea96e3ee40bdfd9b7",
       "bundles": [],
       "mirrors": [],
       "retention": {
@@ -3483,7 +3483,7 @@
     },
     {
       "title": "Agent config - rails-implementer",
-      "description": "Applies surgical, org_id-scoped, audit-logged Rails fixes for compliance and security findings.",
+      "description": "Applies surgical, permission-scoped, audit-logged Rails fixes for compliance and security findings.",
       "type": "agent-config",
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
@@ -3495,7 +3495,7 @@
       "lastReviewed": "2026-07-22",
       "nextReviewDue": "2027-07-22",
       "attestation": {},
-      "contentHash": "967082b092c31c8e2a1270b645ca0a366bc6e7c3d37705db595bcd40f29b0b5d",
+      "contentHash": "7b0802e8ea20b18c5affa6e85ed3648118416340f537a39e553829dfecf327a7",
       "bundles": [],
       "mirrors": [],
       "retention": {
@@ -3550,7 +3550,7 @@
       "lastReviewed": "2026-08-12",
       "nextReviewDue": "2027-02-12",
       "attestation": {},
-      "contentHash": "19ccf329ac599de2fd141090870f1b7ef4e13e229368636f323b79288c6fef54",
+      "contentHash": "c4daef8b8aaaa825ff5116b03a0f1437bab3be1a7151c89e3d0ab0116e33d7be",
       "bundles": [],
       "mirrors": [],
       "retention": {
@@ -3901,9 +3901,9 @@
       "legalHold": false,
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-39f37f8200",
-      "notes": "Path A successor to DOC-39f37f8200 (attested 2026-08-04), created 2026-08-24 and reconciled 2026-08-25. Corrects TWO independent defect classes. (1) EU AI Act Article 50 status: the predecessor said the 50(1) disclosure modal is 'built and staged, gated OFF, not yet enabled for any user', that 'the whole path is inert', and that it is 'shown to no one in production'. A direct audited production read on 2026-08-23 falsified the enablement and inertness claims -- the article_50_disclosure flag IS ENABLED via the default_enabled_features DB Setting, which overrides the code constant (evidence: DOC-6c023a20a0, unattested). The same read does not establish that the modal was displayed; 'shown to no one because the flag is off' is false, but this record does not claim the UI rendered. (2) Bedrock runtime status, at four sites (section 2 operational-status note, section 3 BAA coverage bullet, the Runtime routing update paragraph, and the 2026-08-04 trailer), all of which stated or implied the runtime AI path has been not operational since revision 00014-5rw; credentials were re-mounted 53 minutes later on 00015-9l9. Those corrections were folded in from the never-merged PR #827 by three-way git merge-file over the frozen predecessor as common base; #827 is superseded by this record. BUNDLES: an earlier version of this note said security-review must not be retargeted until this record is attested. That rule was consciously OVERRIDDEN on 2026-08-25: the pack is customer-facing diligence and pinning it solely to the predecessor shipped the falsified 'shown to no one in production' claim to school districts and hospitals. Both records are now in the pack -- this successor for the corrected content, the predecessor so the pack still contains an ATTESTED AI-governance record. compliance-records-set-2026-06 is a frozen point-in-time binder and stays on the predecessor only. KNOWN GAP, not fixed here: docs/legal/2026-08-20_compliance-posture-report.md (also a security-review member) still says at :36 and :138 that article_50_disclosure 'remains AVAILABLE-only (not enabled)'. CORRECTED 2026-08-25: that file (DOC-59273ae805) is SUPERSEDED by DOC-c5408d90b7 (2026-08-22), which corrects exactly that claim at its own :106. The predecessor is attested and Path-A frozen, so \"until that is swept\" prescribed something impossible. The real residual is that the superseded row retains its bundle membership on this point. Still status:draft with empty attestation; only Scot attests.",
+      "notes": "Path A successor to DOC-39f37f8200 (attested 2026-08-04), created 2026-08-24 and reconciled 2026-08-25. Corrects TWO independent defect classes. (1) EU AI Act Article 50 status: the predecessor said the 50(1) disclosure modal is 'built and staged, gated OFF, not yet enabled for any user', that 'the whole path is inert', and that it is 'shown to no one in production'. A direct audited production read on 2026-08-23 falsified the enablement and inertness claims -- the article_50_disclosure flag IS ENABLED via the default_enabled_features DB Setting, which overrides the code constant (evidence: DOC-6c023a20a0, unattested). The same read does not establish that the modal was displayed; 'shown to no one because the flag is off' is false, but this record does not claim the UI rendered. (2) Bedrock runtime status, at four sites (section 2 operational-status note, section 3 BAA coverage bullet, the Runtime routing update paragraph, and the 2026-08-04 trailer), all of which stated or implied the runtime AI path has been not operational since revision 00014-5rw; credentials were re-mounted 53 minutes later on 00015-9l9. Those corrections were folded in from the never-merged PR #827 by three-way git merge-file over the frozen predecessor as common base; #827 is superseded by this record. BUNDLES: an earlier version of this note said security-review must not be retargeted until this record is attested. That rule was consciously OVERRIDDEN on 2026-08-25: the pack is customer-facing diligence and pinning it solely to the predecessor shipped the falsified 'shown to no one in production' claim to school districts and hospitals. Both records are now in the pack -- this successor for the corrected content, the predecessor so the pack still contains an ATTESTED AI-governance record. compliance-records-set-2026-06 is a frozen point-in-time binder and stays on the predecessor only. KNOWN GAP, not fixed here: docs/legal/2026-08-20_compliance-posture-report.md (also a security-review member) still says at :36 and :138 that article_50_disclosure 'remains AVAILABLE-only (not enabled)'. CORRECTED 2026-08-25: that file (DOC-59273ae805) is SUPERSEDED by DOC-c5408d90b7 (2026-08-22), which corrects exactly that claim at its own :106. The predecessor is attested and Path-A frozen, so \"until that is swept\" prescribed something impossible. The real residual is that the superseded row retains its bundle membership on this point. 2026-10-28 (issue #1227): a third, later correction: sections 2, 4 and 4.1 no longer describe the retired CI Codex review gate or the brain review guard as the data-bearing control, and section 4.1 now names the Codex GitHub connector. Still status:draft with empty attestation; only Scot attests.",
       "id": "DOC-506bbe2039",
-      "contentHash": "0d3c00cf0d34b9b17b1aac1b4040975d657490442379713ea1a31766ad5f817f"
+      "contentHash": "1e2b230133cbef526658a1634d8b43b7bc72fa6a1cf9001514a0ed9cfc6ac166"
     },
     {
       "title": "Minimum-Necessary Privacy, Data Retention, and AI Use Policy: Counsel Review Memorandum (2026-08-30 draft)",

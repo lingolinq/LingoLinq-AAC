@@ -93,6 +93,8 @@ belongs to a review of the Anthropic BAA posture, not to this correction.
 > ratified two-tier AI data-routing policy (see section 4.1: the bot already skips DeepSeek on
 > compliance-path diffs; the policy reframes that skip as a permitted confidentiality preference,
 > not a hard mandate). This resolution is covered by the 2026-07-13 re-attestation in section 8.
+> **Corrected 2026-10-28 (issue #1227):** that bot skip no longer runs, and the DeepSeek route is
+> lapsed; see the section 4.1 correction.
 >
 > Draft date: 2026-06-13. Refreshed 2026-06-18 (eval narration added to the inventory after
 > #411/#412/#413; DeepSeek-on-compliance-surface discrepancy flagged in section 4). Re-verified
@@ -122,7 +124,7 @@ belongs to a review of the Anthropic BAA posture, not to this correction.
 ## Corrections in this successor
 
 This successor exists only to correct claims the predecessor carries that a direct production read
-falsified on 2026-08-23. Everything else is unchanged, and the predecessor's own historical
+falsified on 2026-08-23, and (since 2026-10-28) its review-control claims. Everything else is unchanged, and the predecessor's own historical
 amendment narratives are retained verbatim as the record of what was believed and recorded at each
 prior attestation.
 
@@ -140,6 +142,16 @@ prior attestation.
 **Enabled-since is NOT recoverable.** `Setting` carries no version history and `Setting.set` overwrites
 in place, so no claim is made here about when the flag became enabled, nor about the flag's state on
 or before the 2026-08-02 Article 50 obligation date.
+
+**Later correction, 2026-10-28 (issue #1227).** Section 2 (the developer code review row), section 4
+and section 4.1 said the data-bearing boundary was enforced by the brain's `codex-review-guard.sh`
+and, CI-side, by `scripts/codex-review-path-classifier.sh`. Section 4.1 and the header's summary of
+it described an n8n review bot that no longer runs, and section 4 presented the lapsed OpenRouter
+route as the developer reviewer. The CI Codex review gate that used the classifier last ran on
+2026-09-28 (UTC), was retired on 2026-10-27 and was removed by PR #1225, and the brain guard is a
+review-time tripwire, not the control. Those passages now carry dated corrections that state the
+controls where the two-tier policy places them, including the Codex GitHub connector (section 4.1).
+No other claim changed, and this successor remains unattested.
 
 ---
 
@@ -235,7 +247,7 @@ Verified against code at draft time. Re-verify before publishing.
 | Word/phrase prediction (runtime) | Claude Haiku 4.5 (`claude-haiku-4-5-20251001`) only -- Gemini fallback disabled 2026-07-09 | `lib/ai_word_predictor.rb` | Yes, but **scrubbed first** | Every sentence passes `PiiScrubber.redact_for_ai` before the call (line 55); each call logged to `AiApiLog`. Feature-flag gated, COPPA hard block for under-13. **Corrected 2026-08-19:** this cell read "`ANTHROPIC_API_KEY` is now required", which the "Runtime routing update" section below has contradicted since 2026-07-24. Runtime credentials are `BEDROCK_AWS_KEY` / `BEDROCK_AWS_SECRET`, read by `lib/ai_client.rb`; no runtime seam reads `ANTHROPIC_API_KEY`, and `scripts/ai-endpoint-guard.sh` fails CI if one starts to. There is no automatic fallback provider. |
 | Offline prediction dictionary generation | Claude Haiku 4.5 only -- Gemini fallback disabled 2026-07-09 | `lib/ai_prediction_generator.rb` | No | Offline batch job; sends only static word lists, never user sentences or identifiers. |
 | Comprehensive eval narration (runtime, product) | Claude Opus 4.7 (`claude-opus-4-7` default; `EVAL_NARRATOR_MODEL` override **pinned to an exact-ID allowlist**), Anthropic under the HIPAA-Ready BAA (2026-07-18) | `lib/eval_narrator.rb`, `app/controllers/api/eval_sessions_controller.rb` | Yes, but **scrubbed first** | `PiiScrubber.redact_for_ai` on the payload before egress, plus a structural student-name drop and **`etiology` (medical-cause) minimization**; model pinned to an exact-ID allowlist (`ALLOWED_MODELS`, refuses Covered/unknown models); every call logged to `AiApiLog`; COPPA hard block (`FeatureFlags.coppa_blocks_ai_for?`) for under-13; external narration is opt-in and the egress payload is bound to the server-resolved user; org opt-out via the `comprehensive_eval_ai` feature flag. **Classified NOT a HIPAA Healthcare Activity** (assistive-technology access assessment; Scot 2026-07-19; register LL-3a1c317a88), so no licensed-clinician gate applies. Consent-binding was tracked as LL-11db0dc848, **verified-closed** (disposition `fixed`, decided by Scot 2026-06-18); corrected 2026-08-19, the predecessor still described it as an open residual gap. Brought under governance by #411/#412 (#413), BAA + gates by #631/#632. |
-| Developer code review (internal tooling, not product) | Opus 4.8 (Claude); DeepSeek-V3.2 via OpenRouter (secondary) | dev workflow (`/review-pr`, codex) | No | Sanitized diffs only; no student or patient data. OpenRouter has no BAA and runs ZDR; the PiiScrubber-equivalent here is the no-PHI-in-diffs rule. PII-free compliance *documents* (the audit register: status/severity/IDs, code/path evidence) are **Tier 2** and may be reviewed; the boundary is data-bearing content (fixtures/seeds/cassettes/etc.), enforced by `codex-review-guard.sh`, not the compliance-surface label. See section 4.1 (resolved 2026-07-12). |
+| Developer code review (internal tooling, not product) | Opus 4.8 (Claude); DeepSeek-V3.2 via OpenRouter (secondary) | dev workflow (`/review-pr`, codex) | No | Sanitized diffs only; no student or patient data. OpenRouter has no BAA and runs ZDR; the PiiScrubber-equivalent here is the no-PHI-in-diffs rule. PII-free compliance *documents* (the audit register: status/severity/IDs, code/path evidence) are **Tier 2** and may be reviewed; the boundary is data-bearing content (fixtures/seeds/cassettes/etc.), not the compliance-surface label. See section 4.1 (resolved 2026-07-12). **Corrected 2026-10-28 (issue #1227):** this cell said the boundary was "enforced by `codex-review-guard.sh`"; that script is a review-time tripwire, not the control. The DeepSeek route is lapsed, and the Codex GitHub connector also reviews every pull request; see the section 4.1 correction. |
 
 Notes:
 - The runtime path's **Google Gemini** fallback was **disabled 2026-07-09** (`GEMINI_API_KEY`
@@ -322,6 +334,12 @@ The governing rule is simple and enforced in code, not just in policy:
 The OpenRouter route used by the developer code reviewer runs with zero data retention (ZDR).
 The stance LingoLinq takes, and that this memo records:
 
+**Corrected 2026-10-28 (issue #1227):** the OpenRouter (DeepSeek) reviewer route is lapsed. The
+developer reviewers in use are Claude Code and Codex, the latter on Scot's consumer ChatGPT account
+with no BAA (section 4.1 correction). The ZDR statements below describe the lapsed OpenRouter route;
+the stance they record (ZDR is a privacy control, never a substitute for a BAA, and never the only
+thing between user data and an external model) applies unchanged to every reviewer.
+
 - ZDR is a privacy control. It is **not** a Business Associate Agreement and does not substitute
   for one. OpenRouter has no HIPAA BAA.
 - ZDR is operator-maintained and unenforceable from configuration. It can lapse on a key
@@ -331,13 +349,18 @@ The stance LingoLinq takes, and that this memo records:
   no-PHI-in-diffs rule, and for the product path the PiiScrubber, are the real controls.
 - This is why the developer reviewer is restricted to sanitized diffs and is barred from
   identifiable and data-bearing content. PII-free compliance *documents* (the audit register)
-  are Tier 2 and may be reviewed; the boundary is data-bearing content, enforced by
-  `codex-review-guard.sh` (see section 4.1, resolved 2026-07-12). **Path corrected 2026-08-30:** that script lives at `~/ai-company-brain/scripts/codex-review-guard.sh`, not in this repo; this repo carries a vendored copy of its data-bearing `RISKY_PATTERNS` as `scripts/codex-review-path-classifier.sh` (which adds a Guard B for `docs/legal/**` and `audit-reports/**`).
+  are Tier 2 and may be reviewed; the boundary is data-bearing content (see section 4.1, resolved
+  2026-07-12). **Path corrected 2026-08-30:** `codex-review-guard.sh` lives at `~/ai-company-brain/scripts/codex-review-guard.sh`, not in this repo; this repo carries a vendored copy of its data-bearing `RISKY_PATTERNS` as `scripts/codex-review-path-classifier.sh` (which adds a Guard B for `docs/legal/**` and `audit-reports/**`).
+  **Corrected 2026-10-28 (issue #1227):** this bullet said the boundary was "enforced by
+  `codex-review-guard.sh`". That script is a review-time tripwire, not the control. The classifier
+  began as a vendored copy of its patterns and is now broader than it. Section 4.1 states which
+  checks exist and what each one does.
 
 ### 4.1 RESOLVED (2026-07-12): DeepSeek and the audit register
 
 **Status: RESOLVED 2026-07-12 by Scot's ratified two-tier AI data-routing policy. This resolution
-is covered by Scot's 2026-07-13 re-attestation in section 8.**
+is covered by Scot's 2026-07-13 re-attestation in section 8.** (That re-attestation is of the
+predecessor. The 2026-10-28 correction below is not attested.)
 
 **Historical discrepancy** (documented-open at the 2026-06-19 attestation): this memo stated that
 the DeepSeek/OpenRouter reviewer is "never used on any compliance surface," but at that time the
@@ -359,9 +382,53 @@ option.
 data can be in the stream, not on the compliance-surface label. Tier 1 (runtime / user-data
 paths) stays on BAA/ZDR-verified models. Tier 2 (code diffs, CI output, and PII-free compliance
 documents) **permits** any approved reviewer -- a DeepSeek or Codex pass included -- but does
-**not require** one. The hard boundary (no identifiable or data-bearing content on a no-BAA
-route) is enforced by `~/ai-company-brain/scripts/codex-review-guard.sh` and, CI-side, by its vendored copy `scripts/codex-review-path-classifier.sh` in this repo, which block fixtures / seeds / factories /
-migrations / cassettes / data dumps, NOT `audit-reports/**` or `docs/legal/**`.
+**not require** one. The hard boundary is no identifiable or data-bearing content on a no-BAA
+route.
+
+**Corrected 2026-10-28 (issue #1227):** three statements in this section are out of date.
+
+- This paragraph said the boundary "is enforced by
+  `~/ai-company-brain/scripts/codex-review-guard.sh` and, CI-side, by its vendored copy
+  `scripts/codex-review-path-classifier.sh` in this repo". That overstated both. The CI side was
+  the CI Codex review gate (`codex-review.yml`), which last ran on 2026-09-28 (UTC) and was then disabled,
+  retired on 2026-10-27 (Scot) and removed by PR #1225.
+- "Current behavior" above describes the n8n PR-review bot (workflow `lbyA52atQjQ8MCqy`)
+  skipping a DeepSeek pass on compliance-path diffs. That workflow ID now holds a different,
+  inactive workflow, no n8n workflow sends pull request diffs to a model reviewer, and the DeepSeek
+  reviewer route is lapsed.
+- "Net effect" below refers to "the current bot skip". There is no such skip today.
+
+The two-tier policy places the controls as follows (ai-company-brain
+`instructions/shared/compliance.md`, "Where the control sits", Scot, 2026-10-09):
+
+- **Real data is kept out of commits. This is the control.** This repository is public, so a
+  pushed branch is published whether or not it merges. The author's own check before pushing is
+  the only step ahead of publication, and a mistaken push of real data is an incident to handle,
+  not something a later check blocks.
+- **The Codex GitHub connector** (approved by Scot 2026-10-09) reviews every pull request on this
+  repository when it opens. It runs on Scot's consumer ChatGPT account, which has no BAA, and no
+  path check sits in front of it, so it does read changes to data-bearing paths, including
+  synthetic fixtures, seeds, migrations and `db/language/**`. Where this memo says the developer
+  reviewer is barred from data-bearing content (section 4, and the hard boundary above), read it
+  as barred from real, identifiable data. That bar rests on the control above, not on a check:
+  the connector reads only branches already pushed to this public repository.
+- **The `data-bearing-paths/<base>` merge check** is a required status on `develop`, `staging`
+  and `main`. It reads `scripts/codex-review-path-classifier.sh` and fails a pull request that
+  adds or changes a data-bearing path (fixtures, seeds, factories, migrations, cassettes, data
+  dumps, `db/language/**`) until a reviewer with write access confirms the data is synthetic by
+  adding the `synthetic-data` label. It guards against mistakes and fork pull requests, and it can
+  be passed deliberately: a pull request's author may approve their own change, anyone with write
+  access can add the label without looking, and on `develop` and `staging` repository admins can
+  merge past required checks. It gates merges only. It does not stop a reviewer from reading the
+  diff, and it cannot unpublish a pushed branch.
+- **`codex-review-guard.sh`**, run through the brain's `scripts/review-preflight.sh`, stops a
+  local review run (`/review-pr`, `/dual-review`) whose diff touches a data-bearing path. It is a
+  tripwire, not the control: it reads path names only, so real rows pasted into an ordinary file
+  pass it, and its pattern list is narrower than the merge check's, so some data-format files
+  pass it too.
+
+The `docs/legal/**` and `audit-reports/**` prefixes alone do not make a path data-bearing (a
+data-format file under them still is), and PII-free compliance documents remain Tier 2.
 
 **Net effect:** the current bot skip on compliance-path diffs is now a permitted **confidentiality
 preference**, not a policy requirement. Either running or skipping an approved reviewer on a

@@ -1,14 +1,14 @@
 ---
 name: promote-finding
-description: Promote a Critical/High finding from a PR-time review (the /review-pr or /adversary-review CLI pass, or the n8n PR Review Bot comment) into the durable findings register as status "open". Code/path evidence only; never closes, downgrades, or triages. User-invoked only (/promote-finding).
+description: Promote a Critical/High finding from a PR-time review (the /review-pr or /adversary-review CLI pass, or the Codex GitHub connector's PR review) into the durable findings register as status "open". Code/path evidence only; never closes, downgrades, or triages. User-invoked only (/promote-finding).
 disable-model-invocation: true
 allowed-tools: Read, Grep, Glob, Bash
 ---
 
 # /promote-finding: bridge a PR review finding into the register
 
-The n8n PR Review Bot and the `/review-pr` + `/adversary-review` CLI passes post findings to a PR
-comment and a Google Chat thread, and then they evaporate. The one store with a lifecycle, the
+The Codex GitHub connector posts its review on the PR, and the `/review-pr` + `/adversary-review`
+CLI passes post findings to a PR comment and a Google Chat thread; then they evaporate. The one store with a lifecycle, the
 findings register `audit-reports/FINDINGS.json`, is fed only by the periodic `/audit-run` and never
 sees PR-time findings. This skill closes that gap: it promotes a **reviewed, real, Critical/High**
 PR finding INTO the register as `status: "open"` so it gets tracked and triaged instead of just
@@ -21,11 +21,11 @@ mechanical: `scripts/promote-finding.rb` refuses to write any other status or di
 
 ## Why this is a manual command (not a hook, not an n8n auto-promote step)
 
-1. **SSOT write governance.** The n8n PR bot runs a DeepSeek pass via OpenRouter (no BAA).
-   `FINDINGS.json` is the compliance SSOT (PII-free, Tier 2). The concern is not a reviewer
-   *seeing* the register -- under the two-tier policy an approved reviewer may -- it is letting
-   bot-curated content be written *into* the SSOT automatically, which would require giving the
-   n8n service write access to the repo register: a governance and attack-surface violation.
+1. **SSOT write governance.** `FINDINGS.json` is the compliance SSOT (PII-free, Tier 2). The
+   concern is not a reviewer *seeing* the register -- under the two-tier policy an approved
+   reviewer may -- it is letting bot-curated content be written *into* the SSOT automatically,
+   which would require giving an automated reviewer write access to the repo register: a
+   governance and attack-surface violation.
    Promotion is operated manually from a trusted session.
 2. **False-positive control.** AI reviewers carry a 5-15% false-positive rate. Auto-promotion
    would flood the register with FPs. A human (you) deciding "yes, this one is real, track it" IS
@@ -37,7 +37,7 @@ mechanical: `scripts/promote-finding.rb` refuses to write any other status or di
 
 - **Human-gated promotion.** The register is Tier 2 (PII-free), so an approved reviewer may see
   it; the gate here is governance, not routing. YOU decide what enters the SSOT: you may promote
-  findings that a reviewer (`/review-pr`, the n8n bot's DeepSeek pass, `/adversary-review`)
+  findings that a reviewer (`/review-pr`, the Codex GitHub connector, `/adversary-review`)
   produced, but only after reading and re-judging them yourself -- never auto-forward a
   reviewer's verdict into the register.
 - **Code/path evidence only.** Every promoted finding must carry `evidence.file` + a `snippet`
@@ -51,9 +51,12 @@ mechanical: `scripts/promote-finding.rb` refuses to write any other status or di
 
 Get the findings from ONE of:
 - a `/review-pr` or `/adversary-review` run you just did in this session (read its output), or
-- the n8n PR Review Bot's sticky PR comment: `gh pr view <PR#> --comments` and read the comment
-  marked `<!-- pr-review-bot -->` (read it yourself; you are the promotion gate -- the bot's
-  DeepSeek section is advisory input you re-judge, not a source you forward verbatim).
+- the Codex GitHub connector's review on the PR. Its findings are mostly inline review comments,
+  which `gh pr view --comments` does not show: read
+  `gh api --paginate repos/lingolinq/LingoLinq-AAC/pulls/<PR#>/reviews` and
+  `gh api --paginate repos/lingolinq/LingoLinq-AAC/pulls/<PR#>/comments` (or the same endpoints
+  through the route in `.claude/rules/github-pr.md` where `gh` is unavailable). Read it yourself; you are the
+  promotion gate, and it is advisory input you re-judge, not a source you forward verbatim.
 
 You decide which findings are REAL and worth tracking. Do not promote speculative or duplicate
 findings; cross-check the register first (Step 2).
@@ -75,7 +78,7 @@ automatically).
 For each finding to promote, capture the exact `file`, `line`, and a verbatim `snippet` from the
 code AT a real commit SHA. The sha must be reachable in the local git repo so
 `git show <sha>:<file>` works, AND it must stay reachable when citation-check later runs in CI.
-**Prefer the post-merge `develop` sha** for durability (`develop` is the settled base; it was `staging` before 2026-09-04); a PR-branch head sha works at promotion
+**Prefer the post-merge `develop` sha** for durability (`develop` is the settled base); a PR-branch head sha works at promotion
 time but can be orphaned by a later rebase/force-push or branch deletion, which would redden
 citation-check. The `snippet` must be a SINGLE source line (citation-check matches per line; a
 multi-line snippet is refused). Write a JSON file:
@@ -130,8 +133,7 @@ never redact-in). A snippet line containing a numeric literal with underscores (
 dotted version (`1.2.3.4`), or a `password =`/`token =`/`secret:` assignment can match the
 PII/secret shapes and be refused even when it is not real PII. If a legitimate finding is refused
 for this reason, cite a different (cleaner) line of the same issue, or paraphrase the surrounding
-line; do not fight the gate. This in-script gate is redundant with the n8n bot's upstream
-pre-scrub, so conservative is correct.
+line; do not fight the gate. Conservative is correct here.
 
 ## Step 5: Validate + regenerate all derived artifacts
 
@@ -146,9 +148,13 @@ scripts/regenerate-register.sh          # gate on citation-check, render all art
 
 This gates on `citation-check` first (refuses to render onto a register whose evidence does not
 resolve), renders every derived artifact in dependency order, then re-runs the exact `--check`
-verifications CI uses, so a green run here means a green `audit-artifacts-integrity`. It writes
+verifications CI uses, so a green run here covers most of `audit-artifacts-integrity`. It does not run
+the minimized-disclosure guard (`ruby scripts/minimized-disclosure-guard.rb --check --base-ref <base>`)
+or its test (`scripts/tests/minimized-disclosure-guard-test.sh`), and its legal-naming check uses a
+different base than CI, so a local green can still be a CI red. It writes
 local artifacts only and never pushes to Notion/Drive (those sync in their own CI workflows).
-Run `scripts/regenerate-register.sh --check` to verify without writing (mirror CI locally).
+Run `scripts/regenerate-register.sh --check` to verify without regenerating artifacts; its
+attestation harness edits `docs/legal/AI_GOVERNANCE_MEMO.md` for a moment and restores it.
 
 If citation-check is red, a promoted snippet does not resolve at its sha (usually the sha is not
 fetched locally, or the snippet was not copied verbatim). Fix the evidence and re-run; do not
@@ -156,7 +162,7 @@ commit a red register.
 
 ### If `document-register-render --check` fails with contentHash drift
 
-Read the FAIL line carefully — after #766 it tells you which case you are in:
+Read the FAIL line carefully — it tells you which case you are in:
 
 | Message says | Meaning | What to do |
 |---|---|---|

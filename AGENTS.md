@@ -24,6 +24,9 @@ include children and clinical patients; FERPA, HIPAA, GDPR and COPPA apply.
   `hotfix` from `main` only for urgent production fixes, merged back to `develop`. PRs
   target `develop`; `develop` promotes to `staging` from a freeze branch
   (`release/develop-into-staging-YYYY-MM-DD`), then a release PR goes `staging` to `main`.
+  Work in your own worktree: the isolated launcher (`codex-ll`) for new CLI tasks, a fresh
+  Worktree for Codex desktop tasks, and `git worktree add` only where neither exists. Never
+  `git checkout -b` or switch branches in a checkout another session shares.
 - **i18n and quotes.** No raw user-facing text. Templates use
   `{{t "text" key='key'}}`, JS uses `i18n.t('key', "text")`. User-facing strings take
   double quotes; every other string takes single quotes (the generator depends on it).
@@ -103,23 +106,16 @@ the head SHA you actually reviewed, and the verdict.
 
 **Antigravity: the `review-pr` skill IS installed for you**
 (`~/.gemini/antigravity-cli/skills/review-pr/`), so this is not a missing capability. You
-are retired from the review rotation on QUOTA grounds: per
-`ai-company-brain/instructions/ANTIGRAVITY.md` the weekly remote-agent quota was cut to
-roughly one usable thread and the senior-dev pass moved to Codex. Do not run it as a
-matter of course; route it to Codex and name who ran it. (The separate consumer Gemini
-CLI was retired 2026-06-12 and has no skill surface at all; if that is what you are, you
-run neither pass.)
+are not in the review rotation (quota; `ai-company-brain/instructions/ANTIGRAVITY.md`). Do
+not run it as a matter of course; route it to Codex and name who ran it. A consumer Gemini
+CLI has no skill surface and runs neither pass.
 
 **Neither of you can discharge the adversarial pass.** Codex has no such skill at all,
 and while an `adversary-review` file is installed for Antigravity it only instructs
 spawning Claude's `adversary` subagent, which is Claude-only. Name the reviewer who owes
-that pass. A second, CI-side route for the senior-dev
-pass exists, the `Codex Review` workflow (`.github/workflows/codex-review.yml`),
-dispatched by the n8n W1 orchestrator and reporting the `codex-review/deep-pass` commit
-status; per that workflow's own header, status-stamped 2026-10-03, it is disabled in
-Actions (last run 2026-09-28) and not in the required set on `develop`, `staging` or `main`.
-Nothing re-verifies that stamp, so confirm it against branch protection before relying on
-it. A green CI run is not the dual review.
+that pass. There is no CI-side route for the senior-dev pass. The required
+`codex-review-tests` CI job runs the frontend-scope, path-classifier (shell and real-repo)
+and data-bearing-path suites; a green CI run is not the dual review.
 
 The Codex GitHub connector is set to review every PR automatically. That review skips the
 PII pre-flight and is neither pass; confirm a PR actually got it rather than assuming. A
@@ -138,10 +134,9 @@ deploy workflow, `Dockerfile`, `config/environments/production.rb`,
 before touching `spec/**`, `.rspec`, `config/application.rb`, `.env.op.template` or
 `.github/workflows/ci.yml` read `.claude/rules/testing.md` (specs never reach the network; outside services start unconfigured, and a spec that tests one sets fake
 values itself);
-before opening or updating a pull request read `.claude/rules/github-pr.md` (the `gh`
-CLI is not installed and the MCP GitHub server's credentials are rejected, so the route
-is the git credential helper's OAuth token, which must never be echoed or written to a
-tracked file).
+before opening or updating a pull request read `.claude/rules/github-pr.md` (ask the user
+first; use `gh` when it is installed and logged in, otherwise the git credential helper's
+OAuth token; never print the credential or write it to a tracked file).
 For a bug fix or behaviour change in application code, the fact-sheet and red-test
 discipline is `.claude/skills/fix-proposal/SKILL.md`; only a change that cannot alter
 runtime behaviour (docs, agent instructions, comments) skips it.
