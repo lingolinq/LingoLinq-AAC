@@ -249,10 +249,10 @@ Senior-dev pass: Approve with comments, Lows only. Adversary pass: one Medium, f
   MIME extension: `audio/mp3`, used by every TTS sound, `lib/tts.rb:46`; also `audio/x-m4a`,
   `audio/wave`, `video/mov`; `uploadable.rb:52-61`) counted as unmatched, so its row never
   settled and the go-live check fired on benign data. Fix: `key == stem` is the original
-  (`uploader.rb:580`). The proposal was red-teamed first: it changes classification only,
+  (`uploader.rb:581`). The proposal was red-teamed first: it changes classification only,
   since `transcode_family_key?` needs a `v<digits>` tail, so the stem is never matched or
-  deleted. Option B was chosen over the optional-group regex, which also accepted keys shorter
-  than the stem. Three new examples were red first; mutants (drop `key == stem`; an over-broad
+  deleted. An explicit `key == stem` was chosen over widening the regex to
+  `/\A(?:\.\w+)?\z/`, which also accepted keys shorter than the stem. Three new examples were red first; mutants (drop `key == stem`; an over-broad
   dotless tail) are both killed. No existing example was changed.
 - **Doc corrections:** "spread by the hourly batch" was wrong; the guard exception is outside
   the kill switch; go-live step 1 notes that a user can create unmatched names.
@@ -264,7 +264,7 @@ Senior-dev pass: Approve with comments, Lows only. Adversary pass: one Medium, f
     `button_sound.rb:125`);
   - a daily burst: each row dispatches at most twice;
   - a production blank bucket: it breaks every upload, and the existing deletes behave the same;
-  - a truncated or capped listing: more than 1000 objects under one stem;
+  - a truncated or capped listing: it would need more than 1000 objects under one stem;
   - report-only logging at info;
   - the live-owner stem comparison has no test: a test gap, not a defect;
   - jitter.
