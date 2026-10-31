@@ -22,8 +22,8 @@ light run**. The cadence is tracked in `audit-reports/compliance-calendar.json`
 - **Quarterly full:** run all steps below (1-7). Finders scan their full scope; the run renders
   the quarterly unified report. Schedule it when plan usage headroom allows; the finders run in
   parallel.
-- **Monthly light:** run steps 0-5 ONLY, with the **diff since the last run** as the finder
-  scope. "Last run" is the register's own `meta.auditedSha`, NOT a base branch: an audit is run
+- **Monthly light:** run steps 0-5 and the per-run line in Step 7, with the **diff since the last
+  run** as the finder scope. "Last run" is the register's own `meta.auditedSha`, NOT a base branch: an audit is run
   ON the base (`develop`), so `origin/develop...HEAD` resolves to ZERO files and would silently
   hand every finder an empty scope. Use a two-dot tree comparison against the recorded SHA:
   `git diff --stat $(jq -r '.meta.auditedSha' audit-reports/FINDINGS.json) HEAD`. Two dots, not
@@ -67,9 +67,17 @@ SHA so `scripts/citation-check.rb` can validate snippets against the exact tree 
    must anchor to a committed SHA).
 
 ## Step 2: Fan out the read-only finders (parallel)
-Spawn the six domain finders concurrently with the Agent tool, passing each the `auditedSha`.
+Record the run start first (`date -u +%Y-%m-%dT%H:%M:%SZ`); Step 2b needs it. Then spawn the six
+domain finders concurrently with the Agent tool, passing each the `auditedSha`.
 They are read-only (no Edit/Write; a PreToolUse guard blocks mutating Bash) and emit
 register-shaped findings with `status: "open"`.
+
+> **Spawn every finder with `subagent_type` and NO `name` (finding LL-c667ec15e3).** While agent
+> teams are enabled, a named Agent call launches a teammate, and a teammate does not get the
+> definition's `skills`, so it would run without its checklist. Whether teams are enabled here does
+> not matter: unnamed spawns are correct either way, and Step 2b checks the result. Do not paste a
+> checklist into the prompt to compensate, and never pass a `checklistToken`: the finder has to
+> get it from its own skill.
 
 > **Anchor every finder to `auditedSha`, and snapshot live infra ONCE (finding LL-3483c28f3c).**
 > Two things the first full run (2026-06-14) surfaced:
@@ -97,7 +105,8 @@ register-shaped findings with `status: "open"`.
 
 Prompt each with: the `auditedSha`, the scan scope from its skill, and
 "cross-check `audit-reports/FINDINGS.json` first; reference an existing `id` rather than
-duplicating." Collect each finder's JSON `{domain, auditedSha, findings:[...]}`.
+duplicating. Return the run receipt your checklist requires." Collect each finder's JSON `{domain, auditedSha, checklistToken, guardCanary, note,
+findings:[...]}` (`note` is optional).
 
 > RETIRED from the fan-out (Phase 2): `ember-stabilization` and `rails-upgrade` (migration-era,
 > shipped) and the 0-100 `mvp-readiness` score (decision 5.9.2: the headline is now the count of
@@ -105,8 +114,33 @@ duplicating." Collect each finder's JSON `{domain, auditedSha, findings:[...]}`.
 > `skills/`, `subagents/`, `workflows/` dirs were removed in Phase 2; their content was
 > migrated into this `.claude/` layout.
 
+## Step 2b: Fan-out gate (fail-closed)
+Write each finder's output to `/tmp/finder-<domain>.json`, then run the gate before anything
+reaches the register. A quarterly full run uses the default mode, which needs all six. A monthly
+light run adds `--mode light`, which may omit only `accessibility-auditor` and `code-hygiene-auditor`;
+list the finders you spawned, matching the `skipped` list in the run log:
+```
+ruby scripts/audit-fanout-gate.rb --sha <auditedSha> --since <run start> \
+  --finder privacy-auditor=/tmp/finder-privacy.json --finder infra-auditor=/tmp/finder-infra.json \
+  --finder api-auditor=/tmp/finder-api.json --finder dependency-auditor=/tmp/finder-dependency.json \
+  --finder accessibility-auditor=/tmp/finder-accessibility.json \
+  --finder code-hygiene-auditor=/tmp/finder-code-hygiene.json
+```
+It needs, per output: one more distinct spawn id in this run's log, a file written after the run
+start with a `findings` array and the finder's domain, the `checklistToken` from its own skill, a
+denied guard canary, and an agent definition that wires the guard and logger. Keep the printed
+table: the summary line in Step 7 records it as `finderGate` in every mode.
+
+Any other exit than 0 is a refusal: **STOP. Do not run `audit-merge.rb`, do not restamp
+`meta.auditedSha`**, and report the table to Scot. `audit-merge.rb` does not read the gate, so this
+stop is what holds. To retry, find out why, then re-run **every** finder in this gate call with a new
+run start and new output files: re-running only the refused one leaves the others older than the new
+`--since`. Never edit a finder's output, the log, or a token to get past it.
+
 ## Step 3: Reconcile into the register (deterministic)
-Write each finder's output to a temp JSON file, then run the merge helper. It computes the
+Run the merge helper with `--in` set to exactly the list the gate just passed (a light run lists
+fewer files than the example below). A restamping merge refuses any file whose `auditedSha` is not
+`--sha`. It computes the
 stable id (`LL-` + first 10 hex of `sha256(ruleKey + "|" + file)`; for a row whose ruleKey is the
 self-referencing withheld form, `minimized-finding-` + its own id, lowercased, citation-check does not recompute the id; finders are
 instructed not to emit that form, and register-lint refuses a mismatched one), preserves `firstSeen`,
@@ -129,8 +163,8 @@ land as `open`. A regression (an id Scot closed, accepted, superseded or disposi
 re-surfaced) KEEPS its Scot-owned status and disposition: the merge only sets `regression: true` and
 appends a loud note (`scripts/audit-merge.rb`). So a regression still renders as closed in
 `FINDINGS.md`, the Notion page and every headline until Scot reopens it or records accepted risk.
-Surface every regression to Scot explicitly in Step 6 and get that decision before the register PR
-merges.
+Surface every regression to Scot explicitly in Step 5, in every mode, and get that decision before the
+register PR merges.
 
 > **`--sha` restamps `meta.auditedSha` — that is correct HERE and nowhere else.** This is a
 > whole-tree scan, so the audit pointer legitimately moves to the audited commit (a governance act:
@@ -163,13 +197,19 @@ is not part of this run; this run surfaces and verifies, it does not close.
    real finding (possibly Critical/High) was dropped and is invisible in the headline. Check it:
    `ruby -rjson -e 'JSON.parse(File.read("/tmp/audit-summary.json"))["skipped"].select{|s| s["reason"].to_s.include?("refused:")}.each{|s| puts s.to_json}'`
    If any line prints, surface it LOUDLY to Scot (which finder, which ruleKey, which pattern) and
-   have the finder re-emit without the offending token. Common case: an accessibility finding whose
+   have the finder re-emit without the offending token: record a new start, spawn it unnamed as in
+   Step 2, then run the gate on the new output with that `--since` and `--mode partial --expect 1`. Merge
+   it with the Step 3 command, `--in` only that file and a new `--summary` path so the first summary
+   survives. Run this same check on the new summary, put any new id through Step 4, and add its counts to
+   the Step 7 line. Common case: an accessibility finding whose
    text contains a 4-part EN 301 549 clause (`9.1.4.3`) that matches the IP scrubber - the
    accessibility-audit skill already instructs finders to avoid this, so a refusal here means the
    guidance was not followed and the finding must be corrected, not silently lost.
 3. `ruby scripts/citation-check.rb --render audit-reports/FINDINGS.json` to regenerate
    `audit-reports/FINDINGS.md` from the JSON.
 4. Optionally write a rendered `audit-reports/unified-audit-YYYY-MM-DD.md` for a quarterly run.
+5. In every mode, surface each regression to Scot for the decision in Step 3, and print each finder's
+   `note` as returned; it holds what the finder could not verify from this repo.
 
 ## Step 6: Report (headline = open Critical/High, not a score)
 Present to Scot:
@@ -185,10 +225,11 @@ no secrets:
 1. **Per-tool examination log (automatic).** Each finder has a PostToolUse hook
    (`.claude/hooks/audit-run-logger.sh <agent>`) that appends one line per examined path/command
    to `audit-reports/run-log/examined-<sha8>.jsonl` (LOCAL/gitignored). Nothing to do here; it
-   captures "what each agent examined" as the finders run. Bash commands are redacted for
-   secret/PII shapes; Grep patterns and all tool RESULTS are never logged.
+   captures "what each agent examined" as the finders run, and Step 2b reads it. Bash commands are
+   redacted for secret/PII shapes; Grep patterns and all tool RESULTS are never logged.
 2. **Per-run summary (you append).** Add one JSONL line to `audit-reports/run-log/runs.jsonl`
    (committed, safe) recording: `ts`, `auditedSha`, `auditedRef`, `type` (full|light), `finders`,
+   `finderGate` (the Step 2b result and mode),
    `new`/`reseen`/`regressions`/`skipped` counts, `newIds`, the adversary verdict tally,
    `citationCheck` status, and the open Critical/High headline. Recurrence is then a diff over
    `runs.jsonl`. See `audit-reports/run-log/README.md`. `.jsonl` is a data-bearing extension

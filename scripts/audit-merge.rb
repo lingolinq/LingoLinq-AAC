@@ -227,6 +227,11 @@ opts[:ins].each do |path|
       summary['skipped'] << { 'input' => path, 'reason' => "unparseable JSON: #{e.message[0, 120]}" }
       next
     end
+  # A restamp claims the whole tree was audited at --sha, so output from any other commit (a leftover
+  # file) cannot feed one. Nothing is written yet, so this refuses the whole merge.
+  unless opts[:no_restamp] || (doc.is_a?(Hash) && doc['auditedSha'] == run_sha)
+    die("#{path}: its auditedSha is not the SHA being restamped (#{run_sha}); nothing was written")
+  end
   domain = doc.is_a?(Hash) ? (doc['domain'] || 'unknown') : 'unknown'
   incoming = doc.is_a?(Hash) ? (doc['findings'] || []) : Array(doc)
 

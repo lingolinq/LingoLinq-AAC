@@ -97,8 +97,10 @@ The volatile set and why each matters:
   (see the AI Governance Memo).
 - **FERPA** NPRM on vendor-disclosure terms - in motion, nothing final. Watch.
 - **HIPAA** Security Rule update - still an NPRM; build to the current rule, watch.
-- **ADA Title II** web rules - WCAG 2.1 AA stands; large-entity compliance extended to 2027-04,
-  small to 2028-04. District RFPs flow WCAG down regardless.
+- **ADA Title II** web rules - WCAG 2.1 AA stands; large-entity compliance extended to 2027-04-26,
+  small to 2028-04-26. District RFPs flow WCAG down regardless.
+- **HHS Section 504** web and app rule (45 CFR 84.84) - WCAG 2.1 AA; recipients with 15+ employees
+  by 2027-05-11, fewer by 2028-05-10. Covers content hospitals provide through contracts.
 - **European Accessibility Act** - enforceable since 2025-06; LingoLinq likely inside the
   microenterprise exemption (<10 staff AND <EUR 2M) but the exemption vanishes the day either
   threshold is crossed.
