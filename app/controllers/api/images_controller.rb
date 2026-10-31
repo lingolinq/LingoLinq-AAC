@@ -15,7 +15,7 @@ class Api::ImagesController < ApplicationController
       api_error(400, {error: 'content type required for image creationg'})
     else
       ensure_upload_form_available!(image)
-      render json: JsonApi::Image.as_json(image, :wrapper => true, :permissions => @api_user).to_json
+      render json: JsonApi::Image.as_json(image, :wrapper => true, :permissions => @api_user, :upload_form => true).to_json
     end
   end
   
@@ -43,6 +43,14 @@ class Api::ImagesController < ApplicationController
     image = ButtonImage.find_by_path(params['id'])
     return unless exists?(image)
     return unless allowed?(image, 'view')
+    # Changing an image needs edit, as for sounds and videos. A viewer gets the image unchanged
+    # rather than an error: installed app builds queue offline edits to images they reuse and
+    # replay them on sync, where one rejected save fails that sync and every later one
+    # (services/persistence.js sync_changed).
+    unless image.allows?(@api_user, 'edit')
+      render json: JsonApi::Image.as_json(image, :wrapper => true, :permissions => @api_user).to_json
+      return
+    end
     image_update = params['image']
     image_update = image_update.permit! if image_update.is_a?(ActionController::Parameters)
     if image.process(image_update, {:user => @api_user})

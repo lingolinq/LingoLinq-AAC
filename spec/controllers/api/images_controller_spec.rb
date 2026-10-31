@@ -110,6 +110,29 @@ describe Api::ImagesController, :type => :controller do
     end
   end
   
+  # The upload form is a signed S3 policy plus the confirmation key for upload_success, which
+  # replaces the record's file; only someone who can edit the record may have it.
+  describe "upload form for a pending image" do
+    before { allow(Uploader).to receive(:client_uploads_configured?).and_return(true) }
+
+    it "is given to the owner" do
+      token_user
+      s = ButtonImage.create(:user => @user, :settings => {'content_type' => 'image/png', 'pending' => true})
+      get :show, params: {:id => s.global_id}
+      expect(response).to be_successful
+      expect(JSON.parse(response.body)['meta']['remote_upload']).to be_present
+    end
+
+    it "is not given to another user" do
+      owner = User.create
+      s = ButtonImage.create(:user => owner, :settings => {'content_type' => 'image/png', 'pending' => true})
+      token_user
+      get :show, params: {:id => s.global_id}
+      expect(response).to be_successful
+      expect(JSON.parse(response.body)['meta']).to eq(nil)
+    end
+  end
+
   describe "update" do
     it "should require api token" do
       put :update, params: {:id => "1234"}
@@ -132,6 +155,36 @@ describe Api::ImagesController, :type => :controller do
       expect(json['image']['license']).to eq({'type' => 'CC-By'})
     end
     
+    # Every user has view (button_image.rb:21); updating another user's picture needs edit, as
+    # it does for sounds and videos.
+    # It answers with the image as it is rather than an error: app builds already installed queue
+    # offline edits to images they reuse and replay them on sync, where one error fails the whole
+    # sync on every later attempt (services/persistence.js sync_changed).
+    it "should not let a user update someone else's image" do
+      owner = User.create
+      png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+      s = ButtonImage.create(:user => owner, :settings => {'content_type' => 'image/png', 'license' => {'type' => 'private'}})
+      token_user
+      put :update, params: {:id => s.global_id, :image => {:license => {'type' => 'CC-By'}, :url => png, :content_type => 'image/png'}}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['image']['id']).to eq(s.global_id)
+      expect(json['image']['license']).to eq({'type' => 'private'})
+      s.reload
+      expect(s.settings['license']).to eq({'type' => 'private'})
+      expect(s.data).to eq(nil)
+    end
+
+    it "should let a supervisor with edit rights update the communicator's image" do
+      token_user
+      communicator = User.create
+      User.link_supervisor_to_user(@user, communicator, nil, true)
+      s = ButtonImage.create(:user => communicator.reload, :settings => {'content_type' => 'image/png'})
+      put :update, params: {:id => s.global_id, :image => {:license => {'type' => 'CC-By'}}}
+      expect(response).to be_successful
+      expect(s.reload.settings['license']).to eq({'type' => 'CC-By'})
+    end
+
     it "should error gracefully on image update fail" do
       expect_any_instance_of(ButtonImage).to receive(:process_params){|u| u.add_processing_error("bacon") }.and_return(false)
       token_user

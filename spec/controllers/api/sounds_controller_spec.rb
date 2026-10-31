@@ -174,6 +174,40 @@ describe Api::SoundsController, :type => :controller do
     end
   end
   
+  describe "upload form for a pending sound" do
+    before { allow(Uploader).to receive(:client_uploads_configured?).and_return(true) }
+
+    it "is given to the owner" do
+      token_user
+      s = ButtonSound.create(:user => @user, :settings => {'content_type' => 'audio/mp3', 'pending' => true})
+      get :show, params: {:id => s.global_id}
+      expect(JSON.parse(response.body)['meta']['remote_upload']).to be_present
+    end
+
+    # sounds#create needs only supervise on the communicator (sounds_controller.rb:30), so a
+    # read-only supervisor recording for them must still get the form for the sound just made.
+    it "is given to a read-only supervisor on the sound they just created for a communicator" do
+      token_user
+      communicator = User.create
+      User.link_supervisor_to_user(@user, communicator, nil, false)
+      expect(communicator.reload.allows?(@user.reload, 'edit')).to eq(false)
+      post :create, params: {:sound => {'user_id' => communicator.global_id, 'content_type' => 'audio/mp3'}}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(ButtonSound.find_by_global_id(json['sound']['id']).user_id).to eq(communicator.id)
+      expect(json['meta']['remote_upload']).to be_present
+    end
+
+    it "is not given to another user" do
+      owner = User.create
+      s = ButtonSound.create(:user => owner, :settings => {'content_type' => 'audio/mp3', 'pending' => true})
+      token_user
+      get :show, params: {:id => s.global_id}
+      expect(response).to be_successful
+      expect(JSON.parse(response.body)['meta']).to eq(nil)
+    end
+  end
+
   describe "show" do
     it "should require api token" do
       get :show, params: {:id => 1}
