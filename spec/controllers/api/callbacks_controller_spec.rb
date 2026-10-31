@@ -310,6 +310,7 @@ describe Api::CallbacksController, :type => :controller do
         expect(io.string).to include('COMPLETE')
         expect(io.string).to include('sounds/1/7/1_17_0123456789abcdef01234567-')
         expect(io.string).to_not include(digest)
+        expect(io.string).to_not match(/\h{32,}/)
         expect(io.string).to_not include(transcoding_key)
       end
 
@@ -322,6 +323,44 @@ describe Api::CallbacksController, :type => :controller do
         expect(io.string).to include('1040')
         expect(io.string).to include('Duplicate output paths')
         expect(io.string).to_not include(digest)
+        expect(io.string).to_not match(/\h{32,}/)
+      end
+
+      it "should leave the signature, certificate and unsubscribe fields out of the line" do
+        authentic!
+        expect(Transcoder).to receive(:handle_event).and_return(true)
+        body = JSON.parse(mediaconvert_event(complete_detail)).merge(
+          'Signature' => 'c2lnbmF0dXJlLXRoYXQtbG9va3MtYmFzZTY0',
+          'SigningCertURL' => 'https://sns.us-west-2.amazonaws.com/SimpleNotificationService-0123.pem',
+          'UnsubscribeURL' => 'https://sns.us-west-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-west-2:123:t:sub-id'
+        )
+        post 'callback', body: body.to_json
+        expect(io.string).to include('1789855178463-xw2g13')
+        expect(io.string).to_not include('Unsubscribe')
+        expect(io.string).to_not include('SimpleNotificationService')
+        expect(io.string).to_not include('c2lnbmF0dXJl')
+      end
+
+      it "should cap the logged event" do
+        authentic!
+        expect(Transcoder).to receive(:handle_event).and_return(true)
+        post 'callback', body: mediaconvert_event(complete_detail.merge('padding' => 'x' * 6000))
+        line = io.string.lines.detect { |l| l.include?('1789855178463-xw2g13') }
+        expect(line).to_not eq(nil)
+        expect(line.length).to be < 4200
+      end
+
+      it "should still log the job id, and still handle the event, when the event cannot be logged" do
+        authentic!
+        expect(Transcoder).to receive(:handle_event).and_return(true)
+        message = '{"detail":{"jobId":"1789855178463-xw2g13","status":"COMPLETE","note":"\ud800"}}'
+        request.headers['x-amz-sns-message-type'] = 'Notification'
+        request.headers['x-amz-sns-topic-arn'] = 'arn:aws:sns:us-west-2:123:lingolinq-mediaconvert-nonprod'
+        post 'callback', body: {'Message' => message}.to_json
+        expect(response).to be_successful
+        expect(io.string).to include('1789855178463-xw2g13')
+        # scrubbed rather than dropped: the line keeps its shape
+        expect(io.string).to include('COMPLETE')
       end
 
       it "should log the event before asking AWS about the job" do
@@ -345,21 +384,23 @@ describe Api::CallbacksController, :type => :controller do
           expect(response.status).to eq(400)
           expect(io.string).to match(/Transcoder.handle_event rejected job=1789855178463-xw2g13: no mp3 output/)
           expect(io.string).to_not include(digest)
+          expect(io.string).to_not match(/\h{32,}/)
           expect(io.string).to_not include(transcoding_key)
         end
       end
 
-      it "should not log a confirmation's token" do
-        ENV['SNS_ARNS'] = 'bacon,fried'
-        client = OpenStruct.new
-        expect(Aws::SNS::Client).to receive(:new).and_return(client)
-        expect(client).to receive(:confirm_subscription)
-        request.headers['x-amz-sns-message-type'] = 'SubscriptionConfirmation'
-        request.headers['x-amz-sns-topic-arn'] = 'fried'
-        post 'callback', body: {:Token => 'tokentokentoken', :SubscribeURL => 'https://sns.example/confirm?Token=tokentokentoken'}.to_json
-        expect(response).to be_successful
-        expect(io.string).to include('fried')
-        expect(io.string).to_not include('tokentokentoken')
+      env_wrap({'SNS_ARNS' => 'bacon,fried'}) do
+        it "should not log a confirmation's token" do
+          client = OpenStruct.new
+          expect(Aws::SNS::Client).to receive(:new).and_return(client)
+          expect(client).to receive(:confirm_subscription)
+          request.headers['x-amz-sns-message-type'] = 'SubscriptionConfirmation'
+          request.headers['x-amz-sns-topic-arn'] = 'fried'
+          post 'callback', body: {:Token => 'tokentokentoken', :SubscribeURL => 'https://sns.example/confirm?Token=tokentokentoken'}.to_json
+          expect(response).to be_successful
+          expect(io.string).to include('fried')
+          expect(io.string).to_not include('tokentokentoken')
+        end
       end
 
       def sms_body

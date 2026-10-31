@@ -77,7 +77,7 @@ module Transcoder
 
   # Logged lines reach Cloud Logging and the upload buckets are public-read, so a key's 128-hex
   # file_prefix digest (uploadable.rb:67-70) must never be logged. Each rejection line carries a
-  # fixed reason and, once GetJob has found the job, its id: never event-supplied text.
+  # fixed reason and, once GetJob has accepted it, the event's job id; no other event text.
   def self.reject_event(job_id, reason)
     Rails.logger.warn("Transcoder.handle_event rejected job=#{job_id || '-'}: #{reason}")
     false
@@ -85,11 +85,13 @@ module Transcoder
 
   LOGGED_EVENT_MAX = 4000
   LOG_SECRET_HEX = /\h{32,}/
+  # No diagnostic value, and UnsubscribeURL can unsubscribe the endpoint.
+  LOG_DROPPED_FIELDS = %w[Signature SigningCertURL UnsubscribeURL].freeze
 
   # The notification as a log line: its shape stays (job id, status, error code and message,
   # path layout) and the secrets go (long hex runs, transcoding_key). Never raises.
   def self.loggable_event(args)
-    envelope = args.is_a?(Hash) ? args.dup : {}
+    envelope = args.is_a?(Hash) ? args.except(*LOG_DROPPED_FIELDS) : {}
     message = envelope['Message']
     if message.is_a?(String)
       parsed = JSON.parse(message) rescue nil
@@ -97,7 +99,8 @@ module Transcoder
     end
     redact_for_log(envelope).to_json[0, LOGGED_EVENT_MAX]
   rescue StandardError => e
-    "unloggable event (#{e.class})"
+    job_id = (parse_event_message(args)[0] rescue nil).to_s.scrub[/\A[\w-]{1,80}\z/]
+    "unloggable event (#{e.class}) job=#{job_id || '-'}"
   end
 
   def self.redact_for_log(value)
@@ -107,7 +110,7 @@ module Transcoder
         res[k] = k.to_s == 'transcoding_key' ? '[redacted]' : redact_for_log(v)
       end
     when Array then value.map { |v| redact_for_log(v) }
-    when String then value.gsub(LOG_SECRET_HEX, '[hex]')
+    when String then value.scrub.gsub(LOG_SECRET_HEX, '[hex]')
     else value
     end
   end
