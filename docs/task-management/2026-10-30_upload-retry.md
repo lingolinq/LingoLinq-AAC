@@ -358,3 +358,11 @@ The work goes on this branch in a fresh session (rule 13 stop in this one).
   - four more full runs at `b7d677a29` (Traci asked), sequential, complete output kept: 8366 examples,
     0 failures each (22:23, 22:27, 22:31, 22:35). Totals after the setup step: 1 failing run of 6. The
     failing run's cause is still unknown.
+
+## Staging never runs the sweep yet (found 2026-10-30, read-only)
+`lingolinq-scheduler-staging` is deployed with the current staging image, but nonprod has no Cloud
+Scheduler trigger and no `scheduler-invoker` service account; the Job has one execution
+(2026-09-14). The workflow leaves the trigger to an operator (`deploy-cloudrun.yml:1259-1261`).
+So `retry_failed_uploads` will not run on staging until a trigger exists. Production has
+`lingolinq-scheduler-hourly` (`0 * * * *`, enabled). The post-merge steps, including the trigger
+commands and the decision it needs, are in lingolinq_mobile#3 (S1 to S7, P1 to P5).
