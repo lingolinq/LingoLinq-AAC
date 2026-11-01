@@ -33,6 +33,9 @@ gem 'matrix'
 gem 'concurrent-ruby', '>= 1.3.7'
 # CVE-2026-54463/54464/54465, GHSA-2x63-gw47-w4mm; bundler-audit minimum (transitive via actioncable)
 gem 'websocket-driver', '>= 0.8.2'
+# GHSA-4w5q-wg7v-w6gp, GHSA-9f42-57jx-vpp3, GHSA-j82w-28jv-3pmj, GHSA-qq38-m9mg-xjj5,
+# GHSA-8gmh-2hhj-2hv9, GHSA-539f-xcgw-2gjg, GHSA-9crm-g4mf-wc5j; bundler-audit minimum (transitive via signet)
+gem 'addressable', '>= 2.9.1', require: false
 
 # Rails 7.2 with Ruby 3.4 support (Phase 3: final upgrade)
 # 7.2.3.1+ addresses Active Storage proxy DoS (GHSA-p9fm-f462-ggrg / CVE-2026-33658)
@@ -92,7 +95,8 @@ gem 'sentry-ruby'
 gem 'sentry-rails'
 gem 'stripe'
 # Rack 3.x for Sinatra 4 CVE fixes (CVE-2024-21510, CVE-2025-61921)
-gem 'rack', '>= 3.0'
+# GHSA-5v64-555j-wjxm, GHSA-2j8w-xcrc-x985, GHSA-wvg4-6p58-3gh3, GHSA-p8x9-v4hv-2w4g; bundler-audit minimum
+gem 'rack', '>= 3.2.8'
 gem 'rack-attack'
 gem 'rack-timeout'
 gem 'pg_search'
