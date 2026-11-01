@@ -678,6 +678,30 @@ describe('pictureGrabber', function() {
           });
         });
 
+        it('reuses the user\'s copy when they pick the same picture again after a refused update', function() {
+          pictureGrabber.setup(button, controller);
+          var url = 'https://example.com/shared-9.png';
+          var shared = push_image('1_9109', url);
+          expect_put('1_9109', {id: '1_9109', url: url, permissions: {edit: false}});
+          expect_post(url, '1_9119');
+          var first = pick(url);
+          var second = null;
+          waitsFor(function() { return first.done; });
+          runs(function() {
+            expect(first.image && first.image.get('id')).toEqual('1_9119');
+            // the refused update leaves the shared record's local flag as it was sent
+            expect(shared.get('preserve_source_image')).toEqual(true);
+            second = pick(url);
+          });
+          waitsFor(function() { return second && second.done; });
+          runs(function() {
+            expect(second.error).toEqual(undefined);
+            expect(requests('PUT').length).toEqual(1);
+            expect(requests('POST').length).toEqual(1);
+            expect(second.image && second.image.get('id')).toEqual('1_9119');
+          });
+        });
+
         it('updates the picture in place for someone who can edit it', function() {
           pictureGrabber.setup(button, controller);
           var url = 'https://example.com/own-3.png';

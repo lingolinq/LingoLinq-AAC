@@ -366,3 +366,32 @@ Scheduler trigger and no `scheduler-invoker` service account; the Job has one ex
 So `retry_failed_uploads` will not run on staging until a trigger exists. Production has
 `lingolinq-scheduler-hourly` (`0 * * * *`, enabled). The post-merge steps, including the trigger
 commands and the decision it needs, are in lingolinq_mobile#3 (S1 to S7, P1 to P5).
+
+## Senior-dev pass on the combined branch (2026-11-01)
+`REVIEWED=range origin/develop (5ca1e4731edb05ecb3317e5928de61e00b5dc9c8) ... traci/fix/upload-retry (5e120c4740dc07459efcde21f3e93e5ae54e19f1) in /Users/traciday/Documents/GitHub/lingolinq/LingoLinq-AAC-upload-retry`
+(preflight exit 0; subagent following `~/ai-company-brain/commands/review-pr.md`, read only the
+DIFF_FILE). Verdict: approve with comments, 0 Critical, 0 High, 3 Medium, 10 Low. Checked by me:
+- **M1, CONFIRMED gap, no defect today:** after a refused update the shared record keeps the local
+  `preserve_source_image: true`, and the non-editable early branch (`content-grabbers.js`) reuses a
+  record with that flag. Today the user's editable copy ranks first, so a second pick uses the copy.
+  Added "reuses the user's copy when they pick the same picture again after a refused update" (7/7
+  pass); mutation (rank `edit === false` first) turns it and the two ranking tests red; file restored
+  from a copy and compared. Not taken: resetting the local flag by hand-pushing server data (more
+  regression risk than the gap).
+- **M2, CONFIRMED, to fix next:** a row over `read_budget` is read in separate `substr` statements;
+  a rewrite of that row between them gives a broken string, `JSON.parse` fails silently
+  (`dbman.js` add_rows) and the row is missing from that read. The old single read could not tear
+  (iOS). Planned fix: after the last piece, re-read `length(data)` and retry the row (bounded) when it
+  differs from the size query or the joined length; correct the header comment; test that rewrites
+  the row between pieces.
+- **M3, REFUTED as a defect:** `steps.guard.outputs.deploy_worker` resolves: the `guard` step
+  (`deploy-cloudrun.yml:472`) and the migrate step (`:823`) are in the same `deploy` job, `guard`
+  writes `deploy_worker` on every path (`:480`, `:540`, `:543`), and the scheduler step (`:1336`)
+  uses the same mapping. The spec does not check the mapping (test-hardening, Low).
+- Lows recorded, not changed yet: sweep pre-filter on `upload_failed_at`; concurrent sweeps;
+  check_for_pending raise loop only under misconfiguration; secret-backed pool suffix reads as
+  `<unset>` in the migrate readback; `set -euo pipefail` over the old deploy body; `mktemp` not
+  removed; `meta(obj, args)` arity (to grep); dbman result order; `read_budget` counts characters
+  not native bytes; pre-branch failures never retried.
+- Stopped here under rule 13 after two of my own slips (an Edit before reading the file, and a
+  filter that hid which tests failed in the first mutation run; both redone).
