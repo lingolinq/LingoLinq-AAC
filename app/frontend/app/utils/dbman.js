@@ -368,7 +368,8 @@ var dbman = {
   // on every launch (lingolinq_mobile#3). So the rows matching `where` are read in batches of at
   // most read_budget characters of data and ids_per_batch ids, and a row longer than the budget
   // is read in substr() pieces and joined. Unlike the single SELECT this replaces, the batches are
-  // not one snapshot: a row written between them comes back as it is when its batch runs.
+  // not one snapshot: a row written between batches comes back as it is when its batch runs, and
+  // an oversized row comes back whole, as it was or as it became (see below).
   read_budget: 4000000,
   ids_per_batch: 500,
   read_sqlite_rows: function(store_name, where, args, each_batch, finished, failed) {
@@ -410,21 +411,36 @@ var dbman = {
             next();
           }, failed);
         } else {
-          var parts = [];
-          var read_part = function(start) {
-            if(start > step.len) {
-              each_batch([{id: step.id, data: parts.join('')}]);
-              return next();
-            }
-            dbman.db.executeSql('SELECT substr(data, ?, ?) AS part FROM ' + store_name + ' WHERE id = ?', [start, budget, step.id], function(result_set) {
-              var rows = rows_of(result_set);
+          // The pieces of one row are read in one transaction, which keeps every other call (a
+          // sync storing this row) out until they are done (the shell's bridge runs one call or
+          // transaction at a time). It measures the row again first: a length that changed since
+          // the size query means the pieces were cut for the old row, so it is read again.
+          var read_row = function(len, tries) {
+            var current_len = null, parts = [];
+            dbman.db.transaction(function(tx) {
+              tx.executeSql('SELECT id, length(data) AS len FROM ' + store_name + ' WHERE id IN (?)', [step.id], function(tx, result_set) {
+                var rows = rows_of(result_set);
+                current_len = rows.length ? (rows[0].len || 0) : -1;
+              });
+              for(var start = 1; start <= len; start = start + budget) {
+                tx.executeSql('SELECT substr(data, ?, ?) AS part FROM ' + store_name + ' WHERE id = ?', [start, budget, step.id], function(tx, result_set) {
+                  var rows = rows_of(result_set);
+                  parts.push(rows.length ? (rows[0].part || '') : '');
+                });
+              }
+            }, failed, function() {
               // Removed since the size query: nothing to return.
-              if(rows.length == 0) { return next(); }
-              parts.push(rows[0].part || '');
-              read_part(start + budget);
-            }, failed);
+              if(current_len === -1) { return next(); }
+              if(current_len !== len) {
+                if(tries < 3) { return read_row(current_len, tries + 1); }
+                console.warn('dbman: ' + store_name + ' row ' + step.id + ' kept changing while it was read, skipped');
+                return next();
+              }
+              each_batch([{id: step.id, data: parts.join('')}]);
+              next();
+            });
           };
-          read_part(1);
+          read_row(step.len, 1);
         }
       };
       next();

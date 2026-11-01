@@ -84,6 +84,25 @@ describe('dbman sqlite batched reads', function() {
       }
     }
   };
+  // Like the shell's bridge (lingolinq_mobile www/sqlite_bridge.js), a transaction holds the one
+  // statement queue for all of its statements, so no other call runs between them.
+  var base_execute = fake_db.executeSql;
+  fake_db.transaction = function(fn, error, success) {
+    var ops = [];
+    fn({executeSql: function(sql, args, ok, fail) { ops.push({sql: sql, args: args, ok: ok, fail: fail}); }});
+    var run_op = function(idx) {
+      if(idx >= ops.length) { return setTimeout(function() { if(success) { success(); } }, 0); }
+      var op = ops[idx];
+      base_execute.call(fake_db, op.sql, op.args, function(rs) {
+        if(op.ok) { op.ok(null, rs); }
+        run_op(idx + 1);
+      }, function(err) {
+        if(op.fail) { op.fail(null, err); }
+        if(error) { error(err); }
+      });
+    };
+    run_op(0);
+  };
 
   var run_find_all = function(store, index, key) {
     var result = {done: false};
@@ -125,6 +144,52 @@ describe('dbman sqlite batched reads', function() {
       expect(big.data.raw.length).toEqual(2500);
       calls.forEach(function(call) {
         expect(returned_chars(call.rows || []) <= 1000).toEqual(true);
+      });
+    });
+  });
+
+  // Another write (a sync storing the same board) can run between any two of this read's calls,
+  // as the bridge runs one call at a time from one queue. An oversized row must come back whole,
+  // as it was or as it became, never as a mix of the two.
+  describe("when an oversized row is rewritten during the read", function() {
+    var old_data, new_data;
+    var rewrite_before_call = function(n) {
+      var top_level = 0;
+      var maybe_write = function() {
+        top_level++;
+        if(top_level == n) { tables.board[0].data = new_data; }
+      };
+      var real_execute = fake_db.executeSql, real_transaction = fake_db.transaction;
+      stub(fake_db, 'executeSql', function() { maybe_write(); return real_execute.apply(fake_db, arguments); });
+      stub(fake_db, 'transaction', function() { maybe_write(); return real_transaction.apply(fake_db, arguments); });
+    };
+    beforeEach(function() {
+      old_data = row_data('board::1_1', 2500, {v: 1});
+      new_data = row_data('board::1_1', 3200, {v: 2});
+      add_row('board', 'board::1_1', old_data, 'example/one');
+    });
+
+    it("returns the row whole when the write lands right after the size query", function() {
+      rewrite_before_call(2);
+      var result = run_find_all('board');
+      waitsFor(function() { return result.done; });
+      runs(function() {
+        expect(result.errors).toEqual(undefined);
+        expect(result.list.length).toEqual(1);
+        var data = result.list[0] && result.list[0].data;
+        expect(!!data && JSON.stringify(data) === new_data).toEqual(true);
+      });
+    });
+
+    it("returns the row whole when the write lands between its pieces", function() {
+      rewrite_before_call(3);
+      var result = run_find_all('board');
+      waitsFor(function() { return result.done; });
+      runs(function() {
+        expect(result.errors).toEqual(undefined);
+        expect(result.list.length).toEqual(1);
+        var data = result.list[0] && result.list[0].data;
+        expect(!!data && (JSON.stringify(data) === old_data || JSON.stringify(data) === new_data)).toEqual(true);
       });
     });
   });

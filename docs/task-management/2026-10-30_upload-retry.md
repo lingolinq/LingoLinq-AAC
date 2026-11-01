@@ -534,3 +534,16 @@ tokens, `device.rb:134-137`; the "anonymous" shape cannot occur, every image end
 - Recorded, not changed: offline picks of a no-permissions picture still lose the choice at sync;
   local-DB records may carry another user's permissions.
 - Lint: same counts as HEAD for all three files (only `ember/no-runloop`, pre-existing).
+
+## Torn oversized-row read fixed (2026-11-01)
+- `dbman.js` `read_sqlite_rows`: an oversized row's pieces are read in one `db.transaction`, which
+  keeps every other call out until they are done (the bridge runs one call or transaction at a
+  time; dbman already reads in a transaction for the schema version, and the bridge's own test covers
+  that, `lingolinq_mobile test/sqlite_bridge.test.js:47`, `:87`). The transaction measures the row
+  again first; a changed length means the pieces were cut for the old row, so it is read again (up to
+  3 tries, then skipped with a warning); a row gone since the size query is skipped as before.
+- Red first: "returns the row whole when the write lands right after the size query" and "...between
+  its pieces", with a fake `transaction` that, like the bridge, runs its statements together and a
+  rewrite before top-level call 2 or 3. Both failed (the row was missing, 0 of 1) on the old code.
+- With the fix: dbman tests 18/18. Mutation: drop the re-measure check -> the first test red;
+  restored from a copy and compared. Lint: 0 errors, as at HEAD.
