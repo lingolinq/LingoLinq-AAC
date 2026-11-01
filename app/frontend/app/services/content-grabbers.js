@@ -1559,8 +1559,7 @@ var pictureGrabber = EmberObject.extend({
       }
 
       if(existing_image) {
-        var set_preserve = !existing_image.get('preserve_source_image');
-        if(set_preserve) {
+        if(!existing_image.get('preserve_source_image')) {
           existing_image.set('preserve_source_image', true);
         }
         if(existing_image.get('isNew')) {
@@ -1579,12 +1578,15 @@ var pictureGrabber = EmberObject.extend({
           existing_image.set('license', preview.license);
         }
         var dirtyAttrs = existing_image.changedAttributes && existing_image.changedAttributes();
+        // whether this save sends a preserve_source_image the server has not stored: set by this
+        // pick, or left unsaved by an earlier one whose update failed
+        var sends_preserve = !!(dirtyAttrs && dirtyAttrs.preserve_source_image);
         if(existing_image.get('hasDirtyAttributes') && !(dirtyAttrs && dirtyAttrs.url && !existing_image.get('isNew'))) {
           return existing_image.save().then(function() {
             if(image_edit_state(existing_image) === 'not_editable') {
               // A refused update answers without preserve_source_image, so the record would keep
               // the value sent and a later pick would reuse it as if the server had stored it
-              if(set_preserve) {
+              if(sends_preserve) {
                 LingoLinq.store.push({data: {id: existing_image.get('id'), type: 'image', attributes: {preserve_source_image: false}}});
               }
               return save_new_image();

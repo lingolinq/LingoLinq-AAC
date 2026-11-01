@@ -169,6 +169,16 @@ describe('dbman sqlite batched reads', function() {
       add_row('board', 'board::1_1', old_data, 'example/one');
     });
 
+    it("reports one error and no success when reading a piece fails", function() {
+      fail_on = /^SELECT substr\(data/;
+      var result = run_find_all('board');
+      waitsFor(function() { return result.done; });
+      runs(function() {
+        expect(result.errors).toEqual(1);
+        expect(result.calls).toEqual(undefined);
+      });
+    });
+
     it("returns the row whole when the write lands right after the size query", function() {
       rewrite_before_call(2);
       var result = run_find_all('board');

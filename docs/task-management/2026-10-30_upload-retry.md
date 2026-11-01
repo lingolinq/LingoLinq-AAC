@@ -553,3 +553,22 @@ tokens, `device.rb:134-137`; the "anonymous" shape cannot occur, every image end
   largest staging board row is ~2.3 MB, so one row would need to be more than 10 times that. Not
   changed here: no evidence it occurs, and changing the read by key could alter which row it returns
   when duplicates exist.
+
+## Review of the two new fixes (2026-11-01, local adversary, checked by me)
+Diff `40c9e051a..045169e7a -- app/`. Verdict: ship with conditions; 0 Critical, High or Medium; 4 Low.
+Full suites at `13e2b5e9c` before these follow-ups: RSpec 8366 examples, 0 failures; Ember 3885
+tests, 3843 pass, 37 skip, 5 todo, 0 fail (complete run).
+- **Low, fixed:** the flag reset was gated on "this pick set the flag", so a flag left unsaved by an
+  earlier failed update was not put back after a refusal. Now gated on whether the save sends an
+  unsaved `preserve_source_image` (`changedAttributes`). Test "puts the flag back after a refused
+  update when an earlier pick left it unsaved" (also checks `url` and `permissions` unchanged): red
+  on the old gate, green now. Confirmed by the reviewer in `@ember-data/json-api` `cacheUpsert`: a
+  partial `store.push` merges attributes.
+- **Low, test added:** "reports one error and no success when reading a piece fails".
+- **Low, comment:** the memory bound depends on the bridge running each statement of a transaction
+  as its own native call (true of `@capacitor-community/sqlite` via the shell bridge; a plugin that
+  batches a transaction into one result would not hold it).
+- **Low, PLAUSIBLE, recorded:** a fast double pick while the first in-place update is in flight
+  could make two copies (`existing_image.save()` is not registered in `_pendingImageSavesByUrl`).
+  Not traced; candidate fix: register the in-place save there as `save_record` does.
+- Same-URL tests 19/19, dbman 19/19; lint unchanged.

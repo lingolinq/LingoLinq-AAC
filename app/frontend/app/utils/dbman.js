@@ -414,7 +414,9 @@ var dbman = {
           // The pieces of one row are read in one transaction, which keeps every other call (a
           // sync storing this row) out until they are done (the shell's bridge runs one call or
           // transaction at a time). It measures the row again first: a length that changed since
-          // the size query means the pieces were cut for the old row, so it is read again.
+          // the size query means the pieces were cut for the old row, so it is read again. The
+          // memory bound holds because that bridge runs each statement of a transaction as its
+          // own native call; a plugin that returned a whole transaction as one result would not.
           var read_row = function(len, tries) {
             var current_len = null, parts = [];
             dbman.db.transaction(function(tx) {

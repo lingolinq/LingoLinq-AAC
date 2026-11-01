@@ -737,6 +737,28 @@ describe('pictureGrabber', function() {
           });
         });
 
+        it('puts the flag back after a refused update when an earlier pick left it unsaved', function() {
+          pictureGrabber.setup(button, controller);
+          var url = 'https://example.com/shared-16.png';
+          var shared = push_image('1_9138', url);
+          // what an earlier pick whose update failed leaves behind: the flag set locally, not saved
+          shared.set('preserve_source_image', true);
+          expect_put('1_9138', {id: '1_9138', url: url, permissions: {user_id: '1_2', view: true}});
+          var posted = expect_post(url, '1_9148');
+          var res = pick(url);
+          waitsFor(function() { return res.done; });
+          runs(function() {
+            expect(res.error).toEqual(undefined);
+            expect(posted.preserve).toEqual(true);
+            expect(res.image && res.image.get('id')).toEqual('1_9148');
+            expect(shared.get('preserve_source_image')).toNotEqual(true);
+            expect(shared.get('hasDirtyAttributes')).toEqual(false);
+            // only the flag is put back
+            expect(shared.get('url')).toEqual(url);
+            expect(shared.get('permissions')).toEqual({user_id: '1_2', view: true});
+          });
+        });
+
         it('updates the user\'s own picture loaded with a board in place, without a copy', function() {
           pictureGrabber.setup(button, controller);
           var url = 'https://example.com/own-13.png';
