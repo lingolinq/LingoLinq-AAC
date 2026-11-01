@@ -335,6 +335,9 @@ describe MediaObject, :type => :model do
       allow(Uploader).to receive(:remote_upload_config).and_return({
         access_key: 'test_key', secret: 'test_secret', bucket_name: bucket, static_bucket_name: 'spec-static'
       })
+      # The destroy also writes a transcode family sweep (LL-c4566fa37f) that process_queues runs;
+      # it lists the record's stem and finds nothing here.
+      allow(s3_client).to receive(:list_objects_v2).and_return(Aws::S3::Types::ListObjectsV2Output.new(contents: []))
       expect(s3_client).to receive(:head_object).with(bucket: bucket, key: key).and_return(Aws::S3::Types::HeadObjectOutput.new)
       expect(s3_client).to receive(:delete_object).with(bucket: bucket, key: key).and_return(true)
     end
@@ -560,6 +563,77 @@ describe MediaObject, :type => :model do
       expect(scheduled).to match_array([boom_key, ok_key])
       expect(Rails.logger).to have_received(:error).with(/#{Regexp.escape(boom_key)}/)
       expect(ButtonSound.where(id: s.id).count).to eq(0)
+    end
+  end
+
+  # LL-c4566fa37f: outputs of a job no setting records (record destroyed mid-job, COMPLETE dropped)
+  # are found later by listing the record's own stem, so the stem must outlive the record.
+  describe "transcode family tombstone" do
+    def sweep_rows
+      RemoteAction.where(action: 'transcode_family_sweep')
+    end
+
+    def transcoded_sound
+      s = ButtonSound.create(:user => u, :settings => {'content_type' => 'audio/wav'})
+      s.full_filename
+      s.reload
+      expect(s.settings['transcoding_attempted']).to eq(true)
+      s
+    end
+
+    it "should write a sweep row for the record's own stem, inside the destroy's transaction" do
+      s = transcoded_sound
+      stem = s.file_path + s.file_prefix
+      ButtonSound.transaction(requires_new: true) do
+        s.destroy
+        # visible before commit: written in the destroy's transaction, not after it
+        expect(sweep_rows.pluck(:path)).to eq([stem])
+        raise ActiveRecord::Rollback
+      end
+      expect(sweep_rows.count).to eq(0)
+      expect(ButtonSound.find_by(id: s.id)).to_not eq(nil)
+
+      s.reload.destroy
+      row = sweep_rows.first
+      expect(row.path).to eq(stem)
+      expect(row.extra).to eq("ButtonSound::#{s.global_id}")
+      expect(row.act_at).to be <= Time.now
+    end
+
+    it "should write no row for a record that never had a transcode" do
+      s = ButtonSound.create(:user => u, :settings => {})
+      s.destroy
+      expect(sweep_rows.count).to eq(0)
+    end
+
+    it "should add the stem of stored keys when it differs from the recomputed one (a rotated key)" do
+      s = transcoded_sound
+      stored_stem = "#{s.file_path}#{s.global_id}-#{'b' * 128}"
+      s.settings['prior_full_filenames'] = ["#{stored_stem}v1723500000.mp3", 'sounds/1/2/3/1_5-abcdef.m4a', "sounds/9/9/1_99-#{'d' * 128}v1.mp3"]
+      s.save
+      s.destroy
+      expect(sweep_rows.pluck(:path).sort).to eq([s.file_path + s.file_prefix, stored_stem].sort)
+    end
+
+    it "should still write the recomputed stem, and destroy, when settings can't be read" do
+      s = transcoded_sound
+      stem = s.file_path + s.file_prefix
+      allow(Rails.logger).to receive(:error)
+      allow(s).to receive(:settings).and_raise(StandardError.new('simulated decrypt failure'))
+      expect { s.destroy }.to_not raise_error
+      expect(sweep_rows.pluck(:path)).to eq([stem])
+      expect(ButtonSound.find_by(id: s.id)).to eq(nil)
+    end
+
+    it "should not abort the destroy when the row's insert fails in the database" do
+      s = transcoded_sound
+      allow(Rails.logger).to receive(:error)
+      # A real SQL error aborts a PostgreSQL transaction unless it ran in a savepoint.
+      allow_any_instance_of(RemoteAction).to receive(:save!) { RemoteAction.connection.execute('SELECT * FROM no_such_table_for_tombstone') }
+      expect { s.destroy }.to_not raise_error
+      expect(ButtonSound.find_by(id: s.id)).to eq(nil)
+      expect(Rails.logger).to have_received(:error).with(/Transcode family tombstone failed for ButtonSound #{s.global_id}: /)
+      expect(Rails.logger).to_not have_received(:error).with(/#{Regexp.escape(s.file_prefix)}/)
     end
   end
 end
