@@ -421,3 +421,116 @@ Same `REVIEWED=` line and diff file as the senior-dev pass above; subagent follo
 - Clean per the reviewer and spot-checked: S3 guard order and `ensure`, the sweep cannot reschedule
   through `check_for_pending`, Resque does not retry (no raise loop), every `meta` takes `args`,
   production migrate env unchanged, only NOT_FOUND skips the live comparison.
+
+## Proposal G (for review): decide "cannot edit" from the shapes the server sends
+**Fact sheet.**
+- (a) Where read: `content-grabbers.js` `save_record` `can_share` (`permissions.edit === true`, else
+  `!== false` plus `preserve_source_image`); `save_image_preview` ranking (`=== true`, then
+  `!== false`), the early non-editable branch (`=== false`), and the after-PUT check (`=== false`).
+  CONFIRMED by reading.
+- (b) Shapes of `img.permissions` (writers): absent, for board-loaded images
+  (`board.rb:2544`, no `:permissions`) and records created on the client before their save;
+  `{user_id, view: true}` for someone who cannot edit (show `images_controller.rb:27`, refused
+  update `:52`, update `:58`; `permissable.rb:116-127` writes only granted actions, pinned by
+  `spec/models/button_image_spec.rb:12`); `{user_id, view: true, edit: true}` for an editor (and the
+  create response, `:18`); `{..., edit: false}` only when the edit rule matches but the token's
+  scopes do not include it (`permissable.rb:122-125`). Anonymous: `{user_id: nil, view: true}`.
+- (c) Cross-file: the image model declares `permissions: attr('raw')` (`models/image.js:57`), so a
+  later payload without `permissions` keeps the earlier value. CONFIRMED.
+
+**Red tests (written, failing for the right reason):** `save_record` with a saved record
+`{user_id, view: true}` that keeps its picture is shared (should not be); a pick of a loaded record
+`{user_id, view: true}` sends a PUT (should POST a copy, no PUT); a refused PUT answering
+`{user_id, view: true}` returns the shared record (should POST a copy). The existing `edit: false`
+tests stay: that shape occurs for limited-scope tokens.
+
+**Candidates.**
+1. **Client: one helper for the three states (recommended).** `image_edit_state(img)`: editable
+   when `permissions.edit === true`; not editable when a `permissions` object is present otherwise;
+   unknown when there is no `permissions` object. Used by the ranking (editable, unknown, not
+   editable), the early branch and the after-PUT check (not editable), and `can_share` (editable
+   shares; unknown shares only if it keeps its picture; not editable never shares when the new
+   record keeps its picture). One unit for an idea used in two functions.
+2. **Server: always emit `edit: false`** in `JsonApi::Image`. Rejected: changes a public payload
+   shape for every client, and the client would still be wrong against an older server.
+3. **Simplest: `edit !== true` means not editable.** Rejected: board-loaded records (no
+   permissions, including the user's own) would always be copied, turning the recorded extra-record
+   Low into the normal path.
+
+**Risks and open questions.** A record's `permissions` describes the user it was fetched for; an
+account switch without reload would carry stale permissions (same before and after; ASSUMED the app
+reloads on sign-out, not checked). Anonymous users get "not editable" and a POST, which fails as
+it would today. The extra-record Low for board-loaded URLs is unchanged.
+
+**Mutations that must turn the tests red:** the helper treats a missing `edit` key as unknown; the
+ranking drops the unknown tier; `can_share` lets a not-editable record share.
+
+## Where this stopped (2026-11-01, rule 13)
+Stopped after a third slip of my own today (an Edit sent before the file was read, twice, and a
+filter that hid failing test names); each was caught and nothing wrong landed, but the rate is up.
+- **Proposal G (copy-on-write from real permission shapes):** written above; red tests written and
+  failing for the right reason, NOT committed (`content_grabbers-test.js` "...whose permissions have
+  no edit key"; `picture_grabber-test.js` "...permissions have no edit key", "...refused update
+  answers with no edit key"). Adversarial review of the proposal requested; code not changed.
+- **Torn oversized-row read (senior-dev M2, adversary Low):** chosen fix: read one row's pieces
+  inside one `db.transaction` (the bridge's single queue keeps other calls out,
+  `lingolinq_mobile www/sqlite_bridge.js` `enqueue` and `transaction`), with
+  `SELECT id, length(data) AS len ... WHERE id IN (?)` first in the same transaction; if the length
+  differs from the size query, retry with the new length (bounded), skip if the row is gone. Red tests
+  designed (a fake `transaction` that runs its statements together; a rewrite before top-level call 2
+  and before call 3; the row must equal the old or the new data exactly) but NOT yet in the file.
+- **New, pre-existing, not on this branch's lines:** `store_internal` checks existence with
+  `SELECT * ... WHERE ref_id=?` (`dbman.js:454`), a full read of the existing row on every store; the
+  same unbounded native read as the crash, for one row. Candidate: `SELECT id`.
+
+## Proposal G review (2026-11-01, local adversary, checked by me)
+Verdict: proceed with changes. The three-state classification holds for every shape the server
+sends (writers only `images_controller.rb` create/show/refused update/update via
+`json_api/image.rb:57-58`; board images and `persistence.js:736-740` store none; nothing on the
+client writes an image's `permissions`; `{edit: false}` only for integration and developer-key
+tokens, `device.rb:134-137`; the "anonymous" shape cannot occur, every image endpoint needs a token).
+- **Medium, CONFIRMED by reading, to fix with G:** the early non-editable branch reuses the record
+  when its local `preserve_source_image` is true (`content-grabbers.js:1545-1546`); after a refused
+  update that flag is stale (`true` locally, key absent in the reply). Under G every `{view: true}`
+  record takes that branch, so: refused update, copy POST fails (network), pick again -> the shared
+  record is returned as success and the choice is lost. Options: reset the local flag from the
+  reply after a refusal, or stop trusting the local flag in that branch (reuse only a record the
+  server said keeps its picture). Either changes the assertion I added at
+  `picture_grabber-test.js:727` (it pins the stale flag): needs Traci's approval (rule 14).
+- **Low, CONFIRMED, tests to add:** a board-loaded record (no permissions) whose PUT answers
+  `edit: true` is updated in place, no POST (guards "my own picture is not copied"; catches the
+  mutation "after-PUT uses `edit !== true`"); the unknown-versus-not-editable ranking with the real
+  `{user_id, view: true}` shape.
+- **Low, PLAUSIBLE, pre-existing, to record or confirm:** an `incomplete` same-URL placeholder
+  (`button.js:619-625`) ranks as unknown and may win more often under G, then `save_record` POSTs a
+  record that already has an id; offline picks of a no-permissions picture still lose the choice at
+  sync (refused quietly); local-DB records may carry another user's permissions (guard: a
+  `permissions.user_id` that is not the current user's counts as unknown).
+- Candidate 2's "older server" reason is weak (server and web client deploy together), but the
+  rejection holds: board images arrive without permissions, so the client helper is needed anyway.
+
+## Proposal G implemented (2026-11-01, Traci approved the `:727` assertion change)
+- `content-grabbers.js`: `image_edit_state(img)` (module level): `editable` when
+  `permissions.edit === true`, `not_editable` when `permissions` is present otherwise, `unknown`
+  when absent. Used by `save_record`'s `can_share` (editable shares; unknown shares only if it keeps
+  its picture), the `save_image_preview` ranking (editable, unknown but not an `incomplete`
+  placeholder, not editable, then anything), the early branch and the after-update check. After a
+  refused update, if the picker had set `preserve_source_image` itself, it pushes
+  `preserve_source_image: false` into the store (the server's value; the record is not left dirty),
+  so a later pick cannot reuse the shared record on a stale flag (the review's Medium).
+- Tests: the 3 red tests now pass; added "updates the user's own picture loaded with a board in
+  place, without a copy", "tries a match of unknown ownership before one the server sent without an
+  edit key", "prefers a saved picture to a placeholder for the same URL"; the approved change at the
+  refused-update test now expects the flag reset and the record not dirty. Same-URL tests: 18/18.
+- Mutations, each restored from a copy and compared: missing `edit` key counts as unknown (5 red);
+  ranking without the unknown tier (2 red); `can_share` lets not-editable share (1 red); no flag reset
+  (1 red); placeholder not ranked last (1 red, after adding the "placeholder left alone" assertions;
+  green before them). "After-update check uses `edit !== true`" stays green and is equivalent for
+  every reply the server sends (update replies always carry `permissions`).
+- Not kept: an end-to-end test "copy save fails after a refusal, then pick again". With a rejected
+  POST fixture, Ember Data raised a global `Error` in the test runner (source not traced). The two
+  halves are covered (flag reset and not dirty; a not-editable record without the flag gets a copy).
+  Open question: whether a failed image POST also raises an unhandled error in the app.
+- Recorded, not changed: offline picks of a no-permissions picture still lose the choice at sync;
+  local-DB records may carry another user's permissions.
+- Lint: same counts as HEAD for all three files (only `ember/no-runloop`, pre-existing).

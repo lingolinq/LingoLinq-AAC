@@ -21,6 +21,16 @@ let appStateService;
 let stashesService;
 let persistenceService;
 
+// Whether the user may change an image, from what the server sent: 'editable' when
+// permissions.edit is true; 'not_editable' when it sent permissions without that (permissable
+// writes only granted actions, so someone who cannot edit gets {user_id, view: true});
+// 'unknown' when there are none (images loaded with a board, records not yet saved).
+var image_edit_state = function(img) {
+  var permissions = img.get('permissions');
+  if(!permissions) { return 'unknown'; }
+  return permissions.edit === true ? 'editable' : 'not_editable';
+};
+
 var contentGrabbers = Service.extend({
   appState: service('app-state'),
   stashes: service('stashes'),
@@ -165,8 +175,8 @@ var contentGrabbers = Service.extend({
         var keeps_source = !!object.get('preserve_source_image');
         var can_share = function(img) {
           if(!keeps_source) { return true; }
-          var edit = img.get('permissions.edit');
-          return edit === true || (edit !== false && !!img.get('preserve_source_image'));
+          var state = image_edit_state(img);
+          return state === 'editable' || (state === 'unknown' && !!img.get('preserve_source_image'));
         };
         var existing_saved = LingoLinq.store.peekAll('image').find(function(img) {
           var img_url = img.get('url');
@@ -1527,27 +1537,30 @@ var pictureGrabber = EmberObject.extend({
       };
 
       // Check if an image with this URL already exists (saved or in-flight), preferring one the
-      // user can edit, then one of unknown ownership, then one they cannot edit
+      // user can edit, then one of unknown ownership, then one they cannot edit, and last a
+      // placeholder made to show a button's picture before its record loads (utils/button.js)
       var matching_images = forceNewRecord ? [] : LingoLinq.store.peekAll('image').filter(function(img) {
         if(img.get('isDeleted')) { return false; }
         var img_url = img.get('url');
         if(!img_url || persistenceService.normalize_url(img_url) !== normalized_url) { return false; }
         return true;
       });
-      var existing_image = matching_images.find(function(img) { return img.get('permissions.edit') === true; }) ||
-        matching_images.find(function(img) { return img.get('permissions.edit') !== false; }) ||
+      var existing_image = matching_images.find(function(img) { return image_edit_state(img) === 'editable'; }) ||
+        matching_images.find(function(img) { return image_edit_state(img) === 'unknown' && !img.get('incomplete'); }) ||
+        matching_images.find(function(img) { return image_edit_state(img) === 'not_editable'; }) ||
         matching_images[0];
 
       // The server ignores changes from someone who cannot edit an image (a library picture, or
       // another user's; images_controller#update), so their "keep my chosen picture" goes on a
-      // record they own (copy-on-write). Decided from permissions.edit, never from
-      // preserve_source_image: the server omits that key when false (json_api/image.rb).
-      if(existing_image && !existing_image.get('isNew') && existing_image.get('permissions.edit') === false) {
+      // record they own (copy-on-write). Decided from the permissions the server sent, never from
+      // preserve_source_image alone: the server omits that key when false (json_api/image.rb).
+      if(existing_image && !existing_image.get('isNew') && image_edit_state(existing_image) === 'not_editable') {
         return existing_image.get('preserve_source_image') ? RSVP.resolve(existing_image) : save_new_image();
       }
 
       if(existing_image) {
-        if(!existing_image.get('preserve_source_image')) {
+        var set_preserve = !existing_image.get('preserve_source_image');
+        if(set_preserve) {
           existing_image.set('preserve_source_image', true);
         }
         if(existing_image.get('isNew')) {
@@ -1568,7 +1581,12 @@ var pictureGrabber = EmberObject.extend({
         var dirtyAttrs = existing_image.changedAttributes && existing_image.changedAttributes();
         if(existing_image.get('hasDirtyAttributes') && !(dirtyAttrs && dirtyAttrs.url && !existing_image.get('isNew'))) {
           return existing_image.save().then(function() {
-            if(existing_image.get('permissions.edit') === false) {
+            if(image_edit_state(existing_image) === 'not_editable') {
+              // A refused update answers without preserve_source_image, so the record would keep
+              // the value sent and a later pick would reuse it as if the server had stored it
+              if(set_preserve) {
+                LingoLinq.store.push({data: {id: existing_image.get('id'), type: 'image', attributes: {preserve_source_image: false}}});
+              }
               return save_new_image();
             }
             return existing_image;

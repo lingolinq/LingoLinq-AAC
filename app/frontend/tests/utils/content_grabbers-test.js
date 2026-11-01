@@ -181,6 +181,26 @@ describe("contentGrabbers", function() {
           expect(res.record && res.record.get('id')).toEqual('1_9213');
         });
       });
+
+      // What the server actually sends someone who cannot edit: no edit key at all
+      // (permissable only writes granted actions; spec/models/button_image_spec.rb).
+      it("saves a new record that keeps its picture instead of sharing one whose permissions have no edit key", function() {
+        var url = 'https://example.com/dedupe-6.png';
+        var saved = push_image('1_9206', url, {permissions: {user_id: '1_2', view: true}, preserve_source_image: true});
+        queryLog.defineFixture({
+          method: 'POST',
+          type: 'image',
+          compare: function(s) { return s.get('url') == url && s.get('preserve_source_image') === true; },
+          response: RSVP.resolve({image: {id: '1_9216', url: url, preserve_source_image: true, permissions: {user_id: '1_1', view: true, edit: true}}})
+        });
+        var res = save({url: url, preserve_source_image: true});
+        waitsFor(function() { return res.done; });
+        runs(function() {
+          expect(res.error).toEqual(undefined);
+          expect(res.record === saved).toEqual(false);
+          expect(res.record && res.record.get('id')).toEqual('1_9216');
+        });
+      });
     });
 
     it("should return a promise", function() {
