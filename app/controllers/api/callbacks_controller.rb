@@ -43,7 +43,7 @@ class Api::CallbacksController < ApplicationController
           return api_error 401, {error: 'inauthentic message'}
         end
         # The body holds the sender's number and the message text: never log it.
-        Rails.logger.warn("INBOUND SMS NOTIFICATION")
+        Rails.logger.warn('INBOUND SMS NOTIFICATION')
         message = JSON.parse(json_body['Message'])
         res = RemoteTarget.process_inbound(message)
         if res
