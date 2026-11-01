@@ -33,6 +33,9 @@ gem 'matrix'
 gem 'concurrent-ruby', '>= 1.3.7'
 # CVE-2026-54463/54464/54465, GHSA-2x63-gw47-w4mm; bundler-audit minimum (transitive via actioncable)
 gem 'websocket-driver', '>= 0.8.2'
+# GHSA-4w5q-wg7v-w6gp, GHSA-9f42-57jx-vpp3, GHSA-j82w-28jv-3pmj, GHSA-qq38-m9mg-xjj5,
+# GHSA-8gmh-2hhj-2hv9, GHSA-539f-xcgw-2gjg, GHSA-9crm-g4mf-wc5j; bundler-audit minimum (transitive via signet)
+gem 'addressable', '>= 2.9.1', require: false
 
 # Rails 7.2 with Ruby 3.4 support (Phase 3: final upgrade)
 # 7.2.3.1+ addresses Active Storage proxy DoS (GHSA-p9fm-f462-ggrg / CVE-2026-33658)
@@ -50,8 +53,10 @@ gem 'oj', '>= 3.17.3'
 gem 'loofah', '>= 2.25.2'
 # GHSA-cj75-f6xr-r4g7 (possible XSS with certain configs); transitive via actionview/actiontext, pin patched
 gem 'rails-html-sanitizer', '>= 1.7.1'
-# GHSA-6jxj-px6v-747w et al.; bundler-audit minimum (transitive via loofah, rails-dom-testing)
-gem 'crass', '>= 1.0.7'
+# GHSA-6jxj-px6v-747w et al.; GHSA-pq4g-8rxf-4g29 (bad-URL tokenization, CSS sanitizer bypass) needs >= 1.0.8.
+# bundler-audit minimum. crass is required by loofah and sanitize, both direct dependencies
+# (rails-html-sanitizer also pulls in loofah).
+gem 'crass', '>= 1.0.8'
 # ERB @_init deserialization guard bypass (def_module/def_method/def_class); pulled transitively, pin patched 6.x
 gem 'erb', '>= 6.0.4'
 gem 'pg', '~> 1.5'
@@ -90,7 +95,8 @@ gem 'sentry-ruby'
 gem 'sentry-rails'
 gem 'stripe'
 # Rack 3.x for Sinatra 4 CVE fixes (CVE-2024-21510, CVE-2025-61921)
-gem 'rack', '>= 3.0'
+# GHSA-5v64-555j-wjxm, GHSA-2j8w-xcrc-x985, GHSA-wvg4-6p58-3gh3, GHSA-p8x9-v4hv-2w4g; bundler-audit minimum
+gem 'rack', '>= 3.2.8'
 gem 'rack-attack'
 gem 'rack-timeout'
 gem 'pg_search'
@@ -108,7 +114,9 @@ gem 'faraday', '>= 2.14.3'
 gem 'clowne', '~> 1.4' # Declarative model cloning DSL for board copy optimization
 
 gem 'sinatra', '~> 4.2'
-gem 'sanitize'
+# GHSA-wgw9-qhqg-8hv5 (CSS nesting bypasses the property and protocol allowlists in <style>,
+# which Processable#process_html allows through Sanitize::Config::RELAXED); ensure >= 7.0.1
+gem 'sanitize', '>= 7.0.1'
 gem 'anthropic', '~> 1.36'
 gem 'ruby-openai', '~> 7.0'  # Used for Gemini fallback (OpenAI-compatible endpoint)
 
