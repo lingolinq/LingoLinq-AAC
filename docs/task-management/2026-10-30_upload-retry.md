@@ -547,3 +547,9 @@ tokens, `device.rb:134-137`; the "anonymous" shape cannot occur, every image end
   rewrite before top-level call 2 or 3. Both failed (the row was missing, 0 of 1) on the old code.
 - With the fix: dbman tests 18/18. Mutation: drop the re-measure check -> the first test red;
   restored from a copy and compared. Lint: 0 errors, as at HEAD.
+- **Recorded, not changed (Low):** two single-row reads still use `SELECT *`: the existence check in
+  `store_internal` (`dbman.js:470`, only the row count is used, so `SELECT id` would do) and the read
+  by key (`:242`, needs the data). The crash needed a ~37 MB native allocation for a whole table; the
+  largest staging board row is ~2.3 MB, so one row would need to be more than 10 times that. Not
+  changed here: no evidence it occurs, and changing the read by key could alter which row it returns
+  when duplicates exist.
