@@ -5,8 +5,8 @@ class Api::CallbacksController < ApplicationController
     topic_arn = request.headers['x-amz-sns-topic-arn']
     body = request.body.read.force_encoding("UTF-8")
     json_body = JSON.parse(body) rescue nil
-    # TODO: confirm signature, https://docs.aws.amazon.com/sns/latest/dg/sns-message-and-json-formats.html
-    # https://docs.aws.amazon.com/sdk-for-ruby/v3/api/Aws/SNS/MessageVerifier.html
+    # Notification branches verify the SNS signature before acting. SubscriptionConfirmation
+    # relies on the SNS_ARNS allowlist instead (LL-fba170716e).
     if request.headers['x-amz-sns-message-type'] == 'SubscriptionConfirmation'
       Rails.logger.warn("CONFIRM SUBSCRIPTION #{topic_arn}")
       valid_arns = (ENV['SNS_ARNS'] || '').split(/,/)
