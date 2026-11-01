@@ -43,11 +43,22 @@ adversary review and a Scot decision, never silently reopened, reclosed, or re-a
 
 ### The audit pointer vs. the evidence anchor
 
-`meta.auditedSha`/`auditedRef`/`auditedDate` are the **audit pointer**: they assert that a
-whole-tree `/audit-run` audited every path at that commit. Per-finding `evidence.sha` is the
-**evidence anchor**: the commit that one snippet is proven to exist at. Only a real `/audit-run`
-moves the pointer, and moving it is a governance act requiring Scot's sign-off plus an analysis of
-the intervening commits (`meta.auditedShaPriorNote` records each restamp).
+`meta.auditedSha`/`auditedRef`/`auditedDate` are the **audit pointer**: they record the commit an
+`/audit-run` ran at, and `auditedRef` states how much of the audit that run reached. Per-finding
+`evidence.sha` is the **evidence anchor**: the commit that one snippet is proven to exist at. Only a
+real `/audit-run` moves the pointer, and moving it is a governance act requiring Scot's sign-off plus
+an analysis of the intervening commits (`meta.auditedShaPriorNote` records each restamp).
+
+An `/audit-run` may write "full" in `meta.auditedRef` only if, at one commit, every finder examined
+every item in its own checklist and every read on the named live-read list succeeded; any other run
+is stamped partial. What a repo read cannot answer (callers outside the repo, vendor internals, provider-side key
+revocation unless the provider console is opened) is a disclosed standing limit, not a gap. Open
+findings do not affect coverage. The live-read list and how a run decides are in
+`.claude/skills/audit-run/SKILL.md`. Every full stamp carries this exact line:
+
+```
+Excludes assistive-technology testing (tracked separately in the conformance report).
+```
 
 So `audit-merge.rb` takes them separately:
 

@@ -12,11 +12,20 @@ LingoLinq to communicate frequently use assistive technology, switch access, eye
 high-contrast needs and often cannot route around a broken control. This is a read-only finder:
 produce findings, never fix.
 
-**Static analysis only.** Everything here is checkable by reading templates, components, and
-SCSS. Anything requiring a running DOM, a browser, axe-core/Lighthouse, computed contrast against
-rendered ancestors, live focus order, or screen-reader/switch/eye-gaze behavior is OUT OF SCOPE
-and belongs to the human ACR / AT-testing pass (`docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md`
-tracks that gap). Never claim to have verified runtime behavior.
+**This finder is static analysis only.** Everything here is checkable by reading templates,
+components, and SCSS. Anything requiring a running DOM, a browser, axe-core/Lighthouse, computed
+contrast against rendered ancestors, live focus order, or screen-reader/switch/eye-gaze behavior is
+OUT OF SCOPE for this finder. Never run any of it, and never claim to have verified runtime behavior
+yourself. Two separate passes cover that ground:
+- **Live scan (the `/audit-run` orchestrator).** The orchestrator runs axe and a focus walk on every
+  route, including speak mode, with computed contrast and rendered focus, and hands you the results
+  (`/audit-run` Step 1b). Treat them as input. When a result ties to a source line, emit a normal
+  `type:"code"` finding at that line. When no source line can carry it, use `evidence: {type:"runtime",
+  source:"orchestrator:live-scan", snippet:"<rule and route template, no page text>"}` and omit `file`.
+  If no results reached you, say so in `note`.
+- **Assistive-technology testing (the team).** The team does screen reader, switch and eye-gaze testing
+  separately, and `docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md` tracks it. It does not count toward
+  full audit coverage, and neither this finder nor the live scan stands in for it.
 
 ## Scan scope
 - `app/frontend/app/templates/**/*.hbs` and `app/frontend/app/components/**/*.{js,hbs}`: markup,
@@ -107,10 +116,10 @@ re-check a date before citing it.
       associated with labels; lists/tables use semantic elements.
 - [ ] **1.4.3 Contrast (Minimum)** (EN 9.1.4): flag USES of the known-failing brand tokens below
       for foreground text/links on light surfaces. Reference tokens BY NAME; do NOT compute
-      ratios against rendered ancestors (that is the human/runtime pass).
+      ratios against rendered ancestors (that is the orchestrator's live scan).
 - [ ] **1.4.11 Non-text Contrast** (EN 9.1.4): flag only statically-obvious cases (e.g. a control
       border that resolves to a known-failing token). Translucent/computed backgrounds are
-      deferred to the runtime pass.
+      deferred to the live scan.
 
 ### Operable
 - [ ] **2.1.1 Keyboard** (EN 9.2.1): `<a href="#">` or `<div>`/`<span>` used as click handlers
@@ -120,7 +129,7 @@ re-check a date before citing it.
 - [ ] **2.4.7 Focus Visible** (EN 9.2.4): interactive selectors in `app.scss` have a
       `:focus-visible` (or `:focus`) rule.
 - [ ] **2.4.3 Focus Order** (EN 9.2.4): static red flags only - `tabindex` > 0 (positive tabindex)
-      and obvious DOM-order traps. Live focus order is the runtime pass, not this.
+      and obvious DOM-order traps. Live focus order is the live scan, not this.
 
 ### Understandable
 - [ ] **3.1.1 Language of Page** (EN 9.3.1): `<html lang>` present and valid.
@@ -156,8 +165,8 @@ product-UI palette). At the 2026-04-11 SHA the AA tokens carried inline contrast
 
 Notes:
 - This is a token-USAGE check, not a contrast computation. Only flag a use you can see statically
-  resolves to a failing token as a text/link foreground. Do not guess ratios; the runtime
-  re-measurement is the human ACR pass.
+  resolves to a failing token as a text/link foreground. Do not guess ratios; computed contrast comes
+  from the orchestrator's live scan.
 - NEVER recommend a banned/deprecated hex in remediation (the brand denylist includes `#1B365D`,
   which an older note wrongly suggested). Always name the AA-safe token.
 - If a project-defined `*-aa` token does not yet exist, recommend defining one in the brand layer

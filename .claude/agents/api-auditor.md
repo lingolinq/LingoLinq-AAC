@@ -64,6 +64,18 @@ line, snippet, sha}, `remediation`, and `status: "open"`. When a finding spans b
 anchor `evidence` to the side that must change and reference the other file in `notes`. You
 never set `verified-closed`.
 
+**Coverage block (required).** That object also carries this block, the same shape in every finder:
+`"coverage": { "examined": ["<item id>"], "notReached": [{ "item": "<item id>", "reason": "<short
+reason>" }], "standingLimits": ["<short string>"] }`. `examined` and `notReached` together list
+every item in your checklist, and `notReached` may be an empty list. Item ids are `item-<n>`, the
+nth `- [ ]` line of the `api-contract-audit` skill at the audited SHA, counted in file order. An
+item counts as examined only if you checked it across its whole scan scope: a sampled or partly read
+item goes in `notReached`. `standingLimits` holds only what a repo read cannot answer: callers
+outside the repo, vendor internals, and provider-side key revocation without the provider console.
+An item you ran out of time for or had no access to is `notReached`, never a standing limit. Keep
+secrets and customer data out of every string. `/audit-run` Step 2c decides the coverage stamp from
+this block.
+
 ## Memory
 This agent keeps no persistent memory: `memory:` is intentionally unset (the read-only guard
 denies every write). A fresh run re-verifies against live code at the audited SHA; never rely

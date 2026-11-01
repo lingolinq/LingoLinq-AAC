@@ -46,8 +46,8 @@ read tools. Live infra reads go through read-only CLI via Bash:
 command that prints a secret VALUE or a live credential is still on you. Cite the secret's
 NAME and where it is referenced; never run a command whose output is the value.
 
-If a live check needs a privileged or write-capable path, do NOT attempt it: record the gap as
-a finding and let the orchestrator (running in the trusted main session) gather it.
+If a live check needs a privileged or write-capable path, do NOT attempt it: list the item in
+`coverage.notReached` and let the orchestrator (running in the trusted main session) gather it.
 
 ## What you load first
 Your checklist is preloaded as the `soc2-security-audit` skill (scan scope, CC6/CC7/CC8/A1
@@ -106,6 +106,19 @@ the `soc2-security-audit` skill: `ruleKey`, `title`, `severity`, `confidence`, `
   not the connection string; `"N env vars set on service"`, never their values. If you cannot
   describe the observation without including a secret-shaped or identifying string, describe it
   more abstractly.
+
+**Coverage block (required).** That object also carries this block, the same shape in every finder:
+`"coverage": { "examined": ["<item id>"], "notReached": [{ "item": "<item id>", "reason": "<short
+reason>" }], "standingLimits": ["<short string>"] }`. `examined` and `notReached` together list
+every item in your checklist, and `notReached` may be an empty list. Item ids are `item-<n>`, the
+nth `- [ ]` line of the `soc2-security-audit` skill at the audited SHA, counted in file order. An
+item counts as examined only if you checked it across its whole scan scope: a sampled or partly read
+item goes in `notReached`. `standingLimits` holds only what a repo read cannot answer: callers
+outside the repo, vendor internals, and provider-side key revocation without the provider console.
+An item you ran out of time for or had no access to is `notReached`, never a standing limit. A
+live-read result you were handed that does not answer an item leaves that item `notReached`. Keep
+secrets and customer data out of every string. `/audit-run` Step 2c decides the coverage stamp from
+this block.
 
 ## Memory
 This agent keeps no persistent memory: `memory:` is intentionally unset (the read-only guard

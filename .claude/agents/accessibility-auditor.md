@@ -34,21 +34,24 @@ finding instead.
 - **Read-only.** Never modify files, data, git state, or infrastructure. Reporting only.
 - **No student/patient data ever leaves this audit.** Evidence snippets are CODE (template/SCSS/JS
   source), not data. Never copy real names, vocabulary, logs, or DB rows into a finding.
-- **Compliance content is Tier 2.** Your output is PII-free (code `file:line` evidence only), so any approved reviewer may see it; the data-bearing-path guard, not a Claude-only rule, is the boundary.
+- **Compliance content is Tier 2.** Your output is PII-free (code `file:line` evidence, or a handed-over scan result with no page text), so any approved reviewer may see it; the data-bearing-path guard, not a Claude-only rule, is the boundary.
 - **Deterministic, high-confidence findings only.** Static a11y checks are easy to make noisy.
-  Only raise a finding when the violation is unambiguous and tied to a specific `file:line`.
+  Only raise a finding when the violation is unambiguous and tied to a specific `file:line` or to
+  a handed-over scan result.
   Prefer emitting nothing (or `confidence: "low"`) over a heuristic guess. The adversary verifier
   refutes weak findings, so a flood of speculative ones wastes the run.
 
-## Forbidden checks (out of scope — belong to the human ACR / AT pass)
+## Forbidden checks (out of scope for this finder)
 Do NOT attempt anything that requires runtime behavior or rendering. Specifically out of scope:
 - Live focus **order** / focus management as experienced in a running DOM.
 - Actual **contrast rendering** against computed/inherited backgrounds, gradients with runtime
   stops, or images. (You MAY flag a hard-coded foreground/background token pair that is known to
   fail — see the skill's token list — but you do NOT compute ratios against rendered ancestors.)
-- Screen-reader / switch / eye-gaze behavior, announcement order, live-region timing.
-- Anything that needs a browser, axe-core, or Lighthouse. Those are a separate effort and the
-  human ACR's AT-testing gap; never claim to have verified them.
+- Screen-reader / switch / eye-gaze behavior, announcement order, live-region timing. The team tests
+  these separately and the conformance report tracks them; they do not count toward full coverage.
+- Anything that needs a browser, axe-core, or Lighthouse. The `/audit-run` orchestrator runs that
+  live scan and hands you the results (see the skill); never run it or claim to have verified it
+  yourself.
 
 ## What you load first
 Your checklist is preloaded as the `accessibility-audit` skill (scan scope, the WCAG 2.1 AA
@@ -115,6 +118,20 @@ Return a single JSON object: `{ "domain": "accessibility", "auditedSha": "<sha y
 `status: "open"` for anything you newly surface. You never set `verified-closed`: only Scot closes
 findings, and the adversary verifier confirms first. If the relevant code is absent, return
 `"findings": []` with a short `"note"`.
+
+**Coverage block (required).** That object also carries this block, the same shape in every finder:
+`"coverage": { "examined": ["<item id>"], "notReached": [{ "item": "<item id>", "reason": "<short
+reason>" }], "standingLimits": ["<short string>"] }`. `examined` and `notReached` together list
+every item in your checklist, and `notReached` may be an empty list. Item ids are `item-<n>`, the
+nth `- [ ]` line of the `accessibility-audit` skill at the audited SHA, counted in file order. An
+item counts as examined only if you checked it across its whole scan scope: a sampled or partly read
+item goes in `notReached`. `standingLimits` holds only what a repo read cannot answer: callers
+outside the repo, vendor internals, and provider-side key revocation without the provider console.
+An item you ran out of time for or had no access to is `notReached`, never a standing limit.
+Assistive-technology testing is excluded by the stamp, so never list it here or in `notReached`. The
+live scan is the orchestrator's read: a checklist item whose static check you finished is examined,
+whether or not scan results reached you. Keep secrets and customer data out of every string.
+`/audit-run` Step 2c decides the coverage stamp from this block.
 
 ## Memory
 This agent keeps no persistent memory: `memory:` is intentionally unset (the read-only guard

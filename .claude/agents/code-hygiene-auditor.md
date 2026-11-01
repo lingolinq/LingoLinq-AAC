@@ -85,6 +85,17 @@ never set `verified-closed`: only Scot closes findings, and the adversary verifi
 first. If nothing meets the confidence bar, return `"findings": []` with a short `"note"` — an
 empty result is a valid, honest outcome for this domain.
 
+**Coverage block (required).** That object also carries this block, the same shape in every finder:
+`"coverage": { "examined": ["<item id>"], "notReached": [{ "item": "<item id>", "reason": "<short
+reason>" }], "standingLimits": ["<short string>"] }`. `examined` and `notReached` together list
+every item in your checklist, and `notReached` may be an empty list. Item ids are `class-<n>`, the
+numbered class 1 to 10 under "Detection classes" of the `code-hygiene-audit` skill. An item counts
+as examined only if you checked it across its whole scan scope: a sampled or partly read item goes
+in `notReached`. `standingLimits` holds only what a repo read cannot answer: callers outside the
+repo, vendor internals, and provider-side key revocation without the provider console. An item you
+ran out of time for or had no access to is `notReached`, never a standing limit. Keep secrets and
+customer data out of every string. `/audit-run` Step 2c decides the coverage stamp from this block.
+
 `memory:` is intentionally unset: with no Write tool and `audit-readonly-guard.sh` denying writes
 unconditionally, a memory policy could never persist anything. A fresh run re-verifies against live
 code at the audited SHA.
