@@ -572,3 +572,27 @@ tests, 3843 pass, 37 skip, 5 todo, 0 fail (complete run).
   could make two copies (`existing_image.save()` is not registered in `_pendingImageSavesByUrl`).
   Not traced; candidate fix: register the in-place save there as `save_record` does.
 - Same-URL tests 19/19, dbman 19/19; lint unchanged.
+
+## Canonical passes on the final code (2026-11-01)
+`REVIEWED=range origin/develop (c248887db96ecaeab142756e6b64a106f006031c) ... traci/fix/upload-retry (cb07dc23293225acc5602de1457eb4d96bcc13cb) in /Users/traciday/Documents/GitHub/lingolinq/LingoLinq-AAC-upload-retry`
+(preflight exit 0). Full suites at `cb07dc232`: Ember 3887 tests, 3845 pass, 37 skip, 5 todo,
+0 fail (complete run); RSpec at `13e2b5e9c` (no backend change since) 8366 examples, 0 failures;
+merged with `origin/develop` in a throwaway worktree, the uploader, media_object, uploadable,
+remote_action, button image and sound, scheduler and converter specs: 553 examples, 0 failures.
+- **Senior-dev:** approve with comments; 0 Critical, 0 High, 2 Medium, 5 Low. Previous M1 and M2
+  resolved, M3 still refuted; no regression for owners, board-loaded pictures, sync or offline reads.
+  - Medium, known and recorded above: an offline pick of someone else's board-loaded picture loses
+    the choice when the refused update replays at sync. Follow-up (lingolinq_mobile#3): when offline,
+    treat an unknown match as not editable and save a copy, or have sync make the copy.
+  - Medium, fixed: the new "skip after 3 length changes" and "deleted after the size query" paths had
+    no tests. Added both (success once, no row; 4 top-level calls for the first). Mutation: allow 4
+    tries -> red; restored and compared. Dbman batch tests 11/11.
+  - Lows: the reset pushes `false` even if a refused reply carried `true` (local only; worst case an
+    extra copy); the "between its pieces" test guards a revert to per-piece calls only (comment added,
+    test not renamed); two unknown same-URL records can rank another user's first (extra record);
+    other `save_record` callers sending `preserve_source_image: true` are not checked.
+- **Adversary:** ship; 1 Low, CONFIRMED by its reading: a board-loaded record that already keeps
+  its picture but lacks width, height or license is PUT, refused, then copied, though the server
+  already keeps it (extra row and re-upload, the choice not lost). Recorded with the other extra-record
+  Lows; candidate: after a refusal, when this save did not send the flag and the reply still has it,
+  return the record.

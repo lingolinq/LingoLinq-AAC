@@ -191,6 +191,47 @@ describe('dbman sqlite batched reads', function() {
       });
     });
 
+    it("skips the row, and still finishes once, when it keeps changing length", function() {
+      var top_level = 0;
+      var real_execute = fake_db.executeSql, real_transaction = fake_db.transaction;
+      var change = function() {
+        top_level++;
+        if(top_level > 1) { tables.board[0].data = row_data('board::1_1', 2500 + (top_level * 100), {v: top_level}); }
+      };
+      stub(fake_db, 'executeSql', function() { change(); return real_execute.apply(fake_db, arguments); });
+      stub(fake_db, 'transaction', function() { change(); return real_transaction.apply(fake_db, arguments); });
+      var result = run_find_all('board');
+      waitsFor(function() { return result.done; });
+      runs(function() {
+        expect(result.errors).toEqual(undefined);
+        expect(result.calls).toEqual(1);
+        expect(result.list).toEqual([]);
+        // the size query, then three tries
+        expect(top_level).toEqual(4);
+      });
+    });
+
+    it("skips the row, and still finishes once, when it is deleted after the size query", function() {
+      var top_level = 0;
+      var real_transaction = fake_db.transaction;
+      stub(fake_db, 'transaction', function() {
+        top_level++;
+        tables.board = [];
+        return real_transaction.apply(fake_db, arguments);
+      });
+      var result = run_find_all('board');
+      waitsFor(function() { return result.done; });
+      runs(function() {
+        expect(result.errors).toEqual(undefined);
+        expect(result.calls).toEqual(1);
+        expect(result.list).toEqual([]);
+        expect(top_level).toEqual(1);
+      });
+    });
+
+    // Under the transactional read there is no third top-level call, so this write never lands
+    // and the row comes back as it was; it guards against going back to separate calls per piece,
+    // where call 3 is the second piece.
     it("returns the row whole when the write lands between its pieces", function() {
       rewrite_before_call(3);
       var result = run_find_all('board');
