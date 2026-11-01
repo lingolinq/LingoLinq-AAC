@@ -353,6 +353,13 @@ module Uploader
     !!remote_path.to_s.match(/\Avideos\/.+\/\w+-\w+\.mp4\.(?:\d{5}|\d{7})\.(jpg|png)\z/)
   end
 
+  # A re-transcode output (transcode_family_key?): <stem>v<ts>, one or more _<global_id>-<hex>v<ts>,
+  # then mp3|wav (sounds) or mp4 and its stills (videos). It has more '-' segments than the generic remote_remove rule allows; keep this
+  # as narrow as the thumbnail rule above: record-shaped folder and stems, anchored start-to-end.
+  def self.transcoded_output_chain_key?(remote_path)
+    !!remote_path.to_s.match(/\A(?:sounds\/(?:\d\/)+\w+-\h{128}v\d+(?:_\w+-\h{128}v\d+)+\.(?:mp3|wav)|videos\/(?:\d\/)+\w+-\h{128}v\d+(?:_\w+-\h{128}v\d+)+\.mp4(?:\.(?:\d{5}|\d{7})\.(?:jpg|png))?)\z/)
+  end
+
   def self.elastic_transcoder_thumbnail_key?(remote_path)
     transcoded_thumbnail_key?(remote_path)
   end
@@ -378,10 +385,12 @@ module Uploader
   # sending a token -- max_pages is the actual iteration-count safety net.
   # Neither is a normal case: one record's own thumbnail family is expected
   # to be a handful of objects at most.
-  def self.list_remote_keys_with_prefix(prefix, overall_cap: 1000, max_pages: 25)
+  def self.list_remote_keys_with_prefix(prefix, overall_cap: 1000, max_pages: 25, log_label: nil)
+    # log_label replaces the prefix in log lines for a caller whose prefix identifies a record's files.
+    label = log_label || "prefix=#{prefix}"
     config = remote_upload_config
     unless remote_credentials?(config) && config[:bucket_name].present?
-      Rails.logger.warn("Uploader.list_remote_keys_with_prefix skipped for prefix=#{prefix}: S3 not configured")
+      Rails.logger.warn("Uploader.list_remote_keys_with_prefix skipped for #{label}: S3 not configured")
       return nil
     end
     client = s3_client(config)
@@ -393,11 +402,11 @@ module Uploader
       keys.concat((resp.contents || []).map(&:key))
       pages += 1
       if resp.is_truncated && !resp.next_continuation_token.present?
-        Rails.logger.error("Uploader.list_remote_keys_with_prefix: S3 reported truncated with no continuation_token for prefix=#{prefix} -- results may be incomplete")
+        Rails.logger.error("Uploader.list_remote_keys_with_prefix: S3 reported truncated with no continuation_token for #{label} -- results may be incomplete")
       end
       break unless resp.is_truncated && resp.next_continuation_token.present?
       if keys.length >= overall_cap || pages >= max_pages
-        Rails.logger.error("Uploader.list_remote_keys_with_prefix hit pagination cap (keys=#{keys.length}/overall_cap=#{overall_cap}, pages=#{pages}/max_pages=#{max_pages}) for prefix=#{prefix} with more results remaining -- results are incomplete")
+        Rails.logger.error("Uploader.list_remote_keys_with_prefix hit pagination cap (keys=#{keys.length}/overall_cap=#{overall_cap}, pages=#{pages}/max_pages=#{max_pages}) for #{label} with more results remaining -- results are incomplete")
         break
       end
       token = resp.next_continuation_token
@@ -407,7 +416,7 @@ module Uploader
     # e.class/e.message is the actual diagnostic; the caller (remote_remove_thumbnail_family)
     # sees only nil and can't tell an AccessDenied from a timeout from anything
     # else, so it must not assert a specific cause on our behalf.
-    Rails.logger.error("Uploader.list_remote_keys_with_prefix failed for prefix=#{prefix}: #{e.class}: #{e.message}")
+    Rails.logger.error("Uploader.list_remote_keys_with_prefix failed for #{label}: #{e.class}#{log_label ? '' : ": #{e.message}"}")
     nil
   end
 
@@ -505,12 +514,107 @@ module Uploader
     failed == 0
   end
 
+  # A record's transcode stem: its folder (every digit of its id) plus Uploadable#file_prefix,
+  # global_id + '-' + sha512 hex. Every transcode output of the record starts with it.
+  TRANSCODE_FAMILY_STEM = /\A(?:sounds|videos)\/(?:\d\/)+\w+-\h{128}\z/
+  # The second sweep, at least this long after the destroy, catches a job that was still running.
+  TRANSCODE_SWEEP_SETTLE = 1.day
+
+  def self.transcode_family_stem(key)
+    m = key.to_s.match(/\A((?:sounds|videos)\/(?:\d\/)+\w+-\h{128})/)
+    m && m[1]
+  end
+
+  # Output names MediaConvert and Elastic Transcoder give a record's jobs (lib/transcoder.rb
+  # name_modifier_for): <stem>v<ts>, then for a re-transcode _<global_id>-<hex>v<ts> per round,
+  # then the extension. Sounds are mp3/wav; videos are mp4 and its stills (5- or 7-digit counter).
+  def self.transcode_family_key?(stem, key)
+    return false unless key.start_with?(stem)
+    tail = key[stem.length..-1]
+    chain = 'v\d+(?:_\w+-\h{128}v\d+)*'
+    if stem.start_with?('sounds/')
+      tail.match?(/\A#{chain}\.(?:mp3|wav)\z/)
+    else
+      tail.match?(/\A#{chain}\.mp4(?:\.(?:\d{5}|\d{7})\.(?:jpg|png))?\z/)
+    end
+  end
+
+  # Worker-invoked from RemoteAction#process_action for a 'transcode_family_sweep' row (written at
+  # destroy by MediaObject#record_transcode_family_sweep). Lists the stem and deletes the record's
+  # transcode outputs that no record still uses. Until Setting 'transcode_sweep_delete' is 'true'
+  # it only counts (a dark launch: rows are kept, so turning it on later catches up). Logs carry
+  # the owner's global_id and counts, never the stem or a key.
+  def self.transcode_sweep_delete?
+    Setting.get_cached('transcode_sweep_delete') == 'true'
+  end
+
+  def self.remote_remove_transcode_family(stem, owner=nil, requested_at=nil)
+    row = RemoteAction.where(action: 'transcode_family_sweep', path: stem)
+    unless stem.to_s.match?(TRANSCODE_FAMILY_STEM)
+      Rails.logger.error("Uploader.remote_remove_transcode_family dropped a row with no record stem owner=#{owner}")
+      row.delete_all
+      return false
+    end
+    # A stem whose record is live again (restored with the same id and created_at) is not an orphan.
+    klass_name, global_id = owner.to_s.split('::', 2)
+    klass = {'ButtonSound' => ButtonSound, 'UserVideo' => UserVideo}[klass_name]
+    live = klass && global_id && klass.find_by_global_id(global_id)
+    if live && live.file_path + live.file_prefix == stem
+      Rails.logger.error("Uploader.remote_remove_transcode_family dropped a row whose owner is live owner=#{owner}")
+      row.delete_all
+      return false
+    end
+    config = remote_upload_config
+    if config[:bucket_name].blank?
+      # S3 not set up at all (local, CI): nothing to sweep, as remote_delete_ready? does.
+      log_skipped_remote_delete('remote_remove_transcode_family')
+      row.delete_all
+      return nil
+    end
+    # A bucket without credentials keeps the row for a later run.
+    return nil unless remote_credentials?(config)
+    keys = list_remote_keys_with_prefix(stem, log_label: "transcode family owner=#{owner}")
+    return false if keys.nil?
+    matched = keys.select { |key| transcode_family_key?(stem, key) }
+    # The original upload is <stem>.<ext>, or exactly <stem> when its content type has no extension
+    # (uploadable.rb:52-61); anything else under the stem is a name this code does not know.
+    unmatched = keys.reject { |key| matched.include?(key) || key == stem || key[stem.length..-1].to_s.match?(/\A\.\w+\z/) }
+    unless transcode_sweep_delete?
+      Rails.logger.info("Uploader.remote_remove_transcode_family report-only owner=#{owner} matched=#{matched.length} unmatched=#{unmatched.length}")
+      return true
+    end
+    deleted = 0
+    in_use = 0
+    failed = 0
+    matched.each do |key|
+      if remote_path_in_use?(key)
+        in_use += 1
+        next
+      end
+      begin
+        deleted += 1 if remote_remove(key)
+      rescue StandardError => e
+        failed += 1
+        Rails.logger.error("Uploader.remote_remove_transcode_family delete failed owner=#{owner}: #{e.class}")
+      end
+    end
+    summary = "owner=#{owner} matched=#{matched.length} deleted=#{deleted} in_use=#{in_use} failed=#{failed} unmatched=#{unmatched.length}"
+    if unmatched.any?
+      Rails.logger.error("Uploader.remote_remove_transcode_family kept its row for unexpected names #{summary}")
+    else
+      Rails.logger.info("Uploader.remote_remove_transcode_family #{summary}")
+    end
+    settled = requested_at.present? && Time.at(requested_at.to_i) <= TRANSCODE_SWEEP_SETTLE.ago
+    row.delete_all if failed == 0 && unmatched.empty? && settled
+    failed == 0
+  end
+
   def self.remote_remove(url, checksum=nil)
     remote_path = url.sub(/^https:\/\/#{ENV['UPLOADS_S3_BUCKET']}\.s3\.amazonaws\.com\//, '')
     remote_path = remote_path.sub(/^https:\/\/s3\.amazonaws\.com\/#{ENV['UPLOADS_S3_BUCKET']}\//, '')
     remote_path = remote_path.sub(/^#{ENV['UPLOADS_S3_CDN']}/, '')
     remote_path = remote_path.sub(/^\//, '')
-    unless remote_path.match(/\w+\/.+\/\w+-\w+(\.\w+)?$/) || remote_path.match(/^extras/) || transcoded_thumbnail_key?(remote_path)
+    unless remote_path.match(/\w+\/.+\/\w+-\w+(\.\w+)?$/) || remote_path.match(/^extras/) || transcoded_thumbnail_key?(remote_path) || transcoded_output_chain_key?(remote_path)
       raise "scary delete, not a path I'm comfortable deleting: #{remote_path}"
     end
 
