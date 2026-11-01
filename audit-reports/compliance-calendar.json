@@ -29,7 +29,7 @@
       "lastDone": "2026-08-18",
       "nextDue": "2026-10-16",
       "drafts": "Diff-scoped run: finders scan only what changed since the last run (orchestrator steps 0-5), reconcile + adversary-verify new/regressed findings, citation-check green. No quarterly report render unless something material surfaces.",
-      "watch": "Light run is steps 0-5 only (no full re-scan, no quarterly report). Catches regressions between heavy runs without burning plan-cap headroom. nextDue is advisory scheduling, not a compliance claim. 2026-09-17: before the October light run, complete the Q3 make-up pass Scot approved with the partial-coverage restamp (finders spawned so checklist skills and the read-only guard load, verified by a guard canary; bundle-audit; AWS account-level read).",
+      "watch": "Light run is steps 0-5 plus its run-log line (no full re-scan, no quarterly report). Catches regressions between heavy runs without burning plan-cap headroom. nextDue is advisory scheduling, not a compliance claim. 2026-09-17: before the October light run, complete the Q3 make-up pass Scot approved with the partial-coverage restamp (finders spawned so checklist skills and the read-only guard load, verified by a guard canary; bundle-audit; AWS account-level read).",
       "basis": "plan 5.1, 9.1; .claude/skills/audit-run cadence section"
     },
     {
@@ -233,13 +233,13 @@
     {
       "id": "fix-ada-titleii-2027-04",
       "framework": "WCAG",
-      "date": "2027-04-24",
+      "date": "2027-04-26",
       "status": "upcoming",
       "title": "ADA Title II web accessibility - large public entities",
-      "obligation": "WCAG 2.1 AA for web content of large public entities (April-2026 IFR extended the date). Small entities: 2028-04. LingoLinq is a vendor, but district customers flow WCAG down via RFP today.",
+      "obligation": "WCAG 2.1 AA for web content of large public entities (April-2026 IFR extended the date). Small entities and special district governments: 2028-04-26. LingoLinq is a vendor, but district customers flow WCAG down via RFP today.",
       "action": "Keep the ACR/VPAT current; treat WCAG 2.1 AA as a present sales requirement regardless of the federal date.",
       "source": "https://www.federalregister.gov/documents/2026/04/20/2026-07663/extension-of-compliance-dates-for-nondiscrimination-on-the-basis-of-disability-accessibility-of-web",
-      "verifiedOn": "2026-06-13"
+      "verifiedOn": "2026-10-30"
     },
     {
       "id": "fix-euaiact-annexiii-2027-12-02",

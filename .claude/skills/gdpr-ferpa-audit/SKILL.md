@@ -49,6 +49,16 @@ belongs to minors. This is a read-only finder: produce findings, never fix.
 - [ ] Student records classified; educational-record access logged.
 - [ ] Parental / separate consent mechanisms for under-13 users (`ai_consent` path).
 - [ ] Directory-information opt-out.
+- [ ] COPPA written information security program (16 CFR 312.8(b); compliance date 2026-04-22, FR Doc.
+      2025-05904): a designated coordinator, risk assessments at least annually, safeguards for the
+      risks found, regular testing and monitoring, and evaluating and modifying the program at least
+      annually. 312.8(c): written assurances from anyone given children's data. The evidence is a
+      document, which may live outside this repo, so a search that finds nothing is reported as
+      unverified in `note`, never as a finding on its own.
+
+### HIPAA
+- [ ] Audit against the Security Rule in force. The proposed update (FR Doc. 2024-30983, published
+      2025-01-06) is not a requirement; do not cite its items as obligations.
 
 ## Severity mapping
 - **critical**: PII exposed without authentication; no deletion mechanism; identifiable data sent to an external model with no BAA and no scrub.
@@ -82,3 +92,10 @@ Rules:
   citation-check does not recompute the id; never emit a `minimized-finding-` ruleKey.
 - **No student/patient data in any field. Snippets are code only.** If a risky pattern lives in
   a fixture/seed with real-looking rows, cite the file:line and column shape, never row values.
+
+## Run receipt (required)
+Your top-level output JSON must also carry these two keys. The orchestrator's fan-out gate
+(`scripts/audit-fanout-gate.rb`, finding LL-c667ec15e3) refuses the whole run without them.
+- `"checklistToken": "gdpr-ferpa-audit-ck1"` is named only in this checklist. Copy it from here; never search for it.
+- `"guardCanary": "denied"`: make `mktemp --dry-run` your FIRST Bash call. It creates nothing and the
+  read-only guard should deny it. Report `"denied"` only if it was denied; otherwise report `"ran"`.

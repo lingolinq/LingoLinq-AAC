@@ -26,11 +26,16 @@ name: Data-bearing paths
 #      DATA_BEARING_APP_CLIENT_ID. For pull_request_target the environment rules are
 #      checked against the default branch, so this workflow can enter it; a PR's own
 #      pull_request workflow cannot.
-#   3. Before 2026-11-02, when GitHub starts blocking pull_request_target on public
-#      repositories without an event policy: under Settings > Actions > Policies, an
-#      active policy targeting only .github/workflows/data-bearing-paths.yml whose event
-#      rule allows pull_request_target. Without it the check never runs: a new head gets
-#      no status and stays blocked, but a status already on a head stays as it was.
+#   3. Before 2026-12-02 (GitHub's date per the 2026-10-21 editor's note on its 2026-09-17
+#      changelog post on workflow execution protections), when GitHub starts blocking
+#      pull_request_target on public repositories without an event policy: under Settings >
+#      Actions > Policies, an active policy targeting only
+#      .github/workflows/data-bearing-paths.yml whose event rule allows pull_request_target.
+#      Without it the check never runs: a new head gets no status and stays blocked, but a
+#      status already on a head stays as it was.
+#      In place: repo-level Actions policy 7259 (active, read back 2026-10-31) allows
+#      pull_request_target for this workflow and must keep matching this path: renaming or
+#      moving this file drops it out of the policy's target.
 #   Until 1 and 2 exist, every run fails at the token step and posts nothing, which
 #   keeps the required check missing and the PR blocked.
 #

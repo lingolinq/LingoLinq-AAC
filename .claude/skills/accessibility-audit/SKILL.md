@@ -74,6 +74,16 @@ is the self-referencing withheld form (`minimized-finding-` + its own id, lowerc
 citation-check does not recompute the id, so it cannot detect a repoint there through an id mismatch;
 it is still Scot's decision.
 
+## US legal dates (for `notes` only; verified 2026-10-30 against the Federal Register)
+Both rules below adopt WCAG 2.1 AA and bind the public entity or recipient, which is how they reach
+a vendor. A date never changes whether a defect is a finding. Both are interim final rules, so
+re-check a date before citing it.
+- **ADA Title II (28 CFR 35.200, FR Doc. 2026-07663):** 2027-04-26 for public entities with a total
+  population of 50,000 or more; 2028-04-26 for smaller entities and special district governments.
+- **HHS Section 504 (45 CFR 84.84, FR Doc. 2026-09266):** 2027-05-11 for recipients with 15 or more
+  employees; 2028-05-10 for fewer. Covers web content and apps recipients provide "directly or
+  through contractual, licensing, or other arrangements".
+
 ## Checklist (organized by POUR; EN 301 549 clauses noted for EU clients)
 
 > **Register gotcha - never write a 4-part dotted EN 301 549 clause in an emitted finding.**
@@ -201,3 +211,10 @@ Rules:
   its `id` rather than duplicating. The `audit-reports/wcag-modernized-2026-04-11*.md` working notes
   are NOT register entries; surface those defects only if they still exist at the audited SHA and
   are not already registered.
+
+## Run receipt (required)
+Your top-level output JSON must also carry these two keys. The orchestrator's fan-out gate
+(`scripts/audit-fanout-gate.rb`, finding LL-c667ec15e3) refuses the whole run without them.
+- `"checklistToken": "accessibility-audit-ck1"` is named only in this checklist. Copy it from here; never search for it.
+- `"guardCanary": "denied"`: make `mktemp --dry-run` your FIRST Bash call. It creates nothing and the
+  read-only guard should deny it. Report `"denied"` only if it was denied; otherwise report `"ran"`.
