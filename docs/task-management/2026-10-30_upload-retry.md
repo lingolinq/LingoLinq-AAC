@@ -596,3 +596,22 @@ remote_action, button image and sound, scheduler and converter specs: 553 exampl
   already keeps it (extra row and re-upload, the choice not lost). Recorded with the other extra-record
   Lows; candidate: after a refusal, when this save did not send the flag and the reply still has it,
   return the record.
+
+## PR #1255 CI, first run (2026-11-01)
+- `lint-and-build` failed: the ESLint todo gate fingerprints a finding by file, rule, LINE, column,
+  severity and message (`app/frontend/scripts/eslint-todo-gate.js:11`), so the 15 pre-existing
+  `ember/no-runloop` findings in `content-grabbers.js` and `content_grabbers-test.js` read as new
+  once this branch's added lines moved them. My local check had compared counts with the branch's
+  own HEAD, not the gate. With Traci's approval (rule 14), updated only the line numbers of those 15
+  rows in `.eslint-todo`; each was paired with its finding and checked to have the same file, rule,
+  column, severity and message hash. Gate: `baseline=1549 grandfathered=1549 new=0`.
+  Lesson: run `npm run lint:js:ci` (the gate), not a per-file count, before pushing a change that
+  adds lines above existing findings.
+- `data-bearing-paths/develop` failed as expected (the workflow change): needs a reviewer's
+  `synthetic-data` label.
+- Codex review, P2, CONFIRMED by reading, pre-existing gap, not a regression: a server upload that
+  starts from a web address sets `url` to it first (`uploadable.rb` `check_for_pending`), and sounds
+  and some large images keep an outside address on purpose (`store_downloaded_file_fallback!`); when
+  the copy to S3 then fails, the sweep's `url: nil` filter skips the record, so it is never copied
+  and depends on the outside address. Follow-up on lingolinq_mobile#3: retry those from their
+  `url`/source as well.
