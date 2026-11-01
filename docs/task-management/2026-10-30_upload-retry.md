@@ -395,3 +395,29 @@ DIFF_FILE). Verdict: approve with comments, 0 Critical, 0 High, 3 Medium, 10 Low
   not native bytes; pre-branch failures never retried.
 - Stopped here under rule 13 after two of my own slips (an Edit before reading the file, and a
   filter that hid which tests failed in the first mutation run; both redone).
+
+## Canonical adversary pass on the combined branch (2026-11-01)
+Same `REVIEWED=` line and diff file as the senior-dev pass above; subagent following
+`~/ai-company-brain/agents/adversary.md`. Verdict: ship with conditions, 0 Critical, 0 High,
+1 Medium, 2 Low. Checked by me:
+- **Medium, CONFIRMED: the copy-on-write never fires against the real server.** The permissions
+  library adds an action key only when its rule grants it
+  (`permissable-coughdrop-0.3.4/lib/permissable.rb:116-127`); a non-editor gets
+  `{'user_id' => ..., 'view' => true}` with no `edit` key (pinned by `spec/models/button_image_spec.rb:12`),
+  and `lib/json_api/image.rb:57-58` passes it through. Board-loaded images carry no `permissions`
+  at all (`board.rb:2544`). Every copy-on-write branch tests `permissions.edit === false`, which the
+  server does not send, so a non-owner's pick still PUTs, is refused, and gets the shared record
+  back. Not a regression (same as before the branch). **Correction:** the "Copy-on-write
+  implemented" section above and commits `f58019d97`, `8e203e54d` describe the non-owner
+  "keep my chosen picture" problem as fixed; it is NOT fixed yet. The tests passed because every
+  fixture used `permissions: {edit: false}`, a shape the server cannot produce.
+  Planned fix: known not editable = a `permissions` object is present and `edit !== true`; unknown =
+  no `permissions` object; rebuild the fixtures from the serializer's real shapes
+  (`{user_id, view: true}`, `{user_id, view: true, edit: true}`, absent), red first, then mutations.
+- **Low, CONFIRMED (same as senior-dev M2):** a torn oversized-row read is dropped silently. Fix planned above.
+- **Low, CONFIRMED by reading:** the narrower `save_record` dedupe now POSTs a new record for a URL
+  loaded from a board (no `permissions`) when the new record keeps its picture; one extra row per
+  URL per session, no functional break. To decide with the predicate fix.
+- Clean per the reviewer and spot-checked: S3 guard order and `ensure`, the sweep cannot reschedule
+  through `check_for_pending`, Resque does not retry (no raise loop), every `meta` takes `args`,
+  production migrate env unchanged, only NOT_FOUND skips the live comparison.
