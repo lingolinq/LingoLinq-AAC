@@ -16,8 +16,8 @@ paths:
   `/re-attest-record`; never edit the attested file in place.
 - Only Scot closes a finding, downgrades severity, accepts risk, or attests a document.
   `audit-merge.rb` only ever adds findings or marks them open.
-- Restamping `meta.auditedSha` is a governance act. Only a whole-tree `/audit-run` passes
-  `--sha` bare; any other addition uses `audit-merge.rb --sha <trueCommit> --no-restamp`.
+- Restamping `meta.auditedSha` is a governance act. Only an `/audit-run`, quarterly or monthly
+  light, passes `--sha` bare; any other addition uses `audit-merge.rb --sha <trueCommit> --no-restamp`.
 - No student or patient data ever appears in a finding, a snippet, or a legal doc.
   Evidence is code and config only.
 - When you change a claim in one compliance doc, sweep the others:

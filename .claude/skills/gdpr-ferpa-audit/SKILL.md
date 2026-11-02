@@ -53,8 +53,8 @@ belongs to minors. This is a read-only finder: produce findings, never fix.
       2025-05904): a designated coordinator, risk assessments at least annually, safeguards for the
       risks found, regular testing and monitoring, and evaluating and modifying the program at least
       annually. 312.8(c): written assurances from anyone given children's data. The evidence is a
-      document, which may live outside this repo, so a search that finds nothing is reported as
-      unverified in `note`, never as a finding on its own.
+      document, which may live outside this repo, so a search that finds nothing goes in
+      `coverage.notReached` until the document has been read, never a finding on its own.
 
 ### HIPAA
 - [ ] Audit against the Security Rule in force. The proposed update (FR Doc. 2024-30983, published
@@ -85,12 +85,12 @@ Emit each finding as:
 Rules:
 - Finders emit `status: "open"` ONLY. Never `verified-closed`: only Scot closes a finding,
   and the adversary verifier confirms it first.
-- The `snippet` MUST appear verbatim in the cited file at `<auditedSha>` (`scripts/citation-check.rb` enforces this).
+- A `type:"code"` `snippet` MUST appear verbatim in the cited file at `<auditedSha>` (`scripts/citation-check.rb` enforces this).
 - The orchestrator computes the stable `id` (`LL-` + first 10 hex of `sha256(ruleKey + "|" + file)`),
   sets `firstSeen`/`lastSeen`/`owner`, tags `regulation` detail in `notes`, and reconciles
   against the existing register so a recurring issue keeps its id. For a row whose ruleKey is the self-referencing withheld form (`minimized-finding-` + its own id, lowercased),
   citation-check does not recompute the id; never emit a `minimized-finding-` ruleKey.
-- **No student/patient data in any field. Snippets are code only.** If a risky pattern lives in
+- **No student/patient data in any field. Code-evidence snippets are code only.** If a risky pattern lives in
   a fixture/seed with real-looking rows, cite the file:line and column shape, never row values.
 
 ## Run receipt (required)

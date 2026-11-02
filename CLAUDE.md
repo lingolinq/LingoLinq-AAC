@@ -260,8 +260,10 @@ and `audit-reports/README.md`). Findings never contain student or patient data.
 
 An `/audit-run` may write "full" in `meta.auditedRef` only if, at one commit, every finder examined
 every item in its own checklist and every read on the named live-read list in its skill succeeded.
-What a repo read cannot answer is a disclosed standing limit, not a gap. Assistive-technology testing
-does not count toward full, and every full stamp says so. Open findings do not affect coverage.
+Only three things a repo read cannot answer are disclosed standing limits: callers outside the repo,
+vendor internals, and provider-side key revocation unless the provider console is opened.
+Assistive-technology testing does not count toward full, and every full stamp says so. Open findings
+do not affect coverage.
 
 ## Notes
 

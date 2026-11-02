@@ -89,12 +89,19 @@ empty result is a valid, honest outcome for this domain.
 `"coverage": { "examined": ["<item id>"], "notReached": [{ "item": "<item id>", "reason": "<short
 reason>" }], "standingLimits": ["<short string>"] }`. `examined` and `notReached` together list
 every item in your checklist, and `notReached` may be an empty list. Item ids are `class-<n>`, the
-numbered class 1 to 10 under "Detection classes" of the `code-hygiene-audit` skill. An item counts
-as examined only if you checked it across its whole scan scope: a sampled or partly read item goes
-in `notReached`. `standingLimits` holds only what a repo read cannot answer: callers outside the
-repo, vendor internals, and provider-side key revocation without the provider console. An item you
-ran out of time for or had no access to is `notReached`, never a standing limit. Keep secrets and
-customer data out of every string. `/audit-run` Step 2c decides the coverage stamp from this block.
+numbered class 1 to 10 under "Detection classes" in the `code-hygiene-audit` skill. An item counts
+as examined only if you checked it across the whole scan scope your skill names at the audited SHA,
+whatever your prompt says: a sampled, partly read or prompt-narrowed item goes in `notReached`. An
+item whose evidence is a document outside this repo stays in `notReached` until that document has
+been read. `standingLimits` holds only these three things a repo read cannot answer, each string
+starting with the item id it limits (`<item id>: vendor internals`): callers outside the repo,
+vendor internals, and provider-side key revocation without the provider console. An item you ran out
+of time for or had no access to is `notReached`, never a standing limit. `/audit-run` Step 2c
+decides the coverage stamp from this block.
+
+**Public-text rule.** Findings go to a public register. No finding field may carry an account ID, a
+resource name, a config value, a secret, customer data, or a description of what this run did not
+reach. That description belongs only in the `coverage` block or `note`, which are never committed.
 
 `memory:` is intentionally unset: with no Write tool and `audit-readonly-guard.sh` denying writes
 unconditionally, a memory policy could never persist anything. A fresh run re-verifies against live

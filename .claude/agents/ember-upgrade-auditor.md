@@ -85,13 +85,20 @@ short `"note"`.
 `"coverage": { "examined": ["<item id>"], "notReached": [{ "item": "<item id>", "reason": "<short
 reason>" }], "standingLimits": ["<short string>"] }`. `examined` and `notReached` together list
 every item in your checklist, and `notReached` may be an empty list. Item ids are `class-<n>`, the
-breakage class number in the `ember-upgrade-audit` skill, for each class your slice covers. An item
-counts as examined only if you checked it across its whole scan scope: a sampled or partly read item
-goes in `notReached`. `standingLimits` holds only what a repo read cannot answer: callers outside
-the repo, vendor internals, and provider-side key revocation without the provider console. An item
-you ran out of time for or had no access to is `notReached`, never a standing limit. Keep secrets
-and customer data out of every string. `/ember-audit-run` does not decide a coverage stamp; the
-block keeps every finder's receipt the same shape.
+breakage class number in the `ember-upgrade-audit` skill, and a slice covers every class: one with
+nothing to check in your slice is examined. An item counts as examined only if you checked it across
+the whole scan scope your skill names at the audited SHA, whatever your prompt says: a sampled,
+partly read or prompt-narrowed item goes in `notReached`. An item whose evidence is a document
+outside this repo stays in `notReached` until that document has been read. `standingLimits` holds
+only these three things a repo read cannot answer, each string starting with the item id it limits
+(`<item id>: vendor internals`): callers outside the repo, vendor internals, and provider-side key
+revocation without the provider console. An item you ran out of time for or had no access to is
+`notReached`, never a standing limit. `/ember-audit-run` does not decide a coverage stamp; the block
+keeps every finder's receipt the same shape.
+
+**Public-text rule.** Findings go to a public register. No finding field may carry an account ID, a
+resource name, a config value, a secret, customer data, or a description of what this run did not
+reach. That description belongs only in the `coverage` block or `note`, which are never committed.
 
 ## Memory
 This agent keeps no persistent memory: `memory:` is intentionally unset (the read-only guard
