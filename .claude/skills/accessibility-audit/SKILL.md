@@ -17,7 +17,7 @@ components, and SCSS. Anything requiring a running DOM, a browser, axe-core/Ligh
 contrast against rendered ancestors, live focus order, or screen-reader/switch/eye-gaze behavior is
 OUT OF SCOPE for this finder. Never run any of it, and never claim to have verified runtime behavior
 yourself. Two things sit outside this finder:
-- **Live scan (the `/audit-run` orchestrator).** In a quarterly full run, the orchestrator runs axe and a
+- **Live scan (the `/audit-run` orchestrator).** Once `/audit-run` Step 1b is in use, in a quarterly full run, the orchestrator runs axe and a
   focus walk on every route, including speak mode, with computed contrast and rendered focus, and hands
   you the results (`/audit-run` Step 1b). Treat them as input. When a result ties to a source line, emit
   a normal `type:"code"` finding at that line. Anything else goes in `note`, as the rule and route

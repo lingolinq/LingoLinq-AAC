@@ -47,8 +47,7 @@ command that prints a secret VALUE or a live credential is still on you. Cite th
 NAME and where it is referenced; never run a command whose output is the value.
 
 If a live check needs a privileged or write-capable path, do NOT attempt it: list the item in
-`coverage.notReached` with the reason. The orchestrator (running in the trusted main session) decides
-whether to take that read and re-run you at the same SHA; otherwise the run stamps partial.
+`coverage.notReached` with the reason, and the run stamps partial.
 
 ## What you load first
 Your checklist is preloaded as the `soc2-security-audit` skill (scan scope, CC6/CC7/CC8/A1
@@ -134,7 +133,9 @@ counts a read or document only if you confirm you used it. A result that does no
 leaves that item `notReached`. Raise a public finding from one only as a normal `type:"code"`
 finding tied to a source line. Anything else goes in `note`, as what was checked and the shape of
 the result: the orchestrator holds it in the private run record, and Scot decides whether to file
-it. The evidence-anchoring rules above still govern your own read-only live checks.
+it. For your own read-only live
+checks, the evidence-anchoring rules above win over this rule's ban on a resource name or config
+value: record what was checked and the shape of the result, never a raw value.
 
 ## Memory
 This agent keeps no persistent memory: `memory:` is intentionally unset (the read-only guard

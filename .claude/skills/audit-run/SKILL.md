@@ -91,7 +91,7 @@ never go in it (Step 1b). Each entry between semicolons is one read.
 | Production config | Feature-flag values and non-secret config | Production | `infra-auditor` |
 | Sentry | Alert rules and scrubbing | Production | `infra-auditor` |
 | HubSpot, Zendesk | Retention settings | Production | `privacy-auditor` |
-| S3/CDN, Stripe | Behaviour against a non-production environment | Non-production | `api-auditor` |
+| S3/CDN, Stripe | Behaviour against a non-production environment (S3 bucket only until a non-production CDN exists) | Non-production | `api-auditor` |
 | Accessibility | Axe and focus walk on every route, including speak mode, with computed contrast and rendered focus | Local or non-production | `accessibility-auditor` |
 
 ## Run context (dynamic injection)
@@ -111,8 +111,13 @@ SHA so `scripts/citation-check.rb` can validate snippets against the exact tree 
    must anchor to a committed SHA).
 
 ## Step 1b: Take the live reads (quarterly full only)
-Record the run start first (`date -u +%Y-%m-%dT%H:%M:%SZ`). Then, before the fan-out, the orchestrator
-takes each read on the live-read list once, in this session, and hands the results to the finder the
+Record the run start first (`date -u +%Y-%m-%dT%H:%M:%SZ`).
+
+**Not in use yet.** Until the follow-up PR that adds a read of register text before push has merged, skip
+the rest of this step and go on to Step 2: take no reads and hand no results or documents to a finder.
+The run then stamps partial. That PR removes this paragraph.
+
+Before the fan-out, the orchestrator takes each read on the live-read list once, in this session, and hands the results to the finder the
 table names. A monthly light run skips this step.
 
 - **Write each read's scope first.** In the private run record, note what the read must cover before
@@ -132,8 +137,9 @@ table names. A monthly light run skips this step.
   Hand the finder the route template, rule id, element and class, and measured value only, never page
   text.
 - **Behaviour reads stay out of production, and nothing they send may reach a real person.** Stripe uses
-  test-mode credentials. S3/CDN uses the non-production uploads bucket, with read-only requests on the
-  synthetic test objects named in the scope, and lists or opens nothing else.
+  test-mode credentials and synthetic accounts, with no team or real accounts. S3 uses the non-production
+  uploads bucket the scope names, with read-only requests on the synthetic test objects named there, and
+  lists or opens nothing else. The CDN half is added once a non-production CDN exists.
 - **Hand over and keep the least that answers the item.** A policy body or config can go whole, but never
   a person's identifier, such as a recipient address or a principal's email (give the principal type),
   and never a secret's value. Remove any that a result carries before you store it or hand it over,
@@ -148,8 +154,9 @@ table names. A monthly light run skips this step.
   names, config values or secret values in any committed file, commit message or PR text.
 - **The private run record** is a dated folder under `~/ai-company-brain/outputs/docs/`, outside this
   repo. The orchestrator writes it and Scot owns it. Keep it for as long as its stamp is in the
-  register's history. Nothing from it goes in a task log, a `unified-audit` report or any other
-  committed file in this repo, beyond the verdict and counts.
+  register's history. Live-read detail, documents, notes and receipts from it never go in a task log,
+  a `unified-audit` report or any other committed file in this repo, beyond the verdict and counts.
+  Findings still reach the register through Step 3.
 
 ## Step 2: Fan out the read-only finders (parallel)
 Use the run start from Step 1b; a monthly light run records it here
@@ -178,8 +185,8 @@ register-shaped findings with `status: "open"`.
 >    pull the live GCP/AWS read-state ONCE and pass that snapshot to the infra finder, rather
 >    than letting parallel finders hit live APIs independently. The first run emitted no runtime
 >    findings (all 7 were committed-file `type:"code"`), so the race did not bite - keep this as the
->    standing instruction until/unless a snapshot mechanism is built. Step 1b is where a quarterly
->    full run takes that snapshot.
+>    standing instruction until/unless a snapshot mechanism is built. Once Step 1b is in use, a quarterly
+>    full run takes that snapshot there.
 
 | Agent | Domain | Skill it loads |
 |-------|--------|----------------|
@@ -232,9 +239,9 @@ The gate and the merge do not read `coverage`, so this decision rests on this st
 sign-off. The verdict is full only if every one of these holds; otherwise it is partial. A monthly
 light run is partial without this check.
 1. All six finders passed the gate in the default mode, each prompted with its skill's whole scan scope.
-   A finder re-run at the same SHA to fill its coverage replaces its earlier receipt, and this whole step
-   runs again on the final receipts before the merge. A Step 5 re-emit changes findings only
-   and replaces no receipt. A receipt from another commit counts for nothing.
+   A finder that did not finish leaves this run partial: there is no selective re-run for coverage. A
+   Step 5 re-emit changes findings only and replaces no receipt. A receipt from another commit counts for
+   nothing.
 2. Every receipt has a `coverage` block with `examined`, `notReached` and `standingLimits`. A missing or
    malformed block means that finder is not complete.
 3. Every `notReached` is empty.
