@@ -53,8 +53,8 @@ belongs to minors. This is a read-only finder: produce findings, never fix.
       2025-05904): a designated coordinator, risk assessments at least annually, safeguards for the
       risks found, regular testing and monitoring, and evaluating and modifying the program at least
       annually. 312.8(c): written assurances from anyone given children's data. The evidence is a
-      document, which may live outside this repo, so a search that finds nothing is reported as
-      unverified in `note`, never as a finding on its own.
+      document, which may live outside this repo, so a search that finds nothing goes in
+      `coverage.notReached` until the document has been read, never a finding on its own.
 
 ### HIPAA
 - [ ] Audit against the Security Rule in force. The proposed update (FR Doc. 2024-30983, published

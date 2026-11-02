@@ -65,6 +65,26 @@ the `dependency-audit` skill: `ruleKey` (e.g. `cve-nokogiri-1.x`), `title`, `sev
 `remediation` {options:"target version + constraint", timeframe}, and `status: "open"`. You
 never set `verified-closed`.
 
+**Coverage block (required).** That object also carries this block, the same shape in every finder:
+`"coverage": { "examined": ["<item id>"], "notReached": [{ "item": "<item id>", "reason": "<short
+reason>" }], "standingLimits": ["<short string>"] }`. `examined` and `notReached` together list
+every item in your checklist, and `notReached` may be an empty list. Item ids are `item-<n>`, the
+nth `- [ ]` line of the `dependency-audit` skill at the audited SHA, counted in file order. An item
+counts as examined only if you checked it across the whole scan scope your skill names at the
+audited SHA, whatever your prompt says: a sampled, partly read or prompt-narrowed item goes in
+`notReached`. An item whose evidence is a document outside this repo stays in `notReached` until the
+orchestrator has handed you that document and you have read it. `standingLimits` holds only these
+three things a repo read cannot answer, each string starting with the item id it limits (`<item id>:
+vendor internals`): callers outside the repo, vendor internals, and provider-side key revocation
+without the provider console. An item you ran out of time for or had no access to is `notReached`,
+never a standing limit. `/audit-run` Step 2c decides the coverage stamp from this block.
+
+**Public-text rule.** Findings go to a public register. No finding field may carry a value from a
+live read (an account ID, a resource name, a config value), a secret, customer data, or a
+description of what this run did not reach. A `type:"code"` snippet stays verbatim, because
+committed source is already public. `note` and the `coverage` block are never committed to this
+repo.
+
 ## Memory
 This agent keeps no persistent memory: `memory:` is intentionally unset (the read-only guard
 denies every write). A fresh run re-verifies versions against the live lockfiles at the audited

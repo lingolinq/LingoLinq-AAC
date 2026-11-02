@@ -1,6 +1,6 @@
 ---
 name: audit-run
-description: Orchestrate a full LingoLinq-AAC audit. Stamps the audited SHA + diff, fans out the read-only domain finders in parallel, reconciles results into the findings register, runs the adversary verifier, and validates citations. User-invoked only (/audit-run).
+description: Orchestrate a LingoLinq-AAC audit run. Stamps the audited SHA + diff, fans out the read-only domain finders in parallel, reconciles results into the findings register, runs the adversary verifier, and validates citations. User-invoked only (/audit-run).
 disable-model-invocation: true
 allowed-tools: Read, Grep, Glob, Bash, Agent
 ---
@@ -50,6 +50,50 @@ light run**. The cadence is tracked in `audit-reports/compliance-calendar.json`
 Either way the register `FINDINGS.json` is updated mechanically and citation-check must stay
 green; only Scot closes, downgrades, or accepts risk.
 
+## Coverage: what "full" means (Scot, 2026-11-01)
+A run may write "full" in `meta.auditedRef` only if, at one commit:
+1. Every finder examined every item in its own checklist.
+2. Every read on the live-read list below was taken, with a successful result.
+
+Any other run is stamped partial. "Quarterly full", run-log `type: full` and the gate's `--mode full`
+name how much of the fan-out runs, not how much of it was reached: a quarterly full run can end
+partial, and a monthly light run is always partial. Open findings do not affect coverage. This
+definition governs `/audit-run` and `FINDINGS.json` only: `/ember-audit-run` has its own register, and
+its `full` mode names its slices.
+
+**Standing limits.** Only these three things a repo read cannot answer are standing limits, not gaps.
+They are disclosed in every run and do not block full:
+- Callers outside the repo (console use, runbooks).
+- Vendor internals.
+- Provider-side revocation of retired keys, unless the provider console is opened.
+
+Nothing else is a standing limit, including a failed or untaken live read. A checklist item whose
+evidence is a document outside this repo counts as not reached until that document has been read
+(Scot, 2026-11-01).
+
+**Assistive-technology testing does not count toward full.** The team owns screen reader, switch and
+eye-gaze testing, and `docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md` tracks it as an open gap. It
+is an exclusion, not a checklist item or a standing limit. Every full stamp carries this exact line,
+so the stamp never reads as though that testing was done:
+
+```
+Excludes assistive-technology testing (tracked separately in the conformance report).
+```
+
+**Live-read list.** This list names services, read types and targets only, because this repo is public. Results
+never go in it (Step 1b). Each entry between semicolons is one read.
+
+| Area | Reads | Target | Handed to |
+|------|-------|--------|-----------|
+| AWS | All enabled regions for regional services; SES; customer-policy statement bodies; KMS and SNS policies; CloudTrail bucket Object Lock; CDN distribution config | Whole account | `infra-auditor` |
+| Google Cloud | URL map redirect; secret accessors; job and worker-pool config | Production | `infra-auditor` |
+| GitHub | Environment branch policy | Production environment | `infra-auditor` |
+| Production config | Feature-flag values and non-secret config | Production | `infra-auditor` |
+| Sentry | Alert rules and scrubbing | Production | `infra-auditor` |
+| HubSpot, Zendesk | Retention settings | Production | `privacy-auditor` |
+| S3/CDN, Stripe | Behaviour against a non-production environment | Non-production | `api-auditor` |
+| Accessibility | Axe and focus walk on every route, including speak mode, with computed contrast and rendered focus | Local or non-production | `accessibility-auditor` |
+
 ## Run context (dynamic injection)
 - Audited commit:  !`git rev-parse HEAD`
 - Audited ref:     !`git rev-parse --abbrev-ref HEAD`
@@ -66,8 +110,50 @@ SHA so `scripts/citation-check.rb` can validate snippets against the exact tree 
 2. Capture the audited SHA (above). If the tree is dirty, ask Scot to commit first (snippets
    must anchor to a committed SHA).
 
+## Step 1b: Take the live reads (quarterly full only)
+Record the run start first (`date -u +%Y-%m-%dT%H:%M:%SZ`). Then, before the fan-out, the orchestrator
+takes each read on the live-read list once, in this session, and hands the results to the finder the
+table names. A monthly light run skips this step.
+
+- **Write each read's scope first.** In the private run record, note what the read must cover before
+  you take it: routes from `app/frontend/app/router.js` at `auditedSha`, flags from
+  `lib/feature_flags.rb`, regions, resources and config names from the provider's own list call, and
+  for a behaviour read, the requests you will send.
+- **Record the caller and the target.** A read against any target other than the table's, or by a caller
+  that cannot see the whole scope, is not a success.
+- **Successful means the whole answer for that scope.** An auth or permission error, an expired session,
+  or a subset of the scope is not a success. An empty answer counts only if the row says why empty is
+  expected. A failed read may be retaken in the same run. A read you have no access or approval for
+  stays untaken: the run stamps partial.
+- **Take every read in this run, and record its UTC time.** A result from an earlier run does not count.
+  A gate retry at the same SHA is the same run, so it may reuse reads taken after the first run start.
+  A live read shows deployed state when it was read, which need not match `auditedSha`.
+- **The accessibility read holds synthetic data only.** Its environment has no team or real accounts.
+  Hand the finder the route template, rule id, element and class, and measured value only, never page
+  text.
+- **Behaviour reads stay out of production, and nothing they send may reach a real person.** Stripe uses
+  test-mode credentials. S3/CDN uses the non-production uploads bucket, with read-only requests on the
+  synthetic test objects named in the scope, and lists or opens nothing else.
+- **Hand over and keep the least that answers the item.** A policy body or config can go whole, but never
+  a person's identifier, such as a recipient address or a principal's email (give the principal type),
+  and never a secret's value. Remove any that a result carries before you store it or hand it over,
+  because the private run record can be committed to the private repo and read by a reviewer with no
+  BAA.
+- **A document outside this repo goes through you too.** When a checklist item's evidence is a named
+  document (`audit-reports/DOCUMENT-REGISTER.json` gives its location), read it, note that in the private
+  run record, and hand it to the finder with any person's identifier removed. A document you cannot reach leaves that item not reached.
+- **Results stay out of this repo.** Keep them, with one row per read (scope, caller, target, UTC time,
+  taken, succeeded), in the private run record, along with every finder output file, including each
+  `note`. No account IDs, resource
+  names, config values or secret values in any committed file, commit message or PR text.
+- **The private run record** is a dated folder under `~/ai-company-brain/outputs/docs/`, outside this
+  repo. The orchestrator writes it and Scot owns it. Keep it for as long as its stamp is in the
+  register's history. Nothing from it goes in a task log, a `unified-audit` report or any other
+  committed file in this repo, beyond the verdict and counts.
+
 ## Step 2: Fan out the read-only finders (parallel)
-Record the run start first (`date -u +%Y-%m-%dT%H:%M:%SZ`); Step 2b needs it. Then spawn the six
+Use the run start from Step 1b; a monthly light run records it here
+(`date -u +%Y-%m-%dT%H:%M:%SZ`). Step 2b needs it. Then spawn the six
 domain finders concurrently with the Agent tool, passing each the `auditedSha`.
 They are read-only (no Edit/Write; a PreToolUse guard blocks mutating Bash) and emit
 register-shaped findings with `status: "open"`.
@@ -92,7 +178,8 @@ register-shaped findings with `status: "open"`.
 >    pull the live GCP/AWS read-state ONCE and pass that snapshot to the infra finder, rather
 >    than letting parallel finders hit live APIs independently. The first run emitted no runtime
 >    findings (all 7 were committed-file `type:"code"`), so the race did not bite - keep this as the
->    standing instruction until/unless a snapshot mechanism is built.
+>    standing instruction until/unless a snapshot mechanism is built. Step 1b is where a quarterly
+>    full run takes that snapshot.
 
 | Agent | Domain | Skill it loads |
 |-------|--------|----------------|
@@ -103,10 +190,13 @@ register-shaped findings with `status: "open"`.
 | `accessibility-auditor` | accessibility | accessibility-audit |
 | `code-hygiene-auditor`  | code-hygiene  | code-hygiene-audit |
 
-Prompt each with: the `auditedSha`, the scan scope from its skill, and
+Prompt each with: the `auditedSha`, the whole scan scope from its skill (the diff in a monthly light
+run), its Step 1b results and documents if any are named for it, and
 "cross-check `audit-reports/FINDINGS.json` first; reference an existing `id` rather than
-duplicating. Return the run receipt your checklist requires." Collect each finder's JSON `{domain, auditedSha, checklistToken, guardCanary, note,
-findings:[...]}` (`note` is optional).
+duplicating. Return the run receipt your checklist requires and the coverage block your agent
+definition requires." Collect each finder's JSON `{domain, auditedSha, checklistToken, guardCanary, note,
+coverage, findings:[...]}` (`note` is required from a finder handed a read or a document, otherwise
+optional).
 
 > RETIRED from the fan-out (Phase 2): `ember-stabilization` and `rails-upgrade` (migration-era,
 > shipped) and the 0-100 `mvp-readiness` score (decision 5.9.2: the headline is now the count of
@@ -137,9 +227,62 @@ stop is what holds. To retry, find out why, then re-run **every** finder in this
 run start and new output files: re-running only the refused one leaves the others older than the new
 `--since`. Never edit a finder's output, the log, or a token to get past it.
 
+## Step 2c: Decide coverage from the receipts (before the merge)
+The gate and the merge do not read `coverage`, so this decision rests on this step and on Scot's
+sign-off. The verdict is full only if every one of these holds; otherwise it is partial. A monthly
+light run is partial without this check.
+1. All six finders passed the gate in the default mode, each prompted with its skill's whole scan scope.
+   A finder re-run at the same SHA to fill its coverage replaces its earlier receipt, and this whole step
+   runs again on the final receipts before the merge. A Step 5 re-emit changes findings only
+   and replaces no receipt. A receipt from another commit counts for nothing.
+2. Every receipt has a `coverage` block with `examined`, `notReached` and `standingLimits`. A missing or
+   malformed block means that finder is not complete.
+3. Every `notReached` is empty.
+4. Every `examined` holds exactly that finder's item ids, with none missing and none extra. Take the
+   expected ids from the skill at `auditedSha`, not from the receipt. A count of 0 means the check cannot
+   run, so the finder is not complete:
+   - `privacy`, `infra`, `api`, `dependency`, `accessibility`: `item-1` up to the count from
+     `git show <auditedSha>:.claude/skills/<skill>/SKILL.md | grep -c '^- \[ \]'`.
+   - `code-hygiene`: `class-1` up to the count from
+     `git show <auditedSha>:.claude/skills/code-hygiene-audit/SKILL.md | grep -cE '^[0-9]+\. \*\*'`.
+5. Every `standingLimits` entry starts with an item id and falls under one of the three standing limits
+   above. Treat any other entry as not reached.
+6. No `note` says an item was sampled, skipped or could not be verified. An item described that way is
+   not reached, even if `examined` lists it. Text that only restates a standing limit does not count.
+7. Every read on the live-read list has a row in the private run record that is taken and succeeded, and
+   the finder the table names confirms in its `note` that it used that read. The same goes for any
+   document handed over.
+
+A receipt is the finder's own report, and nothing here verifies it against what the finder read. The
+verdict rests on the receipts and Scot's sign-off, so the receipts go in the private run record for him
+to read.
+
+Pass the result as `--ref` in Step 3, quoted. Every stamp carries the standing limits; drop the third
+limit only if the provider console was opened. In the partial stamp, `<m>` is the number of reads on
+the live-read list. Write "FULL COVERAGE" only with a full verdict, and do not use the word "full" in
+any other stamp outside a branch name. The stamp is written before Scot signs: when he does, replace
+`Scot sign-off: pending` with `Scot signed <YYYY-MM-DD>`.
+
+Full verdict:
+```
+<ref> (== origin/develop tip <sha8> at run start, <date>). FULL COVERAGE: every finder reported every checklist item examined at this commit and every named live read succeeded during this run. Internal automated review by AI agents against our own checklists, not a third-party audit; it says what was examined, not that it passed, and open findings are counted separately. Standing limits: callers outside the repo; vendor internals; provider-side key revocation. Scot sign-off: pending. Excludes assistive-technology testing (tracked separately in the conformance report).
+```
+Partial verdict:
+```
+<ref> (== origin/develop tip <sha8> at run start, <date>). PARTIAL COVERAGE: <n> of 6 finders complete, <n> of <m> live reads succeeded; details are in the private run record. Internal automated review by AI agents against our own checklists, not a third-party audit; it says what was examined, not that it passed, and open findings are counted separately. Standing limits: callers outside the repo; vendor internals; provider-side key revocation. Scot sign-off: pending. Excludes assistive-technology testing (tracked separately in the conformance report).
+```
+Monthly light run:
+```
+<ref> (== origin/develop tip <sha8> at run start, <date>). PARTIAL COVERAGE: monthly light run scoped to the diff since <prior sha8>; no live reads taken. Internal automated review by AI agents against our own checklists, not a third-party audit; it says what was examined, not that it passed, and open findings are counted separately. Standing limits: callers outside the repo; vendor internals; provider-side key revocation. Scot sign-off: pending. Excludes assistive-technology testing (tracked separately in the conformance report).
+```
+
+Public text carries the verdict and counts only. A `notReached` entry names an unexamined area, so it
+stays in the private run record, never in the stamp, a finding, `meta.auditedShaPriorNote`, the run log, a commit or a PR. Writing
+any of these stamps is still a restamp: Scot's sign-off in Step 3 applies to it.
+
 ## Step 3: Reconcile into the register (deterministic)
 Run the merge helper with `--in` set to exactly the list the gate just passed (a light run lists
-fewer files than the example below). A restamping merge refuses any file whose `auditedSha` is not
+fewer files than the example below), and `--ref` set to the Step 2c stamp. A restamping merge refuses any file whose `auditedSha` is not
 `--sha`. It computes the
 stable id (`LL-` + first 10 hex of `sha256(ruleKey + "|" + file)`; for a row whose ruleKey is the
 self-referencing withheld form, `minimized-finding-` + its own id, lowercased, citation-check does not recompute the id; finders are
@@ -151,7 +294,7 @@ bumps `lastSeen` + the register `auditedSha`/`auditedRef`/`auditedDate`, and FLA
 ```
 ruby scripts/audit-merge.rb \
   --register audit-reports/FINDINGS.json \
-  --sha <auditedSha> --ref <auditedRef> --date <YYYY-MM-DD> \
+  --sha <auditedSha> --ref "<Step 2c stamp>" --date <YYYY-MM-DD> \
   --in /tmp/finder-privacy.json --in /tmp/finder-infra.json \
   --in /tmp/finder-api.json --in /tmp/finder-dependency.json \
   --in /tmp/finder-accessibility.json --in /tmp/finder-code-hygiene.json \
@@ -166,10 +309,10 @@ appends a loud note (`scripts/audit-merge.rb`). So a regression still renders as
 Surface every regression to Scot explicitly in Step 5, in every mode, and get that decision before the
 register PR merges.
 
-> **`--sha` restamps `meta.auditedSha` — that is correct HERE and nowhere else.** This is a
-> whole-tree scan, so the audit pointer legitimately moves to the audited commit (a governance act:
+> **`--sha` restamps `meta.auditedSha` — that is correct HERE and nowhere else.** An
+> `/audit-run` moves the audit pointer to the audited commit, and its stamp says what the run reached (a governance act:
 > record the move and the intervening-commit analysis in `meta.auditedShaPriorNote` for Scot's
-> sign-off). If you are adding a finding OUTSIDE a full `/audit-run`, add `--no-restamp` so evidence
+> sign-off). If you are adding a finding OUTSIDE an `/audit-run`, add `--no-restamp` so evidence
 > anchors at the true commit while `meta` stays untouched. Never pass the register's existing
 > `auditedSha` to dodge the restamp: that anchors the new evidence to a commit it was never verified
 > against and passes citation-check green whenever the line numbers happen to coincide.
@@ -199,7 +342,7 @@ is not part of this run; this run surfaces and verifies, it does not close.
    If any line prints, surface it LOUDLY to Scot (which finder, which ruleKey, which pattern) and
    have the finder re-emit without the offending token: record a new start, spawn it unnamed as in
    Step 2, then run the gate on the new output with that `--since` and `--mode partial --expect 1`. Merge
-   it with the Step 3 command, `--in` only that file and a new `--summary` path so the first summary
+   it with the Step 3 command and the same Step 2c stamp, `--in` only that file and a new `--summary` path so the first summary
    survives. Run this same check on the new summary, put any new id through Step 4, and add its counts to
    the Step 7 line. Common case: an accessibility finding whose
    text contains a 4-part EN 301 549 clause (`9.1.4.3`) that matches the IP scrubber - the
@@ -207,13 +350,21 @@ is not part of this run; this run surfaces and verifies, it does not close.
    guidance was not followed and the finding must be corrected, not silently lost.
 3. `ruby scripts/citation-check.rb --render audit-reports/FINDINGS.json` to regenerate
    `audit-reports/FINDINGS.md` from the JSON.
-4. Optionally write a rendered `audit-reports/unified-audit-YYYY-MM-DD.md` for a quarterly run.
+4. Optionally write a rendered `audit-reports/unified-audit-YYYY-MM-DD.md` for a quarterly run. It is
+   public, so its coverage section carries the verdict and counts only.
 5. In every mode, surface each regression to Scot for the decision in Step 3, and print each finder's
-   `note` as returned; it holds what the finder could not verify from this repo.
+   `note` as returned; it holds the reads the finder used and what it could not verify from this repo.
 
 ## Step 6: Report (headline = open Critical/High, not a score)
 Present to Scot:
 - **Headline:** open **Critical** and **High** counts (decision 5.9.2). No 0-100 score.
+- **Coverage verdict** from Step 2c, kept apart from the headline: full or partial, each finder's
+  examined count against its total, live reads succeeded against the list, the standing limits, and
+  the assistive-technology exclusion. Point Scot at the receipts in the private run record: a full
+  stamp rests on them and on his sign-off. If findings were dropped as snippet-not-found, say that the
+  finder may have read another tree (Step 2), which puts a full verdict in doubt.
+- **Live-read issues held in `note`.** A handed-over result that no source line can carry is not a public
+  finding. List each one from the private run record, and Scot decides whether to file it.
 - New findings this run (by domain/severity), regressions (loud), and adversary verdicts.
 - Confirm citation-check is green and the audited SHA.
 - Remind: only Scot closes, downgrades, or accepts risk. Nothing customer-facing leaves without
@@ -228,7 +379,8 @@ no secrets:
    captures "what each agent examined" as the finders run, and Step 2b reads it. Bash commands are
    redacted for secret/PII shapes; Grep patterns and all tool RESULTS are never logged.
 2. **Per-run summary (you append).** Add one JSONL line to `audit-reports/run-log/runs.jsonl`
-   (committed, safe) recording: `ts`, `auditedSha`, `auditedRef`, `type` (full|light), `finders`,
+   (committed, safe) recording: `ts`, `auditedSha`, `auditedRef`, `type` (full|light, the run mode,
+   not the coverage verdict, which is in `meta.auditedRef`), `finders`,
    `finderGate` (the Step 2b result and mode),
    `new`/`reseen`/`regressions`/`skipped` counts, `newIds`, the adversary verdict tally,
    `citationCheck` status, and the open Critical/High headline. Recurrence is then a diff over

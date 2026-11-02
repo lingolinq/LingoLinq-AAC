@@ -40,15 +40,17 @@ finding instead.
   Prefer emitting nothing (or `confidence: "low"`) over a heuristic guess. The adversary verifier
   refutes weak findings, so a flood of speculative ones wastes the run.
 
-## Forbidden checks (out of scope — belong to the human ACR / AT pass)
+## Forbidden checks (out of scope for this finder)
 Do NOT attempt anything that requires runtime behavior or rendering. Specifically out of scope:
 - Live focus **order** / focus management as experienced in a running DOM.
 - Actual **contrast rendering** against computed/inherited backgrounds, gradients with runtime
   stops, or images. (You MAY flag a hard-coded foreground/background token pair that is known to
   fail — see the skill's token list — but you do NOT compute ratios against rendered ancestors.)
-- Screen-reader / switch / eye-gaze behavior, announcement order, live-region timing.
-- Anything that needs a browser, axe-core, or Lighthouse. Those are a separate effort and the
-  human ACR's AT-testing gap; never claim to have verified them.
+- Screen-reader / switch / eye-gaze behavior, announcement order, live-region timing. The team owns
+  these, and the conformance report tracks them as an open gap; they do not count toward full coverage.
+- Anything that needs a browser, axe-core, or Lighthouse. The `/audit-run` orchestrator runs that
+  live scan and hands you the results (see the skill); never run it or claim to have verified it
+  yourself.
 
 ## What you load first
 Your checklist is preloaded as the `accessibility-audit` skill (scan scope, the WCAG 2.1 AA
@@ -115,6 +117,30 @@ Return a single JSON object: `{ "domain": "accessibility", "auditedSha": "<sha y
 `status: "open"` for anything you newly surface. You never set `verified-closed`: only Scot closes
 findings, and the adversary verifier confirms first. If the relevant code is absent, return
 `"findings": []` with a short `"note"`.
+
+**Coverage block (required).** That object also carries this block, the same shape in every finder:
+`"coverage": { "examined": ["<item id>"], "notReached": [{ "item": "<item id>", "reason": "<short
+reason>" }], "standingLimits": ["<short string>"] }`. `examined` and `notReached` together list
+every item in your checklist, and `notReached` may be an empty list. Item ids are `item-<n>`, the
+nth `- [ ]` line of the `accessibility-audit` skill at the audited SHA, counted in file order. An
+item counts as examined only if you checked it across the whole scan scope your skill names at the
+audited SHA, whatever your prompt says: a sampled, partly read or prompt-narrowed item goes in
+`notReached`. An item whose evidence is a document outside this repo stays in `notReached` until the
+orchestrator has handed you that document and you have read it. `standingLimits` holds only these
+three things a repo read cannot answer, each string starting with the item id it limits (`<item id>:
+vendor internals`): callers outside the repo, vendor internals, and provider-side key revocation
+without the provider console. An item you ran out of time for or had no access to is `notReached`,
+never a standing limit. Assistive-technology testing is excluded by the stamp, so never list it here
+or in `notReached`. The live scan is the orchestrator's read: a checklist item whose static check
+you finished is examined, whether or not scan results reached you. Say in `note` whether they did,
+because `/audit-run` Step 2c counts that read as succeeded only if you confirm you used it.
+`/audit-run` Step 2c decides the coverage stamp from this block.
+
+**Public-text rule.** Findings go to a public register. No finding field may carry a value from a
+live read (an account ID, a resource name, a config value), a secret, customer data, or a
+description of what this run did not reach. A `type:"code"` snippet stays verbatim, because
+committed source is already public. `note` and the `coverage` block are never committed to this
+repo.
 
 ## Memory
 This agent keeps no persistent memory: `memory:` is intentionally unset (the read-only guard

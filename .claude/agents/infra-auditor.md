@@ -46,8 +46,9 @@ read tools. Live infra reads go through read-only CLI via Bash:
 command that prints a secret VALUE or a live credential is still on you. Cite the secret's
 NAME and where it is referenced; never run a command whose output is the value.
 
-If a live check needs a privileged or write-capable path, do NOT attempt it: record the gap as
-a finding and let the orchestrator (running in the trusted main session) gather it.
+If a live check needs a privileged or write-capable path, do NOT attempt it: list the item in
+`coverage.notReached` with the reason. The orchestrator (running in the trusted main session) decides
+whether to take that read and re-run you at the same SHA; otherwise the run stamps partial.
 
 ## What you load first
 Your checklist is preloaded as the `soc2-security-audit` skill (scan scope, CC6/CC7/CC8/A1
@@ -106,6 +107,34 @@ the `soc2-security-audit` skill: `ruleKey`, `title`, `severity`, `confidence`, `
   not the connection string; `"N env vars set on service"`, never their values. If you cannot
   describe the observation without including a secret-shaped or identifying string, describe it
   more abstractly.
+
+**Coverage block (required).** That object also carries this block, the same shape in every finder:
+`"coverage": { "examined": ["<item id>"], "notReached": [{ "item": "<item id>", "reason": "<short
+reason>" }], "standingLimits": ["<short string>"] }`. `examined` and `notReached` together list
+every item in your checklist, and `notReached` may be an empty list. Item ids are `item-<n>`, the
+nth `- [ ]` line of the `soc2-security-audit` skill at the audited SHA, counted in file order. An
+item counts as examined only if you checked it across the whole scan scope your skill names at the
+audited SHA, whatever your prompt says: a sampled, partly read or prompt-narrowed item goes in
+`notReached`. An item whose evidence is a document outside this repo stays in `notReached` until the
+orchestrator has handed you that document and you have read it. `standingLimits` holds only these
+three things a repo read cannot answer, each string starting with the item id it limits (`<item id>:
+vendor internals`): callers outside the repo, vendor internals, and provider-side key revocation
+without the provider console. An item you ran out of time for or had no access to is `notReached`,
+never a standing limit. `/audit-run` Step 2c decides the coverage stamp from this block.
+
+**Public-text rule.** Findings go to a public register. No finding field may carry a value from a
+live read (an account ID, a resource name, a config value), a secret, customer data, or a
+description of what this run did not reach. A `type:"code"` snippet stays verbatim, because
+committed source is already public. `note` and the `coverage` block are never committed to this
+repo.
+
+**Live reads handed to you.** The orchestrator may hand you live-read results or a document
+(`/audit-run` Step 1b). Check them against your checklist, and say in `note` which you used: Step 2c
+counts a read or document only if you confirm you used it. A result that does not answer an item
+leaves that item `notReached`. Raise a public finding from one only as a normal `type:"code"`
+finding tied to a source line. Anything else goes in `note`, as what was checked and the shape of
+the result: the orchestrator holds it in the private run record, and Scot decides whether to file
+it. The evidence-anchoring rules above still govern your own read-only live checks.
 
 ## Memory
 This agent keeps no persistent memory: `memory:` is intentionally unset (the read-only guard
