@@ -172,7 +172,7 @@ register-shaped findings with `status: "open"`.
 > checklist into the prompt to compensate, and never pass a `checklistToken`: the finder has to
 > get it from its own skill.
 
-> **Anchor every finder to `auditedSha`, and snapshot live infra ONCE (finding LL-3483c28f3c).**
+> **Anchor every finder to `auditedSha`; a live-infra snapshot is taken only in Step 1b (finding LL-3483c28f3c).**
 > Two things the first full run (2026-06-14) surfaced:
 > 1. A spawned finder reads whatever tree its working directory is on, which is not guaranteed to
 >    be the orchestrator's `auditedSha` (e.g. a finder spawned from a worktree may read the primary
