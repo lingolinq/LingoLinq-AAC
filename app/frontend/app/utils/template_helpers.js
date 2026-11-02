@@ -120,7 +120,10 @@ templateHelpers.safe = function(str, type) {
       // Node.js / SSR: fallback when DOMParser is unavailable (e.g. FastBoot)
       stripped = String(str).replace(/<[^>]*>/g, '');
     }
-    return htmlSafe(stripped);
+    // Plain text, not htmlSafe: textContent decodes entities, so `&lt;img ...&gt;` kept as text
+    // by the server sanitizer (app/models/concerns/processable.rb process_html) would otherwise
+    // be inserted as live markup. Glimmer escapes a plain string.
+    return stripped;
   } else {
     return htmlSafe(str);
   }

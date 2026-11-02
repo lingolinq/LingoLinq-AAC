@@ -64,15 +64,14 @@ var speecher = EmberObject.extend({
     return i18n.text_direction(locale);
   },
   refresh_voices: function() {
-    var list = [];
-    var voices = speecher.scope.speechSynthesis.getVoices() || [];
-    if(capabilities.system == 'iOS' && capabilities.installed_app) {
-      // iOS has such strict rules around not abusing speechSynthesis
-      // that is basically unusable, despite my best efforts.
-      voices = [];
-    }
-    for(var idx = 0; idx < voices.length; idx++) {
-      list.push((voices._list || voices)[idx]);
+    var list = speecher.device_voices();
+    var device_voice_count = list.length;
+    // Chrome on Android reports its voices after boot, so this call often sees none:
+    // device_voices_changed() fills the list in when the browser fires voiceschanged.
+    speecher.listen_for_voices();
+    if(device_voice_count === 0 && (speecher._device_voice_count || 0) > 0) {
+      // A later call that briefly sees no voices (Chrome after resume) keeps the list it has
+      list = null;
     }
     var _this = this;
     if(capabilities.system == 'iOS' && window.TTS && window.TTS.checkLanguage) {
@@ -148,87 +147,88 @@ var speecher = EmberObject.extend({
       voices = Utils.uniq(voices, function(v) { return v.voiceURI; });
       _this.set('voices', voices);
     }, function() { });
-    var add_low = false;
-    if(window.speak || window.meSpeak) {
-      add_low = true;
-    }
-    if(list.length === 0) {
-      list.push({
-        name: "Default Voice",
-        voiceURI: ""
-      });
-    }
-    // Need a remote English voice for low-cost Kindles
-    if(!navigator.language.match(/en/)) {
-      list.push({
-        name: "English Female (Internet Required)",
-        lang: 'en-US',
-        remote_voice: true,
-        voiceURI: "remote:en-US:female"
-      });  
-    }
-    var match = cloud_locales.find(function(loc) { return loc.match(navigator.language); });
-    var same = cloud_locales.filter(function(loc) { return loc.indexOf(navigator.language.split(/-|_/)[0]) == 0; });
-    if(match) {
-      same = [match];
-    }
-    same.forEach(function(match) {
-      var parts = match.split(':');
-      var loc = i18n.locales[parts[0].replace(/-/, '_')] || i18n.other_locales[parts[0].replace(/-/, '_')] || i18n.locales[parts[0].split(/-|_/)[0]];
-      if(parts[1].match(/f/) && loc) {
-        list.push({
-          name: loc + i18n.t('female_internet_required', " Female *Internet Required*"),
-          lang: parts[0],
-          remote_voice: true,
-          voiceURI: "remote:" + parts[0] + ":female"
-        })
-      }
-      if(parts[1].match(/m/) && loc) {
-        list.push({
-          name: loc + i18n.t('male_internet_required', " Male *Internet Required*"),
-          lang: parts[0],
-          remote_voice: true,
-          voiceURI: "remote:" + parts[0] + ":male"
-        })
-      }
-    });
-
-    if(!navigator.language.match(/uk/)) {
-      list.push({
-        name: i18n.t('female_ukranian_internet_required', "Ukranian Female *Internet Required*"),
-        lang: 'uk-UA',
-        remote_voice: true,
-        voiceURI: "remote:uk-UA:female"
-      });
-    }
-    // Irish (ga-IE) remote voice removed: the server-side Abair TTS endpoint was disabled
-    // 2026-07-23 (no DPA -- finding LL-a167848115), so /api/v1/search/audio now returns 400
-    // for `ga` locales. Offering it here would give Irish users a voice that can never
-    // succeed. Restore this option only if Irish TTS is re-enabled behind a DPA/SCCs.
-    if(add_low) {
-      var locale = ((i18n.langs || {}).preferred || window.navigator.language).replace(/_/, '-');
-      var loc = 'en-us';
-      var lang = 'en-US';
-      if(window.meSpeak) {
-        if(me_speak_locales[locale.toLowerCase()]) {
-          loc = locale.toLowerCase();
-          lang = locale;
-        } else if(me_speak_locales[locale.split(/-/)[0]]) {
-          loc = locale.split(/-/)[0];
-          lang = loc;
-        }
-      }
-      var i18nlang = i18n.locales_localized[lang] || i18n.locales[lang] || lang;
-      list.push({
-        name: i18nlang + i18n.t('low_quality_male_voice', " Low-Quality Male Voice"),
-        lang: lang,
-        voiceURI: "speak_js:" + loc
-      });
-    }
-    if(!this.get('voices') || this.get('voices').length === 0) {
-      this.set('voices', list);
+    if(list) {
+      speecher.store_device_voices(list, device_voice_count);
     }
     return list;
+  },
+  // The browser's own voices as a plain array
+  device_voices: function() {
+    var list = [];
+    var voices = speecher.scope.speechSynthesis.getVoices() || [];
+    if(capabilities.system == 'iOS' && capabilities.installed_app) {
+      // iOS has such strict rules around not abusing speechSynthesis
+      // that is basically unusable, despite my best efforts.
+      voices = [];
+    }
+    for(var idx = 0; idx < voices.length; idx++) {
+      list.push((voices._list || voices)[idx]);
+    }
+    return list;
+  },
+  // What the picker offers when the device reports no voice of its own (Scot, 2026-10-25: the
+  // cloud "*Internet Required*" voices and speak.js are listed only then).
+  with_backup_voices: function(device_list) {
+    var list = device_list.slice();
+    if(!speecher.has_own_voice(list)) {
+      if(list.length === 0) {
+        list.push({name: "Default Voice", voiceURI: ""});
+      }
+      // Also beside the speech polyfill's one voice, which is not the device's own (has_own_voice)
+      list = list.concat(speecher.cloud_voices());
+      // speak.js (vendor/speak_js/speakClient.js, loaded on every web page)
+      if(window.speak || window.meSpeak) {
+        var locale = ((i18n.langs || {}).preferred || window.navigator.language).replace(/_/, '-');
+        var loc = 'en-us';
+        var lang = 'en-US';
+        if(window.meSpeak) {
+          if(me_speak_locales[locale.toLowerCase()]) {
+            loc = locale.toLowerCase();
+            lang = locale;
+          } else if(me_speak_locales[locale.split(/-/)[0]]) {
+            loc = locale.split(/-/)[0];
+            lang = loc;
+          }
+        }
+        var i18nlang = i18n.locales_localized[lang] || i18n.locales[lang] || lang;
+        list.push({
+          name: i18nlang + i18n.t('low_quality_male_voice', " Low-Quality Male Voice"),
+          lang: lang,
+          voiceURI: "speak_js:" + loc
+        });
+      }
+    }
+    return list;
+  },
+  // Puts a newly built list into `voices`. Entries the async writers in refresh_voices added
+  // (iOS tts:, Windows TTS, extra: premium voices) stay in front, where those writers put them,
+  // unless the new list has the same voiceURI; the previously built list is replaced. Matched by
+  // identity, not Utils.uniq, which drops the Default Voice's "" voiceURI (app/utils/misc.js).
+  store_voice_list: function(list, device_voice_count) {
+    var previous = speecher._built_voices || [];
+    var listed = {};
+    list.forEach(function(v) {
+      if(v.voiceURI) { listed[v.voiceURI] = true; }
+    });
+    var extras = (speecher.get('voices') || []).filter(function(v) {
+      return previous.indexOf(v) == -1 && !!v.voiceURI && !listed[v.voiceURI];
+    });
+    speecher._built_voices = list;
+    speecher._device_voice_count = device_voice_count;
+    speecher._device_voice_key = speecher.voice_key(list.slice(0, device_voice_count));
+    speecher.set('voices', extras.concat(list));
+  },
+  voice_key: function(list) {
+    return list.map(function(v) { return [v.voiceURI, v.name, v.lang].join('|'); }).join('\n');
+  },
+  // Rebuilds the list only for the current engine, and only when it reports a different,
+  // non-empty set of voices.
+  device_voices_changed: function(synth) {
+    if(synth !== speecher.scope.speechSynthesis) { return; }
+    var list = speecher.device_voices();
+    if(list.length === 0 || speecher.voice_key(list) == speecher._device_voice_key) { return; }
+    // store_device_voices (below) applies the user's voice again when voices were only added
+    speecher.store_device_voices(list, list.length);
   },
   check_for_upgrades: function() {
     var ttsService = speecher.get_tts_voices && speecher.get_tts_voices();
@@ -1489,6 +1489,106 @@ speecher.register_services = function(appStateService, persistenceService, stash
   if(ttsVoicesService) { speecher._services.tts_voices = ttsVoicesService; }
 };
 
+// One voiceschanged listener per speechSynthesis object: refresh_voices runs more than once,
+// and the polyfill in vendor/speech/speech.js has no addEventListener.
+speecher.listen_for_voices = function() {
+  var synth = speecher.scope.speechSynthesis;
+  speecher._voice_sources = speecher._voice_sources || [];
+  if(!synth || !synth.addEventListener || speecher._voice_sources.indexOf(synth) != -1) { return; }
+  speecher._voice_sources.push(synth);
+  synth.addEventListener('voiceschanged', function() { speecher.device_voices_changed(synth); });
+};
+
+// The cloud voices (server TTS, /api/v1/search/audio) for the browser's language, plus English
+// and Ukrainian. with_backup_voices lists them only on a device with no voice of its own.
+speecher.cloud_voices = function() {
+  var list = [];
+  // Need a remote English voice for low-cost Kindles
+  if(!navigator.language.match(/en/)) {
+    list.push({
+      name: i18n.t('english_female_internet_required', "English Female (Internet Required)"),
+      lang: 'en-US',
+      remote_voice: true,
+      voiceURI: "remote:en-US:female"
+    });
+  }
+  var match = cloud_locales.find(function(loc) { return loc.match(navigator.language); });
+  var same = cloud_locales.filter(function(loc) { return loc.indexOf(navigator.language.split(/-|_/)[0]) == 0; });
+  if(match) {
+    same = [match];
+  }
+  same.forEach(function(match) {
+    var parts = match.split(':');
+    var loc = i18n.locales[parts[0].replace(/-/, '_')] || i18n.other_locales[parts[0].replace(/-/, '_')] || i18n.locales[parts[0].split(/-|_/)[0]];
+    if(parts[1].match(/f/) && loc) {
+      list.push({
+        name: loc + i18n.t('female_internet_required', " Female *Internet Required*"),
+        lang: parts[0],
+        remote_voice: true,
+        voiceURI: "remote:" + parts[0] + ":female"
+      });
+    }
+    if(parts[1].match(/m/) && loc) {
+      list.push({
+        name: loc + i18n.t('male_internet_required', " Male *Internet Required*"),
+        lang: parts[0],
+        remote_voice: true,
+        voiceURI: "remote:" + parts[0] + ":male"
+      });
+    }
+  });
+
+  if(!navigator.language.match(/uk/)) {
+    list.push({
+      name: i18n.t('female_ukranian_internet_required', "Ukranian Female *Internet Required*"),
+      lang: 'uk-UA',
+      remote_voice: true,
+      voiceURI: "remote:uk-UA:female"
+    });
+  }
+  // Irish (ga-IE) remote voice removed: the server-side Abair TTS endpoint was disabled
+  // 2026-07-23 (no DPA -- finding LL-a167848115), so /api/v1/search/audio now returns 400
+  // for `ga` locales. Offering it here would give Irish users a voice that can never
+  // succeed. Restore this option only if Irish TTS is re-enabled behind a DPA/SCCs.
+  return list;
+};
+
+// The polyfill in vendor/speech/speech.js reports one voice, voice:speak_js, when the browser has
+// no speech API; that is speak.js, not a voice of the device's own.
+speecher.has_own_voice = function(list) {
+  return list.some(function(v) { return v.voiceURI != 'voice:speak_js'; });
+};
+
+// refresh_voices' store step. After boot, a different set of device voices means the user's
+// voice is looked up again, whichever of refresh_voices or voiceschanged sees them first.
+speecher.store_device_voices = function(list, device_voice_count) {
+  var had_list = !!speecher._built_voices;
+  var previous_key = speecher._device_voice_key;
+  var previous = (speecher._built_voices || []).slice(0, speecher._device_voice_count || 0);
+  // Only when voices were added (Android reports them after boot). A list that briefly drops the
+  // user's voice would otherwise make update_voice_uri pick a fallback and keep it, and null the
+  // alternate voice, which has no voice_uris to find it again.
+  var only_added = previous.every(function(v) { return list.some(function(d) { return d.voiceURI == v.voiceURI; }); });
+  speecher.store_voice_list(speecher.with_backup_voices(list), device_voice_count);
+  if(had_list && device_voice_count > 0 && speecher._device_voice_key != previous_key && only_added) {
+    speecher.reapply_user_voice();
+  }
+};
+
+// The same two calls as utterance.update_voice (app/utils/utterance.js), so the saved voice is
+// found in the new list. voice_uri is not cleared first: the alternate voice keeps no voice_uris
+// history (app/models/user.rb process_device rebuilds it for the main voice only), so its
+// voice_uri is the only copy of the user's choice.
+speecher.reapply_user_voice = function() {
+  var appState = live_service(speecher.appState);
+  var user = appState && appState.get('currentUser');
+  if(!user || !user.update_voice_uri || !user.get('preferences.device.voice')) { return; }
+  user.update_voice_uri();
+  speecher.set_voice(user.get('preferences.device.voice'), user.get('preferences.device.alternate_voice'));
+};
+
 window.speecher = speecher;
 
 export default speecher;
+// Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
+import { live_service } from './live_service';

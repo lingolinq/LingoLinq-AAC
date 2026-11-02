@@ -1067,6 +1067,11 @@ var capabilities;
         downloadable_voices: function() {
           return tts_voices.all();
         },
+        // Premium voices download through the native bridge, so this is the
+        // same condition tts_exec uses to reach it; the web has neither.
+        premium_voices_supported: function() {
+          return !!((window.cordova && window.cordova.exec) || window.extra_tts);
+        },
         init: function() {
           return capabilities.tts.tts_exec('init', null, function(promise, res) {
             promise.resolve(res);

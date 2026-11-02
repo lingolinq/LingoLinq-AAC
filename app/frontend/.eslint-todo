@@ -680,11 +680,11 @@ app/routes/user/board-alt.js|ember/no-runloop|89|13|2|5addc2170315
 app/routes/user/board-alt/index.js|ember/no-runloop|136|7|2|5addc2170315
 app/routes/user/board-alt/index.js|ember/require-computed-property-dependencies|178|18|1|7342f52fef46
 app/routes/user/board-alt/index.js|no-useless-catch|121|9|1|9dd89265ed20
-app/routes/user/board-detail.js|ember/no-runloop|112|5|2|5addc2170315
-app/routes/user/board-detail.js|ember/no-runloop|130|5|2|5addc2170315
-app/routes/user/board-detail.js|ember/no-runloop|140|5|2|5addc2170315
-app/routes/user/board-detail.js|ember/no-runloop|489|7|2|5addc2170315
-app/routes/user/board-detail.js|ember/no-runloop|619|5|2|5addc2170315
+app/routes/user/board-detail.js|ember/no-runloop|80|5|2|5addc2170315
+app/routes/user/board-detail.js|ember/no-runloop|98|5|2|5addc2170315
+app/routes/user/board-detail.js|ember/no-runloop|108|5|2|5addc2170315
+app/routes/user/board-detail.js|ember/no-runloop|457|7|2|5addc2170315
+app/routes/user/board-detail.js|ember/no-runloop|587|5|2|5addc2170315
 app/routes/user/board-detail/edit.js|ember/no-runloop|49|5|2|5addc2170315
 app/routes/user/board-detail/edit.js|ember/no-runloop|79|7|2|5addc2170315
 app/routes/user/board-detail/edit.js|ember/no-runloop|80|7|2|5addc2170315
@@ -811,8 +811,8 @@ app/services/persistence.js|ember/no-runloop|3873|9|2|5addc2170315
 app/services/persistence.js|ember/no-runloop|3914|11|2|513c0395fe72
 app/services/persistence.js|ember/no-runloop|3955|9|2|5addc2170315
 app/services/persistence.js|ember/no-runloop|3976|5|2|5addc2170315
-app/services/persistence.js|ember/no-runloop|3989|9|2|5addc2170315
-app/services/persistence.js|ember/no-runloop|4521|13|2|5addc2170315
+app/services/persistence.js|ember/no-runloop|3990|9|2|5addc2170315
+app/services/persistence.js|ember/no-runloop|4524|13|2|5addc2170315
 app/services/persistence.js|ember/no-runloop|625|7|2|5addc2170315
 app/services/persistence.js|ember/no-runloop|661|36|2|5addc2170315
 app/services/persistence.js|ember/no-runloop|674|9|2|5addc2170315
