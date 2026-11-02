@@ -49,7 +49,6 @@ Rails.application.config.content_security_policy do |policy|
                      'https://cdn.jsdelivr.net',
                      'https://checkout.stripe.com',
                      'https://js.stripe.com',
-                     'https://app.covidspeak.org',
                      'https://translate.google.com'
 
   policy.style_src   :self,
@@ -84,8 +83,7 @@ Rails.application.config.content_security_policy do |policy|
                      'https://pixabay.com',
                      'https://www.googleapis.com',
                      'https://checkout.stripe.com',
-                     'https://js.stripe.com',
-                     'https://app.covidspeak.org'
+                     'https://js.stripe.com'
 
   # Embedded iframes. Current surfaces (per template grep):
   #   - opensymbols.org (badge_maker, word_maker, editor embeds)
