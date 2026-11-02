@@ -615,3 +615,82 @@ remote_action, button image and sound, scheduler and converter specs: 553 exampl
   the copy to S3 then fails, the sweep's `url: nil` filter skips the record, so it is never copied
   and depends on the outside address. Follow-up on lingolinq_mobile#3: retry those from their
   `url`/source as well.
+
+## Manual click-test, run with Playwright (2026-11-01)
+
+Local stack from this worktree at `2a59e90a1` (Rails :5000, one Resque worker, Ember :8184), seeded `example` user plus a
+local-only second user `clicktestb`. Scripts and screenshots stayed in the session scratchpad. Baseline: develop
+`68e1513c8` frontend served on :8185 against the same Rails server (the create path the comparison exercises,
+`images_controller#create` and `check_for_pending`'s pending-URL branch, is unchanged by this branch).
+
+- **Step 1, a fresh library pick (sclera `cellar.png` for "cellar"):** works. One `POST /api/v1/images` (200, a new
+  record owned by `example`, `preserve_source_image: true`), the dialog shows the new picture, the board `PUT` saves
+  and the button points at the new record after a reload.
+- **Step 2, the picture after a reload:** FAILS, on develop too. The new record has `url: null, pending: true` and
+  the button renders text only. The create answers with `meta.remote_upload`, but `save_record`'s by-URL branch
+  (`content-grabbers.js:201-205`) resolves after `object.save()` and returns before the client upload at line 216,
+  so nothing uploads. The server leaves the picture to the client because `Uploader.valid_remote_url?`
+  (`lib/uploader.rb:802`) only treats the opensymbols CDN as stored when `OPENSYMBOLS_S3_CDN` is set, and it is set
+  neither locally nor on `lingolinq-web-staging` or `lingolinq-web-dev` (read-only `gcloud run services describe`).
+  Production not checked. PRE-EXISTING (code on develop since `67138f2e4`, #723).
+- **Picking a picture already on the open board (arasaac `home.png` for "cellar"):** FAILS, identically on develop.
+  The only loaded record for that URL is the placeholder `utils/button.js:621-625` makes with `createRecord` and an
+  id, so `save_image_preview` picks it (`matching_images[0]`) and POSTs it with no `content_type`; the server answers
+  400 "content type required", the page throws "Converting circular structure to JSON", and the button keeps its old
+  picture. PRE-EXISTING.
+- **Step 3, user B against A's picture `1_39806`:** passes. `GET` gives `permissions {user_id, view: true}` and no
+  `meta.remote_upload` (the record is still pending, so before this branch B would have received A's upload form);
+  `PUT` with a new url, license and `preserve_source_image: false` answers 200 with the record unchanged, the row is
+  unchanged in the database, and the server logged "image update refused".
+- **Copy-on-write in the UI:** not reached. Board pictures load as placeholders with no permissions, so the
+  not-editable branch needs a fully loaded record of someone else's in the store; covered by the picture_grabber tests
+  only.
+- Local only: the dev S3 settings fail every worker upload ("region 'us-east-1' is wrong; expecting 'us-west-2'").
+  Test rows left in the dev DB: user `clicktestb`, images `1_39805` to `1_39810`, and "cellar" on
+  `example/communikate-home` now points at one of them.
+
+## Fix: a picture picked by URL is never uploaded (2026-11-01)
+
+Requested by Traci after the click-test: fix it in #1255.
+
+- **Fact sheet.** (a) The client upload is read only in `save_record`'s generic `object.save().then` (content-grabbers.js
+  generic path); the by-URL branch every https image takes returned before it. CONFIRMED; it came in with
+  `1f88a4a87` (2026-02-06), which replaced a fall-through to the generic path. (b) A create answers stored (url set),
+  pending with `meta.remote_upload` (owner, `:upload_form`), or 503 when S3 is not configured (the record is destroyed,
+  `RemoteUploader#ensure_upload_form_available!`). (c) The form is pushed per record id by the ajax wrapper
+  (`utils/extras.js:345-352`) and read with `window.lingoLinqExtras.upload_params_take` (assigned at extras.js:560;
+  I first misread it as never assigned because a `head -5` cut the grep, corrected before the proposal).
+- **Red test first.** `content_grabbers-test.js` "an image saved by URL" / "uploads the picture when the server answers
+  pending": red on the base code (no upload).
+- **Proposal and review.** Proposal in the session scratchpad; independent read-only review (adversary-local). Accepted:
+  the upload must use only the record's own form (the time-windowed meta can be another create's, extras.js:547-551);
+  a failed upload must not reject, because offline sync sends `tmp_` images through `save_record`
+  (persistence.js:3610-3613) and would create another record on every retry; a no-op handler on the shared deferred.
+  Considered and not taken: resolving after the create and uploading in the background (the board stores the image
+  urls the client sends, board.rb:2088, so a board saved before the upload could keep the old address; unverified,
+  so not relied on); a server-side download (changes the create contract for every client).
+  Accepted risks, not changed: the pick now settles after the proxy fetch and S3 POST, so the window in which a board
+  can be saved before `change_button` sets the new image_id is longer (pre-existing race,
+  controllers/board/index.js saveButtonChanges); create-board-new now stores the S3 URL rather than the library URL;
+  later picks of the same library URL still make a new record each time (url matching, pre-existing).
+- **Change.** `save_record`'s by-URL first-saver path takes the record's own form and uploads with the new
+  `upload_saved_record` (the generic path's upload steps, moved unchanged); a failed upload is logged and the record
+  resolves pending, as before. The generic path calls the same helper.
+- **Tests.** Five in "an image saved by URL": uploads when pending; no upload when stored; never another create's form;
+  two same-URL saves share one create and one upload; a failed upload leaves the record pending and the next save tries
+  again. Two slips in writing them (an eagerly built rejection tripped RSVP's error hook; the first fixture answered the
+  retry) were test-setup errors, fixed before the green run.
+- **Mutations.** No upload: 3 red. Fall back to the shared meta: 1 red. Reject on a failed upload: 1 red. Restored by
+  `cmp` against a copy.
+- **End to end (Playwright, local).** With the fix, a pick now does the proxy fetch and the S3 POST with the record's
+  form. S3 answered 403 InvalidAccessKeyId: this machine's AWS key is dead, so the success path was not observed end to
+  end; the failure path behaved as designed (pick and board save complete, record pending).
+- **Lint.** The ESLint gate first reported 15 "new" rows, all existing `ember/no-runloop` rows whose lines moved
+  (findings 1549 = baseline 1549). Three were in the test file because the new tests sat mid-file with a new import,
+  against app/frontend/CLAUDE.md ("Placing new code so rows do not shift"); the tests moved to the end of the file and
+  read the params store through `window.lingoLinqExtras.upload_params_by_id`, so that file no longer shifts. The 12
+  in content-grabbers.js cannot be held still: the fix is in `save_record` above all of them. With Traci's approval
+  ("proceed", 2026-11-01) their line numbers moved by +16 (444, 638, 726, 754, 835, 1432, 1437, 1444, 1705, 2361,
+  2450, 2716); the gate then reported baseline=1549 new=0.
+- **Full Ember** (Node 22), before the tests moved to the end of the file (code unchanged since): 3894 tests, 3852
+  pass, 37 skip, 5 todo, 0 fail, complete. After the move, the five tests pass in a filtered run.
