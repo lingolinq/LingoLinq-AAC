@@ -115,7 +115,7 @@ Record the run start first (`date -u +%Y-%m-%dT%H:%M:%SZ`).
 
 **Not in use yet.** Until the follow-up PR that adds a read of register text before push has merged, skip
 the rest of this step and go on to Step 2: take no reads and hand no results or documents to a finder.
-The run then stamps partial. That PR removes this paragraph.
+The run then stamps partial. The last two bullets of this step still apply. That PR removes this paragraph.
 
 Before the fan-out, the orchestrator takes each read on the live-read list once, in this session, and hands the results to the finder the
 table names. A monthly light run skips this step.
@@ -186,7 +186,8 @@ register-shaped findings with `status: "open"`.
 >    than letting parallel finders hit live APIs independently. The first run emitted no runtime
 >    findings (all 7 were committed-file `type:"code"`), so the race did not bite - keep this as the
 >    standing instruction until/unless a snapshot mechanism is built. Once Step 1b is in use, a quarterly
->    full run takes that snapshot there.
+>    full run takes that snapshot there. Until then, pull and pass no snapshot; the infra finder's own
+>    read-only checks stay as they are.
 
 | Agent | Domain | Skill it loads |
 |-------|--------|----------------|
@@ -239,8 +240,8 @@ The gate and the merge do not read `coverage`, so this decision rests on this st
 sign-off. The verdict is full only if every one of these holds; otherwise it is partial. A monthly
 light run is partial without this check.
 1. All six finders passed the gate in the default mode, each prompted with its skill's whole scan scope.
-   A finder that did not finish leaves this run partial: there is no selective re-run for coverage. A
-   Step 5 re-emit changes findings only and replaces no receipt. A receipt from another commit counts for
+   A receipt that leaves any item not reached makes this run partial. Only a gate refusal re-runs
+   finders (Step 2b). A Step 5 re-emit changes findings only and replaces no receipt. A receipt from another commit counts for
    nothing.
 2. Every receipt has a `coverage` block with `examined`, `notReached` and `standingLimits`. A missing or
    malformed block means that finder is not complete.
