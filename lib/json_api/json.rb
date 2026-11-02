@@ -93,7 +93,7 @@ module JsonApi::Json
   # known host, never the string the request supplied. Matching is exact on the
   # whole host, so a known name inside a forged one (attacker.example?.app...)
   # does not pass. The request's port is dropped. Org custom domains count as
-  # known; only the console writes settings['hosts'] (organization.rb:1660).
+  # known (custom_domain_host?); only the console writes settings['hosts'].
   # Local development passes through, since the ember proxy forwards localhost.
   def self.trusted_origin(value)
     return value if Rails.env.development?
@@ -117,7 +117,21 @@ module JsonApi::Json
     return false if host.blank?
     return true if host == PROD_LINK_HOST
     return true if NONPROD_LINK_HOSTS.include?(default_bare) && NONPROD_LINK_HOSTS.include?(host)
-    (::Organization.load_domains || {}).keys.any? { |h| h.to_s.downcase == host }
+    custom_domain_host?(host)
+  end
+
+  # The cached domain list (Organization.load_domains) only finds the candidate orgs; each is
+  # confirmed against the database, so a stale or wrong entry, or an error reading either, can
+  # only fall back to DEFAULT_HOST.
+  def self.custom_domain_host?(host)
+    entries = (::Organization.load_domains || {}).select { |h, _| h.to_s.downcase == host }
+    entries.values.any? do |entry|
+      org = entry.is_a?(Hash) && entry['org_id'] && ::Organization.find_by_global_id(entry['org_id'])
+      !!(org && org.custom_domain && (org.settings['hosts'] || []).any? { |h| h.to_s.downcase == host })
+    end
+  rescue StandardError => e
+    Rails.logger.warn("custom domain check failed for host #{host}: #{e.class}")
+    false
   end
 
   def self.current_host

@@ -1655,13 +1655,12 @@ class Organization < ApplicationRecord
   end
 
   DOMAIN_LIST_KEY = 'domain_org_ids'
-  DOMAIN_LIST_GENERATION_KEY = 'domain_org_ids_generation'
   DOMAIN_LIST_TTL = 72.hours.to_i
 
-  # The custom domain list is the trust source for links the app builds
-  # (JsonApi::Json.known_link_host?), so a saved or destroyed org that has or had custom domains
-  # clears it when the change commits. Noted at save time, so a later save in the same
-  # transaction cannot hide a switch-off.
+  # A saved or destroyed org that has or had custom domains clears the cached list when the change
+  # commits, so branding and email settings for its hosts follow the change. The list does not
+  # decide which hosts links may use: JsonApi::Json.custom_domain_host? confirms each entry
+  # against the database.
   def note_domain_list_change
     @domain_list_changed = true if self.custom_domain || self.custom_domain_before_last_save
     true
@@ -1670,44 +1669,25 @@ class Organization < ApplicationRecord
   def forget_domain_list
     return unless @domain_list_changed
     @domain_list_changed = false
-    RedisInit.default.incr(DOMAIN_LIST_GENERATION_KEY)
     RedisInit.default.del(DOMAIN_LIST_KEY)
   end
 
   def self.load_domains(force=false)
     domains = JSON.parse(RedisInit.default.get(DOMAIN_LIST_KEY)) rescue nil
     if !domains || force
-      # WATCH the generation before reading the rows: a change that commits before the write bumps
-      # it (forget_domain_list) and the write is dropped, so a rebuild that read the rows before a
-      # change cannot put the old list back. Not the list key: deleting a missing key changes
-      # nothing. WATCH runs on the underlying client, which does not add the namespace inside its
-      # block, so the keys carry it here.
-      redis = RedisInit.default
-      list_key = "#{redis.namespace}:#{DOMAIN_LIST_KEY}"
-      generation_key = "#{redis.namespace}:#{DOMAIN_LIST_GENERATION_KEY}"
-      redis.redis.watch(generation_key) do |client|
-        domains = {}
-        Organization.where(custom_domain: true).order('id ASC').each do |org|
-          (org.settings['hosts'] || []).each do |host|
-            if !domains[host]
-              domains[host] = (org.settings['host_settings'] || {}).dup
-              domains[host]['org_id'] = org.global_id
-              if org.settings['email_templates'].is_a?(Hash)
-                domains[host]['email_templates'] = org.settings['email_templates']
-              end
+      domains = {}
+      Organization.where(custom_domain: true).order('id ASC').each do |org|
+        (org.settings['hosts'] || []).each do |host|
+          if !domains[host]
+            domains[host] = (org.settings['host_settings'] || {}).dup
+            domains[host]['org_id'] = org.global_id
+            if org.settings['email_templates'].is_a?(Hash)
+              domains[host]['email_templates'] = org.settings['email_templates']
             end
           end
         end
-        if ENV['STOP_CACHING']
-          client.unwatch
-        else
-          begin
-            client.multi { |tx| tx.setex(list_key, DOMAIN_LIST_TTL, domains.to_json) }
-          rescue Redis::CommandError => e
-            raise e unless e.to_s.match(/OOM/)
-          end
-        end
       end
+      Permissions.setex(RedisInit.default, DOMAIN_LIST_KEY, DOMAIN_LIST_TTL, domains.to_json)
     end
     domains
   end

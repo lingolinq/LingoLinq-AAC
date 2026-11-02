@@ -2842,24 +2842,6 @@ describe Organization, :type => :model do
         org.save
         expect(Organization.load_domains.keys).to eq(['other.example'])
       end
-
-      it 'should not cache a list built from rows read before the change committed' do
-        read_rows = nil
-        allow(Organization).to receive(:where).and_wrap_original do |original, *args|
-          if args == [{custom_domain: true}] && !read_rows
-            # the rebuild reads the rows, then the switch-off commits before it caches them
-            read_rows = original.call(*args).order('id ASC').to_a
-            org.custom_domain = false
-            org.save
-            double('rows read before the change', order: read_rows)
-          else
-            original.call(*args)
-          end
-        end
-        expect(Organization.load_domains(true).keys).to include('retired.example')
-        expect(RedisInit.default.get('domain_org_ids')).to eq(nil)
-        expect(Organization.load_domains.keys).not_to include('retired.example')
-      end
     end
 
     it 'should keep the cached list for 72 hours' do

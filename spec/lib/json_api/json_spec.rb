@@ -182,7 +182,9 @@ describe JsonApi::Json do
       end
 
       it "should trust an org custom domain only as an exact match" do
-        allow(Organization).to receive(:load_domains).and_return({'Cheddar.org' => {}})
+        org = Organization.create(custom_domain: true)
+        org.settings['hosts'] = ['Cheddar.org']
+        org.save
         expect(stored_for('https://cheddar.org')).to eq('https://cheddar.org')
         expect(stored_for('https://evilcheddar.org')).to eq('https://links.lingolinq.test')
         expect(stored_for('https://cheddar.org.attacker.example')).to eq('https://links.lingolinq.test')
@@ -208,6 +210,79 @@ describe JsonApi::Json do
         org.save
         Worker.set_domain_id('https://retired.example')
         expect(JsonApi::Json.current_host).to eq('https://links.lingolinq.test')
+      end
+
+      # The cached list only finds the candidate org; trust is confirmed against the database, so a
+      # stale or wrong entry can only fall back to DEFAULT_HOST.
+      describe "with a stale cached domain list" do
+        def plant(list)
+          RedisInit.default.setex('domain_org_ids', 60, list.to_json)
+        end
+
+        it "should not trust a domain the org no longer uses" do
+          org = Organization.create(custom_domain: true)
+          org.settings['hosts'] = ['retired.example']
+          org.save
+          org.custom_domain = false
+          org.save
+          plant({'retired.example' => {'org_id' => org.global_id}})
+          expect(stored_for('https://retired.example')).to eq('https://links.lingolinq.test')
+        end
+
+        it "should not trust a host removed from the org" do
+          org = Organization.create(custom_domain: true)
+          org.settings['hosts'] = ['current.example']
+          org.save
+          plant({'removed.example' => {'org_id' => org.global_id}})
+          expect(stored_for('https://removed.example')).to eq('https://links.lingolinq.test')
+        end
+
+        it "should not trust a host whose entry points at another org" do
+          org = Organization.create(custom_domain: true)
+          org.settings['hosts'] = ['good.example']
+          org.save
+          plant({'evil.example' => {'org_id' => org.global_id}})
+          expect(stored_for('https://evil.example')).to eq('https://links.lingolinq.test')
+          plant({'evil.example' => {'org_id' => nil}, 'other.example' => {}})
+          expect(stored_for('https://evil.example')).to eq('https://links.lingolinq.test')
+          expect(stored_for('https://other.example')).to eq('https://links.lingolinq.test')
+        end
+
+        it "should not trust an org switched off through another copy in the same transaction" do
+          org = Organization.create(custom_domain: true)
+          org.settings['hosts'] = ['retired.example']
+          org.save
+          Organization.load_domains(true)
+          Organization.transaction do
+            first = Organization.find(org.id)
+            first.custom_domain = false
+            first.save
+            second = Organization.find(org.id)
+            second.settings['note'] = 'later save'
+            second.save
+          end
+          plant({'retired.example' => {'org_id' => org.global_id}})
+          expect(stored_for('https://retired.example')).to eq('https://links.lingolinq.test')
+        end
+
+        it "should trust a current domain whose case differs from a stale entry" do
+          retired = Organization.create(custom_domain: false)
+          retired.settings['hosts'] = ['Cheddar.org']
+          retired.save
+          live = Organization.create(custom_domain: true)
+          live.settings['hosts'] = ['cheddar.org']
+          live.save
+          plant({'Cheddar.org' => {'org_id' => retired.global_id}, 'cheddar.org' => {'org_id' => live.global_id}})
+          expect(stored_for('https://cheddar.org')).to eq('https://cheddar.org')
+        end
+      end
+
+      it "should not trust a custom domain when Redis cannot be reached" do
+        org = Organization.create(custom_domain: true)
+        org.settings['hosts'] = ['cheddar.org']
+        org.save
+        allow(Organization).to receive(:load_domains).and_raise(Redis::CannotConnectError)
+        expect(stored_for('https://cheddar.org')).to eq('https://links.lingolinq.test')
       end
 
       it "should not let loopback-looking hosts through outside development" do
