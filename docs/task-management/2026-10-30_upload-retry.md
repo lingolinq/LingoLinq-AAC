@@ -694,3 +694,23 @@ Requested by Traci after the click-test: fix it in #1255.
   2450, 2716); the gate then reported baseline=1549 new=0.
 - **Full Ember** (Node 22), before the tests moved to the end of the file (code unchanged since): 3894 tests, 3852
   pass, 37 skip, 5 todo, 0 fail, complete. After the move, the five tests pass in a filtered run.
+
+### Canonical review passes on the by-URL upload fix (2026-11-01)
+
+PII preflight exit 0. Both passes reviewed
+`REVIEWED=range 2a59e90a1 (2a59e90a1bd6223841932a0c60a7af7f1624142b) ... traci/fix/upload-retry (f5a6e2a7fc591bfa714c36ec907a6230d96b58a6) in /Users/traciday/Documents/GitHub/lingolinq/LingoLinq-AAC-upload-retry`.
+
+- **Senior-dev pass (`commands/review-pr.md`): approve with comments.** No Critical or High. Medium: an upload that
+  never settles would hold the URL's pending entry, so later saves of it wait. Checked: the proxy GET and the confirm
+  GET time out (utils/extras.js:186-191); the S3 POST is exempt only when its URL matches `/s3\.amazonaws/`
+  (extras.js:192-195), and the post_url observed in the click-test is the regional form
+  (`lingolinq-uploads.s3.us-west-2.amazonaws.com`), which does not match, so it takes the 20 s timeout. Bounded; not
+  changed. Lows not taken: the generic path's meta fallback (pre-existing), a `{confirmed: false}` test, single quotes
+  on the console.warn string, orphan pending records on failure (pre-existing), `upload_saved_record` mutating its
+  argument.
+- **Adversary pass (`agents/adversary.md`): ship with conditions.** No Critical or High. Mediums: a failed upload still
+  loses the picture silently, with no retry for pending records that have no data (pre-existing; not a regression);
+  every library pick now copies the picture to S3 through the proxy while `OPENSYMBOLS_S3_CDN` is unset. Low: the pick
+  waits for the upload chain (same timeout analysis as above). Conditions: observe one successful by-URL pick on
+  staging (the picture survives a reload); check production's `OPENSYMBOLS_S3_CDN` and decide whether the client copy
+  is the intended path; log the no-retry gap for failed uploads in lingolinq_mobile#3.
