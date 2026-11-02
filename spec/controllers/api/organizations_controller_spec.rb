@@ -1301,6 +1301,26 @@ describe Api::OrganizationsController, :type => :controller do
       json = JSON.parse(response.body)
       expect(json['stats']).to_not eq(nil)
     end
+
+    ['status-home_boards', 'status-recent_home_boards', 'access-home_boards', 'device-home_boards', 'vocab-home_boards', 'grid-home_boards'].each do |report_name|
+      it "should not return system-wide home board keys to a non-admin org via #{report_name}" do
+        token_user
+        o = Organization.create
+        o.add_manager(@user.user_name, false)
+        owner = User.create
+        other = User.create
+        b = Board.create(user: owner)
+        UserBoardConnection.create(user_id: owner.id, board_id: b.id, home: true)
+        UserBoardConnection.create(user_id: other.id, board_id: b.id, home: true)
+
+        get :admin_reports, params: {:organization_id => o.global_id, :report => report_name}
+        expect(response).to be_successful
+        json = JSON.parse(response.body)
+        expect(json['stats']).to eq(nil)
+        expect(json).to have_key('user')
+        expect(response.body).not_to include(b.key)
+      end
+    end
     
     it "should generate subscriptions report" do
       token_user

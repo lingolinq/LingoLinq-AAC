@@ -400,7 +400,9 @@ class Api::OrganizationsController < ApplicationController
         links = UserLink.links_for(org).select{|l| l['type'] == 'org_user'}
         stats[org.settings['name']] = links.length
       end
-    elsif params['report'].match(/home_boards/)
+    # Exact names only. An unanchored /home_boards/ match ran this system-wide
+    # census for allowlisted prefixes such as status-home_boards (#1182).
+    elsif params['report'] == 'home_boards' || params['report'] == 'recent_home_boards'
       home_connections = UserBoardConnection.where(:home => true)
       if params['report'].match(/recent/)
         home_connections = home_connections.where(['updated_at > ?', 3.months.ago])
