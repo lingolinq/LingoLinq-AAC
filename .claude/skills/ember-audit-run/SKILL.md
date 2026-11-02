@@ -59,7 +59,8 @@ Prompt each with:
   duplicating; verified-safe entries are non-findings unless the file changed after
   2026-07-09. Return the run receipt your checklist requires."
 
-Collect each finder's JSON `{domain, auditedSha, checklistToken, guardCanary, findings: [...]}` into
+Collect each finder's JSON `{domain, auditedSha, checklistToken, guardCanary, coverage, findings: [...]}` (`coverage`
+names unexamined areas, so it is never committed) into
 `/tmp/ember-finder-<slice>.json`. A finder returning findings for files outside its
 slice is fine when it followed a hit (twin files, templates); duplicates across slices
 are handled by the deterministic merge id.
