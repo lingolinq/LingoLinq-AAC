@@ -198,3 +198,26 @@ Left for Traci to decide (adversary Lows):
 - With `DEFAULT_HOST` unset in production, unknown hosts get no link host.
 - On dev's `*.run.app` address, links fall back to the staging `DEFAULT_HOST`.
 - Not taken: per-request memoising of the parsed list (performance, small today).
+
+## Third canonical round on 2abceb6e4 (2026-11-02)
+
+PII preflight exit 0. Both passes reviewed
+`REVIEWED=range origin/develop (226e476c2d7bdc03109cef83e054065c1e291811) ... traci/fix/trusted-link-host (2abceb6e497b0ae7e77fba6e6384623aa786f184) in /Users/traciday/Documents/GitHub/lingolinq/LingoLinq-AAC-trusted-host`.
+
+- **Senior-dev (`commands/review-pr.md`): approve with comments.** No Critical or High.
+  - Medium, REFUTED: "Rack 3 lets `Forwarded: host=` set the host". actionpack 7.2.3.2 `ActionDispatch::Http::URL#raw_host_with_port`
+    (`http/url.rb:216-221`) reads only `X-Forwarded-Host` or `Host`, so `ForwardedHostFilter` covers `request.host`. The
+    adversary pass reached the same result independently.
+  - Medium, not changed (performance): every save of a custom-domain org clears the list, so the next request rebuilds it
+    inline. Before this PR every such save already queued a forced rebuild. No custom domains are in use today, so the
+    cost is nil now. Narrowing the clear to changes of the flag, `hosts` or `host_settings` is a follow-up if
+    custom-domain orgs become common.
+  - Lows not taken:
+    - the broad rescue in `custom_domain_host?` logs the error class only, on purpose, so that settings or SQL never
+      reach the log;
+    - repeated saves in one transaction register repeated clears (harmless);
+    - a known host keeps the request's scheme;
+    - the `token_wait` hook could carry a comment.
+- **Adversary (`agents/adversary.md`): ship.** One Low: each request on a custom-domain host loads the org and decrypts
+  its settings (one primary-key read). Recorded; cache the confirmed result per request if custom-domain traffic becomes
+  real.
