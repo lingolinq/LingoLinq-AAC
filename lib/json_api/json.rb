@@ -77,9 +77,49 @@ module JsonApi::Json
     hosts = {}
     @@running_hosts.each{|id, h| hosts[id] = h }
     hosts.each{|id, hash| @@running_hosts.delete(id) if (hash['timestamp'] || 0) < 1.hour.ago.to_i }
-    @@running_hosts[Worker.thread_id] = {'timestamp' => Time.now.to_i, 'host' => host}
+    @@running_hosts[Worker.thread_id] = {'timestamp' => Time.now.to_i, 'host' => trusted_origin(host)}
   end
-  
+
+  # Hosts whose own origin may be used for links, besides DEFAULT_HOST and org
+  # custom domains. Anything else that arrives in the request's Host or
+  # X-Forwarded-Host falls back to DEFAULT_HOST, because emailed links (password
+  # reset, supervisor consent) carry tokens. The nonprod hosts are trusted only by
+  # a nonprod app (they share one DEFAULT_HOST, deploy-cloudrun.yml:600-603), so
+  # production never sends a token to staging or dev.
+  PROD_LINK_HOST = 'app.lingolinq.com'
+  NONPROD_LINK_HOSTS = %w[staging.lingolinq.com dev.lingolinq.com].freeze
+
+  # The origin to store for a request or job host: the configured origin of a
+  # known host, never the string the request supplied. Matching is exact on the
+  # whole host, so a known name inside a forged one (attacker.example?.app...)
+  # does not pass. The request's port is dropped. Org custom domains count as
+  # known; only the console writes settings['hosts'] (organization.rb:1660).
+  # Local development passes through, since the ember proxy forwards localhost.
+  def self.trusted_origin(value)
+    return value if Rails.env.development?
+    value = value.to_s.strip.sub(/\/+\z/, '')
+    scheme = value[/\A(https?):\/\//i, 1]&.downcase
+    host = value.sub(/\A[a-z][a-z0-9+.\-]*:\/\//i, '').sub(/:\d+\z/, '').downcase
+    default_origin = ENV['DEFAULT_HOST'].to_s.strip.sub(/\/+\z/, '')
+    default_host = default_origin.sub(/\A[a-z][a-z0-9+.\-]*:\/\//i, '')
+    default_bare = default_host.sub(/:\d+\z/, '').downcase
+    default_absolute = default_origin == default_host ? "#{url_scheme_for(default_host)}#{default_host}" : default_origin
+    if host.present? && host == default_bare
+      scheme ? "#{scheme}://#{default_host}" : default_absolute
+    elsif known_link_host?(host, default_bare)
+      "#{scheme || 'https'}://#{host}"
+    elsif default_host.present?
+      default_absolute
+    end
+  end
+
+  def self.known_link_host?(host, default_bare)
+    return false if host.blank?
+    return true if host == PROD_LINK_HOST
+    return true if NONPROD_LINK_HOSTS.include?(default_bare) && NONPROD_LINK_HOSTS.include?(host)
+    (::Organization.load_domains || {}).keys.any? { |h| h.to_s.downcase == host }
+  end
+
   def self.current_host
     @@running_hosts ||= {}
     (@@running_hosts[Worker.thread_id] || {})['host'] || ENV['DEFAULT_HOST']

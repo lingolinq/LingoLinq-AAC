@@ -57,10 +57,12 @@ describe Worker do
     end
 
     it "should load the domain override if set" do
-      JsonApi::Json.set_host("https://whatever.com:1234")
+      # A known host: set_host stores only trusted origins, so an arbitrary one
+      # would not round-trip (json.rb trusted_origin).
+      JsonApi::Json.set_host("https://app.lingolinq.com")
       Worker.schedule(User, :last)
-      expect(JsonApi::Json).to receive(:set_host).with('https://whatever.com:1234')
-      expect(JsonApi::Json).to receive(:load_domain).with('https://whatever.com:1234')
+      expect(JsonApi::Json).to receive(:set_host).with('https://app.lingolinq.com')
+      expect(JsonApi::Json).to receive(:load_domain).with('https://app.lingolinq.com')
       Worker.process_queues
     end
   end

@@ -7,8 +7,22 @@ describe ApplicationController, :type => :controller do
   
   describe "set_host" do
     it "should set the host for API responses" do
+      # The request's host is kept only when it is a known one, here DEFAULT_HOST
+      # (json.rb trusted_origin). Specs otherwise load localhost:3000 from
+      # .env.op.template.
+      prior = ENV['DEFAULT_HOST']
+      ENV['DEFAULT_HOST'] = 'test.host'
       get :index
       expect(JsonApi::Json.current_host).to eq("http://test.host")
+    ensure
+      ENV['DEFAULT_HOST'] = prior
+    end
+
+    it "should not keep a host the request supplied that is not known" do
+      request.headers['X-Forwarded-Host'] = 'attacker.example'
+      get :index
+      expect(JsonApi::Json.current_host).not_to include('attacker.example')
+      expect(JsonApi::Json.current_host).to match(/\Ahttps?:\/\//)
     end
   end
   

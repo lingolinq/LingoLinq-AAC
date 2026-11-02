@@ -116,17 +116,98 @@ describe JsonApi::Json do
 
   describe "set_host" do
     it "should set a unique host for each pid" do
+      # A nonprod DEFAULT_HOST, so both hosts below are known and stored as given.
+      prior = ENV['DEFAULT_HOST']
+      ENV['DEFAULT_HOST'] = 'dev.lingolinq.com'
       JsonApi::Json.class_variable_set(:@@running_hosts, {})
       expect(Worker).to receive(:thread_id).and_return('12345_123')
-      JsonApi::Json.set_host('bob')
+      JsonApi::Json.set_host('https://app.lingolinq.com')
       expect(Worker).to receive(:thread_id).and_return('123456_456')
-      JsonApi::Json.set_host('fred')
+      JsonApi::Json.set_host('https://staging.lingolinq.com')
       hosts = JsonApi::Json.class_variable_get(:@@running_hosts)
       expect(hosts.keys.sort).to eq(['123456_456', '12345_123'])
-      expect(hosts['12345_123']['host']).to eq('bob')
+      expect(hosts['12345_123']['host']).to eq('https://app.lingolinq.com')
       expect(hosts['12345_123']['timestamp']).to be > 10.seconds.ago.to_i
-      expect(hosts['123456_456']['host']).to eq('fred')
+      expect(hosts['123456_456']['host']).to eq('https://staging.lingolinq.com')
       expect(hosts['123456_456']['timestamp']).to be > 10.seconds.ago.to_i
+    ensure
+      ENV['DEFAULT_HOST'] = prior
+    end
+
+    describe "trusted hosts" do
+      # DEFAULT_HOST must differ from every forged value and from test.host, or a
+      # fallback and a pass-through would look the same.
+      around(:each) do |example|
+        prior = ENV['DEFAULT_HOST']
+        ENV['DEFAULT_HOST'] = 'links.lingolinq.test'
+        example.run
+      ensure
+        ENV['DEFAULT_HOST'] = prior
+      end
+
+      def stored_for(value)
+        JsonApi::Json.set_host(value)
+        JsonApi::Json.current_host
+      end
+
+      it "should store the configured origin instead of an unknown host" do
+        expect(stored_for('https://attacker.example')).to eq('https://links.lingolinq.test')
+        expect(stored_for('attacker.example')).to eq('https://links.lingolinq.test')
+        expect(stored_for('default')).to eq('https://links.lingolinq.test')
+      end
+
+      it "should not accept a known host as a suffix or prefix of a forged one" do
+        expect(stored_for('https://attacker.example?.app.lingolinq.com')).to eq('https://links.lingolinq.test')
+        expect(stored_for('https://attacker.example#.app.lingolinq.com')).to eq('https://links.lingolinq.test')
+        expect(stored_for('https://app.lingolinq.com@attacker.example')).to eq('https://links.lingolinq.test')
+        expect(stored_for('https://app.lingolinq.com.attacker.example')).to eq('https://links.lingolinq.test')
+        expect(stored_for('https://app.lingolinq.com/attacker.example')).to eq('https://links.lingolinq.test')
+        expect(stored_for('https://evil-app.lingolinq.com')).to eq('https://links.lingolinq.test')
+      end
+
+      it "should keep a known host, canonicalised" do
+        expect(stored_for('https://app.lingolinq.com')).to eq('https://app.lingolinq.com')
+        expect(stored_for('https://APP.LingoLinq.com')).to eq('https://app.lingolinq.com')
+        expect(stored_for('https://app.lingolinq.com:1')).to eq('https://app.lingolinq.com')
+        expect(stored_for('http://links.lingolinq.test')).to eq('http://links.lingolinq.test')
+      end
+
+      it "should not trust the nonprod hosts unless DEFAULT_HOST is one of them" do
+        ENV['DEFAULT_HOST'] = 'app.lingolinq.com'
+        expect(stored_for('https://dev.lingolinq.com')).to eq('https://app.lingolinq.com')
+        expect(stored_for('https://staging.lingolinq.com')).to eq('https://app.lingolinq.com')
+        ENV['DEFAULT_HOST'] = 'staging.lingolinq.com'
+        expect(stored_for('https://dev.lingolinq.com')).to eq('https://dev.lingolinq.com')
+        expect(stored_for('https://app.lingolinq.com')).to eq('https://app.lingolinq.com')
+      end
+
+      it "should trust an org custom domain only as an exact match" do
+        allow(Organization).to receive(:load_domains).and_return({'Cheddar.org' => {}})
+        expect(stored_for('https://cheddar.org')).to eq('https://cheddar.org')
+        expect(stored_for('https://evilcheddar.org')).to eq('https://links.lingolinq.test')
+        expect(stored_for('https://cheddar.org.attacker.example')).to eq('https://links.lingolinq.test')
+      end
+
+      it "should not let loopback-looking hosts through outside development" do
+        expect(stored_for('https://localhost.attacker.example')).to eq('https://links.lingolinq.test')
+        expect(stored_for('http://localhost:8184')).to eq('https://links.lingolinq.test')
+      end
+
+      it "should keep the scheme DEFAULT_HOST is configured with" do
+        ENV['DEFAULT_HOST'] = 'http://links.lingolinq.test'
+        expect(stored_for('https://attacker.example')).to eq('http://links.lingolinq.test')
+      end
+
+      it "should always store an absolute origin" do
+        ['https://attacker.example', 'default', '', nil, 'https://dev.lingolinq.com'].each do |value|
+          expect(stored_for(value)).to match(/\Ahttps?:\/\/[a-z0-9.\-]+\z/)
+        end
+      end
+
+      it "should pass the host through unchanged in development" do
+        allow(Rails.env).to receive(:development?).and_return(true)
+        expect(stored_for('http://localhost:8184')).to eq('http://localhost:8184')
+      end
     end
 
     it "should clear old hosts on set" do
