@@ -306,8 +306,9 @@ var dbman = {
         error({error: "error retrieving records from db for " + store});
       };
     } else if(dbman.db_type == 'sqlite_plugin') {
-      var handle_rows = function(rows) {
-        var list = [];
+      // Rows are parsed as each batch arrives, so earlier batches' raw strings can be freed.
+      var list = [];
+      var add_rows = function(rows) {
         rows.forEach(function(row) {
           var data = null;
           try {
@@ -322,46 +323,37 @@ var dbman = {
             }
           }
         });
+      };
+      var store_name = null;
+      if(stores[store]) { store_name = store; }
+      var where = '';
+      var args = [];
+      if(index == 'id' && key && key.forEach) {
+        where = ' WHERE ref_id IN (';
+        key.forEach(function(k, idx) {
+          where = where + '?';
+          args.push(k);
+          if(idx < key.length - 1) {
+            where = where + ',';
+          }
+        });
+        where = where + ')';
+      } else if(index == 'key' && store_name == 'board' && key && key.forEach) {
+        where = ' WHERE key_id IN (';
+        key.forEach(function(k, idx) {
+          where = where + '?';
+          args.push(k);
+          if(idx < key.length - 1) {
+            where = where + ',';
+          }
+        });
+        where = where + ')';
+      }
+      dbman.read_sqlite_rows(store_name, where, args, add_rows, function() {
         done();
         setTimeout(function() {
           success(list);
         }, 0);
-      };
-      var store_name = null;
-      if(stores[store]) { store_name = store; }
-      var query = 'SELECT * FROM ' + store_name;
-      var args = [];
-      if(index == 'id' && key && key.forEach) {
-        query = query + ' WHERE ref_id IN (';
-        key.forEach(function(k, idx) {
-          query = query + '?';
-          args.push(k);
-          if(idx < key.length - 1) {
-            query = query + ',';
-          }
-        });
-        query = query + ')';
-      } else if(index == 'key' && store_name == 'board' && key && key.forEach) {
-        query = query + ' WHERE key_id IN (';
-        key.forEach(function(k, idx) {
-          query = query + '?';
-          args.push(k);
-          if(idx < key.length - 1) {
-            query = query + ',';
-          }
-        });
-        query = query + ')';
-      }
-      dbman.db.executeSql(query, args, function(result_set) {
-        // process and return the resulting list
-        var list = [];
-        if(result_set.rows && result_set.rows.length) {
-          for(var idx = 0; idx < result_set.rows.length; idx++) {
-            var row = result_set.rows.item(idx);
-            list.push(row);
-          }
-        }
-        handle_rows(list);
       }, function(err) {
         done();
         error({error: err.message});
@@ -370,6 +362,91 @@ var dbman = {
       done();
       error({error: "unrecognized db_type, " + dbman.db_type});
     }
+  },
+  // A native sqlite call hands back its whole result as one string, which the Capacitor plugin
+  // builds in the Java heap: one whole-table read of a 153 MB board table killed the Android app
+  // on every launch (lingolinq_mobile#3). So the rows matching `where` are read in batches of at
+  // most read_budget characters of data and ids_per_batch ids, and a row longer than the budget
+  // is read in substr() pieces and joined. Unlike the single SELECT this replaces, the batches are
+  // not one snapshot: a row written between batches comes back as it is when its batch runs, and
+  // an oversized row comes back whole, as it was or as it became (see below).
+  read_budget: 4000000,
+  ids_per_batch: 500,
+  read_sqlite_rows: function(store_name, where, args, each_batch, finished, failed) {
+    var rows_of = function(result_set) {
+      var rows = [];
+      if(result_set.rows && result_set.rows.length) {
+        for(var idx = 0; idx < result_set.rows.length; idx++) {
+          rows.push(result_set.rows.item(idx));
+        }
+      }
+      return rows;
+    };
+    dbman.db.executeSql('SELECT id, length(data) AS len FROM ' + store_name + where, args, function(result_set) {
+      var budget = dbman.read_budget;
+      var steps = [];
+      var batch = [], batch_len = 0;
+      rows_of(result_set).forEach(function(row) {
+        var len = row.len || 0;
+        if(len > budget) {
+          steps.push({id: row.id, len: len});
+          return;
+        }
+        if(batch.length > 0 && (batch_len + len > budget || batch.length >= dbman.ids_per_batch)) {
+          steps.push({ids: batch});
+          batch = [];
+          batch_len = 0;
+        }
+        batch.push(row.id);
+        batch_len = batch_len + len;
+      });
+      if(batch.length > 0) { steps.push({ids: batch}); }
+      var next = function() {
+        var step = steps.shift();
+        if(!step) { return finished(); }
+        if(step.ids) {
+          var marks = step.ids.map(function() { return '?'; }).join(',');
+          dbman.db.executeSql('SELECT * FROM ' + store_name + ' WHERE id IN (' + marks + ')', step.ids, function(result_set) {
+            each_batch(rows_of(result_set));
+            next();
+          }, failed);
+        } else {
+          // The pieces of one row are read in one transaction, which keeps every other call (a
+          // sync storing this row) out until they are done (the shell's bridge runs one call or
+          // transaction at a time). It measures the row again first: a length that changed since
+          // the size query means the pieces were cut for the old row, so it is read again. The
+          // memory bound holds because that bridge runs each statement of a transaction as its
+          // own native call; a plugin that returned a whole transaction as one result would not.
+          var read_row = function(len, tries) {
+            var current_len = null, parts = [];
+            dbman.db.transaction(function(tx) {
+              tx.executeSql('SELECT id, length(data) AS len FROM ' + store_name + ' WHERE id IN (?)', [step.id], function(tx, result_set) {
+                var rows = rows_of(result_set);
+                current_len = rows.length ? (rows[0].len || 0) : -1;
+              });
+              for(var start = 1; start <= len; start = start + budget) {
+                tx.executeSql('SELECT substr(data, ?, ?) AS part FROM ' + store_name + ' WHERE id = ?', [start, budget, step.id], function(tx, result_set) {
+                  var rows = rows_of(result_set);
+                  parts.push(rows.length ? (rows[0].part || '') : '');
+                });
+              }
+            }, failed, function() {
+              // Removed since the size query: nothing to return.
+              if(current_len === -1) { return next(); }
+              if(current_len !== len) {
+                if(tries < 3) { return read_row(current_len, tries + 1); }
+                console.warn('dbman: ' + store_name + ' row ' + step.id + ' kept changing while it was read, skipped');
+                return next();
+              }
+              each_batch([{id: step.id, data: parts.join('')}]);
+              next();
+            });
+          };
+          read_row(step.len, 1);
+        }
+      };
+      next();
+    }, failed);
   },
   store_internal: function(store, record, success, error) {
     var done = log_timing('store', store, record);

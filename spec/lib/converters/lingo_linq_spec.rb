@@ -1648,6 +1648,62 @@ describe Converters::LingoLinq do
     it "should support known boards"
   end
 
+  # An import on a deployed surface without S3 (the migrate Jobs) used to finish with every picture
+  # embedded in the database instead of uploaded (lingolinq_mobile#3). It must refuse before it
+  # creates anything, since a nested import creates every board before its first picture.
+  # spec_helper fakes S3 as configured when AWS_SECRET is blank, so these set both sides.
+  describe "without S3 configured" do
+    let(:production) { ActiveSupport::StringInquirer.new('production') }
+    let(:content) do
+      {
+        'boards' => [
+          {'id' => 'a', 'name' => 'first', 'buttons' => [{'id' => 1, 'label' => 'cheese', 'image_id' => 'i1', 'load_board' => {'id' => 'b'}}], 'grid' => {'rows' => 1, 'columns' => 1, 'order' => [[1]]}},
+          {'id' => 'b', 'name' => 'second', 'buttons' => [{'id' => 1, 'label' => 'dirt'}], 'grid' => {'rows' => 1, 'columns' => 1, 'order' => [[1]]}}
+        ],
+        'images' => [{'id' => 'i1', 'data' => "data:image/webp;base64,UklGRjIAAABXRUJQVlA4ICYAAACyAgCdASoCAAEALmk0mk0iIiIiIgBoSygABc6zbAAA/v56QAAAAA==", 'content_type' => 'image/webp', 'width' => 2, 'height' => 1}],
+        'sounds' => []
+      }
+    end
+    before { allow(Uploader).to receive(:client_uploads_configured?).and_return(false) }
+
+    it "refuses a nested import in a deployed environment before creating any board or picture" do
+      u = User.create(:user_name => 'alfonso')
+      allow(Rails).to receive(:env).and_return(production)
+      boards = Board.count
+      images = ButtonImage.count
+      expect(Typhoeus).not_to receive(:post)
+      expect { Converters::LingoLinq.from_external_nested(content, {'user' => u}) }.to raise_error(Uploader::RemoteCredentialsMissing)
+      expect(Board.count).to eq(boards)
+      expect(ButtonImage.count).to eq(images)
+    end
+
+    it "refuses a single-board import in a deployed environment before creating it" do
+      u = User.create
+      allow(Rails).to receive(:env).and_return(production)
+      boards = Board.count
+      expect(Typhoeus).not_to receive(:post)
+      expect { Converters::LingoLinq.from_external(content['boards'][1].merge('images' => content['images']), {'user' => u}) }.to raise_error(Uploader::RemoteCredentialsMissing)
+      expect(Board.count).to eq(boards)
+    end
+
+    it "still imports in development and test" do
+      u = User.create(:user_name => 'alfonso')
+      allow(Typhoeus).to receive(:post).and_return(OpenStruct.new(success?: false))
+      Converters::LingoLinq.from_external_nested(content, {'user' => u})
+      expect(Board.count).to eq(2)
+    end
+
+    it "imports in a deployed environment that has S3" do
+      u = User.create(:user_name => 'alfonso')
+      allow(Uploader).to receive(:client_uploads_configured?).and_return(true)
+      allow(Rails).to receive(:env).and_return(production)
+      content['boards'][0]['buttons'][0].delete('image_id')
+      content['images'] = []
+      Converters::LingoLinq.from_external_nested(content, {'user' => u})
+      expect(Board.count).to eq(2)
+    end
+  end
+
   describe "from_external_nested" do
     it "should parse" do
       u = User.create(:user_name => 'alfonso')

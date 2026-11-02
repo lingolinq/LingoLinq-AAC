@@ -172,7 +172,7 @@ the window, revert to it.
 | Default step | Why it exists | Clean-DB action |
 |---|---|---|
 | 2. Fresh `pg_dump` | capture real prod data | **DROP** - nothing to capture |
-| 3. Restore -> Cloud SQL | move real data | **REPLACE** with a fresh `db:schema:load` + `db:seed` in the migrate Job |
+| 3. Restore -> Cloud SQL | move real data | **REPLACE** with a fresh `db:schema:load` + `db:seed` in the migrate Job (the seed with the app's full env, see the clean-DB rehearsal 3b) |
 | S1 `phase4-setval-sequences` | realign PK sequences after a data restore (global_id uses raw PKs) | **DROP** - a fresh schema sets sequences correctly; nothing to realign |
 | 7. `phase5-delta-check.sh` | catch a writer that slipped the freeze | **DROP** - no source DB to reconcile against |
 | 1. write-freeze accepted-loss analysis (offline replay, `saml/consume` linkage, last-writer-wins, SNS/Stripe/SMS drop) | avoid losing in-flight real writes during the window | **Accepted-loss sign-off not needed** (no real writers/users) - BUT keep building `WRITE_FREEZE` and **toggle it on at DNS time**: it is still the cheap guard against split-brain on the seeded `lingolinq_admin`/`lingolinq` accounts (which exist on BOTH DBs) when a DNS-stale client hits the old Render IP during TTL propagation. Do NOT read "no data to protect" as "drop the build." |

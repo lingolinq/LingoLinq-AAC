@@ -21,6 +21,16 @@ let appStateService;
 let stashesService;
 let persistenceService;
 
+// Whether the user may change an image, from what the server sent: 'editable' when
+// permissions.edit is true; 'not_editable' when it sent permissions without that (permissable
+// writes only granted actions, so someone who cannot edit gets {user_id, view: true});
+// 'unknown' when there are none (images loaded with a board, records not yet saved).
+var image_edit_state = function(img) {
+  var permissions = img.get('permissions');
+  if(!permissions) { return 'unknown'; }
+  return permissions.edit === true ? 'editable' : 'not_editable';
+};
+
 var contentGrabbers = Service.extend({
   appState: service('app-state'),
   stashes: service('stashes'),
@@ -158,12 +168,21 @@ var contentGrabbers = Service.extend({
         pendingMap[normalized_url] = deferred.promise;
         pendingRecordMap[normalized_url] = object;
 
-        // Already-saved record with same URL: use it (no need to save again)
+        // Already-saved record with same URL: use it (no need to save again). When this record
+        // keeps its picture, only one the user can edit, or one of unknown ownership that keeps
+        // its picture too: the server ignores changes from someone who cannot edit a record, and
+        // board-loaded images carry no permissions (copy-on-write, save_image_preview).
+        var keeps_source = !!object.get('preserve_source_image');
+        var can_share = function(img) {
+          if(!keeps_source) { return true; }
+          var state = image_edit_state(img);
+          return state === 'editable' || (state === 'unknown' && !!img.get('preserve_source_image'));
+        };
         var existing_saved = LingoLinq.store.peekAll('image').find(function(img) {
           var img_url = img.get('url');
           return img_url && persistenceService.normalize_url(img_url) === normalized_url &&
                  !img.get('isNew') && !img.get('isDeleted') &&
-                 img.get('id') !== object.get('id');
+                 img.get('id') !== object.get('id') && can_share(img);
         });
 
         if(existing_saved) {
@@ -177,13 +196,28 @@ var contentGrabbers = Service.extend({
           return;
         }
 
-        // We're the first for this URL: save and resolve when done
+        // We're the first for this URL: save and resolve when done. The same-URL waiters handle
+        // a rejection; without any, this keeps it from reaching RSVP's error hook.
+        deferred.promise.then(null, function() { });
 
         object.save().then(function(saved) {
-          delete pendingMap[normalized_url];
-          delete pendingRecordMap[normalized_url];
-          deferred.resolve(saved);
-          resolve(saved);
+          // A picture picked by URL is created pending, with an upload form for this record,
+          // unless the server already stores that URL (Uploader.valid_remote_url?). Only this
+          // record's own form: the time-windowed meta below may be another create's. A failed
+          // upload leaves the record pending rather than failing the save, which offline sync
+          // would retry by creating another record (persistence.js sync, save_record).
+          var _take = window.lingoLinqExtras && window.lingoLinqExtras.upload_params_take;
+          var remote_upload = _take ? _take(saved.get('id')) : null;
+          var uploaded = !remote_upload ? RSVP.resolve(saved) : _this.upload_saved_record(saved, remote_upload, original_url).then(null, function(err) {
+            console.warn("image upload failed, left pending", saved.get('id'), err);
+            return saved;
+          });
+          return uploaded.then(function(saved) {
+            delete pendingMap[normalized_url];
+            delete pendingRecordMap[normalized_url];
+            deferred.resolve(saved);
+            resolve(saved);
+          });
         }, function(err) {
           delete pendingMap[normalized_url];
           delete pendingRecordMap[normalized_url];
@@ -218,31 +252,7 @@ var contentGrabbers = Service.extend({
           var _rup = _take ? _take(object.get('id')) : null;
           var meta = _rup ? {remote_upload: _rup} : (object.get('pending') ? persistenceService.meta(object.constructor.modelName, null) : null);
         if(meta && meta.remote_upload) {
-          // upload to S3
-          var get_data_url = RSVP.resolve(object.get('data_url'));
-          if(!object.get('data_url') && original_url) {
-            get_data_url = persistenceService.ajax('/api/v1/search/proxy?url=' + encodeURIComponent(original_url), { type: 'GET'
-            }).then(function(data) {
-              return data.data;
-            });
-          }
-          get_data_url.then(function(data_url) {
-            meta.remote_upload.data_url = data_url;
-            meta.remote_upload.blob = object.get('blob');
-            return _this.upload_to_remote(meta.remote_upload).then(function(data) {
-              if(data.confirmed) {
-                object.set('url', data.url);
-                object.set('pending', false);
-                resolve(object);
-              } else {
-                reject({error: "upload not confirmed"});
-              }
-            }, function(err) {
-              reject(err);
-            });
-          }, function(err) {
-            reject(err);
-          });
+          _this.upload_saved_record(object, meta.remote_upload, original_url).then(resolve, reject);
         } else if(object.get('pending')) {
           // Server flagged pending but handed us no upload params to work with.
           return reject({error: 'remote_upload parameters required'});
@@ -252,6 +262,31 @@ var contentGrabbers = Service.extend({
       }, function(err) { reject({error: "record failed to save", ref: err}); });
     });
     return promise;
+  },
+  // Uploads a just-created record's picture to S3 with the form the server sent for it, from its
+  // data URL or else fetched through the proxy from original_url; resolves with the record.
+  upload_saved_record: function(object, remote_upload, original_url) {
+    var _this = this;
+    var get_data_url = RSVP.resolve(object.get('data_url'));
+    if(!object.get('data_url') && original_url) {
+      get_data_url = persistenceService.ajax('/api/v1/search/proxy?url=' + encodeURIComponent(original_url), { type: 'GET'
+      }).then(function(data) {
+        return data.data;
+      });
+    }
+    return get_data_url.then(function(data_url) {
+      remote_upload.data_url = data_url;
+      remote_upload.blob = object.get('blob');
+      return _this.upload_to_remote(remote_upload).then(function(data) {
+        if(data.confirmed) {
+          object.set('url', data.url);
+          object.set('pending', false);
+          return object;
+        } else {
+          return RSVP.reject({error: "upload not confirmed"});
+        }
+      });
+    });
   },
   upload_to_remote: function(params, extra) {
     var _this = this;
@@ -1498,13 +1533,46 @@ var pictureGrabber = EmberObject.extend({
         return pendingMap[normalized_url];
       }
 
-      // Check if an image with this URL already exists (saved or in-flight)
-      var existing_image = forceNewRecord ? null : LingoLinq.store.peekAll('image').find(function(img) {
+      var save_new_image = function() {
+        var image = LingoLinq.store.createRecord('image', {
+          url: normalized_url,
+          content_type: window.cg.inferImageContentType(normalized_url, preview.content_type, force_content_type),
+          width: data.width,
+          height: data.height,
+          hc: preview.hc,
+          external_id: preview.external_id,
+          search_term: preview.search_term,
+          button_label: label || preview.suggestion,
+          preserve_source_image: true,
+          license: _this.normalize_preview_license(preview),
+          protected: preview.protected,
+          protected_source: preview.protected_source,
+          finding_user_name: preview.finding_user_name
+        });
+        return window.cg.save_record(image);
+      };
+
+      // Check if an image with this URL already exists (saved or in-flight), preferring one the
+      // user can edit, then one of unknown ownership, then one they cannot edit, and last a
+      // placeholder made to show a button's picture before its record loads (utils/button.js)
+      var matching_images = forceNewRecord ? [] : LingoLinq.store.peekAll('image').filter(function(img) {
         if(img.get('isDeleted')) { return false; }
         var img_url = img.get('url');
         if(!img_url || persistenceService.normalize_url(img_url) !== normalized_url) { return false; }
         return true;
       });
+      var existing_image = matching_images.find(function(img) { return image_edit_state(img) === 'editable'; }) ||
+        matching_images.find(function(img) { return image_edit_state(img) === 'unknown' && !img.get('incomplete'); }) ||
+        matching_images.find(function(img) { return image_edit_state(img) === 'not_editable'; }) ||
+        matching_images[0];
+
+      // The server ignores changes from someone who cannot edit an image (a library picture, or
+      // another user's; images_controller#update), so their "keep my chosen picture" goes on a
+      // record they own (copy-on-write). Decided from the permissions the server sent, never from
+      // preserve_source_image alone: the server omits that key when false (json_api/image.rb).
+      if(existing_image && !existing_image.get('isNew') && image_edit_state(existing_image) === 'not_editable') {
+        return existing_image.get('preserve_source_image') ? RSVP.resolve(existing_image) : save_new_image();
+      }
 
       if(existing_image) {
         if(!existing_image.get('preserve_source_image')) {
@@ -1526,8 +1594,19 @@ var pictureGrabber = EmberObject.extend({
           existing_image.set('license', preview.license);
         }
         var dirtyAttrs = existing_image.changedAttributes && existing_image.changedAttributes();
+        // whether this save sends a preserve_source_image the server has not stored: set by this
+        // pick, or left unsaved by an earlier one whose update failed
+        var sends_preserve = !!(dirtyAttrs && dirtyAttrs.preserve_source_image);
         if(existing_image.get('hasDirtyAttributes') && !(dirtyAttrs && dirtyAttrs.url && !existing_image.get('isNew'))) {
           return existing_image.save().then(function() {
+            if(image_edit_state(existing_image) === 'not_editable') {
+              // A refused update answers without preserve_source_image, so the record would keep
+              // the value sent and a later pick would reuse it as if the server had stored it
+              if(sends_preserve) {
+                LingoLinq.store.push({data: {id: existing_image.get('id'), type: 'image', attributes: {preserve_source_image: false}}});
+              }
+              return save_new_image();
+            }
             return existing_image;
           });
         }
@@ -1538,22 +1617,7 @@ var pictureGrabber = EmberObject.extend({
         }
       }
 
-      var image = LingoLinq.store.createRecord('image', {
-        url: normalized_url,
-        content_type: window.cg.inferImageContentType(normalized_url, preview.content_type, force_content_type),
-        width: data.width,
-        height: data.height,
-        hc: preview.hc,
-        external_id: preview.external_id,
-        search_term: preview.search_term,
-        button_label: label || preview.suggestion,
-        preserve_source_image: true,
-        license: _this.normalize_preview_license(preview),
-        protected: preview.protected,
-        protected_source: preview.protected_source,
-        finding_user_name: preview.finding_user_name
-      });
-      return window.cg.save_record(image);
+      return save_new_image();
     });
     return save_image;
   },
