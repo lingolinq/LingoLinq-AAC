@@ -151,3 +151,50 @@ through an independent read-only review before editing.
 - **Adversary Low, for Traci to decide.** On dev's `*.run.app` address, links fall back to the shared nonprod
   DEFAULT_HOST (staging), while `docs/INFRASTRUCTURE.md` calls that address valid for normal use. Options: allow the
   service's own run.app host through configuration, or document run.app as non-interactive only.
+
+## v3: the branding and COPPA cache follows the change (second canonical round on 7ff9bef1a)
+
+Senior-dev: approve with comments. Adversary: ship with conditions. No Critical or High. Both found the same Medium,
+verified here: `load_domain` serves branding, email templates and the per-host `coppa_parental_consent` override
+from the cached list, and two paths could leave that list stale for up to 72 hours. That corrects v2's known-limits line,
+which said the staleness was bounded by the commit-time clear.
+
+- **Two in-memory copies.** Rails 7.2 runs a record's after_commit on one copy per transaction, and the second copy's
+  flag was false.
+- **A racing rebuild.** A rebuild that read the rows before the commit can write them back after the clear. v2 had
+  removed the queued rebuild that used to correct this.
+
+Fix:
+
+- `note_domain_list_change` registers `ActiveRecord.after_all_transactions_commit { Organization.forget_domains }`
+  (Rails 7.2: runs once the outermost transaction commits, at once when none is open, never on rollback). The instance
+  flag and `after_commit :forget_domain_list` are removed.
+- `forget_domains` deletes the list and schedules `load_domains(true)` as the backstop for a stale write.
+- A Redis error there is logged, not raised: the change has committed, and the cache no longer decides trust.
+
+Tests, red on 7ff9bef1a: the list is cleared when a second copy saves in the same transaction; the scheduled rebuild
+replaces a stale write; a committed save does not fail when the list cannot be cleared.
+
+Mutations:
+
+| Mutation | Red |
+|---|---|
+| Clear at save time | 1 (commit timing) |
+| No backstop rebuild | 1 |
+| No rescue | 1 |
+
+Wider set: 2937 examples, 4 failures, the same four as at the unchanged PR head (three `vendor.js` page renders, the
+local AuditEvent example).
+
+Remaining limits:
+
+- **Rebuild race.** A stale write from a racing rebuild lasts until the backstop job runs, which is seconds while the
+  queue is healthy.
+- **Redis outage.** During an outage `load_domain` still raises in the next before_action, as on develop.
+
+Left for Traci to decide (adversary Lows):
+
+- `app.lingolinq.com` is trusted in every deployment, including forks and self-hosted installs.
+- With `DEFAULT_HOST` unset in production, unknown hosts get no link host.
+- On dev's `*.run.app` address, links fall back to the staging `DEFAULT_HOST`.
+- Not taken: per-request memoising of the parsed list (performance, small today).
