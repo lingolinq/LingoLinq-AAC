@@ -8,7 +8,10 @@ class Organization < ApplicationRecord
   secure_serialize :settings
   before_save :generate_defaults
   after_save :touch_parent
+  after_save :note_domain_list_change
   after_destroy :schedule_destroyed_org_cleanup
+  after_destroy :note_domain_list_change
+  after_commit :forget_domain_list
   has_many :licenses
   include Replicate
 
@@ -987,7 +990,6 @@ class Organization < ApplicationRecord
   end
   
   def touch_parent
-    Organization.schedule(:load_domains, true) if self.custom_domain
     return unless self.parent_organization_id
     Organization.where(id: self.parent_organization_id).update_all(updated_at: Time.now)
     true
@@ -1652,22 +1654,60 @@ class Organization < ApplicationRecord
     res
   end
 
+  DOMAIN_LIST_KEY = 'domain_org_ids'
+  DOMAIN_LIST_GENERATION_KEY = 'domain_org_ids_generation'
+  DOMAIN_LIST_TTL = 72.hours.to_i
+
+  # The custom domain list is the trust source for links the app builds
+  # (JsonApi::Json.known_link_host?), so a saved or destroyed org that has or had custom domains
+  # clears it when the change commits. Noted at save time, so a later save in the same
+  # transaction cannot hide a switch-off.
+  def note_domain_list_change
+    @domain_list_changed = true if self.custom_domain || self.custom_domain_before_last_save
+    true
+  end
+
+  def forget_domain_list
+    return unless @domain_list_changed
+    @domain_list_changed = false
+    RedisInit.default.incr(DOMAIN_LIST_GENERATION_KEY)
+    RedisInit.default.del(DOMAIN_LIST_KEY)
+  end
+
   def self.load_domains(force=false)
-    domains = JSON.parse(RedisInit.default.get('domain_org_ids')) rescue nil
+    domains = JSON.parse(RedisInit.default.get(DOMAIN_LIST_KEY)) rescue nil
     if !domains || force
-      domains = {}
-      Organization.where(custom_domain: true).order('id ASC').each do |org|
-        (org.settings['hosts'] || []).each do |host|
-          if !domains[host]
-            domains[host] = (org.settings['host_settings'] || {}).dup
-            domains[host]['org_id'] = org.global_id
-            if org.settings['email_templates'].is_a?(Hash)
-              domains[host]['email_templates'] = org.settings['email_templates']
+      # WATCH the generation before reading the rows: a change that commits before the write bumps
+      # it (forget_domain_list) and the write is dropped, so a rebuild that read the rows before a
+      # change cannot put the old list back. Not the list key: deleting a missing key changes
+      # nothing. WATCH runs on the underlying client, which does not add the namespace inside its
+      # block, so the keys carry it here.
+      redis = RedisInit.default
+      list_key = "#{redis.namespace}:#{DOMAIN_LIST_KEY}"
+      generation_key = "#{redis.namespace}:#{DOMAIN_LIST_GENERATION_KEY}"
+      redis.redis.watch(generation_key) do |client|
+        domains = {}
+        Organization.where(custom_domain: true).order('id ASC').each do |org|
+          (org.settings['hosts'] || []).each do |host|
+            if !domains[host]
+              domains[host] = (org.settings['host_settings'] || {}).dup
+              domains[host]['org_id'] = org.global_id
+              if org.settings['email_templates'].is_a?(Hash)
+                domains[host]['email_templates'] = org.settings['email_templates']
+              end
             end
           end
         end
+        if ENV['STOP_CACHING']
+          client.unwatch
+        else
+          begin
+            client.multi { |tx| tx.setex(list_key, DOMAIN_LIST_TTL, domains.to_json) }
+          rescue Redis::CommandError => e
+            raise e unless e.to_s.match(/OOM/)
+          end
+        end
       end
-      Permissions.setex(RedisInit.default, 'domain_org_ids', 72.hours.from_now.to_i, domains.to_json)
     end
     domains
   end

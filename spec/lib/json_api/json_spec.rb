@@ -188,6 +188,28 @@ describe JsonApi::Json do
         expect(stored_for('https://cheddar.org.attacker.example')).to eq('https://links.lingolinq.test')
       end
 
+      it "should stop trusting an org custom domain once the org turns it off" do
+        org = Organization.create(custom_domain: true)
+        org.settings['hosts'] = ['retired.example']
+        org.save
+        Organization.load_domains(true)
+        expect(stored_for('https://retired.example')).to eq('https://retired.example')
+        org.custom_domain = false
+        org.save
+        expect(stored_for('https://retired.example')).to eq('https://links.lingolinq.test')
+      end
+
+      it "should not restore a retired custom domain for a background job" do
+        org = Organization.create(custom_domain: true)
+        org.settings['hosts'] = ['retired.example']
+        org.save
+        Organization.load_domains(true)
+        org.custom_domain = false
+        org.save
+        Worker.set_domain_id('https://retired.example')
+        expect(JsonApi::Json.current_host).to eq('https://links.lingolinq.test')
+      end
+
       it "should not let loopback-looking hosts through outside development" do
         expect(stored_for('https://localhost.attacker.example')).to eq('https://links.lingolinq.test')
         expect(stored_for('http://localhost:8184')).to eq('https://links.lingolinq.test')
