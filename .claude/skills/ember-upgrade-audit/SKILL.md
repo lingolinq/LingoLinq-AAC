@@ -221,3 +221,10 @@ ruleKey prefixes by class: `arr-ext-*` (1), `each-stale-*` (2), `tpl-thisx-*` (3
 `modal-opening-*` (4), `removed-api-*` (5), `ed-store-inject-*` (6), `ed-*` (7),
 `async-observer-*` (8), `build-*` (9), `test-gap-*` (10), `twoway-bind-*` (11),
 `runtime-*` (crawler).
+
+## Run receipt (required)
+Your top-level output JSON must also carry these two keys. The orchestrator's fan-out gate
+(`scripts/audit-fanout-gate.rb`, finding LL-c667ec15e3) refuses the whole run without them.
+- `"checklistToken": "ember-upgrade-audit-ck1"` is named only in this checklist. Copy it from here; never search for it.
+- `"guardCanary": "denied"`: make `mktemp --dry-run` your FIRST Bash call. It creates nothing and the
+  read-only guard should deny it. Report `"denied"` only if it was denied; otherwise report `"ran"`.

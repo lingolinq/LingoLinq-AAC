@@ -247,9 +247,10 @@ since a pushed branch is published whether or not it merges.
 ## Audit and compliance system
 
 `/audit-run` (user-only skill) stamps the audited SHA, fans out six read-only finder
-agents in parallel (`.claude/agents/*-auditor.md`, each preloading its
+agents in parallel as unnamed subagents (`.claude/agents/*-auditor.md`, each preloading its
 `.claude/skills/<domain>-audit` checklist and guarded by
-`.claude/hooks/audit-readonly-guard.sh`), reconciles into `audit-reports/FINDINGS.json`
+`.claude/hooks/audit-readonly-guard.sh`), stops before merging unless
+`scripts/audit-fanout-gate.rb` passes, reconciles into `audit-reports/FINDINGS.json`
 via `scripts/audit-merge.rb`, runs the `adversary` agent as verifier, and validates with
 `scripts/citation-check.rb`. `/ember-audit-run` does the same for upgrade regressions
 into the separate `audit-reports/ember-upgrade/FINDINGS-EMBER.json`. Headline is the

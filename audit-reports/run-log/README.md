@@ -5,9 +5,14 @@ by privacy posture:
 
 | File | Tracked? | Written by | Contents |
 |---|---|---|---|
-| `runs.jsonl` | **committed** | the `/audit-run` orchestrator (step 7) | one summary line per run: timestamp, audited SHA/ref, run type (full/light), finder set, new/reseen/regression/skipped counts, new finding IDs, adversary verdict tally, citation-check status, open Critical/High headline |
-| `examined-<sha8>.jsonl` | **gitignored (local)** | the `audit-run-logger.sh` PostToolUse hook, wired per-finder | one line per examined path/command: `{ts, sha, agent, tool, path\|glob\|cmd}` |
+| `runs.jsonl` | **committed** | the `/audit-run` orchestrator (step 7) | one summary line per run: timestamp, audited SHA/ref, run type (full/light), finder set, `finderGate` result, new/reseen/regression/skipped counts, new finding IDs, adversary verdict tally, citation-check status, open Critical/High headline |
+| `examined-<sha8>.jsonl` | **gitignored (local)** | the `audit-run-logger.sh` PostToolUse hook, wired per-finder | one line per examined path/command: `{ts, sha, agent, agent_id, tool, path\|glob\|cmd}` |
 | `logger-errors.jsonl` | gitignored (local) | the logger hook on internal error | `{ts, agent, error}` markers only, never raw input |
+
+`scripts/audit-fanout-gate.rb` reads `examined-<sha8>.jsonl` before each merge. It refuses a fan-out
+unless the current run's lines hold one distinct `agent_id` per finder output, and the runbook then
+stops, so a missing log is a stop, not a gap to note later. `agent_id` is the opaque runtime id of one
+spawn, taken from the hook event.
 
 ## What the per-tool log captures (and what it must never)
 

@@ -149,20 +149,16 @@ describe Api::CallbacksController, :type => :controller do
           expect(job_args[:user_metadata]['audio_id']).to eq(bs.global_id)
           expect(job_args[:settings][:inputs][0][:file_input]).to eq("s3://lingolinq-test-uploads/sounds/4/3/0-something.wav")
           job.user_metadata = job_args[:user_metadata].with_indifferent_access
-          job.output_group_details = [
-            OpenStruct.new({
-              output_details: [
-                OpenStruct.new({
-                  duration_in_ms: 111_000,
-                  output_file_paths: ["s3://lingolinq-test-uploads/#{prefix}.mp3"]
-                }),
-                OpenStruct.new({
-                  duration_in_ms: 111_000,
-                  output_file_paths: ["s3://lingolinq-test-uploads/#{prefix}.wav"]
-                })
-              ]
-            })
-          ]
+          job.status = 'COMPLETE'
+          # GetJob echoes the destination the job was submitted with; the output
+          # paths themselves arrive in the COMPLETE event below.
+          destination = job_args[:settings][:output_groups][0][:output_group_settings][:file_group_settings][:destination]
+          expect(destination).to eq("s3://lingolinq-test-uploads/#{File.dirname(prefix)}/")
+          job.settings = OpenStruct.new(output_groups: [
+            OpenStruct.new(output_group_settings: OpenStruct.new(
+              file_group_settings: OpenStruct.new(destination: destination)
+            ))
+          ])
         }.and_return(resp)
 
         expect(config).to receive(:get_job).with({id: 'onetwo'}).and_return(resp)
@@ -180,7 +176,14 @@ describe Api::CallbacksController, :type => :controller do
           'source' => 'aws.mediaconvert',
           'detail' => {
             'jobId' => 'onetwo',
-            'status' => 'COMPLETE'
+            'status' => 'COMPLETE',
+            'outputGroupDetails' => [{
+              'type' => 'FILE_GROUP',
+              'outputDetails' => [
+                {'outputFilePaths' => ["s3://lingolinq-test-uploads/#{prefix}.mp3"], 'durationInMs' => 111_000},
+                {'outputFilePaths' => ["s3://lingolinq-test-uploads/#{prefix}.wav"], 'durationInMs' => 111_000}
+              ]
+            }]
           }
         }.to_json }.to_json
         expect(response).to be_successful
@@ -203,6 +206,19 @@ describe Api::CallbacksController, :type => :controller do
         expect(response).to be_successful
         json = JSON.parse(response.body)
         expect(json).to eq({'handled' => true})
+      end
+
+      it "should answer 503 so SNS redelivers when GetJob has not caught up with the event" do
+        v = OpenStruct.new
+        expect(Aws::SNS::MessageVerifier).to receive(:new).and_return(v)
+        expect(v).to receive(:authentic?).and_return(true)
+        expect(Transcoder).to receive(:handle_event).and_return(:retry)
+        request.headers['x-amz-sns-message-type'] = 'Notification'
+        request.headers['x-amz-sns-topic-arn'] = 'arn:aws:sns:us-west-2:123:lingolinq-mediaconvert-events'
+        post 'callback', body: {a: '1'}.to_json
+        expect(response.status).to eq(503)
+        json = JSON.parse(response.body)
+        expect(json['error']).to eq('job not complete yet')
       end
     end
 
@@ -244,6 +260,173 @@ describe Api::CallbacksController, :type => :controller do
         json = JSON.parse(response.body)
         expect(json).to eq({'handled' => true})
         # process_inbound
+      end
+    end
+
+    # Cloud Run ships every log line to Cloud Logging, and the upload buckets are public-read, so a
+    # logged S3 key is a working link to a recording. The 128-hex digest is the secret part of a key.
+    describe "logging" do
+      let(:io) { StringIO.new }
+      let(:digest) { 'e' * 128 }
+      let(:transcoding_key) { 'feedfacecafebeef00112233' }
+      let(:key) { "sounds/1/7/1_17_0123456789abcdef01234567-#{digest}v1789854837" }
+
+      around(:each) do |example|
+        original = Rails.logger
+        Rails.logger = Logger.new(io)
+        example.run
+      ensure
+        Rails.logger = original
+      end
+
+      def authentic!(result=true)
+        v = OpenStruct.new
+        expect(Aws::SNS::MessageVerifier).to receive(:new).and_return(v)
+        expect(v).to receive(:authentic?).and_return(result)
+      end
+
+      def mediaconvert_event(detail)
+        request.headers['x-amz-sns-message-type'] = 'Notification'
+        request.headers['x-amz-sns-topic-arn'] = 'arn:aws:sns:us-west-2:123:lingolinq-mediaconvert-nonprod'
+        {'Type' => 'Notification', 'MessageId' => '6b2d8a51-1c2e-5b0f-9d1a-2f3e4d5c6b7a', 'Message' => {
+          'detail-type' => 'MediaConvert Job State Change', 'source' => 'aws.mediaconvert', 'detail' => detail
+        }.to_json}.to_json
+      end
+
+      def complete_detail
+        {'jobId' => '1789855178463-xw2g13', 'status' => 'COMPLETE',
+          'userMetadata' => {'audio_id' => '1_17_0123456789abcdef01234567', 'conversion_type' => 'audio', 'transcoding_key' => transcoding_key},
+          'outputGroupDetails' => [{'type' => 'FILE_GROUP', 'outputDetails' => [
+            {'outputFilePaths' => ["s3://lingolinq-test-uploads/#{key}.mp3"], 'durationInMs' => 1000}
+          ]}]}
+      end
+
+      it "should log a COMPLETE event's shape without its keys or transcoding_key" do
+        authentic!
+        expect(Transcoder).to receive(:handle_event).and_return(true)
+        post 'callback', body: mediaconvert_event(complete_detail)
+        expect(response).to be_successful
+        expect(io.string).to include('1789855178463-xw2g13')
+        expect(io.string).to include('COMPLETE')
+        expect(io.string).to include('sounds/1/7/1_17_0123456789abcdef01234567-')
+        expect(io.string).to_not include(digest)
+        expect(io.string).to_not match(/\h{32,}/)
+        expect(io.string).to_not include(transcoding_key)
+      end
+
+      it "should log an ERROR event's code without the path in its message" do
+        authentic!
+        expect(Transcoder).to receive(:handle_event).and_return(true)
+        post 'callback', body: mediaconvert_event({'jobId' => '1789855178463-xw2g13', 'status' => 'ERROR', 'errorCode' => 1040,
+          'errorMessage' => "Duplicate output paths [s3://lingolinq-dev-uploads/#{key}] found in input job."})
+        expect(response).to be_successful
+        expect(io.string).to include('1040')
+        expect(io.string).to include('Duplicate output paths')
+        expect(io.string).to_not include(digest)
+        expect(io.string).to_not match(/\h{32,}/)
+      end
+
+      it "should leave the signature, certificate and unsubscribe fields out of the line" do
+        authentic!
+        expect(Transcoder).to receive(:handle_event).and_return(true)
+        body = JSON.parse(mediaconvert_event(complete_detail)).merge(
+          'Signature' => 'c2lnbmF0dXJlLXRoYXQtbG9va3MtYmFzZTY0',
+          'SigningCertURL' => 'https://sns.us-west-2.amazonaws.com/SimpleNotificationService-0123.pem',
+          'UnsubscribeURL' => 'https://sns.us-west-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-west-2:123:t:sub-id'
+        )
+        post 'callback', body: body.to_json
+        expect(io.string).to include('1789855178463-xw2g13')
+        expect(io.string).to_not include('Unsubscribe')
+        expect(io.string).to_not include('SimpleNotificationService')
+        expect(io.string).to_not include('c2lnbmF0dXJl')
+      end
+
+      it "should cap the logged event" do
+        authentic!
+        expect(Transcoder).to receive(:handle_event).and_return(true)
+        post 'callback', body: mediaconvert_event(complete_detail.merge('padding' => 'x' * 6000))
+        line = io.string.lines.detect { |l| l.include?('1789855178463-xw2g13') }
+        expect(line).to_not eq(nil)
+        expect(line.length).to be < 4200
+      end
+
+      it "should still log the job id, and still handle the event, when the event cannot be logged" do
+        authentic!
+        expect(Transcoder).to receive(:handle_event).and_return(true)
+        message = '{"detail":{"jobId":"1789855178463-xw2g13","status":"COMPLETE","note":"\ud800"}}'
+        request.headers['x-amz-sns-message-type'] = 'Notification'
+        request.headers['x-amz-sns-topic-arn'] = 'arn:aws:sns:us-west-2:123:lingolinq-mediaconvert-nonprod'
+        post 'callback', body: {'Message' => message}.to_json
+        expect(response).to be_successful
+        expect(io.string).to include('1789855178463-xw2g13')
+        # scrubbed rather than dropped: the line keeps its shape
+        expect(io.string).to include('COMPLETE')
+      end
+
+      it "should log the event before asking AWS about the job" do
+        authentic!
+        expect(Transcoder).to receive(:handle_event).and_raise(Aws::MediaConvert::Errors::ServiceError.new(nil, 'boom'))
+        expect { post 'callback', body: mediaconvert_event(complete_detail) }.to raise_error(Aws::MediaConvert::Errors::ServiceError)
+        expect(io.string).to include('1789855178463-xw2g13')
+      end
+
+      env_wrap({'MEDIACONVERT_ROLE_ARN' => 'arn:aws:iam::123:role/MediaConvert', 'UPLOADS_S3_BUCKET' => 'lingolinq-test-uploads'}) do
+        it "should log why it rejected an event, without keys" do
+          authentic!
+          job = OpenStruct.new(id: '1789855178463-xw2g13', status: 'COMPLETE',
+            user_metadata: complete_detail['userMetadata'],
+            settings: OpenStruct.new(output_groups: [OpenStruct.new(output_group_settings: OpenStruct.new(
+              file_group_settings: OpenStruct.new(destination: 's3://lingolinq-test-uploads/other/dir/')))]))
+          config = OpenStruct.new
+          expect(config).to receive(:get_job).and_return(OpenStruct.new(job: job))
+          expect(Transcoder).to receive(:config).and_return(config)
+          post 'callback', body: mediaconvert_event(complete_detail)
+          expect(response.status).to eq(400)
+          expect(io.string).to match(/Transcoder.handle_event rejected job=1789855178463-xw2g13: no mp3 output/)
+          expect(io.string).to_not include(digest)
+          expect(io.string).to_not match(/\h{32,}/)
+          expect(io.string).to_not include(transcoding_key)
+        end
+      end
+
+      env_wrap({'SNS_ARNS' => 'bacon,fried'}) do
+        it "should not log a confirmation's token" do
+          client = OpenStruct.new
+          expect(Aws::SNS::Client).to receive(:new).and_return(client)
+          expect(client).to receive(:confirm_subscription)
+          request.headers['x-amz-sns-message-type'] = 'SubscriptionConfirmation'
+          request.headers['x-amz-sns-topic-arn'] = 'fried'
+          post 'callback', body: {:Token => 'tokentokentoken', :SubscribeURL => 'https://sns.example/confirm?Token=tokentokentoken'}.to_json
+          expect(response).to be_successful
+          expect(io.string).to include('fried')
+          expect(io.string).to_not include('tokentokentoken')
+        end
+      end
+
+      def sms_body
+        {'Message' => {'originationNumber' => '+15551234567', 'destinationNumber' => '+15558675309', 'messageBody' => 'private words'}.to_json}.to_json
+      end
+
+      it "should not log an inbound SMS it could not verify" do
+        authentic!(false)
+        request.headers['x-amz-sns-message-type'] = 'Notification'
+        request.headers['x-amz-sns-topic-arn'] = 'fried:sms_inbound:chicken'
+        post 'callback', body: sms_body
+        expect(response.status).to eq(401)
+        expect(io.string).to_not include('5551234567')
+        expect(io.string).to_not include('private words')
+      end
+
+      it "should not log a verified inbound SMS's number or text" do
+        authentic!
+        expect(RemoteTarget).to receive(:process_inbound).and_return(true)
+        request.headers['x-amz-sns-message-type'] = 'Notification'
+        request.headers['x-amz-sns-topic-arn'] = 'fried:sms_inbound:chicken'
+        post 'callback', body: sms_body
+        expect(response).to be_successful
+        expect(io.string).to include('INBOUND SMS NOTIFICATION')
+        expect(io.string).to_not include('5551234567')
+        expect(io.string).to_not include('private words')
       end
     end
   end
