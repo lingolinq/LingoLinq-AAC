@@ -75,7 +75,7 @@ Rules:
   `snippet` must exist verbatim at `<auditedSha>` (`scripts/citation-check.rb` enforces this).
 - For a purely-live observation with no committed file, use
   `evidence: { "type": "runtime", "source": "gcloud:run-services-describe", "snippet": "what was
-  checked + observed, no secrets/PII" }` and omit `file`. citation-check SKIPs non-`code`/`doc`
+  checked and the shape of the result, no values" }` and omit `file`. citation-check SKIPs non-`code`/`doc`
   evidence types, so the register stays green; these are re-verified by re-running the live check.
 - The orchestrator computes the stable `id`, sets `firstSeen`/`lastSeen`/`owner`, and reconciles
   against the existing register. No customer data in any field; evidence is config/code only. For a row whose ruleKey is the self-referencing withheld form (`minimized-finding-` + its own id,

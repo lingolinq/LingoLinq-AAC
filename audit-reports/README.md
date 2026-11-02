@@ -75,8 +75,8 @@ are in `.claude/skills/audit-run/SKILL.md`. Every full stamp carries this exact 
 Excludes assistive-technology testing (tracked separately in the conformance report).
 ```
 
-Documents dated before 2026-11-01 use "full audit run" for the size of the fan-out, not for this
-definition.
+In any document, "full audit run", "quarterly full" and `type: full` name the size of the fan-out, and
+some older uses are looser still. Only "FULL COVERAGE" in the stamp means this definition.
 
 ### Structural validation
 
