@@ -1590,3 +1590,5 @@ speecher.reapply_user_voice = function() {
 window.speecher = speecher;
 
 export default speecher;
+// Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
+import { live_service } from './live_service';
