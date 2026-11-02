@@ -94,3 +94,60 @@ Each was restored with `cmp` against a copy.
   controllers, and mailers: 1388 examples, 1 failure.
 - **The one failure.** `application_controller_spec.rb:249`, an AuditEvent dedupe example. It also fails at the
   unchanged PR head on this machine (local AuditEvent rows, as the PR body notes).
+
+## v2: trust confirmed against the database (after the canonical passes on the whole branch)
+
+The canonical passes on `15f6d224a` approved with comments (senior-dev) and said ship (adversary), with no Critical or
+High findings. Their findings were all ways the cached list could still be stale or unavailable while it decided trust:
+
+- **Two in-memory copies (senior, Medium).** Rails 7.2 runs after_commit on one instance per record per transaction
+  (`load_defaults 7.2`, `config/application.rb:63`), and the change flag lived on the instance.
+- **Lock held during the rebuild (both).** The rebuild held redis-rb's client lock, shared by `RedisInit.default` and
+  `.permissions`, across a Postgres scan and settings decryption.
+- **Redis failures (senior Medium, adversary Low).** A Redis failure at commit left the host cached for up to 72 hours.
+  A Redis outage raised out of `set_host` on any unknown host.
+
+Best practice: a cache must not be the authority for a security decision. Proposal v2 (session scratchpad) went
+through an independent read-only review before editing.
+
+- **Trust.** `JsonApi::Json.custom_domain_host?` uses the cached list only to find candidate orgs: every key equal to the
+  host ignoring case. It then confirms each one against the database: the org exists, `custom_domain` is true, and
+  `settings['hosts']` lists the host. An error reading either side (StandardError) logs the host only and is not trusted.
+  A stale, wrong or unreadable list can now only fall back to DEFAULT_HOST.
+- **Cache.** The WATCH and generation machinery is removed, so no lock is held during the scan. The commit-time clear
+  stays, for branding freshness, and `load_domains` writes with `Permissions.setex` and the real 72-hour TTL.
+- **Tests.**
+  - Trust-level, red on `15f6d224a`: stale list after a switch-off; a host removed from the org; an entry pointing at
+    another org (or no org); a switch-off made through a second copy in one transaction; Redis unreachable
+    (`Redis::CannotConnectError`).
+  - New guard, green before and after: a current domain whose case differs from a stale entry is still trusted.
+  - Changed: the stubbed "exact match" example now uses a real org (the trust source changed). All three assertions
+    and the mixed-case stored host are kept.
+  - Removed: the v1 org-level race test. The property it encoded (the cache stays fresh enough to be trusted) is no longer
+    relied on, and the trust-level stale-list tests replace it.
+- **Mutations.** Each was restored with `cmp`.
+
+  | Mutation | Red |
+  |---|---|
+  | Trust a cache entry alone | 4 |
+  | Skip the `custom_domain` check | 2 |
+  | Skip host membership | 2 |
+  | No rescue | 1 |
+  | Check only the first matching entry | 1 (the case test) |
+  | Epoch-time TTL | 1 |
+  | No commit-time clear | 7 cache tests; no trust test, by design |
+- **Runs.**
+  - Organization, all `spec/lib/json_api`, worker, system email, forwarded-host filter, all controllers and mailers:
+    2934 examples, 4 failures.
+  - All four also fail on the unchanged PR head on this machine: three page renders need the built `vendor.js`
+    (`rails extras:assert_js`), and one is the local AuditEvent example.
+- **Known limits, not fixed here (pre-existing).**
+  - `load_domain` (branding and the per-host `coppa_parental_consent` override) still reads the cache, keyed on the
+    request host. Its staleness is bounded by the commit-time clear and the 72-hour TTL. It is not a link-trust decision,
+    but it is a compliance setting chosen from the cache.
+  - During a Redis outage `set_host` now falls back safely, but `load_domain` in the next before_action still raises
+    through `Permissions.setex`, as it does on develop.
+  - Deployed Redis may keep a leftover `domain_org_ids_generation` key only if v1 ran there; v1 was never deployed.
+- **Adversary Low, for Traci to decide.** On dev's `*.run.app` address, links fall back to the shared nonprod
+  DEFAULT_HOST (staging), while `docs/INFRASTRUCTURE.md` calls that address valid for normal use. Options: allow the
+  service's own run.app host through configuration, or document run.app as non-interactive only.
