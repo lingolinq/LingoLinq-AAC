@@ -37,6 +37,22 @@ describe SupervisorMailer, :type => :mailer do
   end
 
   describe "consent_request" do
+    it "should not put the consent token on a host the request supplied" do
+      prior = ENV['DEFAULT_HOST']
+      ENV['DEFAULT_HOST'] = 'links.lingolinq.test'
+      rel = create_relationship
+      expect_any_instance_of(User).to receive(:named_email).and_return("bob@example.com")
+      JsonApi::Json.set_host('https://attacker.example')
+      m = SupervisorMailer.consent_request(rel.global_id)
+      [message_body(m, :html), message_body(m, :text)].each do |body|
+        expect(body).not_to include('attacker.example')
+        expect(body).to include("https://links.lingolinq.test/consent/#{rel.consent_response_token}?action=approve")
+        expect(body).to include("https://links.lingolinq.test/consent/#{rel.consent_response_token}?action=deny")
+      end
+    ensure
+      ENV['DEFAULT_HOST'] = prior
+    end
+
     it "should send to the communicator" do
       rel = create_relationship
       expect_any_instance_of(User).to receive(:named_email).and_return("bob@example.com")

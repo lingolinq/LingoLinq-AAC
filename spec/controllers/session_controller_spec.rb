@@ -2666,6 +2666,17 @@ describe SessionController, :type => :controller do
   end
 
   describe "token_wait" do
+    # The examples below count Redis reads exactly. A request on a host that is
+    # not known also reads the custom-domain list (json.rb trusted_origin), so
+    # make the request's host the configured one.
+    around(:each) do |example|
+      prior = ENV['DEFAULT_HOST']
+      ENV['DEFAULT_HOST'] = 'test.host'
+      example.run
+    ensure
+      ENV['DEFAULT_HOST'] = prior
+    end
+
     it "should require popout_id" do
       post 'token_wait'
       assert_error('popout_id required')

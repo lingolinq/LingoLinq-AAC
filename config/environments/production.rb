@@ -62,6 +62,11 @@ Rails.application.configure do
   # Force all access to the app over SSL, use Strict-Transport-Security, and use secure cookies.
   config.force_ssl = true
 
+  # No proxy in front of the app sets X-Forwarded-Host, so drop a client-supplied
+  # one before Rails reads it as the request's host (lib/forwarded_host_filter.rb).
+  require_relative '../../lib/forwarded_host_filter'
+  config.middleware.insert_before 0, ForwardedHostFilter
+
   # Set to :debug to see everything in the log.
   config.log_level = :info
 
