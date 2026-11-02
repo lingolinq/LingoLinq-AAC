@@ -196,13 +196,28 @@ var contentGrabbers = Service.extend({
           return;
         }
 
-        // We're the first for this URL: save and resolve when done
+        // We're the first for this URL: save and resolve when done. The same-URL waiters handle
+        // a rejection; without any, this keeps it from reaching RSVP's error hook.
+        deferred.promise.then(null, function() { });
 
         object.save().then(function(saved) {
-          delete pendingMap[normalized_url];
-          delete pendingRecordMap[normalized_url];
-          deferred.resolve(saved);
-          resolve(saved);
+          // A picture picked by URL is created pending, with an upload form for this record,
+          // unless the server already stores that URL (Uploader.valid_remote_url?). Only this
+          // record's own form: the time-windowed meta below may be another create's. A failed
+          // upload leaves the record pending rather than failing the save, which offline sync
+          // would retry by creating another record (persistence.js sync, save_record).
+          var _take = window.lingoLinqExtras && window.lingoLinqExtras.upload_params_take;
+          var remote_upload = _take ? _take(saved.get('id')) : null;
+          var uploaded = !remote_upload ? RSVP.resolve(saved) : _this.upload_saved_record(saved, remote_upload, original_url).then(null, function(err) {
+            console.warn("image upload failed, left pending", saved.get('id'), err);
+            return saved;
+          });
+          return uploaded.then(function(saved) {
+            delete pendingMap[normalized_url];
+            delete pendingRecordMap[normalized_url];
+            deferred.resolve(saved);
+            resolve(saved);
+          });
         }, function(err) {
           delete pendingMap[normalized_url];
           delete pendingRecordMap[normalized_url];
@@ -237,31 +252,7 @@ var contentGrabbers = Service.extend({
           var _rup = _take ? _take(object.get('id')) : null;
           var meta = _rup ? {remote_upload: _rup} : (object.get('pending') ? persistenceService.meta(object.constructor.modelName, null) : null);
         if(meta && meta.remote_upload) {
-          // upload to S3
-          var get_data_url = RSVP.resolve(object.get('data_url'));
-          if(!object.get('data_url') && original_url) {
-            get_data_url = persistenceService.ajax('/api/v1/search/proxy?url=' + encodeURIComponent(original_url), { type: 'GET'
-            }).then(function(data) {
-              return data.data;
-            });
-          }
-          get_data_url.then(function(data_url) {
-            meta.remote_upload.data_url = data_url;
-            meta.remote_upload.blob = object.get('blob');
-            return _this.upload_to_remote(meta.remote_upload).then(function(data) {
-              if(data.confirmed) {
-                object.set('url', data.url);
-                object.set('pending', false);
-                resolve(object);
-              } else {
-                reject({error: "upload not confirmed"});
-              }
-            }, function(err) {
-              reject(err);
-            });
-          }, function(err) {
-            reject(err);
-          });
+          _this.upload_saved_record(object, meta.remote_upload, original_url).then(resolve, reject);
         } else if(object.get('pending')) {
           // Server flagged pending but handed us no upload params to work with.
           return reject({error: 'remote_upload parameters required'});
@@ -271,6 +262,31 @@ var contentGrabbers = Service.extend({
       }, function(err) { reject({error: "record failed to save", ref: err}); });
     });
     return promise;
+  },
+  // Uploads a just-created record's picture to S3 with the form the server sent for it, from its
+  // data URL or else fetched through the proxy from original_url; resolves with the record.
+  upload_saved_record: function(object, remote_upload, original_url) {
+    var _this = this;
+    var get_data_url = RSVP.resolve(object.get('data_url'));
+    if(!object.get('data_url') && original_url) {
+      get_data_url = persistenceService.ajax('/api/v1/search/proxy?url=' + encodeURIComponent(original_url), { type: 'GET'
+      }).then(function(data) {
+        return data.data;
+      });
+    }
+    return get_data_url.then(function(data_url) {
+      remote_upload.data_url = data_url;
+      remote_upload.blob = object.get('blob');
+      return _this.upload_to_remote(remote_upload).then(function(data) {
+        if(data.confirmed) {
+          object.set('url', data.url);
+          object.set('pending', false);
+          return object;
+        } else {
+          return RSVP.reject({error: "upload not confirmed"});
+        }
+      });
+    });
   },
   upload_to_remote: function(params, extra) {
     var _this = this;
