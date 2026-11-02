@@ -431,4 +431,19 @@ describe Transcoder do
       end
     end
   end
+
+  describe "loggable_event" do
+    let(:event) { {'Message' => {'detail' => {'jobId' => '1789855178463-xw2g13', 'status' => 'COMPLETE'}}.to_json} }
+
+    it "should fall back to a marker with the job id when the event cannot be redacted" do
+      expect(Transcoder).to receive(:redact_for_log).and_raise(ArgumentError)
+      expect(Transcoder.loggable_event(event)).to eq('unloggable event (ArgumentError) job=1789855178463-xw2g13')
+    end
+
+    it "should not put event text other than a job-id-shaped id in the fallback" do
+      expect(Transcoder).to receive(:redact_for_log).and_raise(ArgumentError)
+      forged = {'Message' => {'detail' => {'jobId' => "x\nFAKE LOG LINE #{'a' * 128}"}}.to_json}
+      expect(Transcoder.loggable_event(forged)).to eq('unloggable event (ArgumentError) job=-')
+    end
+  end
 end
