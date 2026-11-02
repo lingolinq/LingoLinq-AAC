@@ -20,10 +20,9 @@ yourself. Two things sit outside this finder:
 - **Live scan (the `/audit-run` orchestrator).** In a quarterly full run, the orchestrator runs axe and a
   focus walk on every route, including speak mode, with computed contrast and rendered focus, and hands
   you the results (`/audit-run` Step 1b). Treat them as input. When a result ties to a source line, emit
-  a normal `type:"code"` finding at that line. When no source line can carry it, use `evidence:
-  {type:"runtime", source:"orchestrator:live-scan", snippet:"<rule and route template, no page text>"}`,
-  omit `file`, and put the rule and route template in the `ruleKey`, because a finding with no file gets
-  its id from the ruleKey alone. Say in `note` whether results reached you.
+  a normal `type:"code"` finding at that line. Anything else goes in `note`, as the rule and route
+  template with no page text: the orchestrator holds it in the private run record, and Scot decides
+  whether to file it. Say in `note` whether results reached you.
 - **Assistive-technology testing (the team).** The team owns screen reader, switch and eye-gaze testing,
   and `docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md` tracks it as an open gap. It does not count toward
   full audit coverage, and neither this finder nor the live scan stands in for it.
@@ -204,7 +203,7 @@ Rules:
 - `frameworks` is exactly `["WCAG"]` for accessibility findings.
 - Finders emit `status: "open"` ONLY. Never `verified-closed`: only Scot closes a finding, and the
   adversary verifier confirms it first.
-- A `type:"code"` `snippet` MUST appear verbatim in the cited file at `<auditedSha>` (`scripts/citation-check.rb`
+- The `snippet` MUST appear verbatim in the cited file at `<auditedSha>` (`scripts/citation-check.rb`
   enforces this). For the `fast_html` path, cite the line in `button.js` where the attribute string
   is built, not a rendered DOM node.
 - The orchestrator computes the stable `id` (`LL-` + first 10 hex of `sha256(ruleKey + "|" + file)`),
@@ -212,7 +211,7 @@ Rules:
   issue keeps its id. There is no parent/child id: each `(ruleKey, file)` is its own finding. If a
   rule recurs across N files, emit N findings (one per file). For a row whose ruleKey is the self-referencing withheld form (`minimized-finding-` + its own id, lowercased),
   citation-check does not recompute the id; never emit a `minimized-finding-` ruleKey.
-- **No student/patient data in any field. Code-evidence snippets are code only** (template/SCSS/JS source). Never
+- **No student/patient data in any field. Snippets are code only** (template/SCSS/JS source). Never
   copy real names, vocabulary, logs, or DB rows into a finding.
 - **No four-part dotted EN 301 549 clause numbers in any field** (see the gotcha above the
   checklist): `9.1.4.3` reads as an IP to the merge PII scrubber and the whole finding is refused.

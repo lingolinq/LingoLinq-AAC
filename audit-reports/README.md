@@ -23,8 +23,8 @@ ruby scripts/citation-check.rb --render  # rebuild audit-reports/FINDINGS.md fro
 
 **How to read status:** trust `FINDINGS.json` only. Every other report in this directory
 is a dated snapshot of what was true on its date. Do **not** treat a finding listed in an
-older report as live without checking the register; statuses there are anchored to code
-evidence at each finding's own SHA, the older prose was not.
+older report as live without checking the register; statuses there are anchored to evidence
+at each finding's own SHA where that evidence is code, the older prose was not.
 
 ## How findings are generated (Phase 2)
 

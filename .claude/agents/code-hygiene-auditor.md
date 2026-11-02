@@ -102,9 +102,8 @@ limit. `/audit-run` Step 2c decides the coverage stamp from this block.
 **Public-text rule.** Findings go to a public register. No finding field may carry a value from a
 live read (an account ID, a resource name, a config value), a secret, customer data, or a
 description of what this run did not reach. A `type:"code"` snippet stays verbatim, because
-committed source is already public. For an unresolved security weakness, the finding carries a
-status statement, severity, location and closure criteria only, and technical detail goes in `note`.
-`note` and the `coverage` block are never committed.
+committed source is already public. `note` and the `coverage` block are never committed to this
+repo.
 
 `memory:` is intentionally unset: with no Write tool and `audit-readonly-guard.sh` denying writes
 unconditionally, a memory policy could never persist anything. A fresh run re-verifies against live

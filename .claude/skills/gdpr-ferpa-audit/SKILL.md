@@ -85,12 +85,12 @@ Emit each finding as:
 Rules:
 - Finders emit `status: "open"` ONLY. Never `verified-closed`: only Scot closes a finding,
   and the adversary verifier confirms it first.
-- A `type:"code"` `snippet` MUST appear verbatim in the cited file at `<auditedSha>` (`scripts/citation-check.rb` enforces this).
+- The `snippet` MUST appear verbatim in the cited file at `<auditedSha>` (`scripts/citation-check.rb` enforces this).
 - The orchestrator computes the stable `id` (`LL-` + first 10 hex of `sha256(ruleKey + "|" + file)`),
   sets `firstSeen`/`lastSeen`/`owner`, tags `regulation` detail in `notes`, and reconciles
   against the existing register so a recurring issue keeps its id. For a row whose ruleKey is the self-referencing withheld form (`minimized-finding-` + its own id, lowercased),
   citation-check does not recompute the id; never emit a `minimized-finding-` ruleKey.
-- **No student/patient data in any field. Code-evidence snippets are code only.** If a risky pattern lives in
+- **No student/patient data in any field. Snippets are code only.** If a risky pattern lives in
   a fixture/seed with real-looking rows, cite the file:line and column shape, never row values.
 
 ## Run receipt (required)

@@ -81,18 +81,16 @@ never a standing limit. `/audit-run` Step 2c decides the coverage stamp from thi
 **Public-text rule.** Findings go to a public register. No finding field may carry a value from a
 live read (an account ID, a resource name, a config value), a secret, customer data, or a
 description of what this run did not reach. A `type:"code"` snippet stays verbatim, because
-committed source is already public. For an unresolved security weakness, the finding carries a
-status statement, severity, location and closure criteria only, and technical detail goes in `note`.
-`note` and the `coverage` block are never committed.
+committed source is already public. `note` and the `coverage` block are never committed to this
+repo.
 
 **Live reads handed to you.** The orchestrator may hand you live-read results or a document
-(`/audit-run` Step 1b). Treat them as input and check them against your checklist. Say in `note`
-which you used: Step 2c counts a read or document only if you confirm you used it. When a result
-ties to a source line, emit a normal `type:"code"` finding at that line. When no line can carry it,
-use `evidence: {type:"runtime", source:"orchestrator:live-read", snippet:"<what was checked and the
-shape of the result, no values>"}`, omit `file`, and name the read in the `ruleKey`, because a
-finding with no file gets its id from the ruleKey alone. The verbatim-snippet rule applies to
-`type:"code"` only.
+(`/audit-run` Step 1b). Check them against your checklist, and say in `note` which you used: Step 2c
+counts a read or document only if you confirm you used it. A result that does not answer an item
+leaves that item `notReached`. Raise a public finding from one only as a normal `type:"code"`
+finding tied to a source line. Anything else goes in `note`, as what was checked and the shape of
+the result: the orchestrator holds it in the private run record, and Scot decides whether to file
+it.
 
 ## Memory
 This agent keeps no persistent memory: `memory:` is intentionally unset (the read-only guard

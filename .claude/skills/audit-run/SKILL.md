@@ -80,12 +80,12 @@ so the stamp never reads as though that testing was done:
 Excludes assistive-technology testing (tracked separately in the conformance report).
 ```
 
-**Live-read list.** This list names services and read types only, because this repo is public. Results
+**Live-read list.** This list names services, read types and targets only, because this repo is public. Results
 never go in it (Step 1b). Each entry between semicolons is one read.
 
 | Area | Reads | Target | Handed to |
 |------|-------|--------|-----------|
-| AWS | All enabled regions for regional services; SES; customer-policy statement bodies; KMS and SNS policies; CloudTrail bucket Object Lock; CDN distribution config | Production | `infra-auditor` |
+| AWS | All enabled regions for regional services; SES; customer-policy statement bodies; KMS and SNS policies; CloudTrail bucket Object Lock; CDN distribution config | Whole account | `infra-auditor` |
 | Google Cloud | URL map redirect; secret accessors; job and worker-pool config | Production | `infra-auditor` |
 | GitHub | Environment branch policy | Production environment | `infra-auditor` |
 | Production config | Feature-flag values and non-secret config | Production | `infra-auditor` |
@@ -134,16 +134,17 @@ table names. A monthly light run skips this step.
 - **Behaviour reads stay out of production, and nothing they send may reach a real person.** Stripe uses
   test-mode credentials. S3/CDN uses the non-production uploads bucket, with read-only requests on the
   synthetic test objects named in the scope, and lists or opens nothing else.
-- **Hand over and keep the least that answers the item: names, shapes and booleans.** Never a person's
-  identifier, such as a recipient address or a principal's email (give the principal type), and never
-  an environment variable's value. Remove any that a result carries before you store it or hand it
-  over, because the private run record can be committed to the private repo and read by a reviewer
-  with no BAA.
+- **Hand over and keep the least that answers the item.** A policy body or config can go whole, but never
+  a person's identifier, such as a recipient address or a principal's email (give the principal type),
+  and never a secret's value. Remove any that a result carries before you store it or hand it over,
+  because the private run record can be committed to the private repo and read by a reviewer with no
+  BAA.
 - **A document outside this repo goes through you too.** When a checklist item's evidence is a named
   document (`audit-reports/DOCUMENT-REGISTER.json` gives its location), read it, note that in the private
-  run record, and hand it to the finder. A document you cannot reach leaves that item not reached.
+  run record, and hand it to the finder with any person's identifier removed. A document you cannot reach leaves that item not reached.
 - **Results stay out of this repo.** Keep them, with one row per read (scope, caller, target, UTC time,
-  taken, succeeded), in the private run record, along with the finder receipts. No account IDs, resource
+  taken, succeeded), in the private run record, along with every finder output file, including each
+  `note`. No account IDs, resource
   names, config values or secret values in any committed file, commit message or PR text.
 - **The private run record** is a dated folder under `~/ai-company-brain/outputs/docs/`, outside this
   repo. The orchestrator writes it and Scot owns it. Keep it for as long as its stamp is in the
@@ -232,7 +233,7 @@ sign-off. The verdict is full only if every one of these holds; otherwise it is 
 light run is partial without this check.
 1. All six finders passed the gate in the default mode, each prompted with its skill's whole scan scope.
    A finder re-run at the same SHA to fill its coverage replaces its earlier receipt, and this whole step
-   runs again on the final receipts before the merge. A Step 2d or Step 5 re-emit changes findings only
+   runs again on the final receipts before the merge. A Step 5 re-emit changes findings only
    and replaces no receipt. A receipt from another commit counts for nothing.
 2. Every receipt has a `coverage` block with `examined`, `notReached` and `standingLimits`. A missing or
    malformed block means that finder is not complete.
@@ -276,20 +277,8 @@ Monthly light run:
 ```
 
 Public text carries the verdict and counts only. A `notReached` entry names an unexamined area, so it
-stays in the private run record, never in the stamp, a finding, the run log, a commit or a PR. Writing
+stays in the private run record, never in the stamp, a finding, `meta.auditedShaPriorNote`, the run log, a commit or a PR. Writing
 any of these stamps is still a restamp: Scot's sign-off in Step 3 applies to it.
-
-## Step 2d: Read the findings before the merge
-The merge refuses fixed shapes only, with none for an account ID, a resource name or a config value, and
-it cannot remove a row or rewrite a row's title or remediation once written. So the check comes first. Read every string in every
-finding of every output file, and whatever you are about to write in `meta.auditedShaPriorNote`,
-against the public-text rule in the finder definitions. A `type:"code"` snippet is exempt from the live
-value test, because committed source is already public. For an unresolved security weakness, a public
-row carries a status statement, severity, location and closure criteria only.
-
-If a finding breaks the rule, have the finder re-emit it by the route in Step 5 item 2, and list the new
-file in `--in` in place of the old one. Hold anything Scot has ruled must stay out of public files in the
-private run record, and tell him.
 
 ## Step 3: Reconcile into the register (deterministic)
 Run the merge helper with `--in` set to exactly the list the gate just passed (a light run lists
@@ -365,12 +354,6 @@ is not part of this run; this run surfaces and verifies, it does not close.
    public, so its coverage section carries the verdict and counts only.
 5. In every mode, surface each regression to Scot for the decision in Step 3, and print each finder's
    `note` as returned; it holds the reads the finder used and what it could not verify from this repo.
-6. If a public-text problem turns up after the merge, restore `audit-reports/FINDINGS.json` from its
-   pre-merge commit, correct the input as in Step 2d, and run Step 3 again with every input. Never
-   hand-edit a row, and never push one to see whether a check catches it. Pushing publishes it.
-7. If findings were dropped as snippet-not-found, that finder may have read another tree (Step 2). Treat
-   it as not complete: restore the register the same way, run Step 2c again, and merge with the
-   resulting stamp.
 
 ## Step 6: Report (headline = open Critical/High, not a score)
 Present to Scot:
@@ -378,7 +361,10 @@ Present to Scot:
 - **Coverage verdict** from Step 2c, kept apart from the headline: full or partial, each finder's
   examined count against its total, live reads succeeded against the list, the standing limits, and
   the assistive-technology exclusion. Point Scot at the receipts in the private run record: a full
-  stamp rests on them and on his sign-off.
+  stamp rests on them and on his sign-off. If findings were dropped as snippet-not-found, say that the
+  finder may have read another tree (Step 2), which puts a full verdict in doubt.
+- **Live-read issues held in `note`.** A handed-over result that no source line can carry is not a public
+  finding. List each one from the private run record, and Scot decides whether to file it.
 - New findings this run (by domain/severity), regressions (loud), and adversary verdicts.
 - Confirm citation-check is green and the audited SHA.
 - Remind: only Scot closes, downgrades, or accepts risk. Nothing customer-facing leaves without

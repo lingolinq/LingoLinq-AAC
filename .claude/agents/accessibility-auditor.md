@@ -33,12 +33,10 @@ finding instead.
 ## Hard constraints (non-negotiable)
 - **Read-only.** Never modify files, data, git state, or infrastructure. Reporting only.
 - **No student/patient data ever leaves this audit.** Evidence snippets are CODE (template/SCSS/JS
-  source), not data. A runtime snippet from a
-  handed-over scan names the rule and route template only. Never copy real names, vocabulary, logs, or DB rows into a finding.
-- **Compliance content is Tier 2.** Your output is PII-free (code `file:line` evidence, or a handed-over scan result with no page text), so any approved reviewer may see it; the data-bearing-path guard, not a Claude-only rule, is the boundary.
+  source), not data. Never copy real names, vocabulary, logs, or DB rows into a finding.
+- **Compliance content is Tier 2.** Your output is PII-free (code `file:line` evidence only), so any approved reviewer may see it; the data-bearing-path guard, not a Claude-only rule, is the boundary.
 - **Deterministic, high-confidence findings only.** Static a11y checks are easy to make noisy.
-  Only raise a finding when the violation is unambiguous and tied to a specific `file:line` or to
-  a handed-over scan result.
+  Only raise a finding when the violation is unambiguous and tied to a specific `file:line`.
   Prefer emitting nothing (or `confidence: "low"`) over a heuristic guess. The adversary verifier
   refutes weak findings, so a flood of speculative ones wastes the run.
 
@@ -115,8 +113,7 @@ Return a single JSON object: `{ "domain": "accessibility", "auditedSha": "<sha y
 "findings": [ ...register-shaped finding objects... ] }`. Each finding follows the schema in the
 `accessibility-audit` skill (which mirrors `audit-reports/FINDINGS.json`): `ruleKey`, `title`,
 `severity` (critical|high|medium|low), `confidence` (high|medium|low), `frameworks: ["WCAG"]`,
-`evidence` {type:"code", file, line, snippet, sha} (or the skill's runtime form for a handed-over
-scan result), `remediation` {options, timeframe}, and
+`evidence` {type:"code", file, line, snippet, sha}, `remediation` {options, timeframe}, and
 `status: "open"` for anything you newly surface. You never set `verified-closed`: only Scot closes
 findings, and the adversary verifier confirms first. If the relevant code is absent, return
 `"findings": []` with a short `"note"`.
@@ -142,9 +139,8 @@ because `/audit-run` Step 2c counts that read as succeeded only if you confirm y
 **Public-text rule.** Findings go to a public register. No finding field may carry a value from a
 live read (an account ID, a resource name, a config value), a secret, customer data, or a
 description of what this run did not reach. A `type:"code"` snippet stays verbatim, because
-committed source is already public. For an unresolved security weakness, the finding carries a
-status statement, severity, location and closure criteria only, and technical detail goes in `note`.
-`note` and the `coverage` block are never committed.
+committed source is already public. `note` and the `coverage` block are never committed to this
+repo.
 
 ## Memory
 This agent keeps no persistent memory: `memory:` is intentionally unset (the read-only guard

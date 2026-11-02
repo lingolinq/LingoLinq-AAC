@@ -66,10 +66,10 @@ casing, ID format, pagination, and error responses. Read-only: produce findings,
 Rules:
 - Finders emit `status: "open"` ONLY; never `verified-closed` (Scot closes; adversary confirms first).
 - Anchor `evidence` to the side that must change; reference the counterpart in `notes`.
-- A `type:"code"` `snippet` must exist verbatim at `<auditedSha>` (`scripts/citation-check.rb` enforces this).
+- The `snippet` must exist verbatim at `<auditedSha>` (`scripts/citation-check.rb` enforces this).
 - `frameworks` is usually `[]`; tag a regulation only if a mismatch leaks regulated data.
 - The orchestrator computes the stable `id`, sets timestamps/owner, and reconciles against the
-  existing register. No data in findings; code-evidence snippets are code only. For a row whose ruleKey is the self-referencing withheld form (`minimized-finding-` + its own id,
+  existing register. No data in findings; snippets are code only. For a row whose ruleKey is the self-referencing withheld form (`minimized-finding-` + its own id,
   lowercased), citation-check does not recompute the id; never emit a `minimized-finding-` ruleKey.
 
 ## Run receipt (required)

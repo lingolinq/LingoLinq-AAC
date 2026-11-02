@@ -19,7 +19,7 @@ paths:
 - Restamping `meta.auditedSha` is a governance act. Only an `/audit-run`, quarterly or monthly
   light, passes `--sha` bare; any other addition uses `audit-merge.rb --sha <trueCommit> --no-restamp`.
 - No student or patient data ever appears in a finding, a snippet, or a legal doc.
-  Evidence is code and config, or a runtime description of what was checked with no values.
+  Evidence is code and config only.
 - When you change a claim in one compliance doc, sweep the others:
   `git grep -n -i "<subject>" -- docs/legal/ audit-reports/` and reconcile every hit in the
   same PR or list them as explicit follow-ups in the PR body.
