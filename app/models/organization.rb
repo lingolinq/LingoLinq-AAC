@@ -11,7 +11,6 @@ class Organization < ApplicationRecord
   after_save :note_domain_list_change
   after_destroy :schedule_destroyed_org_cleanup
   after_destroy :note_domain_list_change
-  after_commit :forget_domain_list
   has_many :licenses
   include Replicate
 
@@ -1657,19 +1656,27 @@ class Organization < ApplicationRecord
   DOMAIN_LIST_KEY = 'domain_org_ids'
   DOMAIN_LIST_TTL = 72.hours.to_i
 
-  # A saved or destroyed org that has or had custom domains clears the cached list when the change
-  # commits, so branding and email settings for its hosts follow the change. The list does not
-  # decide which hosts links may use: JsonApi::Json.custom_domain_host? confirms each entry
-  # against the database.
+  # A saved or destroyed org that has or had custom domains clears the cached list once the
+  # transaction commits, so each host's branding, email settings and COPPA override
+  # (JsonApi::Json.load_domain) follow the change. Registered on the transaction, not as the
+  # record's after_commit, which Rails 7.2 runs on only one in-memory copy per transaction. The
+  # list does not decide which hosts links may use: JsonApi::Json.custom_domain_host? confirms
+  # each entry against the database.
   def note_domain_list_change
-    @domain_list_changed = true if self.custom_domain || self.custom_domain_before_last_save
+    if self.custom_domain || self.custom_domain_before_last_save
+      ActiveRecord.after_all_transactions_commit { Organization.forget_domains }
+    end
     true
   end
 
-  def forget_domain_list
-    return unless @domain_list_changed
-    @domain_list_changed = false
+  # The rebuild it schedules replaces a list that a rebuild already reading the old rows writes
+  # back after the delete. A Redis error is logged, not raised: the change has committed, and the
+  # list falls back to its TTL.
+  def self.forget_domains
     RedisInit.default.del(DOMAIN_LIST_KEY)
+    Organization.schedule(:load_domains, true)
+  rescue StandardError => e
+    Rails.logger.warn("custom domain list not cleared: #{e.class}")
   end
 
   def self.load_domains(force=false)

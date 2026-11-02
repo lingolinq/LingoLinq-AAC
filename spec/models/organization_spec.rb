@@ -2842,6 +2842,38 @@ describe Organization, :type => :model do
         org.save
         expect(Organization.load_domains.keys).to eq(['other.example'])
       end
+
+      # The list also carries each host's branding and COPPA override (JsonApi::Json.load_domain),
+      # so it must not stay stale when the switch-off is saved through another in-memory copy.
+      it 'should clear the list when a second copy saves in the same transaction' do
+        Organization.load_domains(true)
+        Organization.transaction do
+          first = Organization.find(org.id)
+          first.custom_domain = false
+          first.save
+          second = Organization.find(org.id)
+          second.settings['note'] = 'later save'
+          second.save
+        end
+        expect(RedisInit.default.get('domain_org_ids')).to eq(nil)
+        expect(Organization.load_domains.keys).not_to include('retired.example')
+      end
+
+      it 'should rebuild the list after the change commits, replacing a stale write' do
+        org.custom_domain = false
+        org.save
+        # a rebuild that read the rows before the commit writes them back after the clear
+        RedisInit.default.setex('domain_org_ids', 600, {'retired.example' => {'org_id' => org.global_id}}.to_json)
+        Worker.process_queues
+        expect(Organization.load_domains.keys).not_to include('retired.example')
+      end
+
+      it 'should not fail a committed save when the list cannot be cleared' do
+        allow(RedisInit.default).to receive(:del).and_raise(Redis::CannotConnectError)
+        org.custom_domain = false
+        expect { org.save }.not_to raise_error
+        expect(Organization.find(org.id).custom_domain).to eq(false)
+      end
     end
 
     it 'should keep the cached list for 72 hours' do
