@@ -49,10 +49,16 @@ gem 'json', '>= 2.19.2'
 # CVE-2026-54500/54502/54592; bundler-audit minimum
 gem 'oj', '>= 3.17.3'
 # GHSA-46fp-8f5p-pf2m + GHSA-5qhf-9phg-95m2 + GHSA-8whx-365g-h9vv + GHSA-9wjq-cp2p-hrgf
-# (allowed_uri? javascript: bypasses via char refs; SVG href local-reference bypass); ensure >= 2.25.2
-gem 'loofah', '>= 2.25.2'
-# GHSA-cj75-f6xr-r4g7 (possible XSS with certain configs); transitive via actionview/actiontext, pin patched
-gem 'rails-html-sanitizer', '>= 1.7.1'
+# (allowed_uri? javascript: bypasses via char refs; SVG href local-reference bypass); ensure >= 2.25.2.
+# GHSA-345x-3rq2-jfrm, GHSA-h6v6-rg66-fqj4, GHSA-jcff-cj73-4w4f, GHSA-m3x9-938q-5767, GHSA-mf2j-8f84-cc9q,
+# GHSA-p9wj-w8xq-vjx6 (scrubber mutation XSS, CSS url() and allowed_uri? bypasses, SVG ReDoS) need >= 2.25.3
+gem 'loofah', '>= 2.25.3'
+# GHSA-cj75-f6xr-r4g7 (possible XSS with certain configs); transitive via actionview/actiontext, pin patched.
+# GHSA-cpgf-5mjf-73p7 + GHSA-h7wh-q2qr-458c (shared scrubber state XSS, ReDoS) need >= 1.7.2
+gem 'rails-html-sanitizer', '>= 1.7.2'
+# GHSA-3w22-6jfg-527w + GHSA-4p39-36wj-23h4 + GHSA-v995-44v6-5fqm (attribute use-after-free, HTML5
+# noscript mutation XSS); transitive via loofah and rails-html-sanitizer; bundler-audit minimum
+gem 'nokogiri', '>= 1.19.5'
 # GHSA-6jxj-px6v-747w et al.; GHSA-pq4g-8rxf-4g29 (bad-URL tokenization, CSS sanitizer bypass) needs >= 1.0.8.
 # bundler-audit minimum. crass is required by loofah and sanitize, both direct dependencies
 # (rails-html-sanitizer also pulls in loofah).
@@ -77,7 +83,9 @@ gem 'aws-sdk-s3', '~> 1'
 # Aws::Sigv4::Signer from aws-sdk-core, already present via aws-sdk-s3.
 gem 'aws-sdk-bedrockruntime', '~> 1'
 gem 'http-2'
-gem 'resque', '~> 3.0'
+# GHSA-5r7x-x5pm-94xj, GHSA-m39q-9jm7-xp4q, GHSA-r23w-h6cg-h95q, GHSA-r5h4-xh93-f339 (resque-web XSS and
+# CSRF; the dashboard is mounted at /jobby in config/routes.rb); the CSRF fix needs >= 3.2.0
+gem 'resque', '~> 3.2'
 gem 'puma', '~> 7.2', '>= 7.2.1' # >= 7.2.1 clears CVE-2026-47736 / CVE-2026-47737 (PROXY protocol v1 parser)
 gem 'paper_trail', '~> 15.0'
 gem 'geokit'
