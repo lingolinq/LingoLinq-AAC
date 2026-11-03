@@ -18,6 +18,19 @@ module('Unit | Utility | csv', function() {
     assert.strictEqual(csvCell('@SUM(1)'), '"\'@SUM(1)"');
     assert.strictEqual(csvCell('\t=1+1'), '"\'\t=1+1"');
     assert.strictEqual(csvCell('\r=1+1'), '"\'\r=1+1"');
+    assert.strictEqual(csvCell('\n=1+1'), '"\'\n=1+1"');
+  });
+
+  test('prefixes a single quote on full-width formula starters', function(assert) {
+    assert.strictEqual(csvCell('＝1+1'), '"\'＝1+1"');
+    assert.strictEqual(csvCell('＋1'), '"\'＋1"');
+    assert.strictEqual(csvCell('－1'), '"\'－1"');
+    assert.strictEqual(csvCell('＠SUM(1)'), '"\'＠SUM(1)"');
+  });
+
+  test('guards a non-string value by its text form', function(assert) {
+    assert.strictEqual(csvCell(['=1+1']), '"\'=1+1"');
+    assert.strictEqual(csvCell(-5), '"\'-5"');
   });
 
   test('does not prefix an ordinary date or a later equals', function(assert) {

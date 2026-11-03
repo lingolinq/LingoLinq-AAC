@@ -1,5 +1,6 @@
 import { module, test } from 'qunit';
 import { setupTest } from '../../helpers';
+import { stub, restoreStubs } from 'frontend/tests/helpers/jasmine';
 
 /*
  * Org user-report CSV (KAN-124 / GitHub #383).
@@ -18,31 +19,32 @@ import { setupTest } from '../../helpers';
  *
  * click is a no-op on HTMLAnchorElement: the production action always
  * element.click()s a data: URI, which hangs headless Chrome on a download.
+ * Both overrides go through stub() so restoreStubs deletes the own property
+ * it created (click and createElement are inherited), per
+ * .claude/rules/testing-frontend.md "Restoring a stub".
  */
 module('Unit | Controller | organization/reports CSV download', function(hooks) {
   setupTest(hooks);
 
-  var origClick;
-  var origCreateElement;
+  var origCreateElement = Document.prototype.createElement;
 
   hooks.beforeEach(function() {
-    origClick = HTMLAnchorElement.prototype.click;
-    HTMLAnchorElement.prototype.click = function() { };
-    origCreateElement = document.createElement;
+    stub(HTMLAnchorElement.prototype, 'click', function() { });
   });
 
-  hooks.afterEach(function() {
-    HTMLAnchorElement.prototype.click = origClick;
-    document.createElement = origCreateElement;
+  hooks.afterEach(function(assert) {
+    restoreStubs();
+    assert.false(Object.prototype.hasOwnProperty.call(HTMLAnchorElement.prototype, 'click'), 'click is inherited again');
+    assert.false(Object.prototype.hasOwnProperty.call(document, 'createElement'), 'createElement is inherited again');
   });
 
   function captureDownload(controller) {
     var captured = null;
-    document.createElement = function(name) {
+    stub(document, 'createElement', function(name) {
       var el = origCreateElement.call(document, name);
       if(name === 'a') { captured = el; }
       return el;
-    };
+    });
     controller.send('download_list');
     return captured;
   }

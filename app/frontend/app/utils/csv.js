@@ -2,14 +2,16 @@
  * RFC 4180 CSV cells plus spreadsheet formula neutralization.
  *
  * Org user-report downloads (controllers/organization/reports.js download_list)
- * used to `columns.join(',')`. A cell starting with = + - @, tab, or CR is a
- * live formula in Excel/Sheets; a comma or quote in a name shifts columns.
+ * used to `columns.join(',')`. A cell starting with = + - @, tab, CR, LF, or a
+ * full-width = + - @ (the OWASP CSV Injection list) can be read as a formula
+ * by a spreadsheet; a comma or quote in a name shifts columns.
  * See GitHub #383 / KAN-124.
  */
 
+var FORMULA_STARTERS = ['=', '+', '-', '@', '\t', '\r', '\n', '＝', '＋', '－', '＠'];
+
 function needsFormulaGuard(text) {
-  var first = text.charAt(0);
-  return first === '=' || first === '+' || first === '-' || first === '@' || first === '\t' || first === '\r';
+  return FORMULA_STARTERS.indexOf(text.charAt(0)) !== -1;
 }
 
 export function csvCell(value) {

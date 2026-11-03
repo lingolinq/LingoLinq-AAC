@@ -144,3 +144,14 @@ and newlines; those land with the util.
 - Adding a header row to `users.csv`
 - Unicode formula lookalikes
 - Leading LF (`\\n`) as a formula prefix (OWASP mentions it; #383 and this request do not)
+
+## Review follow-up (senior-dev and adversary passes on 317a2bbf0)
+
+Applied in this branch, red test first:
+
+- **LF and full-width starters.** The OWASP CSV Injection page lists `= + - @`, tab, CR, LF, and the full-width `＝ ＋ － ＠`. LF and the full-width set were missing. `csv.js` now checks the first character against one `FORMULA_STARTERS` list. Red run: the LF assertion and the new full-width test failed; both pass after.
+- **Non-string cells.** Signup keeps a list-shaped `referrer` (`users_controller.rb` `permit!`, stored as-is at `user.rb` `settings['referrer'] ||= params['referrer']`). `csvCell` already guards by `String(value)`; a new test pins that. Mutation: guarding only `typeof value === 'string'` turns it red.
+- **Stub restore.** The controller test assigned the originals back to `HTMLAnchorElement.prototype.click` and `document.createElement`, which leaves own copies of inherited methods (`.claude/rules/testing-frontend.md`, "Restoring a stub"). It now uses `stub()` / `restoreStubs()`, and `afterEach` asserts neither own property remains. Mutation: assigning `click` directly turns both controller tests red on that assertion.
+- **Test plan step 4.** "All organization communicators" loads from `/organizations/:id/users`, which fills `joined` for managed users, so that column is not always empty for a non-admin org.
+
+Not changed: leading whitespace, NBSP or BOM before `=` (not on the OWASP list; a leading space makes the cell text in Excel and Sheets).
