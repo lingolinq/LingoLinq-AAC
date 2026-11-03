@@ -70,8 +70,8 @@ Everything here is checkable by reading source and grepping the tree.
    current state in `feature_flags.rb` AND the guard's specific location. A database override can
    make production differ from that file. In a quarterly full run, check the production flag values
    the orchestrator hands you, and report a branch they show unused in production in `note` only,
-   never as a finding. If they show a branch in use that `feature_flags.rb` alone makes look dead, or
-   any organization overrides that flag, do not emit that finding; say why in `note`.
+   never as a finding. For a fully rolled-out flag, do not emit the finding unless those values show
+   it on for everyone: off or mixed means the off-branch still runs for someone. Say why in `note`.
 
 5. **Unreachable branch.** A conditional whose condition is statically always-true or
    always-false in context (e.g. `if false`, a Ruby `case` with a redundant `else` after an

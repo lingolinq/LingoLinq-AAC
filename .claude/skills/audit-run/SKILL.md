@@ -89,7 +89,7 @@ in the receiving finder's skill that each read is evidence for, by the item's op
 | AWS | All enabled regions for regional services; SES; customer-policy statement bodies; KMS and SNS policies; CloudTrail bucket Object Lock; CDN distribution config | Whole account | `infra-auditor` | Object Lock: "Data-access events logged". CDN config: "HTTPS enforced". The others: "GCP/AWS services follow least-privilege" |
 | Google Cloud | URL map redirect; secret accessors; job and worker-pool config | Production | `infra-auditor` | URL map: "HTTPS enforced". Secret accessors: "GCP/AWS services follow least-privilege". Job and worker-pool config: "Secrets from env / Secret Manager" |
 | GitHub | Environment branch policy | Production environment | `infra-auditor` | "CI/CD exists" |
-| Production config | System-wide feature-flag values, with per flag the number of organizations that override it (no organization names); non-secret config | Production | Flag values: `code-hygiene-auditor`. Config: `api-auditor` | Flag values: class "Stale feature-flag branch". Config: "Large datasets (LogSession, BoardDownstreamButtonSet) live in S3" |
+| Production config | Feature-flag state per flag: on for everyone (in the default list and in every organization's own list), off for everyone (in no list, the canary and beta opt-in lists included), or mixed; no organization names. Non-secret config | Production | Flag values: `code-hygiene-auditor`. Config: `api-auditor` | Flag values: class "Stale feature-flag branch". Config: "Large datasets (LogSession, BoardDownstreamButtonSet) live in S3" |
 | Sentry | Alert rules; scrubbing | Production | `infra-auditor` | Alert rules: "Data-access events logged". Scrubbing: "Logs contain no PII or secrets" |
 | HubSpot, Zendesk | Retention settings | Production | `privacy-auditor` | "Retention periods defined per data type" |
 | S3/CDN, Stripe | S3 behaviour (bucket only until a non-production CDN exists); Stripe behaviour | Non-production | `api-auditor` | S3: "Large datasets (LogSession, BoardDownstreamButtonSet) live in S3". Stripe: "Consistent error format" |
@@ -134,14 +134,16 @@ table names. A monthly light run skips this step.
   Hand the finder the route template, rule id, element and class, and measured value only, never page
   text.
 - **Behaviour reads stay out of production, and nothing they send may reach a real person.** Stripe uses
-  test-mode credentials and synthetic accounts, with no team or real accounts. Its requests go through
-  the non-production app's own endpoints, after you confirm that app's Stripe key is in test mode, and
-  take the failure path only: induce a decline so the result shows the app's error shape. Never
-  complete a purchase, because a completed one emails a team inbox. S3 uses the non-production uploads
-  bucket the scope names, with read-only requests on synthetic test objects only, and lists or opens
-  nothing else. Before the run, Scot, or someone he names, creates those objects by using the
-  non-production app with a synthetic account while `REMOTE_EXTRA_DATA` is set there: one log session
-  with enough events to be stored in S3, and one board's button set. The scope lists their keys.
+  test-mode credentials and synthetic accounts, with no team or real accounts. The account's email is
+  at `example.com` or another reserved domain, because a decline emails the account. Its requests go
+  through the non-production app's own endpoints, after you confirm that app's Stripe key is in test
+  mode, and take the failure path only: induce a decline so the result shows the app's error shape.
+  Never complete a purchase, because a completed one emails a team inbox. S3 uses the non-production
+  uploads bucket the scope names, with read-only requests on synthetic test objects only, and lists or
+  opens nothing else. Before the run, Scot, or someone he names, creates those objects by using the
+  non-production app with a synthetic account while `REMOTE_EXTRA_DATA` is set on that app's web
+  service and its worker, since a worker job does the upload: one log session with enough events to be
+  stored in S3, and one board's button set. The scope lists their keys.
   Confirm each key exists before the read; with any missing, the S3 read stays untaken. The CDN half is
   added once a non-production CDN exists.
 - **Hand over and keep the least that answers the item.** A policy body or config can go whole, but never
@@ -406,17 +408,24 @@ no secrets:
 
 ## Step 7b: Read the public text before any push (every mode)
 This repo is public. A pushed branch is published whether or not it merges, a push publishes every
-commit rather than only the final tree, and CI runs only after the push. So commit the run's files,
-move anything else out of the worktree, and never use `git add -A`: `git status --porcelain` must then
-print nothing. Before the run's first push, and again before every later one, write every outgoing
-commit, its patch on any path and its message, to a file:
+commit rather than only the final tree, and CI runs only after the push. So commit the run's files
+and never use `git add -A`. `git status --porcelain` must then print nothing; if a tracked file outside
+the run is changed, stop and start the run again in a fresh worktree. Make the first push with
+`git push -u origin <branch>`, so later pushes have an upstream. Before the run's first push, and again
+before every later one, write every outgoing commit, its patch on any path and its message, to a new
+file. `mktemp` prints its path; use that path as `<file>` and delete it after the read:
 ```
-git log -p --reverse --remerge-diff origin/develop..HEAD > /tmp/outgoing.patch          # first push
-git log -p --reverse --remerge-diff @{u}..HEAD ^origin/develop > /tmp/outgoing.patch   # later pushes
-wc -l /tmp/outgoing.patch
+mktemp
+git rev-list --min-parents=3 HEAD ^origin/develop                           # must print nothing
+git log -p --reverse --remerge-diff origin/develop..HEAD > <file>           # first push
+git log -p --reverse --remerge-diff @{u}..HEAD ^origin/develop > <file>     # later pushes
+wc -l <file>
 ```
-`--remerge-diff` shows what a merge commit added by hand, such as a resolved register conflict. Read the
-whole file, in pieces if needed, until the lines read match `wc -l`. Read the PR title and body you will
+`--remerge-diff` shows what a merge commit added by hand, such as a resolved register conflict, but
+not for a merge of three or more parents, so a commit the `rev-list` line prints stops the push. Stop
+too if any command exits non-zero or `wc -l` prints 0: nothing was read. Read the whole file, in pieces
+if needed, until the lines read match `wc -l`. A `Binary files ... differ` line hides its content, so
+it fails unless Scot opens that file and passes it. Read the PR title and body you will
 post, and any PR comment or body edit you post later, the same way. Read the lines themselves, not a
 summary. A line passes only if all of these hold:
 1. It carries no value from a live read or a handed-over document: no account ID, resource name,
@@ -428,10 +437,11 @@ summary. A line passes only if all of these hold:
 4. An unfixed issue is stated at claim level: its claim, `file:line` and severity, with remediation and
    closure criteria that add nothing on how to exploit it. No work factor, exploit chain, request
    sequence or live config value, and no detail of a row the register already withholds. Compare every
-   new or re-anchored unfixed row with each withheld row (title "details withheld") in the private
-   evidence store, whatever file either cites. If you cannot rule out that it is the same issue, the row
-   fails. An organization-authorization issue carries nothing beyond the register's withheld form. The security disclosure policy keeps that detail in the
-   private evidence store until the fix is deployed and verified and disclosure is approved
+   new or re-anchored unfixed row with each withheld row (its title contains "details withheld") in the
+   private evidence store, whatever file either cites. If you cannot rule out that it is the same issue,
+   the row fails. An organization-authorization issue carries nothing beyond the register's withheld
+   form. The security disclosure policy keeps that detail in the private evidence store until the fix
+   is deployed and verified and disclosure is approved
    (`docs/legal/2026-09-17_compliance-status-snapshot.md`, "Security disclosure policy applied to the
    register").
 
@@ -448,13 +458,17 @@ rule, and wait: he decides whether to minimize the row under the disclosure poli
 private run record, or reword it. Change only what he decides, and rewrite only the unpushed commits
 so that none of them carries the failing line: `git reset --soft @{u}` after a push, or
 `git reset --soft "$(git merge-base HEAD origin/develop)"` before the first one, then one new commit.
-Never force-push. Then repeat Step 5 items 1 and 3 and this read from the start. A failing line that is already on the remote is a disclosure, not a hold: tell Scot at once, because
+Before the first form, run `git fetch` and `git merge-base --is-ancestor @{u} HEAD`; if it fails,
+someone else has pushed to the branch, so stop and tell Scot. Never force-push. Then repeat Step 5
+items 1 and 3 and this read from the start. A failing line that is already on the remote is a
+disclosure, not a hold: tell Scot at once, because
 deleting the branch does not unpublish it. Record in the private run record that the read passed, and
 at which commit.
 
 Text others post after the push, such as the Codex GitHub connector's automatic PR review, is outside
 this read. Read it when it lands. If it describes an unfixed issue beyond claim level, treat it as a
-disclosure: tell Scot, who decides whether to hide or delete it.
+disclosure: tell Scot, who decides whether to hide or delete it. Neither unpublishes it, since
+notifications and copies already went out.
 `/promote-finding` writes this same register, so it applies this read before its push too.
 
 ## Step 8 (optional, human-initiated): Publish summary to Notion
