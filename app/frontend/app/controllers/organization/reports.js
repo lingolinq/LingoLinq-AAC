@@ -309,7 +309,7 @@ export default Controller.extend({
           columns.push(user.registration_type);
           columns.push(user.referrer);
           columns.push(user.ad_referrer);
-          rows.push(columns.join(','));
+          rows.push(csvRow(columns));
         });
         element.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(rows.join("\n")));
         element.setAttribute('download', 'users.csv');
@@ -318,7 +318,7 @@ export default Controller.extend({
           var columns = [];
           columns.push(stat.key);
           columns.push(stat.value);
-          rows.push(columns.join(','));
+          rows.push(csvRow(columns));
         });
         element.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(rows.join("\n")));
         element.setAttribute('download', 'stats.csv');
@@ -404,3 +404,4 @@ export default Controller.extend({
   }
 });
 import apiErrorMessage from '../../utils/api_error_message';
+import { csvRow } from '../../utils/csv';
