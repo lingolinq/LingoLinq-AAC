@@ -105,6 +105,13 @@ description of what this run did not reach. A `type:"code"` snippet stays verbat
 committed source is already public. `note` and the `coverage` block are never committed to this
 repo.
 
+**Live reads handed to you.** In a quarterly full run the orchestrator may hand you production
+feature-flag values (`/audit-run` Step 1b). They are not static evidence, so they never support a
+finding. Check them against the "Stale feature-flag branch" class, and say in `note` that you used
+them and which branches they show unused in production: Step 2c counts the read only if you confirm
+you used it. The orchestrator holds the note in the private run record, and Scot decides whether to
+file anything from it.
+
 `memory:` is intentionally unset: with no Write tool and `audit-readonly-guard.sh` denying writes
 unconditionally, a memory policy could never persist anything. A fresh run re-verifies against live
 code at the audited SHA.

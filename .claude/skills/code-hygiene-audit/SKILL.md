@@ -67,7 +67,10 @@ Everything here is checkable by reading source and grepping the tree.
    code in the tree — the `else`/off-branch (or the guard itself, if fully on) is now dead.
    Conversely, a flag removed from `AVAILABLE_FRONTEND_FEATURES` entirely but still referenced by
    a guard in code = the guarded branch can never execute. Only flag when you can show the flag's
-   current state in `feature_flags.rb` AND the guard's specific location.
+   current state in `feature_flags.rb` AND the guard's specific location. A database override can
+   make production differ from that file. In a quarterly full run, check the production flag values
+   the orchestrator hands you, and report a branch they show unused in production in `note` only,
+   never as a finding.
 
 5. **Unreachable branch.** A conditional whose condition is statically always-true or
    always-false in context (e.g. `if false`, a Ruby `case` with a redundant `else` after an
