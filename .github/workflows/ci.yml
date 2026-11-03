@@ -532,8 +532,12 @@ jobs:
             echo "::error::full serial run selected ${selected} of ${registered} registered tests: a filter dropped tests before the run"
             exit 1
           fi
-          if [ "$tests" -ne "$registered" ]; then
-            echo "::error::full serial run ran ${tests} of ${registered} registered tests: the run is incomplete"
+          if [ "$tests" -lt "$registered" ]; then
+            echo "::error::full serial run ran ${tests} of ${registered} registered tests: the run is incomplete (a partial run)"
+            exit 1
+          fi
+          if [ "$tests" -gt "$registered" ]; then
+            echo "::error::full serial run reported ${tests} results for ${registered} registered tests: extra results, likely a global/uncaught failure between tests"
             exit 1
           fi
           # Must run timing-strict (tests/test-helper.js logs the mode when the run starts), as the shards do.
