@@ -13,7 +13,7 @@ module JsonApi::Json
         json = extra_includes(obj, json, args.except(:wrapper))
       end
       if self.respond_to?(:meta)
-        metadata = self.meta(obj)
+        metadata = self.meta(obj, args)
         json['meta'] = metadata if !metadata.blank?
       end
     end

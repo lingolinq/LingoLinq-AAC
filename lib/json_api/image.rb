@@ -95,11 +95,15 @@ module JsonApi::Image
     json
   end
   
-  def self.meta(image)
+  def self.meta(image, args={})
     json = {}
     # no upload form when S3 is not configured (Uploader.client_uploads_configured?); a create that
-    # needs one answers 503 instead (RemoteUploader#ensure_upload_form_available!)
-    if image.pending_upload? && Uploader.client_uploads_configured?
+    # needs one answers 503 instead (RemoteUploader#ensure_upload_form_available!). Only for
+    # someone who can edit the record, or on the response to the create that just made it
+    # (:upload_form, set by the create actions after their own permission check): the form and
+    # its confirmation key replace the file (RemoteUploader#upload_success), and every user can
+    # view any image.
+    if image.pending_upload? && Uploader.client_uploads_configured? && (args[:upload_form] || image.allows?(args[:permissions], 'edit'))
       params = image.remote_upload_params
       json = {'remote_upload' => params}
     end

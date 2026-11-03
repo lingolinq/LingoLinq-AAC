@@ -31,7 +31,7 @@ describe JsonApi::Json do
       args = {:wrapper => true}
       json = {'b' => 2}
       expect(JsonApi::Image).to receive(:build_json).with(obj, args).and_return(json)
-      expect(JsonApi::Image).to receive(:meta).with(obj).and_return({'ok' => false})
+      expect(JsonApi::Image).to receive(:meta).with(obj, args).and_return({'ok' => false})
       expect(JsonApi::Image.as_json(obj, args)).to eq({'image' => {'b' => 2}, 'meta' => {'ok' => false}})
     end
   end
