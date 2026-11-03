@@ -447,12 +447,15 @@ jobs:
   # The ember-shard jobs split the suite for speed on day-to-day PRs; a shard only proves
   # itself (ember-shard-coverage checks the split adds up, not that the whole suite ran in one
   # pass). Before develop's work reaches staging we run the entire suite once, serially, as a
-  # single linear pass. Gated to base=staging PRs, so it is skipped on develop and main PRs: it
-  # must therefore be a REQUIRED check on the `staging` branch protection ONLY. Requiring it on
-  # develop would hang every develop PR on a check that is skipped by design. rspec already runs
-  # the full backend suite un-sharded on every PR, so no new backend job is needed here.
+  # single linear pass. Gated to base=staging PRs, so it is skipped on develop and main PRs, which
+  # is why it is a REQUIRED check on the `staging` branch protection ONLY: requiring it on develop
+  # would be pointless (a skipped job's check counts as passing, as the build-and-test note below
+  # says), never a gate there. rspec already runs the full backend suite un-sharded on every PR,
+  # so no new backend job is needed here. Honors the ember-shard-scope classifier like the rest of
+  # the Ember pipeline, so a docs/audit-only promotion is not charged a full ~75 min run.
   ember-full-serial:
-    if: github.event_name == 'pull_request' && github.base_ref == 'staging'
+    needs: ember-shard-scope
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && github.base_ref == 'staging' && needs.ember-shard-scope.outputs.run != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     permissions:
@@ -504,13 +507,33 @@ jobs:
           status=0
           npx ember test --path dist-test --query "timingStrict=1" 2>&1 | tee ember-test.log || status=$?
           tests=$(grep -oE '^# tests [0-9]+' ember-test.log | tail -1 | awk '{print $3}' || true)
-          echo "### Full serial Ember suite: ran ${tests:-0} tests in $(( ($(date +%s) - start) / 60 )) min (\`--query timingStrict=1\`)" >> "$GITHUB_STEP_SUMMARY"
+          # tests/test-helper.js logs this for every run (no pool= filter, so no [SHARD] line): `registered`
+          # is every test registered, `selected` what QUnit will run. With no filter the two are equal, and
+          # a complete run's `# tests` equals them. Any inequality means the run was partial.
+          suite_line=$(grep -oE '\[SUITE\] selected=[0-9]+ registered=[0-9]+' ember-test.log | head -1 || true)
+          selected=$(printf '%s' "$suite_line" | sed -nE 's/.*selected=([0-9]+).*/\1/p')
+          registered=$(printf '%s' "$suite_line" | sed -nE 's/.*registered=([0-9]+).*/\1/p')
+          echo "### Full serial Ember suite: ran ${tests:-0} of ${registered:-?} registered in $(( ($(date +%s) - start) / 60 )) min (\`--query timingStrict=1\`)" >> "$GITHUB_STEP_SUMMARY"
           # Per-test late-work lines (queued fetch / destroyed service) go to the job summary, as the shards do.
           bash ../../scripts/ci-late-work-summary.sh ember-test.log "full-serial" || true
-          # No pool= filter means QUnit ran every registered test; a zero count means the build or
-          # harness never loaded, which must not pass as an empty green run.
+          # A zero count means the build or harness never loaded, which must not pass as an empty green run.
           if [ "${tests:-0}" -eq 0 ]; then
             echo "::error::full serial run executed 0 tests: the build or test harness did not load"
+            exit 1
+          fi
+          # The completeness proof: without the [SUITE] line there is no registered total to check against,
+          # so a silently partial run could otherwise pass. selected == registered means no filter dropped
+          # tests before the run; tests == registered means every registered test actually ran.
+          if [ -z "$registered" ] || [ -z "$selected" ]; then
+            echo "::error::full serial run logged no [SUITE] selected/registered line: completeness cannot be proven"
+            exit 1
+          fi
+          if [ "$selected" -ne "$registered" ]; then
+            echo "::error::full serial run selected ${selected} of ${registered} registered tests: a filter dropped tests before the run"
+            exit 1
+          fi
+          if [ "$tests" -ne "$registered" ]; then
+            echo "::error::full serial run ran ${tests} of ${registered} registered tests: the run is incomplete"
             exit 1
           fi
           # Must run timing-strict (tests/test-helper.js logs the mode when the run starts), as the shards do.
