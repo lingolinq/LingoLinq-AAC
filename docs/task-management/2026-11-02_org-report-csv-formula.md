@@ -142,8 +142,6 @@ and newlines; those land with the util.
 - Sanitizing `referrer`/`ad_referrer` at storage
 - Other `join(',')` call sites (not CSV downloads)
 - Adding a header row to `users.csv`
-- Unicode formula lookalikes
-- Leading LF (`\\n`) as a formula prefix (OWASP mentions it; #383 and this request do not)
 
 ## Review follow-up (senior-dev and adversary passes on 317a2bbf0)
 

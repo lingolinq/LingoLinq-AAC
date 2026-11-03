@@ -22,10 +22,10 @@ module('Unit | Utility | csv', function() {
   });
 
   test('prefixes a single quote on full-width formula starters', function(assert) {
-    assert.strictEqual(csvCell('＝1+1'), '"\'＝1+1"');
-    assert.strictEqual(csvCell('＋1'), '"\'＋1"');
-    assert.strictEqual(csvCell('－1'), '"\'－1"');
-    assert.strictEqual(csvCell('＠SUM(1)'), '"\'＠SUM(1)"');
+    assert.strictEqual(csvCell('\uFF1D1+1'), '"\'\uFF1D1+1"');
+    assert.strictEqual(csvCell('\uFF0B1'), '"\'\uFF0B1"');
+    assert.strictEqual(csvCell('\uFF0D1'), '"\'\uFF0D1"');
+    assert.strictEqual(csvCell('\uFF20SUM(1)'), '"\'\uFF20SUM(1)"');
   });
 
   test('guards a non-string value by its text form', function(assert) {

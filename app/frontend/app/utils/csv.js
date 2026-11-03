@@ -8,7 +8,7 @@
  * See GitHub #383 / KAN-124.
  */
 
-var FORMULA_STARTERS = ['=', '+', '-', '@', '\t', '\r', '\n', '＝', '＋', '－', '＠'];
+var FORMULA_STARTERS = ['=', '+', '-', '@', '\t', '\r', '\n', '\uFF1D', '\uFF0B', '\uFF0D', '\uFF20'];
 
 function needsFormulaGuard(text) {
   return FORMULA_STARTERS.indexOf(text.charAt(0)) !== -1;
