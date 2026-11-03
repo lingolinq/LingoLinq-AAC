@@ -1,0 +1,120 @@
+// Offline app shell (lib/offline_shell.rb): lets the app open with no network once it has been
+// added to a Home Screen and has synced. Board data is already on the device; this worker keeps a copy
+// of the page itself and the files it loads.
+//
+// Rules, in order:
+// - Only GET requests to this origin are ever looked at. Everything else goes to the network untouched.
+// - A file in PRECACHE (matched on its path) is answered from the cache. Nothing else ever is: every
+//   /api/ request and every other file goes to the network as if there were no worker.
+// - A page navigation to an app page tries the network first. If it fails, or takes longer than
+//   NAVIGATION_TIMEOUT_MS, the answer is the cached generic page (SHELL_PATH), which boots the app
+//   from the device. Pages Rails answers itself (EXCLUDED_FIRST_SEGMENTS, files, board icons) never
+//   get it.
+// - A new version waits until every page the old one controls has closed, then deletes the old
+//   caches. Online launches already get the fresh page and fresh files from the network, so the
+//   version only matters offline.
+'use strict';
+var CACHE_NAME = <%= raw @cache_name.to_json %>;
+var CACHE_PREFIX = <%= raw OfflineShell::CACHE_PREFIX.to_json %>;
+var SHELL_PATH = <%= raw OfflineShell::SHELL_PATH.to_json %>;
+var PRECACHE = <%= raw @precache_urls.to_json %>;
+var EXCLUDED_FIRST_SEGMENTS = <%= raw OfflineShell::EXCLUDED_FIRST_SEGMENTS.to_json %>;
+var NAVIGATION_TIMEOUT_MS = <%= OfflineShell::NAVIGATION_TIMEOUT_MS.to_i %>;
+var GLOBAL_ID = /^\d+_\d+(-\d+_\d+)?$/;
+
+var PRECACHED = {};
+PRECACHE.forEach(function(path) { PRECACHED[path] = true; });
+
+// Mirrors OfflineShell.navigation_excluded? (lib/offline_shell.rb).
+function navigationExcluded(pathname) {
+  var segments = pathname.split('/').filter(function(segment) { return segment.length > 0; });
+  if(segments.length === 0) { return false; }
+  if(EXCLUDED_FIRST_SEGMENTS.indexOf(segments[0]) !== -1) { return true; }
+  var last = segments[segments.length - 1];
+  if(last.indexOf('.') !== -1) { return true; }
+  if(last === 'icon' && (segments.length >= 3 || GLOBAL_ID.test(segments[0]))) { return true; }
+  return false;
+}
+
+self.addEventListener('install', function(event) {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(function(cache) {
+      return Promise.all(PRECACHE.map(function(path) {
+        var request = new Request(path, {cache: 'reload', credentials: 'same-origin', redirect: 'error'});
+        return fetch(request).then(function(response) {
+          // Only a plain same-origin 200 is kept. A redirected page cannot answer a navigation.
+          if(!response.ok || response.redirected || response.type !== 'basic') {
+            throw new Error('offline shell: could not precache ' + path + ' (' + response.status + ')');
+          }
+          return cache.put(path, response);
+        });
+      }));
+    }).catch(function(error) {
+      // Never leave a half-filled cache behind; the install fails and the browser tries again later.
+      return caches.delete(CACHE_NAME).then(function() { throw error; });
+    })
+  );
+});
+
+self.addEventListener('activate', function(event) {
+  event.waitUntil(
+    caches.keys().then(function(keys) {
+      return Promise.all(keys.filter(function(key) {
+        return key.indexOf(CACHE_PREFIX) === 0 && key !== CACHE_NAME;
+      }).map(function(key) {
+        return caches.delete(key);
+      }));
+    })
+  );
+});
+
+function cachedShell() {
+  return caches.open(CACHE_NAME).then(function(cache) { return cache.match(SHELL_PATH); });
+}
+
+function navigationResponse(request) {
+  var network = fetch(request);
+  return new Promise(function(resolve, reject) {
+    var done = false;
+    var finish = function(response) {
+      if(!done) { done = true; resolve(response); }
+    };
+    var timer = setTimeout(function() {
+      // Slow network: answer with the shell now. The request carries on and its answer is dropped.
+      // With nothing cached, keep waiting for the network.
+      cachedShell().then(function(shell) { if(shell) { finish(shell); } }, function() {});
+    }, NAVIGATION_TIMEOUT_MS);
+    network.then(function(response) {
+      clearTimeout(timer);
+      finish(response);
+    }, function(error) {
+      clearTimeout(timer);
+      cachedShell().then(function(shell) {
+        if(shell) { finish(shell); } else if(!done) { done = true; reject(error); }
+      }, function() {
+        if(!done) { done = true; reject(error); }
+      });
+    });
+  });
+}
+
+self.addEventListener('fetch', function(event) {
+  var request = event.request;
+  if(request.method !== 'GET') { return; }
+  var url = new URL(request.url);
+  if(url.origin !== self.location.origin) { return; }
+  if(request.mode === 'navigate') {
+    // Top-level pages only; an embedded board in a frame goes to the network.
+    if(request.destination && request.destination !== 'document') { return; }
+    if(navigationExcluded(url.pathname)) { return; }
+    event.respondWith(navigationResponse(request));
+    return;
+  }
+  if(PRECACHED[url.pathname]) {
+    event.respondWith(
+      caches.open(CACHE_NAME).then(function(cache) { return cache.match(url.pathname); }).then(function(cached) {
+        return cached || fetch(request);
+      })
+    );
+  }
+});

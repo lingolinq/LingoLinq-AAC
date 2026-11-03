@@ -50,7 +50,10 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="<%= app_name %>">
-  <%= csrf_meta_tags %>
+  <%# The offline app shell's cached page (lib/offline_shell.rb) carries no session token: the
+      frontend never reads it (the API authenticates with the bearer token), and a cached copy
+      would only go stale. %>
+  <%= csrf_meta_tags unless @offline_shell %>
   <!-- Latest compiled and minified CSS -->
 
  
@@ -75,6 +78,13 @@
   <link rel="apple-touch-icon" href="/icons/logo-152.png?v=7" sizes="152x152" />
   <link rel="apple-touch-icon" href="/icons/logo-120.png?v=7" sizes="120x120" />
   <link rel="apple-touch-icon" href="/icons/logo-76.png?v=7" sizes="76x76" />
+  <%# Offline app shell (lib/offline_shell.rb), read per request because the setting is per
+      environment: app/frontend/app/utils/offline_shell.js registers the worker when this is true
+      and removes it when it is false. Not in globals.js, which is fixed at asset precompile. %>
+  <% if OfflineShell.enabled? %>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <% end %>
+  <script type="text/javascript">window.offline_shell_enabled = <%= OfflineShell.enabled? ? 'true' : 'false' %>;</script>
   <%= javascript_include_tag "globals" %>
   <% if @load_chart_scripts %>
     <%# Chart.js + Sankey: before application.js; only Ember shell (boards/* that render index). See app/frontend/app/index.html for ember serve. %>
