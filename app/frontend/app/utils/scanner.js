@@ -179,14 +179,14 @@ var scanner = EmberObject.extend({
     }
     scanner.current_element = null;
     scanner.ref = Math.random();
-    // Look for #speak directly. On board-alt the #speak element lives inside
-    // the application <header>; on board-detail the existing sentence-bar div
-    // is given id="speak" without any wrapper. Either form works.
+    // #speak is in the <header> on board-alt and is the sentence row on board-detail, which renders
+    // it in every mode, so speak mode is checked as well: check_scanning starts scanning only there,
+    // and every resume (a modal closing, a board re-arm) would otherwise rescan in default or edit mode.
     if(scanner.find_elem("#speak").length === 0) {
       scanner.stop();
       return;
     }
-    if(!this.get('appState.currentUser.preferences.device.scanning')) {
+    if(!this.get('appState.speak_mode') || !this.get('appState.currentUser.preferences.device.scanning')) {
       scanner.stop();
       return;
     }

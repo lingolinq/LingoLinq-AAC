@@ -354,16 +354,8 @@
           window.dispatchEvent(new CustomEvent('weblinger-script-load-failed'));
         }
       };
-      window.weblingerLoadFallback = function() {
-        var script = document.createElement('script');
-        script.src = 'https://app.covidspeak.org/weblinger.js/weblinger.js';
-        script.async = true;
-        script.onload = window.weblingerScriptLoaded;
-        script.onerror = window.weblingerScriptFailed;
-        document.head.appendChild(script);
-      };
     </script>
-    <script src="/weblinger/weblinger.js" async onload="weblingerScriptLoaded()" onerror="weblingerLoadFallback()"></script>
+    <script src="/weblinger/weblinger.js" async onload="weblingerScriptLoaded()" onerror="weblingerScriptFailed()"></script>
 
     <link rel="stylesheet" href="{{rootURL}}assets/vendor.css">
     <link rel="stylesheet" href="{{rootURL}}assets/frontend.css">
