@@ -106,6 +106,26 @@ describe OfflineShellController, :type => :controller do
           expect(response.body).to include(controller.helpers.asset_path('application.js'))
         end
 
+        # The page and the worker must agree in every environment, including when the asset tags use
+        # the debug pipeline (development), or an offline launch asks for files that were never cached.
+        it "loads nothing from /assets/ that the worker does not precache" do
+          get :shell
+          loaded = response.body.scan(/(?:src|href)=["'](\/assets\/[^"']+)["']/).flatten.uniq
+          expect(loaded.length).to be >= 3
+          precached = OfflineShell.precache_urls(controller.helpers)
+          expect(precached).to include(*loaded)
+        end
+
+        it "still agrees when the asset tags use the debug pipeline" do
+          allow(controller.helpers).to receive(:request_debug_assets?).and_return(true)
+          allow_any_instance_of(ActionView::Base).to receive(:request_debug_assets?).and_return(true)
+          get :shell
+          loaded = response.body.scan(/(?:src|href)=["'](\/assets\/[^"']+)["']/).flatten.uniq
+          expect(loaded.any? { |path| path.include?('.debug-') }).to eq(true), "debug pipeline not in use: #{loaded.inspect}"
+          precached = OfflineShell.precache_urls(controller.helpers)
+          expect(precached).to include(*loaded)
+        end
+
         # config/environments/test.rb turns forgery protection off, which would drop the tag anyway.
         it "carries no session token and no page-specific record" do
           allow(controller).to receive(:protect_against_forgery?).and_return(true)

@@ -98,9 +98,21 @@ module OfflineShell
   end
 
   # Every URL the worker precaches. `helpers` is a view-helper object (a controller's `helpers`, or
-  # ActionController::Base.helpers), so the digested paths are the ones the page itself uses.
+  # ActionController::Base.helpers).
   def self.precache_urls(helpers)
-    ([SHELL_PATH, MANIFEST_PATH] + DIGESTED_ASSETS.map { |asset| helpers.asset_path(asset) } + STATIC_FILES).uniq
+    ([SHELL_PATH, MANIFEST_PATH] + digested_asset_urls(helpers) + STATIC_FILES).uniq
+  end
+
+  # The digested files, taken from the same tag helpers the page uses (layouts/application.html.erb,
+  # boards/index.html.erb), so the list matches what the page loads in every environment. With debug
+  # assets on (development) the tags use the debug pipeline's file names, which asset_path does not.
+  # In production the two agree (debug is off), and boards/index.html.erb uses asset_path there.
+  def self.digested_asset_urls(helpers)
+    DIGESTED_ASSETS.flat_map do |asset|
+      name, ext = asset.split('.')
+      html = ext == 'css' ? helpers.stylesheet_link_tag(name) : helpers.javascript_include_tag(name)
+      html.to_s.scan(/(?:src|href)="([^"]+)"/).flatten
+    end
   end
 
   # Versioned cache name. Any change to the worker, the precached paths (so any new asset digest), a
