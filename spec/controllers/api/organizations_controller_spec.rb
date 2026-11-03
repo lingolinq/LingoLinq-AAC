@@ -1301,6 +1301,100 @@ describe Api::OrganizationsController, :type => :controller do
       json = JSON.parse(response.body)
       expect(json['stats']).to_not eq(nil)
     end
+
+    ['status-home_boards', 'status-recent_home_boards', 'access-home_boards', 'device-home_boards', 'vocab-home_boards', 'grid-home_boards'].each do |report_name|
+      it "should not return system-wide home board keys to a non-admin org via #{report_name}" do
+        token_user
+        o = Organization.create
+        o.add_manager(@user.user_name, false)
+        owner = User.create
+        other = User.create
+        b = Board.create(user: owner)
+        UserBoardConnection.create(user_id: owner.id, board_id: b.id, home: true)
+        UserBoardConnection.create(user_id: other.id, board_id: b.id, home: true)
+        foreign_org = Organization.create
+        foreign_org.add_user(other.user_name, false, false)
+
+        get :admin_reports, params: {:organization_id => o.global_id, :report => report_name}
+        expect(response).to be_successful
+        json = JSON.parse(response.body)
+        expect(json['stats']).to eq(nil)
+        expect(json['user']).to eq([])
+        expect(response.body).not_to include(b.key)
+      end
+    end
+
+    it "should limit prefixed reports for a non-admin org to its own users" do
+      token_user
+      o = Organization.create
+      o.add_manager(@user.user_name, false)
+      member = User.create
+      o.add_user(member.user_name, false, false)
+      foreign_org = Organization.create
+      outsider = User.create
+      foreign_org.add_user(outsider.user_name, false, false)
+
+      get :admin_reports, params: {:organization_id => o.global_id, :report => 'status-unchecked'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['user'].map { |u| u['id'] }).to eq([member.global_id])
+    end
+
+    it "should not let a line break smuggle an admin-only report name past the non-admin allowlist" do
+      token_user
+      o = Organization.create
+      o.add_manager(@user.user_name, false)
+      member = User.create
+      o.add_user(member.user_name, false, false)
+
+      get :admin_reports, params: {:organization_id => o.global_id, :report => "home_boards\nstatus-unchecked"}
+      assert_unauthorized
+    end
+
+    it "should count shared home boards and limit recent_home_boards to the last 3 months for an admin org" do
+      token_user
+      o = Organization.create(:admin => true)
+      o.add_manager(@user.user_name, false)
+      users = 4.times.map { User.create }
+      current_board = Board.create(user: users[0])
+      old_board = Board.create(user: users[0])
+      UserBoardConnection.create(user_id: users[0].id, board_id: current_board.id, home: true)
+      UserBoardConnection.create(user_id: users[1].id, board_id: current_board.id, home: true)
+      [users[2], users[3]].each do |u|
+        ubc = UserBoardConnection.create(user_id: u.id, board_id: old_board.id, home: true)
+        ubc.update_columns(updated_at: 4.months.ago)
+      end
+
+      get :admin_reports, params: {:organization_id => o.global_id, :report => 'home_boards'}
+      expect(response).to be_successful
+      expect(JSON.parse(response.body)['stats']).to eq({current_board.key => 2, old_board.key => 2})
+
+      get :admin_reports, params: {:organization_id => o.global_id, :report => 'recent_home_boards'}
+      expect(response).to be_successful
+      expect(JSON.parse(response.body)['stats']).to eq({current_board.key => 2})
+    end
+
+    it "should list members without recent logs in not_logged_2 for a non-admin org" do
+      token_user
+      o = Organization.create
+      o.add_manager(@user.user_name, false)
+      member = User.create
+      o.add_user(member.user_name, false, false)
+
+      get :admin_reports, params: {:organization_id => o.global_id, :report => 'not_logged_2'}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['user'].map { |u| u['id'] }).to eq([member.global_id])
+    end
+
+    it "should reject a report parameter that is not a string" do
+      token_user
+      o = Organization.create(:admin => true)
+      o.add_manager(@user.user_name, false)
+
+      get :admin_reports, params: {:organization_id => o.global_id, :report => ['home_boards']}
+      assert_error("report parameter required", 400)
+    end
     
     it "should generate subscriptions report" do
       token_user
