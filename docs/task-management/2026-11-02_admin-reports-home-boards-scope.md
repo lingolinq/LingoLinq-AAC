@@ -66,3 +66,17 @@ Non-admin prefixed names would 400. Matches the issue's suggested assertion.
 Controller spec: non-admin manager, two `UserBoardConnection` home rows on one foreign board (count > 1 so `:429` keeps the key), request `status-home_boards`, `status-recent_home_boards`, `access-home_boards`, `device-home_boards`, `vocab-home_boards`, and `grid-home_boards`. Expect HTTP 200, `json['stats'] == nil`, `json` has `'user'`, body does not include the board key. Adversarial review of this proposal required the last three prefixes so a three-name special-case cannot go green.
 
 Mutation that must make it fail: restore `elsif params['report'].match(/home_boards/)`. Weakest passing state: a single home connection (count 1 is dropped, so an assertion only on the key's absence would pass with the bug still present).
+
+## Review follow-up (senior-dev and adversary passes on afeed574f)
+
+Line numbers in the sections above are from before the first fix; add 2 for anything after `:403`.
+
+Applied in this branch, red test first for each:
+
+- **Allowlist anchors.** `^` in Ruby matches after any line break, so `home_boards\nstatus-unchecked` passed the non-admin allowlist. It now uses one `\A(status|access|device|vocab|grid)-` match on a `report_name` that is `''` for a non-string param. Spec: line-break name gets `Not authorized`. Mutation: `\A` back to `^` turns only that example red.
+- **Non-string `report`.** `report[]=x` raised NoMethodError (500). It now returns 400 `report parameter required`. Mutation: nil-only check turns only that example red.
+- **`not_logged_2`.** The unanchored `/logged_/` branch caught it first and read `to_i` of `"logged"`, so the report was always empty. Anchored to `\Alogged_`. Spec: a non-admin org member with no sessions is listed. Mutation: unanchored match turns only that example red.
+- **Cross-org scoping guard.** The six prefixed-name examples now seed a member of a second org and assert `user == []`, and a new `status-unchecked` example asserts the result is exactly the org's own member. Mutation: replacing the `links_for(org)` user list with `User.all` turns the scoping example and the two `status-` examples red.
+- **Admin census content.** New example asserts `{board key => 2}` for both boards and that `recent_home_boards` drops connections older than 3 months. Mutation: removing the 3-month filter turns it red.
+
+Not changed: the commented-out `/recent_/` block; the scoping guard above catches it if re-enabled for `status-` names.
