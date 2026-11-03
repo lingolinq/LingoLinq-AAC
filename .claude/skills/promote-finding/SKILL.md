@@ -45,6 +45,9 @@ mechanical: `scripts/promote-finding.rb` refuses to write any other status or di
   identifiers ever enter the register. `promote-finding.rb` REFUSES (does not redact) any finding
   whose text matches a PII or secret shape.
 - **Critical/High only.** Medium/low PR findings are not promoted (keeps the register signal-dense).
+- **Read the public text before any push.** This repo is public. Before pushing, apply the read in
+  `/audit-run` Step 7b to every outgoing commit: a promoted finding states an unfixed issue at claim
+  level only.
 - **Only Scot** closes, downgrades, accepts risk, or sets a disposition.
 
 ## Step 1: Gather the reviewed findings

@@ -89,10 +89,10 @@ in the receiving finder's skill that each read is evidence for, by the item's op
 | AWS | All enabled regions for regional services; SES; customer-policy statement bodies; KMS and SNS policies; CloudTrail bucket Object Lock; CDN distribution config | Whole account | `infra-auditor` | Object Lock: "Data-access events logged". CDN config: "HTTPS enforced". The others: "GCP/AWS services follow least-privilege" |
 | Google Cloud | URL map redirect; secret accessors; job and worker-pool config | Production | `infra-auditor` | URL map: "HTTPS enforced". Secret accessors: "GCP/AWS services follow least-privilege". Job and worker-pool config: "Secrets from env / Secret Manager" |
 | GitHub | Environment branch policy | Production environment | `infra-auditor` | "CI/CD exists" |
-| Production config | Feature-flag values; non-secret config | Production | Flag values: `code-hygiene-auditor`. Config: `api-auditor` | Flag values: class "Stale feature-flag branch". Config: "Large datasets (LogSession, BoardDownstreamButtonSet) live in S3" |
-| Sentry | Alert rules and scrubbing | Production | `infra-auditor` | Alert rules: "Data-access events logged". Scrubbing: "Logs contain no PII or secrets" |
+| Production config | System-wide feature-flag values, no per-organization value; non-secret config | Production | Flag values: `code-hygiene-auditor`. Config: `api-auditor` | Flag values: class "Stale feature-flag branch". Config: "Large datasets (LogSession, BoardDownstreamButtonSet) live in S3" |
+| Sentry | Alert rules; scrubbing | Production | `infra-auditor` | Alert rules: "Data-access events logged". Scrubbing: "Logs contain no PII or secrets" |
 | HubSpot, Zendesk | Retention settings | Production | `privacy-auditor` | "Retention periods defined per data type" |
-| S3/CDN, Stripe | Behaviour against a non-production environment (S3 bucket only until a non-production CDN exists) | Non-production | `api-auditor` | S3: "Large datasets (LogSession, BoardDownstreamButtonSet) live in S3". Stripe: "Consistent error format" |
+| S3/CDN, Stripe | S3 behaviour (bucket only until a non-production CDN exists); Stripe behaviour | Non-production | `api-auditor` | S3: "Large datasets (LogSession, BoardDownstreamButtonSet) live in S3". Stripe: "Consistent error format" |
 | Accessibility | Axe and focus walk on every route, including speak mode, with computed contrast and rendered focus | Local or non-production | `accessibility-auditor` | 1.4.3, 1.4.11, 2.4.3, 2.4.7 and 4.1.2 |
 
 ## Run context (dynamic injection)
@@ -136,9 +136,11 @@ table names. A monthly light run skips this step.
 - **Behaviour reads stay out of production, and nothing they send may reach a real person.** Stripe uses
   test-mode credentials and synthetic accounts, with no team or real accounts. S3 uses the non-production
   uploads bucket the scope names, with read-only requests on synthetic test objects only, and lists or
-  opens nothing else. Before the run, Scot, or someone he names, creates those objects by uploading
-  through the non-production app with a synthetic account, and the scope lists their keys. With no test
-  objects in place, the read stays untaken. The CDN half is added once a non-production CDN exists.
+  opens nothing else. Before the run, Scot, or someone he names, creates those objects by using the
+  non-production app with a synthetic account, including at least one `extra_data` object from a
+  synthetic board or log session, and the scope lists their keys. With no test objects in place, the
+  S3 read stays untaken. Stripe requests go through the non-production app's own endpoints, so the
+  result shows the app's error shape. The CDN half is added once a non-production CDN exists.
 - **Hand over and keep the least that answers the item.** A policy body or config can go whole, but never
   a person's identifier, such as a recipient address or a principal's email (give the principal type),
   and never a secret's value. Remove any that a result carries before you store it or hand it over,
@@ -358,8 +360,8 @@ is not part of this run; this run surfaces and verifies, it does not close.
    text contains a 4-part EN 301 549 clause (`9.1.4.3`) that matches the IP scrubber - the
    accessibility-audit skill already instructs finders to avoid this, so a refusal here means the
    guidance was not followed and the finding must be corrected, not silently lost.
-3. `ruby scripts/citation-check.rb --render audit-reports/FINDINGS.json` to regenerate
-   `audit-reports/FINDINGS.md` from the JSON.
+3. `scripts/regenerate-register.sh` to regenerate `audit-reports/FINDINGS.md` and every other file
+   derived from the register, including the Notion page body. It gates on citation-check first.
 4. Optionally write a rendered `audit-reports/unified-audit-YYYY-MM-DD.md` for a quarterly run. It is
    public, so its coverage section carries the verdict and counts only.
 5. In every mode, surface each regression to Scot for the decision in Step 3, and print each finder's
@@ -400,23 +402,28 @@ no secrets:
    `synthetic-data` label. Never add that label yourself (root `CLAUDE.md` rule 15).
 
 ## Step 7b: Read the public text before any push (every mode)
-This repo is public. A pushed branch is published whether or not it merges, and CI runs only after the
-push. So before the run's first push, and again before every later one, read every line this run adds or
-changes in public text: `git diff "$(git merge-base HEAD origin/develop)" -- audit-reports/` (the
-register, `FINDINGS.md`, any unified report, the run-log line), each commit message, and the PR title
-and body you will post. Read the lines themselves, not a summary. A line passes only if all of these
-hold:
+This repo is public. A pushed branch is published whether or not it merges, a push publishes every
+commit rather than only the final tree, and CI runs only after the push. So commit everything first:
+`git status --porcelain` must print nothing. Then, before the run's first push and again before every
+later one, read each outgoing commit in full, its patch on any path and its message:
+`git log -p --reverse "$(git merge-base HEAD origin/develop)"..HEAD` before the first push, and
+`git log -p --reverse @{u}..HEAD` after it. Read the PR title and body you will post too. Read the lines
+themselves, not a summary. A line passes only if all of these hold:
 1. It carries no value from a live read or a handed-over document: no account ID, resource name,
    principal, region, policy text or config value. Coverage text is the stamp's verdict and counts only.
 2. It carries no secret, no person's identifier, and no customer, student or patient data.
-3. It does not name or describe an area this run did not reach.
+3. It does not name or describe an area this run did not reach. The exceptions are the fixed stamp
+   text from Step 2c and a light run's `skipped` list. A register PR's "Not covered" section says only
+   that coverage detail is in the private run record.
 4. An unfixed issue is stated at claim level: its claim, `file:line` and severity, with remediation and
    closure criteria that add nothing on how to exploit it. No work factor, exploit chain, request
-   sequence or live config value, and no detail of a row the register already withholds. An
-   organization-authorization issue carries nothing beyond the register's withheld form. The security
-   disclosure policy keeps that detail in the private evidence store until the fix is deployed and
-   verified and disclosure is approved (`docs/legal/2026-09-17_compliance-status-snapshot.md`, "Security
-   disclosure policy applied to the register").
+   sequence or live config value, and no detail of a row the register already withholds. A new row on
+   a file that a "details withheld" row also cites may be that same issue: check the private evidence
+   store, and if you cannot rule it out, the row fails. An organization-authorization issue carries
+   nothing beyond the register's withheld form. The security disclosure policy keeps that detail in the
+   private evidence store until the fix is deployed and verified and disclosure is approved
+   (`docs/legal/2026-09-17_compliance-status-snapshot.md`, "Security disclosure policy applied to the
+   register").
 
 As an aid, grep the added lines for narration such as `escalat`, `bypass`, `unauthenticated`, `IDOR`,
 `token in URL` and `not enforced`. A hit is a line to read again, not a pass or a fail. Also run:
@@ -428,12 +435,20 @@ The guard does not scan `audit-reports/`, so for the register this read is the o
 
 If any line fails, push nothing. Tell Scot in this session, not in any public text, which line and which
 rule, and wait: he decides whether to minimize the row under the disclosure policy, hold it in the
-private run record, or reword it. Change only what he decides, then repeat Step 5 items 1 and 3 and this
-read from the start. Record in the private run record that the read passed, and at which commit.
+private run record, or reword it. Change only what he decides, and rewrite the unpushed commits so
+that none of them carries the failing line, for example `git reset --soft` to the last pushed commit (or
+the merge base) and one new commit. Then repeat Step 5 items 1 and 3 and this read from the start. A
+failing line that is already on the remote is a disclosure, not a hold: tell Scot at once, because
+deleting the branch does not unpublish it. Record in the private run record that the read passed, and
+at which commit.
+
+Text others post after the push, such as the Codex GitHub connector's automatic PR review, is outside
+this read. Read it when it lands, and tell Scot if it describes an unfixed issue beyond claim level.
+`/promote-finding` writes this same register, so it applies this read before its push too.
 
 ## Step 8 (optional, human-initiated): Publish summary to Notion
-After Step 7b, regenerate the one-way Notion page body from the register:
-`ruby scripts/compliance-notion-publish.rb` (then `--check`). It renders a PII-free summary
+Step 5 item 3 renders the one-way Notion page body from the register
+(`ruby scripts/compliance-notion-publish.rb`, then `--check`), and Step 7b reads it. It renders a PII-free summary
 (headline + open-findings table, file:line anchors only) to
 `audit-reports/notion/compliance-audit-page.md`, stamped with the audited SHA + run date and
 marked "generated, do not edit". The actual push to the single Notion "Compliance & Audit Posture"
