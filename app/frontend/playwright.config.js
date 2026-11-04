@@ -78,5 +78,19 @@ module.exports = defineConfig({
       testMatch: /goal-chart-labels\.spec\.js/,
       use: { ...devices['Desktop Chrome'] },
     },
+    // Offline app shell (lib/offline_shell.rb). Against RAILS, not ember serve: E2E_BASE_URL must
+    // point at a Rails server started with OFFLINE_APP_SHELL=on (then =off for the kill switch).
+    // Signs in as its own synthetic users (e2e/support/offline-launch.rb) in persistent profiles
+    // (e2e/support/offline-shell.js); see the header of each spec for the run order.
+    {
+      name: 'offline-launch',
+      testMatch: /offline-launch\.spec\.js/,
+      timeout: 600_000,
+    },
+    {
+      name: 'offline-kill-switch',
+      testMatch: /offline-kill-switch\.spec\.js/,
+      timeout: 180_000,
+    },
   ],
 });
