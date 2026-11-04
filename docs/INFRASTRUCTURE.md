@@ -251,6 +251,24 @@ Required for each web service and its worker: `DATABASE_URL`, `REDIS_URL`,
 `SECRET_KEY_BASE`, `SECURE_ENCRYPTION_KEY`, `SECURE_NONCE_KEY`, `COOKIE_KEY`. See
 `.env.example` for the full list and the deploy workflow header for which are secrets.
 
+### Offline app shell (`OFFLINE_APP_SHELL`)
+
+Lets the web app open with no network once it has been added to a Home Screen and has synced
+(`lib/offline_shell.rb`). Rails serves a service worker at `/sw.js` that keeps a copy of a generic app
+page (`/offline-shell`) and the files it loads; board data is already on the device.
+
+- **Setting:** `OFFLINE_APP_SHELL=on` on the web service turns it on; unset or any other value is off.
+  It comes from the GitHub environment variable `APP_OFFLINE_APP_SHELL` (Settings > Environments >
+  dev / staging / production > Environment variables) through `deploy-cloudrun.yml`. Roll out dev
+  first, then staging, then production.
+- **Turning it off (the kill switch):** set `APP_OFFLINE_APP_SHELL` to `off` (or delete it) and redeploy.
+  Faster: `gcloud run services update <web service> --update-env-vars OFFLINE_APP_SHELL=off`, then
+  change the GitHub variable too, or the next deploy turns it back on. With the setting off, `/sw.js`
+  serves a worker that deletes its caches and unregisters itself, and the page tells the app to remove
+  the worker. Each device drops it the next time it opens the app online.
+- **Do not remove the `/sw.js` route** to turn the feature off, now or later: a 404 there does not
+  unregister an installed worker. The route must keep serving the removal worker.
+
 ## Development environment
 
 WSL2; Ruby 3.4.4 (`.ruby-version`); Node 22 (`.nvmrc`); Ember 5.12; Rails per Gemfile;
