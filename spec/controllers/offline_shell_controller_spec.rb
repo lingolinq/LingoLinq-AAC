@@ -84,6 +84,13 @@ describe OfflineShellController, :type => :controller do
           expect(response.body).to include('!response.ok')
         end
 
+        it "caches the interface language file on first use, and only a plain 200" do
+          get :service_worker
+          expect(response.body).to include("var RUNTIME_CACHED_SOURCE = #{OfflineShell::RUNTIME_CACHED_SOURCE.to_json};")
+          expect(response.body).to include("new RegExp('^(?:' + RUNTIME_CACHED_SOURCE + ')$')")
+          expect(response.body).to include('cacheOnFirstUse')
+        end
+
         it "names the navigations it leaves to the network" do
           get :service_worker
           expect(response.body).to include("var EXCLUDED_FIRST_SEGMENTS = #{OfflineShell::EXCLUDED_FIRST_SEGMENTS.to_json};")

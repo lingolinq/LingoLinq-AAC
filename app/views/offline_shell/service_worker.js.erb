@@ -4,7 +4,8 @@
 //
 // Rules, in order:
 // - Only GET requests to this origin are ever looked at. Everything else goes to the network untouched.
-// - A file in PRECACHE (matched on its path) is answered from the cache. Nothing else ever is: every
+// - A file in PRECACHE (matched on its path) is answered from the cache. So is the interface language
+//   file (RUNTIME_CACHED_SOURCE), kept the first time it loads online. Nothing else ever is: every
 //   /api/ request and every other file goes to the network as if there were no worker.
 // - A page navigation to an app page tries the network first. If it fails, or takes longer than
 //   NAVIGATION_TIMEOUT_MS, the answer is the cached generic page (SHELL_PATH), which boots the app
@@ -20,6 +21,8 @@ var SHELL_PATH = <%= raw OfflineShell::SHELL_PATH.to_json %>;
 var PRECACHE = <%= raw @precache_urls.to_json %>;
 var EXCLUDED_FIRST_SEGMENTS = <%= raw OfflineShell::EXCLUDED_FIRST_SEGMENTS.to_json %>;
 var NAVIGATION_TIMEOUT_MS = <%= OfflineShell::NAVIGATION_TIMEOUT_MS.to_i %>;
+var RUNTIME_CACHED_SOURCE = <%= raw OfflineShell::RUNTIME_CACHED_SOURCE.to_json %>;
+var RUNTIME_CACHED = new RegExp('^(?:' + RUNTIME_CACHED_SOURCE + ')$');
 var GLOBAL_ID = /^\d+_\d+(-\d+_\d+)?$/;
 
 var PRECACHED = {};
@@ -116,5 +119,25 @@ self.addEventListener('fetch', function(event) {
         return cached || fetch(request);
       })
     );
+    return;
+  }
+  if(RUNTIME_CACHED.test(url.pathname)) {
+    event.respondWith(cacheOnFirstUse(url.pathname, request));
   }
 });
+
+// The cached copy if there is one; otherwise the network, keeping a plain same-origin 200 (a regional
+// name the app tries first is often a 404, which is never kept).
+function cacheOnFirstUse(path, request) {
+  return caches.open(CACHE_NAME).then(function(cache) {
+    return cache.match(path).then(function(cached) {
+      if(cached) { return cached; }
+      return fetch(request).then(function(response) {
+        if(response.ok && !response.redirected && response.type === 'basic') {
+          cache.put(path, response.clone());
+        }
+        return response;
+      });
+    });
+  });
+}

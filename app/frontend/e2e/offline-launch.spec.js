@@ -73,6 +73,24 @@ test.describe('offline launch from the offline app shell', () => {
     }
   });
 
+  // The interface language file is cached the first time it loads online. initializers/attempt_lang.js
+  // sets <html lang> to the language it loaded, or back to 'en' when the file cannot be fetched.
+  test('a Spanish-language device keeps its interface language offline', async () => {
+    const context = await openProfile('classic-es', { locale: 'es-ES' });
+    try {
+      const page = context.pages()[0] || await context.newPage();
+      await prepare(page, USERS.classic);
+      await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('lang'))).toBe('es');
+      const cached = await page.evaluate(async () => !!(await caches.match('/locales/es.json')));
+      expect(cached, 'es.json cached on its first online load').toBe(true);
+      await launchOffline(context, page, USERS.classic.path(USERS.classic.board));
+      await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('lang')), { timeout: 30_000 }).toBe('es');
+    } finally {
+      await context.setOffline(false).catch(() => {});
+      await context.close();
+    }
+  });
+
   // #1213 (open): Modern view's board page does not read boards from the device, so offline it shows
   // its own "could not load" state. This proves the app boots offline in Modern view, not the board.
   test('Modern view boots offline and shows its board-unavailable state', async () => {

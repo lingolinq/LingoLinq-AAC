@@ -19,7 +19,8 @@ function profileDir(name) {
   return path.join(process.env.E2E_OFFLINE_PROFILE_DIR || path.join(os.tmpdir(), 'll-offline-shell-e2e'), name);
 }
 
-async function openProfile(name) {
+// options.locale sets the browser language (navigator.language), which picks the interface language.
+async function openProfile(name, options) {
   assertLocalStack();
   const { viewport, userAgent, deviceScaleFactor } = devices['Desktop Chrome'];
   return chromium.launchPersistentContext(profileDir(name), {
@@ -27,6 +28,7 @@ async function openProfile(name) {
     viewport: viewport,
     userAgent: userAgent,
     deviceScaleFactor: deviceScaleFactor,
+    locale: (options && options.locale) || 'en-US',
   });
 }
 

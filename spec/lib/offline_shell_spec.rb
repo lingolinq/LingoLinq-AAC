@@ -61,6 +61,35 @@ describe OfflineShell do
     end
   end
 
+  # The interface language file (initializers/attempt_lang.js fetches /locales/<lang>.json) is cached
+  # the first time it loads online, so a non-English device keeps its language offline. Only these
+  # static files, never anything else.
+  describe "runtime_cached?" do
+    it "matches every locale file the app ships" do
+      files = Dir[Rails.root.join('public/locales/*.json')].map { |f| "/locales/#{File.basename(f)}" }
+      expect(files.length).to be >= 10
+      files.each do |path|
+        expect(OfflineShell.runtime_cached?(path)).to eq(true), "expected #{path} to be cached on first use"
+      end
+    end
+
+    it "matches the regional names the app also asks for" do
+      expect(OfflineShell.runtime_cached?('/locales/es-MX.json')).to eq(true)
+      expect(OfflineShell.runtime_cached?('/locales/zh_Hant.json')).to eq(true)
+    end
+
+    it "matches nothing else" do
+      ['/locales/', '/locales/es', '/locales/es.json/x', '/locales/../sw.json', '/locales/es.json.bak',
+       '/x/locales/es.json', '/api/v1/locales/es.json', '/locales/very-long-name.json', "/locales/es.json\n"].each do |path|
+        expect(OfflineShell.runtime_cached?(path)).to eq(false), "expected #{path.inspect} not to be cached"
+      end
+    end
+
+    it "is never in the precache list, so it costs nothing until it is used" do
+      expect(OfflineShell.precache_urls(helpers).grep(/\A\/locales\//)).to eq([])
+    end
+  end
+
   describe "precache_urls" do
     it "lists the shell, the manifest, the digested assets and the static files once each" do
       urls = OfflineShell.precache_urls(helpers)

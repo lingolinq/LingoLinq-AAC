@@ -91,7 +91,17 @@ module OfflineShell
     offline-shell sw.js manifest.webmanifest
   ].freeze
 
+  # Cached the first time they load online, never precached: the interface language file
+  # (app/frontend/app/initializers/attempt_lang.js fetches /locales/<lang>.json, trying a regional
+  # name such as es-MX before the base language). About 1 MB each, so only the one a device uses.
+  # One source for both sides: Ruby anchors it with \A \z, the worker with ^ $.
+  RUNTIME_CACHED_SOURCE = '/locales/[A-Za-z]{2,3}(?:[_-][A-Za-z0-9]{2,4})?\\.json'
+
   GLOBAL_ID = /\A\d+_\d+(-\d+_\d+)?\z/
+
+  def self.runtime_cached?(path)
+    path.to_s.match?(/\A(?:#{RUNTIME_CACHED_SOURCE})\z/)
+  end
 
   def self.enabled?
     !!(ENV[ENV_KEY].to_s =~ /\A(on|true|yes|1)\z/i)
