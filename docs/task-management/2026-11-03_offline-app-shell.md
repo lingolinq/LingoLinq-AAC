@@ -161,3 +161,35 @@ coming back online replaces the stand-in; a supervisee's stored record is used r
 an id-style URL whose stored key names a different owner is not resolved; signed out, no stand-in; and an
 acceptance or Playwright case for the sibling navigation, since a unit test cannot show Ember reusing the
 parent model. Mutations: drop step 4 (sibling test fails); drop the owner check (id test fails).
+
+## Status 2026-11-04: Playwright offline runs not green yet (work stopped under Rule 13)
+
+**Sync errors on the local stack: a local setup problem, not a bug in this feature.** Every new user's
+default sidebar names the system board `lingolinq/crisis-vocabulary` (`User.merge_missing_default_sidebar_boards`).
+A bare local database (and the shared local development database) does not have it, so sync reported
+"board lingolinq/crisis-vocabulary failed retrieval for syncing, linked from sidebar board" and ended as
+`finished`, not `succeeded`. The e2e seed now creates it the way `lib/tasks/system_boards.rake` does; sync
+then succeeded with no errors. Not checked: whether any deployed environment lacks the board (that would
+give every new user this sync error).
+
+**Side effect to note:** the first seed run imported the bundled OBZ with upload credentials set in the local
+`.env`, and the import uploads its pictures (`lib/converters/lingo_linq.rb` `upload_to_remote`), so about 47
+public symbol images from `public/system-boards/crisis-vocabulary.obz` most likely went to the dev uploads
+bucket. No user data; keys carry a nonce, so nothing was overwritten. Not verified in the bucket. The seed
+now refuses to import while `AWS_KEY`, `AWS_SECRET` or `UPLOADS_S3_BUCKET` is set (proven: refuses on a
+fresh database, passes where the board exists).
+
+**Where the Playwright run stands.** The worker installs, sync succeeds, and an offline cold launch is
+answered by the worker with the cached shell (`x-robots-tag: noindex`) and the bundle loads: the app boots
+offline. But Classic then shows the app's own "Unavailable offline" error page instead of the board, Modern
+does not show its board-detail error card, and the Spanish case hit the 10-minute test limit. The
+`launchOffline` check that the error page is absent ran before the page rendered, so it passed too early;
+it needs to wait for the board or the error, whichever comes first.
+
+**Next steps.**
+1. Find which route rejects on the offline Classic launch (parent `user` route own-page branch, the
+   `board-alt` lookup, or another route in the chain): capture console and route errors on an offline
+   launch. The last probe stalled waiting for sync (5 min), unlike the spec run.
+2. Make `launchOffline` wait for the board or the error page before asserting.
+3. Diagnose the Spanish case timeout.
+4. Then the full Ember suite, the kill-switch project, `/pr-preflight`, and the draft PR.

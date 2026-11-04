@@ -26,8 +26,12 @@ async function prepare(page, who) {
     const r = await navigator.serviceWorker.getRegistration('/');
     return !!(r && r.active && r.active.state === 'activated');
   }, null, { timeout: 120_000 });
-  await page.waitForFunction(() => window.persistence && window.persistence.get('sync_status') === 'succeeded',
-    null, { timeout: 180_000 });
+  // On the web a device that has never synced does not sync on its own (models/user.js auto_sync:
+  // off until ever_synced), so start the sync a person starts from the app, then wait for it.
+  await page.evaluate(() => { window.persistence.sync('self', null, null, 'manual_sync').then(null, () => {}); });
+  await page.waitForFunction(() => ['succeeded', 'finished'].indexOf(window.persistence.get('sync_status')) !== -1,
+    null, { timeout: 300_000 });
+  expect(await page.evaluate(() => window.persistence.get('sync_status')), 'sync finished without errors').toBe('succeeded');
   // The worker precached the generic page under its versioned cache.
   const state = await workerState(page);
   expect(state.registrations).toContain('/sw.js');
