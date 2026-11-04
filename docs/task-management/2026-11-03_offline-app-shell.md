@@ -79,3 +79,25 @@ shows it in Chromium only.
 **Test.** `app/frontend/tests/unit/routes/user-offline-cold-boot-test.js`: red before the fix on the two
 own-page cases (seen 2026-11-03: 2 failures, 4 guards passing). Mutation that must turn it red: remove the
 offline branch, or drop the identity check (the "someone else's page" guard then fails).
+
+**Review (adversary, 2026-11-03), and what changed.** No wrong-user path found. Adopted: the
+"online unchanged" test asserted after an await, so it passed with the online guard removed; it now
+asserts the server call synchronously. Ownership is checked against the session (`user_name` /
+`user_id`, restored synchronously from the stash) before waiting, so other users' pages and
+signed-out visitors never wait or see a device record. With no read in flight the route starts its own
+local `findRecord('user', 'self')`. The wait is 10 s (`offline_session_wait_ms`), with a test for a read
+still pending at the limit. Rejected as the reason for candidate 2: a second local read is cheap; it is
+now the fallback when no read is in flight.
+
+**Known limits, stated in the PR.**
+- `persistence.online` comes from `navigator.onLine`. On Wi-Fi with no internet (captive portal, server
+  outage) the app boots from the cached page after 4 s but believes it is online, so this branch does
+  not run and the route waits on the server. Changing that changes online behaviour.
+- Board URLs name the board's OWNER (`/:owner/board/:name`). A home board owned by another account (a
+  stock board, a supervisor's board, a supporter speaking as a communicator) is not the signed-in user's
+  own page, so it still reaches the error page offline. Follow-up.
+
+**Falsification (2026-11-03).** Before the fix: 5 of 10 red (the new behaviour), 5 guards green.
+After: 10 of 10 green. Mutations: online guard removed -> "online ... exactly as before" red; ownership
+check removed -> "someone else's page" and "signed out" red. Restored from a copy each time.
+

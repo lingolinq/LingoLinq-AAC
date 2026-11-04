@@ -53,13 +53,42 @@ export default Route.extend({
       return finish(current);
     }
 
-    return this.store.queryRecord('user', { path: params.user_id }).then(function(data) {
-      // queryRecord just fetched fresh — only refresh if the record is somehow stale
-      // (preserves the prior behaviour for non-self users).
-      if(!data.get('really_fresh')) { bg_reload(data); }
-      return finish(data);
-    });
+    var query_server = function() {
+      return _this.store.queryRecord('user', { path: params.user_id }).then(function(data) {
+        // queryRecord just fetched fresh — only refresh if the record is somehow stale
+        // (preserves the prior behaviour for non-self users).
+        if(!data.get('really_fresh')) { bg_reload(data); }
+        return finish(data);
+      });
+    };
+
+    // OFFLINE COLD BOOT (the offline app shell, lib/offline_shell.rb, opens the app with no network).
+    // `currentUser` is still null here on a cold boot: it is set from setupController, which Ember
+    // runs after every model hook (utils/session_user_wait.js). queryRecord goes to the network only
+    // (adapters/user.js -> adapters/application.js $.ajax), so offline it can only fail. For the
+    // signed-in user's own page, use the user record read from the device instead: the read
+    // global_transition already started (services/app-state.js `session_user_promise`), or a local
+    // read of our own when none is in flight. Ownership is checked against the session BEFORE
+    // waiting, so signed-out visitors and other users' pages go straight to the server, as before.
+    // Online, nothing here runs.
+    var session = this.session;
+    var own_page = !!(session && session.get('access_token') && params.user_id &&
+      (params.user_id === session.get('user_name') || params.user_id === session.get('user_id')));
+    if(!online() && own_page) {
+      var pending = (this.appState && this.appState.get('session_user_promise')) || this.store.findRecord('user', 'self');
+      return wait_for_session_user(this.appState, { promise: pending, timeout: this.offline_session_wait_ms }).then(function(user) {
+        if(user && (user.get('user_name') === params.user_id || user.get('id') === params.user_id)) {
+          return finish(user);
+        }
+        return query_server();
+      });
+    }
+
+    return query_server();
   },
+  // How long an offline cold boot waits for the device read above. Offline the fallback can only
+  // fail, so a long wait costs nothing but the signed-in user's own pages.
+  offline_session_wait_ms: 10000,
   session: service('session'),
   /* Publish "whose account is this page" so app-level chrome (the supervising
      context pill) can name it. Set on the PARENT `:user_id` route rather than in
@@ -104,3 +133,4 @@ export default Route.extend({
 
 // Imported last so the `.eslint-todo` rows above keep their lines (as dashboard/authenticated-view.js does).
 import modal from '../utils/modal';
+import { wait_for_session_user } from '../utils/session_user_wait';

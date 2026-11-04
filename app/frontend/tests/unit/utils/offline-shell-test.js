@@ -116,10 +116,11 @@ module('Unit | Utility | offline_shell', function() {
 
   module('persist_after_sync', function() {
     test('asks once, after a successful sync while signed in', async function(assert) {
+      assert.expect(4);
       var nav = fakeNavigator({ persist: true });
       var persistence = EmberObject.create({ sync_status: null });
       var session = EmberObject.create({ isAuthenticated: false });
-      var stop = offline_shell.persist_after_sync(persistence, session, nav);
+      var stopWatching = offline_shell.persist_after_sync(persistence, session, nav);
       try {
         persistence.set('sync_status', 'syncing');
         await settled();
@@ -144,7 +145,7 @@ module('Unit | Utility | offline_shell', function() {
         await settled();
         assert.deepEqual(nav.calls, ['persist'], 'only once per app session');
       } finally {
-        stop();
+        stopWatching();
         persistence.destroy();
         session.destroy();
       }
@@ -154,8 +155,8 @@ module('Unit | Utility | offline_shell', function() {
       var nav = fakeNavigator({ persist: true });
       var persistence = EmberObject.create({ sync_status: null });
       var session = EmberObject.create({ isAuthenticated: true });
-      var stop = offline_shell.persist_after_sync(persistence, session, nav);
-      stop();
+      var stopWatching = offline_shell.persist_after_sync(persistence, session, nav);
+      stopWatching();
       persistence.set('sync_status', 'succeeded');
       await settled();
       assert.deepEqual(nav.calls, [], 'stop() removes the observer');
@@ -183,11 +184,12 @@ module('Unit | Utility | offline_shell', function() {
     });
 
     test('registers and watches for a sync when on', async function(assert) {
+      assert.expect(2);
       var nav = fakeNavigator({ persist: true });
       var persistence = EmberObject.create({ sync_status: null });
       var session = EmberObject.create({ isAuthenticated: true });
       var owner = fakeOwner({ 'service:persistence': persistence, 'service:session': session });
-      var stop = start(owner, { offline_shell_enabled: true, navigator: nav, document: { readyState: 'complete' } });
+      var stopWatching = start(owner, { offline_shell_enabled: true, navigator: nav, document: { readyState: 'complete' } });
       try {
         await settled();
         await Promise.resolve();
@@ -196,7 +198,7 @@ module('Unit | Utility | offline_shell', function() {
         await settled();
         assert.deepEqual(nav.calls, ['register /sw.js {"scope":"/"}', 'persist']);
       } finally {
-        if(stop) { stop(); }
+        if(stopWatching) { stopWatching(); }
         persistence.destroy();
         session.destroy();
       }
@@ -205,13 +207,13 @@ module('Unit | Utility | offline_shell', function() {
     test('removes the worker when off, and asks for no storage', async function(assert) {
       var nav = fakeNavigator({ persist: true, registered: ['https://app.example/sw.js'] });
       var owner = fakeOwner({});
-      var stop = start(owner, { offline_shell_enabled: false, navigator: nav, document: { readyState: 'complete' } });
+      var stopWatching = start(owner, { offline_shell_enabled: false, navigator: nav, document: { readyState: 'complete' } });
       await settled();
       await Promise.resolve();
       await Promise.resolve();
       assert.deepEqual(nav.calls, ['getRegistrations', 'unregister https://app.example/sw.js']);
       assert.deepEqual(owner.looked, [], 'no sync watcher when off');
-      assert.strictEqual(stop, null);
+      assert.strictEqual(stopWatching, null);
     });
 
     test('waits for the page to finish loading before registering', async function(assert) {
@@ -223,15 +225,16 @@ module('Unit | Utility | offline_shell', function() {
         document: { readyState: 'interactive' },
         addEventListener: function(name, fn, options) { listeners[name] = { fn: fn, options: options }; }
       };
-      var stop = start(fakeOwner({}), win);
+      var stopWatching = start(fakeOwner({}), win);
       await settled();
       assert.deepEqual(nav.calls, [], 'not before load');
-      assert.true(!!listeners.load && listeners.load.options.once, 'a one-time load listener');
+      assert.true(!!listeners.load, 'a load listener');
+      assert.true(listeners.load.options.once, 'that runs once');
       listeners.load.fn();
       await settled();
       await Promise.resolve();
       assert.deepEqual(nav.calls, ['register /sw.js {"scope":"/"}']);
-      if(stop) { stop(); }
+      if(stopWatching) { stopWatching(); }
     });
   });
 });
