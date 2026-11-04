@@ -101,3 +101,63 @@ now the fallback when no read is in flight.
 After: 10 of 10 green. Mutations: online guard removed -> "online ... exactly as before" red; ownership
 check removed -> "someone else's page" and "signed out" red. Restored from a copy each time.
 
+
+## Follow-up: boards owned by another account (not in this PR)
+
+Requested by Scot on 2026-11-04 and moved to a follow-up the same day: offline, any board sync stored
+on the device (the home board, sidebar boards and the boards they link to) must open whoever owns it,
+not only the signed-in user's own pages. This PR opens only the signed-in user's own pages offline.
+
+**Starting point:** local branch `feat/scot-offline-other-owner-boards` (one commit on top of this
+work). It holds seven route tests in `app/frontend/tests/unit/routes/user-offline-cold-boot-test.js`
+(three fail until the route change is written), a Playwright case for a home board owned by another
+account (`e2e/offline-launch.spec.js`), and its seed (`e2e/support/offline-launch.rb`).
+
+**Facts.**
+- Board URLs name the board's OWNER: speak mode goes `home_in_speak_mode` ->
+  `transitionToBoardForCurrentUiStyle` (`services/app-state.js`), which transitions to
+  `user.board-alt` / `user.board-detail` with `:user_id = parts[0]` of the board key. Keys under `obf/`,
+  `integrations/` and keys with no slash go to the top-level `board` route instead. CONFIRMED.
+- Sync stores the signed-in user and supervisees as user records, and the boards (`services/persistence.js`
+  sync); it never stores a board owner's user record. CONFIRMED (no other `store('user'` writer).
+- A stored board is found offline by key or id: `persistence.find('board', key)` -> dbman `key` index for
+  `owner/name`, primary key for an id (`utils/dbman.js` find). CONFIRMED.
+- On board pages the parent model is read for `user_name` only: `routes/user/board-detail.js` builds the
+  key from `user.get('user_name')` and sets `subroute_name`; `controllers/user/board-detail.js` reads
+  `user.user_name`; `templates/user.hbs` renders a plain outlet for board routes; `page_user` consumers
+  compare `id` / `user_name` and read `permissions` (`utils/basic_landing.js` `is_own_page`,
+  `utils/supervising_context.js`). CONFIRMED. Classic (`routes/user/board-alt.js`) uses params only.
+
+**First proposal, blocked in review (adversary, 2026-11-04).** Offline, for a board page whose board is
+on the device, resolve the `user` route with a stand-in owner (an `EmberObject` with `user_name`, never
+in the store). Blocked because:
+- Ember keeps a parent route's model while its params are unchanged, so the stand-in stays the model
+  when someone moves from that board to the owner's other pages (`/owner`, `/owner/boards`, the Classic
+  header link, My Boards in speak-as). Those pages call `model.reload()` (`routes/user/index.js`,
+  `routes/user/boards.js`), which a stand-in does not have, and reconnecting does not clear it.
+  CONFIRMED by the reviewer; the "profile" and "edit" guards only cover the first page opened.
+- Supervisees' user records ARE stored on the device, so a stand-in would discard a real record in
+  speak-as, the most common case.
+- It would run on every offline navigation (native apps, warm sessions), not only offline-shell
+  launches, and `OFFLINE_APP_SHELL` would not turn it off.
+- Classic has no edit route (editing is a mode on `user.board-alt.index`), so excluding `.edit` excludes
+  nothing there; and an id-style URL found by id was not checked against the owner in the URL.
+
+**Safer design for the follow-up.**
+1. Classic view only (`user.board-alt`) until #1213 lets Modern read boards from the device.
+2. Use a real record first: one already in the store (`peekAll('user')` by `user_name`), then the user
+   record stored on the device (supervisees: dbman's `key` index on `user`). A stand-in only for owners
+   that were never synced (stock boards and other owners' boards).
+3. Use a stand-in only when the board is on the device and its key starts with the owner in the URL
+   (`key.split('/')[0] === params.user_id`), including when found by id; one 10 s bound for both lookups.
+4. Never let a stand-in outlive the board page: when the `user` route's model is a stand-in and the next
+   transition is not a board page, or the device comes back online, re-run the `user` route's model.
+5. Only while the offline shell is on (`window.offline_shell_enabled === true`), so the kill switch
+   also turns this off, and only for a signed-in session (`access_token`), as in the own-page branch.
+
+**Tests the follow-up needs** (red first): the seven on the branch, updated for 1 to 5; moving from a
+stand-in board to `user.boards` / `user.index` with the same owner re-runs the model and does not throw;
+coming back online replaces the stand-in; a supervisee's stored record is used rather than a stand-in;
+an id-style URL whose stored key names a different owner is not resolved; signed out, no stand-in; and an
+acceptance or Playwright case for the sibling navigation, since a unit test cannot show Ember reusing the
+parent model. Mutations: drop step 4 (sibling test fails); drop the owner check (id test fails).
