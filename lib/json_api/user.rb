@@ -520,6 +520,12 @@ json['preferences']['skin'] = user.settings['preferences']['skin']
     # Exposed for registration (COPPA): lets the client detect pending consent even if response meta is not matched.
     json['coppa_parental_consent_pending'] = true if user.coppa_parental_consent_pending?
     json['coppa_parental_consent_revoked'] = true if user.coppa_parental_consent_revoked?
+    # A school handed this child back and no parent has consented yet (#1063): AI stays off.
+    # Sent as true or false, so a client holding an earlier true sees the block lift, and only to
+    # someone who can supervise or edit the account, since it reveals age and consent status.
+    if json['permissions'] && (json['permissions']['supervise'] || json['permissions']['edit'])
+      json['school_handoff_ai_blocked'] = !!user.school_handoff_blocks_ai?
+    end
     # EU registration / AI parental-consent flags (GDPR Art. 8 AI enablement).
     country = user.registration_country
     json['country'] = country if country.present?

@@ -48,7 +48,7 @@ module LingoLinq
   # and should be paired with human review (Task 02-02.8) before any version
   # bump ships, not relied on as the sole gate.
   module AiConsentDisclosures
-    CURRENT_VERSION = 1
+    CURRENT_VERSION = 2
 
     REGISTRY = {
       1 => {
@@ -163,7 +163,11 @@ module LingoLinq
           'consent and keep working either way. The rest of LingoLinq (boards, sync, ' \
           'messaging) keeps working normally without AI features.'
       }.freeze
-    }.freeze
+    }
+    # Version 2 (#1063): the same facts as version 1. Only the prose of no_consent_body changed
+    # (config/locales/en.yml, ai_consent_disclosures.v2), so the entry differs only in its date.
+    REGISTRY[2] = REGISTRY[1].merge('effective_date' => '2026-10-24').freeze
+    REGISTRY.freeze
 
     # Returns JSON-serializable metadata for the given version, or nil when
     # the version is unknown. String keys throughout (matches Art50Marker).

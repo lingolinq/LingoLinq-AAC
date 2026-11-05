@@ -127,7 +127,10 @@ module CoppaSentryScrub
   def child_user?(user)
     return false if user.nil?
     return true if user.equal?(LOOKUP_FAILED)
-    user.respond_to?(:coppa_parental_consent_pending?) && user.coppa_parental_consent_pending?
+    return true if user.respond_to?(:coppa_parental_consent_pending?) && user.coppa_parental_consent_pending?
+    # A child handed back by a school with no parental consent yet (#1063): the same predicate
+    # FeatureFlags.coppa_blocks_ai_for? uses.
+    user.respond_to?(:school_handoff_blocks_ai?) && user.school_handoff_blocks_ai?
   rescue StandardError
     true
   end

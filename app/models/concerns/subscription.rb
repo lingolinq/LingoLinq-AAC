@@ -117,6 +117,13 @@ module Subscription
       end
       self.settings['subscription']['added_to_organization'] = Time.now.iso8601
       self.settings['subscription']['added_org_id'] = new_org.global_id if new_org
+      ended = self.settings['school_authorization_ended']
+      if new_org && ended.is_a?(Hash) && ended['ended_org_id'] == new_org.global_id && ended['handoff_notice_at']
+        # The organization is back, so its next removal is a new one: its "sponsorship removed"
+        # mail must not be skipped as a repeat of the earlier hand-back notice
+        # (User#recent_school_handoff_notice_for?, read by UserMailer#organization_unassigned).
+        self.settings['school_authorization_ended'] = ended.except('handoff_notice_at')
+      end
       self.settings['subscription']['eval_account'] = true if eval_account
       self.settings['preferences'] ||= {}
       self.settings['preferences']['role'] = 'communicator'

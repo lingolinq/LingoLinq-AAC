@@ -45,6 +45,21 @@ describe 'User org offboarding parental consent', type: :model do
     u
   end
 
+  def handoff_events(u)
+    AuditEvent.where(user_key: u.global_id, event_type: 'school_authorization_handoff')
+  end
+
+  # #1063: the hand-back ends school_authorization and records one event; it never writes
+  # settings['coppa'] or blocks access.
+  def expect_handed_back(u)
+    u.reload
+    expect(u.coppa_parental_consent_blocks_access?).to eq(false)
+    expect(u.settings.key?('coppa')).to eq(false)
+    expect(u.settings['school_authorization']).to be_nil
+    expect(u.settings['school_authorization_ended']).to be_a(Hash)
+    expect(handoff_events(u).count).to eq(1)
+  end
+
   def eu_under16_with_ai!(suffix:)
     u = User.process_new({
       'user_name' => "eu_off_#{suffix}_#{SecureRandom.hex(4)}",
@@ -110,7 +125,7 @@ describe 'User org offboarding parental consent', type: :model do
   end
 
   describe '#begin_family_offboarding_consents!' do
-    it 'stamps pending COPPA with needs_parent_email when under-13 and no parent email' do
+    it 'ends the school authorization without gating access when under-13' do
       u = school_authorized_user!(suffix: 'need')
       o = Organization.create(settings: {'total_licenses' => 1})
       b = under13_birth
@@ -118,30 +133,27 @@ describe 'User org offboarding parental consent', type: :model do
       expect(u.begin_family_offboarding_consents!(
         org: o, birth_month: b[:month], birth_year: b[:year]
       )).to eq(true)
-      u.reload
-      expect(u.coppa_parental_consent_pending?).to eq(true)
-      expect(u.coppa_needs_parent_email?).to eq(true)
-      expect(u.settings['coppa']['offboarding']).to eq(true)
-      expect(u.settings['school_authorization']).to be_nil
-      expect(u.settings['school_authorization_ended']).to be_a(Hash)
-      expect(u.coppa_parental_consent_blocks_access?).to eq(true)
+      expect_handed_back(u)
+      expect(u.coppa_parental_consent_pending?).to eq(false)
+      expect(u.coppa_needs_parent_email?).to eq(false)
+      expect(RemoteAction.where(action: 'notify_school_handoff', path: "#{u.global_id}::#{o.global_id}").count).to eq(1)
     end
 
-    it 'sends consent email when parent email is provided for under-13' do
+    it 'no longer takes a parent email or sends a consent request for under-13' do
       u = school_authorized_user!(suffix: 'email')
       o = Organization.create(settings: {'total_licenses' => 1})
       b = under13_birth
-      expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:parental_consent_request, u.global_id)
-      u.begin_family_offboarding_consents!(
-        org: o,
-        parent_email: 'parent_off@example.com',
-        birth_month: b[:month],
-        birth_year: b[:year]
-      )
-      u.reload
-      expect(u.coppa_needs_parent_email?).to eq(false)
-      expect(u.settings['coppa']['parent_email']).to eq('parent_off@example.com')
-      expect(u.settings['coppa']['parent_consent_token']).to be_present
+      expect(UserMailer).not_to receive(:schedule_parent_consent_delivery)
+      expect {
+        u.begin_family_offboarding_consents!(
+          org: o,
+          parent_email: 'parent_off@example.com',
+          birth_month: b[:month],
+          birth_year: b[:year]
+        )
+      }.to raise_error(ArgumentError, /parent_email/)
+      u.begin_family_offboarding_consents!(org: o, birth_month: b[:month], birth_year: b[:year])
+      expect_handed_back(u)
     end
 
     it 'turns AI prefs off for under-16 without stamping COPPA' do
@@ -193,14 +205,13 @@ describe 'User org offboarding parental consent', type: :model do
       User::EU_AI_PREF_KEYS.each { |k| expect(u.settings['preferences'][k]).to eq(false) }
     end
 
-    it 'stamps COPPA for under-13 from both US and EU orgs' do
+    it 'hands back an under-13 from both US and EU orgs' do
       b = under13_birth
       %w[US EU].each do |jur|
         u = school_authorized_user!(suffix: "u13_#{jur.downcase}")
         o = Organization.create(settings: {'total_licenses' => 1, 'jurisdiction' => jur})
         u.begin_family_offboarding_consents!(org: o, birth_month: b[:month], birth_year: b[:year])
-        u.reload
-        expect(u.coppa_parental_consent_pending?).to eq(true)
+        expect_handed_back(u)
         expect(u.settings['registration']['offboarding_org_jurisdiction']).to eq(jur)
       end
     end
@@ -253,9 +264,9 @@ describe 'User org offboarding parental consent', type: :model do
           end
         end
       end
-      allow(License).to receive(:active_seat_elsewhere?).and_wrap_original do |orig, *args|
+      allow(License).to receive(:sponsored_elsewhere?).and_wrap_original do |orig, *args, **kwargs|
         trace[:checks] << trace[:current]
-        orig.call(*args)
+        orig.call(*args, **kwargs)
       end
       allow(u).to receive(:save!).and_wrap_original do |orig, *args|
         trace[:saves] << trace[:current]
@@ -304,7 +315,7 @@ describe 'User org offboarding parental consent', type: :model do
       expect(trace[:checks].length).to eq(1)
       expect(trace[:checks].first).to be_a(Integer)
       expect(trace[:saves]).to eq([trace[:checks].first])
-      expect(u.reload.coppa_parental_consent_pending?).to eq(true)
+      expect_handed_back(u)
     end
   end
 
@@ -312,9 +323,7 @@ describe 'User org offboarding parental consent', type: :model do
     it 'stamps token and schedules mail from needs_parent_email state' do
       u = school_authorized_user!(suffix: 'sub')
       o = Organization.create(settings: {'total_licenses' => 1})
-      b = under13_birth
-      u.begin_family_offboarding_consents!(org: o, birth_month: b[:month], birth_year: b[:year])
-      u.reload
+      seed_legacy_offboarding_consent!(u, org: o)
       expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:parental_consent_request, u.global_id)
       expect(u.submit_parental_consent_email!('guardian_sub@example.com')).to eq(true)
       u.reload
@@ -359,33 +368,30 @@ describe 'User org offboarding parental consent', type: :model do
   end
 
   describe 'Organization#remove_user offboarding' do
-    it 'starts COPPA offboarding when birth month/year is under-13' do
+    it 'hands back to the family when birth month/year is under-13' do
       o = Organization.create(settings: {'total_licenses' => 1})
       u = school_authorized_user!(suffix: 'rm')
       o.add_user(u.user_name, false, true)
       b = under13_birth
       o.remove_user(u.user_name, birth_month: b[:month], birth_year: b[:year])
-      u.reload
-      expect(u.coppa_parental_consent_pending?).to eq(true)
-      expect(u.coppa_needs_parent_email?).to eq(true)
+      expect_handed_back(u)
+      expect(u.coppa_needs_parent_email?).to eq(false)
       expect(o.sponsored_user?(u)).to eq(false)
     end
 
-    it 'sends consent email when parent email is passed for under-13' do
+    it 'queues the hand-back notice instead of a consent email for under-13' do
       o = Organization.create(settings: {'total_licenses' => 1})
       u = school_authorized_user!(suffix: 'rmmail')
       o.add_user(u.user_name, false, true)
       b = under13_birth
-      expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:parental_consent_request, u.global_id)
+      expect(UserMailer).not_to receive(:schedule_parent_consent_delivery)
       o.remove_user(
         u.user_name,
-        parent_email: 'mgr_parent@example.com',
         birth_month: b[:month],
         birth_year: b[:year]
       )
-      u.reload
-      expect(u.settings['coppa']['parent_email']).to eq('mgr_parent@example.com')
-      expect(u.coppa_needs_parent_email?).to eq(false)
+      expect_handed_back(u)
+      expect(RemoteAction.where(action: 'notify_school_handoff', path: "#{u.global_id}::#{o.global_id}").count).to eq(1)
     end
 
     it 'turns AI off for under-16 without COPPA' do
@@ -456,9 +462,7 @@ describe 'User org offboarding parental consent', type: :model do
 
       morning.remove_user(u.user_name, birth_month: b[:month], birth_year: b[:year])
 
-      u.reload
-      expect(u.coppa_parental_consent_pending?).to eq(true)
-      expect(u.settings['coppa']['offboarding']).to eq(true)
+      expect_handed_back(u)
     end
 
     it 'keeps the age attestation so a 15-year-old is not offboarded later' do
@@ -514,9 +518,14 @@ describe 'User org offboarding parental consent', type: :model do
       afternoon_seat.update_columns(expires_at: 1.day.ago)
       License.expire_stale_licenses!
 
+      # With no school_authorization there is nothing to end and no notice, but the stored
+      # under-13 attestation still turns AI off.
       u.reload
-      expect(u.coppa_parental_consent_pending?).to eq(true)
-      expect(u.settings['coppa']['offboarding']).to eq(true)
+      expect(u.settings['coppa']).to be_nil
+      expect(u.settings['registration']['under_16']).to eq(true)
+      User::EU_AI_PREF_KEYS.each { |k| expect(u.settings['preferences'][k]).to eq(false) }
+      expect(AuditEvent.where(user_key: u.global_id, event_type: 'eu_ai_parental_consent_offboarding_reset').count).to eq(1)
+      expect(handoff_events(u).count).to eq(0)
     end
 
     it 'still offboards when the released seat was the last one' do
@@ -528,10 +537,7 @@ describe 'User org offboarding parental consent', type: :model do
 
       o.remove_user(u.user_name, birth_month: b[:month], birth_year: b[:year])
 
-      u.reload
-      expect(u.coppa_parental_consent_pending?).to eq(true)
-      expect(u.settings['coppa']['offboarding_deadline_at']).to be_present
-      expect(u.settings['school_authorization']).to be_nil
+      expect_handed_back(u)
     end
 
     it 'requires birth month/year when COPPA is enabled' do
@@ -552,10 +558,8 @@ describe 'User org offboarding parental consent', type: :model do
       u.update!(managing_organization_id: o.id)
       expect(UserMailer).not_to receive(:schedule_parent_consent_delivery)
       expect(License.expire_stale_licenses!).to be >= 1
-      u.reload
-      expect(u.coppa_parental_consent_pending?).to eq(true)
-      expect(u.settings['coppa']['offboarding']).to eq(true)
-      expect(u.settings['school_authorization']).to be_nil
+      expect_handed_back(u)
+      expect(handoff_events(u).first.data['age_basis']).to eq('unknown_assumed_under_13')
       expect(lic.reload.user_id).to eq(nil)
       expect(lic.status).to eq('expired')
     end
@@ -565,7 +569,11 @@ describe 'User org offboarding parental consent', type: :model do
       afternoon = Organization.create(settings: {'total_licenses' => 1})
       u = school_authorized_user!(suffix: 'licsurv')
       lic = License.create!(organization: morning, seat_type: 'student', status: 'active', user: u, expires_at: 1.day.ago)
-      survivor = License.create!(organization: afternoon, seat_type: 'student', status: 'active', user: u, expires_at: 1.year.from_now)
+      # Claimed, so the surviving seat comes with its sponsoring link (a bare seat no longer
+      # counts as support, #1063 D3).
+      survivor = License.create!(organization: afternoon, seat_type: 'student', status: 'active', expires_at: 1.year.from_now)
+      afternoon.claim_user(u.reload)
+      expect(survivor.reload.user_id).to eq(u.id)
       u.update!(managing_organization_id: morning.id)
       authorization_before = u.reload.settings['school_authorization']
 
@@ -592,10 +600,8 @@ describe 'User org offboarding parental consent', type: :model do
 
       expect(License.expire_stale_licenses!).to be >= 1
 
-      u.reload
+      expect_handed_back(u)
       expect(lic.reload.user_id).to eq(nil)
-      expect(u.coppa_parental_consent_pending?).to eq(true)
-      expect(u.settings['school_authorization']).to be_nil
       expect(u.managing_organization_id).to be_nil
       expect(supervisor_seat.reload.user_id).to eq(u.id)
     end
@@ -610,10 +616,8 @@ describe 'User org offboarding parental consent', type: :model do
 
       expect(License.expire_stale_licenses!).to eq(2)
 
-      u.reload
-      expect(u.coppa_parental_consent_pending?).to eq(true)
-      expect(u.settings['school_authorization']).to be_nil
-      expect(AuditEvent.where(user_key: u.global_id, event_type: 'parental_consent_offboarding_started').count).to eq(1)
+      expect_handed_back(u)
+      expect(AuditEvent.where(user_key: u.global_id, event_type: 'parental_consent_offboarding_started').count).to eq(0)
     end
   end
 
@@ -621,14 +625,7 @@ describe 'User org offboarding parental consent', type: :model do
     it 'declines pending offboarding consent and schedules export-then-delete' do
       u = school_authorized_user!(suffix: 'decl')
       o = Organization.create(settings: {'total_licenses' => 1})
-      b = under13_birth
-      u.begin_family_offboarding_consents!(
-        org: o,
-        parent_email: 'decl_parent@example.com',
-        birth_month: b[:month],
-        birth_year: b[:year]
-      )
-      u.reload
+      seed_legacy_offboarding_consent!(u, org: o, parent_email: 'decl_parent@example.com')
       tok = u.settings['coppa']['parent_consent_token']
       expect(Exporter).to receive(:export_user).with(u.global_id).and_return({path: 'downloads/users/x/lingolinq-export.zip', url: 'https://example.test/x.zip'})
       expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:parental_consent_offboarding_export, u.global_id)
@@ -661,13 +658,11 @@ describe 'User org offboarding parental consent', type: :model do
       expect(u.schedule_deletion_at).to be_present
     end
 
-    # Deadline-expired offboarding, past due and ready for the sweep.
+    # Legacy offboarding past its deadline. Since #1063 the deadline alone never makes it due.
     def deadline_expired_user!(suffix:)
       u = school_authorized_user!(suffix: suffix)
       o = Organization.create(settings: {'total_licenses' => 1})
-      b = under13_birth
-      u.begin_family_offboarding_consents!(org: o, birth_month: b[:month], birth_year: b[:year])
-      u.reload
+      seed_legacy_offboarding_consent!(u, org: o)
       c = u.settings['coppa']
       c['offboarding_deadline_at'] = 1.day.ago.utc.iso8601
       u.settings['coppa'] = c
@@ -675,23 +670,40 @@ describe 'User org offboarding parental consent', type: :model do
       u
     end
 
-    it 'process_expired_offboarding_consents! schedules delete after deadline' do
-      u = deadline_expired_user!(suffix: 'expdue')
+    # Legacy offboarding the parent declined: the only due state since #1063.
+    def declined_offboarding_user!(suffix:)
+      u = deadline_expired_user!(suffix: suffix)
+      c = u.settings['coppa']
+      c['parent_consent_declined_at'] = Time.now.utc.iso8601
+      c.delete('pending_parent_consent')
+      u.settings['coppa'] = c
+      u.save!
+      u.reload
+    end
+
+    it 'process_expired_offboarding_consents! schedules delete for a decline, not for an expired deadline' do
+      u = declined_offboarding_user!(suffix: 'expdue')
+      expired = deadline_expired_user!(suffix: 'expnotdue')
       # This stub used to be `and_return(nil)` while still asserting the deletion
       # WAS scheduled -- i.e. the spec pinned the behaviour where a failed export
       # deletes the child's account anyway. That is the defect; the export now
       # has to succeed for the deletion to be scheduled, so the happy path needs
       # a real path. The failure case is the example below.
       expect(Exporter).to receive(:export_user).with(u.global_id).and_return({path: 'downloads/users/expdue.zip'})
+      expect(Exporter).not_to receive(:export_user).with(expired.global_id)
+      allow(UserMailer).to receive(:schedule_parent_consent_delivery)
       expect(User.process_expired_offboarding_consents!).to be >= 1
       u.reload
       expect(u.settings['coppa']['offboarding_export_scheduled_at']).to be_present
-      expect(u.settings['coppa']['offboarding_export_reason']).to eq('expired')
+      expect(u.settings['coppa']['offboarding_export_reason']).to eq('declined')
       expect(u.schedule_deletion_at).to be_present
+      expired.reload
+      expect(expired.settings['coppa']['offboarding_export_scheduled_at']).to be_blank
+      expect(expired.schedule_deletion_at).to be_blank
     end
 
     it 'process_expired_offboarding_consents! does NOT schedule delete when the export fails' do
-      u = deadline_expired_user!(suffix: 'expfail')
+      u = declined_offboarding_user!(suffix: 'expfail')
       expect(Exporter).to receive(:export_user).with(u.global_id).and_return(nil)
       expect(User.process_expired_offboarding_consents!).to eq(0)
       u.reload
@@ -704,14 +716,7 @@ describe 'User org offboarding parental consent', type: :model do
     it 'claims under lock so a concurrent schedule_offboarding_export_then_delete! does not re-export' do
       u = school_authorized_user!(suffix: 'race')
       o = Organization.create(settings: {'total_licenses' => 1})
-      b = under13_birth
-      u.begin_family_offboarding_consents!(
-        org: o,
-        parent_email: 'race_parent@example.com',
-        birth_month: b[:month],
-        birth_year: b[:year]
-      )
-      u.reload
+      seed_legacy_offboarding_consent!(u, org: o, parent_email: 'race_parent@example.com')
       c = u.settings['coppa']
       c['parent_consent_declined_at'] = Time.now.utc.iso8601
       c.delete('pending_parent_consent')
@@ -743,14 +748,7 @@ describe 'User org offboarding parental consent', type: :model do
     def due_offboarding_user!(suffix:)
       u = school_authorized_user!(suffix: suffix)
       o = Organization.create(settings: {'total_licenses' => 1})
-      b = under13_birth
-      u.begin_family_offboarding_consents!(
-        org: o,
-        parent_email: "export_#{suffix}@example.com",
-        birth_month: b[:month],
-        birth_year: b[:year]
-      )
-      u.reload
+      seed_legacy_offboarding_consent!(u, org: o, parent_email: "export_#{suffix}@example.com")
       u.settings['coppa']['parent_consent_declined_at'] = Time.now.utc.iso8601
       u.settings['coppa'] = u.settings['coppa']
       u.save!
@@ -896,12 +894,7 @@ describe 'User org offboarding parental consent', type: :model do
     def offboarding_user!(suffix:, declined:)
       u = school_authorized_user!(suffix: suffix)
       o = Organization.create(settings: {'total_licenses' => 1})
-      b = under13_birth
-      u.begin_family_offboarding_consents!(
-        org: o, parent_email: "cand_#{suffix}@example.com",
-        birth_month: b[:month], birth_year: b[:year]
-      )
-      u.reload
+      seed_legacy_offboarding_consent!(u, org: o, parent_email: "cand_#{suffix}@example.com")
       if declined
         c = u.settings['coppa']
         c['parent_consent_declined_at'] = Time.now.utc.iso8601
@@ -963,12 +956,7 @@ describe 'User org offboarding parental consent', type: :model do
     it 'finds the due account but mutates nothing' do
       u = school_authorized_user!(suffix: 'repint')
       o = Organization.create(settings: {'total_licenses' => 1})
-      b = under13_birth
-      u.begin_family_offboarding_consents!(
-        org: o, parent_email: 'repint@example.com',
-        birth_month: b[:month], birth_year: b[:year]
-      )
-      u.reload
+      seed_legacy_offboarding_consent!(u, org: o, parent_email: 'repint@example.com')
       c = u.settings['coppa']
       c['parent_consent_declined_at'] = Time.now.utc.iso8601
       u.settings['coppa'] = c

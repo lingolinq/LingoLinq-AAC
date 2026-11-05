@@ -1,0 +1,10 @@
+<p><%= mailer_t('school_handoff_mailer.greeting') %></p>
+<% if @org_name %>
+<p><%= mailer_t('school_handoff_mailer.intro', org_name: @org_name, app_name: app_name, username: @user.user_name) %></p>
+<% else %>
+<p><%= mailer_t('school_handoff_mailer.intro_unnamed_org', app_name: app_name, username: @user.user_name) %></p>
+<% end %>
+<p><%= mailer_t('school_handoff_mailer.ai_notice') %></p>
+<p><%= mailer_t('school_handoff_mailer.billing_notice') %></p>
+<p><%= mailer_t('school_handoff_mailer.footer') %> <a href="<%= @contact_url %>"><%= mailer_t('school_handoff_mailer.contact_link_label') %></a></p>
+<p><%= email_signature %></p>
