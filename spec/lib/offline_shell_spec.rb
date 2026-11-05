@@ -214,6 +214,44 @@ describe OfflineShell do
       end
       expect(checked).to be > 50
     end
+
+    # Added 2026-11-05 (review follow-up): the walk above checks a route only through the sample paths
+    # that happen to reach it, so a route none of them reached was never checked at all. Every GET route
+    # Rails answers itself must be reached by a generated sample or by one named in EXTRA_SAMPLES.
+    extra_samples = {}
+    it "reaches every GET route that Rails does not answer with the Ember shell", :aggregate_failures do
+      ember_shell = {'boards' => %w[index about terms privacy board user utterance]}
+      generated = lambda do |spec|
+        base = spec.sub('(.:format)', '')
+        [base.gsub(/[()]/, ''), base.gsub(/\([^()]*\)/, '')].uniq.flat_map do |shape|
+          ['a1', 'a1/b1', '1_2'].map { |value| shape.gsub(/\*[a-z_]+/, 'a1/b1').gsub(/:[a-z_]+/, value) }
+        end.uniq
+      end
+      unreached = []
+      Rails.application.routes.routes.each do |route|
+        verb = route.verb.to_s
+        next unless verb.empty? || verb.match?(/GET/)
+        controller = route.defaults[:controller]
+        action = route.defaults[:action]
+        next if controller.nil?
+        next if (ember_shell[controller] || []).include?(action)
+        spec = route.path.spec.to_s
+        paths = generated.call(spec) + extra_samples.fetch("#{controller}##{action}", [])
+        reached = paths.select do |path|
+          recognized = begin
+            Rails.application.routes.recognize_path(path, method: :get)
+          rescue ActionController::RoutingError
+            nil
+          end
+          recognized && recognized[:controller] == controller && recognized[:action] == action
+        end
+        unreached << "#{controller}##{action} #{spec}" if reached.empty?
+        reached.each do |path|
+          expect(OfflineShell.navigation_excluded?(path)).to eq(true), "#{path} (#{controller}##{action}) is not excluded"
+        end
+      end
+      expect(unreached).to eq([]), "no sample reaches these routes; add one to extra_samples:\n#{unreached.join("\n")}"
+    end
   end
 
   # The app deletes the worker's caches itself when the setting is off (app/utils/offline_shell.js
