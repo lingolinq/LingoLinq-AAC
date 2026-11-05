@@ -18,7 +18,6 @@
 | 2026-09-01 | OpenRouter ZDR re-verification (after every key rotation, plus quarterly) | SOC2 | event-driven + quarterly |
 | 2026-09-01 | Google Gemini API fallback path BAA/DPA verification | HIPAA | annual |
 | 2026-09-01 | Mechanical secret-shaped-string rejector in audit toolchain (LL-b5c30235d3) | SOC2 | one-time |
-| 2026-10-09 | Q3 2026 /audit-run make-up pass (partial-coverage gaps) | SOC2 | one-time |
 | 2026-10-16 | Monthly light /audit-run (diff-since-last-run scope, no full re-scan) | SOC2 | monthly |
 
 ## Recurring reviews (full set)
@@ -39,7 +38,7 @@
 | SOC2 | Mechanical secret-shaped-string rejector in audit toolchain (LL-b5c30235d3) | one-time | (none) | 2026-09-01 |
 | FERPA | District DPA / SDPC NDPA renewals + registry listing | per-contract (track renewal dates as they are signed) | (none) | (none) |
 | HIPAA | Re-brand + re-share BREACH_RUNBOOK Drive mirror to v2.2.2 (DOC-f576f43250) | one-time | (none) | 2026-08-31 |
-| SOC2 | Q3 2026 /audit-run make-up pass (partial-coverage gaps) | one-time | (none) | 2026-10-09 |
+| SOC2 | Q3 2026 /audit-run make-up pass (partial-coverage gaps) | one-time | 2026-10-31 | (none) |
 
 ## Review instructions, regulatory watch, and basis
 
@@ -162,7 +161,7 @@ context, required work, and the source basis remain visible with the schedule.
 
 - **Drafts:** Re-run the six finders with checklist skills and the read-only guard verified by a canary; run bundle-audit; take an AWS account-level read; merge into FINDINGS.json and record in runs.jsonl.
 - **Watch:** Approved by Scot on 2026-09-17 as the condition for keeping the Q3 audit pointer with a partial-coverage qualifier. Due before the October monthly light run.
-- **Basis:** Scot decision 2026-09-17; LL-c667ec15e3
+- **Basis:** Scot decision 2026-09-17; LL-c667ec15e3. Done 2026-10-31 (partial coverage, PR #1249); Scot counted it as the make-up pass on 2026-11-05.
 - **Linked findings:** (none recorded)
 
 ## Fixed regulatory dates

@@ -186,11 +186,11 @@
       "framework": "SOC2",
       "title": "Q3 2026 /audit-run make-up pass (partial-coverage gaps)",
       "cadence": "one-time",
-      "lastDone": null,
-      "nextDue": "2026-10-09",
+      "lastDone": "2026-10-31",
+      "nextDue": null,
       "drafts": "Re-run the six finders with checklist skills and the read-only guard verified by a canary; run bundle-audit; take an AWS account-level read; merge into FINDINGS.json and record in runs.jsonl.",
       "watch": "Approved by Scot on 2026-09-17 as the condition for keeping the Q3 audit pointer with a partial-coverage qualifier. Due before the October monthly light run.",
-      "basis": "Scot decision 2026-09-17; LL-c667ec15e3"
+      "basis": "Scot decision 2026-09-17; LL-c667ec15e3. Done 2026-10-31 (partial coverage, PR #1249); Scot counted it as the make-up pass on 2026-11-05."
     }
   ],
   "fixedRegulatoryDates": [

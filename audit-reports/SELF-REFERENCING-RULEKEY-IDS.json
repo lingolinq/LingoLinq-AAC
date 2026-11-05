@@ -1,6 +1,8 @@
 {
   "description": "Ids of rows in FINDINGS.json that may carry the self-referencing ruleKey form. Read by scripts/register-lint.rb, which refuses the form on any row not listed here and refuses any entry that does not name such a row.",
   "ids": [
-    "LL-1baffd92d5"
+    "LL-1baffd92d5",
+    "LL-a6be800a86",
+    "LL-c0b3d59f58"
   ]
 }

@@ -10,16 +10,16 @@
 > (see `audit-reports/notion/README.md`).
 
 **Audited commit:** `070b5e614071aec8fd917fa4b4067f5412460614`  
-**Audited ref:** `compliance/scot-q3-makeup-run-20eb9dd6 (== origin/develop tip 070b5e614 at run start, 2026-10-31 UTC). PARTIAL COVERAGE, Scot-approved 2026-11-04: Q3 make-up pass (rev-audit-run-q3-makeup). The fan-out gate passed for all six finders (checklists, read-only guard, examination logger). bundle-audit and npm audit ran; a partial read-only AWS account-level read (three regions, some services not read) and a live browser accessibility check were taken. Not stamped full because every finder still reports areas it did not reach; those are listed in the private run record, and no screen reader, switch or eye-gaze testing was done.`  
+**Audited ref:** `compliance/scot-q3-makeup-run-20eb9dd6 (== origin/develop tip 070b5e61 at run start, 2026-10-31). PARTIAL COVERAGE: 0 of 6 finders complete, 0 of 8 live reads succeeded; details are in the private run record. Internal automated review by AI agents against our own checklists, not a third-party audit; it says what was examined, not that it passed, and open findings are counted separately. Standing limits: callers outside the repo; vendor internals; provider-side key revocation. Scot signed 2026-11-04. Excludes assistive-technology testing (tracked separately in the conformance report).`  
 **Run date:** 2026-10-31  
-**Page generated:** 2026-11-05T01:37:29Z
+**Page generated:** 2026-11-05T17:36:21Z
 
 ## Headline - live findings (open + awaiting verification)
 
 | Count | Critical | High | Medium | Low |
 |---|---|---|---|---|
-| **Live** (`open` + `remediated-unverified`) | **2** | **50** | 163 | 154 |
-| `open` only | 2 | 44 | 160 | 153 |
+| **Live** (`open` + `remediated-unverified`) | **2** | **51** | 163 | 153 |
+| `open` only | 2 | 45 | 160 | 152 |
 
 _The headline is the LIVE count: `open` + `remediated-unverified` findings by severity (plan decision 5.9.2: counts, not a synthetic score). The `open`-only row is the `/audit-run` step 6 convention; the difference is findings whose fix has landed but which Scot has not yet verified and closed. Only Scot closes a finding, downgrades severity, or accepts risk._
 
@@ -42,6 +42,7 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-20e90250ec |  | high | GDPR, COPPA, FERPA, HIPAA | Hard delete does not reach ButtonImage rows or their S3 objects for current boards, because erasure relies on a join table the app no longer writes | `lib/flusher.rb`:264 |
 | LL-21d39970a6 |  | high | WCAG | Rails application layout viewport meta disables pinch zoom | `app/views/layouts/application.html.erb`:48 |
 | LL-3bfc56ef4b |  | high | HIPAA, SOC2 | ALLOWED_RUNTIME_MODELS is an in-process application gate and cannot constrain direct AWS API or CLI use of the same Bedrock runtime credential | `lib/ai_client.rb`:83 |
+| LL-3dd9bc89ee |  | high |  | Production image and .ruby-version use Ruby 3.4.4, several patch releases behind the current 3.4 patch | `Dockerfile`:24 |
 | LL-400adcead5 |  | high | GDPR, COPPA | PR #901 machine-translated the AI data-sharing, Article 50, COPPA and retention disclosures into twelve locale files, and the guard that checks those claims covers only English and Spanish, by its own admission | `spec/support/ai_disclosure_claims.rb`:79 |
 | LL-4f1eb5fd0a |  | high | SOC2 | Lesson#check_url fetches a user-supplied URL with raw Typhoeus and unbounded redirect following, bypassing the repository's own SafeHttp DNS/IP and redirect validation | `app/models/lesson.rb`:146 |
 | LL-53cb93fab1 |  | high | GDPR, FERPA | Terms-agree modal can be silently replaced by intro before the user agrees | `app/frontend/app/routes/index.js`:132 |
@@ -60,7 +61,7 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-933e61efd7 |  | high | GDPR, FERPA, COPPA | Five specific retention and deletion promises on the public privacy page have no implementing mechanism, and the scheduled jobs that would partially back them were not run by the production scheduler from 2026-07-21 to 2026-09-02 | `app/frontend/app/templates/privacy.hbs`:97 |
 | LL-9e145637b9 |  | high | GDPR | EU under-16 AI parental consent flow control weakness (details withheld until remediation is verified) | `app/controllers/eu_ai_parental_consents_controller.rb`:16 |
 | LL-a4b5fb1445 |  | high | FERPA, GDPR, SOC2 | Organization membership authorization weakness in supervisor-key processing (details withheld until remediation is verified) | `app/models/organization.rb`:1470 |
-| LL-a6be800a86 |  | high | COPPA, FERPA, GDPR | Full user export archive, including non-anonymized log data, is stored under an S3 key derived only from the username and a minute-granularity timestamp | `lib/exporter.rb`:94 |
+| LL-a6be800a86 |  | high | COPPA, FERPA, GDPR | Compliance finding (details withheld until remediation is verified) | `lib/exporter.rb`:1 |
 | LL-a8351c5b00 |  | high | GDPR, HIPAA, FERPA | PiiScrubber log redaction never matches E.164 phone numbers and, contrary to its own docstring, fails the parenthesized form | `lib/pii_scrubber.rb`:37 |
 | LL-a95e9c5f7c |  | high | SOC2 | lingolinq-worker's 512Mi memory limit is too small for ButtonImage/BoardDownstreamButtonSet jobs, causing continuous OOM kills that land as Resque::Failure instead of being requeued | (attestation) |
 | LL-a9d6d5a46b |  | high | WCAG | AI disclosure full-notice link uses the low-contrast verdigris token for text on the near-white modal surface | `app/frontend/app/styles/app.scss`:38150 |
@@ -125,7 +126,7 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-4e945d5b97 |  | medium | SOC2 | The production image build pipes a remote setup script into a root shell with no checksum and uses tag-only base images, with no image scan in the pipeline | `Dockerfile`:47 |
 | LL-4f3845b278 |  | medium | SOC2, HIPAA | Human cloud account least privilege (details withheld until remediation is verified) | (attestation) |
 | LL-5207160b7e |  | medium | WCAG | App content scroller is unfocusable when the Download page renders no links | `app/frontend/app/templates/application.hbs`:1591 |
-| LL-52ff2a9a79 |  | medium | SOC2 | CI security-scan job (Brakeman SAST, bundle-audit, npm audit, gitleaks) is entirely non-blocking | `.github/workflows/ci.yml`:107 |
+| LL-52ff2a9a79 |  | medium | SOC2 | CI security-scan job: the Brakeman and npm audit steps are advisory, and security-scan is not a required check on develop | `.github/workflows/ci.yml`:107 |
 | LL-549bbb6748 |  | medium |  | aggreement-terms template is not routed, rendered or opened as a modal | `app/frontend/app/templates/aggreement-terms.hbs`:2 |
 | LL-55a3b83c45 |  | medium | WCAG | New goal template picker rows are click-only divs | `app/frontend/app/components/new-goal.hbs`:120 |
 | LL-58130aaefe |  | medium | WCAG | Shared modal-dialog shell declares role=dialog aria-modal without aria-labelledby or aria-describedby | `app/frontend/app/components/modal-dialog.hbs`:6 |
@@ -270,7 +271,6 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-3a1c317a88 |  | low | HIPAA, FERPA | Eval narration has no licensed-clinician gate (classified NOT a HIPAA Healthcare Activity) | `app/controllers/api/eval_sessions_controller.rb`:60 |
 | LL-3a5e45ef5f |  | low | WCAG | User focus page images have no alt | `app/frontend/app/templates/user/focus.hbs`:9 |
 | LL-3bf6e72da5 |  | low | WCAG | Button stash symbol images have no alt | `app/frontend/app/components/button-stash.hbs`:32 |
-| LL-3dd9bc89ee |  | low |  | Production image and .ruby-version use Ruby 3.4.4, several patch releases behind the current 3.4 patch | `Dockerfile`:24 |
 | LL-400e2d393f |  | low | GDPR, HIPAA | Scheduler task errors are printed to stdout with the raw exception message, past the log-scrubbing formatter | `lib/tasks/scheduler.rake`:107 |
 | LL-407ac4ee5c |  | low | WCAG | Button stash label field has placeholder only | `app/frontend/app/components/button-stash.hbs`:44 |
 | LL-40f3571b19 |  | low | SOC2 | Sentry release tagging reads a Render-only environment variable, so production error events on Cloud Run carry no release attribution | `config/initializers/sentry.rb`:367 |
