@@ -257,3 +257,50 @@ the network, not a bug in this feature, but it makes the spec nondeterministic. 
    `lingolinq/crisis-vocabulary` system board without remote pictures for the e2e database only.
 2. Then a full offline-launch run, the kill-switch project, the full Ember suite, `/pr-preflight`, the
    reviews, and the draft PR ("Wi-Fi without internet" goes under known limits).
+
+## Status 2026-11-05 (later): offline launch green; the kill switch leaves the cache behind (stopped: app code)
+
+**E2E setup (commit 451679ec6, within Scot's pre-approval for e2e setup and helpers).** A new private
+database, `lingolinq-e2e-7a29ac97-v3`, loaded from `db/schema.rb` inside a connection checked to be that
+database (not `db:schema:load`, which in development also acts on the test configuration). The seed makes
+`lingolinq/crisis-vocabulary` a text-only stand-in, creates every seeded board empty and then adds its
+buttons (on the creating save, `Board#process_suggested_symbols` adds OpenSymbols pictures), and gives the
+e2e users a stored sidebar naming only that board with an icon Rails serves. It refuses outside a private
+`lingolinq-e2e*` database, while any upload setting is present, and when a board it would use already has
+pictures (each refusal shown). Seed and server run with `AWS_KEY`, `AWS_SECRET`, `UPLOADS_S3_BUCKET` and
+`STATIC_S3_BUCKET` set empty (dotenv never overrides a set variable): board writes and sync upload
+button-set caches to the bucket when it is configured (`BoardDownstreamButtonSet` -> `Uploader.remote_upload`),
+so earlier runs with the real `.env` most likely wrote button-set JSON for the synthetic e2e boards to the
+dev uploads bucket. Not verified in the bucket. The older databases `lingolinq-e2e-7a29ac97` and `-v2`
+are left in place.
+
+Sync status depends only on board errors (`errors = errors.concat(progresses[idx].board_errors || [])`,
+`services/persistence.js`), so the app's own CDN fetches during the online part (chart.js from jsdelivr,
+sound effects from CloudFront, default sidebar icons) do not affect it. In the run's server log every
+image-proxy fetch was local.
+
+The Spanish case now reloads online once the worker is active: in 3 of 4 diagnostic runs the page after
+sign-in was not controlled by the worker (sign-in reloads the page before the worker is active, and the
+worker never claims an open page), so `es.json` was not cached; after the reload it was, every time.
+Known limit for the PR: a device that goes offline before any load through the worker has no cached
+interface language file, and `initializers/attempt_lang.js` then falls back to English (read from code,
+not tested).
+
+**Result.** offline-launch: 3 passed (1.0 min), fresh profiles, `OFFLINE_APP_SHELL=on`.
+
+**Kill switch: fails.** With Rails restarted `OFFLINE_APP_SHELL=off`, reopening that profile online: the
+worker is gone but its cache `ll-offline-shell-...` stays (polled 60 s). Cause, from the run: the page
+logged `[offline-shell] worker removed`, i.e. `sync_registration`'s off branch (`app/utils/offline_shell.js`)
+unregistered the registration; the server log has no browser fetch of `/sw.js` after the navigation, so the
+browser's update check never fetched the removal worker (`kill_switch.js.erb`, which deletes the caches),
+and the off branch itself deletes no caches. Functionally the rollback works (no worker serves anything),
+but the cached copy of the app stays on the device, and the PR promises the caches are removed.
+
+**Proposed fix (needs approval: app code).** In the off branch, after unregistering, also delete the
+caches whose names start with `ll-offline-shell-` (`window.caches`), so both removal paths end the same
+way. Red unit test first in `tests/unit/utils/offline-shell-test.js`: off, with a fake `caches` holding a
+prefixed and an unrelated name -> the prefixed one is deleted, the unrelated one kept; no `caches` -> still
+unregisters. A spec that the JS prefix equals `OfflineShell::CACHE_PREFIX`. Then rebuild, re-run both
+Playwright projects, mutation (drop the delete -> the kill-switch spec and the unit test fail).
+
+**Next.** On approval: the fix above, then the full Ember suite, `/pr-preflight`, reviews, draft PR.
