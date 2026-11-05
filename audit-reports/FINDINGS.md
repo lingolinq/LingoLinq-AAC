@@ -3,7 +3,7 @@
 > Generated from `audit-reports/FINDINGS.json` by `scripts/citation-check.rb --render`.
 > Do not hand-edit; edit the JSON (the source of truth) and re-render.
 
-**Audited:** `compliance/scot-q3-makeup-run-20eb9dd6 (== origin/develop tip 070b5e614 at run start, 2026-10-31 UTC). PARTIAL COVERAGE, pending Scot attestation: Q3 make-up pass (rev-audit-run-q3-makeup). The fan-out gate passed for all six finders (checklists, read-only guard, examination logger). bundle-audit and npm audit ran; a partial read-only AWS account-level read (three regions, some services not read) and a live browser accessibility check were taken. Not stamped full because every finder still reports areas it did not reach; those are listed in the private run record, and no screen reader, switch or eye-gaze testing was done.` @ `070b5e614071aec8fd917fa4b4067f5412460614` on 2026-10-31  
+**Audited:** `compliance/scot-q3-makeup-run-20eb9dd6 (== origin/develop tip 070b5e614 at run start, 2026-10-31 UTC). PARTIAL COVERAGE, Scot-approved 2026-11-04: Q3 make-up pass (rev-audit-run-q3-makeup). The fan-out gate passed for all six finders (checklists, read-only guard, examination logger). bundle-audit and npm audit ran; a partial read-only AWS account-level read (three regions, some services not read) and a live browser accessibility check were taken. Not stamped full because every finder still reports areas it did not reach; those are listed in the private run record, and no screen reader, switch or eye-gaze testing was done.` @ `070b5e614071aec8fd917fa4b4067f5412460614` on 2026-10-31  
 **Seed:** audit-reports/unified-audit-2026-04-09.md  
 **Headline (open + remediated-unverified):** 2 Critical / 50 High
 
