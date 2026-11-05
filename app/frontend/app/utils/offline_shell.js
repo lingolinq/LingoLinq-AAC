@@ -6,6 +6,12 @@ import { addObserver, removeObserver } from '@ember/object/observers';
 // request by layouts/application.html.erb): register when true, remove when false, and touch nothing
 // when the page did not say (ember serve, tests).
 //
+// Trusted devices only. On a shared device ("This is a Shared Device" at sign-in) the server ends an
+// idle session, but offline nothing can, and the app reads the last user from the device at boot. So
+// even when it is on, the worker is kept only while the signed-in user's record says this device is
+// trusted (device_trust), and a shared sign-in removes it and its caches: a shared device offline then
+// shows the browser's offline page, as it did before the worker.
+//
 // Every function takes the window / navigator it works on, so tests pass fakes. None of them throws
 // or blocks boot: each returns a promise of a short status string.
 export const WORKER_PATH = '/sw.js';
@@ -43,6 +49,27 @@ function delete_worker_caches(win) {
   });
 }
 
+// Unregisters this worker (never any other) and deletes its caches. Unregistering can stop the removal
+// worker /sw.js serves when the setting is off from ever running, so the caches go too, even when no
+// worker is left (a device that already lost that race still has them).
+function remove_worker(win, container) {
+  if(typeof container.getRegistrations !== 'function') { return Promise.resolve('unsupported'); }
+  return Promise.resolve().then(function() {
+    return container.getRegistrations();
+  }).then(function(registrations) {
+    var ours = (registrations || []).filter(is_offline_shell_worker);
+    return Promise.all(ours.map(function(registration) { return registration.unregister(); })).then(function() {
+      if(ours.length > 0) { log('worker removed'); }
+      return delete_worker_caches(win);
+    }).then(function() {
+      return ours.length > 0 ? 'unregistered' : 'none';
+    });
+  }).then(null, function(err) {
+    log('could not check for the worker: ' + ((err && err.message) || err));
+    return 'failed';
+  });
+}
+
 var offline_shell = {
   // 'on', 'off', or null when the page did not say.
   setting: function(win) {
@@ -69,24 +96,53 @@ var offline_shell = {
       });
     }
     // Off: the server's /sw.js already hands installed copies a worker that removes itself and its
-    // caches. This covers a page that boots before the browser has checked for that update. Unregistering
-    // here can stop that removal worker from ever running, so the page deletes the worker's caches too,
-    // even when no worker is left (a device that already lost that race still has them).
-    if(typeof container.getRegistrations !== 'function') { return Promise.resolve('unsupported'); }
-    return Promise.resolve().then(function() {
-      return container.getRegistrations();
-    }).then(function(registrations) {
-      var ours = (registrations || []).filter(is_offline_shell_worker);
-      return Promise.all(ours.map(function(registration) { return registration.unregister(); })).then(function() {
-        if(ours.length > 0) { log('worker removed'); }
-        return delete_worker_caches(win);
-      }).then(function() {
-        return ours.length > 0 ? 'unregistered' : 'none';
-      });
-    }).then(null, function(err) {
-      log('could not check for the worker: ' + ((err && err.message) || err));
-      return 'failed';
-    });
+    // caches. This covers a page that boots before the browser has checked for that update.
+    return remove_worker(win, container);
+  },
+
+  // 'trusted' when the session user's record says this device is trusted ("Trust this Device":
+  // preferences.device.long_token, the device's own setting, json_api/user.rb), 'shared' for any other
+  // record (shared, or no choice recorded), null when there is no session user record yet.
+  device_trust: function(user) {
+    if(!user || typeof user.get !== 'function') { return null; }
+    return user.get('preferences.device.long_token') === true ? 'trusted' : 'shared';
+  },
+
+  // sync_registration for this device: when it is on, register only on a trusted device, remove the
+  // worker and its caches on a shared one, and touch nothing until the session user is known.
+  sync_for_device: function(win, nav, trust) {
+    if(offline_shell.setting(win) !== 'on' || trust === 'trusted') {
+      return offline_shell.sync_registration(win, nav);
+    }
+    if(trust !== 'shared') { return Promise.resolve('waiting'); }
+    var container = nav && nav.serviceWorker;
+    if(!container) { return Promise.resolve('unsupported'); }
+    return remove_worker(win, container);
+  },
+
+  // Runs sync_for_device now and each time the session user's trust changes (a sign-in, the "Trust
+  // this Device" choice, a shared sign-in after a trusted one). Signing out changes nothing: a trusted
+  // device keeps its worker. Returns a function that stops watching.
+  follow_device_trust: function(appState, win, nav) {
+    var done = false;
+    var last;
+    var key = 'sessionUser.preferences.device.long_token';
+    var check = function() {
+      if(done || appState.isDestroyed || appState.isDestroying) { return; }
+      var trust = offline_shell.device_trust(appState.get('sessionUser'));
+      if(trust === null || trust === last) { return; }
+      last = trust;
+      offline_shell.sync_for_device(win, nav, trust);
+    };
+    addObserver(appState, key, check);
+    check();
+    return function() {
+      if(done) { return; }
+      done = true;
+      if(!appState.isDestroyed && !appState.isDestroying) {
+        removeObserver(appState, key, check);
+      }
+    };
   },
 
   // Asks the browser to keep this site's storage (the synced boards and the worker's copy of the
@@ -105,10 +161,11 @@ var offline_shell = {
     });
   },
 
-  // Calls request_persist once, after the first sync that succeeds while signed in. Watches the
-  // persistence service's sync_status (set to 'succeeded' at the end of a clean sync). Returns a
-  // function that stops watching.
-  persist_after_sync: function(persistence, session, nav) {
+  // Calls request_persist once, after the first sync that succeeds while signed in on a trusted device
+  // (device_trust). A shared device's data should go when the browser needs the room, and Firefox asks
+  // the person before granting it. Watches the persistence service's sync_status (set to 'succeeded' at
+  // the end of a clean sync). Returns a function that stops watching.
+  persist_after_sync: function(persistence, session, nav, appState) {
     var done = false;
     var stop = function() {
       if(done) { return; }
@@ -122,6 +179,8 @@ var offline_shell = {
       if(persistence.isDestroyed || persistence.isDestroying) { return; }
       if(persistence.get('sync_status') !== 'succeeded') { return; }
       if(!session || session.isDestroyed || session.isDestroying || !session.get('isAuthenticated')) { return; }
+      if(!appState || appState.isDestroyed || appState.isDestroying) { return; }
+      if(offline_shell.device_trust(appState.get('sessionUser')) !== 'trusted') { return; }
       stop();
       offline_shell.request_persist(nav);
     };

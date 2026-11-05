@@ -70,14 +70,19 @@ export default Route.extend({
     // global_transition already started (services/app-state.js `session_user_promise`), or a local
     // read of our own when none is in flight. Ownership is checked against the session BEFORE
     // waiting, so signed-out visitors and other users' pages go straight to the server, as before.
+    // The record is used only when it is that user's (a device read can return another account) and it
+    // says this device is trusted: a shared device's record is the last person's, and offline the server
+    // cannot end their session (utils/offline_shell.js device_trust). Only where the offline shell is on,
+    // so the kill switch turns this off too and the native apps, which never set it, are unchanged.
     // Online, nothing here runs.
     var session = this.session;
     var own_page = !!(session && session.get('access_token') && params.user_id &&
       (params.user_id === session.get('user_name') || params.user_id === session.get('user_id')));
-    if(!online() && own_page) {
+    if(!online() && own_page && this.offline_shell_on()) {
       var pending = (this.appState && this.appState.get('session_user_promise')) || this.store.findRecord('user', 'self');
       return wait_for_session_user(this.appState, { promise: pending, timeout: this.offline_session_wait_ms }).then(function(user) {
-        if(user && (user.get('user_name') === params.user_id || user.get('id') === params.user_id)) {
+        if(user && (user.get('user_name') === params.user_id || user.get('id') === params.user_id) &&
+            offline_shell.device_trust(user) === 'trusted') {
           return finish(user);
         }
         return query_server();
@@ -89,6 +94,10 @@ export default Route.extend({
   // How long an offline cold boot waits for the device read above. Offline the fallback can only
   // fail, so a long wait costs nothing but the signed-in user's own pages.
   offline_session_wait_ms: 10000,
+  // The page's offline shell setting (layouts/application.html.erb sets window.offline_shell_enabled).
+  offline_shell_on: function() {
+    return offline_shell.setting(typeof window === 'undefined' ? null : window) === 'on';
+  },
   session: service('session'),
   /* Publish "whose account is this page" so app-level chrome (the supervising
      context pill) can name it. Set on the PARENT `:user_id` route rather than in
@@ -134,3 +143,4 @@ export default Route.extend({
 // Imported last so the `.eslint-todo` rows above keep their lines (as dashboard/authenticated-view.js does).
 import modal from '../utils/modal';
 import { wait_for_session_user } from '../utils/session_user_wait';
+import offline_shell from '../utils/offline_shell';

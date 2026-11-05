@@ -15,6 +15,11 @@ import { setupTest } from '../../helpers';
  * route now uses the user record read from the device: the read already in flight
  * (`appState.session_user_promise`), or its own local read when none is. Online, signed out, and for
  * anyone else's page, it asks the server at once, exactly as before.
+ *
+ * Only where the offline shell is on (the page's window.offline_shell_enabled, so the kill switch turns
+ * this off too, and the native apps, which never set it, are unchanged), and only when that record
+ * says this device is trusted (preferences.device.long_token === true): a shared device's record is
+ * the last person's, and offline the server cannot end their session.
  */
 module('Unit | routes/user offline cold boot', function(hooks) {
   setupTest(hooks);
@@ -45,11 +50,16 @@ module('Unit | routes/user offline cold boot', function(hooks) {
       }
     };
     if(opts.waitMs) { route.offline_session_wait_ms = opts.waitMs; }
+    // The offline shell's setting, on unless a case says otherwise (2026-11-05: the branch is now gated).
+    route.offline_shell_on = function() { return opts.shellOn !== false; };
     return { route: route, calls: calls };
   }
 
-  function selfUser() {
-    return EmberObject.create({ id: '1_5', user_name: 'tester', subroute_name: 'old' });
+  // The signed-in user's record as the device holds it; trusted unless a case says otherwise
+  // (2026-11-05: the branch now needs a trusted device).
+  function selfUser(device) {
+    return EmberObject.create({ id: '1_5', user_name: 'tester', subroute_name: 'old',
+      preferences: { device: device === undefined ? { long_token: true } : device } });
   }
 
   // A rejected promise the route will read; the no-op handler only keeps the browser from reporting
@@ -121,6 +131,45 @@ module('Unit | routes/user offline cold boot', function(hooks) {
     await assert.rejects(r.route.model({ user_id: 'tester' }));
     assert.deepEqual(r.calls, ['queryRecord tester']);
     await settled();
+  });
+
+  test('offline on a shared device, the device record is not used: the server is asked', async function(assert) {
+    assert.expect(8);
+    var cases = [['shared', { long_token: false }], ['no choice recorded', {}], ['not a real boolean', { long_token: 'true' }], ['no device entry', null]];
+    for(var i = 0; i < cases.length; i++) {
+      var r = routeWith(this, { online: false, session_user_promise: Promise.resolve(selfUser(cases[i][1])) });
+      await assert.rejects(r.route.model({ user_id: 'tester' }), cases[i][0]);
+      assert.deepEqual(r.calls, ['queryRecord tester'], cases[i][0] + ': asked the server, which fails offline');
+    }
+  });
+
+  test('offline on a shared device, its own local read is not used either', async function(assert) {
+    var r = routeWith(this, { online: false, session_user_promise: null, findRecord: function() { return Promise.resolve(selfUser({ long_token: false })); } });
+    await assert.rejects(r.route.model({ user_id: 'tester' }));
+    assert.deepEqual(r.calls, ['findRecord user self', 'queryRecord tester']);
+  });
+
+  // routes/user.js checks the record it got back as well as the session: a device read can return a
+  // different account (a renamed user, or another account's record left on the device).
+  test('offline, a device record for another account is not used', async function(assert) {
+    var other = EmberObject.create({ id: '1_9', user_name: 'other', preferences: { device: { long_token: true } } });
+    var r = routeWith(this, { online: false, session_user_promise: Promise.resolve(other) });
+    await assert.rejects(r.route.model({ user_id: 'tester' }));
+    assert.deepEqual(r.calls, ['queryRecord tester'], 'asked the server for the page instead');
+  });
+
+  test('with the offline shell off, an offline cold boot asks the server at once, as before', async function(assert) {
+    var r = routeWith(this, { online: false, shellOn: false, session_user_promise: Promise.resolve(selfUser()) });
+    var promise = r.route.model({ user_id: 'tester' });
+    assert.deepEqual(r.calls, ['queryRecord tester'], 'asked before anything was awaited');
+    await assert.rejects(promise);
+  });
+
+  // The page sets window.offline_shell_enabled (layouts/application.html.erb); the test page does not.
+  test('the setting comes from the page, and is off when the page does not set it', function(assert) {
+    var route = this.owner.lookup('route:user');
+    assert.strictEqual(window.offline_shell_enabled, undefined, 'the test page sets no flag');
+    assert.false(route.offline_shell_on(), 'off');
   });
 
   test('waits up to ten seconds by default: offline, the fallback can only fail', function(assert) {
