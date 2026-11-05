@@ -121,6 +121,35 @@ test.describe('offline launch from the offline app shell', () => {
     }
   });
 
+  // Added 2026-11-05 (review follow-up). On a shared device the server ends an idle session, but offline
+  // nothing can, and the app would read the last person from the device. So a shared sign-in removes the
+  // worker and its copy (utils/offline_shell.js follow_device_trust), and the device then cannot open the
+  // app offline at all, as before the worker. Here a trusted user signs out and the next person signs in
+  // on the same browser as "Shared Device".
+  test('after a shared sign-in, the worker and its copy are gone and the app does not open offline', async () => {
+    const context = await openProfile('shared');
+    try {
+      const page = context.pages()[0] || await context.newPage();
+      await signIn(page, USERS.classic.user, 'offline-launch.rb');
+      await page.waitForFunction(async () => {
+        const r = await navigator.serviceWorker.getRegistration('/');
+        return !!(r && r.active && r.active.state === 'activated');
+      }, null, { timeout: 120_000 });
+      expect((await workerState(page)).caches.length, 'installed for the trusted user').toBe(1);
+      await page.evaluate(() => window.LingoLinq.session.invalidate(true));
+      await page.waitForURL((url) => url.pathname === '/' || /^\/login/.test(url.pathname), { timeout: 60_000 });
+      await signIn(page, USERS.modern.user, 'offline-launch.rb', { shared: true });
+      expect(await page.evaluate(() => window.LingoLinq.appState.get('sessionUser.preferences.device.long_token')),
+        'the server recorded this device as shared for the second user').toBe(false);
+      await expect.poll(async () => workerState(page), { timeout: 60_000 }).toEqual({ registrations: [], caches: [] });
+      await context.setOffline(true);
+      await expect(page.goto(USERS.modern.path(USERS.modern.board)), 'the browser\'s offline page, not the app').rejects.toThrow(/ERR_INTERNET_DISCONNECTED/);
+    } finally {
+      await context.setOffline(false).catch(() => {});
+      await context.close();
+    }
+  });
+
   // #1213 (open): Modern view's board page does not read boards from the device, so offline it shows
   // its own "could not load" state. This proves the app boots offline in Modern view, not the board.
   test('Modern view boots offline and shows its board-unavailable state', async () => {
