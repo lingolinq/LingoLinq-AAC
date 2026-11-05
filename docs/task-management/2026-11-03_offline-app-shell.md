@@ -162,6 +162,33 @@ an id-style URL whose stored key names a different owner is not resolved; signed
 acceptance or Playwright case for the sibling navigation, since a unit test cannot show Ember reusing the
 parent model. Mutations: drop step 4 (sibling test fails); drop the owner check (id test fails).
 
+## Follow-up: Wi-Fi without internet (not in this PR)
+
+Agreed with Scot on 2026-11-05. The own-page branch in `routes/user.js` runs only when
+`persistence.online` is false at the time the model hook runs. That value starts from `navigator.onLine`
+(`services/persistence.js` init), which is true on a device that is on Wi-Fi with no internet (a school
+network that blocks the app, a captive portal, a router with no uplink). There the route asks the server
+at once, the request fails, and the app shows "Unavailable offline" instead of the board, just as an
+offline cold launch did in Playwright before the spec fixed `navigator.onLine` (see the status below).
+
+**Proposal.** For the signed-in user's own page only (the same session ownership check as the offline
+branch), when `query_server()` fails with a network error (no HTTP status: jQuery status 0, or the
+adapter's offline rejection), use the user record from the device (`session_user_promise`, else
+`store.findRecord('user', 'self')`, with the same 10 s bound), and only if it matches the page's user.
+Any answer from the server (400, 403, 404, 5xx) still bubbles exactly as today, and online success paths
+are unchanged.
+
+**Open questions for the fact sheet.** What a failed `queryRecord` rejects with when the network is down
+versus when the server answers an error (the shapes `adapters/application.js` produces); how long a
+request takes to fail on a captive portal (it may answer with a redirect or an HTML page, not a network
+error, and then nothing here runs); whether `persistence.online` should also be set false on that failure.
+
+**Tests it needs** (red first, `tests/unit/routes/user-offline-cold-boot-test.js`): online flag true but the
+server request fails with a network error -> the device record; a server error answer (400, 404) still
+rejects; someone else's page and signed out still reject; no device record -> rejects as before. Mutation:
+drop the network-error check -> the 400 and 404 tests fail. Playwright: an offline launch with
+`navigator.onLine` left true (the reverse of the spec's override) opens the board.
+
 ## Status 2026-11-04: Playwright offline runs not green yet (work stopped under Rule 13)
 
 **Sync errors on the local stack: a local setup problem, not a bug in this feature.** Every new user's
@@ -193,3 +220,40 @@ it needs to wait for the board or the error, whichever comes first.
 2. Make `launchOffline` wait for the board or the error page before asserting.
 3. Diagnose the Spanish case timeout.
 4. Then the full Ember suite, the kill-switch project, `/pr-preflight`, and the draft PR.
+
+## Status 2026-11-05: offline launch diagnosed; e2e sync still depends on the network (stopped under Rule 13)
+
+**Which route failed, and why.** The `:user_id` parent route (`routes/user.js`) never reached its offline
+branch. Playwright 1.62.1's `setOffline(true)` blocks the network, but every page loaded after it still reads
+`navigator.onLine === true` (seen on worker-served pages, a reload, a `data:` URL, and with page-level CDP
+emulation). `persistence.online` starts from `navigator.onLine`, so at about 750 ms, when the model hook ran,
+the app believed it was online, asked the server for the user record, and showed "Unavailable offline" when
+that failed. `persistence.online` turned false only about 2 s in. A device with no network reports false
+from the start; on Wi-Fi with no internet it reports true (follow-up above).
+
+**Spec changes (commit 1b65b8e8d).** `launchOffline` makes `navigator.onLine` read false from page start, with
+a comment naming the gap, and checks the page sees it. It then waits until the page shows the expected
+element or the app error page, and requires it not to be the error page. The error page is found by its
+picture's address (any language; offline the picture itself is not cached, so it is present but has no
+size). The shared sign-in helper picks the trust-device button by class (any interface language: this was
+the Spanish 10-minute timeout, the helper waited for an English label) and waits for the URL to leave
+`/login`: sign-in finishes with an in-app transition or by loading `/` again
+(`components/login-form.js` `_login_dispatch_after_wait`), and a sync started before that reload is lost with
+the page (this was the Classic 5-minute sync stall).
+
+**Results.** With those changes all three offline-launch cases passed (fresh profiles, 1.3 min). Mutation:
+override removed -> Classic fails at "not the app error page" (the first attempt failed at the settle step
+instead, which exposed the uncached-picture problem; fixed, then re-run). The next full run failed the
+Spanish case at "sync finished without errors" (`finished`, not `succeeded`).
+
+**That failure: the local sync fetches every system-board picture from the real dev bucket.** Direct fetches
+fail CORS from `localhost`, so the app goes through `/api/v1/search/proxy`. In the log, 611 proxy fetches
+succeeded and one was refused as "blocked or invalid URL": `SafeHttp.resolve_addresses` returns nil on a DNS
+lookup timeout. One slow DNS lookup on this machine ends the sync as `finished`. A local setup dependency on
+the network, not a bug in this feature, but it makes the spec nondeterministic. Not re-run to green.
+
+**Next steps.**
+1. Decide how the e2e stack stops depending on the network (Scot): for example, seed the
+   `lingolinq/crisis-vocabulary` system board without remote pictures for the e2e database only.
+2. Then a full offline-launch run, the kill-switch project, the full Ember suite, `/pr-preflight`, the
+   reviews, and the draft PR ("Wi-Fi without internet" goes under known limits).
