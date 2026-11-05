@@ -38,9 +38,25 @@ async function prepare(page, who) {
   expect(state.caches.length).toBe(1);
 }
 
-// Goes offline and opens the board URL in a fresh navigation (a cold launch).
-async function launchOffline(context, page, url) {
+// The app's own error page (templates/error.hbs), found by its picture's address so it matches in any
+// language. Offline the picture itself is not cached, so the element is present but has no size.
+function errorPage(page) {
+  return page.locator('img[src*="not-found.png"]');
+}
+
+// Goes offline and opens the board URL in a fresh navigation (a cold launch), then waits until the
+// page settles on either `expected` or the app error page, and requires it not to be the error page.
+async function launchOffline(context, page, url, expected) {
   await context.setOffline(true);
+  // PLAYWRIGHT GAP: setOffline blocks the network, but a page loaded after it still reads
+  // navigator.onLine === true (Playwright 1.62.1 on Chromium: seen on worker-served pages, a reload,
+  // a data: URL, and with page-level CDP emulation). A device with no network reports false from the
+  // start, and the app reads it at boot (services/persistence.js `online`). Report what an offline
+  // device reports, for every page this context loads from here on. Wi-Fi with no internet still
+  // reports true on a real device; that case is a known limit, not covered here.
+  await context.addInitScript(() => {
+    Object.defineProperty(Navigator.prototype, 'onLine', { get: () => false, configurable: true });
+  });
   const response = await page.goto(url);
   expect(response, 'a response, not the browser offline page').not.toBeNull();
   expect(response.fromServiceWorker(), 'answered by the worker').toBe(true);
@@ -49,7 +65,11 @@ async function launchOffline(context, page, url) {
   expect(response.headers()['x-robots-tag']).toBe('noindex');
   await page.waitForFunction(() => !!(window.load_state && window.load_state.js_loaded), null, { timeout: 60_000 });
   await expect(page.locator('#ember-application-root')).toBeAttached();
-  await expect(page.getByText('Unavailable offline'), 'not the app error page').toHaveCount(0);
+  expect(await page.evaluate(() => navigator.onLine), 'the page sees what an offline device reports').toBe(false);
+  await expect.poll(async () => (await errorPage(page).count()) > 0 || await expected.first().isVisible(),
+    { message: 'the page settled on the expected element or the error page', timeout: 60_000 }).toBe(true);
+  await expect(errorPage(page), 'not the app error page').toHaveCount(0);
+  await expect(expected.first()).toBeVisible();
 }
 
 async function apiAnsweredOffline(page) {
@@ -62,9 +82,8 @@ test.describe('offline launch from the offline app shell', () => {
     try {
       const page = context.pages()[0] || await context.newPage();
       await prepare(page, USERS.classic);
-      await launchOffline(context, page, USERS.classic.path(USERS.classic.board));
       // user.board-alt reads the board from IndexedDB; its buttons render.
-      await expect(page.getByText('all done', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
+      await launchOffline(context, page, USERS.classic.path(USERS.classic.board), page.getByText('all done', { exact: true }));
       // An API request offline is never answered from the cache.
       expect(await apiAnsweredOffline(page)).toBe('network error');
       await context.setOffline(false);
@@ -87,7 +106,7 @@ test.describe('offline launch from the offline app shell', () => {
       await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('lang'))).toBe('es');
       const cached = await page.evaluate(async () => !!(await caches.match('/locales/es.json')));
       expect(cached, 'es.json cached on its first online load').toBe(true);
-      await launchOffline(context, page, USERS.classic.path(USERS.classic.board));
+      await launchOffline(context, page, USERS.classic.path(USERS.classic.board), page.getByText('all done', { exact: true }));
       await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('lang')), { timeout: 30_000 }).toBe('es');
     } finally {
       await context.setOffline(false).catch(() => {});
@@ -102,8 +121,7 @@ test.describe('offline launch from the offline app shell', () => {
     try {
       const page = context.pages()[0] || await context.newPage();
       await prepare(page, USERS.modern);
-      await launchOffline(context, page, USERS.modern.path(USERS.modern.board));
-      await expect(page.locator('.md-board-detail-error[role="alert"]')).toBeVisible({ timeout: 60_000 });
+      await launchOffline(context, page, USERS.modern.path(USERS.modern.board), page.locator('.md-board-detail-error[role="alert"]'));
       expect(await apiAnsweredOffline(page)).toBe('network error');
     } finally {
       await context.setOffline(false).catch(() => {});
