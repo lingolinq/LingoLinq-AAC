@@ -215,4 +215,15 @@ describe OfflineShell do
       expect(checked).to be > 50
     end
   end
+
+  # The app deletes the worker's caches itself when the setting is off (app/utils/offline_shell.js
+  # delete_worker_caches), so its prefix must name the same caches the worker makes.
+  describe "the app's cache prefix" do
+    it "matches CACHE_PREFIX" do
+      source = File.read(Rails.root.join('app/frontend/app/utils/offline_shell.js'))
+      match = source.match(/^export const CACHE_PREFIX = '([^']*)';$/)
+      expect(match).not_to be_nil, 'app/utils/offline_shell.js no longer exports CACHE_PREFIX'
+      expect(match[1]).to eq(OfflineShell::CACHE_PREFIX)
+    end
+  end
 end

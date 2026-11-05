@@ -1,7 +1,7 @@
 import { module, test } from 'qunit';
 import EmberObject from '@ember/object';
 import { settled } from '@ember/test-helpers';
-import offline_shell, { WORKER_PATH } from 'frontend/utils/offline_shell';
+import offline_shell, { CACHE_PREFIX, WORKER_PATH } from 'frontend/utils/offline_shell';
 import { start } from 'frontend/instance-initializers/offline-shell';
 
 /*
@@ -102,6 +102,64 @@ module('Unit | Utility | offline_shell', function() {
       var nav = fakeNavigator({ registered: [] });
       assert.strictEqual(await offline_shell.sync_registration({ offline_shell_enabled: false }, nav), 'none');
       assert.false(nav.calls.some(function(c) { return c.indexOf('register ') === 0; }), 'never registers when off');
+    });
+  });
+
+  /* THE KILL SWITCH'S CACHES. Off, the page unregisters the worker as soon as it loads, which can be
+   * before the browser fetches the removal worker from /sw.js (views/offline_shell/kill_switch.js.erb,
+   * the code that deletes the caches); the removal worker then never runs and the worker's copy of the
+   * app stays on the device. So the page deletes those caches itself, after unregistering, whether or
+   * not a worker was still there (a device that already lost the race keeps the cache otherwise). */
+  module('sync_registration: the worker\'s caches', function() {
+    function fakeCaches(names, calls, options) {
+      var opts = options || {};
+      return {
+        keys: function() {
+          calls.push('caches.keys');
+          return opts.keysFail ? Promise.reject(new Error('storage unavailable')) : Promise.resolve(names.slice());
+        },
+        delete: function(name) { calls.push('caches.delete ' + name); return Promise.resolve(true); }
+      };
+    }
+
+    test('the cache prefix is the one the worker names its caches with', function(assert) {
+      assert.strictEqual(CACHE_PREFIX, 'll-offline-shell-');
+    });
+
+    test('off, deletes this worker\'s caches after unregistering it, and keeps every other cache', async function(assert) {
+      var nav = fakeNavigator({ registered: ['https://app.example/sw.js'] });
+      var win = { offline_shell_enabled: false, caches: fakeCaches(['ll-offline-shell-0a1b', 'other-cache', 'll-offline-shell-9f8e'], nav.calls) };
+      var result = await offline_shell.sync_registration(win, nav);
+      assert.strictEqual(result, 'unregistered');
+      assert.deepEqual(nav.calls, [
+        'getRegistrations', 'unregister https://app.example/sw.js',
+        'caches.keys', 'caches.delete ll-offline-shell-0a1b', 'caches.delete ll-offline-shell-9f8e'
+      ]);
+    });
+
+    test('off with no worker left, still deletes the caches a removed worker left behind', async function(assert) {
+      var nav = fakeNavigator({ registered: [] });
+      var win = { offline_shell_enabled: false, caches: fakeCaches(['ll-offline-shell-0a1b'], nav.calls) };
+      var result = await offline_shell.sync_registration(win, nav);
+      assert.strictEqual(result, 'none');
+      assert.deepEqual(nav.calls, ['getRegistrations', 'caches.keys', 'caches.delete ll-offline-shell-0a1b']);
+    });
+
+    test('off, a cache store that fails does not change the result or throw', async function(assert) {
+      var nav = fakeNavigator({ registered: ['https://app.example/sw.js'] });
+      var win = { offline_shell_enabled: false, caches: fakeCaches([], nav.calls, { keysFail: true }) };
+      var result = await offline_shell.sync_registration(win, nav);
+      assert.strictEqual(result, 'unregistered');
+      assert.deepEqual(nav.calls, ['getRegistrations', 'unregister https://app.example/sw.js', 'caches.keys']);
+    });
+
+    test('on, or when the page did not say, no cache is touched', async function(assert) {
+      var onNav = fakeNavigator();
+      await offline_shell.sync_registration({ offline_shell_enabled: true, caches: fakeCaches(['ll-offline-shell-0a1b'], onNav.calls) }, onNav);
+      assert.deepEqual(onNav.calls, ['register /sw.js {"scope":"/"}']);
+      var unsetNav = fakeNavigator({ registered: ['https://app.example/sw.js'] });
+      await offline_shell.sync_registration({ caches: fakeCaches(['ll-offline-shell-0a1b'], unsetNav.calls) }, unsetNav);
+      assert.deepEqual(unsetNav.calls, []);
     });
   });
 

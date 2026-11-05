@@ -9,6 +9,9 @@ import { addObserver, removeObserver } from '@ember/object/observers';
 // Every function takes the window / navigator it works on, so tests pass fakes. None of them throws
 // or blocks boot: each returns a promise of a short status string.
 export const WORKER_PATH = '/sw.js';
+// Every cache the worker makes starts with this (OfflineShell::CACHE_PREFIX; spec/lib/offline_shell_spec.rb
+// checks the two agree).
+export const CACHE_PREFIX = 'll-offline-shell-';
 
 function log(message) {
   console.log('[offline-shell] ' + message);
@@ -22,6 +25,22 @@ function is_offline_shell_worker(registration) {
   } catch(e) {
     return false;
   }
+}
+
+// Deletes the caches the worker made. Never rejects: a cache store that fails is logged.
+function delete_worker_caches(win) {
+  var store = win && win.caches;
+  if(!store || typeof store.keys !== 'function') { return Promise.resolve(); }
+  return Promise.resolve().then(function() {
+    return store.keys();
+  }).then(function(names) {
+    var ours = (names || []).filter(function(name) { return typeof name === 'string' && name.indexOf(CACHE_PREFIX) === 0; });
+    return Promise.all(ours.map(function(name) { return store.delete(name); })).then(function() {
+      if(ours.length > 0) { log('caches removed: ' + ours.length); }
+    });
+  }).then(null, function(err) {
+    log('could not remove the worker caches: ' + ((err && err.message) || err));
+  });
 }
 
 var offline_shell = {
@@ -49,8 +68,10 @@ var offline_shell = {
         return 'failed';
       });
     }
-    // Off: the server's /sw.js already hands installed copies a worker that removes itself. This
-    // covers a page that boots before the browser has checked for that update.
+    // Off: the server's /sw.js already hands installed copies a worker that removes itself and its
+    // caches. This covers a page that boots before the browser has checked for that update. Unregistering
+    // here can stop that removal worker from ever running, so the page deletes the worker's caches too,
+    // even when no worker is left (a device that already lost that race still has them).
     if(typeof container.getRegistrations !== 'function') { return Promise.resolve('unsupported'); }
     return Promise.resolve().then(function() {
       return container.getRegistrations();
@@ -58,6 +79,8 @@ var offline_shell = {
       var ours = (registrations || []).filter(is_offline_shell_worker);
       return Promise.all(ours.map(function(registration) { return registration.unregister(); })).then(function() {
         if(ours.length > 0) { log('worker removed'); }
+        return delete_worker_caches(win);
+      }).then(function() {
         return ours.length > 0 ? 'unregistered' : 'none';
       });
     }).then(null, function(err) {
