@@ -87,6 +87,12 @@ module.exports = defineConfig({
       testMatch: /offline-launch\.spec\.js/,
       timeout: 600_000,
     },
+    // The worker's slow-page, failed-update and update paths, run for real (same server as offline-launch).
+    {
+      name: 'offline-worker-lifecycle',
+      testMatch: /offline-worker-lifecycle\.spec\.js/,
+      timeout: 300_000,
+    },
     {
       name: 'offline-kill-switch',
       testMatch: /offline-kill-switch\.spec\.js/,

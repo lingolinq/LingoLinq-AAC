@@ -94,7 +94,22 @@ describe OfflineShellController, :type => :controller do
         it "names the navigations it leaves to the network" do
           get :service_worker
           expect(response.body).to include("var EXCLUDED_FIRST_SEGMENTS = #{OfflineShell::EXCLUDED_FIRST_SEGMENTS.to_json};")
-          expect(response.body).to include("var NAVIGATION_TIMEOUT_MS = #{OfflineShell::NAVIGATION_TIMEOUT_MS};")
+        end
+
+        # Changed 2026-11-05 (approved): the cached page used to answer a navigation that took longer than
+        # four seconds, which gave a slow online launch an old page. It now answers only a failed request.
+        # e2e/offline-worker-lifecycle.spec.js runs the real worker; these only guard the source.
+        it "answers a navigation with the cached page only when the request fails, never after a wait" do
+          get :service_worker
+          expect(response.body).not_to include('setTimeout')
+          expect(response.body).not_to include('TIMEOUT')
+          expect(response.body).to include('return fetch(request).catch(')
+        end
+
+        it "carries the interface language file into a new version, and keeps the worker alive while it is stored" do
+          get :service_worker
+          expect(response.body).to include('return carryRuntimeFiles(cache);')
+          expect(response.body).to include('event.waitUntil(result.stored);')
         end
       end
 
@@ -146,6 +161,24 @@ describe OfflineShellController, :type => :controller do
         it "leaves out the chart scripts from the outside host" do
           get :shell
           expect(response.body).not_to include('cdn.jsdelivr.net')
+        end
+
+        # Added 2026-11-05 (review follow-up): the worker keeps whatever /offline-shell returned at install
+        # and gives it to every launch, so it must be the same page for everyone. A request carrying a
+        # signed-in user's token gets the page a signed-out request gets, with nothing of that user in it.
+        it "is the same page for a signed-in request as for a signed-out one" do
+          get :shell
+          signed_out = response.body
+          expect(response.status).to eq(200)
+          token_user
+          @user.settings['name'] = 'Shell Spec Person'
+          @user.save
+          get :shell
+          expect(response.status).to eq(200)
+          expect(response.body).not_to include(@user.user_name)
+          expect(response.body).not_to include('Shell Spec Person')
+          expect(response.body).not_to include(@user.global_id)
+          expect(response.body).to eq(signed_out)
         end
       end
 

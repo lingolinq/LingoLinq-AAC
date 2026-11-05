@@ -19,12 +19,13 @@ function profileDir(name) {
   return path.join(process.env.E2E_OFFLINE_PROFILE_DIR || path.join(os.tmpdir(), 'll-offline-shell-e2e'), name);
 }
 
-// options.locale sets the browser language (navigator.language), which picks the interface language.
+// options.locale sets the browser language (navigator.language), which picks the interface language;
+// options.baseURL points the profile at another local address (offline-worker-lifecycle's proxy).
 async function openProfile(name, options) {
   assertLocalStack();
   const { viewport, userAgent, deviceScaleFactor } = devices['Desktop Chrome'];
   return chromium.launchPersistentContext(profileDir(name), {
-    baseURL: baseURL(),
+    baseURL: (options && options.baseURL) || baseURL(),
     viewport: viewport,
     userAgent: userAgent,
     deviceScaleFactor: deviceScaleFactor,

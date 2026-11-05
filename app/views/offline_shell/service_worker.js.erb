@@ -7,20 +7,20 @@
 // - A file in PRECACHE (matched on its path) is answered from the cache. So is the interface language
 //   file (RUNTIME_CACHED_SOURCE), kept the first time it loads online. Nothing else ever is: every
 //   /api/ request and every other file goes to the network as if there were no worker.
-// - A page navigation to an app page tries the network first. If it fails, or takes longer than
-//   NAVIGATION_TIMEOUT_MS, the answer is the cached generic page (SHELL_PATH), which boots the app
-//   from the device. Pages Rails answers itself (EXCLUDED_FIRST_SEGMENTS, files, board icons) never
-//   get it.
+// - A page navigation to an app page goes to the network, however long it takes. Only when the
+//   network fails (no connection) is the answer the cached generic page (SHELL_PATH), which boots the
+//   app from the device. A slow page is never replaced by the cached copy: online, the page and its
+//   files always match the server. Pages Rails answers itself (EXCLUDED_FIRST_SEGMENTS, files, board
+//   icons) never get it.
 // - A new version waits until every page the old one controls has closed, then deletes the old
-//   caches. Online launches already get the fresh page and fresh files from the network, so the
-//   version only matters offline.
+//   caches. It carries the interface language file over from them at install (fresh from the network
+//   when it can be fetched, otherwise the old copy), so an update does not lose a device's language.
 'use strict';
 var CACHE_NAME = <%= raw @cache_name.to_json %>;
 var CACHE_PREFIX = <%= raw OfflineShell::CACHE_PREFIX.to_json %>;
 var SHELL_PATH = <%= raw OfflineShell::SHELL_PATH.to_json %>;
 var PRECACHE = <%= raw @precache_urls.to_json %>;
 var EXCLUDED_FIRST_SEGMENTS = <%= raw OfflineShell::EXCLUDED_FIRST_SEGMENTS.to_json %>;
-var NAVIGATION_TIMEOUT_MS = <%= OfflineShell::NAVIGATION_TIMEOUT_MS.to_i %>;
 var RUNTIME_CACHED_SOURCE = <%= raw OfflineShell::RUNTIME_CACHED_SOURCE.to_json %>;
 var RUNTIME_CACHED = new RegExp('^(?:' + RUNTIME_CACHED_SOURCE + ')$');
 var GLOBAL_ID = /^\d+_\d+(-\d+_\d+)?$/;
@@ -39,25 +39,61 @@ function navigationExcluded(pathname) {
   return false;
 }
 
+function plainResponse(response) {
+  // Only a plain same-origin 200 is kept. A redirected page cannot answer a navigation.
+  if(!response.ok || response.redirected || response.type !== 'basic') { return false; }
+  return true;
+}
+
+function freshRequest(path) {
+  return new Request(path, {cache: 'reload', credentials: 'same-origin', redirect: 'error'});
+}
+
 self.addEventListener('install', function(event) {
   event.waitUntil(
     caches.open(CACHE_NAME).then(function(cache) {
       return Promise.all(PRECACHE.map(function(path) {
-        var request = new Request(path, {cache: 'reload', credentials: 'same-origin', redirect: 'error'});
-        return fetch(request).then(function(response) {
-          // Only a plain same-origin 200 is kept. A redirected page cannot answer a navigation.
-          if(!response.ok || response.redirected || response.type !== 'basic') {
+        return fetch(freshRequest(path)).then(function(response) {
+          if(!plainResponse(response)) {
             throw new Error('offline shell: could not precache ' + path + ' (' + response.status + ')');
           }
           return cache.put(path, response);
         });
-      }));
+      })).then(function() {
+        return carryRuntimeFiles(cache);
+      });
     }).catch(function(error) {
       // Never leave a half-filled cache behind; the install fails and the browser tries again later.
       return caches.delete(CACHE_NAME).then(function() { throw error; });
     })
   );
 });
+
+// The language file a device uses is cached on first use, in the version's own cache, which the next
+// version deletes when it activates. Copy each one into the new cache: fresh from the network when it
+// can be fetched, otherwise the old copy. Never fails the install.
+function carryRuntimeFiles(cache) {
+  return caches.keys().then(function(keys) {
+    return Promise.all(keys.filter(function(key) {
+      return key.indexOf(CACHE_PREFIX) === 0 && key !== CACHE_NAME;
+    }).map(function(key) {
+      return caches.open(key).then(function(oldCache) {
+        return oldCache.keys().then(function(requests) {
+          return Promise.all(requests.map(function(oldRequest) {
+            var path = new URL(oldRequest.url).pathname;
+            if(!RUNTIME_CACHED.test(path)) { return null; }
+            return fetch(freshRequest(path)).then(function(response) {
+              if(!plainResponse(response)) { throw new Error('not a plain 200'); }
+              return cache.put(path, response);
+            }).catch(function() {
+              return oldCache.match(oldRequest).then(function(old) { return old && cache.put(path, old); });
+            });
+          }));
+        });
+      });
+    }));
+  }).catch(function() {});
+}
 
 self.addEventListener('activate', function(event) {
   event.waitUntil(
@@ -75,28 +111,15 @@ function cachedShell() {
   return caches.open(CACHE_NAME).then(function(cache) { return cache.match(SHELL_PATH); });
 }
 
+// The network's answer, whatever it is and however long it takes; the cached shell only when the
+// request fails without one (offline). With nothing cached, the failure stands.
 function navigationResponse(request) {
-  var network = fetch(request);
-  return new Promise(function(resolve, reject) {
-    var done = false;
-    var finish = function(response) {
-      if(!done) { done = true; resolve(response); }
-    };
-    var timer = setTimeout(function() {
-      // Slow network: answer with the shell now. The request carries on and its answer is dropped.
-      // With nothing cached, keep waiting for the network.
-      cachedShell().then(function(shell) { if(shell) { finish(shell); } }, function() {});
-    }, NAVIGATION_TIMEOUT_MS);
-    network.then(function(response) {
-      clearTimeout(timer);
-      finish(response);
-    }, function(error) {
-      clearTimeout(timer);
-      cachedShell().then(function(shell) {
-        if(shell) { finish(shell); } else if(!done) { done = true; reject(error); }
-      }, function() {
-        if(!done) { done = true; reject(error); }
-      });
+  return fetch(request).catch(function(error) {
+    return cachedShell().then(function(shell) {
+      if(shell) { return shell; }
+      throw error;
+    }, function() {
+      throw error;
     });
   });
 }
@@ -122,22 +145,32 @@ self.addEventListener('fetch', function(event) {
     return;
   }
   if(RUNTIME_CACHED.test(url.pathname)) {
-    event.respondWith(cacheOnFirstUse(url.pathname, request));
+    var result = cacheOnFirstUse(url.pathname, request);
+    event.respondWith(result.response);
+    // Keeps the worker alive until the copy is written, so a browser that stops it right after the
+    // answer does not lose the copy.
+    event.waitUntil(result.stored);
   }
 });
 
 // The cached copy if there is one; otherwise the network, keeping a plain same-origin 200 (a regional
-// name the app tries first is often a 404, which is never kept).
+// name the app tries first is often a 404, which is never kept). Returns the answer, and a promise
+// that settles once any copy is written (it never rejects).
 function cacheOnFirstUse(path, request) {
-  return caches.open(CACHE_NAME).then(function(cache) {
+  var stored = null;
+  var response = caches.open(CACHE_NAME).then(function(cache) {
     return cache.match(path).then(function(cached) {
       if(cached) { return cached; }
       return fetch(request).then(function(response) {
-        if(response.ok && !response.redirected && response.type === 'basic') {
-          cache.put(path, response.clone());
+        if(plainResponse(response)) {
+          stored = cache.put(path, response.clone());
         }
         return response;
       });
     });
   });
+  return {
+    response: response,
+    stored: response.then(function() { return stored; }, function() {}).catch(function() {})
+  };
 }

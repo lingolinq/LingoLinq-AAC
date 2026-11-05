@@ -21,10 +21,7 @@ module OfflineShell
 
   # Bump when app/views/offline_shell/service_worker.js.erb changes in a way the precache list would
   # not show, so installed workers pick up the new code.
-  WORKER_VERSION = 1
-
-  # How long a page navigation waits for the network before answering with the cached shell.
-  NAVIGATION_TIMEOUT_MS = 4000
+  WORKER_VERSION = 2
 
   # Fingerprinted by rake assets:precompile; listed through asset_path, as the page itself loads them.
   DIGESTED_ASSETS = %w[application.js application.css globals.js].freeze
