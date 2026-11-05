@@ -3,9 +3,11 @@
 //
 // Runs against RAILS with the shell on, not `ember serve`:
 //   1. cd app/frontend && npx ember build && cd ../.. && bin/rails extras:assert_js
-//   2. OFFLINE_APP_SHELL=on bin/rails s -p 5077   (development, a local lingolinq-e2e* database)
-//   3. bin/rails runner app/frontend/e2e/support/offline-launch.rb
-//   4. cd app/frontend && E2E_BASE_URL=http://localhost:5077 npx playwright test --project=offline-launch
+//   2. Seed a private local lingolinq-e2e* database with e2e/support/offline-launch.rb (its header has
+//      the command), then serve it with the same blank upload settings, so nothing reaches the bucket:
+//      AWS_KEY= AWS_SECRET= UPLOADS_S3_BUCKET= STATIC_S3_BUCKET= OFFLINE_APP_SHELL=on \
+//        DATABASE_URL=postgres:///lingolinq-e2e-<name> bin/rails s -p 5077
+//   3. cd app/frontend && E2E_BASE_URL=http://localhost:5077 npx playwright test --project=offline-launch
 // Then restart Rails with OFFLINE_APP_SHELL=off and run --project=offline-kill-switch.
 
 const { test, expect } = require('@playwright/test');
@@ -96,16 +98,21 @@ test.describe('offline launch from the offline app shell', () => {
     }
   });
 
-  // The interface language file is cached the first time it loads online. initializers/attempt_lang.js
-  // sets <html lang> to the language it loaded, or back to 'en' when the file cannot be fetched.
+  // The worker caches the interface language file the first time it loads through the worker
+  // (`cacheOnFirstUse`). initializers/attempt_lang.js sets <html lang> to the language it loaded, or back
+  // to 'en' when the file cannot be fetched. The worker never takes over a page that is already open (no
+  // clients.claim), and sign-in can reload the page before the worker is active, so the load that caches
+  // the file is the first one after the worker is active: here an online reload, on a device its next launch.
   test('a Spanish-language device keeps its interface language offline', async () => {
     const context = await openProfile('classic-es', { locale: 'es-ES' });
     try {
       const page = context.pages()[0] || await context.newPage();
       await prepare(page, USERS.classic);
-      await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('lang'))).toBe('es');
+      await page.reload();
+      expect(await page.evaluate(() => !!navigator.serviceWorker.controller), 'the reloaded page is the worker\'s').toBe(true);
+      await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('lang')), { timeout: 30_000 }).toBe('es');
       const cached = await page.evaluate(async () => !!(await caches.match('/locales/es.json')));
-      expect(cached, 'es.json cached on its first online load').toBe(true);
+      expect(cached, 'es.json cached on its first load through the worker').toBe(true);
       await launchOffline(context, page, USERS.classic.path(USERS.classic.board), page.getByText('all done', { exact: true }));
       await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('lang')), { timeout: 30_000 }).toBe('es');
     } finally {
