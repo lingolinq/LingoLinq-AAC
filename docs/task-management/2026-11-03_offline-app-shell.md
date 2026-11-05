@@ -304,3 +304,68 @@ unregisters. A spec that the JS prefix equals `OfflineShell::CACHE_PREFIX`. Then
 Playwright projects, mutation (drop the delete -> the kill-switch spec and the unit test fail).
 
 **Next.** On approval: the fix above, then the full Ember suite, `/pr-preflight`, reviews, draft PR.
+
+## Review fixes (2026-11-05, approved by Scot)
+
+The two reviews of 47c3e1148 (Codex gpt-6.1-sol: request changes; adversary: block the merge,
+draft PR fine) led to these changes. Scot approved fixes 1 to 4, gating the route change, the
+identity-mismatch test and the Low items, and then, after the gap below, "Worker on trusted only".
+
+### Shared devices: the worker only on trusted devices (fact sheet)
+
+- **Where the value is read.** `appState.sessionUser` (set in `services/app-state.js` `find_user`
+  from `findRecord('user', 'self')`, network or device) → `preferences.device.long_token`. In the
+  user route: the resolved device record, the same field. CONFIRMED.
+- **Its shapes.** `true` (Trust this Device), `false` (Shared Device), missing (no choice
+  recorded, or no device entry for this token: `lib/json_api/user.rb` writes it only when
+  `preferences.devices[unique_device_key]` exists), and in principle a string. Only `=== true`
+  counts as trusted. Saving the choice (`login-form.js` login_followup) writes both the device
+  setting and the device entry (`app/models/user.rb`, the `devices[device_key]` loop), so a trusted
+  device's record carries `true`. CONFIRMED by reading; the e2e signs in with Trust and needs it.
+- **Why the route check alone was not enough.** Offline, the app still boots from the shell on a
+  shared device, `find_user` sets `currentUser` from the device with no trust check, and the
+  top-level board route (`/*key`) reads boards from the device. So the fix moved to the worker
+  itself: `utils/offline_shell.js` `follow_device_trust` registers it only for a trusted session
+  user and removes it and its caches for a shared one; nothing happens until the user is known,
+  and signing out leaves a trusted device's worker. The route check stays as a second guard, and
+  `persist()` is asked only on trusted devices.
+- **Known limit.** A trusted device that is later handed to someone else keeps its worker until
+  someone signs in on it as shared.
+
+### The other changes
+
+- **Gate (5).** The user route's offline branch runs only when the page says the shell is on, so
+  the kill switch turns off everything this PR adds and the native apps are unchanged.
+- **Timeout (4).** A navigation waits for the network however long it takes; the cached page
+  answers only a failed request. `NAVIGATION_TIMEOUT_MS` is gone; `WORKER_VERSION` is 2.
+- **Language file (2).** A new version copies `/locales/*.json` from the old caches at install
+  (fresh when it can be fetched, else the old copy), and the first-use write is tied to the fetch
+  event (`waitUntil`).
+- **Real worker tests (3).** `e2e/offline-worker-lifecycle.spec.js`: slow page online, failed
+  update, update waiting, language file carried over.
+- **Low items.** A removal-worker-only kill-switch case; a route walk that fails when no sample
+  reaches a server route; a signed-in vs signed-out shell spec; the identity-mismatch route test.
+
+### Existing tests changed (each approved)
+
+- `tests/unit/utils/offline-shell-test.js`: three tests now supply a trusted session user
+  ("registers and watches for a sync when on", "waits for the page to finish loading before
+  registering", "asks once, after a successful sync while signed in"); what each checks is the same.
+- `tests/unit/routes/user-offline-cold-boot-test.js`: the helper turns the gate on and makes the
+  device record trusted, so the existing cases keep testing what they did.
+- `spec/controllers/offline_shell_controller_spec.rb`: the line that required the timeout constant
+  in the worker is replaced by a check that there is no timeout (fix 4 reverses it).
+
+### Results at the head of these changes
+
+- `lint:js:ci` new=0; `lint:hbs` exit 0.
+- Full Ember suite: 3953 tests, 3911 pass, 37 skip, 5 todo, 0 fail.
+- RSpec, the five offline shell files: 60 examples, 0 failures.
+- Playwright (fresh profiles, Rails restarted after the build was copied in): offline-launch 4
+  passed, offline-worker-lifecycle 3 passed, offline-kill-switch 2 passed.
+- Red and mutations as listed in the commit messages. One run without a Rails restart after copying
+  in a rebuilt frontend rendered the login page twice and failed 3 of 4 launch cases; after the
+  restart all passed. Cause not proven (likely the dev server recompiling).
+- Learned: Playwright's routing sees a page's and a service worker's own requests but not the
+  browser's fetch of the worker script, so a test cannot hand it a new version that way; a local
+  pass-through proxy can (e2e/support/worker-proxy.js).

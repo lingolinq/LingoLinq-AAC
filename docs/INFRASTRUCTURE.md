@@ -257,6 +257,10 @@ Lets the web app open with no network once it has been added to a Home Screen an
 (`lib/offline_shell.rb`). Rails serves a service worker at `/sw.js` that keeps a copy of a generic app
 page (`/offline-shell`) and the files it loads; board data is already on the device.
 
+- **Trusted devices only.** Even when it is on, the app keeps the worker only on a device the
+  signed-in user chose "Trust this Device" for. Signing in as "This is a Shared Device" removes the
+  worker and its copy, so a shared device does not open offline (offline, nothing can end the last
+  person's session there).
 - **Setting:** `OFFLINE_APP_SHELL=on` on the web service turns it on; unset or any other value is off.
   It comes from the GitHub environment variable `APP_OFFLINE_APP_SHELL` (Settings > Environments >
   dev / staging / production > Environment variables) through `deploy-cloudrun.yml`. Roll out dev
