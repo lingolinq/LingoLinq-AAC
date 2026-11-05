@@ -30,10 +30,11 @@ module JsonApi::Sound
     json
   end
   
-  def self.meta(sound)
+  def self.meta(sound, args={})
     json = {}
-    # no upload form when S3 is not configured (see JsonApi::Image.meta)
-    if sound.pending_upload? && !sound.destroyed? && Uploader.client_uploads_configured?
+    # no upload form when S3 is not configured; only for an editor or on the create response, where
+    # a read-only supervisor may record for a communicator (see JsonApi::Image.meta)
+    if sound.pending_upload? && !sound.destroyed? && Uploader.client_uploads_configured? && (args[:upload_form] || sound.allows?(args[:permissions], 'edit'))
       params = sound.remote_upload_params
       json = {'remote_upload' => params}
     end

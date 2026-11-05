@@ -209,14 +209,26 @@ e.g. `/cloudsql/lingolinq-prod:us-central1:lingolinq-prod-pg` for the socket DSN
 `schema:load` ever surfaces `schema.rb` drift: `db:migrate` from zero (slower, replays full history,
 no `force: :cascade`) - but run it behind the same guard.
 
-**3b. Seed (idempotent; needs Redis from Step 2 green and the SEED_* secrets).** Update the Job's
-args to `exec,rake,db:seed` and add the seed secrets, then execute:
+**3b. Seed (idempotent; needs Redis from Step 2 green and the SEED_* secrets).** The seed imports
+the system boards and their pictures (`BetaSeed.ensure_baseline!`), so it runs with the app's
+full environment, as the scheduler Job does: the full secret set and the same env as the web
+service, S3 buckets and Redis namespace included. Take `NON_BOOT_SECRETS` from
+`deploy-cloudrun.yml`, and build `APP_ENV_VARS` as its "assemble runtime env" step does:
+`APP_ENV_VARS_STATIC` plus the production environment's `vars.APP_*` values (the step's log
+prints only the names). Without S3 each library import refuses before it creates any board
+(`Uploader.ensure_deployed_uploads_configured!`), so the seed stops at its first import, after the
+baseline accounts, org and starter boards (URL-linked pictures, nothing embedded); fix the
+environment and re-run, which is idempotent. Before that check existed, a boot-secrets-only
+seed finished with every library picture embedded in the database instead of uploaded
+(lingolinq_mobile#3; production's 822 such pictures dated 2026-06-29 are most likely the
+rehearsal seed, inferred from the date). Update the Job's args and environment, then execute:
 
 ```bash
 gcloud run jobs update lingolinq-migrate-cleandb --region "$REGION" \
   --args "exec,rake,db:seed" \
   --task-timeout 3600 \
-  --set-secrets "$BOOT_SECRETS,SEED_ADMIN_PASSWORD=...,SEED_LINGOLINQ_PASSWORD=..."
+  --set-env-vars "RACK_ENV=production,RAILS_ENV=production,REDIS_TLS_VERIFY_HOSTNAME=false,EXPECTED_CLOUDSQL_HOST=$EXPECTED_CLOUDSQL_HOST,$APP_ENV_VARS" \
+  --set-secrets "$BOOT_SECRETS,$NON_BOOT_SECRETS,SEED_ADMIN_PASSWORD=...,SEED_LINGOLINQ_PASSWORD=..."
 gcloud run jobs execute lingolinq-migrate-cleandb --region "$REGION" --wait
 ```
 

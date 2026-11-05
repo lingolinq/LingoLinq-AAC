@@ -103,6 +103,9 @@ resolvable at HEAD, never only at a historical SHA.
 <model that wrote most of the diff, e.g. fable-5.1, sonnet-4.6, opus-4.7, human>
 ```
 
+For an `/audit-run` register PR, "Not covered" says only that coverage detail is in the private run
+record (`/audit-run` Step 7b, rule 3).
+
 ## P6. Behavioural definition of done (UI flows)
 
 Done means the full lifecycle works: the action completes, the modal closes or

@@ -2869,4 +2869,213 @@ describe Uploader do
       end
     end
   end
+
+  describe "remote_remove_transcode_family" do
+    let(:bucket) { 'spec-uploads-for-transcode-family' }
+    let(:sound_stem) { "sounds/1/2/3/1_123_abc-#{'a' * 128}" }
+    let(:video_stem) { "videos/1/2/3/1_123_abc-#{'a' * 128}" }
+    let(:s3_client) { instance_double(Aws::S3::Client) }
+
+    before do
+      Uploader.instance_variable_set('@remote_upload_config', nil)
+      allow(Uploader).to receive(:remote_upload_config).and_return({
+        access_key: 'test_key', secret: 'test_secret', bucket_name: bucket, static_bucket_name: 'spec-static'
+      })
+      allow(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      allow(Rails.logger).to receive(:error)
+      allow(Rails.logger).to receive(:info)
+      Setting.set('transcode_sweep_delete', 'true')
+    end
+
+    def tombstone(stem, created_at=2.days.ago)
+      RemoteAction.create!(action: 'transcode_family_sweep', path: stem, extra: 'ButtonSound::1_123', act_at: 1.day.from_now, created_at: created_at)
+    end
+
+    def listing(stem, keys)
+      expect(s3_client).to receive(:list_objects_v2).with(bucket: bucket, prefix: stem, max_keys: 1000, continuation_token: nil).and_return(
+        Aws::S3::Types::ListObjectsV2Output.new(contents: keys.map { |k| Aws::S3::Types::Object.new(key: k) })
+      )
+    end
+
+    def expect_delete(key)
+      expect(s3_client).to receive(:head_object).with(bucket: bucket, key: key).and_return(Aws::S3::Types::HeadObjectOutput.new)
+      expect(s3_client).to receive(:delete_object).with(bucket: bucket, key: key).and_return(true)
+    end
+
+    def expect_no_logged_stem(stem)
+      expect(Rails.logger).to_not have_received(:error).with(/#{Regexp.escape(stem)}/)
+      expect(Rails.logger).to_not have_received(:info).with(/#{Regexp.escape(stem)}/)
+    end
+
+    it "should delete a sound's transcode outputs, keep its original upload, and settle the row" do
+      tombstone(sound_stem)
+      retranscode = "#{sound_stem}v1723500000_1_123_abc-#{'c' * 128}v1723600000.mp3"
+      listing(sound_stem, ["#{sound_stem}.wav", "#{sound_stem}v1723500000.mp3", "#{sound_stem}v1723500000.wav", retranscode])
+      expect_delete("#{sound_stem}v1723500000.mp3")
+      expect_delete("#{sound_stem}v1723500000.wav")
+      expect_delete(retranscode)
+      expect(Uploader.remote_remove_transcode_family(sound_stem, 'ButtonSound::1_123', 2.days.ago.to_i)).to eq(true)
+      expect(RemoteAction.where(action: 'transcode_family_sweep').count).to eq(0)
+      expect_no_logged_stem(sound_stem)
+    end
+
+    it "should delete a video's outputs and stills, but not sound-shaped names" do
+      tombstone(video_stem)
+      listing(video_stem, ["#{video_stem}v1.mp4", "#{video_stem}v1.mp4.0000001.jpg", "#{video_stem}v1.mp4.00001.png", "#{video_stem}v1.mp3"])
+      expect_delete("#{video_stem}v1.mp4")
+      expect_delete("#{video_stem}v1.mp4.0000001.jpg")
+      expect_delete("#{video_stem}v1.mp4.00001.png")
+      expect(s3_client).to_not receive(:delete_object).with(bucket: bucket, key: "#{video_stem}v1.mp3")
+      Uploader.remote_remove_transcode_family(video_stem, 'UserVideo::1_123', 2.days.ago.to_i)
+      # an unexpected name under the stem keeps the row and is reported by count
+      expect(RemoteAction.where(action: 'transcode_family_sweep').count).to eq(1)
+      expect(Rails.logger).to have_received(:error).with(/unmatched=1/)
+    end
+
+    it "should keep the row, delete nothing it does not recognise, and report names that only start like ours" do
+      tombstone(sound_stem)
+      listing(sound_stem, ["#{sound_stem}vx.mp3", "#{sound_stem}v1.mp3.bak", "#{sound_stem}v1.mp4"])
+      expect(s3_client).to_not receive(:head_object)
+      expect(s3_client).to_not receive(:delete_object)
+      Uploader.remote_remove_transcode_family(sound_stem, 'ButtonSound::1_123', 2.days.ago.to_i)
+      expect(RemoteAction.where(action: 'transcode_family_sweep').count).to eq(1)
+      expect(Rails.logger).to have_received(:error).with(/owner=ButtonSound::1_123 .*unmatched=3/)
+      expect_no_logged_stem(sound_stem)
+    end
+
+    # A content type MIME::Types has no extension for (audio/mp3, every TTS sound) stores the
+    # original at exactly the stem (uploadable.rb:52-61).
+    it "should treat an original stored at exactly the stem as the original, and settle the row" do
+      tombstone(sound_stem)
+      listing(sound_stem, [sound_stem, "#{sound_stem}v1.mp3"])
+      expect_delete("#{sound_stem}v1.mp3")
+      expect(s3_client).to_not receive(:delete_object).with(bucket: bucket, key: sound_stem)
+      expect(Uploader.remote_remove_transcode_family(sound_stem, 'ButtonSound::1_123', 2.days.ago.to_i)).to eq(true)
+      expect(RemoteAction.where(action: 'transcode_family_sweep').count).to eq(0)
+      expect(Rails.logger).to have_received(:info).with(/matched=1 deleted=1 in_use=0 failed=0 unmatched=0/)
+    end
+
+    it "should report an original stored at exactly the stem as no unexpected name in report-only mode" do
+      Setting.set('transcode_sweep_delete', nil)
+      tombstone(sound_stem)
+      listing(sound_stem, [sound_stem, "#{sound_stem}v1.mp3"])
+      expect(s3_client).to_not receive(:delete_object)
+      expect(Uploader.remote_remove_transcode_family(sound_stem, 'ButtonSound::1_123', 2.days.ago.to_i)).to eq(true)
+      expect(Rails.logger).to have_received(:info).with(/report-only owner=ButtonSound::1_123 matched=1 unmatched=0/)
+    end
+
+    it "should still report an unknown name with no extension" do
+      tombstone(sound_stem)
+      listing(sound_stem, [sound_stem, "#{sound_stem}v1", "#{sound_stem}x"])
+      expect(s3_client).to_not receive(:head_object)
+      expect(s3_client).to_not receive(:delete_object)
+      Uploader.remote_remove_transcode_family(sound_stem, 'ButtonSound::1_123', 2.days.ago.to_i)
+      expect(RemoteAction.where(action: 'transcode_family_sweep').count).to eq(1)
+      expect(Rails.logger).to have_received(:error).with(/unmatched=2/)
+    end
+
+    it "should skip a key another record still uses" do
+      tombstone(sound_stem)
+      key = "#{sound_stem}v1.mp3"
+      other = ButtonSound.create(:user => User.create, :settings => {}, :url => "https://#{bucket}.s3.amazonaws.com/#{key}")
+      expect(other).to be_persisted
+      listing(sound_stem, [key])
+      expect(s3_client).to_not receive(:delete_object)
+      expect(Uploader.remote_remove_transcode_family(sound_stem, 'ButtonSound::1_123', 2.days.ago.to_i)).to eq(true)
+      expect(RemoteAction.where(action: 'transcode_family_sweep').count).to eq(0)
+    end
+
+    it "should keep the row until a sweep at least a day after the destroy" do
+      tombstone(sound_stem, 1.hour.ago)
+      listing(sound_stem, ["#{sound_stem}v1.mp3"])
+      expect_delete("#{sound_stem}v1.mp3")
+      expect(Uploader.remote_remove_transcode_family(sound_stem, 'ButtonSound::1_123', 1.hour.ago.to_i)).to eq(true)
+      expect(RemoteAction.where(action: 'transcode_family_sweep').count).to eq(1)
+    end
+
+    it "should only count, delete nothing and keep the row while the delete switch is off" do
+      Setting.set('transcode_sweep_delete', nil)
+      tombstone(sound_stem)
+      listing(sound_stem, ["#{sound_stem}v1.mp3"])
+      expect(s3_client).to_not receive(:head_object)
+      expect(s3_client).to_not receive(:delete_object)
+      Uploader.remote_remove_transcode_family(sound_stem, 'ButtonSound::1_123', 2.days.ago.to_i)
+      expect(RemoteAction.where(action: 'transcode_family_sweep').count).to eq(1)
+      expect(Rails.logger).to have_received(:info).with(/report-only owner=ButtonSound::1_123 matched=1 unmatched=0/)
+    end
+
+    it "should stay report-only for any switch value but 'true'" do
+      Setting.set('transcode_sweep_delete', 'false')
+      tombstone(sound_stem)
+      listing(sound_stem, ["#{sound_stem}v1.mp3"])
+      expect(s3_client).to_not receive(:delete_object)
+      Uploader.remote_remove_transcode_family(sound_stem, 'ButtonSound::1_123', 2.days.ago.to_i)
+      expect(RemoteAction.where(action: 'transcode_family_sweep').count).to eq(1)
+    end
+
+    it "should delete a re-transcoded video's still, which the scary-delete guard must accept" do
+      tombstone(video_stem)
+      still = "#{video_stem}v1_1_123_abc-#{'c' * 128}v2.mp4.0000001.jpg"
+      listing(video_stem, [still])
+      expect_delete(still)
+      expect(Uploader.remote_remove_transcode_family(video_stem, 'UserVideo::1_123', 2.days.ago.to_i)).to eq(true)
+      expect(RemoteAction.where(action: 'transcode_family_sweep').count).to eq(0)
+    end
+
+    it "should drop the row without listing when its owner is a live record with this stem" do
+      owner = ButtonSound.create(:user => User.create, :settings => {})
+      stem = owner.file_path + owner.file_prefix
+      tombstone(stem)
+      expect(s3_client).to_not receive(:list_objects_v2)
+      expect(Uploader.remote_remove_transcode_family(stem, "ButtonSound::#{owner.global_id}", 2.days.ago.to_i)).to eq(false)
+      expect(RemoteAction.where(action: 'transcode_family_sweep').count).to eq(0)
+    end
+
+    it "should keep the row when the listing fails" do
+      tombstone(sound_stem)
+      expect(s3_client).to receive(:list_objects_v2).and_raise(Aws::S3::Errors::AccessDenied.new(nil, 'denied'))
+      expect(Uploader.remote_remove_transcode_family(sound_stem, 'ButtonSound::1_123', 2.days.ago.to_i)).to eq(false)
+      expect(RemoteAction.where(action: 'transcode_family_sweep').count).to eq(1)
+      expect_no_logged_stem(sound_stem)
+    end
+
+    it "should keep the row when a delete fails, and log without the key" do
+      tombstone(sound_stem)
+      listing(sound_stem, ["#{sound_stem}v1.mp3", "#{sound_stem}v1.wav"])
+      expect(s3_client).to receive(:head_object).with(bucket: bucket, key: "#{sound_stem}v1.mp3").and_raise(Aws::S3::Errors::AccessDenied.new(nil, 'denied'))
+      expect_delete("#{sound_stem}v1.wav")
+      expect(Uploader.remote_remove_transcode_family(sound_stem, 'ButtonSound::1_123', 2.days.ago.to_i)).to eq(false)
+      expect(RemoteAction.where(action: 'transcode_family_sweep').count).to eq(1)
+      expect_no_logged_stem(sound_stem)
+    end
+
+    it "should let only record-shaped re-transcode names past the scary-delete guard" do
+      hex = 'c' * 128
+      expect(Uploader.transcoded_output_chain_key?("#{sound_stem}v1_1_123_abc-#{hex}v2.mp3")).to eq(true)
+      expect(Uploader.transcoded_output_chain_key?("#{video_stem}v1_1_123_abc-#{hex}v2_1_123_abc-#{hex}v3.mp4")).to eq(true)
+      expect(Uploader.transcoded_output_chain_key?("#{sound_stem}v1.mp3")).to eq(false)
+      expect(Uploader.transcoded_output_chain_key?("#{sound_stem}v1_x-yv2.mp3")).to eq(false)
+      expect(Uploader.transcoded_output_chain_key?("images/1/2/1_123_abc-#{'a' * 128}v1_1_123_abc-#{hex}v2.mp3")).to eq(false)
+      expect(Uploader.transcoded_output_chain_key?("#{sound_stem}v1_1_123_abc-#{hex}v2.mp3/../x")).to eq(false)
+      expect { Uploader.remote_remove("sounds/x_1-#{hex}v1_y-zv2.mp3") }.to raise_error(/scary delete/)
+    end
+
+    it "should drop a row whose stem is not a record stem, without listing" do
+      tombstone('sounds/')
+      expect(s3_client).to_not receive(:list_objects_v2)
+      expect(Uploader.remote_remove_transcode_family('sounds/', 'ButtonSound::1_123', 2.days.ago.to_i)).to eq(false)
+      expect(RemoteAction.where(action: 'transcode_family_sweep').count).to eq(0)
+    end
+
+    it "should drop the row when no uploads bucket is configured, and keep it when only credentials are missing" do
+      tombstone(sound_stem)
+      allow(Uploader).to receive(:remote_upload_config).and_return({access_key: '', secret: '', bucket_name: bucket})
+      expect(s3_client).to_not receive(:list_objects_v2)
+      expect { Uploader.remote_remove_transcode_family(sound_stem, 'ButtonSound::1_123', 2.days.ago.to_i) }.to_not raise_error
+      expect(RemoteAction.where(action: 'transcode_family_sweep').count).to eq(1)
+      allow(Uploader).to receive(:remote_upload_config).and_return({access_key: 'k', secret: 's', bucket_name: ''})
+      Uploader.remote_remove_transcode_family(sound_stem, 'ButtonSound::1_123', 2.days.ago.to_i)
+      expect(RemoteAction.where(action: 'transcode_family_sweep').count).to eq(0)
+    end
+  end
 end

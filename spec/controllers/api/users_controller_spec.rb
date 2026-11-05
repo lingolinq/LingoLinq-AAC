@@ -1983,6 +1983,65 @@ describe Api::UsersController, :type => :controller do
       json = JSON.parse(response.body)
       expect(json).to eq({'email_sent' => true})
     end
+
+    describe "reset link host" do
+      # DEFAULT_HOST must differ from the request's own host (test.host), or a
+      # link built from either would pass and the assertions would prove nothing.
+      around(:each) do |example|
+        prior = ENV['DEFAULT_HOST']
+        ENV['DEFAULT_HOST'] = 'links.lingolinq.test'
+        example.run
+      ensure
+        ENV['DEFAULT_HOST'] = prior
+      end
+
+      def delivered_reset_text
+        Worker.process_queues
+        mail = ActionMailer::Base.deliveries.last
+        expect(mail).not_to eq(nil)
+        mail.parts.map(&:decoded).join("\n")
+      end
+
+      it "should not build the reset link from a forwarded host the request supplied" do
+        u = User.create(:settings => {'email' => 'bob@example.com'})
+        request.headers['X-Forwarded-Host'] = 'attacker.example'
+        post :forgot_password, params: {:key => u.user_name}
+        expect(response).to be_successful
+        text = delivered_reset_text
+        expect(text).not_to include('attacker.example')
+        expect(text).to include("://links.lingolinq.test/#{u.user_name}/password_reset/")
+      end
+
+      it "should not build the reset link from a Host header the request supplied" do
+        u = User.create(:settings => {'email' => 'bob@example.com'})
+        request.host = 'attacker.example'
+        post :forgot_password, params: {:key => u.user_name}
+        expect(response).to be_successful
+        text = delivered_reset_text
+        expect(text).not_to include('attacker.example')
+        expect(text).to include("://links.lingolinq.test/#{u.user_name}/password_reset/")
+      end
+
+      it "should not build the reset link from a host restored from a queued job" do
+        u = User.create(:settings => {'email' => 'bob@example.com'})
+        # A job queued before the fix carries the raw host it was queued with.
+        JsonApi::Json.class_variable_get(:@@running_hosts)[Worker.thread_id] = {'timestamp' => Time.now.to_i, 'host' => 'https://attacker.example'}
+        u.generate_password_reset
+        UserMailer.schedule_delivery(:forgot_password, [u.global_id])
+        JsonApi::Json.set_host('https://links.lingolinq.test')
+        text = delivered_reset_text
+        expect(text).not_to include('attacker.example')
+        expect(text).to include("://links.lingolinq.test/#{u.user_name}/password_reset/")
+      end
+
+      it "should keep the request's host when it is a known host" do
+        u = User.create(:settings => {'email' => 'bob@example.com'})
+        request.host = 'app.lingolinq.com'
+        post :forgot_password, params: {:key => u.user_name}
+        expect(response).to be_successful
+        expect(delivered_reset_text).to include("://app.lingolinq.com/#{u.user_name}/password_reset/")
+      end
+    end
   end
 
   describe 'resend_parental_consent' do

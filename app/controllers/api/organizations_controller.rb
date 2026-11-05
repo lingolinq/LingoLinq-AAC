@@ -343,14 +343,15 @@ class Api::OrganizationsController < ApplicationController
   def admin_reports
     org = Organization.find_by_path(params['organization_id'])
     return unless allowed?(org, 'edit')
-    # Only the reports in the list should be allowed for non-admins
-    if !['logged_2', 'not_logged_2', 'unused_3', 'unused_6', 'summaries'].include?(params['report']) && !(params['report'] || '').match(/^status-/) && !(params['report'] || '').match(/^access-/) &&
-          !(params['report'] || '').match(/^device-/) && !(params['report'] || '').match(/^vocab-/)&& !(params['report'] || '').match(/^grid-/)
+    report_name = params['report'].is_a?(String) ? params['report'] : ''
+    # Only the reports in the list should be allowed for non-admins. \A, not ^:
+    # ^ also matches after a line break, so "home_boards\nstatus-x" got through (#1182).
+    if !['logged_2', 'not_logged_2', 'unused_3', 'unused_6', 'summaries'].include?(report_name) && !report_name.match?(/\A(status|access|device|vocab|grid)-/)
       if !org.admin?
         return unless allowed?(org, 'impossible')
       end
     end
-    if !params['report']
+    if !params['report'].is_a?(String)
       return api_error 400, {:error => "report parameter required"}
     end
     users = nil
@@ -400,7 +401,9 @@ class Api::OrganizationsController < ApplicationController
         links = UserLink.links_for(org).select{|l| l['type'] == 'org_user'}
         stats[org.settings['name']] = links.length
       end
-    elsif params['report'].match(/home_boards/)
+    # Exact names only. An unanchored /home_boards/ match ran this system-wide
+    # census for allowlisted prefixes such as status-home_boards (#1182).
+    elsif params['report'] == 'home_boards' || params['report'] == 'recent_home_boards'
       home_connections = UserBoardConnection.where(:home => true)
       if params['report'].match(/recent/)
         home_connections = home_connections.where(['updated_at > ?', 3.months.ago])
@@ -500,7 +503,8 @@ class Api::OrganizationsController < ApplicationController
           true
         end
       end
-    elsif params['report'].match(/logged_/)
+    # Anchored so not_logged_2 reaches its own branch below instead of this one.
+    elsif params['report'].match(/\Alogged_/)
       # logins that have generated logs in the last 2 weeks
       x = params['report'].split(/_/)[1].to_i
       sessions = LogSession.where(['created_at > ?', x.weeks.ago])

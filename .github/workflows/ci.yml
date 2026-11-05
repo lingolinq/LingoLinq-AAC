@@ -443,6 +443,120 @@ jobs:
           done
           python3 scripts/ci-shard-compare.py --coverage ember-shard-pool.log ember-shard-main.log
 
+  # Full un-sharded Ember suite in one process, for develop -> staging promotions only.
+  # The ember-shard jobs split the suite for speed on day-to-day PRs; a shard only proves
+  # itself (ember-shard-coverage checks the split adds up, not that the whole suite ran in one
+  # pass). Before develop's work reaches staging we run the entire suite once, serially, as a
+  # single linear pass. Gated to base=staging PRs, so it is skipped on develop and main PRs, which
+  # is why it is a REQUIRED check on the `staging` branch protection ONLY: requiring it on develop
+  # would be pointless (a skipped job's check counts as passing, as the build-and-test note below
+  # says), never a gate there. rspec already runs the full backend suite un-sharded on every PR,
+  # so no new backend job is needed here. Honors the ember-shard-scope classifier like the rest of
+  # the Ember pipeline, so a docs/audit-only promotion is not charged a full ~75 min run.
+  ember-full-serial:
+    needs: ember-shard-scope
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && github.base_ref == 'staging' && needs.ember-shard-scope.outputs.run != 'false' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Node 22
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      # Same key as lint-and-build / ember-shard (Node major in the key: see the note there).
+      - name: Cache node_modules and Puppeteer Chrome
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: |
+            app/frontend/node_modules
+            ~/.cache/puppeteer
+          key: ${{ runner.os }}-node22-${{ hashFiles('app/frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node22-
+
+      - name: Install frontend dependencies
+        working-directory: app/frontend
+        run: npm install
+
+      - name: Ensure Puppeteer Chrome is present
+        working-directory: app/frontend
+        run: npx puppeteer browsers install chrome
+
+      - name: Build Ember app (test env)
+        working-directory: app/frontend
+        run: npx ember build --environment=test --output-path=dist-test
+
+      # One process, no pool= filter, so QUnit runs every registered test in a single serial pass.
+      # timingStrict=1 keeps the leak checks hard-failing (.claude/rules/testing-frontend.md section 5),
+      # the same mode the shards run in.
+      - name: Run full Ember suite (serial)
+        working-directory: app/frontend
+        timeout-minutes: 75
+        shell: bash
+        run: |
+          start=$(date +%s)
+          status=0
+          npx ember test --path dist-test --query "timingStrict=1" 2>&1 | tee ember-test.log || status=$?
+          tests=$(grep -oE '^# tests [0-9]+' ember-test.log | tail -1 | awk '{print $3}' || true)
+          # tests/test-helper.js logs this for every run (no pool= filter, so no [SHARD] line): `registered`
+          # is every test registered, `selected` what QUnit will run. With no filter the two are equal, and
+          # a complete run's `# tests` equals them. Any inequality means the run was partial.
+          suite_line=$(grep -oE '\[SUITE\] selected=[0-9]+ registered=[0-9]+' ember-test.log | head -1 || true)
+          selected=$(printf '%s' "$suite_line" | sed -nE 's/.*selected=([0-9]+).*/\1/p')
+          registered=$(printf '%s' "$suite_line" | sed -nE 's/.*registered=([0-9]+).*/\1/p')
+          echo "### Full serial Ember suite: ran ${tests:-0} of ${registered:-?} registered in $(( ($(date +%s) - start) / 60 )) min (\`--query timingStrict=1\`)" >> "$GITHUB_STEP_SUMMARY"
+          # Per-test late-work lines (queued fetch / destroyed service) go to the job summary, as the shards do.
+          bash ../../scripts/ci-late-work-summary.sh ember-test.log "full-serial" || true
+          # A zero count means the build or harness never loaded, which must not pass as an empty green run.
+          if [ "${tests:-0}" -eq 0 ]; then
+            echo "::error::full serial run executed 0 tests: the build or test harness did not load"
+            exit 1
+          fi
+          # The completeness proof: without the [SUITE] line there is no registered total to check against,
+          # so a silently partial run could otherwise pass. selected == registered means no filter dropped
+          # tests before the run; tests == registered means every registered test actually ran.
+          if [ -z "$registered" ] || [ -z "$selected" ]; then
+            echo "::error::full serial run logged no [SUITE] selected/registered line: completeness cannot be proven"
+            exit 1
+          fi
+          if [ "$selected" -ne "$registered" ]; then
+            echo "::error::full serial run selected ${selected} of ${registered} registered tests: a filter dropped tests before the run"
+            exit 1
+          fi
+          if [ "$tests" -lt "$registered" ]; then
+            echo "::error::full serial run ran ${tests} of ${registered} registered tests: the run is incomplete (a partial run)"
+            exit 1
+          fi
+          if [ "$tests" -gt "$registered" ]; then
+            echo "::error::full serial run reported ${tests} results for ${registered} registered tests: extra results, likely a global/uncaught failure between tests"
+            exit 1
+          fi
+          # Must run timing-strict (tests/test-helper.js logs the mode when the run starts), as the shards do.
+          if ! grep -q '\[timing-strict\] on' ember-test.log; then
+            echo "::error::full serial run did not run timing-strict (no [timing-strict] on line): its timing checks only logged"
+            exit 1
+          fi
+          # A queued fetch or a read on a destroyed service fails this run (timing-strict). Make the cause
+          # hard to miss with an annotation and a job-summary banner, as the shards do.
+          if [ "$status" -ne 0 ] && grep -qE 'leak check: .*on a destroyed service|an Ember Data fetch was still queued when this test ended' ember-test.log; then
+            echo "::error title=Timing finding in full serial Ember run::A test left late work behind (a queued Ember Data fetch or a read on a destroyed service). Fix the leak, do not re-run until green. Reproduce one test: npx ember test --query timingStrict=1 --filter \"<test>\""
+            {
+              echo '> [!WARNING]'
+              echo '> **Timing finding:** a test left late work behind. Fix the leak, do not re-run until green (.claude/rules/testing-frontend.md section 5). Failing tests:'
+              grep -m 20 -E '^not ok' ember-test.log | sed 's/^/> /'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit "$status"
+
   # THE REQUIRED CHECK `build-and-test`: passes only if lint-and-build passed AND the Ember suite passed
   # in both shards with coverage, or the scope job said this PR touches no frontend
   # (docs, audit, or root instruction files only).

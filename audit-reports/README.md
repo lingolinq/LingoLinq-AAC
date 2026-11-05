@@ -23,8 +23,8 @@ ruby scripts/citation-check.rb --render  # rebuild audit-reports/FINDINGS.md fro
 
 **How to read status:** trust `FINDINGS.json` only. Every other report in this directory
 is a dated snapshot of what was true on its date. Do **not** treat a finding listed in an
-older report as live without checking the register; statuses there were verified against
-live code at the register's `auditedSha`, the older prose was not.
+older report as live without checking the register; statuses there are anchored to evidence
+at each finding's own SHA where that evidence is code, the older prose was not.
 
 ## How findings are generated (Phase 2)
 
@@ -43,23 +43,40 @@ adversary review and a Scot decision, never silently reopened, reclosed, or re-a
 
 ### The audit pointer vs. the evidence anchor
 
-`meta.auditedSha`/`auditedRef`/`auditedDate` are the **audit pointer**: they assert that a
-whole-tree `/audit-run` audited every path at that commit. Per-finding `evidence.sha` is the
-**evidence anchor**: the commit that one snippet is proven to exist at. Only a real `/audit-run`
-moves the pointer, and moving it is a governance act requiring Scot's sign-off plus an analysis of
-the intervening commits (`meta.auditedShaPriorNote` records each restamp).
+`meta.auditedSha`/`auditedRef`/`auditedDate` are the **audit pointer**: they record the commit an
+`/audit-run` ran at, and `auditedRef` states how much of the audit that run reached. Per-finding
+`evidence.sha` is the **evidence anchor**: the commit that one snippet is proven to exist at. Only a
+real `/audit-run` moves the pointer, and moving it is a governance act requiring Scot's sign-off plus
+an analysis of the intervening commits (`meta.auditedShaPriorNote` records each restamp).
 
 So `audit-merge.rb` takes them separately:
 
 | Situation | Invocation | `meta` | `evidence.sha` |
 |---|---|---|---|
-| Whole-tree `/audit-run` | `--sha <auditedSha> --ref <auditedRef>` | restamped | `<auditedSha>` |
+| `/audit-run`, quarterly or monthly light | `--sha <auditedSha> --ref "<stamp>"` | restamped | `<auditedSha>` |
 | Any other addition (hand-filed finding, targeted re-anchor) | `--sha <trueCommit> --no-restamp` | untouched | `<trueCommit>` |
 | PR-time promotion | `promote-finding.rb` (no sha flag) | untouched | each finding's own `evidence.sha` |
 
 Never pass the register's existing `auditedSha` just to avoid a restamp. That silently anchors
 new evidence to a commit it was never verified against, and `citation-check.rb` passes it **green**
 whenever the snippet happens to sit on the same line in both commits. Use `--no-restamp`.
+
+### What "full" means
+
+An `/audit-run` may write "full" in `meta.auditedRef` only if, at one commit, every finder examined
+every item in its own checklist and every read on the named live-read list succeeded; any other run
+is stamped partial. Only three things a repo read cannot answer are disclosed standing limits, not
+gaps: callers outside the repo, vendor internals, and provider-side key revocation unless the provider
+console is opened. Open findings do not affect coverage. The coverage verdict rests on the finders'
+own receipts and Scot's sign-off, not on a mechanical check. The live-read list and how a run decides
+are in `.claude/skills/audit-run/SKILL.md`. Every full stamp carries this exact line:
+
+```
+Excludes assistive-technology testing (tracked separately in the conformance report).
+```
+
+In any document, "full audit run", "quarterly full" and `type: full` name the size of the fan-out, and
+some older uses are looser still. Only "FULL COVERAGE" in the stamp means this definition.
 
 ### Structural validation
 

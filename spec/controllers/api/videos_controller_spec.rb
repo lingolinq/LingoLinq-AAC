@@ -17,6 +17,33 @@ describe Api::VideosController, type: :controller do
     end
   end
   
+  describe "upload form for a pending video" do
+    before { allow(Uploader).to receive(:client_uploads_configured?).and_return(true) }
+
+    it "is given to the owner" do
+      token_user
+      v = UserVideo.create(:user => @user, :settings => {'content_type' => 'video/mp4', 'pending' => true})
+      get :show, params: {:id => v.global_id}
+      expect(JSON.parse(response.body)['meta']['remote_upload']).to be_present
+    end
+
+    it "is given on the response to creating the video" do
+      token_user
+      post :create, params: {:video => {'content_type' => 'video/mp4'}}
+      expect(response).to be_successful
+      expect(JSON.parse(response.body)['meta']['remote_upload']).to be_present
+    end
+
+    it "is not given to another user" do
+      owner = User.create
+      v = UserVideo.create(:user => owner, :settings => {'content_type' => 'video/mp4', 'pending' => true})
+      token_user
+      get :show, params: {:id => v.global_id}
+      expect(response).to be_successful
+      expect(JSON.parse(response.body)['meta']).to eq(nil)
+    end
+  end
+
   describe "show" do
     it "should require api token" do
       get :show, params: {:id => 'asdf'}

@@ -12,21 +12,21 @@ module Transcoder
 
   def self.handle_event(args)
     job_id, status, detail = parse_event_message(args)
-    return false if job_id.to_s.strip == ''
+    return reject_event(nil, 'no job id') if job_id.to_s.strip == ''
 
     res = config.get_job({id: job_id})
     job = res && (res.respond_to?(:job) ? res.job : nil)
-    return false if !job
+    return reject_event(nil, 'GetJob returned no job') if !job
 
     meta = job_user_metadata(job)
-    return false if meta.blank?
+    return reject_event(job_id, 'job has no user metadata') if meta.blank?
 
     record = if meta['conversion_type'] == 'audio'
       ButtonSound.find_by_global_id(meta['audio_id'])
     elsif meta['conversion_type'] == 'video'
       UserVideo.find_by_global_id(meta['video_id'])
     else
-      return false
+      return reject_event(job_id, 'unknown conversion_type')
     end
 
     if error_status?(status)
@@ -39,7 +39,7 @@ module Transcoder
     # answers with a 503 so SNS redelivers it (SNS retries only 5xx and 429).
     job_status = job.respond_to?(:status) ? job.status.to_s : ''
     return :retry if %w[SUBMITTED PROGRESSING].include?(job_status)
-    return false unless complete_status?(job_status)
+    return reject_event(job_id, 'GetJob status is not COMPLETE') unless complete_status?(job_status)
 
     files = output_files(job, detail)
     new_record = {
@@ -48,7 +48,7 @@ module Transcoder
     if meta['conversion_type'] == 'audio'
       mp3 = files.find { |f| f[:key].to_s.end_with?('.mp3') }
       wav = files.find { |f| f[:key].to_s.end_with?('.wav') }
-      return false unless mp3
+      return reject_event(job_id, 'no mp3 output') unless mp3
       new_record['filename'] = mp3[:key]
       new_record['duration'] = duration_seconds(mp3)
       new_record['content_type'] = 'audio/mp3'
@@ -62,7 +62,7 @@ module Transcoder
     else
       mp4 = files.find { |f| f[:key].to_s.end_with?('.mp4') }
       thumb = files.find { |f| f[:key].to_s.match?(/\.(jpg|png)\z/) }
-      return false unless mp4
+      return reject_event(job_id, 'no mp4 output') unless mp4
       new_record['filename'] = mp4[:key]
       new_record['duration'] = duration_seconds(mp4)
       new_record['content_type'] = 'video/mp4'
@@ -73,6 +73,46 @@ module Transcoder
 
     record.update_media_object(new_record) if record
     true
+  end
+
+  # Logged lines reach Cloud Logging and the upload buckets are public-read, so a key's 128-hex
+  # file_prefix digest (uploadable.rb:67-70) must never be logged. Each rejection line carries a
+  # fixed reason and, once GetJob has accepted it, the event's job id; no other event text.
+  def self.reject_event(job_id, reason)
+    Rails.logger.warn("Transcoder.handle_event rejected job=#{job_id || '-'}: #{reason}")
+    false
+  end
+
+  LOGGED_EVENT_MAX = 4000
+  LOG_SECRET_HEX = /\h{32,}/
+  # No diagnostic value, and UnsubscribeURL can unsubscribe the endpoint.
+  LOG_DROPPED_FIELDS = %w[Signature SigningCertURL UnsubscribeURL].freeze
+
+  # The notification as a log line: its shape stays (job id, status, error code and message,
+  # path layout) and the secrets go (long hex runs, transcoding_key). Never raises.
+  def self.loggable_event(args)
+    envelope = args.is_a?(Hash) ? args.except(*LOG_DROPPED_FIELDS) : {}
+    message = envelope['Message']
+    if message.is_a?(String)
+      parsed = JSON.parse(message) rescue nil
+      envelope['Message'] = parsed if parsed
+    end
+    redact_for_log(envelope).to_json[0, LOGGED_EVENT_MAX]
+  rescue StandardError => e
+    job_id = (parse_event_message(args)[0] rescue nil).to_s.scrub[/\A[\w-]{1,80}\z/]
+    "unloggable event (#{e.class}) job=#{job_id || '-'}"
+  end
+
+  def self.redact_for_log(value)
+    case value
+    when Hash
+      value.each_with_object({}) do |(k, v), res|
+        res[k] = k.to_s == 'transcoding_key' ? '[redacted]' : redact_for_log(v)
+      end
+    when Array then value.map { |v| redact_for_log(v) }
+    when String then value.scrub.gsub(LOG_SECRET_HEX, '[hex]')
+    else value
+    end
   end
 
   def self.convert_audio(button_sound_id, prefix, transcoding_key)
