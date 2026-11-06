@@ -307,3 +307,31 @@ SECURE_ENCRYPTION_KEY in this worktree; database `lingolinq-e2e-traci-offline` e
 
 Correction: a new browser device does not sync on its own: `lib/json_api/user.rb:137` sets `ever_synced` false,
 and `models/user.js#auto_sync` then answers false. #1236's first-sync fix applies to installed apps.
+
+## Unit 1 simplified (2026-11-06)
+
+Traci: follow current best practice. So: network-first with a timeout, then the local copy, with everything
+in order. Decided: a denial sticks until the server answers; first sync runs automatically for Home Screen
+installs on a trusted device (not desktop browsers, until #1221); a deleted home or sidebar board keeps its copy.
+
+### Proposal
+- **No race.** Remove the deadline timer. `/tree` is one bounded attempt: `{timeout: 8000, attempt: 3}`
+  (`utils/extras.js:186` honours a timeout; `:362` retries only while attempt <= 2). jQuery ends the request, so
+  no answer can arrive late.
+- **Order.** `/tree`. On no answer (offline, or status 0): device copy if there is one. Otherwise the existing
+  show path with its normal timeouts and retry. A 5xx keeps the existing retry. When that gives up: device copy,
+  then the error page.
+- **Removed:** `nav.served` guards, late-refusal path and its `'show'/'retry'` states, `within` around a racing
+  read, `_after_late_failure`. Cost: an answer after 8 s is not seen on this visit, and nothing is cached from it.
+  This differs from Workbox's NetworkFirst, which lets the request finish and update the cache; given four
+  blocked rounds, no background write. Rows are refreshed by sync, and Edit fetches with normal timeouts.
+- **Kept:** `nav` token for superseded navigations; `_may_read_copies`; decision rules; notice; read-only guards.
+- **A stuck read:** `within` wraps read and checks, and only its result is applied, so an abandoned read writes
+  nothing.
+- **Latches** are evaluated even when there is no row, and keyed to the token: `_refused_boards[key] = token`,
+  set on any refusal, cleared on a server answer; dead session also reads `session.invalid_token`.
+- **Guards added:** `set_as_home`, trial bar Use.
+- **Stale setup closure:** skip `_finalize_board_display` when `_raw_board_data` is no longer that raw;
+  `_refresh_device_copy` updates it.
+- **Notice:** explicit colour, and no push on the grid.
+- **First sync:** `models/user.js#auto_sync` true for a standalone display with the shell on, on a trusted device.
