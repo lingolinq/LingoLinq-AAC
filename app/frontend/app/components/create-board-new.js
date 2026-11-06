@@ -1231,6 +1231,11 @@ export default Component.extend({
     return this._authoring_locale_root() !== 'en';
   },
 
+  /** Labels and the board name go to Google for the English lookup, so say so first. */
+  shows_translation_notice: computed('model.locale', 'appState.feature_flags.english_first_board_generation', function() {
+    return this._needs_english_lookup();
+  }),
+
   /** English string for a cached authoring-language label key, or the
    *  key itself when we are authoring in English / have no mapping. */
   _english_for_label(key) {
@@ -1358,6 +1363,9 @@ export default Component.extend({
     if(!this.appState.get('feature_flags.english_first_board_generation')) {
       return;
     }
+    if(this.get('authoring_locale_chosen')) {
+      return;
+    }
     if(!userId || userId === 'self') {
       this._set_authoring_locale(this.get('preferred_communicator_locale') || 'en');
       return;
@@ -1397,7 +1405,13 @@ export default Component.extend({
     this.set('_board_name_english', null);
     this.set('_label_english_lookup_promise', null);
     this.set('_label_colors', {});
-    this.set('_label_images', {});
+    // A dropped image belongs to the label, not to the language it was looked up in.
+    var images = this.get('_label_images') || {};
+    var dropped = {};
+    Object.keys(images).forEach(function(key) {
+      if(images[key] && images[key].dropped) { dropped[key] = images[key]; }
+    });
+    this.set('_label_images', dropped);
     this.set('_label_images_lookup_promise', null);
     if((this.get('parsed_labels') || []).length) {
       this._lookup_label_colors();
@@ -1405,15 +1419,15 @@ export default Component.extend({
     }
   },
 
-  /** Per-button + board-name translations for the authoring locale and English. */
+  /** Per-button + board-name translations for the authoring locale and English.
+   *  A board with no buttons still gets the language header: boards_controller#create
+   *  rewrites the locale to en when translations are blank. It gets no English name,
+   *  so `en` does not join its locales with nothing translated behind it. */
   _build_authoring_translations(buttons) {
     if(!this._needs_english_lookup()) {
       return null;
     }
     var list = buttons || [];
-    if(list.length === 0) {
-      return null;
-    }
     var authoring = this.get('model.locale') || this._authoring_locale_root();
     var authoringRoot = this._authoring_locale_root();
     var englishMap = this.get('_label_english') || {};
@@ -1428,7 +1442,7 @@ export default Component.extend({
       translations.board_name[authoring] = name;
       translations.board_name[authoringRoot] = name;
       var englishName = this.get('_board_name_english');
-      if(englishName) {
+      if(englishName && list.length > 0) {
         translations.board_name.en = englishName;
       }
     }
@@ -1828,15 +1842,20 @@ export default Component.extend({
       // don't auto-place" — combined with `buttons.length > 0` it
       // also bypasses the populate_from_labels path.
       this.set('model.grid.order', grid_order);
-      var translations = this._build_authoring_translations(buttons);
-      if(translations) {
-        this.set('model.translations', translations);
-      }
     }
+    this.set('model.translations', this._build_authoring_translations(buttons));
     this.get('model').save().then(function(board) {
       board.set('button_locale', board.get('locale'));
       _this.appState.set('label_locale', board.get('locale'));
       _this.appState.set('vocalization_locale', board.get('locale'));
+      // Same session write as Translate Boards (translation-select.js done_translating).
+      // The board also stores English, so a stale stash would otherwise win on load
+      // (routes/user/board-alt/index.js). Not for English boards: nothing needs it, and
+      // it would replace a Switch Languages session.
+      if(_this._authoring_locale_root() !== 'en') {
+        _this.stashes.persist('label_locale', board.get('locale'));
+        _this.stashes.persist('vocalization_locale', board.get('locale'));
+      }
       _this.set('status', null);
       /* Invalidate Mine-list snapshot so /boards re-queries after create. */
       try {
@@ -2254,7 +2273,7 @@ export default Component.extend({
         // preview but render blank on the board page — see LEARNINGS. URL-baking
         // is the deliberate, proven path (matches the symbol-search flow).
         var next_map = Object.assign({}, _this.get('_label_images') || {});
-        next_map[key] = { image_url: saved_url };
+        next_map[key] = { image_url: saved_url, dropped: true };
         _this.set('_label_images', next_map);
         // Re-run preview_grid (deps on _label_images) so the tile updates.
         _this.notifyPropertyChange('_label_images');
@@ -2619,7 +2638,9 @@ export default Component.extend({
       this.set('model.visibility', value);
     },
     setLocale: function(value) {
-      this._set_authoring_locale(value);
+      // The list's placeholder rows have a blank id, and a board needs a real language.
+      this.set('authoring_locale_chosen', !!value);
+      this._set_authoring_locale(value || this.get('preferred_communicator_locale') || 'en');
     },
     setLabelsOrder: function(value) {
       this.set('model.grid.labels_order', value);
@@ -2850,7 +2871,7 @@ export default Component.extend({
       var words = (this.get('_speak_words') || []).slice();
       words.push(entry);
       this.set('_speak_words', words);
-      try { speecher.speak_text(label); } catch(e) { /* speech is best-effort */ }
+      try { speecher.speak_text(label, null, { locale: this.get('model.locale') }); } catch(e) { /* speech is best-effort */ }
       // Don't let the bar bleed into the action buttons or scroll: once the
       // newly-added chip pushes the content past the bar's width (or wraps to a
       // second line), reset the bar to just this latest word so the user keeps
@@ -2886,7 +2907,7 @@ export default Component.extend({
       var words = this.get('_speak_words') || [];
       if(!words.length) { return; }
       var text = words.map(function(w) { return w.label; }).join(' ');
-      try { speecher.speak_text(text); } catch(e) { /* best-effort */ }
+      try { speecher.speak_text(text, null, { locale: this.get('model.locale') }); } catch(e) { /* best-effort */ }
     },
     speak_backspace: function() {
       var words = (this.get('_speak_words') || []).slice();

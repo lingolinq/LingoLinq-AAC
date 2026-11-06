@@ -50492,11 +50492,9 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 .new-board--modern .new-board-field--fill-order > .nb-field__label {
   margin: 0;
 }
-/* Hint reads inline in the content column (no full-width line / extra margin),
-   with a little left padding so it's spaced off the "Language" label. */
+/* Hint and translation notice sit under the select, in the content column. */
 .new-board--modern .new-board-field--locale .nb-field__hint {
-  margin: 0;
-  padding-left: 8px;
+  margin: 6px 0 0;
 }
 
 /* Modern stepper — single glass pill with inline +/- icon buttons.

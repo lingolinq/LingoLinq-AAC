@@ -13,6 +13,7 @@ import RSVP from 'rsvp';
 import modalUtil from '../../utils/modal';
 import persistence from '../../utils/persistence';
 import editManager from '../../utils/edit_manager';
+import speecher from '../../utils/speecher';
 
 /*
  * create-board-new component coverage — Scot #3 (High) pre-merge review.
@@ -767,6 +768,140 @@ describe('CreateBoardNewComponent', 'component:create-board-new', function() {
         modalUtil.close = origClose;
         editManager.auto_edit = origAuto;
       }
+    });
+
+    function saveWithLabels(c, labels) {
+      var saved = RSVP.resolve();
+      c.set('appState', EmberObject.create({
+        feature_flags: EmberObject.create({ english_first_board_generation: true }),
+        currentUser: EmberObject.create({ id: '1' }),
+        arm_board_load_overlay: function() {}
+      }));
+      c.set('router', { transitionTo: function() {} });
+      c.set('model', EmberObject.create({
+        name: 'Mi tablero',
+        locale: 'es',
+        grid: EmberObject.create({ rows: 1, columns: 1, labels: labels, labels_order: 'rows' }),
+        license: { type: 'private' },
+        key: 'example/mi-tablero',
+        id: '1_1',
+        save: function() {
+          saved = RSVP.resolve(this);
+          return saved;
+        }
+      }));
+      stub(modalUtil, 'close', function() {});
+      stub(editManager, 'auto_edit', function() {});
+      c._completeSaveBoard();
+      return saved;
+    }
+
+    itAsync('keeps the authoring language on a board saved with no labels', async function() {
+      var c = makeComponent();
+      stub(c.stashes, 'persist', function() {});
+      c.set('_board_name_english', 'My board');
+      await saveWithLabels(c, '');
+      var trans = c.get('model.translations') || {};
+      // boards_controller#create rewrites locale to en when translations are blank.
+      expect(trans.default).toEqual('es');
+      expect(trans.current_label).toEqual('es');
+      expect(trans.current_vocalization).toEqual('es');
+      expect(trans.board_name.es).toEqual('Mi tablero');
+      expect(trans.board_name.en).toEqual(undefined);
+    });
+
+    itAsync('saves the speak language for the session, as Translate Boards does', async function() {
+      var c = makeComponent();
+      var persisted = {};
+      stub(c.stashes, 'persist', function(key, value) { persisted[key] = value; });
+      await saveWithLabels(c, 'sombrero');
+      expect(persisted.label_locale).toEqual('es');
+      expect(persisted.vocalization_locale).toEqual('es');
+      expect(c.get('appState.vocalization_locale')).toEqual('es');
+    });
+
+    itAsync('leaves the session language alone when the board is English', async function() {
+      var c = makeComponent();
+      var persisted = {};
+      stub(c.stashes, 'persist', function(key, value) { persisted[key] = value; });
+      var saving = saveWithLabels(c, 'hat');
+      await saving;
+      c.set('model.locale', 'en');
+      persisted = {};
+      c._completeSaveBoard();
+      await RSVP.resolve();
+      expect(persisted.label_locale).toEqual(undefined);
+      expect(persisted.vocalization_locale).toEqual(undefined);
+    });
+
+    it('clears translations left by an earlier attempt when the language goes back to English', function() {
+      var c = makeComponent();
+      stub(c.stashes, 'persist', function() {});
+      c.set('appState', EmberObject.create({
+        feature_flags: EmberObject.create({ english_first_board_generation: true }),
+        currentUser: EmberObject.create({ id: '1' })
+      }));
+      c.set('model.locale', 'en');
+      c.set('model.translations', { default: 'es' });
+      c.set('model.save', function() { return RSVP.defer().promise; });
+      c._completeSaveBoard();
+      expect(c.get('model.translations')).toEqual(null);
+    });
+
+    it('keeps dropped images and drops looked-up ones when the language changes', function() {
+      var c = makeComponent();
+      c.set('_label_images', {
+        sombrero: { image_url: 'https://example.com/mine.png', dropped: true },
+        gato: { image_url: 'https://example.com/found.png' }
+      });
+      c._invalidate_authoring_locale_caches();
+      expect(c.get('_label_images')).toEqual({ sombrero: { image_url: 'https://example.com/mine.png', dropped: true } });
+    });
+
+    it('says labels go to Google only when the board needs the English lookup', function() {
+      var c = makeComponent();
+      c.set('appState', EmberObject.create({
+        feature_flags: EmberObject.create({ english_first_board_generation: true })
+      }));
+      c.set('model.locale', 'en');
+      expect(c.get('shows_translation_notice')).toEqual(false);
+      c.set('model.locale', 'es');
+      expect(c.get('shows_translation_notice')).toEqual(true);
+    });
+
+    it('never stores a blank language from the picker placeholder rows', function() {
+      var c = makeComponent();
+      c.set('appState', EmberObject.create({
+        feature_flags: EmberObject.create({ english_first_board_generation: true })
+      }));
+      c.set('preferred_communicator_locale', 'fr');
+      c.set('model.locale', 'es');
+      c.send('setLocale', '');
+      expect(c.get('model.locale')).toEqual('fr');
+    });
+
+    it('keeps a language the person picked when the board owner changes', function() {
+      var c = makeComponent();
+      c.set('appState', EmberObject.create({
+        feature_flags: EmberObject.create({ english_first_board_generation: true })
+      }));
+      c.set('preferred_communicator_locale', 'en');
+      c.set('model.locale', 'en');
+      c.send('setLocale', 'es');
+      c._apply_supervisee_authoring_locale('self');
+      expect(c.get('model.locale')).toEqual('es');
+    });
+
+    it('previews speech in the language the board is being made in', function() {
+      var c = makeComponent();
+      var spoken = [];
+      stub(speecher, 'speak_text', function(text, collection, opts) { spoken.push(opts); });
+      c.set('model.locale', 'es');
+      c.send('speak_word', 'sombrero', null);
+      c.send('speak_sentence');
+      expect(spoken.length).toEqual(2);
+      expect(spoken[0].locale).toEqual('es');
+      expect(spoken[1].locale).toEqual('es');
     });
   });
 

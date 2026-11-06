@@ -128,6 +128,44 @@ describe('speecher', function() {
         expect(utterance.lang).toEqual('asdf');
       });
     });
+    it("should use opts.locale over the session speak language when choosing a voice", function() {
+      var utterance = null;
+      stub(window.speechSynthesis, 'speak', function(u) { utterance = u; });
+      stub(window.speechSynthesis, 'cancel', function() { });
+      stub(speecher.scope, 'SpeechSynthesisUtterance', function() { });
+      speecher.set('voices', [
+        {default: true, lang: 'en-US', voiceURI: 'english', name: 'english'},
+        {lang: 'es-ES', voiceURI: 'spanish', name: 'spanish'}
+      ]);
+      speecher.voiceURI = 'english';
+      speecher.voiceLang = 'en-US';
+      app_state.set('vocalization_locale', 'en');
+      speecher.speak_text("sombrero", null, {locale: 'es'});
+      waitsFor(function() { return utterance; });
+      runs(function() {
+        app_state.set('vocalization_locale', null);
+        expect(utterance.lang).toEqual('es-ES');
+      });
+    });
+    it("should keep using the session speak language when opts.locale is not passed", function() {
+      var utterance = null;
+      stub(window.speechSynthesis, 'speak', function(u) { utterance = u; });
+      stub(window.speechSynthesis, 'cancel', function() { });
+      stub(speecher.scope, 'SpeechSynthesisUtterance', function() { });
+      speecher.set('voices', [
+        {default: true, lang: 'en-US', voiceURI: 'english', name: 'english'},
+        {lang: 'es-ES', voiceURI: 'spanish', name: 'spanish'}
+      ]);
+      speecher.voiceURI = 'english';
+      speecher.voiceLang = 'en-US';
+      app_state.set('vocalization_locale', 'es');
+      speecher.speak_text("sombrero");
+      waitsFor(function() { return utterance; });
+      runs(function() {
+        app_state.set('vocalization_locale', null);
+        expect(utterance.lang).toEqual('es-ES');
+      });
+    });
     it("should not set a voiceURI or voice or lang for force_default voice", function() {
       var cancelled = false;
       var utterance = null;
