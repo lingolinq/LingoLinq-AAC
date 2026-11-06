@@ -27,7 +27,7 @@ export default Route.extend({
     var _this = this;
     var boardDetailController = this.controllerFor('user.board-detail');
 
-    if(!model) {
+    if(!model || refuse_device_copy(boardDetailController)) {
       _this.router.transitionTo('user.board-detail', boardDetailController.get('user.user_name') || 'unknown', boardDetailController.get('boardname') || 'unknown');
       return;
     }
@@ -128,3 +128,15 @@ export default Route.extend({
     }
   }
 });
+
+// An edit to a device copy would sync back over any newer version on the server with no conflict
+// check (services/persistence.js#sync_changed), so a device copy opens for speaking only.
+function refuse_device_copy(boardDetailController) {
+  if(!boardDetailController.get('served_from_device')) { return false; }
+  modal.warning(i18n.t('board_edit_needs_connection', "This board needs an Internet connection to edit."));
+  return true;
+}
+
+// Placed last so the imports do not shift the ESLint baseline rows above. Imports are hoisted.
+import modal from '../../../utils/modal';
+import i18n from '../../../utils/i18n';

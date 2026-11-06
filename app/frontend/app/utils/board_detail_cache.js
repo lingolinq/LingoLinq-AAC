@@ -1165,6 +1165,13 @@ export default {
     };
 
     return process_layer(collect_layer_keys(raw));
+  },
+
+  // The raw board JSON however old it is, for when nothing fresher can be had (offline). Unlike
+  // `get`, it does not drop an expired entry.
+  peek: function(key_or_id) {
+    var entry = _lookup(key_or_id);
+    return entry ? entry.raw : null;
   }
 };
 // Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).

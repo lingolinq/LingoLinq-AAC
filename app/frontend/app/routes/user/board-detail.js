@@ -88,7 +88,7 @@ export default Route.extend({
       controller._board_detail_images = raw.images;
     }
     controller._build_from_raw(raw);
-    if(controller.get('edit_mode')) { return; }
+    if(controller.get('edit_mode') || this.get('served_from_device')) { return; } // a device copy: nothing to fetch
     var warm_opts = {
       skin: controller.get('app_state.referenced_user.preferences.skin'),
       preferred_symbols: controller.get('app_state.referenced_user.preferences.preferred_symbols')
@@ -111,7 +111,7 @@ export default Route.extend({
     }, 500);
   },
 
-  model: function(params) {
+  _model_from_cache_or_server: function(params, failures) {
     var _this = this;
     var user = this.modelFor('user');
     user.set('subroute_name', i18n.t('board_detail', "Board Detail"));
@@ -172,7 +172,7 @@ export default Route.extend({
       var resolved = false;
       var handleRoot = function(boardData, source) {
         var raw_copy = JSON.parse(JSON.stringify(boardData));
-        _this.set('_raw_board_data', raw_copy);
+        if(!_this.get('served_from_device')) { _this.set('_raw_board_data', raw_copy); } // a late answer must not swap the board on screen
         // force: network response is authoritative for this navigation.
         // root_only: lite /tree and show fallback have no descendants yet.
         boardDetailCache.set(raw_copy, { force: true, root_only: true });
@@ -248,7 +248,7 @@ export default Route.extend({
             resolved = true;
             resolve({ error: true, boardname: params.boardname });
           }
-        }, function(err) {
+        }, function(err) { failures.push(err);
           if (!resolved && !fallbackAttempted && !isDefinitive(err)) {
             fallbackAttempted = true;
             boardCacheDiag.mark('model:fallback_retry', { board_key: board_key });
@@ -289,8 +289,8 @@ export default Route.extend({
         }
         handleRoot(rootBoardData, 'tree_root_only');
         warmFullTreeInBackground();
-      }, function() {
-        fallbackSingleBoard();
+      }, function(err) {
+        failures.push(err); fallbackSingleBoard();
       });
     });
   },
@@ -641,7 +641,78 @@ export default Route.extend({
     return boardRevocation.blocks_view_route(record, this.appState, online).then(function(blocked) {
       return blocked ? { error: true, boardname: boardname } : record;
     });
+  },
+
+  device_copy_wait: DEVICE_COPY_WAIT_MS,
+  // Opens the board from memory or the server, and falls back on the device copy (#1213) when that
+  // ends in the error state, or when the server has not answered by the deadline. The copy read
+  // comes first: boardDetailCache.get drops an expired entry, and offline it is often the newest.
+  model: function(params) {
+    var _this = this;
+    var board_key = this.modelFor('user').get('user_name') + '/' + params.boardname;
+    var memory_raw = boardDetailCache.peek(board_key);
+    var failures = [];
+    var settled = false;
+    var is_settled = function() { return settled || _this.isDestroyed || _this.isDestroying; };
+    this._mark_device_copy(false);
+    return new RSVP.Promise(function(resolve, reject) {
+      var deadline = null;
+      var finish = function(result) {
+        if(settled) { return; }
+        settled = true;
+        clearTimeout(deadline);
+        resolve(result);
+      };
+      var device_copy = function() { return _this._device_copy(board_key, memory_raw, failures, is_settled); };
+      // setTimeout, not runLater, for the reason given at the retry above. Offline needs no
+      // deadline: persistence.ajax rejects at once.
+      if(_this.persistence && _this.persistence.get('online')) {
+        deadline = setTimeout(function() {
+          if(is_settled()) { return; }
+          device_copy().then(function(record) { if(record) { finish(record); } });
+        }, _this.device_copy_wait);
+      }
+      _this._model_from_cache_or_server(params, failures).then(function(result) {
+        if(!result || !result.error) { return finish(result); }
+        device_copy().then(function(record) { finish(record || result); });
+      }, function(err) {
+        settled = true;
+        clearTimeout(deadline);
+        reject(err);
+      });
+    });
+  },
+  // Resolves the record for the device copy, or null when there is none to show. The server did not
+  // answer, so the revocation check treats this as offline whatever `online` says.
+  _device_copy: function(board_key, memory_raw, failures, is_settled) {
+    var _this = this;
+    return read_device_copy(persistence, board_key, memory_raw).then(function(raw) {
+      if(!raw || is_settled() || server_refused(failures, raw, _this.appState)) { return null; }
+      var record = _this._record_for_copy(raw);
+      if(!record) { return null; }
+      return boardRevocation.blocks_view_route(record, _this.appState, false).then(function(blocked) {
+        if(blocked || is_settled()) { return null; }
+        _this.set('_raw_board_data', raw);
+        _this._mark_device_copy(true);
+        return record;
+      });
+    }).then(null, function() { return null; });
+  },
+  // A record already in memory is kept: it may be newer than the row, or have changes waiting to
+  // save (the same rule as services/persistence.js#find_boards). A row the store cannot take throws
+  // into _device_copy's rejection handler, so it counts as no copy.
+  _record_for_copy: function(raw) {
+    return this.store.peekRecord('board', raw.id) ||
+      this.store.push(this.store.normalize('board', JSON.parse(JSON.stringify(raw))));
+  },
+  // Read here by _finalize_board_display and handleRoot, and on the controller by the edit route
+  // and utils/reload_on_connect.js.
+  _mark_device_copy: function(served) {
+    this.set('served_from_device', served);
+    var controller = this.controllerFor('user.board-detail', true);
+    if(controller) { controller.set('served_from_device', served); }
   }
 });
 // Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
 import boardRevocation from '../../utils/board_revocation';
+import { DEVICE_COPY_WAIT_MS, read_device_copy, server_refused } from '../../utils/board_device_copy';
