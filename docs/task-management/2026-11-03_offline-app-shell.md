@@ -437,3 +437,25 @@ block merge (1 High, 1 Medium, 2 Low).
   install (storage cleared while the record remains).
 - **Low (adversary):** one register() that never settles holds up later removals in the queue.
 - **Low (adversary):** the shell's footer partial and ENV values in the page are outside the digest.
+
+### Round 3 fixes (approved by Scot: ask on iPad Home Screen; fix both Codex Highs)
+
+- **Home Screen sign-in asks.** `components/login-form.js` `device_login_flags`: an installed app
+  still signs in with a long token; a Home Screen web app keeps the form's choice, so the Trust /
+  Shared question appears. Red: unit test and the e2e "a Home Screen sign-in asks". Note: an iPad
+  that signed in from the Home Screen before this change already holds a long token, so the server
+  keeps it trusted (`Device#generate_token!` keeps an existing long token) and no question appears
+  there until its token ends or someone changes it in the device settings. Listed in the PR.
+- **Across pages.** Register and remove run under a site-wide lock (`navigator.locks`), and each
+  page records its latest trust decision in localStorage (`ll-offline-shell-trust`, the value only),
+  so a stale page's "trusted" step does not register after a shared sign-in elsewhere.
+- **Cache name and failed installs.** The name covers `lib/offline_shell.rb` and
+  `shared/_footer.html.erb` too, and a failed install deletes its cache only when it created it.
+
+Results: Playwright offline-launch 6 passed, offline-worker-lifecycle 4 passed, offline-kill-switch
+2 passed (fresh profiles, Rails restarted after the build); lint:js new=0, lint:hbs 0; Ember
+offline/sign-in filter 122 of 122; RSpec offline files plus every spec that mentions long_token
+(users, session, token, device, user): 1247 examples, 0 failures (IPLOCATE_API_KEY unset).
+
+Per Scot: the PR opens after this round's reviews whatever they find; new findings go in the PR
+body as open items, Highs marked as merge blockers for Traci. No further fix round.
