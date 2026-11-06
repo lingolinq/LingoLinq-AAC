@@ -50480,12 +50480,25 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
    so Fill order / Board key / Language all line up on a consistent grid instead
    of stacking label-over-control. */
 .new-board--modern .new-board-field--key,
-.new-board--modern .new-board-field--locale,
 .new-board--modern .new-board-field--fill-order {
   display: grid;
   grid-template-columns: 116px minmax(0, 1fr);
   align-items: center;
   gap: 8px 14px;
+}
+/* Language takes its own full row under Name + Description on wizard step 1, and
+   its label stays at the top when the hint and translation notice run long. */
+.new-board--modern .new-board-field--locale {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: 116px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px 14px;
+}
+@media (max-width: $aac-breakpoint-md) {
+  .new-board--modern .new-board-field--locale {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .new-board--modern .new-board-field--key > .nb-field__label,
 .new-board--modern .new-board-field--locale > .nb-field__label,
