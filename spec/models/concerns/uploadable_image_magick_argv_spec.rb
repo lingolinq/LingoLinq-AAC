@@ -77,7 +77,7 @@ describe Uploadable, "ImageMagick argv" do
   end
 
   it "ignores output that does not start with the two numbers" do
-    File.write(File.join(@dir, 'identify'), "#!/bin/sh\necho 'Geometry: 7777x8888'\n")
+    File.write(File.join(@dir, 'identify'), "#!/bin/sh\necho 'x 7777 8888'\n")
     res = OpenStruct.new(:success? => true, :headers => {'Content-Type' => 'image/png'}, :body => 'abcdefg')
     expect(Typhoeus).to receive(:get).and_return(res)
     allow(Typhoeus).to receive(:post).and_return(OpenStruct.new(:success? => true))

@@ -26,7 +26,7 @@ WORKDIR /app
 
 # Install system dependencies
 # imagemagick (convert/identify/montage) and ghostscript (gs, ImageMagick's PDF/PS delegate) are
-# required by ButtonImage upload processing (app/models/concerns/uploadable.rb `identify -verbose`)
+# required by ButtonImage upload processing (app/models/concerns/uploadable.rb `identify`)
 # and lib/sentence_pic.rb (`convert`) -- LL-5954bcbbe6: missing here caused
 # "No such file or directory - identify" Resque failures in the Cloud Run image.
 RUN apt-get update -qq && apt-get install -y \
