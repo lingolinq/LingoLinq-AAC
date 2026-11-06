@@ -2,7 +2,7 @@ import { module, test } from 'qunit';
 import EmberObject from '@ember/object';
 import { setupTest } from '../../helpers';
 import LingoLinq from 'frontend/app';
-import { usable_copy, newest_copy, server_refused } from 'frontend/utils/board_device_copy';
+import { usable_copy, newest_copy, server_refused, session_ended } from 'frontend/utils/board_device_copy';
 
 /* Which copy of a board the Modern board page may show when the server gave no usable answer
  * (#1213). The rejection shapes are the real ones: utils/extras.js wraps every failure as
@@ -50,29 +50,37 @@ module('Unit | Utility | board_device_copy', function(hooks) {
   });
 
   test('server_refused: no answer, a server error or offline never refuses', function(assert) {
-    assert.false(server_refused([no_answer, server_error, offline], raw, state()));
-    assert.false(server_refused([], raw, state()));
+    assert.false(server_refused([no_answer, server_error, offline], 'me/board', state()));
+    assert.false(server_refused([], 'me/board', state()));
   });
 
   test('server_refused: a real denial or a 404 on ANY attempt refuses, whatever came after', function(assert) {
-    assert.true(server_refused([denied], raw, state()));
-    assert.true(server_refused([denied, no_answer], raw, state()), 'denied, then the network dropped');
-    assert.true(server_refused([no_answer, denied], raw, state()));
-    assert.true(server_refused([missing, no_answer], raw, state()));
+    assert.true(server_refused([denied], 'me/board', state()));
+    assert.true(server_refused([denied, no_answer], 'me/board', state()), 'denied, then the network dropped');
+    assert.true(server_refused([no_answer, denied], 'me/board', state()));
+    assert.true(server_refused([missing, no_answer], 'me/board', state()));
+  });
+
+  test('session_ended reads the HTTP status and a 200 body', function(assert) {
+    var session = { dead_session_response: function(xhr) { return !!(xhr && xhr.status == 400 && xhr.responseJSON.invalid_token); } };
+    assert.true(session_ended(dead_session, session));
+    assert.true(session_ended({fakeXHR: {status: 200}, result: {invalid_token: true}}, session), 'in a 200 body');
+    assert.false(session_ended(denied, session));
+    assert.false(session_ended(null, session));
   });
 
   test('server_refused: a 404 counts only when it is the API speaking', function(assert) {
-    assert.true(server_refused([{fakeXHR: {status: 200}, result: {status: 404, error: 'Record not found'}}], raw, state()), 'in a 200 body');
-    assert.false(server_refused([{fakeXHR: {status: 404}}], raw, state()), 'a proxy with no API body');
+    assert.true(server_refused([{fakeXHR: {status: 200}, result: {status: 404, error: 'Record not found'}}], 'me/board', state()), 'in a 200 body');
+    assert.false(server_refused([{fakeXHR: {status: 404}}], 'me/board', state()), 'a proxy with no API body');
   });
 
   test('server_refused: a home or sidebar board keeps its copy even after a 404', function(assert) {
-    assert.false(server_refused([missing], raw, state({sessionUser: {user_name: 'me', supervisees: [], preferences: {home_board: {id: '1_7', key: 'me/board'}}}})));
+    assert.false(server_refused([missing], 'me/board', state({sessionUser: {user_name: 'me', supervisees: [], preferences: {home_board: {id: '1_7', key: 'me/board'}}}})));
   });
 
   test('server_refused: Speak Mode does not excuse a denial, a home board does', function(assert) {
-    assert.true(server_refused([denied], raw, state({speak_mode: true})), 'Speak Mode');
-    assert.false(server_refused([denied], raw, state({sessionUser: {user_name: 'me', supervisees: [], preferences: {home_board: {id: '1_7', key: 'me/board'}}}})), 'the home board');
-    assert.false(server_refused([dead_session], raw, state()), 'a dead session is not a denial of this board');
+    assert.true(server_refused([denied], 'me/board', state({speak_mode: true})), 'Speak Mode');
+    assert.false(server_refused([denied], 'me/board', state({sessionUser: {user_name: 'me', supervisees: [], preferences: {home_board: {id: '1_7', key: 'me/board'}}}})), 'the home board');
+    assert.false(server_refused([dead_session], 'me/board', state()), 'a dead session is not a denial of this board');
   });
 });

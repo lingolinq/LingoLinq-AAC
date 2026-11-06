@@ -10,14 +10,12 @@ import boardDetailCache from 'frontend/utils/board_detail_cache';
 import boardRevocation from 'frontend/utils/board_revocation';
 import { stub, restoreStubs } from 'frontend/tests/helpers/jasmine';
 import { DEVICE_COPY_WAIT_MS, DEVICE_READ_WAIT_MS } from 'frontend/utils/board_device_copy';
-import { refuse_device_copy } from 'frontend/routes/user/board-detail/edit';
 
-/* The Modern board page shows a synced board from the device when the server gives no usable
- * answer (#1213). These run routes/user/board-detail.js#model with the real Ember Data store; only
- * the network and the device read are stubbed, and the device read answers by key only, as
- * the route has no id at this point. */
+/* The Modern board page is network first with a timeout, then the device copy (#1213). These run
+ * routes/user/board-detail.js#model with the real Ember Data store; only the network and the device
+ * read are stubbed, and the device read answers by key only, as the route has no id at this point. */
 var denied = {fakeXHR: {status: 400, responseJSON: {error: 'Not authorized', unauthorized: true, permission: 'view', status: 400}}, message: 'error', result: 'Not authorized'};
-var missing = {fakeXHR: {status: 404, responseJSON: {error: 'Not found', status: 404}}};
+var missing = {fakeXHR: {status: 404, responseJSON: {error: 'Record not found', status: 404}}};
 var no_answer = {fakeXHR: {status: 0}, message: 'error', result: ''};
 var server_error = {fakeXHR: {status: 503}};
 var offline = {offline: true, error: 'not online', short_circuit: true};
@@ -30,6 +28,10 @@ function row(extra) {
   }, extra);
 }
 
+function server_board(extra) {
+  return {root: {board: row(extra)}};
+}
+
 function wait(ms) {
   return new RSVP.Promise(function(res) { setTimeout(res, ms); });
 }
@@ -38,13 +40,6 @@ function deferred() {
   var out = {};
   out.promise = new RSVP.Promise(function(res, rej) { out.resolve = res; out.reject = rej; });
   return out;
-}
-
-function assert_device_copy(assert, context, model, label) {
-  assert.strictEqual(model.get('key'), 'me/board', label + ': the record');
-  assert.strictEqual(context.route.get('_raw_board_data.buttons.0.label'), 'want', label + ': the grid source');
-  assert.true(context.controller.get('served_from_device'), label + ': marked as a device copy');
-  assert.notOk(boardDetailCache.get('me/board'), label + ': never entered as a fresh cache entry');
 }
 
 module('Unit | Route | user/board-detail device copy', function(hooks) {
@@ -80,10 +75,10 @@ module('Unit | Route | user/board-detail device copy', function(hooks) {
     this.owner.register('service:persistence', Service.extend({
       online: true,
       local_db_is_current_user: function() { return _this.db_is_current; },
-      ajax: function(url) {
-        _this.requests.push(url);
+      ajax: function(url, options) {
+        _this.requests.push({url: url, options: Object.assign({}, options)});
         var next = _this.answers.length > 1 ? _this.answers.shift() : _this.answers[0];
-        return next === 'hang' ? new RSVP.Promise(function() { }) : RSVP.reject(next);
+        return (next && (next.root || next.board || next.text)) ? RSVP.resolve(next) : RSVP.reject(next);
       },
       find: function(store, key) {
         var found = store === 'board' && _this.device[key];
@@ -96,7 +91,7 @@ module('Unit | Route | user/board-detail device copy', function(hooks) {
     boardDetailCache.clear();
     this.route = this.owner.lookup('route:user/board-detail');
     this.route.modelFor = function() { return EmberObject.create({user_name: 'me'}); };
-    // A plain stand-in: the real controller starts timers that would outlive the test.
+    // A plain stand-in: nothing here needs the real page.
     var controller = EmberObject.create();
     this.controller = controller;
     this.route.controllerFor = function() { return controller; };
@@ -113,43 +108,71 @@ module('Unit | Route | user/board-detail device copy', function(hooks) {
     return context.route.model({boardname: boardname || 'board'});
   }
 
-  test('offline: opens a synced board that is not in memory', async function(assert) {
-    assert.expect(4);
+  function urls(context) {
+    return context.requests.map(function(r) { return r.url.replace('/api/v1/boards/me/board', '') || 'show'; });
+  }
+
+  function assert_device_copy(assert, context, model, label) {
+    assert.strictEqual(model.get('key'), 'me/board', label + ': the record');
+    assert.strictEqual(context.route.get('_raw_board_data.buttons.0.label'), 'want', label + ': the grid source');
+    assert.true(context.controller.get('served_from_device'), label + ': marked as a device copy');
+    assert.notOk(boardDetailCache.get('me/board'), label + ': never entered as a fresh cache entry');
+  }
+
+  test('offline: opens a synced board that is not in memory, with no retries', async function(assert) {
+    assert.expect(5);
     this.persistenceService.set('online', false);
     this.answers = [offline];
     assert_device_copy(assert, this, await open(this), 'offline');
+    assert.deepEqual(urls(this), ['/tree?root_only=1']);
   });
 
-  test('online with no route to the server: opens the device copy', async function(assert) {
-    assert.expect(4);
+  test('no answer: the first request is one bounded try, then the copy', async function(assert) {
+    assert.expect(7);
     this.answers = [no_answer];
     assert_device_copy(assert, this, await open(this), 'status 0');
+    assert.strictEqual(this.requests.length, 1, 'nothing else is in flight');
+    assert.strictEqual(this.requests[0].options.timeout, DEVICE_COPY_WAIT_MS);
+    assert.strictEqual(this.requests[0].options.attempt, 3, 'utils/extras.js does not retry past attempt 2');
   });
 
-  test('a server outage opens the device copy after the retry', async function(assert) {
-    assert.expect(5);
+  test('no answer and no copy: the usual patience, then the error page', async function(assert) {
+    this.device = {};
+    this.answers = [no_answer];
+    assert.true((await open(this)).error);
+    assert.deepEqual(urls(this), ['/tree?root_only=1', '/tree?root_only=1', 'show', 'show']);
+    assert.strictEqual(this.requests[1].options.attempt, 2, 'the second try has the normal retries');
+    assert.strictEqual(this.requests[1].options.timeout, undefined);
+    assert.strictEqual(this.requests[2].options.timeout, undefined);
+  });
+
+  test('no copy: a board that answers on the second try opens normally', async function(assert) {
+    this.device = {};
+    this.answers = [no_answer, server_board({name: 'Fresh'})];
+    assert.strictEqual((await open(this)).get('name'), 'Fresh');
+    assert.false(this.controller.get('served_from_device'));
+  });
+
+  test('an outage: the show request is bounded too, then the copy', async function(assert) {
+    assert.expect(6);
     this.answers = [server_error];
     assert_device_copy(assert, this, await open(this), '503');
-    assert.strictEqual(this.requests.length, 3, '/tree, show and the one retry');
+    assert.deepEqual(urls(this), ['/tree?root_only=1', 'show']);
+    assert.strictEqual(this.requests[1].options.timeout, DEVICE_COPY_WAIT_MS);
   });
 
-  test('a network that never answers opens the device copy at the deadline', async function(assert) {
-    assert.expect(4);
-    this.route.device_copy_wait = 10;
-    this.answers = ['hang'];
-    assert_device_copy(assert, this, await open(this), 'hanging');
+  test('a 5xx then a hang is bounded the same way', async function(assert) {
+    assert.expect(5);
+    this.answers = [server_error, no_answer];
+    assert_device_copy(assert, this, await open(this), '503 then no answer');
+    assert.strictEqual(this.requests.length, 2);
   });
 
-  test('a late server answer does not replace the board on screen, but is cached', async function(assert) {
-    this.route.device_copy_wait = 10;
-    var finish;
-    stub(this.persistenceService, 'ajax', function() { return new RSVP.Promise(function(res) { finish = finish || res; }); });
-    await open(this);
-    finish({root: {board: row({name: 'Fresh', buttons: [{id: 1, label: 'late'}]})}});
-    await new RSVP.Promise(function(res) { setTimeout(res, 0); });
-    assert.strictEqual(this.route.get('_raw_board_data.buttons.0.label'), 'want', 'the grid source is unchanged');
-    assert.strictEqual(boardDetailCache.get('me/board').name, 'Fresh', 'the next visit gets the server copy');
-    assert.strictEqual(this.owner.lookup('service:store').peekRecord('board', '1_7').get('name'), 'Stored', 'and the record on screen is left alone');
+  test('an outage with no copy keeps the one retry', async function(assert) {
+    this.device = {};
+    this.answers = [server_error];
+    assert.true((await open(this)).error);
+    assert.deepEqual(urls(this), ['/tree?root_only=1', 'show', 'show']);
   });
 
   test('not on the device: the error state, offline and online', async function(assert) {
@@ -171,10 +194,40 @@ module('Unit | Route | user/board-detail device copy', function(hooks) {
   test('a real denial or a 404 keeps the error page, even if a later attempt had no answer', async function(assert) {
     this.answers = [denied];
     assert.true((await open(this)).error, 'denied');
-    this.answers = [denied, no_answer];
-    assert.true((await open(this)).error, 'denied, then no answer');
-    this.answers = [missing];
-    assert.true((await open(this)).error, 'missing');
+    this.answers = [missing, no_answer];
+    assert.true((await open(this)).error, 'missing, then no answer');
+  });
+
+  test('a denial sticks until the server answers, also with no copy on the device', async function(assert) {
+    this.device = {};
+    this.answers = [denied];
+    await open(this);
+    this.device = {'me/board': row()};
+    this.answers = [no_answer];
+    assert.true((await open(this)).error, 'Try Again with no connection does not open the copy');
+    this.answers = [server_board()];
+    assert.strictEqual((await open(this)).get('key'), 'me/board', 'the server answered');
+    this.answers = [no_answer];
+    assert.true(!(await open(this)).error, 'and copies work again');
+  });
+
+  test('a denial is forgotten at a new sign-in', async function(assert) {
+    this.answers = [denied];
+    await open(this);
+    this.owner.lookup('service:session').set('access_token', 'new');
+    this.answers = [no_answer];
+    assert.notOk((await open(this)).error);
+  });
+
+  test('a denial drops the memory cache, so a cache hit cannot bring the board back', async function(assert) {
+    var refreshes = 0;
+    this.route.refresh = function() { refreshes++; };
+    boardDetailCache.set(row());
+    this.route.device_copy_fetch_failed('me/board', denied);
+    assert.strictEqual(boardDetailCache.peek('me/board'), null);
+    assert.strictEqual(refreshes, 1, 'and the page goes back through model()');
+    this.route.device_copy_fetch_failed('me/other', no_answer);
+    assert.strictEqual(refreshes, 1, 'a failure that is not a refusal leaves the copy');
   });
 
   test('a real denial wins in Speak Mode too, which Modern turns on for everyone', async function(assert) {
@@ -196,12 +249,12 @@ module('Unit | Route | user/board-detail device copy', function(hooks) {
   test('the revocation gate counts a server that never answered as offline', async function(assert) {
     var seen = [];
     stub(boardRevocation, 'blocks_view_route', function(record, state, online, options) {
-      seen.push([online, options && options.ignore_speak_mode]);
+      seen.push([online, options && options.ignore_speak_mode, record.get('id')]);
       return RSVP.resolve(true);
     });
     this.answers = [no_answer];
-    assert.deepEqual(await open(this), {error: true, boardname: 'board'}, 'a marked copy is blocked');
-    assert.deepEqual(seen, [[false, true]]);
+    assert.true((await open(this)).error, 'a marked copy is blocked');
+    assert.deepEqual(seen[0], [false, true, '1_7']);
   });
 
   test('a record already in memory is not overwritten by an older row', async function(assert) {
@@ -231,28 +284,24 @@ module('Unit | Route | user/board-detail device copy', function(hooks) {
   });
 
   test('a normal online load is not marked as a device copy', async function(assert) {
-    stub(this.persistenceService, 'ajax', function() { return RSVP.resolve({root: {board: row({name: 'Fresh'})}}); });
+    this.answers = [server_board({name: 'Fresh'})];
     var model = await open(this);
     assert.strictEqual(model.get('name'), 'Fresh');
     assert.false(this.controller.get('served_from_device'));
+    assert.strictEqual(urls(this)[0], '/tree?root_only=1');
+    assert.strictEqual(this.requests[0].options.timeout, DEVICE_COPY_WAIT_MS);
   });
 
   test('two overlapping navigations: an abandoned board cannot paint over the next one', async function(assert) {
+    this.device = {'me/a': row({id: '1_8', key: 'me/a', buttons: [{id: 1, label: 'from A'}]})};
+    var slow = deferred();
     this.route.set('_raw_board_data', null);
-    this.device = {'me/a': row({id: '1_8', key: 'me/a', buttons: [{id: 1, label: 'from A'}]}), 'me/b': row({id: '1_9', key: 'me/b', buttons: [{id: 1, label: 'stale B'}]})};
-    this.route.device_copy_wait = 5;
-    this.answers = ['hang'];
+    stub(this.persistenceService, 'ajax', function() { return slow.promise; });
     open(this, 'a');
-    this.route.device_copy_wait = 5000;
-    var server = deferred();
-    stub(this.persistenceService, 'ajax', function() { return server.promise; });
-    var b = open(this, 'b');
-    await wait(30);
-    assert.notOk(this.controller.get('served_from_device'), 'the abandoned deadline changed nothing');
-    assert.notOk(this.route.get('_raw_board_data'), 'not even the grid source');
-    server.resolve({root: {board: row({id: '1_9', key: 'me/b', buttons: [{id: 1, label: 'server B'}]})}});
-    var model = await b;
-    assert.strictEqual(model.get('key'), 'me/b');
+    stub(this.persistenceService, 'ajax', function() { return RSVP.resolve(server_board({id: '1_9', key: 'me/b', buttons: [{id: 1, label: 'server B'}]})); });
+    await open(this, 'b');
+    slow.reject(no_answer);
+    await wait(5);
     assert.strictEqual(this.route.get('_raw_board_data.buttons.0.label'), 'server B', 'the grid source is the board on screen');
     assert.false(this.controller.get('served_from_device'));
   });
@@ -261,9 +310,9 @@ module('Unit | Route | user/board-detail device copy', function(hooks) {
     var first = deferred();
     stub(this.persistenceService, 'ajax', function() { return first.promise; });
     open(this, 'a');
-    stub(this.persistenceService, 'ajax', function() { return RSVP.resolve({root: {board: row({key: 'me/b', id: '1_9', buttons: [{id: 1, label: 'B'}]})}}); });
+    stub(this.persistenceService, 'ajax', function() { return RSVP.resolve(server_board({key: 'me/b', id: '1_9', buttons: [{id: 1, label: 'B'}]})); });
     await open(this, 'b');
-    first.resolve({root: {board: row({key: 'me/a', id: '1_8', buttons: [{id: 1, label: 'A'}]})}});
+    first.resolve(server_board({key: 'me/a', id: '1_8', buttons: [{id: 1, label: 'A'}]}));
     await wait(0);
     assert.strictEqual(this.route.get('_raw_board_data.buttons.0.label'), 'B');
   });
@@ -272,67 +321,53 @@ module('Unit | Route | user/board-detail device copy', function(hooks) {
     this.answers = [no_answer];
     await open(this);
     assert.true(this.controller.get('served_from_device'));
-    stub(this.persistenceService, 'ajax', function() { return RSVP.resolve({root: {board: row()}}); });
+    this.answers = [server_board()];
     await open(this);
     assert.false(this.controller.get('served_from_device'), 'next load');
     this.controller.set('served_from_device', true);
     this.route.resetController(this.controller, true);
     assert.false(this.controller.get('served_from_device'), 'on exit');
+    assert.strictEqual(this.route._board_nav, null);
   });
 
-  test('the server wins when it answers during the device read', async function(assert) {
-    var read = deferred();
-    var server = deferred();
-    stub(this.persistenceService, 'find', function() { return read.promise; });
-    stub(this.persistenceService, 'ajax', function() { return server.promise; });
-    this.route.device_copy_wait = 1;
-    var model = open(this);
-    await wait(10);
-    server.resolve({root: {board: row({name: 'Fresh'})}});
-    var record = await model;
-    read.resolve(row());
+  test('the flag stays on the board on screen until the next one has loaded', async function(assert) {
+    this.answers = [no_answer];
+    await open(this);
+    var slow = deferred();
+    stub(this.persistenceService, 'ajax', function() { return slow.promise; });
+    var next = open(this, 'a');
     await wait(0);
-    assert.strictEqual(record.get('name'), 'Fresh');
+    assert.true(this.controller.get('served_from_device'), 'still a copy on screen, so still read-only');
+    slow.resolve(server_board({key: 'me/a', id: '1_8'}));
+    await next;
     assert.false(this.controller.get('served_from_device'));
-    assert.strictEqual(this.route.get('_raw_board_data.name'), 'Fresh', 'the finished read changed nothing');
   });
 
   test('the waits are the ones the design promises', function(assert) {
-    assert.strictEqual(DEVICE_COPY_WAIT_MS, 8000, 'a healthy connection is never cut short before the first request times out');
+    assert.strictEqual(DEVICE_COPY_WAIT_MS, 8000, 'the normal first GET limit (utils/extras.js)');
     assert.strictEqual(DEVICE_READ_WAIT_MS, 5000);
     assert.strictEqual(this.route.device_copy_wait, DEVICE_COPY_WAIT_MS);
+    assert.strictEqual(this.route.device_read_wait, DEVICE_READ_WAIT_MS);
   });
 
-  test('the deadline runs even when `online` is false, because ajax can flip it and really send', async function(assert) {
-    assert.expect(4);
-    this.persistenceService.set('online', false);
-    this.route.device_copy_wait = 10;
-    this.answers = ['hang'];
-    assert_device_copy(assert, this, await open(this), 'hanging');
-  });
-
-  test('a refusal after the deadline goes back through model(), then Try Again asks the server', async function(assert) {
-    var server = deferred();
-    var refreshes = 0;
-    this.route.refresh = function() { refreshes++; };
-    stub(this.persistenceService, 'ajax', function() { return server.promise; });
-    this.route.device_copy_wait = 5;
-    await open(this);
-    assert.true(this.controller.get('served_from_device'));
-    server.reject(denied);
-    await wait(1400);
-    assert.strictEqual(refreshes, 1, 'one refresh, so the router runs setupController');
-    var first = await open(this);
-    assert.true(first.error, 'a new error object');
+  test('a stuck device read gives up, and when it lands much later it changes nothing', async function(assert) {
+    var read = deferred();
+    stub(this.persistenceService, 'find', function() { return read.promise; });
+    this.route.device_read_wait = 5;
+    this.answers = [no_answer, server_board({name: 'Fresh'})];
+    var record = await open(this);
+    assert.strictEqual(record.get('name'), 'Fresh', 'the server answered, and the page opened');
+    read.resolve(row());
+    await wait(5);
     assert.false(this.controller.get('served_from_device'));
-    stub(this.persistenceService, 'ajax', function() { return RSVP.reject(no_answer); });
-    var retry = await open(this);
-    assert.true(retry.error, 'Try Again with no answer: no copy until the server answers');
-    assert.notStrictEqual(retry, first);
-    stub(this.persistenceService, 'ajax', function() { return RSVP.resolve({root: {board: row()}}); });
-    assert.strictEqual((await open(this)).get('key'), 'me/board', 'the server answered');
-    stub(this.persistenceService, 'ajax', function() { return RSVP.reject(no_answer); });
-    assert.strictEqual((await open(this)).get('key'), 'me/board', 'and device copies work again');
+    assert.strictEqual(this.route.get('_raw_board_data.name'), 'Fresh');
+  });
+
+  test('a stuck device read still reaches the error page', async function(assert) {
+    stub(this.persistenceService, 'find', function() { return new RSVP.Promise(function() { }); });
+    this.route.device_read_wait = 5;
+    this.answers = [server_error];
+    assert.true((await open(this)).error);
   });
 
   test('no device read when signed out, or when the open database is another user\'s', async function(assert) {
@@ -359,19 +394,25 @@ module('Unit | Route | user/board-detail device copy', function(hooks) {
     this.answers = [no_answer];
     assert.true((await open(this)).error, 'shared, on the next navigation with no server answer');
     this.owner.lookup('service:session').set('access_token', 'new');
+    this.appState.set('sessionUser.preferences.device.long_token', true);
     assert_device_copy(assert, this, await open(this), 'a new sign-in');
   });
 
-  test('a device read that never ends still reaches the error page', async function(assert) {
-    stub(this.persistenceService, 'find', function() { return new RSVP.Promise(function() { }); });
-    this.route.device_read_wait = 5;
-    this.answers = [server_error];
-    assert.true((await open(this)).error);
+  test('a dead session is noticed on a board with no copy, and from the session itself', async function(assert) {
+    var dead = {fakeXHR: {status: 400, responseJSON: {error: 'Not authorized', invalid_token: true, status: 400}}};
+    this.appState.set('sessionUser.preferences.device.long_token', false);
+    this.device = {'me/board': row()};
+    this.answers = [dead];
+    await open(this, 'not-saved');
+    this.answers = [no_answer];
+    assert.true((await open(this)).error, 'the next board, which is saved, stays refused');
+    this.owner.lookup('service:session').setProperties({access_token: 'other', invalid_token: true});
+    assert.true((await open(this)).error, 'sync\'s token check counts too');
   });
 
   test('a 200 that is not a board (a school filter page) counts as no answer', async function(assert) {
     assert.expect(4);
-    stub(this.persistenceService, 'ajax', function() { return RSVP.resolve({text: '<html>Blocked</html>', meta: {}}); });
+    this.answers = [{text: '<html>Blocked</html>', meta: {}}];
     assert_device_copy(assert, this, await open(this), 'block page');
   });
 
@@ -389,6 +430,20 @@ module('Unit | Route | user/board-detail device copy', function(hooks) {
     await settled();
     assert.deepEqual(warmed, ['warm', 'prefetch']);
   });
+
+  test('the edit route sends a device copy back to the board, and leaves a normal board alone', function(assert) {
+    var edit = this.owner.lookup('route:user/board-detail/edit');
+    var moved = [];
+    var blocked = 0;
+    var parent = EmberObject.extend({ _blocked_on_device_copy: function() { blocked++; return true; } })
+      .create({served_from_device: true, user: {user_name: 'me'}, boardname: 'board'});
+    edit.controllerFor = function() { return parent; };
+    edit.set('router', {transitionTo: function() { moved.push(Array.prototype.slice.call(arguments)); }});
+    edit.setupController(EmberObject.create(), EmberObject.create({key: 'me/board'}));
+    assert.deepEqual(moved, [['user.board-detail', 'me', 'board']]);
+    assert.strictEqual(blocked, 1);
+    assert.notOk(parent.get('grid_loading'), 'stopped before the edit setup');
+  });
 });
 
 module('Unit | Controller | user/board-detail on a device copy', function(hooks) {
@@ -398,7 +453,7 @@ module('Unit | Controller | user/board-detail on a device copy', function(hooks)
     restoreStubs();
   });
 
-  test('share, privacy and translate are refused; on a normal board they open', function(assert) {
+  test('every action that writes or copies the board is refused; on a normal board they open', function(assert) {
     var opened = [];
     var warned = [];
     stub(modal, 'open', function(name) { opened.push(name); return RSVP.resolve(); });
@@ -406,19 +461,41 @@ module('Unit | Controller | user/board-detail on a device copy', function(hooks)
     var controller = this.owner.lookup('controller:user/board-detail');
     controller.set('model', EmberObject.create({key: 'me/board'}));
     controller.set('served_from_device', true);
-    ['share_board', 'open_board_privacy', 'translate_board', 'make_a_copy', 'enter_edit_mode'].forEach(function(action) { controller.send(action); });
+    var actions = ['share_board', 'open_board_privacy', 'translate_board', 'make_a_copy', 'enter_edit_mode', 'set_as_home'];
+    actions.forEach(function(action) { controller.send(action); });
     assert.deepEqual(opened, []);
-    assert.strictEqual(warned.length, 5);
+    assert.strictEqual(warned.length, actions.length);
     controller.set('served_from_device', false);
     controller.send('open_board_privacy');
     controller.send('translate_board');
-    assert.deepEqual(opened, ['modals/board-privacy', 'translation-select']);
+    controller.send('set_as_home');
+    assert.deepEqual(opened, ['modals/board-privacy', 'translation-select', 'set-as-home']);
+  });
+
+  test('the languages modal is told, so its Translate button can refuse', function(assert) {
+    var opts = [];
+    stub(modal, 'open', function(name, options) { opts.push(options); return RSVP.resolve(); });
+    var controller = this.owner.lookup('controller:user/board-detail');
+    controller.set('model', EmberObject.create({key: 'me/board'}));
+    controller.set('served_from_device', true);
+    controller.send('switch_languages');
+    assert.true(opts[0].device_copy);
+  });
+
+  test('the trial bar refuses Use on a device copy', async function(assert) {
+    var warned = [];
+    stub(modal, 'warning', function(text) { warned.push(text); });
+    var bar = this.owner.factoryFor('component:trial-bar').create({deviceCopy: true});
+    await bar._performUse();
+    assert.strictEqual(warned.length, 1);
+    assert.notOk(bar.get('busy'), 'stopped before the home board changes');
   });
 
   module('with a connection', function(hooks) {
     hooks.beforeEach(function() {
       var _this = this;
       this.pushed = [];
+      this.failed = [];
       this.realPersistence = window.persistence;
       this.realStore = LingoLinq.store;
       this.server = deferred();
@@ -426,6 +503,8 @@ module('Unit | Controller | user/board-detail on a device copy', function(hooks)
       LingoLinq.store = { normalize: function(type, raw) { return raw; }, push: function(raw) { _this.pushed.push(raw); } };
       stub(modal, 'warning', function() { });
       this.built = [];
+      this.route = this.owner.lookup('route:user/board-detail');
+      this.route.device_copy_fetch_failed = function(key, err) { _this.failed.push([key, err]); };
       this.controller = this.owner.lookup('controller:user/board-detail');
       this.controller._build_from_raw = function(raw) { _this.built.push(raw); };
       this.controller.set('model', EmberObject.create({key: 'me/board'}));
@@ -446,6 +525,7 @@ module('Unit | Controller | user/board-detail on a device copy', function(hooks)
       assert.strictEqual(this.built.length, 1, 'the grid was rebuilt, not just the flag cleared');
       assert.strictEqual(this.built[0].name, 'Fresh');
       assert.strictEqual(this.pushed[0].name, 'Fresh', 'the record is the server copy');
+      assert.strictEqual(this.route.get('_raw_board_data.name'), 'Fresh', 'a pending setup will not rebuild the old copy');
       assert.strictEqual(boardDetailCache.get('me/board').name, 'Fresh');
     });
 
@@ -455,11 +535,14 @@ module('Unit | Controller | user/board-detail on a device copy', function(hooks)
       await wait(0);
       assert.true(this.controller.get('served_from_device'));
       assert.deepEqual(this.built, []);
-      this.server = deferred();
+    });
+
+    test('a failure on that fetch goes to the route, which decides if it is a refusal', async function(assert) {
       this.controller.send('enter_edit_mode');
-      this.server.reject(no_answer);
+      this.server.reject(denied);
       await wait(0);
-      assert.true(this.controller.get('served_from_device'), 'a failure changes nothing');
+      assert.deepEqual(this.failed, [['me/board', denied]]);
+      assert.true(this.controller.get('served_from_device'));
     });
 
     test('an answer for a board no longer on screen changes nothing', async function(assert) {
@@ -468,11 +551,6 @@ module('Unit | Controller | user/board-detail on a device copy', function(hooks)
       this.server.resolve({board: row()});
       await wait(0);
       assert.deepEqual(this.built, []);
-    });
-
-    test('a direct way into Edit is refused only on a device copy', function(assert) {
-      assert.true(refuse_device_copy(this.controller));
-      assert.false(refuse_device_copy(EmberObject.create({served_from_device: false})));
     });
   });
 });

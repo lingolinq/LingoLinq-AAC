@@ -2198,7 +2198,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
       _this._apply_focus_dim_to_ordered_buttons();
       _this._preload_grid_images([buttons]);
       if(!use_ember && cache_token) {
-        boardDetailCache.set_ordered_buttons(cache_token, [buttons], cache_ctx);
+        if(!_this.get('served_from_device')) { boardDetailCache.set_ordered_buttons(cache_token, [buttons], cache_ctx); }
       }
       return;
     }
@@ -2248,7 +2248,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
       // Cache the freshly-built grid so subsequent navigations to this
       // board can skip the rebuild loop entirely.
       if(cache_token) {
-        boardDetailCache.set_ordered_buttons(cache_token, result, cache_ctx);
+        if(!_this.get('served_from_device')) { boardDetailCache.set_ordered_buttons(cache_token, result, cache_ctx); }
       }
     }
 
@@ -8431,7 +8431,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
       }, function() { });
     },
 
-    set_as_home: function() {
+    set_as_home: function() { if(this._blocked_on_device_copy()) { return; }
       this._close_options_menu();
       var board = this.get('model');
       modal.open('set-as-home', {board: board});
@@ -10476,6 +10476,7 @@ BoardDetailController.reopen({
     var _this = this;
     var key = this.get('model.key');
     if(!key || this._refreshing_device_copy) { return; }
+    var route = getOwner(this).lookup('route:user/board-detail');
     this._refreshing_device_copy = true;
     var done = function() { _this._refreshing_device_copy = false; };
     persistence.ajax('/api/v1/boards/' + key, { type: 'GET' }).then(function(data) {
@@ -10486,8 +10487,12 @@ BoardDetailController.reopen({
       boardDetailCache.set(JSON.parse(JSON.stringify(merged)), { force: true });
       LingoLinq.store.push(LingoLinq.store.normalize('board', JSON.parse(JSON.stringify(merged))));
       _this.set('served_from_device', false);
+      route.set('_raw_board_data', merged);
       _this._build_from_raw(merged);
-    }, done);
+    }, function(err) {
+      done();
+      if(!_this.isDestroyed && !_this.isDestroying && _this.get('model.key') === key) { route.device_copy_fetch_failed(key, err); }
+    });
   },
   _trial_home: function() {
     var origin = this.get('try_origin_board') || this.get('app_state.home_copy_pending');

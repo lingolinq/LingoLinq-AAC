@@ -836,4 +836,59 @@ module('Unit | Utility | offline_shell', function() {
       session.destroy();
     });
   });
+
+  module('first_sync_when_installed', function() {
+    function setup(props) {
+      var syncs = [];
+      var persistence = EmberObject.extend({
+        local_db_is_current_user: function() { return this.get('db_ok'); },
+        sync: function(user, force, ignore, reason) { syncs.push(reason); return Promise.resolve(); }
+      }).create(Object.assign({online: true, syncing: false, last_sync_at: 1, db_ok: true}, props.persistence));
+      var user = EmberObject.create({preferences: {device: {long_token: props.trust === undefined ? true : props.trust}}});
+      var appState = EmberObject.create({sessionUser: user});
+      var win = {navigator: {standalone: props.installed !== false}};
+      return {syncs: syncs, persistence: persistence, appState: appState, win: win};
+    }
+
+    test('a trusted Home Screen install that has never synced starts one sync', function(assert) {
+      var s = setup({});
+      var end = offline_shell.first_sync_when_installed(s.persistence, s.appState, s.win);
+      s.persistence.set('last_sync_at', 1);
+      s.persistence.set('online', false);
+      s.persistence.set('online', true);
+      end();
+      assert.deepEqual(s.syncs, ['first_home_screen_sync'], 'once');
+    });
+
+    test('it waits for the device to know it has never synced, and for a connection', function(assert) {
+      var s = setup({persistence: {last_sync_at: undefined, online: false}});
+      var end = offline_shell.first_sync_when_installed(s.persistence, s.appState, s.win);
+      assert.deepEqual(s.syncs, []);
+      s.persistence.set('last_sync_at', 1);
+      assert.deepEqual(s.syncs, [], 'still offline');
+      s.persistence.set('online', true);
+      assert.deepEqual(s.syncs, ['first_home_screen_sync']);
+      end();
+    });
+
+    test('never in a browser tab, on a shared device, after a sync, or on another user\'s database', function(assert) {
+      assert.expect(6);
+      [
+        {installed: false}, {trust: false}, {trust: null},
+        {persistence: {last_sync_at: 1234}}, {persistence: {syncing: true}}, {persistence: {db_ok: false}}
+      ].forEach(function(props) {
+        var s = setup(props);
+        var end = offline_shell.first_sync_when_installed(s.persistence, s.appState, s.win);
+        end();
+        assert.deepEqual(s.syncs, [], JSON.stringify(props));
+      });
+    });
+
+    test('installed reads iOS standalone and the display mode', function(assert) {
+      assert.true(offline_shell.installed({navigator: {standalone: true}}));
+      assert.true(offline_shell.installed({navigator: {}, matchMedia: function() { return {matches: true}; }}));
+      assert.false(offline_shell.installed({navigator: {}, matchMedia: function() { return {matches: false}; }}));
+      assert.false(offline_shell.installed(null));
+    });
+  });
 });

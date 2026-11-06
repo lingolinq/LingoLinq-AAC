@@ -4,9 +4,9 @@ import { is_protected_board, route_refuses_local } from './board_revocation';
 // The copy of a board the Modern board page falls back on when the server gives no usable answer
 // (#1213): the row saved on the device by sync, or the copy held in memory from this session.
 
-// How long a page with a device copy waits for the server. A request that hangs is retried at 8,
-// 20 and 20 seconds (utils/extras.js), and the route makes up to three, so without a deadline a
-// communicator on a bad connection would wait minutes for a board already on the device.
+// How long one bounded request waits. A request that hangs is otherwise tried at 8, 20 and 20 seconds
+// (utils/extras.js), and the route makes up to three, so a communicator on a bad connection would wait
+// minutes for a board already on the device.
 export var DEVICE_COPY_WAIT_MS = 8000;
 // How long reading that copy may take before the page gives up on it.
 export var DEVICE_READ_WAIT_MS = 5000;
@@ -58,8 +58,8 @@ export function session_ended(err, session) {
 // The home and sidebar boards keep their copy, so the communicator keeps a voice. Unlike the Basic view
 // Speak Mode is no exception, because the Modern page turns it on for everyone. Anything but a denial
 // or a 404 is not an answer about this board.
-export function server_refused(failures, raw, appState) {
-  var board = { get: function(attr) { return raw[attr]; } };
+export function server_refused(failures, board_key, appState) {
+  var board = { get: function(attr) { return attr === 'key' ? board_key : null; } };
   if(is_protected_board(board, appState)) { return false; }
   return failures.some(function(err) {
     return board_missing(err) || route_refuses_local(err, appState, board, { ignore_speak_mode: true });

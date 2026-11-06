@@ -210,6 +210,40 @@ var offline_shell = {
     };
   },
 
+  // A browser device does not sync until someone starts one (models/user.js auto_sync), so a Home Screen
+  // install on a trusted device would have no boards offline. Starts that one first sync; after it the
+  // usual rule applies (ever_synced). Installed apps only: a browser tab could pull every board. A
+  // failed attempt tries again on the next launch.
+  first_sync_when_installed: function(persistence, appState, win) {
+    var started = false;
+    var check = function() {
+      if(started || persistence.isDestroyed || appState.isDestroyed) { return; }
+      if(!offline_shell.installed(win) || offline_shell.device_trust(appState.get('sessionUser')) !== 'trusted') { return; }
+      if(persistence.get('last_sync_at') !== 1 || !persistence.get('online') || persistence.get('syncing')) { return; }
+      if(!persistence.local_db_is_current_user()) { return; }
+      started = true;
+      persistence.sync('self', null, null, 'first_home_screen_sync').then(null, function() { });
+    };
+    addObserver(persistence, 'last_sync_at', check);
+    addObserver(persistence, 'online', check);
+    addObserver(appState, 'sessionUser', check);
+    check();
+    return function() {
+      if(!persistence.isDestroyed && !persistence.isDestroying) {
+        removeObserver(persistence, 'last_sync_at', check);
+        removeObserver(persistence, 'online', check);
+      }
+      if(!appState.isDestroyed && !appState.isDestroying) { removeObserver(appState, 'sessionUser', check); }
+    };
+  },
+
+  // Opened from a Home Screen or as an installed app, not a browser tab.
+  installed: function(win) {
+    if(!win) { return false; }
+    if(win.navigator && win.navigator.standalone === true) { return true; }
+    return !!(typeof win.matchMedia === 'function' && win.matchMedia('(display-mode: standalone)').matches);
+  },
+
   // Asks the browser to keep this site's storage (the synced boards and the worker's copy of the
   // app) instead of clearing it under storage pressure. The answer is logged; nothing waits on it.
   request_persist: function(nav) {
