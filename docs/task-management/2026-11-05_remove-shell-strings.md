@@ -56,8 +56,10 @@ the `-format` call; the width and height assertions are unchanged.
   `sh -c`, a wrong script path, no `strip`, no stdin rule, a cache that ignores type.
 - `file.flush`: a fake `identify` reports the bytes it can see; 0 on `develop`, 7 with the flush.
 - `identify -format` through `upload_to_remote` with real ImageMagick 7.1.2: a PNG, a JPEG, a GIF and a
-  PNG with a `Geometry` line in its comment all stored the size they were made at. ImageMagick 6.9.11,
-  which production runs, was not tested; confirm one upload on dev after this deploys.
+  PNG with a `Geometry` line in its comment all stored the size they were made at.
+- The same path on ImageMagick 6.9.13 (Homebrew) matched 7.1.2 on 13 image files, a corrupt file (no size
+  stored, no crash) and an SVG raster, and the 132 related specs pass on it. Production runs 6.9.11, which
+  was not tested; confirm one upload and one SVG conversion on dev after this deploys.
 - `fix_color` output matched the gem in 45 comparisons (15 valid colours, 3 types).
 - Real `convert` rasterized an SVG through `convert_image`.
 - Full suite: 17 failures, the same 17 on clean `develop` (`AuditEvent` counts, `vendor.js`, throttling).
@@ -70,5 +72,6 @@ commit. The scrub and the last documentation and spec edits were not separately 
 
 ## Unresolved
 
-- `identify -format` on ImageMagick 6.9.11 (see Verification).
-- The rspec CI job has no `setup-node` step, so `fix_color` specs rely on the runner's node.
+- `identify -format` on ImageMagick 6.9.11, the exact production version (see Verification).
+- The rspec CI job has no `setup-node` step, so `fix_color` specs rely on the runner's node. They passed
+  on CI at `725731b66`.
