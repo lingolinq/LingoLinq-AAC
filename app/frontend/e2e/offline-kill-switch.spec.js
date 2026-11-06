@@ -6,12 +6,13 @@
 //   OFFLINE_APP_SHELL=off bin/rails s -p 5077
 //   cd app/frontend && E2E_BASE_URL=http://localhost:5077 npx playwright test --project=offline-kill-switch
 
-const fs = require('fs');
 const { test, expect } = require('@playwright/test');
-const { openProfile, profileDir, workerState } = require('./support/offline-shell');
+const { openProfile, takeInstalledMark, workerState } = require('./support/offline-shell');
 
 test('switching the setting off removes the worker and its caches on the next online launch', async () => {
-  expect(fs.existsSync(profileDir('classic')), 'run offline-launch.spec.js first; it leaves the worker installed').toBe(true);
+  // What offline-launch.spec.js left installed in this profile (throws if it left nothing).
+  const left = takeInstalledMark('classic');
+  expect(left.caches.length).toBe(1);
   const context = await openProfile('classic');
   try {
     const page = context.pages()[0] || await context.newPage();
@@ -30,7 +31,8 @@ test('switching the setting off removes the worker and its caches on the next on
 // too. Here the app never sees the page's setting (an init script keeps window.offline_shell_enabled
 // unset for it, so utils/offline_shell.js does nothing), so only the removal worker can clear them.
 test('the removal worker on its own removes itself and its caches', async () => {
-  expect(fs.existsSync(profileDir('classic-es')), 'run offline-launch.spec.js first; its Spanish case leaves the worker installed').toBe(true);
+  const left = takeInstalledMark('classic-es');
+  expect(left.caches.length).toBe(1);
   const context = await openProfile('classic-es', { locale: 'es-ES' });
   try {
     await context.addInitScript(() => {

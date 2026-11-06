@@ -4,6 +4,7 @@
 // persistent browser profile: the kill-switch spec reopens the profile the launch spec left behind,
 // so it can see the worker and caches that run installed.
 
+const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { chromium, devices } = require('@playwright/test');
@@ -48,4 +49,29 @@ async function workerState(page) {
   }, CACHE_PREFIX);
 }
 
-module.exports = { CACHE_PREFIX, baseURL, openProfile, profileDir, workerState };
+// offline-launch.spec.js leaves the worker installed in some profiles for offline-kill-switch.spec.js. It
+// records what it left (a file next to the profile), and the kill-switch spec takes that record before it
+// starts, so a rerun on a profile that is already clean fails instead of passing on nothing.
+function markerPath(name) {
+  return profileDir(name) + '.installed.json';
+}
+
+function markInstalled(name, state) {
+  if (!state.registrations.includes('/sw.js') || state.caches.length < 1) {
+    throw new Error(`profile ${name}: nothing installed to leave for the kill switch`);
+  }
+  fs.writeFileSync(markerPath(name), JSON.stringify(state));
+}
+
+// Returns what the launch spec left, and removes the record. Throws when there is none.
+function takeInstalledMark(name) {
+  const file = markerPath(name);
+  if (!fs.existsSync(file)) {
+    throw new Error(`profile ${name} has no installed worker recorded: run offline-launch.spec.js first, with a fresh E2E_OFFLINE_PROFILE_DIR`);
+  }
+  const state = JSON.parse(fs.readFileSync(file, 'utf8'));
+  fs.unlinkSync(file);
+  return state;
+}
+
+module.exports = { CACHE_PREFIX, baseURL, markInstalled, openProfile, profileDir, takeInstalledMark, workerState };

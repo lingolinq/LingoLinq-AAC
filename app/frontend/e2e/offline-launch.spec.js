@@ -12,7 +12,7 @@
 
 const { test, expect } = require('@playwright/test');
 const { signIn } = require('./support/local-session');
-const { openProfile, workerState } = require('./support/offline-shell');
+const { markInstalled, openProfile, workerState } = require('./support/offline-shell');
 
 const USERS = {
   classic: { user: 'e2e_offline_classic', board: 'e2e-offline-classic-home', path: (b) => `/e2e_offline_classic/board/${b}` },
@@ -93,6 +93,7 @@ test.describe('offline launch from the offline app shell', () => {
       const state = await workerState(page);
       expect(state.registrations).toContain('/sw.js');
       expect(state.caches.length).toBe(1);
+      markInstalled('classic', state);
     } finally {
       await context.close();
     }
@@ -115,6 +116,9 @@ test.describe('offline launch from the offline app shell', () => {
       expect(cached, 'es.json cached on its first load through the worker').toBe(true);
       await launchOffline(context, page, USERS.classic.path(USERS.classic.board), page.getByText('all done', { exact: true }));
       await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('lang')), { timeout: 30_000 }).toBe('es');
+      // Left installed for the kill switch's removal-worker-only case.
+      await context.setOffline(false);
+      markInstalled('classic-es', await workerState(page));
     } finally {
       await context.setOffline(false).catch(() => {});
       await context.close();
@@ -146,6 +150,32 @@ test.describe('offline launch from the offline app shell', () => {
       await expect(page.goto(USERS.modern.path(USERS.modern.board)), 'the browser\'s offline page, not the app').rejects.toThrow(/ERR_INTERNET_DISCONNECTED/);
     } finally {
       await context.setOffline(false).catch(() => {});
+      await context.close();
+    }
+  });
+
+  // Added 2026-11-05 (review round 2). A device with no preferences of its own borrows another device's
+  // (the same user's, with the same browser name), and used to borrow its "Trust this Device" choice with
+  // them, so a classroom browser could get the worker before anyone chose. The server now reports this
+  // device's own choice (lib/json_api/user.rb). Runs after the Classic case, which leaves this user with
+  // a trusted device of the same browser name.
+  test('before the trust choice is made, a new device gets no worker, though the user trusted another like it', async () => {
+    const context = await openProfile('undecided');
+    try {
+      const page = context.pages()[0] || await context.newPage();
+      await page.goto('/login');
+      await expect(page.locator('#identification')).toBeVisible({ timeout: 30_000 });
+      await page.locator('#identification').fill(USERS.classic.user);
+      await page.locator('#password').fill('password');
+      await page.locator('button.login-btn[type="submit"]').click();
+      await page.waitForURL(/login\/device/, { timeout: 30_000 });
+      await page.waitForFunction(() => !!(window.LingoLinq && window.LingoLinq.appState && window.LingoLinq.appState.get('sessionUser')),
+        null, { timeout: 30_000 });
+      expect(await page.evaluate(() => window.LingoLinq.appState.get('sessionUser.preferences.device.long_token')),
+        'this device has not been trusted').not.toBe(true);
+      await page.waitForLoadState('networkidle');
+      expect(await workerState(page), 'no worker while the choice is open').toEqual({ registrations: [], caches: [] });
+    } finally {
       await context.close();
     }
   });
