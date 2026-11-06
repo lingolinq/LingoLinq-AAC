@@ -58,7 +58,7 @@ The first full fan-out (four finders -> merge -> adversary verify -> citation-ch
 
 ### LL-97f9001bb4 (low) -> KEEP DEFERRED (unchanged)
 
-- Details withheld under the security disclosure policy; the decision and rationale are in `audit-reports/FINDINGS.json` and the private run record.
+- Details withheld under the security disclosure policy; the decision is in `audit-reports/FINDINGS.json` and the rationale in the private run record.
 - **Amended 2026-11-06:** this section was replaced with a pointer (Scot Wahlquist). The rest of this document is as written on 2026-06-14.
 
 ## What Scot decides

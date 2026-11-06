@@ -165,14 +165,11 @@
 - **First seen:** 2026-07-04  |  **Last seen:** 2026-07-04  |  **Disposition:** untriaged
 - **Remediation:** DeveloperKey has no expires_at column, settings-based expiry, or expired? method anywhere in the codebase today; it is a permanent OAuth client registration. Before writing any deletion/expiry logic, decide as a product/security question whether developer keys should expire at all (and on what basis - inactivity, fixed TTL, manual revocation only), since inventing an unreviewed criterion risked destroying live client credentials and was deliberately avoided in PR #514.
 
-### ci.yml declares no top-level permissions block; GITHUB_TOKEN inherits repo-default scope for all jobs (incl. one running downloaded gitleaks)
+### ci.yml declares no top-level permissions block; GITHUB_TOKEN inherits repo-default scope for all jobs
 
-- **ID:** `LL-5ae3d7ca2c`  |  **ruleKey:** `ci-workflow-no-permissions-block`  |  **confidence:** high
-- **Location:** `.github/workflows/ci.yml`:1
-- **Frameworks:** SOC2
-- **First seen:** 2026-07-08  |  **Last seen:** 2026-07-08  |  **Disposition:** untriaged
-- **Adversary:** confirmed -- zero occurrences of permissions: in ci.yml, neither top-level nor per-job across all five jobs; GITHUB_TOKEN inherits repo-default scope on every push/PR.
-- **Remediation:** ci.yml (runs on push and pull_request, including a secret-detection job that curls+executes the gitleaks binary using github.token) has no permissions: block, so the workflow GITHUB_TOKEN takes the repository default, which may be read-write. Add a top-level permissions: contents: read and grant per-job elevations only where needed (mirroring deploy-cloudrun.yml, which already sets contents: read). Set the org/repo default workflow token to read-only.
+- **ID:** `LL-5ae3d7ca2c`  |  **ruleKey:** `ci-workflow-no-permissions-block`
+- **Current status:** see `audit-reports/FINDINGS.json`.
+- **Amended 2026-11-06:** this section was replaced with a pointer under rule 4 (Scot Wahlquist). The rest of this report is as generated on 2026-08-12.
 
 ### Audit system files (.claude/) are not in any finder scan scope (no self-audit)
 

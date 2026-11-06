@@ -12,7 +12,7 @@
 **Audited commit:** `070b5e614071aec8fd917fa4b4067f5412460614`  
 **Audited ref:** `compliance/scot-q3-makeup-run-20eb9dd6 (== origin/develop tip 070b5e61 at run start, 2026-10-31). PARTIAL COVERAGE: 0 of 6 finders complete, 0 of 18 live reads succeeded; details are in the private run record. Internal automated review by AI agents against our own checklists, not a third-party audit; it says what was examined, not that it passed, and open findings are counted separately. Standing limits: callers outside the repo; vendor internals; provider-side key revocation. Scot sign-off: pending. Excludes assistive-technology testing (tracked separately in the conformance report).`  
 **Run date:** 2026-10-31  
-**Page generated:** 2026-11-06T09:13:20Z
+**Page generated:** 2026-11-06T19:15:04Z
 
 ## Headline - live findings (open + awaiting verification)
 
@@ -286,7 +286,7 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-48db6d1596 |  | low | SOC2 | Compliance finding (details withheld until remediation is verified) | (attestation) |
 | LL-49001c885f |  | low |  | lib/arpa_to_json.rb has no reference anywhere in the tree | `lib/arpa_to_json.rb`:1 |
 | LL-4b2c3a2603 |  | low | WCAG | Profile edit avatar has no alt | `app/frontend/app/templates/user/edit.hbs`:145 |
-| LL-4c946973f0 |  | low |  | ember-cli-babel ^8.2.0 resolves an older @babel/runtime flagged moderate by npm audit; it also drives moderate flags on many shipped Ember packages by propagation; whether the helper reaches the browser output is unverified | `app/frontend/package.json`:57 |
+| LL-4c946973f0 |  | low |  | ember-cli-babel ^8.2.0 resolves an older @babel/runtime flagged moderate by npm audit; it also drives moderate flags on many shipped Ember packages by propagation | `app/frontend/package.json`:57 |
 | LL-4c9d0e52a0 |  | low |  | License list payload has no Ember consumer | `lib/json_api/license.rb`:8 |
 | LL-4d4e0167e6 |  | low | WCAG | Classic board background image has no alt | `app/frontend/app/templates/user/board-alt/index.hbs`:84 |
 | LL-5038e6834e |  | low | HIPAA, SOC2 | ai-endpoint-guard.sh is a lexical scan with a stated residual bypass tail: fully dynamic constant resolution, non-ENV credential reads, and injected clients are undetectable, so the control proves lexical absence rather than egress containment | `scripts/ai-endpoint-guard.sh`:548 |
