@@ -180,6 +180,38 @@ test.describe('offline launch from the offline app shell', () => {
     }
   });
 
+  // Added 2026-11-05 (review round 3). A web app opened from an iPad Home Screen reports
+  // navigator.standalone, and its sign-in used to be trusted without asking (like an installed app), so a
+  // shared classroom iPad kept the worker for everyone. It now asks, as a browser does. Chromium has no
+  // Home Screen mode, so the page reports standalone from the start (utils/capabilities.js reads it as
+  // `browserless`).
+  test('a Home Screen sign-in asks whether the device is shared, and a shared one gets no worker', async () => {
+    const context = await openProfile('standalone');
+    try {
+      await context.addInitScript(() => {
+        Object.defineProperty(Navigator.prototype, 'standalone', { get: () => true, configurable: true });
+      });
+      const page = context.pages()[0] || await context.newPage();
+      await page.goto('/login');
+      expect(await page.evaluate(() => navigator.standalone), 'the page reports a Home Screen launch').toBe(true);
+      await expect(page.locator('#identification')).toBeVisible({ timeout: 30_000 });
+      await page.locator('#identification').fill(USERS.modern.user);
+      await page.locator('#password').fill('password');
+      await page.locator('button.login-btn[type="submit"]').click();
+      const shared = page.locator('.login-device-buttons button.login-btn--device.login-btn--outline');
+      await expect(shared, 'the Trust / Shared question').toBeVisible({ timeout: 30_000 });
+      await shared.click();
+      await page.waitForFunction(() => !!(window.LingoLinq && window.LingoLinq.appState && window.LingoLinq.appState.get('sessionUser')),
+        null, { timeout: 60_000 });
+      await expect.poll(() => page.evaluate(() => window.LingoLinq.appState.get('sessionUser.preferences.device.long_token')),
+        { timeout: 30_000 }).toBe(false);
+      await page.waitForLoadState('networkidle');
+      expect(await workerState(page), 'no worker on a shared Home Screen device').toEqual({ registrations: [], caches: [] });
+    } finally {
+      await context.close();
+    }
+  });
+
   // #1213 (open): Modern view's board page does not read boards from the device, so offline it shows
   // its own "could not load" state. This proves the app boots offline in Modern view, not the board.
   test('Modern view boots offline and shows its board-unavailable state', async () => {
