@@ -12,7 +12,7 @@
 **Audited commit:** `070b5e614071aec8fd917fa4b4067f5412460614`  
 **Audited ref:** `compliance/scot-q3-makeup-run-20eb9dd6 (== origin/develop tip 070b5e61 at run start, 2026-10-31). PARTIAL COVERAGE: 0 of 6 finders complete, 0 of 18 live reads succeeded; details are in the private run record. Internal automated review by AI agents against our own checklists, not a third-party audit; it says what was examined, not that it passed, and open findings are counted separately. Standing limits: callers outside the repo; vendor internals; provider-side key revocation. Scot sign-off: pending. Excludes assistive-technology testing (tracked separately in the conformance report).`  
 **Run date:** 2026-10-31  
-**Page generated:** 2026-11-06T03:58:05Z
+**Page generated:** 2026-11-06T09:13:20Z
 
 ## Headline - live findings (open + awaiting verification)
 
@@ -27,7 +27,7 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 
 | ID | Legacy | Severity | Frameworks | Title | Evidence |
 |---|---|---|---|---|---|
-| LL-1baffd92d5 |  | critical | FERPA, COPPA, GDPR, SOC2 | Organization account-claim authorization weakness (details withheld until remediation is verified) | `app/controllers/api/organizations_controller.rb`:1 |
+| LL-1baffd92d5 |  | critical | FERPA, COPPA, GDPR, SOC2 | Compliance finding (details withheld until remediation is verified) | `app/controllers/api/organizations_controller.rb`:1 |
 | LL-ae4e34bce0 |  | critical | GDPR, FERPA, COPPA | Compliance finding (details withheld until remediation is verified) | `app/models/user.rb`:1 |
 | LL-06d36ffeeb |  | high | GDPR, FERPA, COPPA, HIPAA | Board translation writes raw user-authored label text into the global word_data dictionary, which has no user_id or organization_id: translated personal labels are served cross-account as cache hits and survive account erasure (GDPR Art. 5(1)(f)/17, FERPA, district data isolation) | `app/models/word_data.rb`:858 |
 | LL-09ac4107c4 |  | high | GDPR, COPPA, FERPA, HIPAA | Erasure completeness review: user profile extras | `app/models/user_extra.rb`:1 |
@@ -37,7 +37,7 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-135ee6ca59 |  | high | COPPA, GDPR, FERPA | User#ai_consent_granted? has no runtime caller, so the separate AI data-sharing consent promised to parents on the privacy page is never enforced by the AI feature gate | `lib/feature_flags.rb`:242 |
 | LL-159679db04 |  | high | WCAG | Signed-in account menu trigger overrides the global focus ring with no replacement | `app/frontend/app/styles/app.scss`:20169 |
 | LL-1672a7fadf |  | high | WCAG | Default speak-view grid exposes empty tiles as nameless role=button tab stops | `app/frontend/app/components/board-detail-grid.hbs`:124 |
-| LL-1f83f4e778 |  | high | FERPA, SOC2 | Lesson access-control defect, fixed in code; residual-access verification pending (details withheld) | `app/models/lesson.rb`:1 |
+| LL-1f83f4e778 |  | high | FERPA, SOC2 | Compliance finding (details withheld until remediation is verified) | `app/models/lesson.rb`:1 |
 | LL-1ff09d7f12 |  | high | WCAG | Ember app shell viewport meta disables pinch zoom | `app/frontend/app/index.html`:8 |
 | LL-20e90250ec |  | high | GDPR, COPPA, FERPA, HIPAA | Erasure completeness review: button images | `lib/flusher.rb`:1 |
 | LL-21d39970a6 |  | high | WCAG | Rails application layout viewport meta disables pinch zoom | `app/views/layouts/application.html.erb`:48 |
@@ -48,27 +48,27 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-53cb93fab1 |  | high | GDPR, FERPA | Terms-agree modal can be silently replaced by intro before the user agrees | `app/frontend/app/routes/index.js`:132 |
 | LL-5617f4e17d |  | high | SOC2, HIPAA, FERPA | No server-side password strength policy exists; the only minimum-length check is a 6-character Ember computed property, bypassable by a direct API call | `app/frontend/app/controllers/register.js`:217 |
 | LL-57bb9f1af4 |  | high | SOC2 | Webhook.find_record calls constantize on an unvalidated string, reachable during Lesson permission evaluation via a malformed usages entry, raising NameError inside show/update/assign/unassign | `app/models/webhook.rb`:206 |
-| LL-57fa21cfc2 |  | high | COPPA, FERPA | Under-13 offboarding: consent-pending state enforcement gap (decision pending; details withheld) | `app/models/user.rb`:1 |
-| LL-5d856983bf |  | high | SOC2 | Lesson URL handling lacks destination restrictions (details withheld until remediation is verified) | `app/models/lesson.rb`:1 |
+| LL-57fa21cfc2 |  | high | COPPA, FERPA | Compliance finding (details withheld until remediation is verified) | `app/models/user.rb`:1 |
+| LL-5d856983bf |  | high | SOC2 | Compliance finding (details withheld until remediation is verified) | `app/models/lesson.rb`:1 |
 | LL-5f0a016e2b |  | high | SOC2, HIPAA | Attested AI Governance Memo states the Bedrock runtime AI path is "not operational since" revision 00014-5rw; credentials were re-mounted 53 minutes later and the path carries user-attributed traffic | `docs/legal/AI_GOVERNANCE_MEMO.md`:499 |
 | LL-6af580a23a |  | high | SOC2, HIPAA, FERPA | A Redis RDB persistence snapshot was tracked in git and shipped in every production container image for ~6 months; removed from HEAD (2026-08-14) but the blob remains fully retrievable from public git history at ced829ba1 on both staging and main | (attestation) |
 | LL-705b10bcd7 |  | high | SOC2 | BoardDownstreamButtonSet S3 writes fail against KMS-encrypted bucket: 'Requests specifying Server Side Encryption with AWS KMS managed keys require AWS Signature Version 4' | (attestation) |
 | LL-7aa646ef87 |  | high | FERPA, GDPR, SOC2 | The branded Drive retention render DOC-52c8c33583 stays status published in customer bundles while recorded as known-inaccurate only in a free-text register note no consumer reads | `audit-reports/DOCUMENT-REGISTER.json`:2330 |
 | LL-7bf58a4c53 |  | high | WCAG | Classic (opt-in) speak-view chrome has several icon-only controls with no accessible name (sidebar collapse, edit pencil, speak-mode notification, level +/-), two of them silent to auditory scanning | `app/frontend/app/templates/application.hbs`:1559 |
-| LL-85b32935c2 |  | high | SOC2, FERPA, HIPAA | Device session token strength (details withheld until remediation is verified) | `app/models/device.rb`:1 |
+| LL-85b32935c2 |  | high | SOC2, FERPA, HIPAA | Compliance finding (details withheld until remediation is verified) | `app/models/device.rb`:1 |
 | LL-89b97af30f |  | high | SOC2 | Lesson usages permission grant lets a viewer self-grant edit: assign is gated on 'view', and assigning the lesson to one's own org adds a usages entry that the permission block then reads as an edit grant | `app/models/lesson.rb`:61 |
 | LL-90045bb29c |  | high | FERPA | User#user_token is a permanent, non-expiring credential serialized on login and embedded in navigable lesson/board share URLs | `lib/json_api/user.rb`:41 |
 | LL-933e61efd7 |  | high | GDPR, FERPA, COPPA | Five specific retention and deletion promises on the public privacy page have no implementing mechanism, and the scheduled jobs that would partially back them were not run by the production scheduler from 2026-07-21 to 2026-09-02 | `app/frontend/app/templates/privacy.hbs`:97 |
-| LL-9e145637b9 |  | high | GDPR | EU under-16 AI parental consent flow control weakness (details withheld until remediation is verified) | `app/controllers/eu_ai_parental_consents_controller.rb`:5 |
-| LL-a4b5fb1445 |  | high | FERPA, GDPR, SOC2 | Organization membership authorization weakness in supervisor-key processing (details withheld until remediation is verified) | `app/models/organization.rb`:1 |
+| LL-9e145637b9 |  | high | GDPR | Compliance finding (details withheld until remediation is verified) | `app/controllers/eu_ai_parental_consents_controller.rb`:5 |
+| LL-a4b5fb1445 |  | high | FERPA, GDPR, SOC2 | Compliance finding (details withheld until remediation is verified) | `app/models/organization.rb`:1 |
 | LL-a6be800a86 |  | high | COPPA, FERPA, GDPR | Compliance finding (details withheld until remediation is verified) | `lib/exporter.rb`:1 |
 | LL-a8351c5b00 |  | high | GDPR, HIPAA, FERPA | PiiScrubber log redaction never matches E.164 phone numbers and, contrary to its own docstring, fails the parenthesized form | `lib/pii_scrubber.rb`:37 |
 | LL-a95e9c5f7c |  | high | SOC2 | lingolinq-worker's 512Mi memory limit is too small for ButtonImage/BoardDownstreamButtonSet jobs, causing continuous OOM kills that land as Resque::Failure instead of being requeued | (attestation) |
 | LL-a9d6d5a46b |  | high | WCAG | AI disclosure full-notice link uses the low-contrast verdigris token for text on the near-white modal surface | `app/frontend/app/styles/app.scss`:38150 |
 | LL-b083d7b5c5 |  | high | GDPR, FERPA, HIPAA | Retention coverage review: API request records | `app/models/api_call.rb`:1 |
 | LL-bbf2a5404f |  | high | WCAG | App-shell account menu trigger has no accessible name on classic header routes | `app/frontend/app/templates/application.hbs`:1042 |
-| LL-c0b3d59f58 |  | high | SOC2, HIPAA, FERPA | Production GCP project least-privilege regression for human principals (details withheld until remediation is verified) | `scripts/gcp/phase1-setup.sh`:1 |
-| LL-c11cc12f66 |  | high | COPPA, FERPA | COPPA parental consent flow control weakness (details withheld until remediation is verified) | `app/controllers/parental_consents_controller.rb`:17 |
+| LL-c0b3d59f58 |  | high | SOC2, HIPAA, FERPA | Compliance finding (details withheld until remediation is verified) | `scripts/gcp/phase1-setup.sh`:1 |
+| LL-c11cc12f66 |  | high | COPPA, FERPA | Compliance finding (details withheld until remediation is verified) | `app/controllers/parental_consents_controller.rb`:17 |
 | LL-c740766308 |  | high | GDPR, COPPA, FERPA | Retention coverage review: telemetry events | `app/models/telemetry_event.rb`:1 |
 | LL-c7bbfa452a |  | high | COPPA, FERPA | School-authorized account creation skips the COPPA block entirely, so settings coppa is never written and the under-13 AI gate that reads it passes for exactly the accounts it was written to protect | `app/models/user.rb`:2423 |
 | LL-cb563da6ef |  | high | WCAG | Authenticated navbar account menu trigger has no accessible name | `app/frontend/app/components/app-navbar-authenticated-inner.hbs`:119 |
@@ -77,16 +77,16 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-d0d1ef011e |  | high | SOC2, HIPAA, FERPA | Compliance finding (details withheld until remediation is verified) | `app/models/concerns/passwords.rb`:1 |
 | LL-dbc950d96d |  | high | GDPR, COPPA, FERPA | Erasure completeness review: supervisor relationships | `app/models/supervisor_relationship.rb`:1 |
 | LL-e8614c103f |  | high | GDPR, FERPA, COPPA | PredictionEntry rows survive account deletion, retaining per-user AAC vocabulary sequences indefinitely | `app/models/prediction_entry.rb`:4 |
-| LL-e981aad7a6 |  | high | COPPA, FERPA | Supervisor-access consent routing for under-13 communicators (details withheld until remediation is verified) | `app/services/supervisor_consent_service.rb`:1 |
+| LL-e981aad7a6 |  | high | COPPA, FERPA | Compliance finding (details withheld until remediation is verified) | `app/services/supervisor_consent_service.rb`:1 |
 | LL-ed9316b6d9 |  | high | FERPA, COPPA, GDPR | Word-prediction selections are stored under device-global keys and synced to whichever account holds the token at flush time, so one communicator's vocabulary is written into another's server-side prediction profile | `app/frontend/app/utils/word_suggestions.js`:19 |
 | LL-f150e0e828 |  | high | COPPA, GDPR | District seat reclaim converts an under-13's account to a consumer trial with no parental re-consent or notice (COPPA) | `app/models/license.rb`:76 |
 | LL-013ae2595c |  | medium | FERPA, GDPR, SOC2 | Admin preview of a system-email template can render an override that will never apply to a delivered email | `app/models/organization.rb`:1222 |
-| LL-01b4c578db |  | medium | SOC2 | Production edge protection (WAF and rate limiting) not fully enforced (details withheld) | `scripts/gcp/phase5-frontend-lb.sh`:1 |
+| LL-01b4c578db |  | medium | SOC2 | Compliance finding (details withheld until remediation is verified) | `scripts/gcp/phase5-frontend-lb.sh`:1 |
 | LL-01cff88aeb |  | medium |  | indexeddbshim 6.1.0 declares sync-promise and websql as https GitHub branch refs, which the lockfile pins as git+ssh commit refs with no integrity hash, outside npm registry advisory tooling | `app/frontend/package-lock.json`:17721 |
 | LL-047959b17a |  | medium | FERPA, HIPAA, GDPR | System-email content overrides resolve from the enqueueing context host, never from the recipient or the recipient organization | `lib/system_email_templates.rb`:5 |
 | LL-073933c7a1 |  | medium | GDPR | Erasure completeness review: CRM contacts | `lib/external_tracker.rb`:1 |
 | LL-07f1869d92 |  | medium | GDPR, COPPA, FERPA | Subprocessor coverage review: subscription notification mail | `app/mailers/subscription_mailer.rb`:1 |
-| LL-09afedd3a5 |  | medium | SOC2 | Nonprod workload identity isolation between n8n and the staging and dev app (details withheld until remediation is verified) | (attestation) |
+| LL-09afedd3a5 |  | medium | SOC2 | Compliance finding (details withheld until remediation is verified) | (attestation) |
 | LL-0c6e931f47 |  | medium | WCAG | Sentence box (utterance bar) symbol chip images have no alt attribute | `app/frontend/app/templates/components/button-list.hbs`:21 |
 | LL-0d54bcb32c |  | medium | SOC2, HIPAA | Compliance finding (details withheld until remediation is verified) | `scripts/gcp/phase3-data-layer.sh`:1 |
 | LL-0def650c0a |  | medium | WCAG | Partner logo links have no accessible name | `app/frontend/app/templates/partners.hbs`:11 |
@@ -101,7 +101,7 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-1e7b568ef3 |  | medium | SOC2, HIPAA | Committed WIF provisioning script omits the assertion.ref branch lock the deploy pipeline names as a control, and reconciles (overwrites) the live provider on every re-run | `scripts/gcp/phase1-setup.sh`:329 |
 | LL-1e8abb7d59 |  | medium | SOC2, HIPAA, FERPA | Compliance finding (details withheld until remediation is verified) | `app/controllers/session_controller.rb`:1 |
 | LL-20703f4fa8 |  | medium | GDPR, HIPAA, FERPA | AiApiLog.error_message is assigned raw provider exception text into an unbounded column and is excluded from the before_validation scrub that covers the request and response summaries | `app/models/ai_api_log.rb`:90 |
-| LL-21541a9ab9 |  | medium | SOC2, FERPA, HIPAA | Infrastructure runbook storage-access guidance conflicts with the private-bucket model; live state unverified (details withheld) | `docs/INFRASTRUCTURE.md`:1 |
+| LL-21541a9ab9 |  | medium | SOC2, FERPA, HIPAA | Compliance finding (details withheld until remediation is verified) | `docs/INFRASTRUCTURE.md`:1 |
 | LL-21602ee4f4 |  | medium | WCAG | Edit Board Details intro-section remove button is svg-only with no accessible name | `app/frontend/app/components/edit-board-details.hbs`:193 |
 | LL-232129d521 |  | medium | SOC2 | The frontend lockfile has no integrity hash (and no resolved URL) for about half its packages, including libraries shipped in the browser bundle, and Docker and CI install with npm install rather than npm ci, so dependency bytes are not integrity-pinned at build time | `app/frontend/package-lock.json`:18731 |
 | LL-29cc341f8c |  | medium | SOC2 | Client caps the prediction sync queue at 200 entries while the server rejects batches over 100, so any queue above 100 fails permanently and is never drained | `app/frontend/app/utils/word_suggestions.js`:1263 |
@@ -113,7 +113,7 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-35e6b7a3d6 |  | medium | WCAG | Dashboard search overlay text input has no programmatic label (placeholder only) | `app/frontend/app/templates/components/dashboard/authenticated-view.hbs`:588 |
 | LL-3680066211 |  | medium |  | Rails is constrained to the 7.2 series, which the current Rails maintenance policy page no longer lists as a supported series | `Gemfile`:42 |
 | LL-37860cbcfa |  | medium | SOC2 | Compliance finding (details withheld until remediation is verified) | `.github/workflows/deploy-cloudrun.yml`:1 |
-| LL-3acc234519 |  | medium | SOC2, HIPAA | Cloud account security detection coverage (details withheld until remediation is verified) | (attestation) |
+| LL-3acc234519 |  | medium | SOC2, HIPAA | Compliance finding (details withheld until remediation is verified) | (attestation) |
 | LL-3bb2e2eaad |  | medium | GDPR, HIPAA | Retention coverage review: purge audit trail | `lib/flusher.rb`:1 |
 | LL-3cfa7fd806 |  | medium | WCAG | Board Ideas (button suggestions) back button is svg-only with no accessible name | `app/frontend/app/components/button-suggestions.hbs`:81 |
 | LL-40ab0aa041 |  | medium | WCAG | Batch Recording modal back buttons are svg-only with no accessible name | `app/frontend/app/components/batch-recording.hbs`:27 |
@@ -124,7 +124,7 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-4ac33ca014 |  | medium | WCAG | Remote modeling reactions are click-only images | `app/frontend/app/components/remote-model.hbs`:58 |
 | LL-4da528809e |  | medium | WCAG | Connected tool rows on profile edit are click-only list items | `app/frontend/app/templates/user/edit.hbs`:476 |
 | LL-4e945d5b97 |  | medium | SOC2 | Compliance finding (details withheld until remediation is verified) | `Dockerfile`:1 |
-| LL-4f3845b278 |  | medium | SOC2, HIPAA | Human cloud account least privilege (details withheld until remediation is verified) | (attestation) |
+| LL-4f3845b278 |  | medium | SOC2, HIPAA | Compliance finding (details withheld until remediation is verified) | (attestation) |
 | LL-5207160b7e |  | medium | WCAG | App content scroller is unfocusable when the Download page renders no links | `app/frontend/app/templates/application.hbs`:1591 |
 | LL-52ff2a9a79 |  | medium | SOC2 | CI security-scan job: the Brakeman and npm audit steps are advisory, and security-scan is not a required check on develop | `.github/workflows/ci.yml`:107 |
 | LL-549bbb6748 |  | medium |  | aggreement-terms template is not routed, rendered or opened as a modal | `app/frontend/app/templates/aggreement-terms.hbs`:2 |
@@ -162,7 +162,7 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-79e6e1b8af |  | medium | GDPR, FERPA | Access request coverage review: account export | `lib/exporter.rb`:1 |
 | LL-7ba0a698f4 |  | medium | GDPR, COPPA, FERPA | Erasure completeness review: deleted-board records | `app/models/deleted_board.rb`:1 |
 | LL-7d50b089c9 |  | medium |  | BoardVersion/UserVersion history payloads use raw PaperTrail `version.id` instead of the repo's `global_id` string convention | `lib/json_api/board_version.rb`:10 |
-| LL-83a5c576af |  | medium | SOC2, HIPAA | Production load balancer TLS policy does not match the attested in-transit encryption statement (details withheld) | `scripts/gcp/phase5-frontend-lb.sh`:1 |
+| LL-83a5c576af |  | medium | SOC2, HIPAA | Compliance finding (details withheld until remediation is verified) | `scripts/gcp/phase5-frontend-lb.sh`:1 |
 | LL-83b6476f45 |  | medium | GDPR, COPPA | Compliance finding (details withheld until remediation is verified) | `lib/compliance/digital_consent_age.rb`:3 |
 | LL-83f6a3864b |  | medium | WCAG | Shared BoundSelect dropdown renders role=listbox with no accessible name | `app/frontend/app/components/bound-select.hbs`:13 |
 | LL-84541b5ae1 |  | medium | WCAG | Map mark-center button is glyph-only | `app/frontend/app/components/map-with-geos.hbs`:6 |
@@ -172,16 +172,16 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-880939ce6c |  | medium | WCAG | Button settings image options toggle is caret-only | `app/frontend/app/components/button-settings.hbs`:367 |
 | LL-8959e1ddff |  | medium |  | expandable-card component has no invocation anywhere | `app/frontend/app/components/expandable-card.js`:4 |
 | LL-8990c53bad |  | medium | GDPR, COPPA | Erasure completeness review: AI focus word sets | `app/models/ai_focus_word_set.rb`:1 |
-| LL-8cd88540d2 |  | medium | SOC2, HIPAA | Object storage policy hardening (details withheld until remediation is verified) | (attestation) |
+| LL-8cd88540d2 |  | medium | SOC2, HIPAA | Compliance finding (details withheld until remediation is verified) | (attestation) |
 | LL-8f906ab30b |  | medium | GDPR | Compliance finding (details withheld until remediation is verified) | `app/models/utterance.rb`:1 |
 | LL-8fab55372e |  | medium | WCAG | Speak-bar remote-modeling (#reply_icon) button has no accessible name | `app/frontend/app/templates/application.hbs`:148 |
 | LL-92ae18cc4e |  | medium | FERPA, COPPA, HIPAA | Log hygiene review: anonymous log export job | `app/models/log_session.rb`:5 |
-| LL-93a8b5d481 |  | medium | SOC2, HIPAA | Cloud account configuration item (details withheld until remediation is verified) | (attestation) |
-| LL-94b76661ce |  | medium | SOC2 | Production alert coverage (details withheld until remediation is verified) | (attestation) |
+| LL-93a8b5d481 |  | medium | SOC2, HIPAA | Compliance finding (details withheld until remediation is verified) | (attestation) |
+| LL-94b76661ce |  | medium | SOC2 | Compliance finding (details withheld until remediation is verified) | (attestation) |
 | LL-959d76ecfc |  | medium | WCAG | Authenticated Home landing jumps from h1 straight to h3 with no h2 | `app/frontend/app/components/dashboard/authenticated-view.hbs`:187 |
 | LL-96f552d34d |  | medium |  | The entire onboarding setup wizard (controllers/setup.js, templates/setup.hbs, templates/setup-footer.hbs, and all 38 files under app/frontend/app/components/setup/) has had zero reachable UI entry point since routes/setup.js's 2026-08-15 blanket redirect -- broader and more current than the allowlist-based reasoning in LL-c95c637f00 | `app/frontend/app/controllers/setup.js`:30 |
 | LL-9bde8c01e6 |  | medium | WCAG | Communication profile answers are click-only divs | `app/frontend/app/templates/profile.hbs`:88 |
-| LL-9cea44263d |  | medium | SOC2, HIPAA | Cloud credential lifecycle management (details withheld until remediation is verified) | (attestation) |
+| LL-9cea44263d |  | medium | SOC2, HIPAA | Compliance finding (details withheld until remediation is verified) | (attestation) |
 | LL-a1061c1814 |  | medium | WCAG | Modern speak view Recent Phrases items speak on click but are not focusable or keyboard-operable | `app/frontend/app/templates/user/board-detail.hbs`:3611 |
 | LL-a167848115 |  | medium | GDPR, COPPA, FERPA | Text-to-speech posts raw user text to subprocessors absent from the register (Abair has no DPA; Google TTS flow unrowed) (GDPR Art. 28/44) | `lib/tts.rb`:30 |
 | LL-a68aaebeb5 |  | medium | WCAG | Board embed code input has no programmatic label | `app/frontend/app/components/share-board.hbs`:43 |
@@ -196,13 +196,13 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-b06f063f85 |  | medium | WCAG | Shared modal-dialog wrapper sets role=dialog/aria-modal but no accessible name | `app/frontend/app/templates/components/modal-dialog.hbs`:6 |
 | LL-b19ce17eaa |  | medium | WCAG | ModernSelect dropdown renders role=listbox with no accessible name | `app/frontend/app/components/modern-select.hbs`:14 |
 | LL-b3e3a0b99c |  | medium | GDPR, COPPA | Live AI consent disclosure asserts "EU AI Act Article 50 record-keeping" as the legal basis for the five-year AiApiLog retention window, to a data subject | `lib/lingo_linq/ai_consent_disclosures.rb`:139 |
-| LL-b485f73972 |  | medium | SOC2, HIPAA | Runtime service identity least privilege (details withheld until remediation is verified) | (attestation) |
+| LL-b485f73972 |  | medium | SOC2, HIPAA | Compliance finding (details withheld until remediation is verified) | (attestation) |
 | LL-b5ac82d846 |  | medium | GDPR, FERPA, COPPA, HIPAA | ButtonSound transcription hardcodes languageCode 'en', so a non-English communicator's voice recording is uploaded to Google Speech-to-Text and transcribed as English: personal voice data is processed for a purpose it cannot achieve (GDPR Art. 5(1)(c) minimisation, Art. 5(1)(d) accuracy) | `app/models/button_sound.rb`:64 |
 | LL-b5c30235d3 |  | medium | SOC2, HIPAA, FERPA | infra-auditor runtime/CLI evidence relies on instruction-only control against secret/PII leakage | `.claude/agents/infra-auditor.md`:31 |
 | LL-b8dc880839 |  | medium | WCAG | Goal delete link is trash-glyph only | `app/frontend/app/templates/goals/goal.hbs`:346 |
 | LL-baa7f32bfb |  | medium | WCAG | GIF result links have no name because their only image has empty alt | `app/frontend/app/components/gif.hbs`:69 |
 | LL-bb4dd56067 |  | medium |  | Compliance finding (details withheld until remediation is verified) | `lib/purchasing.rb`:1 |
-| LL-be0ffec98b |  | medium | GDPR, HIPAA, FERPA | Current draft retention schedule still states CRM removal, tombstones outside live tables and legal-hold enforcement that have no implementing code | `docs/legal/2026-09-22_data-retention.md`:140 |
+| LL-be0ffec98b |  | medium | GDPR, HIPAA, FERPA | Retention coverage review: draft retention schedule statements | `docs/legal/2026-09-22_data-retention.md`:1 |
 | LL-c1b9073225 |  | medium | GDPR, COPPA, FERPA | Subprocessor coverage review: image search and board names | `lib/uploader.rb`:1 |
 | LL-c4566fa37f |  | medium | GDPR, FERPA | Erasure completeness review: transcoded media | `lib/transcoder.rb`:1 |
 | LL-c667ec15e3 |  | medium | SOC2 | The read-only finders' PreToolUse write-blocker and PostToolUse examination logger are not attached when /audit-run spawns finders as team teammates, so commands the guard denies ran unblocked in this run | `.claude/skills/audit-run/SKILL.md`:71 |
@@ -228,7 +228,7 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-ed914bded3 |  | medium | WCAG | Raw low-contrast brand token used as text foreground (board-tile language pill) | `app/frontend/app/styles/app.scss`:193 |
 | LL-ee56fb6b86 |  | medium | HIPAA, GDPR | Retention coverage review: audit version history | `app/models/user.rb`:1 |
 | LL-ef1a7f776e |  | medium | WCAG | Device rename input has no label | `app/frontend/app/components/device-settings.hbs`:25 |
-| LL-f0df03d56f |  | medium | SOC2, HIPAA, FERPA | Database access audit depth (details withheld until remediation is verified) | `bin/audit_console`:1 |
+| LL-f0df03d56f |  | medium | SOC2, HIPAA, FERPA | Compliance finding (details withheld until remediation is verified) | `bin/audit_console`:1 |
 | LL-f171af92ff |  | medium | FERPA, HIPAA, COPPA | PredictionEntry stores AAC vocabulary content in plaintext columns without secure_serialize | `app/models/prediction_entry.rb`:3 |
 | LL-f29ce6ca22 |  | medium | GDPR | Attested AI Governance Memo states the Article 50 disclosure modal is "built and staged, gated OFF, not yet enabled for any user"; the production flag is in fact ENABLED via the default_enabled_features DB Setting | `docs/legal/AI_GOVERNANCE_MEMO.md`:261 |
 | LL-f2a8ee5715 |  | medium |  | indexeddbshim's optional Node-only sqlite3/websql polyfill chain resolves tar 4.4.19, flagged critical by npm audit (GHSA-23hp-3jrh-7fpw decompression DoS, plus multiple high path-traversal advisories); install-time only, not in the shipped browser bundle | `app/frontend/package-lock.json`:24755 |
@@ -246,7 +246,7 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-0196a680c5 |  | low |  | Ember UserGoal model declares scalar user_id/video_id/template_id attrs that JsonApi::Goal never emits as top-level keys | `app/frontend/app/models/goal.js`:19 |
 | LL-07321f3c25 |  | low |  | Shared paginate accepts per_page of 0 and negative offset or per_page without validation | `lib/json_api/json.rb`:24 |
 | LL-08b48b9fd0 |  | low | WCAG | User goals badge images have no alt | `app/frontend/app/templates/user/goals.hbs`:42 |
-| LL-10a0a884f7 |  | low | SOC2 | Production project residual resources (details withheld until remediation is verified) | (attestation) |
+| LL-10a0a884f7 |  | low | SOC2 | Compliance finding (details withheld until remediation is verified) | (attestation) |
 | LL-112b95e16f |  | low |  | lib/renamer.rb is a comments-only stub module with no callers | `lib/renamer.rb`:1 |
 | LL-1421732fb8 |  | low | HIPAA | Scheduler retention comment still cites a six-year HIPAA floor for AI logs that the AI log model records as retracted | `lib/tasks/scheduler.rake`:195 |
 | LL-15b1a82d2a |  | low |  | button-unbound template is self-documented as unused and has no references | `app/frontend/app/templates/button-unbound.hbs`:1 |
@@ -283,7 +283,7 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-45a875a37d |  | low | WCAG | Quick assessment tally steppers reference ids that do not exist | `app/frontend/app/components/quick-assessment.hbs`:43 |
 | LL-45bdcc73c9 |  | low | SOC2 | Developer key expiration policy is undecided; DeveloperKey records never age out (item 3) | `lib/flusher.rb`:48 |
 | LL-4774165eec |  | low | SOC2 | Compliance finding (details withheld until remediation is verified) | `.claude/hooks/audit-readonly-guard.sh`:1 |
-| LL-48db6d1596 |  | low | SOC2 | Object storage account-level guardrail (details withheld until remediation is verified) | (attestation) |
+| LL-48db6d1596 |  | low | SOC2 | Compliance finding (details withheld until remediation is verified) | (attestation) |
 | LL-49001c885f |  | low |  | lib/arpa_to_json.rb has no reference anywhere in the tree | `lib/arpa_to_json.rb`:1 |
 | LL-4b2c3a2603 |  | low | WCAG | Profile edit avatar has no alt | `app/frontend/app/templates/user/edit.hbs`:145 |
 | LL-4c946973f0 |  | low |  | ember-cli-babel ^8.2.0 resolves an older @babel/runtime flagged moderate by npm audit; it also drives moderate flags on many shipped Ember packages by propagation; whether the helper reaches the browser output is unverified | `app/frontend/package.json`:57 |
@@ -299,7 +299,7 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-5a173ce87f |  | low |  | Utterance Rails builder emits created_at but Ember model declares timestamp instead | `app/frontend/app/models/utterance.js`:15 |
 | LL-5a240e46f5 |  | low |  | setup/done.js + .hbs (a wizard completion screen) is orphaned: not in any setup page list, so unreachable even if the retired wizard is revived | `app/frontend/app/components/setup/done.js`:3 |
 | LL-5ad2cbcf67 |  | low |  | User#can_access_library? is a hard-coded false stub; current_sponsor, disable_feature and two other User methods have no callers | `app/models/user.rb`:174 |
-| LL-5ae3d7ca2c |  | low | SOC2 | ci.yml declares no top-level permissions block; GITHUB_TOKEN inherits repo-default scope for all jobs (incl. one running downloaded gitleaks) | `.github/workflows/ci.yml`:1 |
+| LL-5ae3d7ca2c |  | low | SOC2 | ci.yml declares no top-level permissions block; GITHUB_TOKEN inherits repo-default scope for all jobs | `.github/workflows/ci.yml`:1 |
 | LL-5b754f5f5e |  | low | WCAG | Account dropdown role=menu has no menuitem children | `app/frontend/app/components/app-navbar-authenticated-inner.hbs`:139 |
 | LL-5c3b2e5763 |  | low | WCAG | Preferences skin tone images have no alt | `app/frontend/app/templates/user/preferences.hbs`:157 |
 | LL-5d2436fce2 |  | low |  | Board model declares an Ember Data `images` hasMany relationship that the serializer always strips before it can populate | `app/frontend/app/models/board.js`:899 |
@@ -318,8 +318,8 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-6a2c266721 |  | low | WCAG | Trends goal and badge images have no alt | `app/frontend/app/templates/trends.hbs`:456 |
 | LL-6bf2ef4820 |  | low |  | Device.with_expired_system_version has no callers | `app/models/device.rb`:431 |
 | LL-73a83d62d3 |  | low |  | ember-auto-import ^2.8.1 build chain carries a critical handlebars advisory and high advisories (postcss, fast-uri, browserslist, babel systemjs plugin); build-time only | `app/frontend/package.json`:54 |
-| LL-73fe80395c |  | low | SOC2, HIPAA | Human cloud account credential hygiene (details withheld until remediation is verified) | (attestation) |
-| LL-74373e5cb9 |  | low | SOC2 | Nonprod project access and audit posture (details withheld until remediation is verified) | (attestation) |
+| LL-73fe80395c |  | low | SOC2, HIPAA | Compliance finding (details withheld until remediation is verified) | (attestation) |
+| LL-74373e5cb9 |  | low | SOC2 | Compliance finding (details withheld until remediation is verified) | (attestation) |
 | LL-78cf79dc5d |  | low |  | stylelint ^15.4.0 and sass tooling pull high advisories (nanoid, postcss, js-yaml, picomatch, source-map-js, immutable); lint and CSS build only | `app/frontend/package.json`:100 |
 | LL-7b6ebdf21d |  | low |  | VocalFlairKeyboardFolderRelinker.repair_existing! has no callers | `lib/vocal_flair_keyboard_folder_relinker.rb`:73 |
 | LL-7dab15afd3 |  | low | WCAG | New goal badge images have no alt | `app/frontend/app/components/new-goal.hbs`:50 |

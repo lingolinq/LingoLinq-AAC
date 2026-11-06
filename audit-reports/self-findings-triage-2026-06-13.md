@@ -16,7 +16,7 @@
 | LL-a2b45c2bcb (finder agent-memory cross-run state) | low | **Harden now** | Yes (instruction-only) |
 | LL-5f0f4f52f8 (audit system not self-audited) | low | **Harden now** (partial) | Yes (scope note); full meta-audit -> Phase 4 |
 | LL-b5c30235d3 (runtime/CLI evidence secret/PII leak) | medium | **Harden now** (instruction) + recommend mechanical check | Instruction applied; script check recommended for Scot |
-| LL-97f9001bb4 (guard denylist residual bypass) | low | **Defer** | No (rationale below) |
+| LL-97f9001bb4 (details withheld) | low | **Defer** | No (rationale below) |
 | LL-3483c28f3c (parallel-finder live-infra race) | low | **Defer to Phase 4** | No (rationale below) |
 
 ## Per-finding detail
@@ -59,18 +59,10 @@
   **Tracked on the compliance calendar as `gov-secret-rejector-build` (nextDue 2026-09-01).**
   Until built, the instruction is the control. Stays `open`.
 
-### LL-97f9001bb4 - audit Bash guard is a denylist with residual fetch-and-exec bypass (low) -> DEFER
-- **Why defer:** the **primary** read-only guarantee for finders is the `tools: Read, Grep,
-  Glob, Bash` allowlist (no Edit/Write at all). The Bash denylist in `audit-readonly-guard.sh`
-  is defense-in-depth; a determined novel obfuscation can still slip a write through it, but the
-  finder has no write tools and the guard already blocks pipe-to-shell/eval. A true fix
-  (allowlist-based command filter or a sandboxed finder shell) is a meaningful build, not a
-  Phase 3 governance task.
-- **Note for the record:** the new `compliance-officer-write-scope.sh` guard added this phase
-  shares the same denylist limitation on its Bash branch, but the officer's **primary** control
-  is an allowlist (writes permitted only under `audit-reports/` and `docs/legal/`), which is
-  stronger than the finder Bash denylist. So this phase did not widen the residual-bypass
-  exposure. Stays `open`; revisit with a sandbox/allowlist effort if SOC 2 evidence demands it.
+### LL-97f9001bb4 (low) -> DEFER
+
+- Details withheld under the security disclosure policy; the decision and rationale are in `audit-reports/FINDINGS.json` and the private run record.
+- **Amended 2026-11-06:** this section was replaced with a pointer (Scot Wahlquist). The rest of this document is as written on 2026-06-13.
 
 ### LL-3483c28f3c - parallel finders read live infra without synchronization (low) -> DEFER to Phase 4
 - **Why defer:** the fix ("snapshot live infra once in the orchestrator and pass it to

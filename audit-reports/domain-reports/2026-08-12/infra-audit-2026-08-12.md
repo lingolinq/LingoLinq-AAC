@@ -84,13 +84,11 @@
 - **Current status:** see `audit-reports/FINDINGS.json`.
 - **Amended 2026-11-05:** this section was replaced with a pointer under the security disclosure policy (Scot Wahlquist). The rest of this report is as generated on 2026-08-12.
 
-### CI security-scan job (Brakeman SAST, bundle-audit, npm audit, gitleaks) is entirely non-blocking
+### CI security-scan job: the Brakeman and npm audit steps are advisory, and security-scan is not a required check on develop
 
-- **ID:** `LL-52ff2a9a79`  |  **ruleKey:** `ci-security-gates-non-blocking`  |  **confidence:** high
-- **Location:** `.github/workflows/ci.yml`:107
-- **Frameworks:** SOC2
-- **First seen:** 2026-06-14  |  **Last seen:** 2026-06-14  |  **Disposition:** accepted
-- **Remediation:** The whole security-scan job is continue-on-error: true (ci.yml:107), and every tool inside also soft-passes (Brakeman '|| true', npm audit '|| true', gitleaks '--exit-code 1 || true'). SAST, dependency-CVE, and secret-detection can never fail a PR, so a regression or a committed secret merges green. Make at least gitleaks secret-detection and high-severity bundle-audit/Brakeman blocking on PRs to staging/main; pair with branch protection requiring the gate.
+- **ID:** `LL-52ff2a9a79`  |  **ruleKey:** `ci-security-gates-non-blocking`
+- **Current status:** see `audit-reports/FINDINGS.json`.
+- **Amended 2026-11-06:** this section was replaced with a pointer after Scot re-scoped the row on 2026-11-05 (Scot Wahlquist). The rest of this report is as generated on 2026-08-12.
 
 ### Compliance finding (details withheld until remediation is verified)
 

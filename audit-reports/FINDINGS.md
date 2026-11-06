@@ -13,12 +13,12 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
-| LL-1baffd92d5 |  | critical | FERPA, COPPA, GDPR, SOC2 | untriaged | pr-review | Organization account-claim authorization weakness (details withheld until remediation is verified) | `app/controllers/api/organizations_controller.rb`:1 |
+| LL-1baffd92d5 |  | critical | FERPA, COPPA, GDPR, SOC2 | untriaged | pr-review | Compliance finding (details withheld until remediation is verified) | `app/controllers/api/organizations_controller.rb`:1 |
 | LL-ae4e34bce0 |  | critical | GDPR, FERPA, COPPA | untriaged | audit-run | Compliance finding (details withheld until remediation is verified) | `app/models/user.rb`:1 |
 | LL-104bfa61dc |  | high | WCAG | untriaged | audit-run | Terms-agree modal is unreachable by switch scanning (no .modal_targets / .btn, opened without scannable) | `app/frontend/app/components/terms-agree.hbs`:27 |
 | LL-53cb93fab1 |  | high | GDPR, FERPA | untriaged | audit-run | Terms-agree modal can be silently replaced by intro before the user agrees | `app/frontend/app/routes/index.js`:132 |
 | LL-e8614c103f |  | high | GDPR, FERPA, COPPA | untriaged | audit-run | PredictionEntry rows survive account deletion, retaining per-user AAC vocabulary sequences indefinitely | `app/models/prediction_entry.rb`:4 |
-| LL-c0b3d59f58 |  | high | SOC2, HIPAA, FERPA | **accepted** ⚠regression | audit-run | Production GCP project least-privilege regression for human principals (details withheld until remediation is verified) | `scripts/gcp/phase1-setup.sh`:1 |
+| LL-c0b3d59f58 |  | high | SOC2, HIPAA, FERPA | **accepted** ⚠regression | audit-run | Compliance finding (details withheld until remediation is verified) | `scripts/gcp/phase1-setup.sh`:1 |
 | LL-0b5443f43b |  | high | SOC2, HIPAA | untriaged | audit-run | Compliance finding (details withheld until remediation is verified) | `scripts/gcp/phase5-frontend-lb.sh`:1 |
 | LL-5617f4e17d |  | high | SOC2, HIPAA, FERPA | untriaged | audit-run | No server-side password strength policy exists; the only minimum-length check is a 6-character Ember computed property, bypassable by a direct API call | `app/frontend/app/controllers/register.js`:217 |
 | LL-5f0a016e2b |  | high | SOC2, HIPAA | untriaged | audit-run | Attested AI Governance Memo states the Bedrock runtime AI path is "not operational since" revision 00014-5rw; credentials were re-mounted 53 minutes later and the path carries user-attributed traffic | `docs/legal/AI_GOVERNANCE_MEMO.md`:499 |
@@ -35,17 +35,17 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-a8351c5b00 |  | high | GDPR, HIPAA, FERPA | untriaged | pr-review | PiiScrubber log redaction never matches E.164 phone numbers and, contrary to its own docstring, fails the parenthesized form | `lib/pii_scrubber.rb`:37 |
 | LL-cb9f9c865a |  | high | GDPR, HIPAA, FERPA | untriaged | pr-review | Compliance finding (details withheld until remediation is verified) | `lib/flusher.rb`:1 |
 | LL-89b97af30f |  | high | SOC2 | untriaged | pr-review | Lesson usages permission grant lets a viewer self-grant edit: assign is gated on 'view', and assigning the lesson to one's own org adds a usages entry that the permission block then reads as an edit grant | `app/models/lesson.rb`:61 |
-| LL-5d856983bf |  | high | SOC2 | untriaged | pr-review | Lesson URL handling lacks destination restrictions (details withheld until remediation is verified) | `app/models/lesson.rb`:1 |
+| LL-5d856983bf |  | high | SOC2 | untriaged | pr-review | Compliance finding (details withheld until remediation is verified) | `app/models/lesson.rb`:1 |
 | LL-57bb9f1af4 |  | high | SOC2 | untriaged | pr-review | Webhook.find_record calls constantize on an unvalidated string, reachable during Lesson permission evaluation via a malformed usages entry, raising NameError inside show/update/assign/unassign | `app/models/webhook.rb`:206 |
-| LL-c11cc12f66 |  | high | COPPA, FERPA | untriaged | audit-run | COPPA parental consent flow control weakness (details withheld until remediation is verified) | `app/controllers/parental_consents_controller.rb`:17 |
-| LL-9e145637b9 |  | high | GDPR | untriaged | audit-run | EU under-16 AI parental consent flow control weakness (details withheld until remediation is verified) | `app/controllers/eu_ai_parental_consents_controller.rb`:5 |
-| LL-57fa21cfc2 |  | high | COPPA, FERPA | untriaged | audit-run | Under-13 offboarding: consent-pending state enforcement gap (decision pending; details withheld) | `app/models/user.rb`:1 |
-| LL-e981aad7a6 |  | high | COPPA, FERPA | untriaged | audit-run | Supervisor-access consent routing for under-13 communicators (details withheld until remediation is verified) | `app/services/supervisor_consent_service.rb`:1 |
+| LL-c11cc12f66 |  | high | COPPA, FERPA | untriaged | audit-run | Compliance finding (details withheld until remediation is verified) | `app/controllers/parental_consents_controller.rb`:17 |
+| LL-9e145637b9 |  | high | GDPR | untriaged | audit-run | Compliance finding (details withheld until remediation is verified) | `app/controllers/eu_ai_parental_consents_controller.rb`:5 |
+| LL-57fa21cfc2 |  | high | COPPA, FERPA | untriaged | audit-run | Compliance finding (details withheld until remediation is verified) | `app/models/user.rb`:1 |
+| LL-e981aad7a6 |  | high | COPPA, FERPA | untriaged | audit-run | Compliance finding (details withheld until remediation is verified) | `app/services/supervisor_consent_service.rb`:1 |
 | LL-dbc950d96d |  | high | GDPR, COPPA, FERPA | untriaged | audit-run | Erasure completeness review: supervisor relationships | `app/models/supervisor_relationship.rb`:1 |
-| LL-85b32935c2 |  | high | SOC2, FERPA, HIPAA | untriaged | audit-run | Device session token strength (details withheld until remediation is verified) | `app/models/device.rb`:1 |
+| LL-85b32935c2 |  | high | SOC2, FERPA, HIPAA | untriaged | audit-run | Compliance finding (details withheld until remediation is verified) | `app/models/device.rb`:1 |
 | LL-7bf58a4c53 |  | high | WCAG | untriaged | audit-run | Classic (opt-in) speak-view chrome has several icon-only controls with no accessible name (sidebar collapse, edit pencil, speak-mode notification, level +/-), two of them silent to auditory scanning | `app/frontend/app/templates/application.hbs`:1559 |
-| LL-a4b5fb1445 |  | high | FERPA, GDPR, SOC2 | untriaged | manual | Organization membership authorization weakness in supervisor-key processing (details withheld until remediation is verified) | `app/models/organization.rb`:1 |
-| LL-1f83f4e778 |  | high | FERPA, SOC2 | untriaged | manual | Lesson access-control defect, fixed in code; residual-access verification pending (details withheld) | `app/models/lesson.rb`:1 |
+| LL-a4b5fb1445 |  | high | FERPA, GDPR, SOC2 | untriaged | manual | Compliance finding (details withheld until remediation is verified) | `app/models/organization.rb`:1 |
+| LL-1f83f4e778 |  | high | FERPA, SOC2 | untriaged | manual | Compliance finding (details withheld until remediation is verified) | `app/models/lesson.rb`:1 |
 | LL-cbc8bc4211 |  | high | GDPR, FERPA, HIPAA, COPPA, SOC2 | untriaged | manual | Impact of the 2026-07-21 to 2026-09-02 production scheduler-dispatch interruption is unassessed: what accumulated in the window, which data subjects were affected, and what residual retention and deletion work remains | `lib/tasks/scheduler.rake`:157 |
 | LL-7aa646ef87 |  | high | FERPA, GDPR, SOC2 | untriaged | pr-review | The branded Drive retention render DOC-52c8c33583 stays status published in customer bundles while recorded as known-inaccurate only in a free-text register note no consumer reads | `audit-reports/DOCUMENT-REGISTER.json`:2330 |
 | LL-20e90250ec |  | high | GDPR, COPPA, FERPA, HIPAA | untriaged | audit-run | Erasure completeness review: button images | `lib/flusher.rb`:1 |
@@ -129,10 +129,10 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-29cc341f8c |  | medium | SOC2 | untriaged | audit-run | Client caps the prediction sync queue at 200 entries while the server rejects batches over 100, so any queue above 100 fails permanently and is never drained | `app/frontend/app/utils/word_suggestions.js`:1263 |
 | LL-b5ac82d846 |  | medium | GDPR, FERPA, COPPA, HIPAA | untriaged | manual | ButtonSound transcription hardcodes languageCode 'en', so a non-English communicator's voice recording is uploaded to Google Speech-to-Text and transcribed as English: personal voice data is processed for a purpose it cannot achieve (GDPR Art. 5(1)(c) minimisation, Art. 5(1)(d) accuracy) | `app/models/button_sound.rb`:64 |
 | LL-c667ec15e3 |  | medium | SOC2 | untriaged | audit-run | The read-only finders' PreToolUse write-blocker and PostToolUse examination logger are not attached when /audit-run spawns finders as team teammates, so commands the guard denies ran unblocked in this run | `.claude/skills/audit-run/SKILL.md`:71 |
-| LL-01b4c578db |  | medium | SOC2 | untriaged | audit-run | Production edge protection (WAF and rate limiting) not fully enforced (details withheld) | `scripts/gcp/phase5-frontend-lb.sh`:1 |
-| LL-83a5c576af |  | medium | SOC2, HIPAA | untriaged | audit-run | Production load balancer TLS policy does not match the attested in-transit encryption statement (details withheld) | `scripts/gcp/phase5-frontend-lb.sh`:1 |
-| LL-09afedd3a5 |  | medium | SOC2 | untriaged | audit-run | Nonprod workload identity isolation between n8n and the staging and dev app (details withheld until remediation is verified) | (attestation) |
-| LL-21541a9ab9 |  | medium | SOC2, FERPA, HIPAA | untriaged | audit-run | Infrastructure runbook storage-access guidance conflicts with the private-bucket model; live state unverified (details withheld) | `docs/INFRASTRUCTURE.md`:1 |
+| LL-01b4c578db |  | medium | SOC2 | untriaged | audit-run | Compliance finding (details withheld until remediation is verified) | `scripts/gcp/phase5-frontend-lb.sh`:1 |
+| LL-83a5c576af |  | medium | SOC2, HIPAA | untriaged | audit-run | Compliance finding (details withheld until remediation is verified) | `scripts/gcp/phase5-frontend-lb.sh`:1 |
+| LL-09afedd3a5 |  | medium | SOC2 | untriaged | audit-run | Compliance finding (details withheld until remediation is verified) | (attestation) |
+| LL-21541a9ab9 |  | medium | SOC2, FERPA, HIPAA | untriaged | audit-run | Compliance finding (details withheld until remediation is verified) | `docs/INFRASTRUCTURE.md`:1 |
 | LL-f2a8ee5715 |  | medium |  | untriaged | audit-run | indexeddbshim's optional Node-only sqlite3/websql polyfill chain resolves tar 4.4.19, flagged critical by npm audit (GHSA-23hp-3jrh-7fpw decompression DoS, plus multiple high path-traversal advisories); install-time only, not in the shipped browser bundle | `app/frontend/package-lock.json`:24755 |
 | LL-01cff88aeb |  | medium |  | untriaged | audit-run | indexeddbshim 6.1.0 declares sync-promise and websql as https GitHub branch refs, which the lockfile pins as git+ssh commit refs with no integrity hash, outside npm registry advisory tooling | `app/frontend/package-lock.json`:17721 |
 | LL-e2301adc02 |  | medium | WCAG | untriaged | audit-run | Classic speak view word-prediction symbol images have no alt attribute | `app/frontend/app/templates/user/board-alt/index.hbs`:59 |
@@ -164,16 +164,16 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-f739052ec1 |  | medium | GDPR, FERPA, HIPAA, COPPA | untriaged | audit-run | Log hygiene review: text-to-speech requests | `app/controllers/api/search_controller.rb`:1 |
 | LL-c1b9073225 |  | medium | GDPR, COPPA, FERPA | untriaged | audit-run | Subprocessor coverage review: image search and board names | `lib/uploader.rb`:1 |
 | LL-fb194f479b |  | medium | GDPR, COPPA | untriaged | audit-run | Subprocessor coverage review: registration notification mail | `app/mailers/user_mailer.rb`:1 |
-| LL-be0ffec98b |  | medium | GDPR, HIPAA, FERPA | untriaged | audit-run | Current draft retention schedule still states CRM removal, tombstones outside live tables and legal-hold enforcement that have no implementing code | `docs/legal/2026-09-22_data-retention.md`:140 |
-| LL-4f3845b278 |  | medium | SOC2, HIPAA | untriaged | audit-run | Human cloud account least privilege (details withheld until remediation is verified) | (attestation) |
-| LL-9cea44263d |  | medium | SOC2, HIPAA | untriaged | audit-run | Cloud credential lifecycle management (details withheld until remediation is verified) | (attestation) |
-| LL-3acc234519 |  | medium | SOC2, HIPAA | untriaged | audit-run | Cloud account security detection coverage (details withheld until remediation is verified) | (attestation) |
-| LL-8cd88540d2 |  | medium | SOC2, HIPAA | untriaged | audit-run | Object storage policy hardening (details withheld until remediation is verified) | (attestation) |
-| LL-93a8b5d481 |  | medium | SOC2, HIPAA | untriaged | audit-run | Cloud account configuration item (details withheld until remediation is verified) | (attestation) |
+| LL-be0ffec98b |  | medium | GDPR, HIPAA, FERPA | untriaged | audit-run | Retention coverage review: draft retention schedule statements | `docs/legal/2026-09-22_data-retention.md`:1 |
+| LL-4f3845b278 |  | medium | SOC2, HIPAA | untriaged | audit-run | Compliance finding (details withheld until remediation is verified) | (attestation) |
+| LL-9cea44263d |  | medium | SOC2, HIPAA | untriaged | audit-run | Compliance finding (details withheld until remediation is verified) | (attestation) |
+| LL-3acc234519 |  | medium | SOC2, HIPAA | untriaged | audit-run | Compliance finding (details withheld until remediation is verified) | (attestation) |
+| LL-8cd88540d2 |  | medium | SOC2, HIPAA | untriaged | audit-run | Compliance finding (details withheld until remediation is verified) | (attestation) |
+| LL-93a8b5d481 |  | medium | SOC2, HIPAA | untriaged | audit-run | Compliance finding (details withheld until remediation is verified) | (attestation) |
 | LL-6a072010c3 |  | medium | SOC2, HIPAA | untriaged | audit-run | No recovery point objective is set and no restore exercise of the production Cloud SQL backups is recorded | `docs/legal/2026-09-22_data-retention.md`:125 |
-| LL-f0df03d56f |  | medium | SOC2, HIPAA, FERPA | untriaged | audit-run | Database access audit depth (details withheld until remediation is verified) | `bin/audit_console`:1 |
-| LL-94b76661ce |  | medium | SOC2 | untriaged | audit-run | Production alert coverage (details withheld until remediation is verified) | (attestation) |
-| LL-b485f73972 |  | medium | SOC2, HIPAA | untriaged | audit-run | Runtime service identity least privilege (details withheld until remediation is verified) | (attestation) |
+| LL-f0df03d56f |  | medium | SOC2, HIPAA, FERPA | untriaged | audit-run | Compliance finding (details withheld until remediation is verified) | `bin/audit_console`:1 |
+| LL-94b76661ce |  | medium | SOC2 | untriaged | audit-run | Compliance finding (details withheld until remediation is verified) | (attestation) |
+| LL-b485f73972 |  | medium | SOC2, HIPAA | untriaged | audit-run | Compliance finding (details withheld until remediation is verified) | (attestation) |
 | LL-4e945d5b97 |  | medium | SOC2 | untriaged | audit-run | Compliance finding (details withheld until remediation is verified) | `Dockerfile`:1 |
 | LL-786b701377 |  | medium |  | untriaged | audit-run | Paginated lists without paginate_meta build next_url with only offset and per_page, dropping the request's filters; board prefetch follows it | `lib/json_api/json.rb`:57 |
 | LL-2e45d9b9d4 |  | medium |  | untriaged | audit-run | Beta feedback list passes a prefix that already includes /api/v1, so meta.prefix and next_url repeat the namespace | `app/controllers/api/beta_feedback_controller.rb`:13 |
@@ -236,7 +236,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-de9c94bf36 |  | low | GDPR | untriaged | audit-run | Org retention policy purges a sponsored user's entire log history, including logs outside that org's context | `lib/data_policy_enforcer.rb`:31 |
 | LL-d8072299bf |  | low | GDPR, COPPA | untriaged | audit-run | Retention coverage review: accounts without an organization | `lib/data_policy_enforcer.rb`:1 |
 | LL-c226391436 |  | low | SOC2 | untriaged | audit-run | Compliance finding (details withheld until remediation is verified) | `config/initializers/content_security_policy.rb`:1 |
-| LL-5ae3d7ca2c |  | low | SOC2 | untriaged | audit-run | ci.yml declares no top-level permissions block; GITHUB_TOKEN inherits repo-default scope for all jobs (incl. one running downloaded gitleaks) | `.github/workflows/ci.yml`:1 |
+| LL-5ae3d7ca2c |  | low | SOC2 | untriaged | audit-run | ci.yml declares no top-level permissions block; GITHUB_TOKEN inherits repo-default scope for all jobs | `.github/workflows/ci.yml`:1 |
 | LL-cbaf7afddd |  | low |  | untriaged | audit-run | Ember LogSession model declares scalar user_id/video_id/goal_id/notify attrs that JsonApi::Log never emits as top-level keys | `app/frontend/app/models/log.js`:34 |
 | LL-0196a680c5 |  | low |  | untriaged | audit-run | Ember UserGoal model declares scalar user_id/video_id/template_id attrs that JsonApi::Goal never emits as top-level keys | `app/frontend/app/models/goal.js`:19 |
 | LL-5e7676187f |  | low |  | untriaged | audit-run | indexeddbshim is pinned to a stale major (^6.1.0, ~10 majors behind latest 16.1.0) in the production bundle | `app/frontend/package.json`:70 |
@@ -272,11 +272,11 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-43bb17f103 |  | low | GDPR, COPPA | untriaged | audit-run | Daily erasure and retention tasks run only in one exact hour with no catch-up, so a missed run skips them until the next day | `lib/tasks/scheduler.rake`:140 |
 | LL-400e2d393f |  | low | GDPR, HIPAA | untriaged | audit-run | Log hygiene review: scheduler error output | `lib/tasks/scheduler.rake`:9 |
 | LL-1421732fb8 |  | low | HIPAA | untriaged | audit-run | Scheduler retention comment still cites a six-year HIPAA floor for AI logs that the AI log model records as retracted | `lib/tasks/scheduler.rake`:195 |
-| LL-73fe80395c |  | low | SOC2, HIPAA | untriaged | audit-run | Human cloud account credential hygiene (details withheld until remediation is verified) | (attestation) |
-| LL-48db6d1596 |  | low | SOC2 | untriaged | audit-run | Object storage account-level guardrail (details withheld until remediation is verified) | (attestation) |
+| LL-73fe80395c |  | low | SOC2, HIPAA | untriaged | audit-run | Compliance finding (details withheld until remediation is verified) | (attestation) |
+| LL-48db6d1596 |  | low | SOC2 | untriaged | audit-run | Compliance finding (details withheld until remediation is verified) | (attestation) |
 | LL-86be748338 |  | low | SOC2, HIPAA | untriaged | audit-run | Retention schedule has no row for infrastructure logs | `docs/legal/2026-09-22_data-retention.md`:98 |
-| LL-74373e5cb9 |  | low | SOC2 | untriaged | audit-run | Nonprod project access and audit posture (details withheld until remediation is verified) | (attestation) |
-| LL-10a0a884f7 |  | low | SOC2 | untriaged | audit-run | Production project residual resources (details withheld until remediation is verified) | (attestation) |
+| LL-74373e5cb9 |  | low | SOC2 | untriaged | audit-run | Compliance finding (details withheld until remediation is verified) | (attestation) |
+| LL-10a0a884f7 |  | low | SOC2 | untriaged | audit-run | Compliance finding (details withheld until remediation is verified) | (attestation) |
 | LL-4774165eec |  | low | SOC2 | untriaged | audit-run | Compliance finding (details withheld until remediation is verified) | `.claude/hooks/audit-readonly-guard.sh`:1 |
 | LL-07321f3c25 |  | low |  | untriaged | audit-run | Shared paginate accepts per_page of 0 and negative offset or per_page without validation | `lib/json_api/json.rb`:24 |
 | LL-abbc73af47 |  | low |  | untriaged | audit-run | allowed? answers authorization failures with HTTP 400 while other endpoints use 403 and 401 | `app/controllers/application_controller.rb`:309 |
