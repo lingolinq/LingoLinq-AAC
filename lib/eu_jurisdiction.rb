@@ -64,22 +64,26 @@ module EuJurisdiction
 
   # EU AI Act Article 50 RETENTION stamp for AiApiLog.jurisdiction. Deliberately the
   # OPPOSITE fail-safe direction from disclosure_required?: only a CONFIRMED :eu user is
-  # stamped 'EU', because this column drives AiApiLog.purge_old_eu_logs! (5yr delete) and
-  # those rows double as a HIPAA six-year audit trail (45 CFR 164.316(b)(2),
-  # ai_api_log.rb:236-239). Stamping an unsure user 'EU' would delete HIPAA-covered
-  # records a year INSIDE the six-year floor, so both :non_eu AND :unknown map to nil.
-  # :unknown users still get the disclosure MODAL (disclosure_required? stays true for
-  # them); they simply are not marked for early deletion. D-01 (load-bearing).
+  # stamped 'EU', because this column drives AiApiLog.purge_old_eu_logs! (5yr delete).
+  # Those rows also sit inside the disclosed up-to-6-years window for healthcare-linked
+  # accounts (the earlier "45 CFR 164.316(b)(2) six-year floor" framing was retracted
+  # 2026-08-30, #888; see ai_api_log.rb purge_old_eu_logs!). Stamping an unsure user
+  # 'EU' would delete healthcare-linked records a year inside that disclosed window,
+  # so both :non_eu AND :unknown map to nil. :unknown users still get the disclosure
+  # MODAL (disclosure_required? stays true for them); they simply are not marked for
+  # early deletion. D-01 (load-bearing).
   #
   # Do NOT reference disclosure_required? here: the disclosure gate and the retention gate
   # are intentionally decoupled and fail safe in OPPOSITE directions.
   #
   # ASSUMPTION the resolver leans on (adversary L1): a confirmed :eu user who is ALSO
-  # HIPAA-covered would, once purge_old_eu_logs! is scheduled, be deleted at 5yr -- inside
-  # the six-year floor -- because this resolver stamps them 'EU'. Phase 4 does NOT resolve
-  # that; the mutual-exclusivity (EU-school vs US-hospital) is an ASSUMPTION not enforced
-  # here. Phase 5 RET-01's tiered purge owns the carve-out (it excludes HIPAA-covered rows
-  # before deleting EU rows; see CONTEXT Deferred Ideas).
+  # healthcare-linked would, once purge_old_eu_logs! is scheduled, be deleted at 5yr --
+  # inside the disclosed up-to-6-years window -- because this resolver stamps them 'EU'.
+  # Phase 4 does NOT resolve that; the mutual-exclusivity (EU-school vs US-hospital) is
+  # an ASSUMPTION not enforced here. Phase 5 RET-01's tiered purge owns the carve-out
+  # (it excludes healthcare-linked rows before deleting EU rows; see CONTEXT Deferred
+  # Ideas). The five-year EU window and the six-year healthcare window are both under
+  # counsel review.
   def retention_stamp(user)
     status(user) == :eu ? 'EU' : nil
   end

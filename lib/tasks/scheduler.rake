@@ -191,8 +191,10 @@ task "scheduler:dispatch" => :environment do
     # AiApiLog tiered retention (reconciled with docs/legal/DATA_RETENTION.md and
     # docs/legal/AI_DATA_FLOW_CLASSIFICATION.md section 6; keep these three surfaces
     # identical). Windows: 24 months general, 12 months rolling children (under-13),
-    # up to 5 years EU-jurisdiction, up to 6 years HIPAA hard floor
-    # (45 CFR 164.316(b)(2)). NOT a flat 24-month purge.
+    # up to 5 years EU-jurisdiction, up to 6 years for healthcare-linked accounts
+    # (disclosed window; the earlier "45 CFR 164.316(b)(2) six-year floor" framing
+    # was retracted 2026-08-30, #888). NOT a flat 24-month purge. Both windows are
+    # under counsel review.
     #
     # WIRED here today (per-item status below; the EU purge currently matches zero rows):
     #   - EU 5-year purge (purge_old_eu_ai_api_logs below): scans jurisdiction = 'EU'
@@ -218,10 +220,11 @@ task "scheduler:dispatch" => :environment do
     # DECIDED, NOT YET ENFORCED (no task here on purpose): the 24-month general and
     # 12-month children tiers. ai_api_logs carries no per-row child-subject or
     # HIPAA-covered marker (only jurisdiction / user_global_id / organization_global_id),
-    # so a purge that safely carves out the 6-year HIPAA audit floor and the 12-month
-    # children tier cannot be written without first stamping those classes at write
-    # time (a schema + call-site change). A blanket 24-month delete is deliberately NOT
-    # shipped because it would destroy HIPAA audit-floor rows early. Tracked in
+    # so a purge that safely carves out the disclosed up-to-6-years healthcare
+    # window and the 12-month children tier cannot be written without first stamping
+    # those classes at write time (a schema + call-site change). A blanket 24-month
+    # delete is deliberately NOT shipped because it would destroy healthcare-linked
+    # rows inside that disclosed window. Tracked in
     # docs/legal/DATA_RETENTION.md and AI_DATA_FLOW_CLASSIFICATION.md section 6.
     run_task.call("purge_old_eu_ai_api_logs") do
       count = AiApiLog.purge_old_eu_logs!

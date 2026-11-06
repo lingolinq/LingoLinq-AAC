@@ -145,7 +145,7 @@ describe EuJurisdiction do
 
     it "returns nil for an :unknown user (D-01: NOT 'EU' -- the load-bearing case)" do
       # :unknown must resolve to nil, NOT 'EU'. Stamping an unsure US-hospital user 'EU'
-      # would delete HIPAA-covered records a year inside the six-year floor.
+      # would delete healthcare-linked records a year inside the disclosed 6-year window.
       unknown_user = user(prefs: { 'locale' => 'en' })
       expect(EuJurisdiction.status(unknown_user)).to eq(:unknown)
       expect(EuJurisdiction.retention_stamp(unknown_user)).to be_nil
