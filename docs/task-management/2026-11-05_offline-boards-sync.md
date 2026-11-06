@@ -254,3 +254,32 @@ Tests: two overlapping navigations; flag cleared after a device copy; server win
 record alone; `_build_from_raw` on a kept record; deadline with `online` false; late refusal; signed out and
 wrong database; dead session shared and trusted; Speak Mode denial now refused; home and sidebar kept; hung
 device read; HTML 200; guarded actions.
+
+### Rework outcome (2026-11-06)
+
+The proposal above was blocked by a third review (two Highs, both from using the router as a refresh
+mechanism: refresh with the same record skips setupController). What changed from it:
+- One flag, on the controller, set when a navigation settles and cleared on exit.
+- Edit fetches and rebuilds directly (`_refresh_device_copy`), not through the router.
+- A late refusal goes back through `model()` with a latch, so Try Again works; the copy stays off until the
+  server answers.
+- A dead session is remembered per token, and read from a 200 body too.
+- `_blocked_on_device_copy` also guards `enter_edit_mode` (covers the non-owner copy path) and `make_a_copy`;
+  the Translate button in the languages modal is refused.
+- A 404 counts only from the API, and a home or sidebar board keeps its copy even then. This goes past the
+  letter of decision 1, in the direction of keeping the voice. Raise it with Traci.
+- Signed in means `session.access_token`, because a forced logout leaves `auth_settings` as `{}`.
+- The whole of `_device_copy` is bounded, not just the read.
+- `get` keeps an expired entry for `peek`, instead of a separate map.
+
+Not done, on purpose:
+- The Modern cache-hit gate (`cached_unless_revoked`) still exempts Speak Mode. `board-view-revoked-test.js:308`
+  pins that, so changing it needs Traci's approval (Rule 14). Effect: a marked folder opens offline inside
+  the 5-minute window, and is refused after it.
+- A refused Edit-tap refresh does not take the copy off screen; the next navigation does.
+- The Modern route does not clear revocation marks; the next sync does.
+
+Verification: targeted run 357 of 357 before the last test-only commit; `device.copy` filter 40 of 40 after it.
+`eslint-todo-gate` 0 new; template lint clean. 25 mutants, all red: 23 + 2 in split builds, and the three that first
+survived (superseded navigation, finished read, board no longer on screen) red alone after tightening those
+tests. Full suite and Playwright not run. Device check not done.
