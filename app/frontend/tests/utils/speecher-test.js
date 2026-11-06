@@ -65,6 +65,31 @@ describe('speecher', function() {
     });
   });
 
+  describe("has_voice_for", function() {
+    var prior;
+    beforeEach(function() { prior = speecher.get('voices'); });
+    afterEach(function() { speecher.set('voices', prior); });
+    it("should match on the language, ignoring region", function() {
+      speecher.set('voices', [{lang: 'es-MX', voiceURI: 'a', name: 'a'}]);
+      expect(speecher.has_voice_for('es')).toEqual(true);
+      expect(speecher.has_voice_for('es_ES')).toEqual(true);
+    });
+    it("should say no when no voice matches and the device is offline", function() {
+      speecher.set('voices', [{lang: 'en-US', voiceURI: 'a', name: 'a'}]);
+      stub(speecher, 'get_persistence', function() { return {get: function() { return false; }}; });
+      expect(speecher.has_voice_for('es')).toEqual(false);
+    });
+    it("should count a cloud voice when online", function() {
+      speecher.set('voices', [{lang: 'en-US', voiceURI: 'a', name: 'a'}]);
+      stub(speecher, 'get_persistence', function() { return {get: function() { return true; }}; });
+      expect(speecher.has_voice_for('es')).toEqual(true);
+    });
+    it("should not warn before voices have loaded", function() {
+      speecher.set('voices', []);
+      expect(speecher.has_voice_for('es')).toEqual(true);
+    });
+  });
+
   describe("speak_text", function() {
     beforeEach(function() {
       speecher.appState = app_state;

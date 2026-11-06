@@ -1236,6 +1236,11 @@ export default Component.extend({
     return this._needs_english_lookup();
   }),
 
+  /** True when this device cannot speak the chosen language with a matching voice. */
+  shows_no_voice_notice: computed('model.locale', function() {
+    return !speecher.has_voice_for(this.get('model.locale') || 'en');
+  }),
+
   /** English string for a cached authoring-language label key, or the
    *  key itself when we are authoring in English / have no mapping. */
   _english_for_label(key) {
@@ -1422,12 +1427,14 @@ export default Component.extend({
   /** Per-button + board-name translations for the authoring locale and English.
    *  A board with no buttons still gets the language header: boards_controller#create
    *  rewrites the locale to en when translations are blank. It gets no English name,
-   *  so `en` does not join its locales with nothing translated behind it. */
+   *  so `en` does not join its locales with nothing translated behind it. Without the
+   *  English lookup it still gets the header: the client and server can read the feature
+   *  flag for different users, and the rewrite must not fire on a board in another language. */
   _build_authoring_translations(buttons) {
-    if(!this._needs_english_lookup()) {
+    if(this._authoring_locale_root() === 'en') {
       return null;
     }
-    var list = buttons || [];
+    var list = this._needs_english_lookup() ? (buttons || []) : [];
     var authoring = this.get('model.locale') || this._authoring_locale_root();
     var authoringRoot = this._authoring_locale_root();
     var englishMap = this.get('_label_english') || {};

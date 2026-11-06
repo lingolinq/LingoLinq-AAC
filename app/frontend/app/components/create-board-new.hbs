@@ -299,6 +299,9 @@
                         {{#if this.appState.feature_flags.english_first_board_generation}}
                           <p class="nb-field__hint">{{t "Create in your language. Symbols and colors are matched using English in the background." key="create_board_locale_english_lookup_hint"}}</p>
                         {{/if}}
+                        {{#if this.shows_no_voice_notice}}
+                          <p class="nb-field__hint" data-test-no-voice-notice>{{t "This device has no voice for this language, so boards may speak with a different voice." key="no_voice_for_language"}}</p>
+                        {{/if}}
                         {{#if this.shows_translation_notice}}
                           <p class="nb-field__hint" data-test-translation-notice>
                             <strong>{{t "About board translation" key="translate_google_disclaimer_title"}}</strong><br>

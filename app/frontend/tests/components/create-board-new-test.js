@@ -698,6 +698,37 @@ describe('CreateBoardNewComponent', 'component:create-board-new', function() {
       expect(c.get('_label_english.sombrero')).toEqual('hat');
     });
 
+    it('sends the language header without the English lookup, so the server keeps the language', function() {
+      var c = makeComponent();
+      c.set('appState', EmberObject.create({ feature_flags: EmberObject.create({}) }));
+      c.set('model.locale', 'es');
+      c.set('model.name', 'Mi tablero');
+      var blob = c._build_authoring_translations([{ id: 1, label: 'sombrero' }]);
+      expect(blob.default).toEqual('es');
+      expect(blob.current_vocalization).toEqual('es');
+      expect(blob['1']).toEqual(undefined);
+    });
+
+    it('applies the language the server sends for a supervisee', function() {
+      var c = makeComponent();
+      c.set('appState', EmberObject.create({
+        feature_flags: EmberObject.create({ english_first_board_generation: true }),
+        sessionUser: EmberObject.create({ known_supervisees: [{ id: 'u-es', locale: 'es' }] })
+      }));
+      c.set('model.locale', 'en');
+      c.send('setForUserId', 'u-es');
+      expect(c.get('model.locale')).toEqual('es');
+    });
+
+    it('notes when the device has no voice for the chosen language', function() {
+      var c = makeComponent();
+      stub(speecher, 'has_voice_for', function(locale) { return locale !== 'es'; });
+      c.set('model.locale', 'en');
+      expect(c.get('shows_no_voice_notice')).toEqual(false);
+      c.set('model.locale', 'es');
+      expect(c.get('shows_no_voice_notice')).toEqual(true);
+    });
+
     it('does not build translations for an English authoring locale', function() {
       var c = makeComponent();
       c.set('appState', stubEnglishFirstAppState(true));

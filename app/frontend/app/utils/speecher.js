@@ -544,6 +544,22 @@ var speecher = EmberObject.extend({
       callback();
     }
   },
+  // Whether find_voice_by_uri can find a voice in this language rather than falling back
+  // to the default voice. An empty list means voices have not loaded yet, not that there are none.
+  has_voice_for: function(locale) {
+    var voices = speecher.get('voices') || [];
+    if(voices.length === 0) { return true; }
+    var language = (locale || 'en').toLowerCase().split(/[-_]/)[0];
+    var mapped_lang = i18n.lang_map[language] || language;
+    var matches = function(lang) {
+      var root = (lang || '').toLowerCase().split(/[-_:]/)[0];
+      return root == language || root == mapped_lang || i18n.lang_map[root] == mapped_lang;
+    };
+    if(voices.some(function(v) { return matches(v.lang); })) { return true; }
+    var persistenceService = speecher.get_persistence && speecher.get_persistence();
+    var online = persistenceService && typeof persistenceService.get === 'function' && persistenceService.get('online');
+    return !!online && cloud_locales.some(matches);
+  },
   find_voice_by_uri: function(uri, locale, allow_fallbacks) {
     if(uri == 'force_default') { return null; }
     var voices = speecher.get('voices');
