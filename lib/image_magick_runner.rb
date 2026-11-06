@@ -32,8 +32,8 @@ module ImageMagickRunner
   # Returns the command's stdout, for callers that parse it. A non-zero exit returns whatever was
   # printed, as backticks did. Unlike run, a binary that cannot start raises: uploadable.rb's
   # identify call always failed its job that way, so a missing binary stays visible. The output
-  # is scrubbed because identify -verbose prints file-controlled metadata, and a Regexp on invalid
-  # UTF-8 raises ArgumentError.
+  # is scrubbed because a Regexp on invalid UTF-8 raises ArgumentError, and what a command prints
+  # can come from the file it read.
   def self.capture(*args)
     IO.popen(argv(args), :in => File::NULL, &:read).scrub
   end

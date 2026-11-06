@@ -288,16 +288,10 @@ module Uploadable
 
         if file_type == 'images' && !self.settings['width'] && !SvgSanitizer.svg_content_type?(self.settings['content_type'])
           file.flush
-          identify_data = ImageMagickRunner.capture('identify', '-verbose', file.path)
-          identify_data.split(/\n/).each do |line|
-            pre, post = line.sub(/^\s+/, '').split(/:\s/, 2)
-            if pre == 'Geometry'
-              match = (post || "").match(/(\d+)x(\d+)/)
-              if match && match[1] && match[2]
-                self.settings['width'] = match[1].to_i
-                self.settings['height'] = match[2].to_i
-              end
-            end
+          match = ImageMagickRunner.capture('identify', '-format', '%w %h', "#{file.path}[0]").match(/\A(\d+) (\d+)/)
+          if match
+            self.settings['width'] = match[1].to_i
+            self.settings['height'] = match[2].to_i
           end
         end
       else

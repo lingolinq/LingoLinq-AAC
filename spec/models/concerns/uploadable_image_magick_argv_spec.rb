@@ -19,7 +19,7 @@ describe Uploadable, "ImageMagick argv" do
       @hostile_path = File.join(dir, 'stash$(touch $UPLOADABLE_ARGV_MARKER);true #')
       %w[identify convert].each do |binary|
         fake = File.join(dir, binary)
-        File.write(fake, "#!/bin/sh\nfor a in \"$0\" \"$@\"; do echo \"$a\" >> '#{@argv_log}'; done\necho 'Geometry: 3x4'\n")
+        File.write(fake, "#!/bin/sh\nfor a in \"$0\" \"$@\"; do echo \"$a\" >> '#{@argv_log}'; done\necho '3 4'\n")
         File.chmod(0o755, fake)
       end
       ENV['PATH'] = "#{dir}:#{original_path}"
@@ -57,7 +57,7 @@ describe Uploadable, "ImageMagick argv" do
 
   it "writes a small download to disk before identify reads it" do
     # This fake reports the bytes it can see, so a buffered write shows up as a width of 0.
-    File.write(File.join(@dir, 'identify'), "#!/bin/sh\necho \"Geometry: $(wc -c < \"$2\" | tr -d ' ')x1\"\n")
+    File.write(File.join(@dir, 'identify'), "#!/bin/sh\necho \"$(wc -c < \"${3%\\[0\\]}\" | tr -d ' ') 1\"\n")
     res = OpenStruct.new(:success? => true, :headers => {'Content-Type' => 'image/png'}, :body => 'abcdefg')
     expect(Typhoeus).to receive(:get).and_return(res)
     allow(Typhoeus).to receive(:post).and_return(OpenStruct.new(:success? => true))
@@ -66,14 +66,24 @@ describe Uploadable, "ImageMagick argv" do
     expect(image.settings['width']).to eq(7)
   end
 
-  it "measures an image whose metadata is not valid UTF-8" do
-    File.write(File.join(@dir, 'identify'), "#!/bin/sh\nprintf 'Comment: \\351\\nGeometry: 3x4\\n'\n")
+  it "measures when the output is not valid UTF-8" do
+    File.write(File.join(@dir, 'identify'), "#!/bin/sh\nprintf '3 4\\351\\n'\n")
     res = OpenStruct.new(:success? => true, :headers => {'Content-Type' => 'image/png'}, :body => 'abcdefg')
     expect(Typhoeus).to receive(:get).and_return(res)
     allow(Typhoeus).to receive(:post).and_return(OpenStruct.new(:success? => true))
 
     image.upload_to_remote('http://pic.com/cow.png')
     expect(image.settings['width']).to eq(3)
+  end
+
+  it "ignores output that does not start with the two numbers" do
+    File.write(File.join(@dir, 'identify'), "#!/bin/sh\necho 'Geometry: 7777x8888'\n")
+    res = OpenStruct.new(:success? => true, :headers => {'Content-Type' => 'image/png'}, :body => 'abcdefg')
+    expect(Typhoeus).to receive(:get).and_return(res)
+    allow(Typhoeus).to receive(:post).and_return(OpenStruct.new(:success? => true))
+
+    image.upload_to_remote('http://pic.com/cow.png')
+    expect(image.settings['width']).to eq(nil)
   end
 
   it "runs identify with an argv and reads its output when measuring a downloaded image" do
@@ -86,7 +96,7 @@ describe Uploadable, "ImageMagick argv" do
     allow(Typhoeus).to receive(:post).and_return(OpenStruct.new(:success? => true))
 
     image.upload_to_remote('http://pic.com/cow.png')
-    expect(recorded_argv).to eq([File.join(@dir, 'identify'), '-verbose', @hostile_path])
+    expect(recorded_argv).to eq([File.join(@dir, 'identify'), '-format', '%w %h', "#{@hostile_path}[0]"])
     expect(image.settings['width']).to eq(3)
     expect(image.settings['height']).to eq(4)
     expect(File.exist?(@marker)).to eq(false)
