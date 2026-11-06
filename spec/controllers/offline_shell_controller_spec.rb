@@ -106,9 +106,12 @@ describe OfflineShellController, :type => :controller do
           expect(response.body).to include('return fetch(request).catch(')
         end
 
+        # Changed 2026-11-05 with review round 2 (approved): the files are carried at install and again at
+        # activation, for one first cached while the update waited.
         it "carries the interface language file into a new version, and keeps the worker alive while it is stored" do
           get :service_worker
-          expect(response.body).to include('return carryRuntimeFiles(cache);')
+          expect(response.body).to include('return carryRuntimeFiles(cache, true);')
+          expect(response.body).to include('return carryRuntimeFiles(cache, false);')
           expect(response.body).to include('event.waitUntil(result.stored);')
         end
       end
