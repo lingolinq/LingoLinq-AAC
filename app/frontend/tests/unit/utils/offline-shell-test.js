@@ -217,6 +217,18 @@ module('Unit | Utility | offline_shell', function() {
       assert.deepEqual(nav.calls, ['getRegistrations', 'unregister https://app.example/sw.js', 'caches.keys', 'caches.delete ll-offline-shell-0a1b']);
     });
 
+    // Review round 2: a registration whose script is still downloading has no worker yet, so it cannot be
+    // recognised by its script. At the root scope it can only be this one (the app registers no other).
+    test('on, a shared device also removes a root registration whose script is still downloading', async function(assert) {
+      var calls = [];
+      var pending = { scope: 'https://app.example/', unregister: function() { calls.push('unregister pending /'); return Promise.resolve(true); } };
+      var other = { scope: 'https://app.example/other/', unregister: function() { calls.push('unregister pending /other/'); return Promise.resolve(true); } };
+      var nav = { serviceWorker: { getRegistrations: function() { calls.push('getRegistrations'); return Promise.resolve([pending, other]); } } };
+      var win = { offline_shell_enabled: true, caches: cacheStore([], calls) };
+      assert.strictEqual(await offline_shell.sync_for_device(win, nav, 'shared'), 'unregistered');
+      assert.deepEqual(calls, ['getRegistrations', 'unregister pending /', 'caches.keys'], 'only the root one');
+    });
+
     test('on, a shared device with no worker still deletes what one left behind', async function(assert) {
       var nav = fakeNavigator({ registered: [] });
       var win = { offline_shell_enabled: true, caches: cacheStore(['ll-offline-shell-0a1b'], nav.calls) };
@@ -322,6 +334,45 @@ module('Unit | Utility | offline_shell', function() {
       } finally {
         t.stop();
         t.appState.destroy();
+      }
+    });
+
+    // Review round 2 (2026-11-05): a registration still under way when the device turns out to be
+    // shared must not survive the removal. Register and remove run one after another, so the removal
+    // sees what the registration created.
+    test('a shared sign-in while a registration is still under way removes it once it lands', async function(assert) {
+      assert.expect(2);
+      var calls = [];
+      var registered = [];
+      var finishRegister;
+      var nav = {
+        serviceWorker: {
+          register: function(path) {
+            calls.push('register ' + path);
+            return new Promise(function(resolve) {
+              finishRegister = function() { registered.push(path); resolve({}); };
+            });
+          },
+          getRegistrations: function() {
+            calls.push('getRegistrations');
+            return Promise.resolve(registered.map(function(path) { return fakeRegistration('https://app.example' + path, calls); }));
+          }
+        }
+      };
+      var win = { offline_shell_enabled: true, caches: cacheStore([], calls) };
+      var appState = EmberObject.create({ sessionUser: trustedUser() });
+      var stop = offline_shell.follow_device_trust(appState, win, nav);
+      try {
+        await drain();
+        appState.set('sessionUser', sharedUser());
+        await drain();
+        assert.deepEqual(calls, ['register /sw.js'], 'the removal waits for the registration');
+        finishRegister();
+        await drain();
+        assert.deepEqual(calls, ['register /sw.js', 'getRegistrations', 'unregister https://app.example/sw.js', 'caches.keys']);
+      } finally {
+        stop();
+        appState.destroy();
       }
     });
 

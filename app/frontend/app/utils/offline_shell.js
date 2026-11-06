@@ -33,6 +33,19 @@ function is_offline_shell_worker(registration) {
   }
 }
 
+// This worker's registration, also while its script is still downloading: such a registration has no
+// worker yet, so it cannot be recognised by its script, but at the root scope it can only be this one
+// (the app registers no other worker).
+function is_offline_shell_registration(registration) {
+  if(is_offline_shell_worker(registration)) { return true; }
+  if(!registration || registration.active || registration.waiting || registration.installing) { return false; }
+  try {
+    return new URL(registration.scope).pathname === '/';
+  } catch(e) {
+    return false;
+  }
+}
+
 // Deletes the caches the worker made. Never rejects: a cache store that fails is logged.
 function delete_worker_caches(win) {
   var store = win && win.caches;
@@ -57,7 +70,7 @@ function remove_worker(win, container) {
   return Promise.resolve().then(function() {
     return container.getRegistrations();
   }).then(function(registrations) {
-    var ours = (registrations || []).filter(is_offline_shell_worker);
+    var ours = (registrations || []).filter(is_offline_shell_registration);
     return Promise.all(ours.map(function(registration) { return registration.unregister(); })).then(function() {
       if(ours.length > 0) { log('worker removed'); }
       return delete_worker_caches(win);
@@ -122,17 +135,21 @@ var offline_shell = {
 
   // Runs sync_for_device now and each time the session user's trust changes (a sign-in, the "Trust
   // this Device" choice, a shared sign-in after a trusted one). Signing out changes nothing: a trusted
-  // device keeps its worker. Returns a function that stops watching.
+  // device keeps its worker. One operation at a time, in order, so a removal sees what an earlier
+  // registration created. Returns a function that stops watching.
   follow_device_trust: function(appState, win, nav) {
     var done = false;
     var last;
+    var queue = Promise.resolve();
     var key = 'sessionUser.preferences.device.long_token';
     var check = function() {
       if(done || appState.isDestroyed || appState.isDestroying) { return; }
       var trust = offline_shell.device_trust(appState.get('sessionUser'));
       if(trust === null || trust === last) { return; }
       last = trust;
-      offline_shell.sync_for_device(win, nav, trust);
+      queue = queue.then(function() {
+        return offline_shell.sync_for_device(win, nav, trust);
+      }).then(null, function() {});
     };
     addObserver(appState, key, check);
     check();
