@@ -23,9 +23,10 @@ Other spawns use an argv (`ImageMagickRunner`, `obf_save_image_hardening.rb`).
   `sentence_pic`. `identify` that cannot start still raises, as it did.
 - `fix_color` with no `node`: raises, where the shell returned `''`. Accepted: every deployed image
   installs node, so that state is a broken host.
-- `fix_color` values holding shell syntax are no longer shell-evaluated. Values in literal double quotes,
-  which the shell used to strip, now render black. Malformed values that made the shell fail now convert,
-  usually to black, so such a PDF export completes.
+- `fix_color` values holding shell syntax are no longer shell-evaluated. A simple value in literal double
+  quotes, such as `"red"`, which the shell used to strip, now renders black. Malformed values that made
+  the shell fail now convert, usually to black: a PDF export that failed on them completes, and an OBF or
+  OBZ export carries `rgb(0, 0, 0)` where it carried an empty colour.
 
 ## Test change, approved by Traci 2026-11-05 (Rule #0.14)
 
@@ -41,13 +42,13 @@ any argv fix. Only the stub moved, to `ImageMagickRunner.capture`; the assertion
   no stdin rule; no argv guard. For `fix_color`, plain and `Shellwords` backticks, a `popen` string,
   `sh -c`, a wrong script path, no `strip`, no stdin rule, a cache that ignores type.
 - `fix_color` output matched the gem in 45 comparisons (15 valid colours, 3 types).
-- Real `identify` and `convert` measured a PNG and rasterized an SVG.
+- Real `identify` measured a PNG already on disk and real `convert` rasterized an SVG.
 - Full suite: 17 failures, the same 17 on clean `develop` (`AuditEvent` counts, `vendor.js`, throttling).
 
 ## Review
 
-Canonical senior-dev and adversary passes ran on 2026-11-05 on the separate diffs and on the combined
-diff. They found no Critical or High issue in the argv work. Their findings on it are applied here.
+Canonical senior-dev and adversary passes ran on 2026-11-05 with no Critical or High findings. Findings
+are applied here.
 
 ## Unresolved
 

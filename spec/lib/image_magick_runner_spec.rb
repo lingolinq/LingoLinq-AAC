@@ -229,8 +229,12 @@ describe ImageMagickRunner do
       expect(ImageMagickRunner.capture('/bin/echo', '$(echo x);true')).to eq("$(echo x);true\n")
     end
 
-    it "refuses a one-element argv, which would be the shell form" do
+    it "refuses a one-element argv" do
       expect { ImageMagickRunner.capture('/bin/echo hi') }.to raise_error(ArgumentError)
+    end
+
+    it "returns what was printed when the command exits non-zero" do
+      expect(ImageMagickRunner.capture('/bin/sh', '-c', 'echo x; exit 1')).to eq("x\n")
     end
 
     it "redirects stdin away from the caller's" do
