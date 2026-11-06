@@ -19,9 +19,17 @@ module OfflineShell
   MANIFEST_PATH = '/manifest.webmanifest'
   WORKER_PATH = '/sw.js'
 
-  # Bump when app/views/offline_shell/service_worker.js.erb changes in a way the precache list would
-  # not show, so installed workers pick up the new code.
+  # Bump to make every device install the worker again. Edits to the worker's code, the page it caches
+  # and the locale files already do that on their own (SOURCE_TEMPLATES, source_files).
   WORKER_VERSION = 2
+
+  # The worker's code and the templates of the page it caches. Their contents feed the cache name with the
+  # locale files', so a deploy that changes only one of them still gives devices a new version.
+  SOURCE_TEMPLATES = %w[
+    app/views/offline_shell/service_worker.js.erb
+    app/views/layouts/application.html.erb
+    app/views/boards/index.html.erb
+  ].freeze
 
   # Fingerprinted by rake assets:precompile; listed through asset_path, as the page itself loads them.
   DIGESTED_ASSETS = %w[application.js application.css globals.js].freeze
@@ -125,7 +133,7 @@ module OfflineShell
   # Versioned cache name. Any change to the worker, the precached paths (so any new asset digest), a
   # static file's contents or the domain's settings changes /sw.js, so browsers install the new worker.
   def self.cache_name(urls, domain_settings)
-    source = [WORKER_VERSION, urls, static_files_digest, domain_settings || {}].to_json
+    source = [WORKER_VERSION, urls, static_files_digest, sources_digest, domain_settings || {}].to_json
     "#{CACHE_PREFIX}#{Digest::SHA256.hexdigest(source)[0, 16]}"
   end
 
@@ -135,6 +143,24 @@ module OfflineShell
       digest = Digest::SHA256.new
       STATIC_FILES.each do |path|
         file = Rails.root.join('public', path.delete_prefix('/'))
+        digest.update(path)
+        digest.update(File.file?(file) ? Digest::SHA256.file(file).hexdigest : 'missing')
+      end
+      digest.hexdigest
+    end
+  end
+
+  # The source files whose contents feed the cache name, relative to Rails.root.
+  def self.source_files
+    SOURCE_TEMPLATES + Dir[Rails.root.join('public/locales/*.json')].map { |f| "public/locales/#{File.basename(f)}" }.sort
+  end
+
+  # Contents of source_files, read once per process (they do not change while it runs).
+  def self.sources_digest
+    @sources_digest ||= begin
+      digest = Digest::SHA256.new
+      source_files.each do |path|
+        file = Rails.root.join(path).to_s
         digest.update(path)
         digest.update(File.file?(file) ? Digest::SHA256.file(file).hexdigest : 'missing')
       end

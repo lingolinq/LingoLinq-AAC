@@ -60,7 +60,7 @@ self.addEventListener('install', function(event) {
           return cache.put(path, response);
         });
       })).then(function() {
-        return carryRuntimeFiles(cache);
+        return carryRuntimeFiles(cache, true);
       });
     }).catch(function(error) {
       // Never leave a half-filled cache behind; the install fails and the browser tries again later.
@@ -70,9 +70,10 @@ self.addEventListener('install', function(event) {
 });
 
 // The language file a device uses is cached on first use, in the version's own cache, which the next
-// version deletes when it activates. Copy each one into the new cache: fresh from the network when it
-// can be fetched, otherwise the old copy. Never fails the install.
-function carryRuntimeFiles(cache) {
+// version deletes when it activates. Copy each one the new cache lacks into it: at install fresh from
+// the network when it can be fetched (`fresh`), otherwise, and at activation for a file first cached
+// while this version waited, the old copy. Never fails the install or the activation.
+function carryRuntimeFiles(cache, fresh) {
   return caches.keys().then(function(keys) {
     return Promise.all(keys.filter(function(key) {
       return key.indexOf(CACHE_PREFIX) === 0 && key !== CACHE_NAME;
@@ -82,11 +83,16 @@ function carryRuntimeFiles(cache) {
           return Promise.all(requests.map(function(oldRequest) {
             var path = new URL(oldRequest.url).pathname;
             if(!RUNTIME_CACHED.test(path)) { return null; }
-            return fetch(freshRequest(path)).then(function(response) {
-              if(!plainResponse(response)) { throw new Error('not a plain 200'); }
-              return cache.put(path, response);
-            }).catch(function() {
+            var copyOld = function() {
               return oldCache.match(oldRequest).then(function(old) { return old && cache.put(path, old); });
+            };
+            return cache.match(path).then(function(already) {
+              if(already) { return null; }
+              if(!fresh) { return copyOld(); }
+              return fetch(freshRequest(path)).then(function(response) {
+                if(!plainResponse(response)) { throw new Error('not a plain 200'); }
+                return cache.put(path, response);
+              }).catch(copyOld);
             });
           }));
         });
@@ -97,7 +103,11 @@ function carryRuntimeFiles(cache) {
 
 self.addEventListener('activate', function(event) {
   event.waitUntil(
-    caches.keys().then(function(keys) {
+    caches.open(CACHE_NAME).then(function(cache) {
+      return carryRuntimeFiles(cache, false);
+    }).then(function() {
+      return caches.keys();
+    }).then(function(keys) {
       return Promise.all(keys.filter(function(key) {
         return key.indexOf(CACHE_PREFIX) === 0 && key !== CACHE_NAME;
       }).map(function(key) {

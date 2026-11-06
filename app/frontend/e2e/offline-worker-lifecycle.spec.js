@@ -24,6 +24,7 @@ const PAGE = `/${USER}/home`;
 // The profile's browser language is Spanish, so the app loads /locales/es.json, which the worker keeps.
 const LOCALE = 'es-ES';
 const LANGUAGE_FILE = '/locales/es.json';
+const SECOND_LANGUAGE_FILE = '/locales/fr.json';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -143,6 +144,11 @@ test('an update waits until the old worker\'s pages close, then replaces its cop
     expect((await workerState(page)).caches.sort(), 'both copies while the old worker still has a page').toEqual([before.caches[0], next].sort());
     expect(await page.evaluate(({ name, file }) => caches.open(name).then((c) => c.match(file)).then((r) => !!r), { name: next, file: LANGUAGE_FILE }),
       'the language file carried into the new copy at install').toBe(true);
+    // A language file first loaded while the update waits (someone switched language meanwhile) goes
+    // into the old copy only; activation must carry it over too.
+    expect(await page.evaluate((f) => fetch(f).then((r) => r.ok), SECOND_LANGUAGE_FILE)).toBe(true);
+    await expect.poll(() => page.evaluate(({ name, file }) => caches.open(name).then((c) => c.match(file)).then((r) => !!r),
+      { name: before.caches[0], file: SECOND_LANGUAGE_FILE })).toBe(true);
   } finally {
     await context.close();
   }
@@ -156,6 +162,8 @@ test('an update waits until the old worker\'s pages close, then replaces its cop
     await expect.poll(() => registrationState(page), { timeout: 60_000 }).toEqual({ active: true, waiting: false, installing: false });
     await expect.poll(async () => (await workerState(page)).caches, { timeout: 30_000 }).toEqual([next]);
     expect(await page.evaluate((f) => caches.match(f).then((r) => !!r), LANGUAGE_FILE), 'the language file survived the update').toBe(true);
+    expect(await page.evaluate((f) => caches.match(f).then((r) => !!r), SECOND_LANGUAGE_FILE),
+      'the language file cached while the update waited survived it too').toBe(true);
   } finally {
     await context.close();
   }

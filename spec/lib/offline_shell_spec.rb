@@ -145,6 +145,34 @@ describe OfflineShell do
       expect(OfflineShell.cache_name(urls, {'app_name' => 'Other'})).not_to eq(OfflineShell.cache_name(urls, settings))
     end
 
+    # Review round 2 (2026-11-05): a deploy that changes only the worker's code, the page it caches, or a
+    # translation must still give devices a new version: otherwise the worker keeps serving the old page
+    # offline, and the old language file (consent text included) online.
+    it "covers the worker's code, the page it caches and every locale file" do
+      files = OfflineShell.source_files
+      %w[app/views/offline_shell/service_worker.js.erb app/views/layouts/application.html.erb app/views/boards/index.html.erb].each do |path|
+        expect(files).to include(path)
+      end
+      locales = Dir[Rails.root.join('public/locales/*.json')].map { |f| "public/locales/#{File.basename(f)}" }
+      expect(locales.length).to be >= 10
+      expect(files).to include(*locales)
+      files.each { |path| expect(File.file?(Rails.root.join(path))).to eq(true), "missing #{path}" }
+    end
+
+    it "changes when one of those files changes" do
+      before = OfflineShell.cache_name(urls, settings)
+      original = OfflineShell.instance_variable_get(:@sources_digest)
+      locale = Rails.root.join(OfflineShell.source_files.grep(/\Apublic\/locales\//).first).to_s
+      begin
+        OfflineShell.instance_variable_set(:@sources_digest, nil)
+        allow(Digest::SHA256).to receive(:file).and_call_original
+        allow(Digest::SHA256).to receive(:file).with(locale).and_return(double(hexdigest: 'edited'))
+        expect(OfflineShell.cache_name(urls, settings)).not_to eq(before)
+      ensure
+        OfflineShell.instance_variable_set(:@sources_digest, original)
+      end
+    end
+
     it "changes when a static file's contents change" do
       before = OfflineShell.cache_name(urls, settings)
       allow(OfflineShell).to receive(:static_files_digest).and_return('changed')
