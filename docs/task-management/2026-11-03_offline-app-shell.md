@@ -369,3 +369,45 @@ identity-mismatch test and the Low items, and then, after the gap below, "Worker
 - Learned: Playwright's routing sees a page's and a service worker's own requests but not the
   browser's fetch of the worker script, so a test cannot hand it a new version that way; a local
   pass-through proxy can (e2e/support/worker-proxy.js).
+
+## Review round 2 (2026-11-05, approved by Scot): fixes in; stopped under Rule 13
+
+Reviews of 1071b9c8d: Codex gpt-6.1-sol request changes; adversary block merge, draft fine. Fixed,
+red first, each with a mutation or red run:
+
+1. A device borrowed another same-name device's "Trust this Device" value (lib/json_api/user.rb
+   nearest_device). The user JSON now reports this device's own setting (spec + e2e "before the
+   trust choice"; red on the old serializer in a real browser: the new device reported true).
+2. Register and remove could race; the trust watcher now runs one operation at a time, and
+   removal also takes a root registration whose script is still downloading (2 unit tests).
+3. A language file cached while an update waited was lost; activation now carries it too (the
+   lifecycle update case loads fr.json while waiting; red before).
+4. The cache name now covers the worker template, the shell templates and the locale files (2
+   specs; red before, and with the digest left out).
+5. Offline, a trusted device never expires (nothing enforces the 28-day timeout or a remote
+   sign-out offline): known limit, follow-up below. Not fixed here.
+Also (e2e, pre-approved): the kill switch now needs the install record the launch spec leaves, so a
+rerun on a cleaned profile fails (shown).
+
+Results at 5bc75744c plus two test-only commits: Playwright offline-launch 5 passed,
+offline-worker-lifecycle 3 passed, offline-kill-switch 2 passed (fresh profiles, Rails restarted);
+lint:js new=0, lint:hbs 0; RSpec, the offline files plus the serializer, device, token and session
+specs: 389 examples, 0 failures. The serializer change was also run with users_controller_spec:
+1185 examples, 1 failure, a geolocation lookup that this machine's .env turns on (passes with
+IPLOCATE_API_KEY unset).
+
+Stopped under Rule 13 after two self-inflicted errors close together: a new test named a local
+function `stop`, which the QUnit lint rule read as QUnit's stop() (renamed), and a source check this
+PR added still named the old install call after fix 3 (not rerun after the worker edit; corrected,
+and the Ruby specs rerun green).
+
+Remaining, in order: the full Ember suite; the PII preflight on the new head; both reviews; update
+the PR body (Testing, Known limits: trusted devices never expire offline; the new cases); open the
+draft PR to develop.
+
+### Follow-up: offline expiry for trusted devices (not in this PR)
+
+Offline, nothing enforces a trusted browser's 28-day inactivity timeout (Device#token_timeout) or a
+remote sign-out. Proposal: record when the session was last confirmed online (a successful
+check_token) and refuse to open from the shell offline once longer than the device's timeout has
+passed; a remote sign-out then takes effect at the next online launch, as today.
