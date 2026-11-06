@@ -44,3 +44,24 @@ export function resolve_board_display_locale(opts) {
   }
   return preferred;
 }
+
+// A board's own language, except that a keyboard board stays English for a user with no
+// language preference.
+export function board_default_locale(model_locale, board_key, user_locale) {
+  if((board_key || '').match(/\/keyboard$/) && !user_locale) { return 'en'; }
+  return model_locale || 'en';
+}
+
+// The one rule for every board page, so Basic, Modern and the legacy page cannot disagree:
+// Switch Languages wins, otherwise the board speaks its own language. The plain label_locale
+// and vocalization_locale stashes only count when Switch Languages is on. Home and speak mode
+// write them, and any board that also stores English would otherwise open in English.
+export function session_board_locale(stashes, loc_type, board_default, board_langs) {
+  var override = stashes.get('override_label_locale') || stashes.get('override_vocalization_locale');
+  return resolve_board_display_locale({
+    boardDefault: board_default,
+    boardLangs: board_langs,
+    override: override,
+    preferred: stashes.get(loc_type) || stashes.get('override_' + loc_type) || override
+  });
+}

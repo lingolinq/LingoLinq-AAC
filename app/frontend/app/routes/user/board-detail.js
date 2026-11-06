@@ -11,7 +11,7 @@ import boardDetailCache from '../../utils/board_detail_cache';
 import boardCacheDiag from '../../utils/board_cache_diag';
 import scanner from '../../utils/scanner';
 import modal from '../../utils/modal';
-import { available_board_langs, resolve_board_display_locale } from '../../utils/board_display_locale';
+import { available_board_langs, board_default_locale, session_board_locale } from '../../utils/board_display_locale';
 
 export default Route.extend({
   store: service('store'),
@@ -481,7 +481,7 @@ export default Route.extend({
     var board_key = model.get('key') || '';
     var user_locale = _this.appState.get('currentUser.preferences.locale') ||
       _this.appState.get('sessionUser.preferences.locale');
-    var keyboard_default_locale = (board_key.match(/\/keyboard$/) && !user_locale) ? 'en' : model_locale;
+    var keyboard_default_locale = board_default_locale(model_locale, board_key, user_locale);
     _this.appState.set('currentBoardState', {
       id: model.get('global_id') || model.get('id'),
       key: board_key,
@@ -499,14 +499,8 @@ export default Route.extend({
     // Honor Switch Languages for the whole session. An empty locales list
     // (Flexiones, a cache hit before translations hydrate) must not drop
     // Spanish back to the board default.
-    var has_locale_override = _this.stashes.get('override_label_locale') || _this.stashes.get('override_vocalization_locale');
     ['label_locale', 'vocalization_locale'].forEach(function(loc_type) {
-      _this.appState.set(loc_type, resolve_board_display_locale({
-        boardDefault: keyboard_default_locale,
-        boardLangs: board_langs,
-        override: has_locale_override,
-        preferred: _this.stashes.get(loc_type) || _this.stashes.get('override_' + loc_type) || has_locale_override
-      }));
+      _this.appState.set(loc_type, session_board_locale(_this.stashes, loc_type, keyboard_default_locale, board_langs));
     });
 
     // Set up editManager for edit mode operations. ordered_buttons was
