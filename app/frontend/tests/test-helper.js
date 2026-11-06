@@ -104,9 +104,17 @@ if (req && req.entries && typeof req === 'function') {
 }
 
 // The run's timing-strict mode (tests/helpers/fetch-probe.js), so CI can prove a strict job really ran strict.
-QUnit.on('runStart', function() {
+QUnit.on('runStart', function(details) {
   // eslint-disable-next-line no-console
   console.log(`[timing-strict] ${timingStrictForRun() ? 'on' : 'off'}`);
+  // Completeness evidence for a full, un-sharded run (ci.yml ember-full-serial), which sets no
+  // pool= filter and so never logs the shard's [SHARD] selected/registered line
+  // (tests/helpers/apply-parallel-pool.js logs that only when a pool filter is active). `registered`
+  // is every test registered; with no filter QUnit runs all of them, so ci.yml can check
+  // selected == registered == the run's `# tests` and catch a run that silently ran a subset.
+  const registered = QUnit.config.modules.reduce((sum, mod) => sum + mod.tests.length, 0);
+  // eslint-disable-next-line no-console
+  console.log('[SUITE] selected=' + details.testCounts.total + ' registered=' + registered);
 });
 
 // Log summary when run completes (browser console; Testem shows "X tests complete" in terminal)

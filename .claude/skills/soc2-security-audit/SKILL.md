@@ -23,7 +23,8 @@ Read-only: produce findings, never change code or infrastructure.
 
 ### Logging & monitoring (CC7)
 - [ ] Application logging exists; auth events logged (login, logout, failed attempts).
-- [ ] Data-access events logged (`AuditEvent`); error tracking configured (Sentry).
+- [ ] Data-access events logged (`AuditEvent`); error tracking configured (Sentry); the CloudTrail
+      log bucket is protected from deletion (Object Lock).
 - [ ] **Logs contain no PII or secrets** (cross-check the PII scrubber on log/error paths).
 
 ### Infrastructure security
