@@ -276,6 +276,7 @@ Not done, on purpose:
 - The Modern cache-hit gate (`cached_unless_revoked`) still exempts Speak Mode. `board-view-revoked-test.js:308`
   pins that, so changing it needs Traci's approval (Rule 14). Effect: a marked folder opens offline inside
   the 5-minute window, and is refused after it.
+  Traci decided 2026-11-06 to leave this as it is: it can only keep a board open a little longer.
 - A refused Edit-tap refresh does not take the copy off screen; the next navigation does.
 - The Modern route does not clear revocation marks; the next sync does.
 
