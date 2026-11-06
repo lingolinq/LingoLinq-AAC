@@ -284,3 +284,26 @@ Verification: targeted run 357 of 357 before the last test-only commit; `device.
 `eslint-todo-gate` 0 new; template lint clean. 25 mutants, all red: 23 + 2 in split builds, and the three that first
 survived (superseded navigation, finished read, board no longer on screen) red alone after tightening those
 tests. Full suite and Playwright not run. Device check not done.
+
+### Reviews of the rework at `eab2bd342` (2026-11-06): BLOCKED again, stopped under Rule 13
+
+Adversary and security reviews each block on a High, both verified in the code:
+- A device read that outlives `within` still sets `nav.served` (`routes/user/board-detail.js:724`), so a later
+  200 is dropped at `:179` and `model()` never settles.
+- `set_as_home` and the trial bar's Use reach `create_copy` unguarded, so a device copy can be written to the
+  server.
+Also open: notice contrast about 1.95:1 (no `color` set); a device-built grid can attach to a server cache
+entry; in-time denials are not latched; dead-session latch skipped when there is no row; a stale setup closure.
+
+Correction: "25 mutants, all red" overstated coverage. The reviewer's 14 further mutants all survived a
+310-test filter, including `blocks_route` ignoring the option, the edit route check, and the notice.
+
+Most of these come from one design choice: racing a timer against live requests, so answers can arrive after
+the page has moved on. Proposed next: drop the race. Bound the requests themselves, and read the device only
+after they have ended, so nothing can arrive late. Waiting on Traci.
+
+The Playwright specs in `test(offline): cover the Modern device copy` have NOT been run. Rails needs
+SECURE_ENCRYPTION_KEY in this worktree; database `lingolinq-e2e-traci-offline` exists but has no schema yet.
+
+Correction: a new browser device does not sync on its own: `lib/json_api/user.rb:137` sets `ever_synced` false,
+and `models/user.js#auto_sync` then answers false. #1236's first-sync fix applies to installed apps.
