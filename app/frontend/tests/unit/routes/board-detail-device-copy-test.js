@@ -238,6 +238,7 @@ module('Unit | Route | user/board-detail device copy', function(hooks) {
   });
 
   test('two overlapping navigations: an abandoned board cannot paint over the next one', async function(assert) {
+    this.route.set('_raw_board_data', null);
     this.device = {'me/a': row({id: '1_8', key: 'me/a', buttons: [{id: 1, label: 'from A'}]}), 'me/b': row({id: '1_9', key: 'me/b', buttons: [{id: 1, label: 'stale B'}]})};
     this.route.device_copy_wait = 5;
     this.answers = ['hang'];
@@ -248,6 +249,7 @@ module('Unit | Route | user/board-detail device copy', function(hooks) {
     var b = open(this, 'b');
     await wait(30);
     assert.notOk(this.controller.get('served_from_device'), 'the abandoned deadline changed nothing');
+    assert.notOk(this.route.get('_raw_board_data'), 'not even the grid source');
     server.resolve({root: {board: row({id: '1_9', key: 'me/b', buttons: [{id: 1, label: 'server B'}]})}});
     var model = await b;
     assert.strictEqual(model.get('key'), 'me/b');
@@ -292,6 +294,7 @@ module('Unit | Route | user/board-detail device copy', function(hooks) {
     await wait(0);
     assert.strictEqual(record.get('name'), 'Fresh');
     assert.false(this.controller.get('served_from_device'));
+    assert.strictEqual(this.route.get('_raw_board_data.name'), 'Fresh', 'the finished read changed nothing');
   });
 
   test('the waits are the ones the design promises', function(assert) {
