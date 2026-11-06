@@ -64868,6 +64868,15 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
   padding: 48px 24px;
   text-align: center;
 }
+/* The board on screen is the copy saved on the device, not the server's (#1213). */
+.md-board-detail-device-copy {
+  margin: 0 0 8px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(127, 127, 127, 0.15);
+  font-size: 1.25rem;
+  text-align: center;
+}
 /* The error is presented as a discrete CARD on the board canvas rather than bare
    centred text, so it reads as a considered state instead of a failure dump. */
 .md-board-detail-error__card {

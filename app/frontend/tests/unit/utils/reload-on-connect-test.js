@@ -19,9 +19,7 @@ module('Unit | Utility | reload_on_connect', function() {
     assert.deepEqual(sent_for({model: {id: '1_7'}}, true), []);
   });
 
-  test('a device copy is replaced on reconnect, but not while speaking on it', function(assert) {
-    assert.deepEqual(sent_for({model: {id: '1_7'}, served_from_device: true}, true), ['refreshData']);
-    assert.deepEqual(sent_for({model: {id: '1_7'}, served_from_device: true, app_state: {speak_mode: true}}, true), []);
-    assert.deepEqual(sent_for({model: {id: '1_7'}, served_from_device: true}, false), [], 'still offline');
+  test('a device copy stays until the next board, so the board never changes mid-sentence', function(assert) {
+    assert.deepEqual(sent_for({model: {id: '1_7'}, served_from_device: true}, true), []);
   });
 });

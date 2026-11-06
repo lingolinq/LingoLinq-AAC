@@ -129,14 +129,9 @@ export default Route.extend({
   }
 });
 
-// An edit to a device copy would sync back over any newer version on the server with no conflict
-// check (services/persistence.js#sync_changed), so a device copy opens for speaking only.
-function refuse_device_copy(boardDetailController) {
-  if(!boardDetailController.get('served_from_device')) { return false; }
-  modal.warning(i18n.t('board_edit_needs_connection', "This board needs an Internet connection to edit."));
-  return true;
+// A direct way in, such as a link or Back, that the board page's Edit button did not stop. An edit to
+// a device copy would sync back over any newer version on the server with no conflict check
+// (services/persistence.js#sync_changed).
+export function refuse_device_copy(boardDetailController) {
+  return boardDetailController.get('served_from_device') ? boardDetailController._blocked_on_device_copy() : false;
 }
-
-// Placed last so the imports do not shift the ESLint baseline rows above. Imports are hoisted.
-import modal from '../../../utils/modal';
-import i18n from '../../../utils/i18n';

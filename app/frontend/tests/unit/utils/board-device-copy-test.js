@@ -22,7 +22,7 @@ module('Unit | Utility | board_device_copy', function(hooks) {
   var raw = {id: '1_7', key: 'me/board', buttons: []};
   var denied = {fakeXHR: {status: 400, responseJSON: {error: 'Not authorized', unauthorized: true, permission: 'view', status: 400}}, message: 'error', result: 'Not authorized'};
   var dead_session = {fakeXHR: {status: 400, responseJSON: {error: 'Not authorized', unauthorized: true, permission: 'view', status: 400, invalid_token: true}}};
-  var missing = {fakeXHR: {status: 404, responseJSON: {error: 'Not found', status: 404}}};
+  var missing = {fakeXHR: {status: 404, responseJSON: {error: 'Record not found', status: 404}}};
   var no_answer = {fakeXHR: {status: 0}, message: 'error', result: ''};
   var server_error = {fakeXHR: {status: 503}};
   var offline = {offline: true, error: 'not online', short_circuit: true};
@@ -61,8 +61,17 @@ module('Unit | Utility | board_device_copy', function(hooks) {
     assert.true(server_refused([missing, no_answer], raw, state()));
   });
 
-  test('server_refused: the communicator keeps a voice, as in the Basic view', function(assert) {
-    assert.false(server_refused([denied], raw, state({speak_mode: true})), 'Speak Mode');
+  test('server_refused: a 404 counts only when it is the API speaking', function(assert) {
+    assert.true(server_refused([{fakeXHR: {status: 200}, result: {status: 404, error: 'Record not found'}}], raw, state()), 'in a 200 body');
+    assert.false(server_refused([{fakeXHR: {status: 404}}], raw, state()), 'a proxy with no API body');
+  });
+
+  test('server_refused: a home or sidebar board keeps its copy even after a 404', function(assert) {
+    assert.false(server_refused([missing], raw, state({sessionUser: {user_name: 'me', supervisees: [], preferences: {home_board: {id: '1_7', key: 'me/board'}}}})));
+  });
+
+  test('server_refused: Speak Mode does not excuse a denial, a home board does', function(assert) {
+    assert.true(server_refused([denied], raw, state({speak_mode: true})), 'Speak Mode');
     assert.false(server_refused([denied], raw, state({sessionUser: {user_name: 'me', supervisees: [], preferences: {home_board: {id: '1_7', key: 'me/board'}}}})), 'the home board');
     assert.false(server_refused([dead_session], raw, state()), 'a dead session is not a denial of this board');
   });

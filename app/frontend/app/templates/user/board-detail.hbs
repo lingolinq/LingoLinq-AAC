@@ -548,6 +548,9 @@
 
     {{!-- Main Content Area --}}
     <main class="md-board-detail-main">
+      {{#if this.served_from_device}}
+        <p class="md-board-detail-device-copy" role="status">{{t "Showing the copy saved on this device" key="board_device_copy_notice"}}</p>
+      {{/if}}
       {{#if this.model.error}}
         <div class="md-board-detail-error" role="alert">
           <div class="md-board-detail-error__card">

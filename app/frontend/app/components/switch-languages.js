@@ -126,6 +126,10 @@ export default Component.extend({
     open_translate() {
       const board = this.get('model.board');
       if (!board) { return; }
+      if (this.get('model.device_copy')) {
+        modal.warning(i18n.t('board_action_needs_connection', "This board needs an Internet connection to do that."));
+        return;
+      }
       const opts = { board: board };
       if (board.get) {
         opts.button_set = board.get('button_set');

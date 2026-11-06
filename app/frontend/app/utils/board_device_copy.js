@@ -1,4 +1,5 @@
-import { route_refuses_local } from './board_revocation';
+import RSVP from 'rsvp';
+import { is_protected_board, route_refuses_local } from './board_revocation';
 
 // The copy of a board the Modern board page falls back on when the server gives no usable answer
 // (#1213): the row saved on the device by sync, or the copy held in memory from this session.
@@ -7,6 +8,8 @@ import { route_refuses_local } from './board_revocation';
 // 20 and 20 seconds (utils/extras.js), and the route makes up to three, so without a deadline a
 // communicator on a bad connection would wait minutes for a board already on the device.
 export var DEVICE_COPY_WAIT_MS = 8000;
+// How long reading that copy may take before the page gives up on it.
+export var DEVICE_READ_WAIT_MS = 5000;
 
 export function usable_copy(raw) {
   return !!(raw && raw.id && raw.key && Array.isArray(raw.buttons));
@@ -28,14 +31,37 @@ export function read_device_copy(persistence, board_key, memory_raw) {
   });
 }
 
-// Did the server say no, on any attempt of this navigation? `failures` are persistence.ajax
-// rejections; the status is on fakeXHR. A denial follows the Basic view's rule
-// (board_revocation.js#route_refuses_local), so Speak Mode and the home and sidebar boards keep
-// their copy. A 404 means the board is gone. Anything else is not an answer about this board.
+// Settles with `promise`, or with null after `ms`, so a stuck database cannot hold a page.
+export function within(promise, ms) {
+  return new RSVP.Promise(function(resolve) {
+    var timer = setTimeout(function() { resolve(null); }, ms);
+    var done = function(result) { clearTimeout(timer); resolve(result); };
+    promise.then(done, function() { done(null); });
+  });
+}
+
+// The API's own "not found", at the HTTP status or in a 200 body. A proxy's bare 404 is not an answer
+// about this board.
+function board_missing(err) {
+  var body = (err && err.fakeXHR && err.fakeXHR.responseJSON) || (err && err.result) || {};
+  var status = (err && err.fakeXHR && err.fakeXHR.status === 404) ? 404 : body.status;
+  return status === 404 && !!body.error;
+}
+
+// The server says this session is over, at the HTTP status or in a 200 body.
+export function session_ended(err, session) {
+  if(!err) { return false; }
+  return session.dead_session_response(err.fakeXHR) || !!(err.result && err.result.invalid_token);
+}
+
+// Did the server say no, on any attempt of this navigation? `failures` are persistence.ajax rejections.
+// The home and sidebar boards keep their copy, so the communicator keeps a voice. Unlike the Basic view
+// Speak Mode is no exception, because the Modern page turns it on for everyone. Anything but a denial
+// or a 404 is not an answer about this board.
 export function server_refused(failures, raw, appState) {
   var board = { get: function(attr) { return raw[attr]; } };
+  if(is_protected_board(board, appState)) { return false; }
   return failures.some(function(err) {
-    if(err && err.fakeXHR && err.fakeXHR.status === 404) { return true; }
-    return route_refuses_local(err, appState, board);
+    return board_missing(err) || route_refuses_local(err, appState, board, { ignore_speak_mode: true });
   });
 }

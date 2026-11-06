@@ -503,7 +503,7 @@ export default {
     var entry = _lookup(key_or_id);
     if (!entry) { return null; }
     if (!_is_fresh(entry)) {
-      _drop(entry);
+      _drop_warmed_for(entry); // the entry stays for peek; set, invalidate and clear replace or remove it
       return null;
     }
     return entry.raw;
