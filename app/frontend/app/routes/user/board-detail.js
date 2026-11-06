@@ -481,7 +481,7 @@ export default Route.extend({
     var board_key = model.get('key') || '';
     var user_locale = _this.appState.get('currentUser.preferences.locale') ||
       _this.appState.get('sessionUser.preferences.locale');
-    var keyboard_default_locale = board_default_locale(model_locale, board_key, user_locale);
+    var keyboard_default_locale = board_default_locale(model_locale, board_key, user_locale, board_langs);
     _this.appState.set('currentBoardState', {
       id: model.get('global_id') || model.get('id'),
       key: board_key,

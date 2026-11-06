@@ -1,0 +1,9 @@
+{{#if @noVoice}}
+  <p class="nb-field__hint" data-test-no-voice-notice>{{t "This device has no voice for this language, so boards may speak with a different voice." key="no_voice_for_language"}}</p>
+{{/if}}
+{{#if @translation}}
+  <p class="nb-field__hint" data-test-translation-notice>
+    <strong>{{t "About board translation" key="translate_google_disclaimer_title"}}</strong><br>
+    {{t "Board translation uses Google Cloud Translation, a machine-translation service. It is not generative AI or a chatbot. Words on this board (button labels, spoken phrases, and the board name) will be sent to Google to translate. If any of those words include personal information, that information will be sent too." key="translate_google_disclaimer_body"}}
+  </p>
+{{/if}}

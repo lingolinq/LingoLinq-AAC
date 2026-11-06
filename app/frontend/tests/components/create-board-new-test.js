@@ -718,6 +718,21 @@ describe('CreateBoardNewComponent', 'component:create-board-new', function() {
       c.set('model.locale', 'en');
       c.send('setForUserId', 'u-es');
       expect(c.get('model.locale')).toEqual('es');
+      expect(c.get('language_from_owner')).toEqual(true);
+    });
+
+    it('does not carry one supervisee language over to the next', function() {
+      var c = makeComponent();
+      c.set('appState', EmberObject.create({
+        feature_flags: EmberObject.create({ english_first_board_generation: true }),
+        sessionUser: EmberObject.create({ known_supervisees: [{ id: 'u-es', locale: 'es' }, { id: 'u-none' }] })
+      }));
+      c.set('preferred_communicator_locale', 'en');
+      c.set('model.locale', 'en');
+      c.send('setForUserId', 'u-es');
+      c.send('setForUserId', 'u-none');
+      expect(c.get('model.locale')).toEqual('en');
+      expect(c.get('language_from_owner')).toEqual(false);
     });
 
     it('notes when the device has no voice for the chosen language', function() {
@@ -841,28 +856,14 @@ describe('CreateBoardNewComponent', 'component:create-board-new', function() {
       expect(trans.board_name.en).toEqual(undefined);
     });
 
-    itAsync('saves the speak language for the session, as Translate Boards does', async function() {
+    itAsync('leaves the session language to Switch Languages', async function() {
       var c = makeComponent();
       var persisted = {};
       stub(c.stashes, 'persist', function(key, value) { persisted[key] = value; });
       await saveWithLabels(c, 'sombrero');
-      expect(persisted.label_locale).toEqual('es');
-      expect(persisted.vocalization_locale).toEqual('es');
-      expect(c.get('appState.vocalization_locale')).toEqual('es');
-    });
-
-    itAsync('leaves the session language alone when the board is English', async function() {
-      var c = makeComponent();
-      var persisted = {};
-      stub(c.stashes, 'persist', function(key, value) { persisted[key] = value; });
-      var saving = saveWithLabels(c, 'hat');
-      await saving;
-      c.set('model.locale', 'en');
-      persisted = {};
-      c._completeSaveBoard();
-      await RSVP.resolve();
       expect(persisted.label_locale).toEqual(undefined);
       expect(persisted.vocalization_locale).toEqual(undefined);
+      expect(c.get('appState.vocalization_locale')).toEqual('es');
     });
 
     it('clears translations left by an earlier attempt when the language goes back to English', function() {

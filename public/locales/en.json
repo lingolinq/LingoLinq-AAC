@@ -4936,6 +4936,7 @@
   "locale": "Language",
   "create_board_locale_english_lookup_hint": "Create in your language. Symbols and colors are matched using English in the background.",
   "no_voice_for_language": "This device has no voice for this language, so boards may speak with a different voice.",
+  "create_board_owner_language": "This board will be in %{language}, the language of the person it is for. You can change it on the first step.",
   "icon_for_your_board": "Icon for your Board",
   "more_tools": "More Tools & Resources",
   "extras_page_sub_check_out_pre": "Check out",

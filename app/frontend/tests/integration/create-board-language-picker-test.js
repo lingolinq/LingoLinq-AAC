@@ -1,5 +1,5 @@
 import { setupRenderingTest } from 'frontend/tests/helpers';
-import { render } from '@ember/test-helpers';
+import { render, settled } from '@ember/test-helpers';
 import { hbs } from 'ember-cli-htmlbars';
 import EmberObject from '@ember/object';
 import * as QUnit from 'qunit';
@@ -23,5 +23,18 @@ QUnit.module('Integration | Component | create-board-new language picker', funct
     } finally {
       appState.set('currentUser', prior);
     }
+  });
+
+  QUnit.test('the language notices show only when asked for', async function(assert) {
+    this.set('noVoice', true);
+    this.set('translation', false);
+    await render(hbs`<BoardLanguageNotices @noVoice={{this.noVoice}} @translation={{this.translation}} />`);
+    assert.dom('[data-test-no-voice-notice]').exists();
+    assert.dom('[data-test-translation-notice]').doesNotExist();
+    this.set('noVoice', false);
+    this.set('translation', true);
+    await settled();
+    assert.dom('[data-test-no-voice-notice]').doesNotExist();
+    assert.dom('[data-test-translation-notice]').exists();
   });
 });

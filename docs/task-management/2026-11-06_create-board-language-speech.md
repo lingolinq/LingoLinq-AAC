@@ -91,3 +91,16 @@ Not changed, flagged to Traci:
   English home board then reopening shows English. Translate Boards behaves the same, and home
   state writes that stash (`app-state.js:1370`), so changing the route risks other flows.
 - `WordData` translation does not use `PiiScrubber`. Pre-existing; a compliance decision.
+
+## Second round (2026-11-06): consistency work, after a second adversarial review
+
+- Fix 1: `session_board_locale` is the one rule for Basic, Modern and legacy. The "stash wins in
+  board-alt" line in the fact sheet above no longer applies.
+- The session write on create is removed: routes now ignore the plain stash, so it only disturbed
+  Switch Languages. Gap G2 is solved by the route rule instead.
+- Home board saved language is not honoured, as in Modern: `app-state.js:1474` copies the viewed
+  language onto it, so promoting it to an override would stick people in a language by accident.
+- `has_voice_for` asks `find_voice_by_uri`; a list check said yes on English-only online devices.
+- Boards with no language (obf/stars, integrations) stay unset rather than being forced to `en`.
+- Owner language shows on the owner step with both notices, and a supervisee with no language
+  returns to the creator's language. Not sent on org rosters.

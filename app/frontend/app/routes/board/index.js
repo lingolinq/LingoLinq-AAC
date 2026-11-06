@@ -87,7 +87,7 @@ export default Route.extend({
     var board_langs = available_board_langs(model, null);
     var user_locale = _this.appState.get('currentUser.preferences.locale') ||
       _this.appState.get('sessionUser.preferences.locale');
-    var default_locale = board_default_locale(model.get('locale'), model.get('key'), user_locale);
+    var default_locale = board_default_locale(model.get('locale'), model.get('key'), user_locale, board_langs);
     ['label_locale', 'vocalization_locale'].forEach(function(loc_type) {
       _this.appState.set(loc_type, session_board_locale(_this.stashes, loc_type, default_locale, board_langs));
     });

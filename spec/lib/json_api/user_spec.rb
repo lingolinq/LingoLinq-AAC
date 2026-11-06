@@ -974,6 +974,16 @@ describe JsonApi::User do
         expect(supervisee_json('locale' => 'fr')['locale']).to eq('fr')
       end
 
+      it "is not sent on an organization roster" do
+        sup = User.create
+        comm = User.create
+        comm.settings['preferences']['locale'] = 'fr'
+        comm.save
+        User.link_supervisor_to_user(sup, comm, nil, true)
+        json = JsonApi::User.build_json(comm.reload, limited_identity: true, supervisor: sup.reload, organization: Organization.create)
+        expect(json['locale']).to eq(nil)
+      end
+
       it "is not sent without a supervisor" do
         comm = User.create
         comm.settings['preferences']['locale'] = 'fr'

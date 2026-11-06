@@ -1236,8 +1236,16 @@ export default Component.extend({
     return this._needs_english_lookup();
   }),
 
+  /** Readable name of the language the board will be made in. */
+  authoring_language_name: computed('model.locale', function() {
+    return i18n.readable_language(this.get('model.locale') || 'en');
+  }),
+
+  /** speecher fills `voices` after load, so the notice below watches it. */
+  speech: speecher,
+
   /** True when this device cannot speak the chosen language with a matching voice. */
-  shows_no_voice_notice: computed('model.locale', function() {
+  shows_no_voice_notice: computed('model.locale', 'speech.voices', function() {
     return !speecher.has_voice_for(this.get('model.locale') || 'en');
   }),
 
@@ -1371,8 +1379,10 @@ export default Component.extend({
     if(this.get('authoring_locale_chosen')) {
       return;
     }
+    var own_locale = this.get('preferred_communicator_locale') || 'en';
+    this.set('language_from_owner', false);
     if(!userId || userId === 'self') {
-      this._set_authoring_locale(this.get('preferred_communicator_locale') || 'en');
+      this._set_authoring_locale(own_locale);
       return;
     }
     var supers = this.appState.get('sessionUser.known_supervisees') ||
@@ -1386,9 +1396,9 @@ export default Component.extend({
       }
     }
     var loc = match && (match.locale || (match.preferences && match.preferences.locale));
-    if(loc) {
-      this._set_authoring_locale(loc);
-    }
+    // No language on record: back to the creator's, not the last person picked.
+    this._set_authoring_locale(loc || own_locale);
+    this.set('language_from_owner', !!loc);
   },
 
   /** Set model.locale and drop label-text caches when the 2-letter root
@@ -1855,14 +1865,6 @@ export default Component.extend({
       board.set('button_locale', board.get('locale'));
       _this.appState.set('label_locale', board.get('locale'));
       _this.appState.set('vocalization_locale', board.get('locale'));
-      // Same session write as Translate Boards (translation-select.js done_translating).
-      // The board also stores English, so a stale stash would otherwise win on load
-      // (routes/user/board-alt/index.js). Not for English boards: nothing needs it, and
-      // it would replace a Switch Languages session.
-      if(_this._authoring_locale_root() !== 'en') {
-        _this.stashes.persist('label_locale', board.get('locale'));
-        _this.stashes.persist('vocalization_locale', board.get('locale'));
-      }
       _this.set('status', null);
       /* Invalidate Mine-list snapshot so /boards re-queries after create. */
       try {

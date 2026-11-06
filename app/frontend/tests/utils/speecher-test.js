@@ -74,15 +74,10 @@ describe('speecher', function() {
       expect(speecher.has_voice_for('es')).toEqual(true);
       expect(speecher.has_voice_for('es_ES')).toEqual(true);
     });
-    it("should say no when no voice matches and the device is offline", function() {
-      speecher.set('voices', [{lang: 'en-US', voiceURI: 'a', name: 'a'}]);
-      stub(speecher, 'get_persistence', function() { return {get: function() { return false; }}; });
-      expect(speecher.has_voice_for('es')).toEqual(false);
-    });
-    it("should count a cloud voice when online", function() {
-      speecher.set('voices', [{lang: 'en-US', voiceURI: 'a', name: 'a'}]);
+    it("should say no when speech would fall back to a voice in another language", function() {
+      speecher.set('voices', [{lang: 'en-US', voiceURI: 'a', name: 'a', default: true}]);
       stub(speecher, 'get_persistence', function() { return {get: function() { return true; }}; });
-      expect(speecher.has_voice_for('es')).toEqual(true);
+      expect(speecher.has_voice_for('es')).toEqual(false);
     });
     it("should not warn before voices have loaded", function() {
       speecher.set('voices', []);

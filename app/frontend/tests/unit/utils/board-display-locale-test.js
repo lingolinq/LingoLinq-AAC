@@ -76,10 +76,16 @@ module('Unit | Utility | board_display_locale', function() {
     assert.strictEqual(session_board_locale(stashes, 'vocalization_locale', 'fr', ['fr', 'es', 'en']), 'en');
   });
 
-  test('board_default_locale: a keyboard board is English only for a user with no language', function(assert) {
-    assert.strictEqual(board_default_locale('es', 'example/keyboard', null), 'en');
-    assert.strictEqual(board_default_locale('es', 'example/keyboard', 'es'), 'es');
-    assert.strictEqual(board_default_locale('es', 'example/mi-tablero', null), 'es');
-    assert.strictEqual(board_default_locale(undefined, 'example/hats', null), 'en');
+  test('session_board_locale: a board with no language stays unset so readers use their own fallback', function(assert) {
+    const stashes = stashesWith({ label_locale: 'es' });
+    assert.strictEqual(session_board_locale(stashes, 'label_locale', undefined, []), undefined);
+  });
+
+  test('board_default_locale: a keyboard board with English is English for a user with no language', function(assert) {
+    assert.strictEqual(board_default_locale('es', 'example/keyboard', null, ['es', 'en']), 'en');
+    assert.strictEqual(board_default_locale('es', 'example/keyboard', 'es', ['es', 'en']), 'es');
+    assert.strictEqual(board_default_locale('es', 'example/keyboard', null, ['es']), 'es');
+    assert.strictEqual(board_default_locale('es', 'example/mi-tablero', null, ['es', 'en']), 'es');
+    assert.strictEqual(board_default_locale(undefined, 'obf/stars-1', null, []), undefined);
   });
 });
