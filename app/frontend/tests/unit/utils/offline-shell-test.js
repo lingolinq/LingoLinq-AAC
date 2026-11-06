@@ -361,7 +361,7 @@ module('Unit | Utility | offline_shell', function() {
       };
       var win = { offline_shell_enabled: true, caches: cacheStore([], calls) };
       var appState = EmberObject.create({ sessionUser: trustedUser() });
-      var stop = offline_shell.follow_device_trust(appState, win, nav);
+      var stopWatching = offline_shell.follow_device_trust(appState, win, nav);
       try {
         await drain();
         appState.set('sessionUser', sharedUser());
@@ -371,7 +371,7 @@ module('Unit | Utility | offline_shell', function() {
         await drain();
         assert.deepEqual(calls, ['register /sw.js', 'getRegistrations', 'unregister https://app.example/sw.js', 'caches.keys']);
       } finally {
-        stop();
+        stopWatching();
         appState.destroy();
       }
     });
