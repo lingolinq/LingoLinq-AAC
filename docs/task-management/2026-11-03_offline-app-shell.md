@@ -411,3 +411,29 @@ Offline, nothing enforces a trusted browser's 28-day inactivity timeout (Device#
 remote sign-out. Proposal: record when the session was last confirmed online (a successful
 check_token) and refuse to open from the shell offline once longer than the device's timeout has
 passed; a remote sign-out then takes effect at the next online launch, as today.
+
+## Review round 3 (2026-11-05): stopped on High findings
+
+Reviews of d1baf26c2: Codex gpt-6.1-sol request changes (2 High, 1 Medium); adversary draft fine,
+block merge (1 High, 1 Medium, 2 Low).
+
+- **High (adversary), CONFIRMED by reading:** an iOS Home Screen sign-in is trusted without asking.
+  `navigator.standalone` makes the app "browserless" (`utils/capabilities.js`), the login then sends
+  `long_token = true` (`components/login-form.js`, the submit path) and the server stores it
+  (`session_controller.rb`, `generate_token!`), so the Trust/Shared question never appears and every
+  iOS Home Screen device, shared or not, keeps the worker. Old behaviour; this PR adds the offline
+  consequence. Needs Scot's decision: Home Screen counts as a trusted app (like the native apps), or
+  show the choice on iOS Home Screen and keep the worker only after an explicit one.
+- **High (Codex), CONFIRMED by reading:** the cache name does not cover `lib/offline_shell.rb`,
+  whose lists the worker embeds (EXCLUDED_FIRST_SEGMENTS, RUNTIME_CACHED_SOURCE), so a worker change
+  can keep the name, and a failed install then deletes the live cache (`caches.delete(CACHE_NAME)`).
+  Availability, not privacy (the adversary rated it Low). Present since the first version.
+- **High (Codex), CONFIRMED in code, exposure PLAUSIBLE:** the one-at-a-time queue is per page; two
+  tabs loading at nearly the same moment across a shared sign-in could still leave the worker.
+- **Medium (adversary), CONFIRMED by reading:** a supervisor saving a communicator's Preferences
+  writes the posted (borrowed) `long_token` onto the communicator's most recent device
+  (`users_controller.rb` update, `User#process_device`).
+- **Medium (Codex):** the kill-switch install record does not prove the browser still has the
+  install (storage cleared while the record remains).
+- **Low (adversary):** one register() that never settles holds up later removals in the queue.
+- **Low (adversary):** the shell's footer partial and ENV values in the page are outside the digest.
