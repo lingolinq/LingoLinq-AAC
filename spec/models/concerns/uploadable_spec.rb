@@ -333,7 +333,7 @@ describe Uploadable, :type => :model do
         expect(f.size).to eq(7)
       }.and_return(res)
       
-      expect(s).to receive(:'`').and_return("A\nB\nGeometry:  100x150")
+      expect(ImageMagickRunner).to receive(:capture).with('identify', '-verbose', kind_of(String)).and_return("A\nB\nGeometry:  100x150")
       s.upload_to_remote("http://pic.com/cow.png")
       expect(s.url).not_to eq(nil)
       expect(s.settings['pending']).to eq(false)
@@ -367,7 +367,7 @@ describe Uploadable, :type => :model do
         expect(f.size).to eq(7)
       }.and_return(res)
       
-      expect(s).to receive(:'`').and_return("A\nB\nGeometry:  100x150")
+      expect(ImageMagickRunner).to receive(:capture).with('identify', '-verbose', kind_of(String)).and_return("A\nB\nGeometry:  100x150")
       s.upload_to_remote("http://pic.com/cow.png")
       expect(s.url).not_to eq(nil)
       expect(s.settings['pending']).to eq(false)
