@@ -4,10 +4,13 @@ Base: `develop` at `d5966fc2b`. Line numbers are at this branch's tree.
 
 ## What changed
 
-- `app/models/concerns/uploadable.rb:290` and `:386`: `identify` and `convert` run through
+- `app/models/concerns/uploadable.rb:291` and `:387`: `identify` and `convert` run through
   `ImageMagickRunner` with an argv. Before this change both were shell strings. Their only interpolated
   value was a `Tempfile` path with literal prefix and suffix (`uploadable.rb:257`), so no user text
   reached those two shells; this removes the dependence on that staying true.
+- `app/models/concerns/uploadable.rb:290`: flushes the download before `identify`. A body smaller than
+  Ruby's write buffer was still in memory, so `identify` read an empty file and the image got no width or
+  height. Such images now get their dimensions.
 - `lib/image_magick_runner.rb`: adds `capture`, which returns stdout, because `run` returns a boolean
   and `identify`'s output is parsed. Both share one argv guard.
 - `config/initializers/obf_fix_color_hardening.rb`: prepends an argv form of `OBF::Utils.fix_color`.
@@ -18,7 +21,7 @@ Other spawns use an argv (`ImageMagickRunner`, `obf_save_image_hardening.rb`).
 ## Behaviour changes
 
 - `convert` that cannot start, or any other pre-exec failure: `run` returns nil and warns, so the upload
-  takes the no-raster path (`uploadable.rb:314-320`) instead of failing the job. Accepted: the record
+  takes the no-raster path (`uploadable.rb:315-321`) instead of failing the job. Accepted: the record
   clears `rasterized` and can retry after the 24-hour gate, and `run` already degrades this way for
   `sentence_pic`. `identify` that cannot start still raises, as it did.
 - `fix_color` with no `node`: raises, where the shell returned `''`. Accepted: every deployed image

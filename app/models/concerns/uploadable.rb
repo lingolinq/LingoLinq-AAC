@@ -287,6 +287,7 @@ module Uploadable
         file.write(body)
 
         if file_type == 'images' && !self.settings['width'] && !SvgSanitizer.svg_content_type?(self.settings['content_type'])
+          file.flush
           identify_data = ImageMagickRunner.capture('identify', '-verbose', file.path)
           identify_data.split(/\n/).each do |line|
             pre, post = line.sub(/^\s+/, '').split(/:\s/, 2)

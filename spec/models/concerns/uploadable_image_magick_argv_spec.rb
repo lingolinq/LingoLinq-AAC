@@ -55,6 +55,17 @@ describe Uploadable, "ImageMagick argv" do
     expect(image.reload.settings['rasterized']).to eq(nil)
   end
 
+  it "writes a small download to disk before identify reads it" do
+    # This fake reports the bytes it can see, so a buffered write shows up as a width of 0.
+    File.write(File.join(@dir, 'identify'), "#!/bin/sh\necho \"Geometry: $(wc -c < \"$2\" | tr -d ' ')x1\"\n")
+    res = OpenStruct.new(:success? => true, :headers => {'Content-Type' => 'image/png'}, :body => 'abcdefg')
+    expect(Typhoeus).to receive(:get).and_return(res)
+    allow(Typhoeus).to receive(:post).and_return(OpenStruct.new(:success? => true))
+
+    image.upload_to_remote('http://pic.com/cow.png')
+    expect(image.settings['width']).to eq(7)
+  end
+
   it "runs identify with an argv and reads its output when measuring a downloaded image" do
     expect(image).not_to receive(:'`')
     file = File.open(@hostile_path, 'wb+')
