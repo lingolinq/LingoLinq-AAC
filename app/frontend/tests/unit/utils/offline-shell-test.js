@@ -454,7 +454,7 @@ module('Unit | Utility | offline_shell', function() {
           await drain();
           sharedPage = page(site, sharedUser());
           await drain();
-          assert.notOk(site.calls.indexOf('getRegistrations') !== -1, 'the removal has not run yet');
+          assert.strictEqual(site.calls.indexOf('getRegistrations'), -1, 'the removal has not run yet');
           site.land();
           await drain();
           assert.deepEqual(site.registered, [], 'removed once the registration landed');
@@ -486,6 +486,7 @@ module('Unit | Utility | offline_shell', function() {
       });
 
       test('a later trusted sign-in registers again', async function(assert) {
+        assert.expect(1);
         var site = sharedSite();
         var sharedPage = page(site, sharedUser());
         var trustedPage;
