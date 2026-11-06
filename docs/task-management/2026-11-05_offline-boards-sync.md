@@ -197,3 +197,60 @@ timeout on the device read; `usable_copy` on server answers; 404 in a 200 body; 
 review. Decisions for Traci: Speak Mode exemption, shared devices, notice for device copies, reconnect
 behaviour, share and other actions on a device copy. Not verified: production value of
 `auth_spa_transition`. Merging #1268 does not fix `online` true cold boots.
+
+## Unit 1 rework (2026-11-06)
+
+Branch now includes #1268 at `db76e89bc` by a local merge. Traci's decisions, all as recommended:
+1. On Modern a real server denial or a revocation mark wins, except home and sidebar boards. Speak Mode no
+   longer exempts, because Modern forces it on for everyone.
+2. After the server ends a session, the device copy shows only on a trusted device
+   (`offline_shell.device_trust`). CONFIRMED native is trusted: `device_login_flags` sets `long_token`
+   for `installed_app` (`components/login-form.js:1400`).
+3. A notice shows on a device copy.
+4. No swap on reconnect; it refreshes on the next board. Edit asks the server again.
+5. Actions that save the board are refused on a device copy, as Edit is.
+Also: device copies stay read-only, and a 429 counts as no answer.
+
+### Proposal
+- **Per-navigation token.** `model` creates `nav` and sets `this._board_nav`. `is_settled` is also true when
+  `nav` is no longer current. `handleRoot` writes `_raw_board_data` only for the current `nav` that was not
+  served from the device, and skips the store push on a served `nav`, so a late answer is cached only. The
+  flag read in `handleRoot` becomes `nav.served`, never route state.
+- **Clear the flag** in `resetController` on exit.
+- **Revert** the `reload_on_connect.js` change (decision 4).
+- **Deadline armed always**, whatever `online` says (`persistence.ajax` can flip it).
+- **Late refusal.** After a deadline copy, if the navigation ends in `{error}` and `server_refused`, and
+  `nav` is current, set the controller's `model` to that error and clear the flag. The template branches on
+  `model.error` (`templates/user/board-detail.hbs:551`).
+- **Who may read a copy.** No device read unless signed in (`stashes.auth_settings`) and
+  `persistence.local_db_is_current_user()`. Covers the memory copy as well.
+- **Decision 1.** `route_refuses_local` and `blocks_view_route` take `{ignore_speak_mode: true}`, passed only
+  by this path. Basic and the Modern cache-hit gate are unchanged.
+- **Decision 2.** A failure with `session.dead_session_response(err.fakeXHR)` refuses unless
+  `device_trust(sessionUser) === 'trusted'`.
+- **Decision 3.** Controller `served_from_device` shows a `role="status"` line above the grid, i18n, in
+  existing board-detail styling, sized for AAC.
+- **Decision 4 for Edit.** Offline: the warning stands. Online: a different message, and the board refreshes
+  from the server; if the server answers, the flag clears and Edit works on the next tap.
+- **Decision 5.** `_blocked_on_device_copy()` guards `share_board`, `open_board_privacy` and `translate_board`,
+  the board-changing actions outside edit mode (traced from the template; `other_board_actions` and
+  `recolor_board` are edit-only). `switch_languages` to be checked.
+- **Server answers.** `usable_copy` on the `/tree` and show paths, so a 200 block page counts as no answer
+  (`lib/json_api/board.rb:24`: `buttons` is always sent).
+- **Bounded read.** The device read gives up after `DEVICE_READ_WAIT_MS` (5 s).
+- **404 in a 200 body:** also read `err.result.status`.
+- **Memory copy survives expiry.** `get` drops an expired entry, including when `_build_from_raw` reads it, so
+  `peek` was one-shot. Keep expired raws in `_expired` for `peek`, cleared by `clear()`. Comment on the kept
+  record corrected: identity is kept, the grid comes from the newest copy.
+
+Rejected: skipping the deadline copy for an `outdated` row. Any row over a week old is flagged
+(`record.important` is never set, `services/persistence.js:430`), so a device a week from its last sync would
+wait about 148 s on a bad network. The notice covers the honesty concern. Disagrees with the review, on purpose.
+
+Not in this unit: `online` true cold boots and other-owner boards (unit 2, `routes/user.js`).
+
+Tests: two overlapping navigations; flag cleared after a device copy; server wins during the device read;
+`DEVICE_COPY_WAIT_MS` pinned; no warm on a device copy; edit allowed with the flag false; late answer leaves the
+record alone; `_build_from_raw` on a kept record; deadline with `online` false; late refusal; signed out and
+wrong database; dead session shared and trusted; Speak Mode denial now refused; home and sidebar kept; hung
+device read; HTML 200; guarded actions.
