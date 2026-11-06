@@ -459,3 +459,25 @@ offline/sign-in filter 122 of 122; RSpec offline files plus every spec that ment
 
 Per Scot: the PR opens after this round's reviews whatever they find; new findings go in the PR
 body as open items, Highs marked as merge blockers for Traci. No further fix round.
+
+## Review round 4 (2026-11-05)
+
+Reviews of 40d45e2ba: Codex gpt-6.1-sol request changes (2 High); adversary draft fine with
+conditions (no High; 2 Medium, 3 Low). Scot: fix both Highs, then open the draft PR; Mediums and
+Lows go in the PR as open items for Traci.
+
+- **Fixed (Codex H1):** a page now registers only while its own sign-in token is the current one
+  (the stored auth settings, read fresh by every page through `stashes.get_object`), and acts again
+  on each new sign-in. This replaces the round-3 trust record in localStorage (`ll-offline-shell-trust`
+  is no longer written).
+- **Fixed (Codex H2):** without `navigator.locks`, a trusted device gets no worker and loses one it
+  has (known limit: Safari before 15.4).
+- Red: five unit tests on the round-3 code; three mutations. e2e: launch 6, lifecycle 4, kill switch 2.
+- Open items (in the PR): the Home Screen sign-in change is outside the OFFLINE_APP_SHELL gate; an
+  organization's short token timeout survives a later Trust choice; the supervisor-save trust write;
+  the kill-switch e2e trusts its record; a never-settling register holds the site-wide lock; a failed
+  install into an existing cache; the iPhone sign-in overlay path; ENV values outside the cache name.
+- One full Ember run at the round-3 head failed one session test ("check_token accepts the answer
+  for the token this tab is sending after another tab signed in"); it passes alone (16 of 16 in its
+  module) and passed in the previous complete run. Rechecked in the final full run.
+- These two fixes were not re-reviewed.
