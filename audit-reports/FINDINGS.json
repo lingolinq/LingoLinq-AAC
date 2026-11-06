@@ -4,9 +4,9 @@
     "register": "LingoLinq-AAC audit findings register",
     "description": "Single source of truth for finding status. Statuses are verified against live code at auditedSha, NOT copied from the dated report prose. See audit-reports/README.md.",
     "auditedSha": "070b5e614071aec8fd917fa4b4067f5412460614",
-    "auditedRef": "compliance/scot-q3-makeup-run-20eb9dd6 (== origin/develop tip 070b5e61 at run start, 2026-10-31). PARTIAL COVERAGE: 0 of 6 finders complete, 0 of 8 live reads succeeded; details are in the private run record. Internal automated review by AI agents against our own checklists, not a third-party audit; it says what was examined, not that it passed, and open findings are counted separately. Standing limits: callers outside the repo; vendor internals; provider-side key revocation. Scot signed 2026-11-04. Excludes assistive-technology testing (tracked separately in the conformance report).",
+    "auditedRef": "compliance/scot-q3-makeup-run-20eb9dd6 (== origin/develop tip 070b5e61 at run start, 2026-10-31). PARTIAL COVERAGE: 0 of 6 finders complete, 0 of 18 live reads succeeded; details are in the private run record. Internal automated review by AI agents against our own checklists, not a third-party audit; it says what was examined, not that it passed, and open findings are counted separately. Standing limits: callers outside the repo; vendor internals; provider-side key revocation. Scot sign-off: pending. Excludes assistive-technology testing (tracked separately in the conformance report).",
     "auditedDate": "2026-10-31",
-    "auditedShaPriorNote": "Restamped 2026-10-31 to 070b5e614 by the Q3 2026 make-up /audit-run (calendar item rev-audit-run-q3-makeup) from prior auditedSha a43867de5 (2026-09-16 partial run). Intervening-commit analysis: a43867de5 IS an ancestor of 070b5e614, 651 commits apart; the two-dot diff spans 1226 files. 070b5e614 was the origin/develop tip when the run started, and the examination log and fan-out gate are recorded against it. The register was assembled on a later develop tip; audit-reports did not change between the audited SHA and that tip, and commits after the audited SHA were not scanned by this run. Scot signed this restamp on 2026-11-04; it carries the Step 2c partial stamp, with the live-read count taken against the list as defined on 2026-11-04, in auditedRef. ---- PRIOR: Restamped 2026-09-16 to a43867de5 by the Q3 2026 QUARTERLY FULL /audit-run (all six finders dispatched against their full scope, with the coverage caveats listed below) from prior auditedSha 59f502aa4 (2026-08-18 monthly light run). Intervening-commit analysis: 59f502aa4 IS an ancestor of a43867de5 (git merge-base --is-ancestor true), 239 commits apart; a43867de5 was the origin/develop tip when the run started, so unlike the 2026-08-18 restamp there is no orphaned-SHA or stale-tip gap. The two-dot diff 59f502aa4..a43867de5 spans 978 files (about 170k insertions / 69k deletions); the 7 staging commits the 2026-08-18 note said were NOT scanned by that light run (PRs #814/#816/#819/#820/#821/#822/#823) are ancestors of a43867de5 and so ARE inside this full run scope. COVERAGE CAVEATS Scot must weigh before relying on this pointer as a whole-tree audit: (1) finders were spawned as agent-team teammates, and on that path neither the agent-frontmatter hooks (read-only guard, examination logger) nor the preloaded checklist skills are applied (filed as LL-c667ec15e3); each finder ran from its agent body plus the orchestrator spawn prompt, not its checklist skill, so per-domain checklist coverage is not guaranteed and Step 7 layer 1 produced no examined-*.jsonl; no repo mutation by any finder was observed (git status clean). (2) AWS account-level state was not read (only the app least-privilege S3 identity was available). (3) bundle-audit could not run (gems not installed, no advisory DB); substituted live GHSA API checks of security-sensitive gems. (4) accessibility was static-only (no browser/axe/AT). (5) Several finders sampled rather than exhaustively swept: code-hygiene sampled the largest new files for slop patterns rather than every changed file; api spot-checked LL-7d50b089c9 only for file existence; privacy listed unreached areas (transcoder, uploader, library translators, scheduler.rake, several data-policy findings not re-traced). Scot approved keeping the restamp with this coverage qualifier on 2026-09-17 and a make-up pass before the October light run. Prior pointer note (2026-08-18) preserved verbatim below for history. ---- PRIOR: Restamped 2026-08-18 to 59f502aa4 (a real ancestor of origin/staging, NOT the live tip -- see the auditedRef caveat above) from prior auditedSha d67ed76e0a1 (2026-08-12 run), for a monthly light run (/audit-run cadence rule). Discovered during scoping: d67ed76e0a1 is NOT an ancestor of current staging history (`git merge-base --is-ancestor` returns false) -- PR #803, which landed that full run's own commit alongside the 40 findings it produced, squash-merged into staging as f3096a4ce rather than via a traceable merge commit, so the exact feature-branch SHA the prior restamp recorded was orphaned from mainline the moment the PR merged. A naive `git diff d67ed76e0a1...HEAD` therefore returned a false, enormous result (253 files, 486 commits) by comparing across divergent history instead of a clean diff. The correct anchor for 'what changed since the last full run actually merged to staging' is f3096a4ce (found via `git log --grep`, confirmed as a real ancestor of both endpoints), against which the true light-run scope was exactly 1 commit / 1 file (.github/workflows/deploy-cloudrun.yml, PR #805). CORRECTION (dual-review, 2026-08-19): the FIRST version of this restamp incorrectly asserted '59f502aa4 (== origin/staging)'. That was true at the moment the light-run scoping was computed but had already gone stale by the time the register PR was assembled -- staging advanced 7 more commits (43 files, including PR #819 which extended an unrelated pre-existing finding's notes) before this branch was pushed. The false equality claim was caught by BOTH the Codex senior-dev pass and the Claude adversary pass on PR #824's dual review, alongside a separate and more serious defect it enabled: the register PR's first draft was assembled by copying a stale local file over the correctly-checked-out current-staging FINDINGS.json rather than re-deriving the register from current staging via audit-merge.rb, which silently reverted the 7 commits' worth of legitimate concurrent changes to the file -- including 4,197 characters of PR #819's additions to LL-854b1d3853's notes. That defect was NOT a consequence of the auditedSha choice; it was a separate assembly-process error (raw file overwrite instead of a proper merge onto current staging), fixed by rebuilding the register on top of d2bf421f7 and re-running audit-merge.rb before this PR's second push. This is a distinct, previously-undocumented failure mode from the one scripts/audit-merge.rb's --no-restamp flag (branch scot/fix/audit-merge-sha-decoupling, unmerged as of this run) was built to fix -- that work separates the VERIFICATION sha from the AUDIT POINTER for out-of-band finding additions; this issue is that the audit pointer itself can become a non-ancestor SHA purely from how a full-run PR gets merged (squash vs merge-commit), independent of --no-restamp, AND that assembling a register PR by file-copy rather than through audit-merge.rb against the CURRENT base can silently revert unrelated concurrent work no matter how the auditedSha itself is handled. Recommend Scot decide whether future full-run PRs should be merge-committed (not squashed) specifically to keep meta.auditedSha resolvable via ancestry for the next light run's diff-scoping, and standing process guidance for future register PRs: ALWAYS re-derive audit-reports/FINDINGS.json from the current base branch's tip via audit-merge.rb immediately before opening/updating a register PR -- never copy a working-tree file captured earlier in the session, even if that earlier copy is citation-check green, because green only proves the file's OWN evidence resolves, not that the file reflects the current base. Sign-off for the original restamp is Scot's own /audit-run invocation that started this run (skill is user-invoked only); the correction above was applied by the orchestrator in response to dual-review findings, before Scot's merge decision on PR #824. Restamped 2026-08-12 to d67ed76e0a1 (branch scot/feat/code-hygiene-auditor, 1 commit ahead of origin/staging at branch time) from prior auditedSha 20953ab3d5a (2026-07-08 run). This restamp is NOT a clean single-commit reconciliation like the ones below it: the 6-finder full run that produced d67ed76e0a1 verified its own 40 new findings' evidence at that exact SHA (citation-check green), but the ~110 pre-existing findings from before this run keep their OWN original evidence.sha values, unchanged by this restamp -- consistent with this register's standing per-finding-pin design, not a regression. Flagged during dual-review (2026-08-14): as of review time origin/staging had moved 16 commits past d67ed76e0a1, and two of THIS RUN's own new findings' cited files were among the ones touched (app/frontend/app/utils/persistence.js: LL-30236919f6's debugger; line will drift once this branch merges and a future run re-anchors against staging tip; .github/workflows/ci.yml: LL-33d756b764's GITLEAKS_DOWNLOAD_URL= line likewise). Both still resolve correctly at their pinned evidence.sha (d67ed76e0a1) today; this note exists so a future restamp knows to re-verify those two lines specifically rather than assume the register's overall auditedSha jump means everything was re-verified. Restamped 2026-06-18 to staging tip 59e20439e from prior auditedSha d72463c75 (Scot sign-off 2026-06-18). The only commit between the two is #416, a GCP provisioning fix touching solely scripts/gcp/phase3-data-layer.sh (Memorystore --enable-auth flag + comment); no finding's evidence anchor points at that file, so no finding status could have changed and no new findings surface. Per-finding evidence.sha anchors are unchanged, so citation-check still validates each snippet at its own pinned commit. Prior restamp 2026-06-17 moved 7ed643e92 (scot/test/audit-run-e2e, 2026-06-16) -> d72463c75 after #410/#411/#412/#413 merged.",
+    "auditedShaPriorNote": "Restamped 2026-10-31 to 070b5e614 by the Q3 2026 make-up /audit-run (calendar item rev-audit-run-q3-makeup) from prior auditedSha a43867de5 (2026-09-16 partial run). Intervening-commit analysis: a43867de5 IS an ancestor of 070b5e614, 651 commits apart; the two-dot diff spans 1226 files. 070b5e614 was the origin/develop tip when the run started, and the examination log and fan-out gate are recorded against it. The register was assembled on a later develop tip; audit-reports did not change between the audited SHA and that tip, and commits after the audited SHA were not scanned by this run. Scot approved this restamp on 2026-11-04; it carries the Step 2c partial stamp, whose final wording awaits his sign-off, with the live-read count taken against the list as defined on 2026-11-04, in auditedRef. ---- PRIOR: Restamped 2026-09-16 to a43867de5 by the Q3 2026 QUARTERLY FULL /audit-run (all six finders dispatched against their full scope, with the coverage caveats listed below) from prior auditedSha 59f502aa4 (2026-08-18 monthly light run). Intervening-commit analysis: 59f502aa4 IS an ancestor of a43867de5 (git merge-base --is-ancestor true), 239 commits apart; a43867de5 was the origin/develop tip when the run started, so unlike the 2026-08-18 restamp there is no orphaned-SHA or stale-tip gap. The two-dot diff 59f502aa4..a43867de5 spans 978 files (about 170k insertions / 69k deletions); the 7 staging commits the 2026-08-18 note said were NOT scanned by that light run (PRs #814/#816/#819/#820/#821/#822/#823) are ancestors of a43867de5 and so ARE inside this full run scope. COVERAGE CAVEATS Scot must weigh before relying on this pointer as a whole-tree audit: (1) finders were spawned as agent-team teammates, and on that path neither the agent-frontmatter hooks (read-only guard, examination logger) nor the preloaded checklist skills are applied (filed as LL-c667ec15e3); each finder ran from its agent body plus the orchestrator spawn prompt, not its checklist skill, so per-domain checklist coverage is not guaranteed and Step 7 layer 1 produced no examined-*.jsonl; no repo mutation by any finder was observed (git status clean). (2) AWS account-level state was not read (only the app least-privilege S3 identity was available). (3) bundle-audit could not run (gems not installed, no advisory DB); substituted live GHSA API checks of security-sensitive gems. (4) accessibility was static-only (no browser/axe/AT). (5) Several finders sampled rather than exhaustively swept: code-hygiene sampled the largest new files for slop patterns rather than every changed file; api spot-checked LL-7d50b089c9 only for file existence; privacy listed unreached areas (transcoder, uploader, library translators, scheduler.rake, several data-policy findings not re-traced). Scot approved keeping the restamp with this coverage qualifier on 2026-09-17 and a make-up pass before the October light run. Prior pointer note (2026-08-18) preserved verbatim below for history. ---- PRIOR: Restamped 2026-08-18 to 59f502aa4 (a real ancestor of origin/staging, NOT the live tip -- see the auditedRef caveat above) from prior auditedSha d67ed76e0a1 (2026-08-12 run), for a monthly light run (/audit-run cadence rule). Discovered during scoping: d67ed76e0a1 is NOT an ancestor of current staging history (`git merge-base --is-ancestor` returns false) -- PR #803, which landed that full run's own commit alongside the 40 findings it produced, squash-merged into staging as f3096a4ce rather than via a traceable merge commit, so the exact feature-branch SHA the prior restamp recorded was orphaned from mainline the moment the PR merged. A naive `git diff d67ed76e0a1...HEAD` therefore returned a false, enormous result (253 files, 486 commits) by comparing across divergent history instead of a clean diff. The correct anchor for 'what changed since the last full run actually merged to staging' is f3096a4ce (found via `git log --grep`, confirmed as a real ancestor of both endpoints), against which the true light-run scope was exactly 1 commit / 1 file (.github/workflows/deploy-cloudrun.yml, PR #805). CORRECTION (dual-review, 2026-08-19): the FIRST version of this restamp incorrectly asserted '59f502aa4 (== origin/staging)'. That was true at the moment the light-run scoping was computed but had already gone stale by the time the register PR was assembled -- staging advanced 7 more commits (43 files, including PR #819 which extended an unrelated pre-existing finding's notes) before this branch was pushed. The false equality claim was caught by BOTH the Codex senior-dev pass and the Claude adversary pass on PR #824's dual review, alongside a separate and more serious defect it enabled: the register PR's first draft was assembled by copying a stale local file over the correctly-checked-out current-staging FINDINGS.json rather than re-deriving the register from current staging via audit-merge.rb, which silently reverted the 7 commits' worth of legitimate concurrent changes to the file -- including 4,197 characters of PR #819's additions to LL-854b1d3853's notes. That defect was NOT a consequence of the auditedSha choice; it was a separate assembly-process error (raw file overwrite instead of a proper merge onto current staging), fixed by rebuilding the register on top of d2bf421f7 and re-running audit-merge.rb before this PR's second push. This is a distinct, previously-undocumented failure mode from the one scripts/audit-merge.rb's --no-restamp flag (branch scot/fix/audit-merge-sha-decoupling, unmerged as of this run) was built to fix -- that work separates the VERIFICATION sha from the AUDIT POINTER for out-of-band finding additions; this issue is that the audit pointer itself can become a non-ancestor SHA purely from how a full-run PR gets merged (squash vs merge-commit), independent of --no-restamp, AND that assembling a register PR by file-copy rather than through audit-merge.rb against the CURRENT base can silently revert unrelated concurrent work no matter how the auditedSha itself is handled. Recommend Scot decide whether future full-run PRs should be merge-committed (not squashed) specifically to keep meta.auditedSha resolvable via ancestry for the next light run's diff-scoping, and standing process guidance for future register PRs: ALWAYS re-derive audit-reports/FINDINGS.json from the current base branch's tip via audit-merge.rb immediately before opening/updating a register PR -- never copy a working-tree file captured earlier in the session, even if that earlier copy is citation-check green, because green only proves the file's OWN evidence resolves, not that the file reflects the current base. Sign-off for the original restamp is Scot's own /audit-run invocation that started this run (skill is user-invoked only); the correction above was applied by the orchestrator in response to dual-review findings, before Scot's merge decision on PR #824. Restamped 2026-08-12 to d67ed76e0a1 (branch scot/feat/code-hygiene-auditor, 1 commit ahead of origin/staging at branch time) from prior auditedSha 20953ab3d5a (2026-07-08 run). This restamp is NOT a clean single-commit reconciliation like the ones below it: the 6-finder full run that produced d67ed76e0a1 verified its own 40 new findings' evidence at that exact SHA (citation-check green), but the ~110 pre-existing findings from before this run keep their OWN original evidence.sha values, unchanged by this restamp -- consistent with this register's standing per-finding-pin design, not a regression. Flagged during dual-review (2026-08-14): as of review time origin/staging had moved 16 commits past d67ed76e0a1, and two of THIS RUN's own new findings' cited files were among the ones touched (app/frontend/app/utils/persistence.js: LL-30236919f6's debugger; line will drift once this branch merges and a future run re-anchors against staging tip; .github/workflows/ci.yml: LL-33d756b764's GITLEAKS_DOWNLOAD_URL= line likewise). Both still resolve correctly at their pinned evidence.sha (d67ed76e0a1) today; this note exists so a future restamp knows to re-verify those two lines specifically rather than assume the register's overall auditedSha jump means everything was re-verified. Restamped 2026-06-18 to staging tip 59e20439e from prior auditedSha d72463c75 (Scot sign-off 2026-06-18). The only commit between the two is #416, a GCP provisioning fix touching solely scripts/gcp/phase3-data-layer.sh (Memorystore --enable-auth flag + comment); no finding's evidence anchor points at that file, so no finding status could have changed and no new findings surface. Per-finding evidence.sha anchors are unchanged, so citation-check still validates each snippet at its own pinned commit. Prior restamp 2026-06-17 moved 7ed643e92 (scot/test/audit-run-e2e, 2026-06-16) -> d72463c75 after #410/#411/#412/#413 merged.",
     "seedSource": "audit-reports/unified-audit-2026-04-09.md",
     "idAlgorithm": "id = 'LL-' + sha256(ruleKey + '|' + path) first 10 hex chars; stable across runs so recurrence is a diff. Exception: a row whose ruleKey is the self-referencing withheld form ('minimized-finding-' + its own id, lowercased) on a canonical LL-<10 lowercase hex> id: citation-check does not recompute its id. register-lint (CI) recomputes the id of every other row whose id and ruleKey are non-blank strings and whose evidence, if present, is an object, allows that form only on a row whose id is listed in audit-reports/SELF-REFERENCING-RULEKEY-IDS.json, and does not recompute the id of such a listed row",
     "statusEnum": [
@@ -850,8 +850,8 @@
     },
     {
       "id": "LL-57e9beb87f",
-      "ruleKey": "button-image-sound-orphaned-media-usage-check-unimplemented",
-      "title": "Flusher.flush_leftovers has no usage-based orphan check for orphaned ButtonImage/ButtonSound media records (item 1)",
+      "ruleKey": "minimized-finding-ll-57e9beb87f",
+      "title": "Retention coverage review: orphaned media records",
       "severity": "low",
       "confidence": "medium",
       "frameworks": [
@@ -862,18 +862,18 @@
       "evidence": {
         "type": "code",
         "file": "lib/flusher.rb",
-        "line": 57,
-        "snippet": "1. NOT IMPLEMENTED for either button_images or button_sounds. The plan's",
+        "line": 1,
+        "snippet": "module Flusher",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-07-04",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Item 1's deferred target is orphaned ButtonImage/ButtonSound media records themselves (images/sounds no board actually uses), NOT the BoardButtonImage/BoardButtonSound join rows -- those are already cleaned on a referential basis by item 2 (implemented). A join-table-only usage signal can't be trusted for ButtonImage/ButtonSound either: Board#map_images stopped syncing board_button_images (image usage now lives only in grid_buttons/known_button_images), and board_button_sounds can lag behind grid_buttons during an async resync window (BoyBand's deferred :map_images job), so checking \"zero join rows\" as a proxy for \"unused\" risks deleting media a board is still actively using. Needs a grid_buttons-based reverse-usage check (the same signal known_button_images/known_button_sounds already use per-board) built and proven safe before ButtonImage/ButtonSound records are deleted on a usage basis.",
+        "options": "Review this area against the retention schedule and close any gap found; the detail is in the private run record.",
         "timeframe": "90d"
       },
-      "notes": "Filed as a follow-up when LL-991d259b2a (flush_leftovers unimplemented) was attested verified-closed 2026-07-04: PR #514 deliberately left this item undone (documented inline at lib/flusher.rb:57) because implementing it unsafely risked live-data deletion, not because it was overlooked. Open here so the gap stays tracked now that the parent finding is closed. Corrected 2026-07-04 per Codex review of #530: the original title/ruleKey named board_button_images/board_button_sounds (the join tables, item 2's target, already implemented) instead of the actual deferred target, ButtonImage/ButtonSound media records."
+      "notes": "First recorded 2026-07-04; re-seen by the Q3 make-up /audit-run on 2026-10-31. Reworded to claim level 2026-11-05 by Scot Wahlquist under rule 4; the detail is in the private run record."
     },
     {
       "id": "LL-45bdcc73c9",
@@ -1373,8 +1373,8 @@
     },
     {
       "id": "LL-97f9001bb4",
-      "ruleKey": "audit-guard-denylist-residual-bypass",
-      "title": "Audit finder Bash guard is a denylist with residual fetch-and-exec bypass",
+      "ruleKey": "minimized-finding-ll-97f9001bb4",
+      "title": "Compliance finding (details withheld until remediation is verified)",
       "severity": "low",
       "confidence": "high",
       "frameworks": [
@@ -1384,15 +1384,15 @@
       "evidence": {
         "type": "code",
         "file": ".claude/hooks/audit-readonly-guard.sh",
-        "line": 59,
-        "snippet": "a denylist over arbitrary Bash is inherently",
+        "line": 1,
+        "snippet": "#!/usr/bin/env bash",
         "sha": "8c0629583a0f8216e8487305d6c9a5c51d26c8a0"
       },
       "firstSeen": "2026-06-13",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Primary read-only control is the no-Edit/Write tools allowlist; the Bash denylist is defense-in-depth and now blocks pipe-to-shell/eval. A determined novel obfuscation can still slip through. Phase 3: consider an allowlist-based command filter or a sandboxed finder shell.",
+        "options": "Closure criteria: fix merged to develop and released to production; independent verification against the private evidence; Scot records the closure and the disclosure decision.",
         "timeframe": "phase-3"
       },
       "closureEvidence": {
@@ -1400,7 +1400,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Audit-system self-finding from the PR #380 dual-reviewer pass (advisory). Anchored to the Phase 2 branch commit; tracked for Phase 3 hardening. | Phase 4 revisit (2026-06-14, first full run): KEEP-DEFERRED, unchanged. The guard was not exercised this run (the run used registered stand-in agents that lack the wired hook); no bypass occurred. The primary read-only control remains the no-Edit/Write tools allowlist, not the Bash denylist. The Phase-4 PostToolUse logger hook added to the finders is read-only (append-only, always exits 0) and does not widen the residual-bypass exposure. A true fix (allowlist command filter or sandboxed finder shell) is a meaningful build, not warranted by first-run evidence. Stays open until Scot attests. | REGRESSION: re-surfaced by infra finder on 2026-10-31 at 070b5e614071aec8fd917fa4b4067f5412460614 (disposition was wontfix). Scot decision 2026-11-05: the wontfix disposition stands. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). Guard at .claude/hooks/audit-readonly-guard.sh:60 states the limit itself, and running its matcher against test strings showed fetch-and-execute forms it allows. The citation is line 60, not 59.",
+      "notes": "Status: open. Security issue identified; remediation is pending. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. First recorded 2026-06-13; re-surfaced by the Q3 make-up /audit-run on 2026-10-31. Disposition wontfix; Scot decision 2026-11-05: the wontfix disposition stands. Minimized 2026-11-05 under the security disclosure policy (Scot Wahlquist).",
       "disposition": {
         "state": "wontfix",
         "decidedBy": "Scot Wahlquist",
@@ -3333,8 +3333,8 @@
     },
     {
       "id": "LL-caf2528468",
-      "ruleKey": "user-extra-profile-cache-not-invalidated-on-log-purge",
-      "title": "UserExtra/UserLink profile-history caches are not invalidated when the source profile LogSession is deleted",
+      "ruleKey": "minimized-finding-ll-caf2528468",
+      "title": "Erasure completeness review: profile-history caches",
       "severity": "medium",
       "confidence": "high",
       "frameworks": [
@@ -3345,15 +3345,15 @@
       "evidence": {
         "type": "code",
         "file": "app/models/user_extra.rb",
-        "line": 59,
-        "snippet": "self.settings['recent_profiles'][profile_id] = recents",
+        "line": 1,
+        "snippet": "class UserExtra < ApplicationRecord",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-07-05",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Before extending any retention/purge job to LogSession log_type 'profile', add cache invalidation: when a 'profile' LogSession is destroyed, either recompute UserExtra#process_profile for the affected user_id/profile_id (dropping the deleted session from the recents list) or scrub matching entries by log_id from UserExtra.settings['recent_profiles'] and UserLink.data['state']['profile_history'] directly. Add a spec asserting the cache no longer contains the deleted log's summary/log_id after purge.",
+        "options": "Review this area against the erasure procedure and close any gap found; the detail is in the private run record.",
         "timeframe": "60d"
       },
       "closureEvidence": {
@@ -3361,12 +3361,12 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by Codex's senior-dev review (/review-pr) of PR #535 (LL-1890f6a922, DataPolicyEnforcer retention scope): extending the retention purge to LogSession log_type 'profile' would delete the source record while UserExtra#process_profile's cached identifiable summary (template_id, summary, summary_color, log_id) and the mirrored UserLink.data['state']['profile_history'] entry are never refreshed on destroy, so identifiable content would persist in those caches after the source log is gone -- worse than the pre-existing status quo of not purging 'profile' at all. PR #535 responded by dropping 'profile' from DataPolicyEnforcer::RETAINABLE_LOG_TYPES (lib/data_policy_enforcer.rb) rather than shipping a half-fixed purge; this finding tracks the cache-invalidation work needed before 'profile' can safely be added back. Checked note/assessment/eval/journal for the same pattern: none found (user_badge.rb's assessment usage re-queries live LogSession rows on demand rather than caching a summary; weekly_stats_summary.rb caches only session_ids, not identifiable content, and per DATA_RETENTION.md's Analytics events row this is documented/accepted since aggregates 'do not re-identify individuals')."
+      "notes": "First recorded 2026-07-05; re-seen by the Q3 make-up /audit-run on 2026-10-31. Reworded to claim level 2026-11-05 by Scot Wahlquist under rule 4; the detail is in the private run record."
     },
     {
       "id": "LL-14edf1a801",
-      "ruleKey": "data-policy-enforcer-child-org-inheritance-skipped",
-      "title": "DataPolicyEnforcer retention job skips child orgs that inherit (rather than set) a retention_months policy",
+      "ruleKey": "minimized-finding-ll-14edf1a801",
+      "title": "Retention coverage review: inherited organization policies",
       "severity": "medium",
       "confidence": "high",
       "frameworks": [
@@ -3377,15 +3377,15 @@
       "evidence": {
         "type": "code",
         "file": "lib/data_policy_enforcer.rb",
-        "line": 101,
-        "snippet": "Organization.where(\"data_policy_version > 0\").find_each do |org|",
+        "line": 1,
+        "snippet": "module DataPolicyEnforcer",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-07-05",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Organization#effective_data_policy (app/models/organization.rb:81-101) is explicitly designed to inherit retention_months from a parent org, but enforce_retention!'s candidate-org WHERE clause only matches orgs whose OWN data_policy_version is > 0, and then only sweeps that org's own sponsored_users. A child org that never set its own policy (data_policy_version stays 0) is skipped by the WHERE clause entirely, even though its users are governed by an inherited window via a parent's policy -- so their communication logs never expire. Widen the candidate set to include any org whose effective (not just own) retention_months resolves to a positive value -- e.g. iterate every org with a policy-bearing ancestor, or drive the sweep off each org's own effective_data_policy rather than gating the WHERE clause on data_policy_version. Add a parent(policy)+child(data_policy_version 0) spec asserting the child's stale logs are purged.",
+        "options": "Review this area against the retention schedule and close any gap found; the detail is in the private run record.",
         "timeframe": "60d"
       },
       "closureEvidence": {
@@ -3393,12 +3393,12 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by adversary review of PR #535 (LL-1890f6a922, DataPolicyEnforcer log_type scope). Pre-existing since before that PR -- it changed only the log_type filter inside the loop, not the org-selection WHERE clause or the sponsored_users scoping -- but it directly undermines LL-1890f6a922's storage-limitation objective: an org hierarchy where only the parent sets retention_months leaves every child org's logs permanently unenforced. Confirmed against Organization#effective_data_policy's inheritance logic (organization.rb:84-96), which resolves retention_months from a parent for exactly this configuration, and against Organization#sponsored_users (organization.rb:677-685), which is scoped to one org's own attached users, not any descendant org's users."
+      "notes": "First recorded 2026-07-05; re-seen by the Q3 make-up /audit-run on 2026-10-31. Reworded to claim level 2026-11-05 by Scot Wahlquist under rule 4; the detail is in the private run record."
     },
     {
       "id": "LL-3bb2e2eaad",
-      "ruleKey": "data-policy-enforcer-purge-no-audit-event-deletes-papertrail",
-      "title": "Retention purge deletes the LogSession's PaperTrail destroy-version and writes no disposal AuditEvent",
+      "ruleKey": "minimized-finding-ll-3bb2e2eaad",
+      "title": "Retention coverage review: purge audit trail",
       "severity": "medium",
       "confidence": "high",
       "frameworks": [
@@ -3409,15 +3409,15 @@
       "evidence": {
         "type": "code",
         "file": "lib/flusher.rb",
-        "line": 45,
-        "snippet": "PaperTrail::Version.where(:item_type => record_class, :item_id => record_db_id).delete_all",
+        "line": 1,
+        "snippet": "module Flusher",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-07-05",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Flusher.flush_record (lib/flusher.rb) destroys the record (creating a has_paper_trail :on => [:destroy] version, log_session.rb:24) and then immediately delete_alls that same version via flush_versions, and DataPolicyEnforcer.enforce_retention! writes no AuditEvent for its purges at all -- unlike Flusher.flush_leftovers, which records a per-category AuditEvent for its deletions (lib/flusher.rb ~line 224). This contradicts docs/legal/DATA_RETENTION.md row 30 (Authentication and audit trails / PaperTrail versions on User, Board, LogSession retained 6 years, HIPAA 45 CFR Sec 164.316(b)(2)(i)) and leaves no record proving what data was destroyed, when, or by which policy. Either stop deleting the destroy-version for LogSession specifically in this retention path (retain per row 30), or have enforce_retention! emit a per-run AuditEvent (actor 'system', org id, purged log ids/counts) the way flush_leftovers already does, so a HIPAA access-log review can reconstruct the disposal.",
+        "options": "Review this area against the retention schedule and close any gap found; the detail is in the private run record.",
         "timeframe": "60d"
       },
       "closureEvidence": {
@@ -3425,7 +3425,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by adversary review of PR #535 (LL-1890f6a922, DataPolicyEnforcer log_type scope). Pre-existing since before that PR -- Flusher.flush_record's destroy-then-delete-versions behavior and enforce_retention!'s lack of an AuditEvent call are both unchanged by it -- but PR #535 widens the set of log_types this same behavior applies to from 1 (session) to 4 (session/note/assessment/eval/journal), modestly increasing real-world exposure. No user impact today (prod/staging carry no real users, per project note), but this needs resolving before onboarding real school-district/hospital users, since the retention job is precisely the mechanism DATA_RETENTION.md documents as satisfying GDPR 5(1)(e) storage limitation, and doing so by destroying the very audit trail row 30 requires keeping for 6 years is an internal contradiction in the documented schedule, not just a code gap."
+      "notes": "First recorded 2026-07-05; re-seen by the Q3 make-up /audit-run on 2026-10-31. Reworded to claim level 2026-11-05 by Scot Wahlquist under rule 4; the detail is in the private run record."
     },
     {
       "id": "LL-de9c94bf36",
@@ -3531,8 +3531,8 @@
     },
     {
       "id": "LL-d8072299bf",
-      "ruleKey": "retention-enforcement-skips-non-org-users",
-      "title": "Automated retention only runs for org-sponsored users; standalone accounts keep communication logs indefinitely",
+      "ruleKey": "minimized-finding-ll-d8072299bf",
+      "title": "Retention coverage review: accounts without an organization",
       "severity": "low",
       "confidence": "medium",
       "frameworks": [
@@ -3543,15 +3543,15 @@
       "evidence": {
         "type": "code",
         "file": "lib/data_policy_enforcer.rb",
-        "line": 101,
-        "snippet": "Organization.where(\"data_policy_version > 0\").find_each do |org|",
+        "line": 1,
+        "snippet": "module DataPolicyEnforcer",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-07-08",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Define a default retention window for communication logs of users not sponsored by any org (individual/consumer and EU self-serve accounts), or document the storage-limitation basis for indefinite retention. Consider a per-user retention preference driving Flusher.flush_record for unsponsored users.",
+        "options": "Review this area against the retention schedule and close any gap found; the detail is in the private run record.",
         "timeframe": "30-60d"
       },
       "closureEvidence": {
@@ -3559,7 +3559,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by privacy finder on 2026-07-08. enforce_retention! iterates only Organizations with data_policy_version > 0 and scopes deletion to org.sponsored_users (lines 22-31). Individual/self-serve accounts (incl. standalone EU data subjects) and users under orgs that never set a policy get NO automated purge; their LogSession history is retained indefinitely (GDPR Art 5(1)(e)). Distinct from LL-1890f6a922 (log_type scope), LL-14edf1a801 (child-org inheritance), LL-de9c94bf36 (cross-org over-purge) which all concern in-scope users; this is the never-in-scope population. Manual flush_user exists, hence low/medium. NEW. | adversary: confirmed -- DataPolicyEnforcer.enforce_retention! (data_policy_enforcer.rb:22-31, wired via scheduler.rake:136-140) is the only age-based log purge and is org+sponsored_users scoped; flusher paths (flush_deleted_users/flush_leftovers/flush_old_versions) do not cover standalone/no-policy users."
+      "notes": "First recorded 2026-07-08; re-seen by the Q3 make-up /audit-run on 2026-10-31. Reworded to claim level 2026-11-05 by Scot Wahlquist under rule 4; the detail is in the private run record."
     },
     {
       "id": "LL-107c9fb665",
@@ -3594,8 +3594,8 @@
     },
     {
       "id": "LL-c226391436",
-      "ruleKey": "csp-report-only-unsafe-inline-eval",
-      "title": "Content-Security-Policy is report-only (nothing blocked) and script-src permits unsafe-inline + unsafe-eval",
+      "ruleKey": "minimized-finding-ll-c226391436",
+      "title": "Compliance finding (details withheld until remediation is verified)",
       "severity": "low",
       "confidence": "high",
       "frameworks": [
@@ -3605,15 +3605,15 @@
       "evidence": {
         "type": "code",
         "file": "config/initializers/content_security_policy.rb",
-        "line": 112,
-        "snippet": "Rails.application.config.content_security_policy_report_only = true",
+        "line": 1,
+        "snippet": "# frozen_string_literal: true",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-07-08",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "The CSP is emitted as Content-Security-Policy-Report-Only, so no directive is enforced; script-src also includes unsafe_inline and unsafe_eval (lines 41-43). Documented as a deliberate phased rollout (docs/security/csp-rollout-plan.md) pending per-request nonces for the Ember 3.28 bootstrap. Track to completion: after the clean-report window, flip report_only to false and replace unsafe-inline/unsafe-eval with per-request nonces. Until then CSP provides no active control.",
+        "options": "Closure criteria: fix merged to develop and released to production; independent verification against the private evidence; Scot records the closure and the disclosure decision.",
         "timeframe": "90 days"
       },
       "closureEvidence": {
@@ -3621,7 +3621,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by infra finder on 2026-07-08. CC6/CC7 hardening. New. Deliberately tracked internally; recorded so the SOC2 register reflects the CSP control is not yet operating (report-only). | adversary: confirmed -- content_security_policy_report_only=true is unconditional (no env guard); script_src includes :unsafe_inline (line 42) and :unsafe_eval (line 43); no separate enforced CSP header exists in config/ or app/."
+      "notes": "Status: open. Security issue identified; remediation is pending. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. First recorded 2026-07-08; re-seen by the Q3 make-up /audit-run on 2026-10-31. Minimized 2026-11-05 under the security disclosure policy (Scot Wahlquist)."
     },
     {
       "id": "LL-5ae3d7ca2c",
@@ -4261,7 +4261,7 @@
         "options": "Add optional labelledBy / describedBy arguments to the modal-dialog component and bind them as aria-labelledby / aria-describedby on the dialog element. Ember omits a bound attribute whose value is undefined, so defaulting both to undefined is a verified no-op for the roughly 140 existing callers that do not pass them -- the change is additive and carries no regression risk to current modals. Then retrofit callers in priority order (terms-agree and any consent- or compliance-bearing modal first) so each dialog has a programmatically determined accessible name. WCAG 2.1 AA 4.1.2 Name, Role, Value.",
         "timeframe": "90 days"
       },
-      "notes": "Discovered 2026-07-20 during VPC Phase 3 planning. PRE-EXISTING and system-wide (~140 callers). VPC Phase 3 adds the optional labelledBy/describedBy arguments to the shell as part of building its own ai-disclosure accessibility contract, but deliberately does NOT retrofit existing callers -- that retrofit is this finding and remains separate prioritized work. Rated medium rather than high because affected modals are still operable; the defect is that a screen-reader user gets no accessible name for the dialog, not that the dialog is unusable."
+      "notes": "Discovered 2026-07-20 during VPC Phase 3 planning. PRE-EXISTING and system-wide (~140 callers). VPC Phase 3 adds the optional labelledBy/describedBy arguments to the shell as part of building its own ai-disclosure accessibility contract, but deliberately does NOT retrofit existing callers -- that retrofit is this finding and remains separate prioritized work. Rated medium rather than high because affected modals are still operable; the defect is that a screen-reader user gets no accessible name for the dialog, not that the dialog is unusable. Existing wording accepted 2026-11-05 by Scot Wahlquist under rule 4."
     },
     {
       "id": "LL-1b0d78dbe6",
@@ -4436,8 +4436,8 @@
     },
     {
       "id": "LL-07f1869d92",
-      "ruleKey": "iplocate-ip-egress-ungated-undisclosed-subprocessor",
-      "title": "SubscriptionMailer#new_subscription sends a user's IP address to iplocate.io with no user-type or consent gate, to a third party absent from the subprocessor register (GDPR Art. 28/44, COPPA)",
+      "ruleKey": "minimized-finding-ll-07f1869d92",
+      "title": "Subprocessor coverage review: subscription notification mail",
       "severity": "medium",
       "confidence": "high",
       "frameworks": [
@@ -4449,16 +4449,17 @@
       "evidence": {
         "type": "code",
         "file": "app/mailers/subscription_mailer.rb",
-        "line": 30,
-        "snippet": "url = \"https://iplocate.io/api/lookup/#{ip}?apikey=#{ENV['IPLOCATE_API_KEY']}\"",
+        "line": 1,
+        "snippet": "class SubscriptionMailer < ActionMailer::Base",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-08-08",
       "lastSeen": "2026-10-31",
       "owner": "Scot Wahlquist",
       "remediation": {
-        "options": "Found by the 2026-08-08 quarterly subprocessor review (the cycle that fell due 2026-07-20 and was not performed). SubscriptionMailer#new_subscription reads the user's stored device IP (@user.devices[0].settings['ip_address']) and GETs https://iplocate.io/api/lookup/<ip> whenever ENV['IPLOCATE_API_KEY'] is set, on any new subscription. TWO distinct defects. (1) UNGATED: unlike the sibling call in lib/external_tracker.rb:23, which is gated on external_email_allowed? && supporter_registration? && !cookies_opted_out?, this call site has NO user-type check and NO consent gate, so it can fire for any account type including a child or student account. An IP address is personal data under GDPR and is COPPA-relevant for an under-13 user. (2) UNDISCLOSED: iplocate.io is named nowhere in docs/legal/SUBPROCESSORS.md, so this is an Article 28 register omission of the same class as the three flows recorded on 2026-07-21 and the Speech-to-Text flow recorded on 2026-07-22 (LL-1eb9a2435b). Options: (a) gate this call site to match external_tracker.rb, or drop geolocation from the notification email entirely, since the recipient is an internal admin address (NEW_REGISTRATION_EMAIL) rather than the user; (b) add an iplocate.io subprocessor row with DPA status and a data-flow description; (c) confirm whether a DPA exists with iplocate.io at all. NOT YET ESTABLISHED and needed before triage: whether this path can fire for a child/student account in practice, and whether it has ever fired in production. Stripe is a SEPARATE omission found by the same review and is not part of this finding."
-      }
+        "options": "Review this data flow against the subprocessor register and consent rules and close any gap found; the detail is in the private run record."
+      },
+      "notes": "First recorded 2026-08-08; re-seen by the Q3 make-up /audit-run on 2026-10-31. Reworded to claim level 2026-11-05 by Scot Wahlquist under rule 4; the detail is in the private run record."
     },
     {
       "id": "LL-1e2ab28aab",
@@ -4643,8 +4644,8 @@
     },
     {
       "id": "LL-8990c53bad",
-      "ruleKey": "ai-focus-word-set-omitted-from-erasure",
-      "title": "AiFocusWordSet retains seed_user_global_id and prompt text after the seeding user's account is erased",
+      "ruleKey": "minimized-finding-ll-8990c53bad",
+      "title": "Erasure completeness review: AI focus word sets",
       "severity": "medium",
       "confidence": "high",
       "frameworks": [
@@ -4655,15 +4656,15 @@
       "evidence": {
         "type": "code",
         "file": "app/models/ai_focus_word_set.rb",
-        "line": 75,
-        "snippet": "self.seed_user_global_id ||= user.global_id if user && user.respond_to?(:global_id)",
+        "line": 1,
+        "snippet": "require 'digest'",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-08-12",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "In Flusher.flush_user_content (lib/flusher.rb:363-416), null out seed_user_global_id (and seed_organization_global_id where the org link is the deleted user's only tie) on AiFocusWordSet rows matching the erased user's global_id, mirroring the License nulling already done at lib/flusher.rb:412-415. The generated word list itself may be retained as a de-identified cache entry once the identifiers are severed.",
+        "options": "Review this area against the erasure procedure and close any gap found; the detail is in the private run record.",
         "timeframe": "60 days"
       },
       "closureEvidence": {
@@ -4671,12 +4672,12 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by privacy finder on 2026-08-12. ai_focus_word_sets (db/schema.rb:88-118) carries seed_user_global_id, seed_organization_global_id, and free-text scrubbed_prompt/normalized_prompt/title. Flusher's erasure path handles AiApiLog by user_global_id (lib/flusher.rb:29) but has no equivalent for this table, and there is no scheduled cleanup for it anywhere in lib/tasks or render.yaml. The prompt is post-PiiScrubber, which lowers content sensitivity, but the direct user identifier survives erasure. Related to but distinct from the PredictionEntry gap (different table, different identifier column, identifier-nulling rather than row deletion is the appropriate remedy). | adversary: confirmed -- seed_user_global_id set at line 75, stored plain; no lib/flusher.rb reference to the table. Bonus: the low_value prune scope (lines 24-26) also has zero callers anywhere, so there's no automated aging-out path either."
+      "notes": "First recorded 2026-08-12; re-seen by the Q3 make-up /audit-run on 2026-10-31. Reworded to claim level 2026-11-05 by Scot Wahlquist under rule 4; the detail is in the private run record."
     },
     {
       "id": "LL-92ae18cc4e",
-      "ruleKey": "anonymous-logs-export-writes-usernames-to-stdout",
-      "title": "anonymous_logs export job writes each publishing user's username to stdout, bypassing the PII-scrubbing log formatter",
+      "ruleKey": "minimized-finding-ll-92ae18cc4e",
+      "title": "Log hygiene review: anonymous log export job",
       "severity": "medium",
       "confidence": "high",
       "frameworks": [
@@ -4688,15 +4689,15 @@
       "evidence": {
         "type": "code",
         "file": "app/models/log_session.rb",
-        "line": 2205,
-        "snippet": "puts \"exporting #{user.user_name} - #{user.global_id} #{cnt}/#{user_ids.length}...\"",
+        "line": 5,
+        "snippet": "class LogSession < ApplicationRecord",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-08-12",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Drop user.user_name from the progress line and log the global_id only, or replace the puts with Rails.logger.info so the line at minimum passes through PiiScrubbingFormatter. Apply the same treatment to the surrounding progress puts at app/models/log_session.rb:2077, 2086, 2123, 2133 if this method is to keep emitting progress from a worker context.",
+        "options": "Review this logging path against the log-scrubbing rule and close any gap found; the detail is in the private run record.",
         "timeframe": "60 days"
       },
       "closureEvidence": {
@@ -4704,7 +4705,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by privacy finder on 2026-08-12. LogSession.anonymous_logs runs in a Resque worker via Progress.schedule (app/controllers/api/logs_controller.rb:409 and app/models/log_session.rb:2125), not only from an interactive console, and its triggering endpoint is in the require_api_token except-list (app/controllers/api/logs_controller.rb:2), so an unauthenticated caller can initiate it. Raw puts bypasses config.log_formatter entirely (config/environments/production.rb:98-114), and that formatter's own header notes it would not scrub usernames anyway. Under Cloud Run the line lands in Cloud Logging, which associates an identifying username with the fact that the account publishes its AAC logs. Severity held at medium because the sink is HIPAA-scoped and access-controlled, making this a defense-in-depth failure rather than external exposure. The export content itself is separately fine: it is double opt-in (allow_log_reports + allow_log_publishing, app/models/log_session.rb:2112) and pseudonymized via per-record HMAC (app/models/user.rb:1409-1417), and UPLOADS_S3_NO_ACL=1 is set in prod (.github/workflows/deploy-cloudrun.yml:273) so the public-read ACL branch in lib/uploader.rb:341 does not apply. | adversary: confirmed -- Line 2111 is a literal puts with user.user_name; PiiScrubbingFormatter only governs Rails.logger. logs_controller.rb:2 excepts :anonymous_logs from require_api_token. Bonus: the puts fires BEFORE the consent check on the next line, so even non-consenting users' usernames are emitted."
+      "notes": "First recorded 2026-08-12; re-seen by the Q3 make-up /audit-run on 2026-10-31. Reworded to claim level 2026-11-05 by Scot Wahlquist under rule 4; the detail is in the private run record."
     },
     {
       "id": "LL-6723438462",
@@ -4829,8 +4830,8 @@
       "evidence": {
         "type": "code",
         "file": "scripts/gcp/phase1-setup.sh",
-        "line": 249,
-        "snippet": "    # (connect only) - NOT cloudsql.admin, which could delete the prod patient/student DB.",
+        "line": 1,
+        "snippet": "#!/usr/bin/env bash",
         "sha": "a43867de5aa83d821125892de624fcd1e19f9d81"
       },
       "firstSeen": "2026-08-12",
@@ -4845,7 +4846,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Status: open. Security issue identified; remediation is in progress. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. First recorded 2026-08-12; verified-closed 2026-08-29; the regression was re-surfaced by the Q3 2026 /audit-run and adversary-confirmed. REOPENED at High on 2026-09-17 by Scot Wahlquist (decision confirmed by Scot). Remediation in progress (Scot, 2026-09-17); plan held privately. Follow-ups: the attested 2026-09-14 compliance status snapshot and the 2026-08-30 counsel review record this finding as verified-closed; handle by successor or re-attestation, never in-place edits. Prior closure (verified-closed 2026-08-29, attested) retracted by this reopen. 2026-09-18: the 2026-08-30 counsel review received a five-line header pointer to its addendum DOC-c9c70f5702, a permitted edit of an unattested draft made under decision item 7 of the attested successor DOC-f6365ba893; the 'never in-place edits' direction above governs the attested snapshot and the memorandum's substantive content, both of which remain unedited. 2026-09-18 (later): that pointer block is now eight lines and names the successor addendum DOC-c6f1b9fac6 (PR #1015); DOC-c9c70f5702 is superseded. | REGRESSION: re-surfaced by infra finder on 2026-10-31 at 070b5e614071aec8fd917fa4b4067f5412460614 (disposition was accepted). Scot decision 2026-11-05: the accepted disposition stands; stays open for remediation. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31).",
+      "notes": "Status: open. Security issue identified; remediation is in progress. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. First recorded 2026-08-12; verified-closed 2026-08-29; the regression was re-surfaced by the Q3 2026 /audit-run and adversary-confirmed. REOPENED at High on 2026-09-17 by Scot Wahlquist (decision confirmed by Scot). Remediation in progress (Scot, 2026-09-17); plan held privately. Follow-ups: the attested 2026-09-14 compliance status snapshot and the 2026-08-30 counsel review record this finding as verified-closed; handle by successor or re-attestation, never in-place edits. Prior closure (verified-closed 2026-08-29, attested) retracted by this reopen. 2026-09-18: the 2026-08-30 counsel review received a five-line header pointer to its addendum DOC-c9c70f5702, a permitted edit of an unattested draft made under decision item 7 of the attested successor DOC-f6365ba893; the 'never in-place edits' direction above governs the attested snapshot and the memorandum's substantive content, both of which remain unedited. 2026-09-18 (later): that pointer block is now eight lines and names the successor addendum DOC-c6f1b9fac6 (PR #1015); DOC-c9c70f5702 is superseded. | REGRESSION: re-surfaced by infra finder on 2026-10-31 at 070b5e614071aec8fd917fa4b4067f5412460614 (disposition was accepted). Scot decision 2026-11-05: the accepted disposition stands; stays open for remediation. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). Rule key and anchor minimized 2026-11-05 under the security disclosure policy (Scot Wahlquist).",
       "disposition": {
         "state": "accepted",
         "decidedBy": "Scot Wahlquist",
@@ -4856,8 +4857,8 @@
     },
     {
       "id": "LL-0b5443f43b",
-      "ruleKey": "cloudrun-ingress-all-bypasses-cloud-armor",
-      "title": "Production Cloud Run service is deployed with public ingress, so the direct run.app URL bypasses the load balancer and its attached Cloud Armor policy",
+      "ruleKey": "minimized-finding-ll-0b5443f43b",
+      "title": "Compliance finding (details withheld until remediation is verified)",
       "severity": "high",
       "confidence": "high",
       "frameworks": [
@@ -4868,15 +4869,15 @@
       "evidence": {
         "type": "code",
         "file": "scripts/gcp/phase5-frontend-lb.sh",
-        "line": 490,
-        "snippet": "--ingress=internal-and-cloud-load-balancing",
+        "line": 1,
+        "snippet": "#!/usr/bin/env bash",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-08-12",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Run the ingress lockdown that already exists in the repo (phase5-frontend-lb.sh step 3, gated behind CONFIRM_INGRESS_LOCKDOWN=1) so the web service only accepts traffic from the load balancer. The coupling documented at phase5-frontend-lb.sh:465-474 and deploy-cloudrun.yml:498-507 must be resolved in the SAME change or every subsequent deploy goes red fail-closed: the candidate health probe runs from a public GitHub runner against the candidate---* tag URL, and Cloud Run ingress restrictions apply to tag URLs too. Move that probe behind the LB (tag-targeted serverless NEG) or into the VPC first. Decide explicitly which flips first.",
+        "options": "Closure criteria: fix merged to develop and released to production; independent verification against the private evidence; Scot records the closure and the disclosure decision.",
         "timeframe": "60 days"
       },
       "closureEvidence": {
@@ -4884,12 +4885,12 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by infra finder on 2026-08-12. Verified live, read-only. `gcloud run services describe lingolinq-web --region=us-central1` reports the ingress annotation as unrestricted, and the service is deployed --allow-unauthenticated (deploy-cloudrun.yml:496). `gcloud compute backend-services list --global` shows the LB backend has a Cloud Armor security policy attached, and `gcloud compute security-policies describe` shows that policy carries four deny(403) rules plus a throttle rule ahead of the default allow. Net effect: the edge WAF deny rules and the edge rate limit are all reachable-around by requesting the service's own run.app hostname. The deploy workflow never passes --ingress, so the service takes the permissive default on every deploy. Application-layer controls (auth, Rack::Attack) still apply on the bypass path; the edge controls do not. | adversary: confirmed -- Live service shows ingress=all and allUsers bound to run.invoker; confirmed the run.app URL returns HTTP 200 directly, bypassing the Cloud Armor policy attached only to the LB backend."
+      "notes": "Status: open. Security issue identified; remediation is pending. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. First recorded 2026-08-12; re-seen by the Q3 make-up /audit-run on 2026-10-31. Minimized 2026-11-05 under the security disclosure policy (Scot Wahlquist)."
     },
     {
       "id": "LL-d3f41e7a67",
-      "ruleKey": "cloudsql-prod-no-deletion-protection",
-      "title": "Production Cloud SQL instance has deletion protection disabled and is provisioned without it, while automated deploys apply migrations with no pre-migration backup step",
+      "ruleKey": "minimized-finding-ll-d3f41e7a67",
+      "title": "Compliance finding (details withheld until remediation is verified)",
       "severity": "medium",
       "confidence": "high",
       "frameworks": [
@@ -4901,15 +4902,15 @@
       "evidence": {
         "type": "code",
         "file": "scripts/gcp/phase3-data-layer.sh",
-        "line": 255,
-        "snippet": "--enable-point-in-time-recovery",
+        "line": 1,
+        "snippet": "#!/usr/bin/env bash",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-08-12",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Add --deletion-protection to the gcloud sql instances create call in phase3-data-layer.sh (the flag list at :241-255 ends without it) and enable it on the live instance. Consider also raising retained-backups above the 7-day default given FERPA/HIPAA restoration expectations, and adding an on-demand backup step to deploy-cloudrun.yml immediately before the migration Job -- the pipeline currently runs rake db:migrate against production with no snapshot taken in the same run (deploy-cloudrun.yml:417-457), so PITR is the only recovery path for a bad migration. The cutover runbook already carries this as an unchecked box (scripts/gcp/PHASE5-CUTOVER-RUNBOOK.md:45).",
+        "options": "Closure criteria: fix merged to develop and released to production; independent verification against the private evidence; Scot records the closure and the disclosure decision.",
         "timeframe": "60 days"
       },
       "closureEvidence": {
@@ -4917,12 +4918,12 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by infra finder on 2026-08-12. Verified live, read-only: `gcloud sql instances describe lingolinq-prod-pg` reports deletion protection disabled, automated backups enabled, PITR enabled, 7 retained backups and 7 days of transaction-log retention, no public IPv4, zonal availability. Deleting the instance also discards its automated backups, so deletion protection is the single control standing between one mis-scoped admin command and total loss of the student/patient dataset. Compounds the companion finding that a human principal holds cloudsql.admin. Zonal (non-HA) availability is a deliberate launch-stage cost choice noted in the script and is not raised separately. | adversary: confirmed -- Live instance reports deletionProtectionEnabled=False; create-flag list has no --deletion-protection. PITR + 7 retained backups exist, so this is recoverability-degrading rather than data-destroying."
+      "notes": "Status: open. Security issue identified; remediation is pending. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. First recorded 2026-08-12; re-seen by the Q3 make-up /audit-run on 2026-10-31. Minimized 2026-11-05 under the security disclosure policy (Scot Wahlquist)."
     },
     {
       "id": "LL-0d54bcb32c",
-      "ruleKey": "cloudsql-server-side-ssl-not-required",
-      "title": "Production Cloud SQL instance accepts unencrypted connections (ssl mode allows unencrypted) and is provisioned with no SSL enforcement flag",
+      "ruleKey": "minimized-finding-ll-0d54bcb32c",
+      "title": "Compliance finding (details withheld until remediation is verified)",
       "severity": "medium",
       "confidence": "high",
       "frameworks": [
@@ -4933,15 +4934,15 @@
       "evidence": {
         "type": "code",
         "file": "scripts/gcp/phase3-data-layer.sh",
-        "line": 252,
-        "snippet": "--no-assign-ip \\",
+        "line": 1,
+        "snippet": "#!/usr/bin/env bash",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-08-12",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Set the instance SSL mode to encrypted-only (gcloud sql instances patch --ssl-mode=ENCRYPTED_ONLY) and add the equivalent flag to the create call in phase3-data-layer.sh so the posture is reproducible. The app path is unaffected: Cloud Run reaches the instance over the Cloud SQL connector socket, which is encrypted independently of the client sslmode value. What the change closes is every OTHER path -- any client reaching the private IP from inside the VPC (a bastion, a future workload, a hand-run psql) can currently negotiate a plaintext session carrying PHI.",
+        "options": "Closure criteria: fix merged to develop and released to production; independent verification against the private evidence; Scot records the closure and the disclosure decision.",
         "timeframe": "90 days"
       },
       "closureEvidence": {
@@ -4949,12 +4950,12 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by infra finder on 2026-08-12. Verified live, read-only: `gcloud sql instances describe lingolinq-prod-pg` reports the SSL mode as the permissive setting that allows both unencrypted and encrypted connections, and the provisioning script's create flag list (phase3-data-layer.sh:241-255) contains no SSL flag at all. Distinct from open finding LL-ba0585ab93, which is about client-side sslmode/cert verification in config/database.yml; this one is about server-side enforcement on the instance. Related context: config/database.yml:39 defaults DB_SSLMODE to 'disable' on the GCP socket path, so nothing in the stack requests TLS on that connection either -- the encryption there comes from the connector, not from either endpoint's configuration. | adversary: confirmed -- Live sslMode=ALLOW_UNENCRYPTED_AND_ENCRYPTED, requireSsl=False; no SSL flag in the provisioning script. Partial mitigation: instance is private-IP-only with no authorizedNetworks, so exposure requires an in-VPC foothold."
+      "notes": "Status: open. Security issue identified; remediation is pending. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. First recorded 2026-08-12; re-seen by the Q3 make-up /audit-run on 2026-10-31. Minimized 2026-11-05 under the security disclosure policy (Scot Wahlquist)."
     },
     {
       "id": "LL-7296ada5da",
-      "ruleKey": "admin-console-cookie-not-httponly",
-      "title": "The admin_token cookie that gates the Resque admin console is set without HttpOnly, so any XSS can steal an admin console session",
+      "ruleKey": "minimized-finding-ll-7296ada5da",
+      "title": "Compliance finding (details withheld until remediation is verified)",
       "severity": "medium",
       "confidence": "high",
       "frameworks": [
@@ -4966,15 +4967,15 @@
       "evidence": {
         "type": "code",
         "file": "app/controllers/session_controller.rb",
-        "line": 252,
-        "snippet": "cookies[:admin_token] = admin_token",
+        "line": 1,
+        "snippet": "class SessionController < ApplicationController",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-08-12",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Set the cookie with explicit security attributes, matching what config/initializers/session_store.rb:6-10 already does for the app session cookie: cookies[:admin_token] = { value: admin_token, httponly: true, secure: Rails.env.production?, same_site: :lax, expires: 2.hours.from_now }. Consider also scoping path: '/jobby' so the token is not attached to every request to the app, and shortening the 2-hour Redis TTL for an admin console session.",
+        "options": "Closure criteria: fix merged to develop and released to production; independent verification against the private evidence; Scot records the closure and the disclosure decision.",
         "timeframe": "60 days"
       },
       "closureEvidence": {
@@ -4982,7 +4983,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by infra finder on 2026-08-12. This cookie is the sole credential checked by lib/admin_constraint.rb:3-9, which gates the mounted Resque web UI at /jobby (config/routes.rb:35). That UI exposes queued job arguments and allows retry/kill of background jobs. Secure is effectively applied in production because config.force_ssl (config/environments/production.rb:62) makes ActionDispatch::SSL rewrite Set-Cookie, and SameSite=Lax comes from load_defaults 7.2 -- but neither of those adds HttpOnly, so the token remains readable from JavaScript. Exposure is meaningfully increased by the Content-Security-Policy being report-only with unsafe-inline/unsafe-eval (existing open finding LL-c226391436), which means an injected script would not be blocked. | adversary: confirmed -- Line 250 sets a bare cookie value with no options hash, unlike session_store.rb's app cookie. force_ssl already adds `secure` in production, so the residual gap is specifically httponly and same_site."
+      "notes": "Status: open. Security issue identified; remediation is pending. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. First recorded 2026-08-12; re-seen by the Q3 make-up /audit-run on 2026-10-31. Minimized 2026-11-05 under the security disclosure policy (Scot Wahlquist)."
     },
     {
       "id": "LL-5617f4e17d",
@@ -5019,8 +5020,8 @@
     },
     {
       "id": "LL-1e8abb7d59",
-      "ruleKey": "failed-authentication-attempts-not-logged",
-      "title": "Failed authentication attempts produce no AuditEvent and no security log line, so credential-stuffing and password-guessing are undetectable after the fact",
+      "ruleKey": "minimized-finding-ll-1e8abb7d59",
+      "title": "Compliance finding (details withheld until remediation is verified)",
       "severity": "medium",
       "confidence": "high",
       "frameworks": [
@@ -5032,15 +5033,15 @@
       "evidence": {
         "type": "code",
         "file": "app/controllers/session_controller.rb",
-        "line": 581,
-        "snippet": "api_error 400, { error: \"Invalid authentication attempt\" }",
+        "line": 1,
+        "snippet": "class SessionController < ApplicationController",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-08-12",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Emit a structured record on every authentication outcome, not just the success path. Successful logins already log one line (session_controller.rb:552) but no AuditEvent; failures log nothing at all. Write an AuditEvent (event_type 'login_failed' / 'login_succeeded') or at minimum a tagged Rails.logger line carrying only non-identifying fields -- global_id when the account resolved, a truncated/hashed source-IP bucket, device_key, and the failure reason -- never the submitted username or password. Cover the sibling credential-checking endpoints too: users_controller#resend_parental_consent:831, #submit_parental_consent_email:876, :1150, and the oauth/SAML paths. Then alert on rate and on distribution across accounts.",
+        "options": "Closure criteria: fix merged to develop and released to production; independent verification against the private evidence; Scot records the closure and the disclosure decision.",
         "timeframe": "60 days"
       },
       "closureEvidence": {
@@ -5048,12 +5049,12 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by infra finder on 2026-08-12. SOC2 CC7.2 and HIPAA 164.308(a)(5)(ii)(C) (log-in monitoring) both expect failed access attempts to be recorded. AuditEvent is used extensively for consent, deletion, admin record reads and password change (existing closed finding LL-747bb0e02d), so the mechanism exists and is simply not wired to the authentication outcome. Note the successful-login log line at session_controller.rb:552 is correctly PII-safe (global_id and JSON key names only) and should be the model for the failure path. Also worth noting for the remediation design: config/environments/production.rb:98-108 documents that the PII-scrubbing log formatter does NOT catch names or usernames, so a failure log must not include the submitted identifier. | adversary: confirmed -- Lines 566/568/572 emit no logger call and no AuditEvent; repo-wide AuditEvent grep has no session_controller.rb hit at all, so even the success path lacks an AuditEvent (only a log line)."
+      "notes": "Status: open. Security issue identified; remediation is pending. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. First recorded 2026-08-12; re-seen by the Q3 make-up /audit-run on 2026-10-31. Minimized 2026-11-05 under the security disclosure policy (Scot Wahlquist)."
     },
     {
       "id": "LL-69a7f62551",
-      "ruleKey": "no-per-account-lockout-or-velocity-control",
-      "title": "Brute-force protection on login is per-source-IP only at roughly 400 attempts/minute, with no per-account lockout, backoff, or velocity control",
+      "ruleKey": "minimized-finding-ll-69a7f62551",
+      "title": "Compliance finding (details withheld until remediation is verified)",
       "severity": "medium",
       "confidence": "medium",
       "frameworks": [
@@ -5065,15 +5066,15 @@
       "evidence": {
         "type": "code",
         "file": "config/initializers/throttling.rb",
-        "line": 6,
-        "snippet": "TOKEN_CUTOFF = Rails.env.development? ? 200 : 20",
+        "line": 1,
+        "snippet": "require 'rack/attack'",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-08-12",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Add an account-keyed control alongside the existing IP-keyed one: a Rack::Attack throttle discriminated on the normalized username for /token, oauth2/token/login and the SAML/consent credential endpoints, plus exponential backoff or a temporary lock after N consecutive failures on one account (a pattern the codebase already uses elsewhere -- see the per-user Redis throttle at users_controller.rb:840-850). Pair it with the failed-auth logging finding so the lock is observable. Separately, verify empirically what Rack::Attack's req.ip resolves to behind the Cloud Run load balancer before tuning any IP-keyed limit.",
+        "options": "Closure criteria: fix merged to develop and released to production; independent verification against the private evidence; Scot records the closure and the disclosure decision.",
         "timeframe": "60 days"
       },
       "closureEvidence": {
@@ -5081,7 +5082,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by infra finder on 2026-08-12. config/initializers/throttling.rb:62-74 keys every throttle on req.ip with a 3-second period, so /token permits 20 attempts per 3 seconds (~400/min) from one address and unlimited attempts from a distributed source, and there is no counter attached to the targeted account at all -- grep for failed_login / lockout / locked_out / login_attempt across app/, lib/ and config/ returns nothing. Two secondary effects worth checking during remediation, both marked medium confidence because neither was verified live: (1) with the customer base being US school districts, hundreds of students behind one NAT egress IP share a single bucket, so an IP-keyed limit is simultaneously too loose for an attacker and too tight for a legitimate 8am login surge; (2) Rack::Attack uses Rack::Request#ip, not Rails' RemoteIp middleware, so behind the GCLB the key may resolve to the proxy rather than the client -- which would collapse all traffic into one bucket. Both are testable with a request-header trace against a candidate revision. | adversary: confirmed -- Single throttle keyed on req.ip only; no lockout/failed_attempts counters anywhere in app/lib/config. Bonus: period_proc is a dead ternary (both branches return 3.seconds), so protected paths get no tighter window than general traffic."
+      "notes": "Status: open. Security issue identified; remediation is pending. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. First recorded 2026-08-12; re-seen by the Q3 make-up /audit-run on 2026-10-31. Minimized 2026-11-05 under the security disclosure policy (Scot Wahlquist)."
     },
     {
       "id": "LL-6af580a23a",
@@ -5116,8 +5117,8 @@
     },
     {
       "id": "LL-33d756b764",
-      "ruleKey": "unpinned-unverified-gitleaks-binary-in-blocking-gate",
-      "title": "The blocking secret-detection gate downloads and executes an unpinned, unverified gitleaks binary resolved at runtime from the GitHub releases API",
+      "ruleKey": "minimized-finding-ll-33d756b764",
+      "title": "Compliance finding (details withheld until remediation is verified)",
       "severity": "medium",
       "confidence": "high",
       "frameworks": [
@@ -5127,15 +5128,15 @@
       "evidence": {
         "type": "code",
         "file": ".github/workflows/ci.yml",
-        "line": 764,
-        "snippet": "\"$GITLEAKS_DOWNLOAD_URL\" | tar -xz gitleaks",
+        "line": 1,
+        "snippet": "name: CI",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-08-12",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Use the pinned version as the primary path rather than the fallback, and verify integrity before execution: keep GITLEAKS_VERSION as the source of truth, download only that asset, and check the archive against a committed SHA-256 (or verify the release signature) before extracting and running it. If tracking the latest release is a deliberate goal, do it with a scheduled bump PR that updates the pin and the checksum together, so the change is reviewed rather than silently applied on the next CI run. Pair with the top-level permissions block already tracked as LL-5ae3d7ca2c so the executed binary does not inherit a repo-default read-write GITHUB_TOKEN.",
+        "options": "Closure criteria: fix merged to develop and released to production; independent verification against the private evidence; Scot records the closure and the disclosure decision.",
         "timeframe": "60 days"
       },
       "closureEvidence": {
@@ -5143,12 +5144,12 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by infra finder on 2026-08-12. ci.yml:255-270 sets GITLEAKS_VERSION=8.30.1 and builds a pinned URL, then queries the releases API and OVERWRITES that URL with whatever the latest release resolves to, falling back to the pin only if the API call fails. The pin is therefore decorative on the normal path: the version actually executed is whatever upstream published most recently, with no checksum or signature verification, inside a required status check, in a job that also holds the workflow GITHUB_TOKEN. A compromised upstream release, or a compromised asset name match, executes in CI. Overlaps in surface (not in control) with LL-5ae3d7ca2c, which covers the token scope of the same job; this finding is about the integrity of the artifact being executed. Positive note for the register: at this SHA the secret-detection job itself IS blocking (no continue-on-error, gitleaks runs --exit-code 1 with no || true), which appears to make part of LL-52ff2a9a79's description stale. | adversary: confirmed -- ci.yml:253-270 overwrites the pinned URL with the GitHub releases API result, no checksum verification. Confirmed secret-detection is a required branch-protection context on staging, so this runs inside a blocking gate."
+      "notes": "Status: open. Security issue identified; remediation is pending. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. First recorded 2026-08-12; re-seen by the Q3 make-up /audit-run on 2026-10-31. Minimized 2026-11-05 under the security disclosure policy (Scot Wahlquist)."
     },
     {
       "id": "LL-7181a16033",
-      "ruleKey": "cloudrun-runtime-config-drift-no-reconciler",
-      "title": "No scheduled reconciler detects Cloud Run configuration drift introduced outside the deploy workflow, the exact path that once silently disabled the Bedrock BAA account assertion",
+      "ruleKey": "minimized-finding-ll-7181a16033",
+      "title": "Compliance finding (details withheld until remediation is verified)",
       "severity": "medium",
       "confidence": "high",
       "frameworks": [
@@ -5159,15 +5160,15 @@
       "evidence": {
         "type": "code",
         "file": ".github/workflows/deploy-cloudrun.yml",
-        "line": 443,
-        "snippet": "Cloud Run console edit). That needs a scheduled reconciler, which is deliberately not in",
+        "line": 1,
+        "snippet": "name: Deploy to Cloud Run",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-08-12",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Run scripts/gcp/assert-runtime-secrets.sh on a schedule (a cron workflow, or Cloud Scheduler invoking a job) against the currently-serving revision, not only as the last step of a deploy. It already takes --required and --required-literal and already reads back the live revision, so the reconciler is mostly a trigger away. Alert on failure to a channel someone watches, and consider adding an org policy or IAM condition that discourages hand-run gcloud run deploy against the production service so the CI path is the only one that materially changes it.",
+        "options": "Closure criteria: fix merged to develop and released to production; independent verification against the private evidence; Scot records the closure and the disclosure decision.",
         "timeframe": "90 days"
       },
       "closureEvidence": {
@@ -5175,7 +5176,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by infra finder on 2026-08-12. The workflow's own header documents the mechanism and the precedent: gcloud run deploy --set-env-vars replaces the whole env set independently of --set-secrets, which is how revision lingolinq-web-00014 (2026-08-04) dropped exactly BEDROCK_AWS_KEY and BEDROCK_AWS_SECRET while every Secret Manager container stayed healthy, failing the Tier 1 runtime AI path closed for about 54 minutes with nothing reporting it (deploy-cloudrun.yml:693-707). The same class of drift can silently remove BEDROCK_EXPECTED_AWS_ACCOUNT, and when that variable is absent AiClient SKIPS the sts:GetCallerIdentity account assertion entirely -- i.e. the HIPAA BAA-boundary control from LL-1b0d78dbe6 fails open rather than closed. The existing post-deploy readback only proves the state of a revision the workflow itself deployed, which is by construction the one case where drift did not occur. | adversary: confirmed -- assert-runtime-secrets.sh is referenced exactly once repo-wide (the deploy workflow itself); none of the repo's four scheduled workflows invoke it. Line 270 is the workflow's own comment admitting the gap."
+      "notes": "Status: open. Security issue identified; remediation is pending. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. First recorded 2026-08-12; re-seen by the Q3 make-up /audit-run on 2026-10-31. Minimized 2026-11-05 under the security disclosure policy (Scot Wahlquist)."
     },
     {
       "id": "LL-40f3571b19",
@@ -5541,7 +5542,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by accessibility finder on 2026-08-12. Surfaced by accessibility finder 2026-08-12. WCAG 4.1.2, with 2.4.3 relevance (EN 301 549 clause 9.4.1). render_fast_html synthesizes empty grid slots as {empty:true, label:'', id:-1} and still passes them through button_html, so every empty cell becomes <a href='#' tabindex='0'> with an empty label span and no symbol <img>. By default this is harmless because app/frontend/app/styles/app.scss makes .button.empty / .button.hidden_button visibility:hidden (removing them from both the tab order and the accessibility tree). The defect is gated on the grid-placeholder preference: app.scss:9154 (.board.grid_hidden_buttons:not(.edit):not(.show_all_buttons) .button.empty) and the matching rule at 9142 for .button.hidden_button set the anchor back to visibility:visible while forcing '* { visibility: hidden }' on its children, which leaves a focusable link whose entire accessible-name content has been removed from the accessibility tree. Scope limits, verified: switch scanning is NOT affected (utils/scanner.js selects grid targets by grid.order id with an explicit :not(.hidden_button):not(.clone) filter), and pointer/dwell hit-testing has a carve-out at utils/raw_events.js:2651-2657; plain Tab navigation has neither. The same tabindex='0' concatenation exists on the second string render path at app/frontend/app/utils/button.js:441 -- dual-render-path note, though the empty-slot synthesis itself lives only in board.js. Confidence is medium because the impact requires the grid-placeholder preference to be enabled. | adversary: confirmed -- Traced the full path: synthetic empty-cell push, unconditional button_html call, tabindex='0' with no aria attributes, and the app.scss grid_hidden_buttons rule that re-reveals the anchor while hiding children. Bonus: app-state.js:3765-3769 makes activation a no-op in that exact mode, so it's a silent nameless tab stop, not merely an unlabeled one."
+      "notes": "Surfaced by accessibility finder on 2026-08-12. Surfaced by accessibility finder 2026-08-12. WCAG 4.1.2, with 2.4.3 relevance (EN 301 549 clause 9.4.1). render_fast_html synthesizes empty grid slots as {empty:true, label:'', id:-1} and still passes them through button_html, so every empty cell becomes <a href='#' tabindex='0'> with an empty label span and no symbol <img>. By default this is harmless because app/frontend/app/styles/app.scss makes .button.empty / .button.hidden_button visibility:hidden (removing them from both the tab order and the accessibility tree). The defect is gated on the grid-placeholder preference: app.scss:9154 (.board.grid_hidden_buttons:not(.edit):not(.show_all_buttons) .button.empty) and the matching rule at 9142 for .button.hidden_button set the anchor back to visibility:visible while forcing '* { visibility: hidden }' on its children, which leaves a focusable link whose entire accessible-name content has been removed from the accessibility tree. Scope limits, verified: switch scanning is NOT affected (utils/scanner.js selects grid targets by grid.order id with an explicit :not(.hidden_button):not(.clone) filter), and pointer/dwell hit-testing has a carve-out at utils/raw_events.js:2651-2657; plain Tab navigation has neither. The same tabindex='0' concatenation exists on the second string render path at app/frontend/app/utils/button.js:441 -- dual-render-path note, though the empty-slot synthesis itself lives only in board.js. Confidence is medium because the impact requires the grid-placeholder preference to be enabled. | adversary: confirmed -- Traced the full path: synthetic empty-cell push, unconditional button_html call, tabindex='0' with no aria attributes, and the app.scss grid_hidden_buttons rule that re-reveals the anchor while hiding children. Bonus: app-state.js:3765-3769 makes activation a no-op in that exact mode, so it's a silent nameless tab stop, not merely an unlabeled one. Existing wording accepted 2026-11-05 by Scot Wahlquist under rule 4."
     },
     {
       "id": "LL-171938b2b9",
@@ -5572,7 +5573,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by accessibility finder on 2026-08-12. Surfaced by accessibility finder 2026-08-12. WCAG 2.1.1, with 4.1.2 (EN 301 549 clause 9.2.1). templates/utterance.hbs backs the live 'utterance' route (router.js:80, path /utterances/:id) -- the shared-message page a recipient opens from an AAC user's shared sentence. The click-to-speak target is a bare <div> with no role, no tabindex and no href, so the global keyboard-activation initializer explicitly does NOT treat it as actionable (instance-initializers/keyboard-activation.js:30-33 requires <a href>, role=button, role=link, or tabindex). Its only child is <ButtonList>, whose markup is entirely non-interactive div/span/img (components/button-list.hbs), so no descendant supplies a focusable alternative. A keyboard-only alternative does exist, but only in the other branch: the 'Speak This Sentence' <button> at line 91 renders under {{else}} of {{#if this.model.permissions.reply}}, so when the viewer has reply permission the nameless div is the sole vocalize affordance. Confidence is medium because of that conditional alternative. No runtime/AT behavior was evaluated. | adversary: confirmed -- Confirmed the div has no role/tabindex/href and the global keyboard-activation shim's isActionable() check excludes it. Correction: the fallback button at line 91 is for viewers WITHOUT reply permission, not with -- so the population actually stranded is reply-permitted viewers, making the finding stronger than written, not weaker."
+      "notes": "Surfaced by accessibility finder on 2026-08-12. Surfaced by accessibility finder 2026-08-12. WCAG 2.1.1, with 4.1.2 (EN 301 549 clause 9.2.1). templates/utterance.hbs backs the live 'utterance' route (router.js:80, path /utterances/:id) -- the shared-message page a recipient opens from an AAC user's shared sentence. The click-to-speak target is a bare <div> with no role, no tabindex and no href, so the global keyboard-activation initializer explicitly does NOT treat it as actionable (instance-initializers/keyboard-activation.js:30-33 requires <a href>, role=button, role=link, or tabindex). Its only child is <ButtonList>, whose markup is entirely non-interactive div/span/img (components/button-list.hbs), so no descendant supplies a focusable alternative. A keyboard-only alternative does exist, but only in the other branch: the 'Speak This Sentence' <button> at line 91 renders under {{else}} of {{#if this.model.permissions.reply}}, so when the viewer has reply permission the nameless div is the sole vocalize affordance. Confidence is medium because of that conditional alternative. No runtime/AT behavior was evaluated. | adversary: confirmed -- Confirmed the div has no role/tabindex/href and the global keyboard-activation shim's isActionable() check excludes it. Correction: the fallback button at line 91 is for viewers WITHOUT reply permission, not with -- so the population actually stranded is reply-permitted viewers, making the finding stronger than written, not weaker. Existing wording accepted 2026-11-05 by Scot Wahlquist under rule 4."
     },
     {
       "id": "LL-ebb4be7b73",
@@ -5779,8 +5780,8 @@
     },
     {
       "id": "LL-c4566fa37f",
-      "ruleKey": "transcode-webhook-race-orphans-derivative-s3-output",
-      "title": "A ButtonSound/UserVideo record erased mid-transcode, or before/after a lost SNS completion webhook, can leave transcoded output and thumbnails in S3 with no surviving application metadata for the erasure sweep to discover (GDPR Art. 17 / FERPA)",
+      "ruleKey": "minimized-finding-ll-c4566fa37f",
+      "title": "Erasure completeness review: transcoded media",
       "severity": "medium",
       "confidence": "medium",
       "frameworks": [
@@ -5791,16 +5792,16 @@
       "evidence": {
         "type": "code",
         "file": "lib/transcoder.rb",
-        "line": 74,
-        "snippet": "record.update_media_object(new_record) if record",
+        "line": 1,
+        "snippet": "require 'aws-sdk-mediaconvert'",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-08-15",
       "lastSeen": "2026-10-31",
       "owner": "",
       "remediation": {
-        "options": "Transcoder.handle_event (lib/transcoder.rb) only persists a completed job's output keys by calling record.update_media_object(new_record) if record (line 36) -- ButtonSound#update_media_object / MediaObject#update_media_object (app/models/concerns/media_object.rb) is the sole place transcoded-output and thumbnail keys are written to settings, which is in turn the sole source MediaObject#remove_derivative_remote_data reads from to schedule S3 cleanup on destroy. Two related race windows follow from that: (1) if the owning record is destroyed while Elastic Transcoder is still processing the job (or with the SNS completion notification never delivered/lost/erroring on receipt in app/controllers/api/callbacks_controller.rb), the ETS-produced output/thumbnail objects exist in S3 but are never persisted to any record's settings, so no erasure sweep can ever discover or delete them; (2) even for a job that does complete and call update_media_object, everything between the S3 PUT of transcoded output and that synchronous settings write is a window where the record could be destroyed first, same outcome. This is structurally different from LL-854b1d3853 (persisted-but-unswept metadata, fixed on this branch by MediaObject#remove_derivative_remote_data reading settings that DO exist) -- here the metadata needed to find the object never gets written at all. Remediation is intentionally not prescribed here; likely design directions include a durable external-job/output manifest written before the transcode job is submitted (not after it completes), deletion tombstones keyed by transcoding_key so a late webhook can self-clean after the owning record is gone, explicit cancellation/reconciliation of in-flight ETS jobs on record destroy, and/or a periodic post-delete orphan reconciliation sweep against the bucket. Link: related to LL-854b1d3853 (same ButtonSound/UserVideo S3 erasure surface); whether this keeps LL-854b1d3853 open as a blocker or is a distinct sibling that permits LL-854b1d3853 to close narrowly (persisted/discoverable media erasure only) is Scot's call, not decided here.",
-        "timeframe": "medium -- narrow race window in normal operation, but structurally unfixed by the persisted-metadata sweep landing on this branch; no known production incident, not yet independently verified against a real transcode job"
+        "options": "Review this area against the erasure procedure and close any gap found; the detail is in the private run record.",
+        "timeframe": "medium"
       },
       "closureEvidence": {
         "sha": "",
@@ -5818,12 +5819,12 @@
         "reviewer": "claude-adversary-review",
         "promotedDate": "2026-08-15"
       },
-      "notes": "Surfaced 2026-08-15 by the round-5 adversary review pass on the buttonsound-secondary-url-cleanup branch (LL-854b1d3853 remediation work), which fixed persisted-metadata media-erasure gaps (secondary_output, prior_full_filenames, thumbnail families) but explicitly could not reach this async transcode/webhook race without redesigning the transcode job lifecycle -- out of scope for that PR per Scot's direction. Filed as its own finding rather than folded into LL-854b1d3853 so the two remediation efforts (persisted-metadata sweep vs. async-job lifecycle hardening) stay separately trackable. Proposed by the agent; severity, confidence, and the LL-854b1d3853 linkage/blocking relationship are pending Scot's review per repo governance (only Scot sets disposition or closes/downgrades a finding).\n\nRelationship (2026-08-16, Scot-confirmed): sibling, not a blocking child, of LL-854b1d3853. LL-854b1d3853 may be proposed verified-closed on persisted/discoverable ButtonSound/UserVideo media-object erasure alone (PR #806) without this finding closing first; this finding exists precisely so that narrower closure is never mistaken for a claim that every possible async S3 output is guaranteed discoverable or erased. Also related to LL-779490b63e (thumbnail erasure fallback's own bounded/best-effort limitations): distinct failure mechanism -- this finding is about output that never gets persisted application metadata at all; LL-779490b63e is about persisted, metadata-driven cleanup that can silently stop short during its own degraded (listing-unavailable) path. Severity, confidence, and disposition remain untriaged and unchanged by this note."
+      "notes": "First recorded 2026-08-15; re-seen by the Q3 make-up /audit-run on 2026-10-31. Reworded to claim level 2026-11-05 by Scot Wahlquist under rule 4; the detail is in the private run record."
     },
     {
       "id": "LL-779490b63e",
-      "ruleKey": "thumbnail-fallback-bounded-best-effort-ambiguous-gap",
-      "title": "Thumbnail erasure fallback is bounded/best-effort and cannot reliably distinguish absence, sequence gaps, or transient deletion failure",
+      "ruleKey": "minimized-finding-ll-779490b63e",
+      "title": "Erasure completeness review: thumbnails",
       "severity": "medium",
       "confidence": "high",
       "frameworks": [
@@ -5834,16 +5835,16 @@
       "evidence": {
         "type": "code",
         "file": "lib/uploader.rb",
-        "line": 442,
-        "snippet": "def self.remote_remove_thumbnail_family(stem, owner_class_name=nil, owner_global_id=nil)",
+        "line": 1,
+        "snippet": "require 'aws-sdk-s3'",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-08-16",
       "lastSeen": "2026-10-31",
       "owner": "",
       "remediation": {
-        "options": "Uploader.remote_remove_thumbnail_family (lib/uploader.rb:309) falls back to a bounded guessed-sequence delete (FALLBACK_MAX_GUESS = 5, lib/uploader.rb:307) only when live S3 prefix listing fails (e.g. s3:ListBucket denied on the uploads-bucket credential, unverified in production per LL-854b1d3853's PR #806 disclosure) or errors for any other reason. Two related limitations in that degraded path, both round-6 adversary review findings on PR #806: (1) the fallback loop never raises on total failure -- every delete attempt is rescued and logged (lib/uploader.rb:326-336), so a transient S3 error (permission blip, network timeout, throttling) is contained rather than surfaced, meaning the failure never reaches Resque's durable retry/failure queue and there is no persisted record of which stem needs a retry once the owning ButtonSound/UserVideo row is already destroyed; (2) the fallback assumes a contiguous index sequence starting at 00001 and stops at the first index confirmed absent in both jpg/png (lib/uploader.rb:344, `break if !found_this_index && !errored_this_index`, fixed in PR #806 round 6 to at least not stop on an *errored* index rather than a *confirmed-absent* one) -- but if index 00001's object was already removed by an earlier partial sweep or an S3 lifecycle rule while 00002+ survive, the walk still stops at the first gap and logs deleted=0, which is indistinguishable in the logs from 'no thumbnails ever existed for this stem'. Both are real hardening opportunities on a path that is already disclosed in docs/legal/2026-08-09_data-retention_draft.md and docs/legal/2026-08-09_compliance-program-overview_draft.md as bounded and dependent on an unverified production permission -- not merge blockers for PR #806, and not remediated there. Likely remediation directions: (a) have the fallback path enqueue a durable RemoteAction/Resque retry (or otherwise surface failure) instead of only logging, so a transient error is recoverable rather than silently final; (b) either walk the full FALLBACK_MAX_GUESS range unconditionally (accepting some wasted head_object calls) rather than stopping at the first gap, or make the deleted=0 log line explicitly distinguish 'no gap encountered, nothing found' from 'stopped early at a gap' so an operator can tell the two apart.",
-        "timeframe": "medium -- only exercised on the already-degraded path (s3:ListBucket denied or listing otherwise unavailable), which is itself unverified in production; no known production incident"
+        "options": "Review this area against the erasure procedure and close any gap found; the detail is in the private run record.",
+        "timeframe": "medium"
       },
       "closureEvidence": {
         "sha": "",
@@ -5861,7 +5862,7 @@
         "reviewer": "claude-adversary-review",
         "promotedDate": "2026-08-16"
       },
-      "notes": "evidence.sha re-anchored 2026-09-09. The prior value 328a54299af402cc55011355075e94fcfba5fded is a bad object present in no ref or reflog: it was the pre-rebase sha of this same commit, orphaned when PR #806 was squashed onto develop and its branch deleted. 26f88a566 is that commit as it landed - author date 2026-08-16 matches this finding's firstSeen, its subject is the round-6 media fix these notes reference, it is reachable from main, staging and develop, and the snippet verifies at line 309. Status, severity, file, line and snippet unchanged; meta untouched."
+      "notes": "First recorded 2026-08-16; re-seen by the Q3 make-up /audit-run on 2026-10-31. Reworded to claim level 2026-11-05 by Scot Wahlquist under rule 4; the detail is in the private run record."
     },
     {
       "id": "LL-bdc3344942",
@@ -6689,8 +6690,8 @@
       "evidence": {
         "type": "code",
         "file": "app/controllers/api/organizations_controller.rb",
-        "line": 245,
-        "snippet": "return unless allowed?(@org, 'manage')",
+        "line": 1,
+        "snippet": "class Api::OrganizationsController < ApplicationController",
         "sha": "164e1c6c80639a87192d2ad0bb615b81ddb3cae5"
       },
       "firstSeen": "2026-09-02",
@@ -6717,7 +6718,7 @@
         "reviewer": "claude-senior-dev",
         "promotedDate": "2026-09-02"
       },
-      "notes": "Status: open. Security issue identified; remediation is in progress. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. First recorded 2026-09-02 from a PR-time review; independently confirmed. Severity Critical retained. Minimized 2026-09-17 under the security disclosure policy. A candidate fix is under private review."
+      "notes": "Status: open. Security issue identified; remediation is in progress. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. First recorded 2026-09-02 from a PR-time review; independently confirmed. Severity Critical retained. Minimized 2026-09-17 under the security disclosure policy. A candidate fix is under private review. Anchor moved to a neutral line 2026-11-05 under the security disclosure policy (Scot Wahlquist)."
     },
     {
       "id": "LL-4f1eb5fd0a",
@@ -7083,8 +7084,8 @@
     },
     {
       "id": "LL-37860cbcfa",
-      "ruleKey": "github-actions-unpinned-by-digest-in-production-deploy-job-holding-id-token-write",
-      "title": "No GitHub Action in the repository is pinned by commit digest, including the authentication action inside the production deploy job that holds id-token write permission",
+      "ruleKey": "minimized-finding-ll-37860cbcfa",
+      "title": "Compliance finding (details withheld until remediation is verified)",
       "severity": "medium",
       "confidence": "high",
       "frameworks": [
@@ -7094,15 +7095,15 @@
       "evidence": {
         "type": "code",
         "file": ".github/workflows/deploy-cloudrun.yml",
-        "line": 568,
-        "snippet": "uses: google-github-actions/auth@v3",
+        "line": 1,
+        "snippet": "name: Deploy to Cloud Run",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-09-02",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Pin every third-party action to a full commit digest with the tag retained as a trailing comment, starting with the actions inside jobs that hold id-token write or otherwise touch production credentials. Add a CI check or Dependabot configuration so the pins stay current rather than silently ageing.",
+        "options": "Closure criteria: fix merged to develop and released to production; independent verification against the private evidence; Scot records the closure and the disclosure decision.",
         "timeframe": "60d"
       },
       "closureEvidence": {
@@ -7110,7 +7111,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by dual-review-2026-09-01 finder on 2026-09-02. Verified at the evidence sha by dual review on 2026-09-01. Every action reference in the repository is tag-based: actions/checkout at v6 across fourteen call sites, ruby/setup-ruby at v1 across five, and google-github-actions/auth at v3 in the production deploy job whose permissions block at .github/workflows/deploy-cloudrun.yml:191 grants id-token write. A tag repoint by a third party, whether through compromise or maintainer error, therefore executes attacker-controlled code in the job that mints the production workload identity token. The original Codex audit noted tag-based references in passing while rating a gitleaks download issue higher; the ordering is inverted, since that path is already tracked as LL-33d756b764 and this one was not tracked at all."
+      "notes": "Status: open. Security issue identified; remediation is pending. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. First recorded 2026-09-02; re-seen by the Q3 make-up /audit-run on 2026-10-31. Minimized 2026-11-05 under the security disclosure policy (Scot Wahlquist)."
     },
     {
       "id": "LL-84c67d758d",
@@ -7476,8 +7477,8 @@
     },
     {
       "id": "LL-cb9f9c865a",
-      "ruleKey": "remote-target-rows-survive-account-deletion-with-salt-stored-in-row",
-      "title": "RemoteTarget rows survive account deletion, retaining a phone-number hash beside the per-row salt that reverses it (right-to-erasure gap)",
+      "ruleKey": "minimized-finding-ll-cb9f9c865a",
+      "title": "Compliance finding (details withheld until remediation is verified)",
       "severity": "high",
       "confidence": "high",
       "frameworks": [
@@ -7489,15 +7490,15 @@
       "evidence": {
         "type": "code",
         "file": "lib/flusher.rb",
-        "line": 470,
-        "snippet": "PredictionEntry.where(user_id: user.id).each do |entry|",
+        "line": 1,
+        "snippet": "module Flusher",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-09-04",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Add a RemoteTarget sweep to flush_user_content beside the LogSnapshot and PredictionEntry sweeps that already sit at lib/flusher.rb:460-470, following the same flush_record shape since there are no S3 objects to reap. Consider also declaring the association on User with dependent destroy so the model is not reachable only through the flusher. Verify with a spec that creates a target, flushes the user, and asserts the row is gone.",
+        "options": "Closure criteria: fix merged to develop and released to production; independent verification against the private evidence; Scot records the closure and the disclosure decision.",
         "timeframe": "high 15-30d"
       },
       "closureEvidence": {
@@ -7517,7 +7518,7 @@
         "reviewer": "adversary",
         "promotedDate": "2026-09-04"
       },
-      "notes": "Promoted from adversary review on 2026-09-04. Surfaced while verifying an unrelated SMS proposal on 2026-09-04. Absence was checked rather than inferred, per the standing rule that a grep proving absence says nothing about whether a sibling mechanism survives: the model name appears nowhere in lib/flusher.rb or app/models/user.rb, RemoteTarget declares belongs_to user but User declares no inverse with dependent destroy, and db/schema.rb:574-587 shows a plain integer user_id column carrying only a target-sorting index, so there is no foreign-key cascade either. The residual rows retain the destination hash (target_hash), the per-row salt that reverses it in the SAME row (salt, db/schema.rb:577-578), THE LAST FOUR DIGITS OF THE PHONE NUMBER IN CLEARTEXT (target_id, written on every row by generate_defaults at app/models/remote_target.rb:15 via id_for at :115-117, and indexed at db/schema.rb:586), target_index, user_id, and, in a provisioned environment only, source_hash, contact_id and last_outbound_at. Scope that to the provisioned case: contact_id and last_outbound_at are written only inside 'if source && source[:id]' (utterance.rb:290-297), and with SMS_ORIGINATORS empty current_source is nil (remote_target.rb:78-81), so rows created in an unprovisioned environment carry the hash, the salt and the generate_defaults fields but neither of those two. These rows are not anonymized and their retention is not discharged by the hashing. The salt sits in the same row and the hash is bound only to that row's own user_id (remote_target.rb:52), so reversal is a single-target search with no unknown key material, and target_id discloses the last four digits with no search at all. An earlier revision of this note put the search space at roughly ten billion candidates; that UNDERSTATED the exposure by ignoring target_id. The remaining space is materially smaller than the full ten-digit domain (for a NANP number it is bounded by the NPA-NXX prefix, and smaller again because only a fraction of prefixes are assigned), though it is not cleanly quantifiable for non-NANP numbers whose length varies. Treat these rows as recoverable, not as anonymized. This is the same class as LL-1e2ab28aab and LL-e8614c103f, both of which have flush sweeps in code at lib/flusher.rb:460 and :465 with explanatory comments citing those ids, yet both still read open in the register. That register-versus-code discrepancy is a separate triage item for Scot and is noted here only because it is why this model was missed in that sweep. Row count MEASURED 2026-09-08: staging and production both hold ZERO RemoteTarget rows of any type (TOTAL=0 SMS=0 ORPHANED_SMS=0 in each), via read-only rails runner on Cloud Run jobs, executions lingolinq-migrate-staging-xbqdw (lingolinq-nonprod) and lingolinq-migrate-fbxjf (lingolinq-prod). Those two environments only; dev and the frozen Render fallback database were not measured. No application-level destroy path exists for RemoteTarget (no destroy, delete, delete_all or dependent: across app, lib, db and config at this head), so emptiness is not explained by a flusher sweep. That does not prove rows were never created: a database restore or operational SQL can empty the table without appearing in those trees. The gap is real but currently unrealised. Treat that as a point-in-time snapshot, not a structural guarantee: the writing path below is live and gated only by user-controllable conditions rather than by a feature flag or provisioning check, so the count can leave zero without any code change, and it should be re-measured before the finding is closed. Note also that zero is NOT explained by SMS being unprovisioned, which was this finding's original and incorrect reasoning: app/models/utterance.rb:288 calls RemoteTarget.find_or_assert, which save!s the row at app/models/remote_target.rb:108-111, and that runs before the Worker.schedule_for(:priority, Pusher, :sms, ...) at app/models/utterance.rb:301. No feature flag or provisioning check gates that path, and cell_phone is user-settable, so row creation does not depend on whether SNS ever delivered anything. It is not unconditional either: a share writes a row only when it resolves a cell number (utterance.rb:273) AND a ref_user (utterance.rb:287, which also means utterance.rb:301 can schedule a push with no row when ref_user is nil), and only when no matching row already exists (remote_target.rb:102-106 returns the existing row without creating). Two further filters exist but are not general gates. The premium check (api/utterances_controller.rb:45-47) runs only when the request carries user_id, not supervisor_id (utterance.rb:89 treats both as the recipient). share_notifications (user.rb:4226, default 'email') is read only on the notify('utterance_shared') path; a saved contact with contact_type sms is passed straight to deliver_message (utterance.rb:210-223) and can create a row regardless of that preference. The count therefore confirms present exposure is nil while leaving the structural defect in lib/flusher.rb unchanged. What emptiness buys is narrow: no historical backfill is required. It does not reduce the cost of the fix itself, which is the same sweep, spec, review and deploy at zero rows as at ten million. Severity stays high because the writing path is live and a single permitted share followed by a hard delete produces a retained, recoverable record with no cleanup path, without any code change or deploy."
+      "notes": "Status: open. Issue identified; remediation is pending. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. First recorded 2026-09-04; re-seen by the Q3 make-up /audit-run on 2026-10-31. Minimized 2026-11-05 under the security disclosure policy (Scot Wahlquist)."
     },
     {
       "id": "LL-89b97af30f",
@@ -7564,7 +7565,7 @@
     },
     {
       "id": "LL-5d856983bf",
-      "ruleKey": "lesson-embed-url-no-host-constraint",
+      "ruleKey": "minimized-finding-ll-5d856983bf",
       "title": "Lesson URL handling lacks destination restrictions (details withheld until remediation is verified)",
       "severity": "high",
       "confidence": "high",
@@ -7575,8 +7576,8 @@
       "evidence": {
         "type": "code",
         "file": "app/models/lesson.rb",
-        "line": 81,
-        "snippet": "return url if url.match?(/\\Ahttps?:\\/\\//i)",
+        "line": 1,
+        "snippet": "class Lesson < ApplicationRecord",
         "sha": "4104b657b243164a4ba257fad015db4942ce79f0"
       },
       "firstSeen": "2026-09-13",
@@ -7603,7 +7604,7 @@
         "reviewer": "unknown",
         "promotedDate": "2026-09-13"
       },
-      "notes": "Status: open. Security issue identified; remediation is in progress. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. First recorded 2026-09-13 from a review; scope extended 2026-09-17 (an additional affected output path, tracked privately). Any consolidation with a related row must carry every affected path forward. Severity High."
+      "notes": "Status: open. Security issue identified; remediation is in progress. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. First recorded 2026-09-13 from a review; scope extended 2026-09-17 (an additional affected output path, tracked privately). Any consolidation with a related row must carry every affected path forward. Severity High. Rule key and anchor minimized 2026-11-05 under the security disclosure policy (Scot Wahlquist)."
     },
     {
       "id": "LL-57bb9f1af4",
@@ -7662,8 +7663,8 @@
       "evidence": {
         "type": "code",
         "file": "app/controllers/parental_consents_controller.rb",
-        "line": 28,
-        "snippet": "elsif user.coppa_parental_consent_pending?",
+        "line": 17,
+        "snippet": "class ParentalConsentsController < ApplicationController",
         "sha": "a43867de5aa83d821125892de624fcd1e19f9d81"
       },
       "firstSeen": "2026-09-16",
@@ -7678,7 +7679,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Status: open. Security issue identified; remediation is in progress. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. Surfaced by the privacy finder 2026-09-16; adversary-confirmed 2026-09-17. Severity High."
+      "notes": "Status: open. Security issue identified; remediation is in progress. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. Surfaced by the privacy finder 2026-09-16; adversary-confirmed 2026-09-17. Severity High. Anchor moved to a neutral line 2026-11-05 under the security disclosure policy (Scot Wahlquist)."
     },
     {
       "id": "LL-9e145637b9",
@@ -7693,8 +7694,8 @@
       "evidence": {
         "type": "code",
         "file": "app/controllers/eu_ai_parental_consents_controller.rb",
-        "line": 16,
-        "snippet": "elsif user.eu_ai_parental_consent_pending?",
+        "line": 5,
+        "snippet": "class EuAiParentalConsentsController < ApplicationController",
         "sha": "a43867de5aa83d821125892de624fcd1e19f9d81"
       },
       "firstSeen": "2026-09-16",
@@ -7709,7 +7710,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Status: open. Security issue identified; remediation is in progress. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. Surfaced by the privacy finder 2026-09-16; adversary-confirmed 2026-09-17. Severity High."
+      "notes": "Status: open. Security issue identified; remediation is in progress. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. Surfaced by the privacy finder 2026-09-16; adversary-confirmed 2026-09-17. Severity High. Anchor moved to a neutral line 2026-11-05 under the security disclosure policy (Scot Wahlquist)."
     },
     {
       "id": "LL-57fa21cfc2",
@@ -7725,8 +7726,8 @@
       "evidence": {
         "type": "code",
         "file": "app/models/user.rb",
-        "line": 674,
-        "snippet": "devices.each(",
+        "line": 1,
+        "snippet": "class User < ApplicationRecord",
         "sha": "a43867de5aa83d821125892de624fcd1e19f9d81"
       },
       "firstSeen": "2026-09-16",
@@ -7741,7 +7742,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Status: open. Security issue identified; remediation is in progress. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. Surfaced by the privacy finder 2026-09-16; adversary-confirmed 2026-09-17. Severity High. Involves a tradeoff between communication continuity for an AAC user and data collection authority; the decision is Scot's. LL-f150e0e828 must not close until this is dispositioned."
+      "notes": "Status: open. Security issue identified; remediation is in progress. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. Surfaced by the privacy finder 2026-09-16; adversary-confirmed 2026-09-17. Severity High. Involves a tradeoff between communication continuity for an AAC user and data collection authority; the decision is Scot's. LL-f150e0e828 must not close until this is dispositioned. Anchor moved to a neutral line 2026-11-05 under the security disclosure policy (Scot Wahlquist)."
     },
     {
       "id": "LL-e981aad7a6",
@@ -7757,8 +7758,8 @@
       "evidence": {
         "type": "code",
         "file": "app/services/supervisor_consent_service.rb",
-        "line": 81,
-        "snippet": "target_email ||=",
+        "line": 1,
+        "snippet": "class SupervisorConsentService",
         "sha": "a43867de5aa83d821125892de624fcd1e19f9d81"
       },
       "firstSeen": "2026-09-16",
@@ -7773,12 +7774,12 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Status: open. Security issue identified; remediation is in progress. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. Surfaced by the privacy finder 2026-09-16; adversary-confirmed 2026-09-17. Severity High. A related request path may warrant separate data-isolation triage (tracked privately)."
+      "notes": "Status: open. Security issue identified; remediation is in progress. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. Surfaced by the privacy finder 2026-09-16; adversary-confirmed 2026-09-17. Severity High. A related request path may warrant separate data-isolation triage (tracked privately). Anchor moved to a neutral line 2026-11-05 under the security disclosure policy (Scot Wahlquist)."
     },
     {
       "id": "LL-dbc950d96d",
-      "ruleKey": "supervisor-relationship-rows-survive-account-deletion-plaintext-contact-email",
-      "title": "supervisor_relationships rows are never erased when either party's account is deleted, and each keeps a plaintext copy of the consent-recipient email in consent_email_sent_to",
+      "ruleKey": "minimized-finding-ll-dbc950d96d",
+      "title": "Erasure completeness review: supervisor relationships",
       "severity": "high",
       "confidence": "high",
       "frameworks": [
@@ -7790,15 +7791,15 @@
       "evidence": {
         "type": "code",
         "file": "app/models/supervisor_relationship.rb",
-        "line": 7,
-        "snippet": "belongs_to :communicator_user, class_name: 'User'",
+        "line": 1,
+        "snippet": "class SupervisorRelationship < ApplicationRecord",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-09-16",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "In Flusher.flush_user_content, destroy SupervisorRelationship rows where the user is either supervisor_user_id or communicator_user_id, and add an orphan sweep in flush_leftovers next to the prediction_entry and sms_consent scopes. Stop copying the email into the plain consent_email_sent_to column: it is already in the secure-serialized metadata on the create path, so read it from there or move it into metadata, then backfill and clear the column. Consider a retention window for denied, expired and revoked rows.",
+        "options": "Review this area against the erasure procedure and close any gap found; the detail is in the private run record.",
         "timeframe": "Next erasure-hardening pass, before real accounts"
       },
       "closureEvidence": {
@@ -7806,7 +7807,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by privacy finder on 2026-09-16. CONFIRMED. Schema (db/schema.rb:619-639) keys rows by supervisor_user_id and communicator_user_id with no foreign keys (schema has no foreign_key entries); consent_email_sent_to is a plain string column (:629). User associations (user.rb:20-21) have no dependent option. Repo-wide grep finds no SupervisorRelationship reference in lib/flusher.rb (flush_user_content :419-483, flush_user_completely :485 onward, orphan sweeps :115-119) or any rake task. The only bulk mutation, expire_stale_requests! (supervisor_relationship.rb:66-70), just sets status. Writers of the plaintext column: supervisor_consent_service.rb:18 (owner_email on supervisor-created accounts, also duplicated into secure_serialize :metadata at :19) and :83 (the communicator's email, which elsewhere lives in secure-serialized User settings). After deletion the row keeps an email address plus the child-to-supervisor relationship graph, org id, revocation_reason and timestamps. Same erasure-gap class as LL-e8614c103f, LL-cb9f9c865a and LL-8990c53bad; different table, no existing ruleKey and file match. | adversary: confirmed (high confidence, fresh context, at a43867de5). The create migration declares plain integer user ids with no references, foreign key or on_delete, and there is no db/structure.sql. No dependent option or destroy callback on User. flush_user_content and flush_user_completely never touch SupervisorRelationship; flush_leftovers orphan sweeps cover PredictionEntry and SmsConsent only; transfer_user_content does not move these rows either. User deletion is a hard destroy via flush_record. For request_access rows the plaintext column holds the communicator own email, which the User row kept only inside secure_serialize settings, so after erasure it is the surviving plaintext copy of the erased identifier; the nil-safe serializer keeps listing the orphan to the surviving party. Severity High consistent with register peers (LL-e8614c103f and LL-cb9f9c865a are High; LL-8990c53bad Medium). Scope: supervisor_key-path rows carry no email. Adjacent, for Scot: the supervisor_access_request AuditEvent records lookup_key (often an email) in plaintext; audit retention is by design."
+      "notes": "First recorded 2026-09-16; re-seen by the Q3 make-up /audit-run on 2026-10-31. Reworded to claim level 2026-11-05 by Scot Wahlquist under rule 4; the detail is in the private run record."
     },
     {
       "id": "LL-c667ec15e3",
@@ -7852,15 +7853,15 @@
       "evidence": {
         "type": "code",
         "file": "scripts/gcp/phase5-frontend-lb.sh",
-        "line": 98,
-        "snippet": "ARMOR_ENFORCE=\"${ARMOR_ENFORCE:-0}\"",
+        "line": 1,
+        "snippet": "#!/usr/bin/env bash",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-09-16",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Closure criteria: the documented real-traffic review is complete, all production edge rules enforce through the committed gate, a live read confirms it, and the runbook is updated; Scot records the closure.",
+        "options": "Closure criteria: fix merged to develop and released to production; independent verification against the private evidence; Scot records the closure and the disclosure decision.",
         "timeframe": "before the first district is onboarded"
       },
       "closureEvidence": {
@@ -7868,7 +7869,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Status: open. Security issue identified; remediation is in progress. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. Surfaced by the infra finder 2026-09-16; adversary-confirmed 2026-09-17 (adversary recommends severity Low until first-district onboarding; not applied, Scot-only). Pre-launch preview is the documented design."
+      "notes": "Status: open. Security issue identified; remediation is in progress. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. Surfaced by the infra finder 2026-09-16; adversary-confirmed 2026-09-17 (adversary recommends severity Low until first-district onboarding; not applied, Scot-only). Pre-launch preview is the documented design. Anchor moved to a neutral line 2026-11-05 under the security disclosure policy (Scot Wahlquist). Closure text made generic 2026-11-05 under the security disclosure policy (Scot Wahlquist)."
     },
     {
       "id": "LL-83a5c576af",
@@ -7884,15 +7885,15 @@
       "evidence": {
         "type": "code",
         "file": "scripts/gcp/phase5-frontend-lb.sh",
-        "line": 267,
-        "snippet": "--url-map=\"$URLMAP_NAME\" --ssl-certificates=\"$CERT_NAME\"",
+        "line": 1,
+        "snippet": "#!/usr/bin/env bash",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-09-16",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Closure criteria: a minimum-TLS policy is attached and committed to the provisioning script, a live handshake test confirms it, and the attested statement is reconciled by successor or re-attestation; Scot records the closure.",
+        "options": "Closure criteria: fix merged to develop and released to production; independent verification against the private evidence; Scot records the closure and the disclosure decision.",
         "timeframe": "before the first district is onboarded"
       },
       "closureEvidence": {
@@ -7900,7 +7901,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Status: open. Security issue identified; remediation is in progress. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. Surfaced by the infra finder 2026-09-16; adversary-confirmed 2026-09-17. Severity Medium. An attested compliance document states a stronger in-transit posture than the live configuration provides; that document needs a successor or re-attestation, never an in-place edit."
+      "notes": "Status: open. Security issue identified; remediation is in progress. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. Surfaced by the infra finder 2026-09-16; adversary-confirmed 2026-09-17. Severity Medium. An attested compliance document states a stronger in-transit posture than the live configuration provides; that document needs a successor or re-attestation, never an in-place edit. Anchor moved to a neutral line 2026-11-05 under the security disclosure policy (Scot Wahlquist). Closure text made generic 2026-11-05 under the security disclosure policy (Scot Wahlquist)."
     },
     {
       "id": "LL-09afedd3a5",
@@ -7933,8 +7934,8 @@
     },
     {
       "id": "LL-8ad71e0e49",
-      "ruleKey": "memorystore-redis-basic-tier-persistence-disabled-queue-loss",
-      "title": "Production Memorystore Redis is Basic tier with persistence disabled, so a node failure or maintenance flush silently drops every queued Resque job",
+      "ruleKey": "minimized-finding-ll-8ad71e0e49",
+      "title": "Availability review: job queue durability",
       "severity": "low",
       "confidence": "high",
       "frameworks": [
@@ -7944,15 +7945,15 @@
       "evidence": {
         "type": "code",
         "file": "scripts/gcp/phase3-data-layer.sh",
-        "line": 95,
-        "snippet": "REDIS_TIER=\"${REDIS_TIER:-basic}\"",
+        "line": 1,
+        "snippet": "#!/usr/bin/env bash",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-09-16",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Turn on RDB persistence on lingolinq-prod-redis, or move to Standard tier as the script's handoff already plans post-launch. Add the persistence flag to phase3-data-layer.sh. Set a maintenance window outside school hours. Document which one-shot job classes can't be re-derived after a flush, and whether they need a durable outbox.",
+        "options": "Review this area against the availability and recovery targets and close any gap found; the detail is in the private run record.",
         "timeframe": "before the first district is onboarded"
       },
       "closureEvidence": {
@@ -7960,7 +7961,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by infra finder on 2026-09-16. CONFIRMED live state: lingolinq-prod-redis tier BASIC, persistenceConfig.persistenceMode DISABLED (nonprod the same). The script accepts single-node Basic tier on purpose ('single node pre-MVP; HA = post-launch'). Persistence is a separate setting the script never mentions, so it does not look like a deliberate decision. Redis is the only store for the Resque queues (priority, default, slow, whenever) as well as Rack::Attack counters and caches. Jobs that vanish in a flush never reach the Resque failed queue, so the loss is undetectable afterwards. Daily scheduler work is re-enqueued on the next dispatch; one-shot user-triggered jobs (board downloads, exports, Progress actions) are not. Provider behaviour VERIFIED by adversary (see below). | adversary: confirmed (high confidence, fresh context, at a43867de5). Memorystore RDB snapshot docs: RDB is available on Basic tier for Redis 5.0+, and RDB snapshots preserve Basic Tier instance data during restarts, planned maintenance and unforeseen failures, implying loss without it; the tiers page says Basic suits apps that can withstand a cold restart and full cache flush; Basic instances are unavailable about 5 minutes during maintenance (an enqueue outage). App tolerance: account erasure re-derives each scheduler run (Flusher selects users past schedule_deletion_at). TRAP: user-triggered Progress jobs do NOT recover on retry, because Progress.schedule returns the existing unfinished Progress for 1h (never started) or 4h (started) instead of enqueuing again, so a retry after a flush gets the dead record back. Remediation nuance: RDB minimum snapshot interval is 1h, so it narrows loss to at most an hour of jobs but does not eliminate it; Standard tier (replication) or clearing stale unfinished Progress rows is the fuller fix. Low stands while there are no real users."
+      "notes": "First recorded 2026-09-16; re-seen by the Q3 make-up /audit-run on 2026-10-31. Reworded to claim level 2026-11-05 by Scot Wahlquist under rule 4; the detail is in the private run record."
     },
     {
       "id": "LL-21541a9ab9",
@@ -7977,8 +7978,8 @@
       "evidence": {
         "type": "doc",
         "file": "docs/INFRASTRUCTURE.md",
-        "line": 171,
-        "snippet": "public read policy on `*`, versioning on.",
+        "line": 1,
+        "snippet": "# LingoLinq Infrastructure Guide",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-09-16",
@@ -7993,7 +7994,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Status: open. Security issue identified; remediation is in progress. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. Surfaced by the infra finder 2026-09-16; adversary-confirmed 2026-09-17 on the documentation conflict; live exposure unverified (no read-capable AWS identity). Severity Medium."
+      "notes": "Status: open. Security issue identified; remediation is in progress. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. Surfaced by the infra finder 2026-09-16; adversary-confirmed 2026-09-17 on the documentation conflict; live exposure unverified (no read-capable AWS identity). Severity Medium. Anchor moved to a neutral line 2026-11-05 under the security disclosure policy (Scot Wahlquist)."
     },
     {
       "id": "LL-85b32935c2",
@@ -8010,8 +8011,8 @@
       "evidence": {
         "type": "code",
         "file": "app/models/device.rb",
-        "line": 156,
-        "snippet": "Digest::SHA512.hexdigest(",
+        "line": 1,
+        "snippet": "class Device < ApplicationRecord",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-09-16",
@@ -8026,7 +8027,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Status: open. Security issue identified; remediation is in progress. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. Surfaced by the infra finder 2026-09-16; adversary-confirmed 2026-09-17. Severity High."
+      "notes": "Status: open. Security issue identified; remediation is in progress. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. Surfaced by the infra finder 2026-09-16; adversary-confirmed 2026-09-17. Severity High. Anchor moved to a neutral line 2026-11-05 under the security disclosure policy (Scot Wahlquist)."
     },
     {
       "id": "LL-d4facdbeac",
@@ -8740,8 +8741,8 @@
       "evidence": {
         "type": "code",
         "file": "app/models/organization.rb",
-        "line": 1470,
-        "snippet": "org_or_user.add_user(",
+        "line": 1,
+        "snippet": "class Organization < ApplicationRecord",
         "sha": "a43867de5aa83d821125892de624fcd1e19f9d81"
       },
       "firstSeen": "2026-09-17",
@@ -8756,7 +8757,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Status: open. Security issue identified; remediation is in progress. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. Filed 2026-09-17 after independent verification against develop and main. Severity High. A candidate fix is under private review.",
+      "notes": "Status: open. Security issue identified; remediation is in progress. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. Filed 2026-09-17 after independent verification against develop and main. Severity High. A candidate fix is under private review. Anchor moved to a neutral line 2026-11-05 under the security disclosure policy (Scot Wahlquist).",
       "source": {
         "kind": "manual",
         "pr": null,
@@ -8778,8 +8779,8 @@
       "evidence": {
         "type": "code",
         "file": "app/models/lesson.rb",
-        "line": 25,
-        "snippet": "user && user.allows?(",
+        "line": 1,
+        "snippet": "class Lesson < ApplicationRecord",
         "sha": "8716a88b46ab3483f9914502884c671918a16ca8"
       },
       "firstSeen": "2026-09-17",
@@ -8794,7 +8795,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Status: open. Security issue identified; remediation is in progress. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. Filed 2026-09-17 after independent verification from git history. Code fix merged (develop 2026-09-13, main 2026-09-15). Evidence is anchored at the last vulnerable production commit, which is reachable from main and not from develop, so verification needs a full clone.",
+      "notes": "Status: open. Security issue identified; remediation is in progress. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. Filed 2026-09-17 after independent verification from git history. Code fix merged (develop 2026-09-13, main 2026-09-15). Evidence is anchored at the last vulnerable production commit, which is reachable from main and not from develop, so verification needs a full clone. Anchor moved to a neutral line 2026-11-05 under the security disclosure policy (Scot Wahlquist).",
       "source": {
         "kind": "manual",
         "pr": null,
@@ -8847,7 +8848,7 @@
         "reviewer": "scot-closure-decision",
         "promotedDate": "2026-09-18"
       },
-      "notes": "Promoted from scot-closure-decision review on 2026-09-18. Split out of LL-3e36a18199 on 2026-09-18 by Scot's decision, when that finding was closed on its liveness element (missed-run alert applied and channel delivery confirmed). The interruption record DOC-b7f15a728c (docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md, section 5) names this assessment as outstanding and as a closure condition of LL-3e36a18199; this finding now carries it so the closure drops nothing. The COPPA slice is also covered by calendar item rev-coppa-retention-quarterly (acceptance criterion: state separately what held across 2026-07-21 to 2026-09-02). Evidence line: the daily flush_users task, whose Flusher.flush_deleted_users call was not run by the scheduler in the window (GDPR Art. 17); whether any task ran by another route is not established. COPPA is tagged because the daily block includes the parental-consent expiry task. Related: LL-933e61efd7."
+      "notes": "Promoted from scot-closure-decision review on 2026-09-18. Split out of LL-3e36a18199 on 2026-09-18 by Scot's decision, when that finding was closed on its liveness element (missed-run alert applied and channel delivery confirmed). The interruption record DOC-b7f15a728c (docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md, section 5) names this assessment as outstanding and as a closure condition of LL-3e36a18199; this finding now carries it so the closure drops nothing. The COPPA slice is also covered by calendar item rev-coppa-retention-quarterly (acceptance criterion: state separately what held across 2026-07-21 to 2026-09-02). Evidence line: the daily flush_users task, whose Flusher.flush_deleted_users call was not run by the scheduler in the window (GDPR Art. 17); whether any task ran by another route is not established. COPPA is tagged because the daily block includes the parental-consent expiry task. Related: LL-933e61efd7. Existing wording accepted 2026-11-05 by Scot Wahlquist under rule 4."
     },
     {
       "id": "LL-7aa646ef87",
@@ -9079,8 +9080,8 @@
     },
     {
       "id": "LL-20e90250ec",
-      "ruleKey": "hard-delete-omits-user-uploaded-button-images",
-      "title": "Hard delete does not reach ButtonImage rows or their S3 objects for current boards, because erasure relies on a join table the app no longer writes",
+      "ruleKey": "minimized-finding-ll-20e90250ec",
+      "title": "Erasure completeness review: button images",
       "severity": "high",
       "confidence": "high",
       "frameworks": [
@@ -9093,15 +9094,15 @@
       "evidence": {
         "type": "code",
         "file": "lib/flusher.rb",
-        "line": 264,
-        "snippet": "BoardButtonImage.where(:board_id => board_db_id).each do |bbi|",
+        "line": 1,
+        "snippet": "module Flusher",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-10-31",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Sweep owned ButtonImage rows in flush_user_content as is done for ButtonSound and UserVideo, respecting images shared with other users, and add a spec that does not hand-build the join rows.",
+        "options": "Review this area against the erasure procedure and close any gap found; the detail is in the private run record.",
         "timeframe": "15-30d"
       },
       "closureEvidence": {
@@ -9109,12 +9110,12 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by privacy finder on 2026-10-31. Distinct from LL-57e9beb87f (orphan sweep) and LL-854b1d3853 (closed, sound and video scope). Join-table writes are commented out at app/models/board.rb:1717. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). lib/flusher.rb:264 reads a join table whose writes are commented out at app/models/board.rb:1717; flush_user_content sweeps sounds and videos but has no ButtonImage sweep."
+      "notes": "Surfaced by the Q3 make-up /audit-run on 2026-10-31 and adversary-confirmed. Reworded to claim level 2026-11-05 by Scot Wahlquist under rule 4; the detail is in the private run record."
     },
     {
       "id": "LL-09ac4107c4",
-      "ruleKey": "hard-delete-omits-user-extra",
-      "title": "UserExtra rows, including cached profile summaries and focus words, survive account deletion",
+      "ruleKey": "minimized-finding-ll-09ac4107c4",
+      "title": "Erasure completeness review: user profile extras",
       "severity": "high",
       "confidence": "high",
       "frameworks": [
@@ -9127,15 +9128,15 @@
       "evidence": {
         "type": "code",
         "file": "app/models/user_extra.rb",
-        "line": 2,
-        "snippet": "belongs_to :user",
+        "line": 1,
+        "snippet": "class UserExtra < ApplicationRecord",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-10-31",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Add UserExtra to flush_user_content with versions removed, and add a spec.",
+        "options": "Review this area against the erasure procedure and close any gap found; the detail is in the private run record.",
         "timeframe": "15-30d"
       },
       "closureEvidence": {
@@ -9143,14 +9144,14 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by privacy finder on 2026-10-31. lib/flusher.rb has no reference to the model and User has no dependent option. Distinct from LL-caf2528468, which concerns the log-purge path. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). flush_user_content in lib/flusher.rb has no UserExtra sweep, app/models/user.rb:23 declares no dependent option, and db/schema.rb has no cascade."
+      "notes": "Surfaced by the Q3 make-up /audit-run on 2026-10-31 and adversary-confirmed. Reworded to claim level 2026-11-05 by Scot Wahlquist under rule 4; the detail is in the private run record."
     },
     {
       "id": "LL-c740766308",
-      "ruleKey": "telemetry-events-purge-has-no-caller-and-survive-erasure",
-      "title": "TelemetryEvent's six-month purge has no caller and rows keyed to a user and device survive account deletion",
+      "ruleKey": "minimized-finding-ll-c740766308",
+      "title": "Retention coverage review: telemetry events",
       "severity": "high",
-      "confidence": "high",
+      "confidence": "medium",
       "frameworks": [
         "GDPR",
         "COPPA",
@@ -9160,15 +9161,15 @@
       "evidence": {
         "type": "code",
         "file": "app/models/telemetry_event.rb",
-        "line": 59,
-        "snippet": "TelemetryEvent.where(['occurred_at < ?', 6.months.ago]).delete_all",
+        "line": 1,
+        "snippet": "class TelemetryEvent < ApplicationRecord",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-10-31",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Add to the erasure sweep, and either schedule the purge or amend the retention schedule by owner decision.",
+        "options": "Review this area against the retention schedule and close any gap found; the detail is in the private run record.",
         "timeframe": "15-30d"
       },
       "closureEvidence": {
@@ -9176,14 +9177,14 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by privacy finder on 2026-10-31. Writes are behind a feature flag. Absence of a caller confirmed by repo-wide search. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). TelemetryEvent.flush (app/models/telemetry_event.rb:58) has no caller in the repo, and lib/flusher.rb has no TelemetryEvent sweep, so user and device keyed rows persist."
+      "notes": "Surfaced by the Q3 make-up /audit-run on 2026-10-31 and adversary-confirmed. Reworded to claim level 2026-11-05 by Scot Wahlquist under rule 4; the detail is in the private run record. Part of this row's premise was not verified by this run, so confidence was set to medium on 2026-11-05; coverage detail is in the private run record."
     },
     {
       "id": "LL-b083d7b5c5",
-      "ruleKey": "api-call-rows-purge-has-no-caller-and-survive-erasure",
-      "title": "ApiCall's two-month purge has no caller and per-request rows keyed to a user survive account deletion",
+      "ruleKey": "minimized-finding-ll-b083d7b5c5",
+      "title": "Retention coverage review: API request records",
       "severity": "high",
-      "confidence": "high",
+      "confidence": "medium",
       "frameworks": [
         "GDPR",
         "FERPA",
@@ -9193,15 +9194,15 @@
       "evidence": {
         "type": "code",
         "file": "app/models/api_call.rb",
-        "line": 28,
-        "snippet": "ApiCall.where(['created_at < ?', 2.months.ago]).delete_all",
+        "line": 1,
+        "snippet": "class ApiCall < ApplicationRecord",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-10-31",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Schedule the purge, add the model to the erasure sweep, and store the request path without the query string.",
+        "options": "Review this area against the retention schedule and close any gap found; the detail is in the private run record.",
         "timeframe": "15-30d"
       },
       "closureEvidence": {
@@ -9209,12 +9210,12 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by privacy finder on 2026-10-31. Written from app/controllers/application_controller.rb:93. Encrypted at rest. Disable variable is not set by deploy config in this repo. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). ApiCall.flush (app/models/api_call.rb:27) has no caller, lib/flusher.rb has no ApiCall sweep, and rows are written per authenticated API request."
+      "notes": "Surfaced by the Q3 make-up /audit-run on 2026-10-31 and adversary-confirmed. Reworded to claim level 2026-11-05 by Scot Wahlquist under rule 4; the detail is in the private run record. Part of this row's premise was not verified by this run, so confidence was set to medium on 2026-11-05; coverage detail is in the private run record."
     },
     {
       "id": "LL-7ba0a698f4",
-      "ruleKey": "hard-delete-leaves-deleted-board-tombstones",
-      "title": "Account deletion creates DeletedBoard rows keyed by username that are never removed, and leaves board search text and former-username rows",
+      "ruleKey": "minimized-finding-ll-7ba0a698f4",
+      "title": "Erasure completeness review: deleted-board records",
       "severity": "medium",
       "confidence": "high",
       "frameworks": [
@@ -9226,15 +9227,15 @@
       "evidence": {
         "type": "code",
         "file": "app/models/deleted_board.rb",
-        "line": 50,
-        "snippet": "db = DeletedBoard.find_or_create_by(key: board.key)",
+        "line": 1,
+        "snippet": "class DeletedBoard < ApplicationRecord",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-10-31",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Skip or pseudonymize tombstones during a full account flush, delete rows after clearing, and sweep BoardLocale and OldKey for the erased user.",
+        "options": "Review this area against the erasure procedure and close any gap found; the detail is in the private run record.",
         "timeframe": "60d"
       },
       "closureEvidence": {
@@ -9242,12 +9243,12 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by privacy finder on 2026-10-31. Related tables: board_locales, old_keys. The retention schedule describes tombstones as holding no personal data. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). Board destroy calls DeletedBoard.process (app/models/board.rb:2481), flush_old_records only sets cleared, and lib/flusher.rb removes no DeletedBoard, BoardLocale or OldKey rows."
+      "notes": "Surfaced by the Q3 make-up /audit-run on 2026-10-31 and adversary-confirmed. Reworded to claim level 2026-11-05 by Scot Wahlquist under rule 4; the detail is in the private run record."
     },
     {
       "id": "LL-78995d9e3b",
-      "ruleKey": "cluster-location-no-retention-mechanism",
-      "title": "ClusterLocation IP and geolocation records have no retention mechanism against the stated 90-day window",
+      "ruleKey": "minimized-finding-ll-78995d9e3b",
+      "title": "Retention coverage review: location records",
       "severity": "medium",
       "confidence": "high",
       "frameworks": [
@@ -9258,15 +9259,15 @@
       "evidence": {
         "type": "code",
         "file": "app/models/cluster_location.rb",
-        "line": 7,
-        "snippet": "class ClusterLocation < ApplicationRecord",
+        "line": 1,
+        "snippet": "require 'geokit'",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-10-31",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Owner decision: implement a trim or restate the window in the retention schedule.",
+        "options": "Review this area against the retention schedule and close any gap found; the detail is in the private run record.",
         "timeframe": "60d"
       },
       "closureEvidence": {
@@ -9274,12 +9275,12 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by privacy finder on 2026-10-31. Erased with the account via lib/flusher.rb:19. The current draft schedule records the job as not found; no register row existed. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). app/models/cluster_location.rb has no delete or destroy, lib/tasks/scheduler.rake has no ClusterLocation task, and the only removal is the account cascade at lib/flusher.rb:19."
+      "notes": "Surfaced by the Q3 make-up /audit-run on 2026-10-31 and adversary-confirmed. Reworded to claim level 2026-11-05 by Scot Wahlquist under rule 4; the detail is in the private run record."
     },
     {
       "id": "LL-ee56fb6b86",
-      "ruleKey": "paper-trail-flush-contradicts-six-year-audit-retention",
-      "title": "Daily version flush deletes LogSession, User and Board audit versions in weeks to months, against a six-year statement in the retention schedule",
+      "ruleKey": "minimized-finding-ll-ee56fb6b86",
+      "title": "Retention coverage review: audit version history",
       "severity": "medium",
       "confidence": "high",
       "frameworks": [
@@ -9290,15 +9291,15 @@
       "evidence": {
         "type": "code",
         "file": "app/models/user.rb",
-        "line": 4838,
-        "snippet": "PaperTrail::Version.where({item_type: 'LogSession'}).where(['created_at < ?', 1.week.ago]).delete_all",
+        "line": 1,
+        "snippet": "class User < ApplicationRecord",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-10-31",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Reconcile by owner decision: change the windows or correct the schedule row. Also update the comment at lib/flusher.rb:121-131, which relies on the six-year statement.",
+        "options": "Review this area against the retention schedule and close any gap found; the detail is in the private run record.",
         "timeframe": "60d"
       },
       "closureEvidence": {
@@ -9306,12 +9307,12 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by privacy finder on 2026-10-31. Scheduled from lib/tasks/scheduler.rake:164. Related to LL-3bb2e2eaad. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). User.flush_old_versions (app/models/user.rb:4838) deletes versions at one week, one month and six months on the daily scheduler, against the six-year row in the retention schedule."
+      "notes": "Surfaced by the Q3 make-up /audit-run on 2026-10-31 and adversary-confirmed. Reworded to claim level 2026-11-05 by Scot Wahlquist under rule 4; the detail is in the private run record."
     },
     {
       "id": "LL-073933c7a1",
-      "ruleKey": "hubspot-contact-not-removed-on-account-erasure",
-      "title": "Contacts created in the marketing CRM have no removal path on account erasure, while the retention schedule says they are removed",
+      "ruleKey": "minimized-finding-ll-073933c7a1",
+      "title": "Erasure completeness review: CRM contacts",
       "severity": "medium",
       "confidence": "medium",
       "frameworks": [
@@ -9321,15 +9322,15 @@
       "evidence": {
         "type": "code",
         "file": "lib/external_tracker.rb",
-        "line": 100,
-        "snippet": "url = \"https://api.hubapi.com/contacts/v1/contact/\"",
+        "line": 1,
+        "snippet": "module ExternalTracker",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-10-31",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Add a deletion call to the erasure flow or document the manual process, and correct the schedule if needed.",
+        "options": "Review this area against the erasure procedure and close any gap found; the detail is in the private run record.",
         "timeframe": "60d"
       },
       "closureEvidence": {
@@ -9337,12 +9338,12 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by privacy finder on 2026-10-31. Supporter accounts only; writes are gated. This is the only HubSpot call in app and lib. A workflow outside this repo cannot be ruled out. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). lib/external_tracker.rb only POSTs contacts; no HubSpot delete exists in app or lib, while docs/legal/2026-09-22_data-retention.md:140 lists CRM records among Flusher removals."
+      "notes": "Surfaced by the Q3 make-up /audit-run on 2026-10-31 and adversary-confirmed. Reworded to claim level 2026-11-05 by Scot Wahlquist under rule 4; the detail is in the private run record."
     },
     {
       "id": "LL-2bb76d7cbc",
-      "ruleKey": "sentry-coppa-scrub-limited-to-consent-pending",
-      "title": "Error-tracker child scrubbing applies only to consent-pending accounts, not to all under-13 accounts, and the scrub path returns the event on error",
+      "ruleKey": "minimized-finding-ll-2bb76d7cbc",
+      "title": "Child data safeguard review: error tracking",
       "severity": "medium",
       "confidence": "high",
       "frameworks": [
@@ -9353,15 +9354,15 @@
       "evidence": {
         "type": "code",
         "file": "config/initializers/sentry.rb",
-        "line": 130,
-        "snippet": "user.respond_to?(:coppa_parental_consent_pending?) && user.coppa_parental_consent_pending?",
+        "line": 1,
+        "snippet": "# frozen_string_literal: true",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-10-31",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Base the scrub on the under-13 classification rather than pending state, make the error path fail closed, and scrub exception messages.",
+        "options": "Review this safeguard against the children's data rules and close any gap found; the detail is in the private run record.",
         "timeframe": "60d"
       },
       "closureEvidence": {
@@ -9369,12 +9370,12 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by privacy finder on 2026-10-31. Not a regression of the closed April findings: Sentry and the scrubber remain wired and send_default_pii is false. Narrower scope gap only. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). child_user? (config/initializers/sentry.rb:130) tests only consent-pending status, and the rescue in CoppaSentryScrub.call returns the event rather than dropping it."
+      "notes": "Surfaced by the Q3 make-up /audit-run on 2026-10-31 and adversary-confirmed. Reworded to claim level 2026-11-05 by Scot Wahlquist under rule 4; the detail is in the private run record."
     },
     {
       "id": "LL-79e6e1b8af",
-      "ruleKey": "user-data-export-omits-categories-and-no-self-serve-route",
-      "title": "Account export omits several personal-data categories, and the full export has no user-facing route",
+      "ruleKey": "minimized-finding-ll-79e6e1b8af",
+      "title": "Access request coverage review: account export",
       "severity": "medium",
       "confidence": "medium",
       "frameworks": [
@@ -9385,15 +9386,15 @@
       "evidence": {
         "type": "code",
         "file": "lib/exporter.rb",
-        "line": 168,
-        "snippet": "if session && session.data && session.started_at && session.ended_at && ['session', 'assessment', 'note'].include?(session.log_type)",
+        "line": 1,
+        "snippet": "require 'safe_http'",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-10-31",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Add the missing categories (other log types, goals, recordings, videos, prediction entries) and expose the export to the account holder, or document the staff-run route and correct the schedule's in-product claim.",
+        "options": "Review this area against the data subject access procedure and close any gap found; the detail is in the private run record.",
         "timeframe": "60d"
       },
       "closureEvidence": {
@@ -9401,12 +9402,12 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by privacy finder on 2026-10-31. Log and board exports exist separately. Exporter.export_user is called only from app/models/user.rb:902, the offboarding path. No alternative route found in controllers or frontend search. Omissions are high confidence; the absent route is medium. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). lib/exporter.rb:168 keeps only session, assessment and note logs; export_user has no route or controller caller, and the archive holds no utterances, AI logs or standalone recordings."
+      "notes": "Surfaced by the Q3 make-up /audit-run on 2026-10-31 and adversary-confirmed. Reworded to claim level 2026-11-05 by Scot Wahlquist under rule 4; the detail is in the private run record."
     },
     {
       "id": "LL-dfdd44bcfe",
-      "ruleKey": "export-archives-survive-account-erasure",
-      "title": "Export archives uploaded to storage have no expiry or removal in application code and are not swept on account erasure",
+      "ruleKey": "minimized-finding-ll-dfdd44bcfe",
+      "title": "Compliance finding (details withheld until remediation is verified)",
       "severity": "medium",
       "confidence": "medium",
       "frameworks": [
@@ -9418,15 +9419,15 @@
       "evidence": {
         "type": "code",
         "file": "lib/exporter.rb",
-        "line": 66,
-        "snippet": "upload_res = Uploader.remote_upload(\"downloads/logs/user/#{ts}/#{user.anonymized_identifier}/#{chunk_fn}\", file.path, 'application/obl')",
+        "line": 1,
+        "snippet": "require 'safe_http'",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-10-31",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Add a lifecycle rule for the downloads prefix, verify it, and record it; or track and remove export objects during erasure.",
+        "options": "Closure criteria: fix merged to develop and released to production; independent verification against the private evidence; Scot records the closure and the disclosure decision.",
         "timeframe": "60d"
       },
       "closureEvidence": {
@@ -9434,12 +9435,12 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by privacy finder on 2026-10-31. A bucket lifecycle rule outside this repo cannot be ruled out; none is present in repo scripts. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). lib/exporter.rb writes archives with no expiry or removal in application code; lib/flusher.rb has no sweep of that prefix."
+      "notes": "Status: open. Issue identified; remediation is pending. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. Surfaced by the Q3 make-up /audit-run on 2026-10-31 and adversary-confirmed. Minimized 2026-11-05 under the security disclosure policy (Scot Wahlquist)."
     },
     {
       "id": "LL-6ed2f9acd3",
-      "ruleKey": "exporter-writes-username-to-stdout",
-      "title": "Export worker prints the username to stdout, past the log-scrubbing formatter",
+      "ruleKey": "minimized-finding-ll-6ed2f9acd3",
+      "title": "Log hygiene review: export worker",
       "severity": "medium",
       "confidence": "high",
       "frameworks": [
@@ -9450,15 +9451,15 @@
       "evidence": {
         "type": "code",
         "file": "lib/exporter.rb",
-        "line": 53,
-        "snippet": "puts \"chunk #{idx + 1}/#{chunks.length} for #{user.user_name} (#{sub_sessions.count})\" if chunks.length > 1",
+        "line": 1,
+        "snippet": "require 'safe_http'",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-10-31",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Use the global id via the Rails logger. Same defect class at lib/purchasing.rb:1002.",
+        "options": "Review this logging path against the log-scrubbing rule and close any gap found; the detail is in the private run record.",
         "timeframe": "60d"
       },
       "closureEvidence": {
@@ -9466,12 +9467,12 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by privacy finder on 2026-10-31. Sibling of LL-92ae18cc4e. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). lib/exporter.rb:53 prints user.user_name with puts on multi-chunk exports, against the global_id logging rule noted in config/environments/production.rb."
+      "notes": "Surfaced by the Q3 make-up /audit-run on 2026-10-31 and adversary-confirmed. Reworded to claim level 2026-11-05 by Scot Wahlquist under rule 4; the detail is in the private run record."
     },
     {
       "id": "LL-f4f58a54be",
-      "ruleKey": "eu-jurisdiction-resolver-reads-single-organization",
-      "title": "EU jurisdiction resolution reads only one organization's signal, so a co-supporting EU organization contributes nothing",
+      "ruleKey": "minimized-finding-ll-f4f58a54be",
+      "title": "Jurisdiction coverage review: users with several organizations",
       "severity": "medium",
       "confidence": "high",
       "frameworks": [
@@ -9481,15 +9482,15 @@
       "evidence": {
         "type": "code",
         "file": "lib/eu_jurisdiction.rb",
-        "line": 151,
-        "snippet": "user.managing_organization",
+        "line": 1,
+        "snippet": "# frozen_string_literal: true",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-10-31",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Consider all accepted organizations for disclosure only. Do not change the retention stamp without an owner decision.",
+        "options": "Review this area against the jurisdiction rules and close any gap found; the detail is in the private run record.",
         "timeframe": "60d"
       },
       "closureEvidence": {
@@ -9497,12 +9498,12 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by privacy finder on 2026-10-31. Compliance scope gap. Disclosure resolution is otherwise fail-safe for unknown values. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). org_jurisdiction at lib/eu_jurisdiction.rb:151 reads only user.managing_organization, so other attached organizations' jurisdiction settings never reach status or retention_stamp."
+      "notes": "Surfaced by the Q3 make-up /audit-run on 2026-10-31 and adversary-confirmed. Reworded to claim level 2026-11-05 by Scot Wahlquist under rule 4; the detail is in the private run record."
     },
     {
       "id": "LL-f739052ec1",
-      "ruleKey": "tts-endpoint-carries-utterance-text-in-query-string",
-      "title": "Text-to-speech endpoint takes utterance text as a GET query parameter that is not in the log filter list",
+      "ruleKey": "minimized-finding-ll-f739052ec1",
+      "title": "Log hygiene review: text-to-speech requests",
       "severity": "medium",
       "confidence": "medium",
       "frameworks": [
@@ -9515,15 +9516,15 @@
       "evidence": {
         "type": "code",
         "file": "app/controllers/api/search_controller.rb",
-        "line": 394,
-        "snippet": "input: {text: params['text']},",
+        "line": 1,
+        "snippet": "require 'mime/types'",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-10-31",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Move the text to a POST body, or add it to filter parameters and check platform request logging.",
+        "options": "Review this logging path against the log-scrubbing rule and close any gap found; the detail is in the private run record.",
         "timeframe": "60d"
       },
       "closureEvidence": {
@@ -9531,12 +9532,12 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by privacy finder on 2026-10-31. Route at config/routes.rb:369. Client caller not located by search. Vendor egress itself is covered by LL-a167848115; this concerns the URL and logs. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). search/audio is a GET route taking utterance text in the query string, and config/initializers/filter_parameter_logging.rb has no key matching text."
+      "notes": "Surfaced by the Q3 make-up /audit-run on 2026-10-31 and adversary-confirmed. Reworded to claim level 2026-11-05 by Scot Wahlquist under rule 4; the detail is in the private run record."
     },
     {
       "id": "LL-c1b9073225",
-      "ruleKey": "image-search-keywords-egress-outside-scrubber",
-      "title": "Image-search terms and board names go to third parties without PII scrubbing, and several of those vendors are absent from the subprocessor register",
+      "ruleKey": "minimized-finding-ll-c1b9073225",
+      "title": "Subprocessor coverage review: image search and board names",
       "severity": "medium",
       "confidence": "medium",
       "frameworks": [
@@ -9548,15 +9549,15 @@
       "evidence": {
         "type": "code",
         "file": "lib/uploader.rb",
-        "line": 1142,
-        "snippet": "lookup = OpenSymbols.find_images_result(keyword, library, locale, protected_source: protected_source)",
+        "line": 1,
+        "snippet": "require 'aws-sdk-s3'",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-10-31",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Register the vendors in use, then scrub or gate keywords and board names, or record an owner risk decision.",
+        "options": "Review this data flow against the subprocessor register and consent rules and close any gap found; the detail is in the private run record.",
         "timeframe": "60d"
       },
       "closureEvidence": {
@@ -9564,12 +9565,12 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by privacy finder on 2026-10-31. Complements LL-10409152d2, which names other vendors. See also lib/uploader.rb:911, lib/uploader.rb:1001, lib/uploader.rb:1049, lib/uploader.rb:1098 and app/models/board.rb:1677. Some branches depend on optional vendor keys. Terms are user typed, so sensitivity varies. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). lib/uploader.rb and lib/open_symbols.rb never call PiiScrubber, app/models/board.rb:1677 sends board names, and the attested subprocessor register has no OpenSymbols, Pixabay, Giphy or LessonPix row."
+      "notes": "Surfaced by the Q3 make-up /audit-run on 2026-10-31 and adversary-confirmed. Reworded to claim level 2026-11-05 by Scot Wahlquist under rule 4; the detail is in the private run record. Part of this row's premise was not verified by this run; coverage detail is in the private run record."
     },
     {
       "id": "LL-fb194f479b",
-      "ruleKey": "iplocate-ip-egress-ungated-new-user-registration-mailer",
-      "title": "New-registration admin mail sends a stored device IP to an IP-location vendor with no user-type or consent gate, and this call site is not listed in the subprocessor document",
+      "ruleKey": "minimized-finding-ll-fb194f479b",
+      "title": "Subprocessor coverage review: registration notification mail",
       "severity": "medium",
       "confidence": "medium",
       "frameworks": [
@@ -9580,15 +9581,15 @@
       "evidence": {
         "type": "code",
         "file": "app/mailers/user_mailer.rb",
-        "line": 38,
-        "snippet": "url = \"https://iplocate.io/api/lookup/#{ip}?apikey=#{ENV['IPLOCATE_API_KEY']}\"",
+        "line": 1,
+        "snippet": "class UserMailer < ActionMailer::Base",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-10-31",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Resolve together with LL-07f1869d92: gate the call or drop geolocation from the internal mail, and add the call site to the subprocessor row.",
+        "options": "Review this data flow against the subprocessor register and consent rules and close any gap found; the detail is in the private run record.",
         "timeframe": "60d"
       },
       "closureEvidence": {
@@ -9596,7 +9597,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by privacy finder on 2026-10-31. Sibling of LL-07f1869d92, found while verifying that row. Gate at app/mailers/user_mailer.rb:37. Confidence is medium because the outcome depends on job timing relative to the device save. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). app/mailers/user_mailer.rb:38 sends the stored device IP to the vendor without the gates in lib/external_tracker.rb, and the subprocessor register names only other call sites."
+      "notes": "Surfaced by the Q3 make-up /audit-run on 2026-10-31 and adversary-confirmed. Reworded to claim level 2026-11-05 by Scot Wahlquist under rule 4; the detail is in the private run record."
     },
     {
       "id": "LL-be0ffec98b",
@@ -9633,8 +9634,8 @@
     },
     {
       "id": "LL-50bd144c81",
-      "ruleKey": "uploader-raises-object-keys-despite-no-path-rule",
-      "title": "Uploader exception and log messages include object keys that can contain a username, against the file's own no-path rule",
+      "ruleKey": "minimized-finding-ll-50bd144c81",
+      "title": "Log hygiene review: storage upload messages",
       "severity": "low",
       "confidence": "medium",
       "frameworks": [
@@ -9644,15 +9645,15 @@
       "evidence": {
         "type": "code",
         "file": "lib/uploader.rb",
-        "line": 170,
-        "snippet": "raise \"throttled uploading to #{remote_path}\"",
+        "line": 1,
+        "snippet": "require 'aws-sdk-s3'",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-10-31",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Remove keys from messages or log a hash. Apply the same change to the logging at lib/uploader.rb:272, lib/uploader.rb:384-410 and lib/uploader.rb:455-504.",
+        "options": "Review this logging path against the log-scrubbing rule and close any gap found; the detail is in the private run record.",
         "timeframe": "90d"
       },
       "closureEvidence": {
@@ -9660,7 +9661,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by privacy finder on 2026-10-31. Rule stated at lib/uploader.rb:31-32. The raise reaches job failures and error tracking only under a throttling response. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). lib/uploader.rb:170, :272 and :514 put object keys in messages, lib/exporter.rb builds some keys from usernames, and lib/uploader.rb:31 states the no-path reason."
+      "notes": "Surfaced by the Q3 make-up /audit-run on 2026-10-31 and adversary-confirmed. Reworded to claim level 2026-11-05 by Scot Wahlquist under rule 4; the detail is in the private run record."
     },
     {
       "id": "LL-43bb17f103",
@@ -9696,8 +9697,8 @@
     },
     {
       "id": "LL-400e2d393f",
-      "ruleKey": "scheduler-task-errors-printed-past-log-scrubber",
-      "title": "Scheduler task errors are printed to stdout with the raw exception message, past the log-scrubbing formatter",
+      "ruleKey": "minimized-finding-ll-400e2d393f",
+      "title": "Log hygiene review: scheduler error output",
       "severity": "low",
       "confidence": "medium",
       "frameworks": [
@@ -9708,15 +9709,15 @@
       "evidence": {
         "type": "code",
         "file": "lib/tasks/scheduler.rake",
-        "line": 107,
-        "snippet": "puts \"  [#{name}] ERROR: #{e.class}: #{e.message}\"",
+        "line": 9,
+        "snippet": "task :check_for_expiring_subscriptions => :environment do",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-10-31",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Drop the raw message from the print and keep the Rails logger line that follows it.",
+        "options": "Review this logging path against the log-scrubbing rule and close any gap found; the detail is in the private run record.",
         "timeframe": "90d"
       },
       "closureEvidence": {
@@ -9724,7 +9725,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by privacy finder on 2026-10-31. Exposure depends on exception content, for example database errors that echo values. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). lib/tasks/scheduler.rake:107 prints e.message with puts while the next line uses Rails.logger; only logger output passes PiiScrubbingFormatter."
+      "notes": "Surfaced by the Q3 make-up /audit-run on 2026-10-31 and adversary-confirmed. Reworded to claim level 2026-11-05 by Scot Wahlquist under rule 4; the detail is in the private run record."
     },
     {
       "id": "LL-1421732fb8",
@@ -9759,8 +9760,8 @@
     },
     {
       "id": "LL-d0d1ef011e",
-      "ruleKey": "admin-mandatory-2fa-disabled-before-production",
-      "title": "Mandatory two-factor authentication for privileged application administrators is commented out behind a re-enable-before-production TODO",
+      "ruleKey": "minimized-finding-ll-d0d1ef011e",
+      "title": "Compliance finding (details withheld until remediation is verified)",
       "severity": "high",
       "confidence": "high",
       "frameworks": [
@@ -9772,15 +9773,15 @@
       "evidence": {
         "type": "code",
         "file": "app/models/concerns/passwords.rb",
-        "line": 95,
-        "snippet": "# TODO: Re-enable before production. Admin managers should have mandatory 2FA in",
+        "line": 1,
+        "snippet": "module Passwords",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-10-31",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Restore server-side mandatory two-factor for privileged administrators in production and staging, with an enrollment path for existing admins, and add a spec that fails if the requirement is absent. Keep docs/legal/CAPABILITY_LEDGER.md:33 in step.",
+        "options": "Closure criteria: fix merged to develop and released to production; independent verification against the private evidence; Scot records the closure and the disclosure decision.",
         "timeframe": "15-30 days (High SLA), and before the first district is onboarded"
       },
       "closureEvidence": {
@@ -9788,7 +9789,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by infra finder on 2026-10-31. docs/legal/CAPABILITY_LEDGER.md:33 already states two-factor is not mandatory. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31)."
+      "notes": "Status: open. Security issue identified; remediation is pending. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. Surfaced by the Q3 make-up /audit-run on 2026-10-31 and adversary-confirmed. Minimized 2026-11-05 under the security disclosure policy (Scot Wahlquist)."
     },
     {
       "id": "LL-73fe80395c",
@@ -10186,10 +10187,10 @@
     },
     {
       "id": "LL-4e945d5b97",
-      "ruleKey": "dockerfile-remote-script-floating-base-images",
-      "title": "The production image build pipes a remote setup script into a root shell with no checksum and uses tag-only base images, with no image scan in the pipeline",
+      "ruleKey": "minimized-finding-ll-4e945d5b97",
+      "title": "Compliance finding (details withheld until remediation is verified)",
       "severity": "medium",
-      "confidence": "high",
+      "confidence": "medium",
       "frameworks": [
         "SOC2"
       ],
@@ -10197,15 +10198,15 @@
       "evidence": {
         "type": "code",
         "file": "Dockerfile",
-        "line": 47,
-        "snippet": "RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \\",
+        "line": 1,
+        "snippet": "# syntax=docker/dockerfile:1",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-10-31",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Pin base images by digest, install Node from a verified tarball or copy it from the builder stage, and add an image scan step before push.",
+        "options": "Closure criteria: fix merged to develop and released to production; independent verification against the private evidence; Scot records the closure and the disclosure decision.",
         "timeframe": "60 days"
       },
       "closureEvidence": {
@@ -10213,7 +10214,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by infra finder on 2026-10-31. CC8 and supply chain. Search of .github and scripts/gcp found no image scanner. Companion to LL-37860cbcfa (actions) and LL-232129d521 (npm). Non-root runtime user and the dockerignore secret exclusions are sound. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). Dockerfile:47 pipes the script as root before Dockerfile:104 drops privileges; Dockerfile:8 and :24 have no digest; workflows hold no scanner."
+      "notes": "Status: open. Security issue identified; remediation is pending. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. Surfaced by the Q3 make-up /audit-run on 2026-10-31 and adversary-confirmed. Minimized 2026-11-05 under the security disclosure policy (Scot Wahlquist)."
     },
     {
       "id": "LL-10a0a884f7",
@@ -10246,8 +10247,8 @@
     },
     {
       "id": "LL-4774165eec",
-      "ruleKey": "audit-finder-mcp-outbound-channel-not-inspected",
-      "title": "The audit read-only guard allows every non-Bash tool, so a finder's outbound MCP question text to a third party is not inspected, though the guard treats outbound channels as an exfiltration risk",
+      "ruleKey": "minimized-finding-ll-4774165eec",
+      "title": "Compliance finding (details withheld until remediation is verified)",
       "severity": "low",
       "confidence": "high",
       "frameworks": [
@@ -10257,15 +10258,15 @@
       "evidence": {
         "type": "code",
         "file": ".claude/hooks/audit-readonly-guard.sh",
-        "line": 49,
-        "snippet": "exit 0 unless tool == \"Bash\"",
+        "line": 1,
+        "snippet": "#!/usr/bin/env bash",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-10-31",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Drop the outbound MCP tool from finders that do not need it, or add a matcher that logs and bounds its input.",
+        "options": "Closure criteria: fix merged to develop and released to production; independent verification against the private evidence; Scot records the closure and the disclosure decision.",
         "timeframe": "90 days"
       },
       "closureEvidence": {
@@ -10273,7 +10274,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by infra finder on 2026-10-31. CC-meta. Bounded because the MCP target is a public-repo service and Bash output remains the agent's own. Distinct from LL-97f9001bb4 (Bash patterns) and LL-c667ec15e3 (attachment). | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). .claude/hooks/audit-readonly-guard.sh:49 exits early for non-Bash tools, as the claim states."
+      "notes": "Status: open. Security issue identified; remediation is pending. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. Surfaced by the Q3 make-up /audit-run on 2026-10-31 and adversary-confirmed. Minimized 2026-11-05 under the security disclosure policy (Scot Wahlquist)."
     },
     {
       "id": "LL-786b701377",
@@ -10422,8 +10423,8 @@
     },
     {
       "id": "LL-bb4dd56067",
-      "ruleKey": "purchase-result-includes-stack-trace-in-progress-payload",
-      "title": "Purchasing.purchase error results carry a stack trace that the progress status endpoint returns to the client",
+      "ruleKey": "minimized-finding-ll-bb4dd56067",
+      "title": "Compliance finding (details withheld until remediation is verified)",
       "severity": "medium",
       "confidence": "high",
       "frameworks": [],
@@ -10431,15 +10432,15 @@
       "evidence": {
         "type": "code",
         "file": "lib/purchasing.rb",
-        "line": 522,
-        "snippet": "      return {success: false, :trace => err.backtrace, error: 'unexpected_error', error_message: err.to_s, error_type: type, error_code: code}",
+        "line": 1,
+        "snippet": "require 'stripe'",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-10-31",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Rails side: drop the trace key from the returned hash (log it server-side instead) and keep only the stable error code for the client; apply the same at line 519. Ember reads only result.success, error and decline_code (app/frontend/app/components/subscription-form.js), so no frontend change is needed.",
+        "options": "Closure criteria: fix merged to develop and released to production; independent verification against the private evidence; Scot records the closure and the disclosure decision.",
         "timeframe": "advisory"
       },
       "closureEvidence": {
@@ -10447,7 +10448,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by api finder on 2026-10-31. Same class as closed item LL-85038c0a7b (different path). Not executed. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31)."
+      "notes": "Status: open. Security issue identified; remediation is pending. Technical details are withheld until remediation is deployed, verified, and disclosure is approved (policy decided and confirmed by Scot Wahlquist, 2026-09-17). Full evidence is held in the restricted private evidence store. Surfaced by the Q3 make-up /audit-run on 2026-10-31 and adversary-confirmed. Minimized 2026-11-05 under the security disclosure policy (Scot Wahlquist)."
     },
     {
       "id": "LL-a038bb6b07",
@@ -11229,7 +11230,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by accessibility finder on 2026-10-31. WCAG 2.1.1. Orchestrator axe scrollable-region-focusable on #content at /download. Every link in templates/download.hbs sits under a domain_settings conditional. Medium confidence. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). Stated condition holds: with no store URLs the Download page has no focusable content, and axe flagged the content scroller."
+      "notes": "Surfaced by accessibility finder on 2026-10-31. WCAG 2.1.1. Orchestrator axe scrollable-region-focusable on #content at /download. Every link in templates/download.hbs sits under a domain_settings conditional. Medium confidence. Part of this row's premise was not verified by this run; coverage detail is in the private run record. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). Stated condition holds: with no store URLs the Download page has no focusable content, and axe flagged the content scroller."
     },
     {
       "id": "LL-2c27a7833c",
@@ -12631,7 +12632,7 @@
       "ruleKey": "img-missing-alt",
       "title": "Partner logo links have no accessible name",
       "severity": "medium",
-      "confidence": "high",
+      "confidence": "medium",
       "frameworks": [
         "WCAG"
       ],
@@ -12655,7 +12656,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by accessibility finder on 2026-10-31. WCAG 1.1.1, 2.4.4. The image is the only link content at this and the other partner anchors. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). Logo links contain only an alt-less image, so they are nameless. Page opens by direct URL; no in-app link found."
+      "notes": "Surfaced by accessibility finder on 2026-10-31. WCAG 1.1.1, 2.4.4. The image is the only link content at this and the other partner anchors. Part of this row's premise was not verified by this run, so confidence was set to medium on 2026-11-05; coverage detail is in the private run record. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). Logo links contain only an alt-less image, so they are nameless. Page opens by direct URL; no in-app link found."
     },
     {
       "id": "LL-88069e3e85",
@@ -14504,8 +14505,8 @@
     },
     {
       "id": "LL-7fc77b5785",
-      "ruleKey": "slop-dead-debug-artifact",
-      "title": "Time-boxed 'remove after a few days' diagnostic logger is still live and called from three controllers",
+      "ruleKey": "minimized-finding-ll-7fc77b5785",
+      "title": "Log hygiene review: client signal logging",
       "severity": "low",
       "confidence": "high",
       "frameworks": [],
@@ -14513,15 +14514,15 @@
       "evidence": {
         "type": "code",
         "file": "app/controllers/application_controller.rb",
-        "line": 511,
-        "snippet": "# TODO: Remove after validating device classification in production (few days).",
+        "line": 1,
+        "snippet": "class ApplicationController < ActionController::Base",
         "sha": "070b5e614071aec8fd917fa4b4067f5412460614"
       },
       "firstSeen": "2026-10-31",
       "lastSeen": "2026-10-31",
       "owner": "unassigned",
       "remediation": {
-        "options": "Remove log_installed_client_signal and its three call sites, or drop the TODO if it is meant to stay as permanent telemetry.",
+        "options": "Review this logging path against the log-scrubbing rule and close any gap found; the detail is in the private run record.",
         "timeframe": "advisory"
       },
       "closureEvidence": {
@@ -14529,7 +14530,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by code-hygiene finder on 2026-10-31. Added 2026-03-23 (commit 19f90f13c4); about seven months old. Callers: api/users_controller.rb:361, session_controller.rb:556, parental_consents_controller.rb:43. It logs request header and param values truncated to 64 characters to the info log on the sign-up and token paths. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). TODO and three controller callers verified, over seven months past 'few days'. A spec also pins it, so removal touches tests."
+      "notes": "Surfaced by the Q3 make-up /audit-run on 2026-10-31 and adversary-confirmed. Reworded to claim level 2026-11-05 by Scot Wahlquist under rule 4; the detail is in the private run record."
     }
   ]
 }

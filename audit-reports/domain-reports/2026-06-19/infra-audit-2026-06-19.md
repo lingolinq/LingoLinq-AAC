@@ -69,13 +69,11 @@
 - **First seen:** 2026-06-13  |  **Last seen:** 2026-06-13  |  **Disposition:** untriaged
 - **Remediation:** The finder scan scopes cover app code/config/infra but not the audit system itself (.claude/agents, .claude/skills, .claude/hooks). Phase 3: add a meta-audit pass so the audit system is reviewed by its own discipline.
 
-### Audit finder Bash guard is a denylist with residual fetch-and-exec bypass
+### Compliance finding (details withheld until remediation is verified)
 
-- **ID:** `LL-97f9001bb4`  |  **ruleKey:** `audit-guard-denylist-residual-bypass`  |  **confidence:** high
-- **Location:** `.claude/hooks/audit-readonly-guard.sh`:59
-- **Frameworks:** SOC2
-- **First seen:** 2026-06-13  |  **Last seen:** 2026-06-13  |  **Disposition:** untriaged
-- **Remediation:** Primary read-only control is the no-Edit/Write tools allowlist; the Bash denylist is defense-in-depth and now blocks pipe-to-shell/eval. A determined novel obfuscation can still slip through. Phase 3: consider an allowlist-based command filter or a sandboxed finder shell.
+- **ID:** `LL-97f9001bb4`  |  **ruleKey:** `minimized-finding-ll-97f9001bb4`
+- **Current status:** see `audit-reports/FINDINGS.json`.
+- **Amended 2026-11-05:** this section was replaced with a pointer under the security disclosure policy (Scot Wahlquist). The rest of this report is as generated on 2026-06-19.
 
 ### Finder agent-memory (memory: project) may carry process state across audit runs
 
