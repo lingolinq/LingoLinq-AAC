@@ -743,6 +743,7 @@
   "session_count": "session",
   "n_sessions": "0 sessions || 1 session || %{n} sessions",
   "need_online_for_copying": "You must be connected to the Internet to make copies of boards.",
+  "board_edit_needs_connection": "This board needs an Internet connection to edit.",
   "sticky_board_notice": "Board lock is enabled, disable to leave this board.",
   "word_prediction_save_failed": "Couldn't save the Prediction setting. Please try again.",
   "none_set": "None Set",

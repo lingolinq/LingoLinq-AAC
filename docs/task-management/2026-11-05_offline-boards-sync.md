@@ -60,7 +60,7 @@ board_detail_cache, persistence, prime_caches. Used: `findRecord` is offline-fir
 - CONFIRMED `routes/user/board-detail.js:639-645`: `cached_unless_revoked` is the existing offline
   revocation gate; the local read must pass through it.
 
-### Candidates
+### Candidates (as first proposed; see "Review outcome" for what shipped)
 
 A (recommended). When the last fetch gives up with a shape that means "no server answer" (offline
 short circuit, or `fakeXHR.status === 0`), read `persistence.find('board', board_key)`. On a hit: set
@@ -106,3 +106,69 @@ New `tests/unit/routes/board-detail-offline-test.js`, through the real route `mo
 - device copy never enters `boardDetailCache`.
 
 Mutations that must fail: remove the fallback; widen the check to any failure; write to the cache.
+
+### Review outcome (2026-11-05, `/adversary-review` agent at `d5966fc2b`)
+
+The first proposal was blocked; candidate A survived with conditions. Each finding below was checked
+in the code before it was applied.
+
+Corrections to the fact sheet above:
+- The hang risk was wrong: a timed-out GET is tried at 8, 20 and 20 s (`utils/extras.js:188-190`,
+  `:362`), so three calls take about 148 s, not 24 s.
+- "Same shape" was too strong: device rows have no sibling `images` or `sounds`. The grid still works
+  from `image_urls`.
+- `warm_images` and `prefetch_linked` have no online guard (`utils/board_detail_cache.js:618`, `:690`).
+- Line cites in (a) and (b) are off; the current ones are `:121-133`, `:235`, `:274-294`.
+- The revocation gate does nothing when `online` is true (`utils/board_revocation.js:637`).
+
+Applied:
+- Excluding 5xx was wrong: the adapter and Basic view already fall back on it
+  (`services/persistence.js:4485-4493`), so 5xx now falls back.
+- 8-second deadline when a device copy exists (`DEVICE_COPY_WAIT_MS`), so a hang does not hold a
+  board back. A late answer is cached for the next visit and does not swap the board on screen.
+- Failures are latched across all attempts. The decision reuses `route_refuses_local`, so Speak Mode
+  and home and sidebar boards keep their copy; a 404 on any attempt is the error page.
+- The revocation gate is forced to offline on this path.
+- A record already in memory is kept. An expired session copy is read through the new
+  `boardDetailCache.peek`, and the newest of it and the row wins.
+- Device copies are read-only: `sync_changed` has no conflict check (`services/persistence.js:3608`),
+  so an offline edit of an old row could overwrite newer server work. Checked in the edit route,
+  the one place every entry passes.
+- `reload_on_connect` replaces a device copy on reconnect, except in Speak Mode, where it refreshes on
+  the next board.
+- No warm or prefetch on a device copy. A row without `buttons` is a miss. A row the store cannot take
+  is a miss.
+
+Answers to the open questions: edit, see above. An id-only folder is reachable only through the API or
+old data; moved to unit 3. `local_result` has no reader, so it is not set.
+
+Line-number constraint: `.eslint-todo` keys rows by line, so `model` was renamed in place to
+`_model_from_cache_or_server` with same-line-count edits, and new code sits below the last baselined
+row. The baseline is unchanged.
+
+### Verification
+
+- Red first: 11 of 15 route tests failed on unchanged code; the other 4 are negative cases.
+- Targeted run, filter `device.copy|board views and revoked|cold boot|reload.on.connect|board.detail`:
+  244 of 244. `eslint-todo-gate`: 0 new findings. Full suite not run (left to CI).
+- Mutations, each red: gate reads `online`; no in-memory check; memory copy unused; no deadline; edit
+  check removed; 404 check removed; reconnect ignores Speak Mode. Run alone because the combined run
+  was ambiguous: late-answer guard; `/tree` failure not latched.
+- Two test mistakes, both fixed: stubbing the `utils/persistence` proxy (LEARNINGS.md:248), and using
+  the real service, whose `online` reaction hung later modules at `settled()`.
+
+### Not verified, carried forward
+
+- NOT run on a device or emulator. #1213's acceptance needs: Wi-Fi off, cold start, Speak Mode opens
+  the home board, buttons speak with pictures, folders work; on iOS and Android.
+- A cold boot straight onto a board-detail URL still fails in the parent `user` route, own boards
+  included (`routes/user.js:50-56`, `adapters/user.js:9-15`). Native starts at `/`, so it passes there;
+  Scot's shell makes this reachable on the web. Unit 2 must cover own boards too.
+- A device read that never settles because extras never become ready (`services/persistence.js:371`)
+  would still leave the page loading.
+- A late answer for a previous board can still overwrite `_raw_board_data` if the current board came
+  from the server. The race is pre-existing; the deadline makes it a little more likely.
+- 429 is treated as no answer. Decide if that is right (a school NAT shares one throttle bucket).
+- `board_edit_needs_connection` is in `en.json` only; run `i18n_generator.rb` once at the end of the
+  branch.
+- Status 0 meaning "no answer" is unconfirmed on a native build.
