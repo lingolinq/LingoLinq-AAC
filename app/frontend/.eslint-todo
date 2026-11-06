@@ -1,7 +1,7 @@
 # ESLint baseline (grandfathered findings). Do not hand-edit.
 # Regenerate: npm run lint:js:todo
 # Format: file|ruleId|line|column|severity|messageHash
-# Generated: 2026-11-06T17:46:35.451Z
+# Generated: 2026-11-06T23:07:46.133Z
 app/app.js|ember/no-runloop|102|5|2|0843889163d3
 app/app.js|ember/no-runloop|168|7|2|0843889163d3
 app/app.js|ember/no-runloop|193|7|2|0843889163d3
@@ -117,19 +117,19 @@ app/components/confirm-delete-board.js|ember/require-computed-property-dependenc
 app/components/confirm-delete-user.js|ember/no-runloop|88|13|2|5addc2170315
 app/components/confirm-org-action.js|ember/require-computed-property-dependencies|107|18|1|4f3cfbc971db
 app/components/copying-board.js|lingolinq/no-orphaned-action|410|5|1|981d7ce18fc2
-app/components/create-board-new.js|ember/no-incorrect-calls-with-inline-anonymous-functions|2879|41|1|2da67c91d637
-app/components/create-board-new.js|ember/no-runloop|1469|5|2|ab6701509d85
-app/components/create-board-new.js|ember/no-runloop|1535|7|2|513c0395fe72
-app/components/create-board-new.js|ember/no-runloop|1537|35|2|ab6701509d85
-app/components/create-board-new.js|ember/no-runloop|1657|7|2|513c0395fe72
-app/components/create-board-new.js|ember/no-runloop|2773|7|2|00fc6802e68e
-app/components/create-board-new.js|ember/no-runloop|2879|7|2|513c0395fe72
-app/components/create-board-new.js|ember/no-runloop|3536|9|2|00fc6802e68e
-app/components/create-board-new.js|ember/require-computed-property-dependencies|1988|25|1|7f66d53536ea
-app/components/create-board-new.js|ember/require-computed-property-dependencies|1992|26|1|7f66d53536ea
-app/components/create-board-new.js|ember/require-computed-property-dependencies|2044|26|1|cb3b82a4722f
-app/components/create-board-new.js|ember/require-computed-property-dependencies|2048|23|1|cb3b82a4722f
-app/components/create-board-new.js|ember/require-computed-property-dependencies|2054|20|1|cb3b82a4722f
+app/components/create-board-new.js|ember/no-incorrect-calls-with-inline-anonymous-functions|2888|41|1|2da67c91d637
+app/components/create-board-new.js|ember/no-runloop|1486|5|2|ab6701509d85
+app/components/create-board-new.js|ember/no-runloop|1552|7|2|513c0395fe72
+app/components/create-board-new.js|ember/no-runloop|1554|35|2|ab6701509d85
+app/components/create-board-new.js|ember/no-runloop|1674|7|2|513c0395fe72
+app/components/create-board-new.js|ember/no-runloop|2782|7|2|00fc6802e68e
+app/components/create-board-new.js|ember/no-runloop|2888|7|2|513c0395fe72
+app/components/create-board-new.js|ember/no-runloop|3545|9|2|00fc6802e68e
+app/components/create-board-new.js|ember/require-computed-property-dependencies|1997|25|1|7f66d53536ea
+app/components/create-board-new.js|ember/require-computed-property-dependencies|2001|26|1|7f66d53536ea
+app/components/create-board-new.js|ember/require-computed-property-dependencies|2053|26|1|cb3b82a4722f
+app/components/create-board-new.js|ember/require-computed-property-dependencies|2057|23|1|cb3b82a4722f
+app/components/create-board-new.js|ember/require-computed-property-dependencies|2063|20|1|cb3b82a4722f
 app/components/create-board-new.js|ember/require-computed-property-dependencies|823|31|1|f4993249c296
 app/components/dashboard-supervisors-modal.js|ember/no-runloop|100|7|2|5addc2170315
 app/components/dashboard-supervisors-modal.js|ember/no-runloop|111|7|2|5addc2170315
@@ -662,9 +662,9 @@ app/routes/board.js|ember/no-runloop|122|15|2|5addc2170315
 app/routes/board.js|ember/no-runloop|125|11|2|5addc2170315
 app/routes/board.js|ember/no-runloop|159|13|2|5addc2170315
 app/routes/board.js|ember/no-runloop|176|15|2|5addc2170315
-app/routes/board/index.js|ember/no-runloop|151|7|2|5addc2170315
-app/routes/board/index.js|ember/require-computed-property-dependencies|202|18|1|7342f52fef46
-app/routes/board/index.js|no-useless-catch|130|9|1|9dd89265ed20
+app/routes/board/index.js|ember/no-runloop|139|7|2|5addc2170315
+app/routes/board/index.js|ember/require-computed-property-dependencies|190|18|1|7342f52fef46
+app/routes/board/index.js|no-useless-catch|118|9|1|9dd89265ed20
 app/routes/goals/goal.js|ember/no-runloop|13|9|2|5addc2170315
 app/routes/index.js|ember/no-runloop|271|11|2|5addc2170315
 app/routes/organization/room.js|ember/no-runloop|13|9|2|5addc2170315
@@ -677,12 +677,12 @@ app/routes/user.js|ember/no-runloop|37|22|2|5addc2170315
 app/routes/user/board-alt.js|ember/no-runloop|52|15|2|5addc2170315
 app/routes/user/board-alt.js|ember/no-runloop|75|11|2|5addc2170315
 app/routes/user/board-alt.js|ember/no-runloop|89|13|2|5addc2170315
-app/routes/user/board-alt/index.js|ember/no-runloop|136|7|2|5addc2170315
-app/routes/user/board-alt/index.js|ember/require-computed-property-dependencies|178|18|1|7342f52fef46
-app/routes/user/board-alt/index.js|no-useless-catch|121|9|1|9dd89265ed20
+app/routes/user/board-alt/index.js|ember/no-runloop|127|7|2|5addc2170315
+app/routes/user/board-alt/index.js|ember/require-computed-property-dependencies|169|18|1|7342f52fef46
+app/routes/user/board-alt/index.js|no-useless-catch|112|9|1|9dd89265ed20
 app/routes/user/board-detail.js|ember/no-runloop|108|5|2|5addc2170315
 app/routes/user/board-detail.js|ember/no-runloop|457|7|2|5addc2170315
-app/routes/user/board-detail.js|ember/no-runloop|587|5|2|5addc2170315
+app/routes/user/board-detail.js|ember/no-runloop|581|5|2|5addc2170315
 app/routes/user/board-detail.js|ember/no-runloop|80|5|2|5addc2170315
 app/routes/user/board-detail.js|ember/no-runloop|98|5|2|5addc2170315
 app/routes/user/board-detail/edit.js|ember/no-runloop|49|5|2|5addc2170315
@@ -989,18 +989,18 @@ app/utils/scanner.js|ember/no-runloop|764|24|2|5addc2170315
 app/utils/scanner.js|ember/no-runloop|887|5|2|513c0395fe72
 app/utils/scanner.js|ember/no-runloop|894|5|2|5addc2170315
 app/utils/scanner.js|ember/no-runloop|920|7|2|5addc2170315
-app/utils/speecher.js|ember/no-runloop|1133|7|2|5addc2170315
-app/utils/speecher.js|ember/no-runloop|1176|13|2|5addc2170315
-app/utils/speecher.js|ember/no-runloop|1199|5|2|5addc2170315
+app/utils/speecher.js|ember/no-runloop|1144|7|2|5addc2170315
+app/utils/speecher.js|ember/no-runloop|1187|13|2|5addc2170315
+app/utils/speecher.js|ember/no-runloop|1210|5|2|5addc2170315
 app/utils/speecher.js|ember/no-runloop|498|9|2|5addc2170315
 app/utils/speecher.js|ember/no-runloop|509|13|2|5addc2170315
 app/utils/speecher.js|ember/no-runloop|523|7|2|5addc2170315
-app/utils/speecher.js|ember/no-runloop|759|15|2|5addc2170315
-app/utils/speecher.js|ember/no-runloop|762|11|2|5addc2170315
-app/utils/speecher.js|ember/no-runloop|829|9|2|5addc2170315
-app/utils/speecher.js|ember/no-runloop|844|9|2|5addc2170315
-app/utils/speecher.js|ember/no-runloop|917|9|2|5addc2170315
-app/utils/speecher.js|ember/no-runloop|936|9|2|5addc2170315
+app/utils/speecher.js|ember/no-runloop|770|15|2|5addc2170315
+app/utils/speecher.js|ember/no-runloop|773|11|2|5addc2170315
+app/utils/speecher.js|ember/no-runloop|840|9|2|5addc2170315
+app/utils/speecher.js|ember/no-runloop|855|9|2|5addc2170315
+app/utils/speecher.js|ember/no-runloop|928|9|2|5addc2170315
+app/utils/speecher.js|ember/no-runloop|947|9|2|5addc2170315
 app/utils/subscription.js|ember/no-runloop|167|7|2|5addc2170315
 app/utils/subscription.js|ember/no-runloop|729|13|2|5addc2170315
 app/utils/subscription.js|ember/no-runloop|97|5|2|5addc2170315
@@ -1540,10 +1540,10 @@ tests/utils/scanner-test.js|ember/no-runloop|1424|9|2|513c0395fe72
 tests/utils/scanner-test.js|ember/no-runloop|938|28|2|5addc2170315
 tests/utils/scanner-test.js|ember/no-runloop|958|28|2|5addc2170315
 tests/utils/session-test.js|ember/no-runloop|385|11|2|b7a9757b024f
-tests/utils/speecher-test.js|ember/no-runloop|779|13|2|b7a9757b024f
-tests/utils/speecher-test.js|ember/no-runloop|782|9|2|b7a9757b024f
-tests/utils/speecher-test.js|ember/no-runloop|801|13|2|b7a9757b024f
-tests/utils/speecher-test.js|ember/no-runloop|985|7|2|b7a9757b024f
+tests/utils/speecher-test.js|ember/no-runloop|1005|7|2|b7a9757b024f
+tests/utils/speecher-test.js|ember/no-runloop|799|13|2|b7a9757b024f
+tests/utils/speecher-test.js|ember/no-runloop|802|9|2|b7a9757b024f
+tests/utils/speecher-test.js|ember/no-runloop|821|13|2|b7a9757b024f
 tests/utils/stashes-test.js|ember/no-runloop|121|11|2|513c0395fe72
 tests/utils/stashes-test.js|ember/no-runloop|58|13|2|513c0395fe72
 tests/utils/stashes-test.js|ember/no-runloop|62|13|2|513c0395fe72
