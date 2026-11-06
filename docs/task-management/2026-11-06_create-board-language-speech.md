@@ -90,7 +90,9 @@ Not changed, flagged to Traci:
 - Basic view and the legacy board page treat the plain stash as an override, so going Home on an
   English home board then reopening shows English. Translate Boards behaves the same, and home
   state writes that stash (`app-state.js:1370`), so changing the route risks other flows.
-- `WordData` translation does not use `PiiScrubber`. Pre-existing; a compliance decision.
+- `WordData` translation does not use `PiiScrubber`, by decision: `docs/legal/SUBPROCESSORS.md` 5.8
+  (LL-c38e7da48e) relies on the Google BAA plus disclosure, because scrubbing corrupts translation.
+  An earlier note here called this an open gap; that was wrong. No change needed.
 
 ## Second round (2026-11-06): consistency work, after a second adversarial review
 
