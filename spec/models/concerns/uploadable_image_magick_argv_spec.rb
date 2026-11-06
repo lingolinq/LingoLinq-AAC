@@ -66,6 +66,16 @@ describe Uploadable, "ImageMagick argv" do
     expect(image.settings['width']).to eq(7)
   end
 
+  it "measures an image whose metadata is not valid UTF-8" do
+    File.write(File.join(@dir, 'identify'), "#!/bin/sh\nprintf 'Comment: \\351\\nGeometry: 3x4\\n'\n")
+    res = OpenStruct.new(:success? => true, :headers => {'Content-Type' => 'image/png'}, :body => 'abcdefg')
+    expect(Typhoeus).to receive(:get).and_return(res)
+    allow(Typhoeus).to receive(:post).and_return(OpenStruct.new(:success? => true))
+
+    image.upload_to_remote('http://pic.com/cow.png')
+    expect(image.settings['width']).to eq(3)
+  end
+
   it "runs identify with an argv and reads its output when measuring a downloaded image" do
     expect(image).not_to receive(:'`')
     file = File.open(@hostile_path, 'wb+')
