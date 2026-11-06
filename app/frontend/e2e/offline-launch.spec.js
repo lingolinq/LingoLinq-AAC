@@ -16,7 +16,7 @@ const { markInstalled, openProfile, workerState } = require('./support/offline-s
 
 const USERS = {
   classic: { user: 'e2e_offline_classic', board: 'e2e-offline-classic-home', path: (b) => `/e2e_offline_classic/board/${b}` },
-  modern: { user: 'e2e_offline_modern', board: 'e2e-offline-modern-home', path: (b) => `/e2e_offline_modern/board-detail/${b}` },
+  modern: { user: 'e2e_offline_modern', board: 'e2e-offline-modern-home', folder: 'e2e-offline-modern-folder', path: (b) => `/e2e_offline_modern/board-detail/${b}` },
 };
 
 // Signs in, then waits for the worker to finish installing and a sync to succeed.
@@ -72,6 +72,21 @@ async function launchOffline(context, page, url, expected) {
     { message: 'the page settled on the expected element or the error page', timeout: 60_000 }).toBe(true);
   await expect(errorPage(page), 'not the app error page').toHaveCount(0);
   await expect(expected.first()).toBeVisible();
+}
+
+const NEEDS_CONNECTION = 'This board needs an Internet connection to do that.';
+// The server's refusal of the view permission (application_controller#allowed?).
+const DENIED = JSON.stringify({ error: 'Not authorized', unauthorized: true, permission: 'view', status: 400 });
+
+function deviceCopyNotice(page) {
+  return page.locator('.md-board-detail-device-copy');
+}
+
+// Taps an item in the board page's options menu, opening its submenu first when it has one.
+async function tapMenuItem(page, action, submenu) {
+  await page.locator('[data-bd-action="toggle_options_menu"]').first().click();
+  if (submenu) { await page.locator(`[data-bd-action="${submenu}"]`).first().click(); }
+  await page.locator(`.md-board-detail-actions-menu__item[data-bd-action="${action}"]`).first().click();
 }
 
 async function apiAnsweredOffline(page) {
@@ -212,17 +227,111 @@ test.describe('offline launch from the offline app shell', () => {
     }
   });
 
-  // #1213 (open): Modern view's board page does not read boards from the device, so offline it shows
-  // its own "could not load" state. This proves the app boots offline in Modern view, not the board.
-  test('Modern view boots offline and shows its board-unavailable state', async () => {
+  // Modern view's board page reads the device when the server gives no usable answer (#1213,
+  // routes/user/board-detail.js). The copy opens for speaking only: it can be older than the server's
+  // board, and a save goes back with no conflict check.
+  test('Modern view opens a synced board offline, for speaking only, and Edit recovers on reconnect', async () => {
     const context = await openProfile('modern');
     try {
       const page = context.pages()[0] || await context.newPage();
       await prepare(page, USERS.modern);
-      await launchOffline(context, page, USERS.modern.path(USERS.modern.board), page.locator('.md-board-detail-error[role="alert"]'));
+      await launchOffline(context, page, USERS.modern.path(USERS.modern.board), page.getByText('all done', { exact: true }));
+      await expect(deviceCopyNotice(page), 'the page says this is the saved copy').toBeVisible();
       expect(await apiAnsweredOffline(page)).toBe('network error');
+
+      await page.getByText('more', { exact: true }).click();
+      await expect(page.getByText('cookie', { exact: true }), 'a synced folder opens offline').toBeVisible({ timeout: 30_000 });
+      await expect(deviceCopyNotice(page)).toBeVisible();
+
+      await tapMenuItem(page, 'enter_edit_mode');
+      await expect(page.getByText(NEEDS_CONNECTION).first(), 'Edit says why it stopped').toBeVisible();
+      expect(page.url(), 'Edit did not open').not.toContain('/edit');
+
+      await tapMenuItem(page, 'share_board', 'toggle_share_print_submenu');
+      await expect(page.locator('.modal-dialog, .la-modal').filter({ hasText: /share/i }), 'Share did not open').toHaveCount(0);
+
+      // A direct way into Edit, on a cold launch.
+      await page.goto(USERS.modern.path(USERS.modern.board) + '/edit');
+      await expect(page.getByText('all done', { exact: true })).toBeVisible({ timeout: 60_000 });
+      await expect.poll(() => new URL(page.url()).pathname, { message: 'sent back to the board', timeout: 30_000 })
+        .toBe(USERS.modern.path(USERS.modern.board));
+
+      // Back online. The copy stays on screen until Edit asks the server, which rebuilds it.
+      await context.setOffline(false);
+      await page.evaluate(() => {
+        Object.defineProperty(Navigator.prototype, 'onLine', { get: () => true, configurable: true });
+        window.dispatchEvent(new Event('online'));
+      });
+      await expect.poll(() => page.evaluate(() => window.persistence.get('online')), { timeout: 40_000 }).toBe(true);
+      await expect(deviceCopyNotice(page), 'no swap on reconnect').toBeVisible();
+      await tapMenuItem(page, 'enter_edit_mode');
+      await expect(deviceCopyNotice(page), 'the server answered').toBeHidden({ timeout: 30_000 });
+      await expect(page.getByText('all done', { exact: true }), 'the rebuilt grid').toBeVisible();
+      await tapMenuItem(page, 'enter_edit_mode');
+      await expect.poll(() => new URL(page.url()).pathname, { message: 'Edit opens on the server copy', timeout: 30_000 })
+        .toBe(USERS.modern.path(USERS.modern.board) + '/edit');
     } finally {
       await context.setOffline(false).catch(() => {});
+      await context.close();
+    }
+  });
+
+  // Online, through the real router: what the board page does with each kind of server failure. The
+  // folder, not the home board, because a home board keeps its copy after a denial.
+  test('Modern view online: a hung server, an outage, a denial, and a late denial then Try Again', async () => {
+    const context = await openProfile('modern-online');
+    const folderPath = USERS.modern.path(USERS.modern.folder);
+    const cookie = (page) => page.getByText('cookie', { exact: true });
+    const errorState = (page) => page.locator('.md-board-detail-error[role="alert"]');
+    const folderApi = `**/api/v1/boards/${USERS.modern.user}/${USERS.modern.folder}**`;
+    try {
+      const page = context.pages()[0] || await context.newPage();
+      await prepare(page, USERS.modern);
+      await page.goto(folderPath);
+      await expect(cookie(page), 'the normal load').toBeVisible({ timeout: 60_000 });
+      await expect(deviceCopyNotice(page), 'no notice on a server copy').toBeHidden();
+
+      // A server that never answers: the copy shows at the deadline, not after the retries.
+      await context.route(folderApi, () => {});
+      const started = Date.now();
+      await page.reload();
+      await expect(cookie(page)).toBeVisible({ timeout: 30_000 });
+      await expect(deviceCopyNotice(page)).toBeVisible();
+      expect(Date.now() - started, 'well before the retries run out').toBeLessThan(30_000);
+      await context.unroute(folderApi);
+
+      // An outage: the copy shows.
+      await context.route(folderApi, (route) => route.fulfill({ status: 503, body: '' }));
+      await page.reload();
+      await expect(cookie(page)).toBeVisible({ timeout: 30_000 });
+      await expect(deviceCopyNotice(page)).toBeVisible();
+      await context.unroute(folderApi);
+
+      // A real denial: the error page, never the copy.
+      await context.route(folderApi, (route) => route.fulfill({ status: 400, contentType: 'application/json', body: DENIED }));
+      await page.reload();
+      await expect(errorState(page)).toBeVisible({ timeout: 30_000 });
+      await expect(cookie(page)).toBeHidden();
+      await context.unroute(folderApi);
+
+      // A denial that arrives after the deadline takes the copy off the screen; Try Again then asks the
+      // server, on the real router, and the board comes back when the server allows it.
+      const held = [];
+      await context.route(folderApi, (route) => { held.push(route); });
+      await page.reload();
+      await expect(deviceCopyNotice(page), 'the copy shows at the deadline').toBeVisible({ timeout: 30_000 });
+      await context.unroute(folderApi);
+      await context.route(folderApi, (route) => route.fulfill({ status: 400, contentType: 'application/json', body: DENIED }));
+      await Promise.all(held.map((route) => route.fulfill({ status: 400, contentType: 'application/json', body: DENIED })));
+      await expect(errorState(page), 'the late denial wins').toBeVisible({ timeout: 30_000 });
+      await expect(deviceCopyNotice(page)).toBeHidden();
+      await context.unroute(folderApi);
+      await page.locator('[data-bd-action="re_transition"]').click();
+      await expect(cookie(page), 'Try Again reaches the board').toBeVisible({ timeout: 30_000 });
+      await expect(errorState(page)).toBeHidden();
+      await expect(deviceCopyNotice(page)).toBeHidden();
+    } finally {
+      await context.unrouteAll().catch(() => {});
       await context.close();
     }
   });

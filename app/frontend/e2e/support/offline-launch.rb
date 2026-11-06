@@ -68,9 +68,14 @@ result = {}
   user = e2e_user(user_name, 'board_view_style' => view, 'word_suggestions' => false, 'sidebar_boards' => e2e_sidebar)
   name = "E2E Offline #{view.capitalize} Home"
   board = without_pictures!(offline_e2e_text_board(user, name.parameterize, name, false, ['hello', 'more', 'all done']))
+  # A folder on the home board: the board-page checks need a board that is not the home board, which
+  # is protected (utils/board_revocation.js is_protected_board).
+  folder = without_pictures!(offline_e2e_text_board(user, "e2e-offline-#{view}-folder", "E2E Offline #{view.capitalize} Folder", false, %w[cookie milk]))
+  buttons = board.buttons.map { |button| button['label'] == 'more' ? button.merge('load_board' => { 'id' => folder.global_id, 'key' => folder.key }) : button }
+  board.process({ 'buttons' => buttons }, { user: user })
   user.process_home_board({ 'id' => board.global_id, 'key' => board.key }, {})
   user.save!
-  result[view] = { user: user.user_name, board: board.key }
+  result[view] = { user: user.user_name, board: board.key, folder: folder.key }
 end
 
 puts result.to_json
