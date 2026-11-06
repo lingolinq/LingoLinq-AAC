@@ -19,11 +19,17 @@ export function start(owner, win) {
   if(!appState) { return null; }
   var stops = [];
   var stopped = false;
-  offline_shell.when_loaded(win, function() {
-    if(!stopped) { stops.push(offline_shell.follow_device_trust(appState, win, win.navigator)); }
-  });
   var persistence = owner.lookup('service:persistence');
   var session = owner.lookup('service:session');
+  var stashes = owner.lookup('service:stashes');
+  // This page's sign-in, and the current one as every page reads it from the stored auth settings.
+  var sign_in = {
+    page: function() { return session && session.get('access_token'); },
+    current: function() { return ((stashes && stashes.get_object('auth_settings', true)) || {}).access_token; }
+  };
+  offline_shell.when_loaded(win, function() {
+    if(!stopped) { stops.push(offline_shell.follow_device_trust(appState, win, win.navigator, sign_in)); }
+  });
   if(persistence && session) {
     stops.push(offline_shell.persist_after_sync(persistence, session, win.navigator, appState));
   }

@@ -19,11 +19,9 @@ export const WORKER_PATH = '/sw.js';
 // checks the two agree).
 export const CACHE_PREFIX = 'll-offline-shell-';
 
-// Every page of the site runs its register or remove steps under this lock (navigator.locks), and
-// records its latest trust decision under TRUST_KEY, where the other pages read it: pages share one
-// registration and one set of caches.
+// Every page of the site runs its register or remove steps under this lock (navigator.locks): pages
+// share one registration and one set of caches. A browser without it gets no worker.
 export const LOCK_NAME = 'll-offline-shell-worker';
-export const TRUST_KEY = 'll-offline-shell-trust';
 
 function log(message) {
   console.log('[offline-shell] ' + message);
@@ -39,27 +37,25 @@ function is_offline_shell_worker(registration) {
   }
 }
 
-function record_decision(win, trust) {
-  try {
-    if(win && win.localStorage) { win.localStorage.setItem(TRUST_KEY, trust); }
-  } catch(e) { /* storage unavailable: each page still orders its own steps */ }
+function has_site_lock(nav) {
+  return !!(nav && nav.locks && typeof nav.locks.request === 'function');
 }
 
-function latest_decision(win) {
+// Runs fn under the site-wide lock when the browser has one, otherwise at once (only removals run
+// without it: see apply_device_trust).
+function exclusive(nav, fn) {
+  if(has_site_lock(nav)) {
+    return Promise.resolve().then(function() { return nav.locks.request(LOCK_NAME, function() { return fn(); }); });
+  }
+  return Promise.resolve().then(fn);
+}
+
+function read_sign_in(sign_in, which) {
   try {
-    return (win && win.localStorage) ? win.localStorage.getItem(TRUST_KEY) : null;
+    return (sign_in && typeof sign_in[which] === 'function') ? (sign_in[which]() || null) : null;
   } catch(e) {
     return null;
   }
-}
-
-// Runs fn under the site-wide lock when the browser has one, otherwise at once.
-function exclusive(nav, fn) {
-  var locks = nav && nav.locks;
-  if(locks && typeof locks.request === 'function') {
-    return Promise.resolve().then(function() { return locks.request(LOCK_NAME, function() { return fn(); }); });
-  }
-  return Promise.resolve().then(fn);
 }
 
 // This worker's registration, also while its script is still downloading: such a registration has no
@@ -162,12 +158,32 @@ var offline_shell = {
     return remove_worker(win, container);
   },
 
-  // Runs sync_for_device now and each time the session user's trust changes (a sign-in, the "Trust
-  // this Device" choice, a shared sign-in after a trusted one). Signing out changes nothing: a trusted
-  // device keeps its worker. One operation at a time, in order, and across pages under LOCK_NAME, so a
-  // removal sees what an earlier registration created; a "trusted" step that runs after another page
-  // recorded a shared sign-in does not register. Returns a function that stops watching.
-  follow_device_trust: function(appState, win, nav) {
+  // One step for this page's trust answer, under the site-wide lock. A removal always runs. A
+  // registration runs only when the browser has the lock (without it, another page's removal could
+  // finish before this registration lands, so any worker is removed instead), and only when this page's
+  // sign-in is still the current one (`sign_in.page()` against `sign_in.current()`, the stored auth
+  // settings every page shares): a page from an earlier sign-in, whose user record can arrive after a
+  // newer sign-in elsewhere, must not register for it.
+  apply_device_trust: function(win, nav, trust, sign_in) {
+    if(offline_shell.setting(win) !== 'on' || trust !== 'trusted') {
+      return exclusive(nav, function() { return offline_shell.sync_for_device(win, nav, trust); });
+    }
+    if(!has_site_lock(nav)) {
+      return offline_shell.sync_for_device(win, nav, 'shared').then(function() { return 'unsupported'; });
+    }
+    var token = read_sign_in(sign_in, 'page');
+    return exclusive(nav, function() {
+      if(!token || read_sign_in(sign_in, 'current') !== token) { return 'superseded'; }
+      return offline_shell.sync_for_device(win, nav, 'trusted');
+    });
+  },
+
+  // Runs apply_device_trust now and each time this page's answer changes: a sign-in, the "Trust this
+  // Device" choice, a shared sign-in after a trusted one, and each new sign-in even with the same answer
+  // (another page may have registered meanwhile). Signing out changes nothing: a trusted device keeps its
+  // worker. One step at a time, in order. `sign_in` tells this page's sign-in from the current one (see
+  // apply_device_trust). Returns a function that stops watching.
+  follow_device_trust: function(appState, win, nav, sign_in) {
     var done = false;
     var last;
     var queue = Promise.resolve();
@@ -175,14 +191,12 @@ var offline_shell = {
     var check = function() {
       if(done || appState.isDestroyed || appState.isDestroying) { return; }
       var trust = offline_shell.device_trust(appState.get('sessionUser'));
-      if(trust === null || trust === last) { return; }
-      last = trust;
-      record_decision(win, trust);
+      if(trust === null) { return; }
+      var answer = trust + ' ' + (read_sign_in(sign_in, 'page') || '');
+      if(answer === last) { return; }
+      last = answer;
       queue = queue.then(function() {
-        return exclusive(nav, function() {
-          if(trust === 'trusted' && latest_decision(win) === 'shared') { return 'superseded'; }
-          return offline_shell.sync_for_device(win, nav, trust);
-        });
+        return offline_shell.apply_device_trust(win, nav, trust, sign_in);
       }).then(null, function() {});
     };
     addObserver(appState, key, check);

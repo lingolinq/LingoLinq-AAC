@@ -23,6 +23,27 @@ function fakeRegistration(scriptURL, calls) {
   };
 }
 
+// The site-wide lock (navigator.locks): one holder at a time, in order of request.
+function fakeLocks() {
+  var tail = Promise.resolve();
+  return {
+    request: function(name, fn) {
+      var run = tail.then(function() { return fn(); });
+      tail = run.then(null, function() {});
+      return run;
+    }
+  };
+}
+
+// This page's sign-in and the site's current one (the stored auth settings, which every page shares):
+// the same unless a case says otherwise.
+function signedIn(token, current) {
+  return {
+    page: function() { return token; },
+    current: function() { return current === undefined ? token : current; }
+  };
+}
+
 function fakeNavigator(options) {
   var calls = [];
   var opts = options || {};
@@ -39,6 +60,8 @@ function fakeNavigator(options) {
       }
     }
   };
+  // Browsers with the site-wide lock; a case without it says so (2026-11-05, review round 4).
+  if(!opts.noLocks) { nav.locks = fakeLocks(); }
   if(opts.noServiceWorker) { delete nav.serviceWorker; }
   if(opts.persist !== undefined) {
     nav.storage = {
@@ -261,7 +284,7 @@ module('Unit | Utility | offline_shell', function() {
       var nav = fakeNavigator({ registered: registered || [] });
       var win = { offline_shell_enabled: true, caches: cacheStore(['ll-offline-shell-0a1b'], nav.calls) };
       var appState = EmberObject.create({ sessionUser: sessionUser });
-      var stop = offline_shell.follow_device_trust(appState, win, nav);
+      var stop = offline_shell.follow_device_trust(appState, win, nav, signedIn('token-1'));
       return { nav: nav, appState: appState, stop: stop };
     }
 
@@ -346,6 +369,7 @@ module('Unit | Utility | offline_shell', function() {
       var registered = [];
       var finishRegister;
       var nav = {
+        locks: fakeLocks(),
         serviceWorker: {
           register: function(path) {
             calls.push('register ' + path);
@@ -361,7 +385,7 @@ module('Unit | Utility | offline_shell', function() {
       };
       var win = { offline_shell_enabled: true, caches: cacheStore([], calls) };
       var appState = EmberObject.create({ sessionUser: trustedUser() });
-      var stopWatching = offline_shell.follow_device_trust(appState, win, nav);
+      var stopWatching = offline_shell.follow_device_trust(appState, win, nav, signedIn('token-1'));
       try {
         await drain();
         appState.set('sessionUser', sharedUser());
@@ -385,15 +409,10 @@ module('Unit | Utility | offline_shell', function() {
       function sharedSite() {
         var calls = [];
         var tail = Promise.resolve();
-        var stored = {};
         var registered = [];
         var finishRegister = null;
         return {
           calls: calls,
-          storage: {
-            getItem: function(key) { return Object.prototype.hasOwnProperty.call(stored, key) ? stored[key] : null; },
-            setItem: function(key, value) { stored[key] = String(value); }
-          },
           locks: {
             request: function(name, fn) {
               calls.push('lock ' + name);
@@ -403,6 +422,8 @@ module('Unit | Utility | offline_shell', function() {
             }
           },
           registered: registered,
+          // The current sign-in, as every page reads it from the stored auth settings.
+          current: 'token-1',
           hold: function() {
             var release;
             var gate = new Promise(function(resolve) { release = resolve; });
@@ -438,11 +459,14 @@ module('Unit | Utility | offline_shell', function() {
         };
       }
 
-      function page(site, user, deferRegister) {
+      // A page signed in with `token` (the current sign-in unless a case says otherwise).
+      function page(site, user, deferRegister, token) {
         var appState = EmberObject.create({ sessionUser: user });
-        var win = { offline_shell_enabled: true, localStorage: site.storage, caches: cacheStore([], site.calls) };
-        var stopWatching = offline_shell.follow_device_trust(appState, win, site.nav(deferRegister));
-        return { appState: appState, stopWatching: stopWatching };
+        var win = { offline_shell_enabled: true, caches: cacheStore([], site.calls) };
+        var own = { token: token || 'token-1' };
+        var signIn = { page: function() { return own.token; }, current: function() { return site.current; } };
+        var stopWatching = offline_shell.follow_device_trust(appState, win, site.nav(deferRegister), signIn);
+        return { appState: appState, stopWatching: stopWatching, own: own };
       }
 
       test('a removal on one page waits for a registration still under way on another', async function(assert) {
@@ -469,8 +493,9 @@ module('Unit | Utility | offline_shell', function() {
         assert.expect(2);
         var site = sharedSite();
         var release = site.hold();
-        var olderPage = page(site, trustedUser());
-        var sharedPage = page(site, sharedUser());
+        var olderPage = page(site, trustedUser(), false, 'token-A');
+        site.current = 'token-B';
+        var sharedPage = page(site, sharedUser(), false, 'token-B');
         try {
           await drain();
           release();
@@ -482,6 +507,76 @@ module('Unit | Utility | offline_shell', function() {
           olderPage.appState.destroy();
           sharedPage.stopWatching();
           sharedPage.appState.destroy();
+        }
+      });
+
+      /* Review round 4 (2026-11-05): a page belongs to one sign-in. Every page reads the current one from
+       * the stored auth settings, so a page from an earlier sign-in (its user record can arrive after a
+       * newer sign-in elsewhere) never registers, and a page acts again on each new sign-in even when
+       * the answer is the same. */
+      test('a page from an earlier sign-in that loads its user after a newer sign-in does not register', async function(assert) {
+        assert.expect(1);
+        var site = sharedSite();
+        site.current = 'token-B';
+        var olderPage = page(site, trustedUser(), false, 'token-A');
+        try {
+          await drain();
+          assert.false(site.calls.some(function(c) { return c.indexOf('register ') === 0; }), 'never registered');
+        } finally {
+          olderPage.stopWatching();
+          olderPage.appState.destroy();
+        }
+      });
+
+      test('a second shared sign-in on the same page removes a worker another page registered meanwhile', async function(assert) {
+        assert.expect(2);
+        var site = sharedSite();
+        site.current = 'token-A';
+        var sharedPage = page(site, sharedUser(), false, 'token-A');
+        try {
+          await drain();
+          sharedPage.appState.set('sessionUser', null);
+          site.registered.push('/sw.js');
+          site.calls.length = 0;
+          sharedPage.own.token = 'token-B';
+          site.current = 'token-B';
+          sharedPage.appState.set('sessionUser', sharedUser());
+          await drain();
+          assert.notStrictEqual(site.calls.indexOf('unregister /sw.js'), -1, 'removed again');
+          assert.deepEqual(site.registered, []);
+        } finally {
+          sharedPage.stopWatching();
+          sharedPage.appState.destroy();
+        }
+      });
+
+      test('without the site-wide lock, a trusted device gets no worker and loses one it has', async function(assert) {
+        assert.expect(2);
+        var nav = fakeNavigator({ noLocks: true, registered: ['https://app.example/sw.js'] });
+        var win = { offline_shell_enabled: true, caches: cacheStore(['ll-offline-shell-0a1b'], nav.calls) };
+        var appState = EmberObject.create({ sessionUser: trustedUser() });
+        var stopWatching = offline_shell.follow_device_trust(appState, win, nav, signedIn('token-1'));
+        try {
+          await drain();
+          assert.false(nav.calls.some(function(c) { return c.indexOf('register ') === 0; }), 'never registered');
+          assert.deepEqual(nav.calls, ['getRegistrations', 'unregister https://app.example/sw.js', 'caches.keys', 'caches.delete ll-offline-shell-0a1b']);
+        } finally {
+          stopWatching();
+          appState.destroy();
+        }
+      });
+
+      test('when the current sign-in cannot be read, a trusted page does not register', async function(assert) {
+        assert.expect(1);
+        var nav = fakeNavigator();
+        var appState = EmberObject.create({ sessionUser: trustedUser() });
+        var stopWatching = offline_shell.follow_device_trust(appState, { offline_shell_enabled: true }, nav, signedIn('token-1', null));
+        try {
+          await drain();
+          assert.deepEqual(nav.calls, []);
+        } finally {
+          stopWatching();
+          appState.destroy();
         }
       });
 
@@ -625,6 +720,11 @@ module('Unit | Utility | offline_shell', function() {
   });
 
   module('instance initializer start', function() {
+    // The stored auth settings every page reads (services/stashes.js).
+    function fakeStashes(token) {
+      return { get_object: function(key) { return key === 'auth_settings' ? { access_token: token } : null; } };
+    }
+
     function fakeOwner(services) {
       var looked = [];
       return {
@@ -648,9 +748,9 @@ module('Unit | Utility | offline_shell', function() {
       assert.expect(2);
       var nav = fakeNavigator({ persist: true });
       var persistence = EmberObject.create({ sync_status: null });
-      var session = EmberObject.create({ isAuthenticated: true });
+      var session = EmberObject.create({ isAuthenticated: true, access_token: 'token-1' });
       var appState = EmberObject.create({ sessionUser: trustedUser() });
-      var owner = fakeOwner({ 'service:persistence': persistence, 'service:session': session, 'service:app-state': appState });
+      var owner = fakeOwner({ 'service:persistence': persistence, 'service:session': session, 'service:app-state': appState, 'service:stashes': fakeStashes('token-1') });
       var stopWatching = start(owner, { offline_shell_enabled: true, navigator: nav, document: { readyState: 'complete' } });
       try {
         await drain();
@@ -722,7 +822,8 @@ module('Unit | Utility | offline_shell', function() {
         addEventListener: function(name, fn, options) { listeners[name] = { fn: fn, options: options }; }
       };
       var appState = EmberObject.create({ sessionUser: trustedUser() });
-      var stopWatching = start(fakeOwner({ 'service:app-state': appState }), win);
+      var session = EmberObject.create({ access_token: 'token-1' });
+      var stopWatching = start(fakeOwner({ 'service:app-state': appState, 'service:session': session, 'service:stashes': fakeStashes('token-1') }), win);
       await drain();
       assert.deepEqual(nav.calls, [], 'not before load');
       assert.true(!!listeners.load, 'a load listener');
@@ -732,6 +833,7 @@ module('Unit | Utility | offline_shell', function() {
       assert.deepEqual(nav.calls, ['register /sw.js {"scope":"/"}']);
       if(stopWatching) { stopWatching(); }
       appState.destroy();
+      session.destroy();
     });
   });
 });
