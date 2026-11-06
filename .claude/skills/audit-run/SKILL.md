@@ -91,7 +91,7 @@ in the receiving finder's skill that each read is evidence for, by the item's op
 | GitHub | Environment branch policy | Production environment | `infra-auditor` | "CI/CD exists" |
 | Production config | Feature-flag state per flag: on for everyone (in the default list and in every organization's own list), off for everyone (in no list, the canary and beta opt-in lists included), or mixed; no organization names. Non-secret config | Production | Flag values: `code-hygiene-auditor`. Config: `api-auditor` | Flag values: class "Stale feature-flag branch". Config: "Large datasets (LogSession, BoardDownstreamButtonSet) live in S3" |
 | Sentry | Alert rules; scrubbing | Production | `infra-auditor` | Alert rules: "Data-access events logged". Scrubbing: "Logs contain no PII or secrets" |
-| HubSpot, Zendesk | Retention settings | Production | `privacy-auditor` | "Retention periods defined per data type" |
+| HubSpot, Jira | HubSpot: retention settings. Jira: any retention rule, app or automation on projects holding support tickets; "none" is a complete answer | Production | `privacy-auditor` | "Retention periods defined per data type" |
 | S3/CDN, Stripe | S3 behaviour (bucket only until a non-production CDN exists); Stripe behaviour | Non-production | `api-auditor` | S3: "Large datasets (LogSession, BoardDownstreamButtonSet) live in S3". Stripe: "Consistent error format" |
 | Accessibility | Axe and focus walk on every route, including speak mode, with computed contrast and rendered focus | Local or non-production | `accessibility-auditor` | 1.4.3, 1.4.11, 2.4.3, 2.4.7 and 4.1.2 |
 
