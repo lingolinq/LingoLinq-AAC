@@ -172,3 +172,28 @@ row. The baseline is unchanged.
 - `board_edit_needs_connection` is in `en.json` only; run `i18n_generator.rb` once at the end of the
   branch.
 - Status 0 meaning "no answer" is unconfirmed on a native build.
+
+### Code reviews at `523461eaf` (2026-11-06): BLOCKED, not ready to merge
+
+The earlier review covered the proposal only. Two independent reviews of the committed code ran after
+Traci asked; `/review-pr` has not run. Adversary verdict: block on a High.
+
+Corrections to claims above and in commit `cf3cfeac6`:
+- "Replaced on reconnect" is false. The Modern page forces Speak Mode on for everyone
+  (`routes/user/board-detail.js:577-579`, `services/app-state.js:3493`), so the branch in
+  `utils/reload_on_connect.js` does not run on the page; the test used a state the page never has.
+- The Speak Mode exemption reads as "the communicator keeps a voice", but on Modern it covers every user
+  after the first board, so denial and revocation checks hold only on first entry.
+- "Opens for speaking only" is false: the share modal saves a device copy (`components/share-board.js`).
+- "A record in memory is kept" protects identity only; `_build_from_raw` writes the older buttons onto it
+  (`controllers/user/board-detail.js:2182-2185`).
+- Online past 8 s is a regression: the device copy wins silently, read-only, when the server may answer
+  moments later.
+
+Findings to fix regardless of decisions: per-navigation token (High: an abandoned navigation can paint
+one board's words under another's title); clear the flag on exit; arm the deadline whatever `online` says;
+late refusal after the deadline; `local_db_is_current_user` plus a signed-in check before the device read;
+timeout on the device read; `usable_copy` on server answers; 404 in a 200 body; the test gaps listed by the
+review. Decisions for Traci: Speak Mode exemption, shared devices, notice for device copies, reconnect
+behaviour, share and other actions on a device copy. Not verified: production value of
+`auth_spa_transition`. Merging #1268 does not fix `online` true cold boots.
