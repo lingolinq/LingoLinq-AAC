@@ -278,7 +278,7 @@ test.describe('offline launch from the offline app shell', () => {
 
   // Online, through the real router: what the board page does with each kind of server failure. The
   // folder, not the home board, because a home board keeps its copy after a denial.
-  test('Modern view online: a hung server, an outage, a denial, and a late denial then Try Again', async () => {
+  test('Modern view online: a hung server, an outage, and a denial that holds through Try Again', async () => {
     const context = await openProfile('modern-online');
     const folderPath = USERS.modern.path(USERS.modern.folder);
     const cookie = (page) => page.getByText('cookie', { exact: true });
@@ -291,7 +291,7 @@ test.describe('offline launch from the offline app shell', () => {
       await expect(cookie(page), 'the normal load').toBeVisible({ timeout: 60_000 });
       await expect(deviceCopyNotice(page), 'no notice on a server copy').toBeHidden();
 
-      // A server that never answers: the copy shows at the deadline, not after the retries.
+      // A server that never answers: one bounded try, then the copy, not minutes of retries.
       await context.route(folderApi, () => {});
       const started = Date.now();
       await page.reload();
@@ -314,18 +314,14 @@ test.describe('offline launch from the offline app shell', () => {
       await expect(cookie(page)).toBeHidden();
       await context.unroute(folderApi);
 
-      // A denial that arrives after the deadline takes the copy off the screen; Try Again then asks the
-      // server, on the real router, and the board comes back when the server allows it.
-      const held = [];
-      await context.route(folderApi, (route) => { held.push(route); });
-      await page.reload();
-      await expect(deviceCopyNotice(page), 'the copy shows at the deadline').toBeVisible({ timeout: 30_000 });
+      // The denial sticks: Try Again with no answer from the server still does not open the copy.
+      await context.route(folderApi, (route) => route.abort('failed'));
+      await page.locator('[data-bd-action="re_transition"]').click();
+      await expect(errorState(page), 'still refused').toBeVisible({ timeout: 30_000 });
+      await expect(cookie(page)).toBeHidden();
       await context.unroute(folderApi);
-      await context.route(folderApi, (route) => route.fulfill({ status: 400, contentType: 'application/json', body: DENIED }));
-      await Promise.all(held.map((route) => route.fulfill({ status: 400, contentType: 'application/json', body: DENIED })));
-      await expect(errorState(page), 'the late denial wins').toBeVisible({ timeout: 30_000 });
-      await expect(deviceCopyNotice(page)).toBeHidden();
-      await context.unroute(folderApi);
+
+      // Try Again, on the real router, once the server allows the board.
       await page.locator('[data-bd-action="re_transition"]').click();
       await expect(cookie(page), 'Try Again reaches the board').toBeVisible({ timeout: 30_000 });
       await expect(errorState(page)).toBeHidden();

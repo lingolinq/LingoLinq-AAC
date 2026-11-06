@@ -208,7 +208,7 @@ module('Unit | Route | user/board-detail device copy', function(hooks) {
     this.answers = [server_board()];
     assert.strictEqual((await open(this)).get('key'), 'me/board', 'the server answered');
     this.answers = [no_answer];
-    assert.true(!(await open(this)).error, 'and copies work again');
+    assert.notOk((await open(this)).error, 'and copies work again');
   });
 
   test('a denial is forgotten at a new sign-in', async function(assert) {
