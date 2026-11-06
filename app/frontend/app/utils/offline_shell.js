@@ -19,6 +19,12 @@ export const WORKER_PATH = '/sw.js';
 // checks the two agree).
 export const CACHE_PREFIX = 'll-offline-shell-';
 
+// Every page of the site runs its register or remove steps under this lock (navigator.locks), and
+// records its latest trust decision under TRUST_KEY, where the other pages read it: pages share one
+// registration and one set of caches.
+export const LOCK_NAME = 'll-offline-shell-worker';
+export const TRUST_KEY = 'll-offline-shell-trust';
+
 function log(message) {
   console.log('[offline-shell] ' + message);
 }
@@ -31,6 +37,29 @@ function is_offline_shell_worker(registration) {
   } catch(e) {
     return false;
   }
+}
+
+function record_decision(win, trust) {
+  try {
+    if(win && win.localStorage) { win.localStorage.setItem(TRUST_KEY, trust); }
+  } catch(e) { /* storage unavailable: each page still orders its own steps */ }
+}
+
+function latest_decision(win) {
+  try {
+    return (win && win.localStorage) ? win.localStorage.getItem(TRUST_KEY) : null;
+  } catch(e) {
+    return null;
+  }
+}
+
+// Runs fn under the site-wide lock when the browser has one, otherwise at once.
+function exclusive(nav, fn) {
+  var locks = nav && nav.locks;
+  if(locks && typeof locks.request === 'function') {
+    return Promise.resolve().then(function() { return locks.request(LOCK_NAME, function() { return fn(); }); });
+  }
+  return Promise.resolve().then(fn);
 }
 
 // This worker's registration, also while its script is still downloading: such a registration has no
@@ -135,8 +164,9 @@ var offline_shell = {
 
   // Runs sync_for_device now and each time the session user's trust changes (a sign-in, the "Trust
   // this Device" choice, a shared sign-in after a trusted one). Signing out changes nothing: a trusted
-  // device keeps its worker. One operation at a time, in order, so a removal sees what an earlier
-  // registration created. Returns a function that stops watching.
+  // device keeps its worker. One operation at a time, in order, and across pages under LOCK_NAME, so a
+  // removal sees what an earlier registration created; a "trusted" step that runs after another page
+  // recorded a shared sign-in does not register. Returns a function that stops watching.
   follow_device_trust: function(appState, win, nav) {
     var done = false;
     var last;
@@ -147,8 +177,12 @@ var offline_shell = {
       var trust = offline_shell.device_trust(appState.get('sessionUser'));
       if(trust === null || trust === last) { return; }
       last = trust;
+      record_decision(win, trust);
       queue = queue.then(function() {
-        return offline_shell.sync_for_device(win, nav, trust);
+        return exclusive(nav, function() {
+          if(trust === 'trusted' && latest_decision(win) === 'shared') { return 'superseded'; }
+          return offline_shell.sync_for_device(win, nav, trust);
+        });
       }).then(null, function() {});
     };
     addObserver(appState, key, check);

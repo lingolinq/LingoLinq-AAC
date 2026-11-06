@@ -376,6 +376,132 @@ module('Unit | Utility | offline_shell', function() {
       }
     });
 
+    /* Review round 3 (2026-11-05): pages share one registration and one set of caches, so ordering
+     * within one page is not enough. Each register or remove runs under a lock shared by every page
+     * of the site (navigator.locks), and every page records its latest trust decision where the others
+     * can read it, so an older "trusted" step that runs after a shared sign-in elsewhere does not
+     * register. */
+    module('across pages', function() {
+      function sharedSite() {
+        var calls = [];
+        var tail = Promise.resolve();
+        var stored = {};
+        var registered = [];
+        var finishRegister = null;
+        return {
+          calls: calls,
+          storage: {
+            getItem: function(key) { return Object.prototype.hasOwnProperty.call(stored, key) ? stored[key] : null; },
+            setItem: function(key, value) { stored[key] = String(value); }
+          },
+          locks: {
+            request: function(name, fn) {
+              calls.push('lock ' + name);
+              var run = tail.then(function() { return fn(); });
+              tail = run.then(null, function() {});
+              return run;
+            }
+          },
+          registered: registered,
+          hold: function() {
+            var release;
+            var gate = new Promise(function(resolve) { release = resolve; });
+            this.locks.request('test', function() { return gate; });
+            calls.length = 0;
+            return release;
+          },
+          land: function() { if(finishRegister) { finishRegister(); } },
+          nav: function(deferRegister) {
+            return {
+              locks: this.locks,
+              serviceWorker: {
+                register: function(path) {
+                  calls.push('register ' + path);
+                  if(!deferRegister) { registered.push(path); return Promise.resolve({}); }
+                  return new Promise(function(resolve) {
+                    finishRegister = function() { registered.push(path); resolve({}); };
+                  });
+                },
+                getRegistrations: function() {
+                  calls.push('getRegistrations');
+                  return Promise.resolve(registered.map(function(path) {
+                    return { active: { scriptURL: 'https://app.example' + path }, unregister: function() {
+                      calls.push('unregister ' + path);
+                      registered.splice(registered.indexOf(path), 1);
+                      return Promise.resolve(true);
+                    } };
+                  }));
+                }
+              }
+            };
+          }
+        };
+      }
+
+      function page(site, user, deferRegister) {
+        var appState = EmberObject.create({ sessionUser: user });
+        var win = { offline_shell_enabled: true, localStorage: site.storage, caches: cacheStore([], site.calls) };
+        var stopWatching = offline_shell.follow_device_trust(appState, win, site.nav(deferRegister));
+        return { appState: appState, stopWatching: stopWatching };
+      }
+
+      test('a removal on one page waits for a registration still under way on another', async function(assert) {
+        assert.expect(2);
+        var site = sharedSite();
+        var trustedPage = page(site, trustedUser(), true);
+        var sharedPage;
+        try {
+          await drain();
+          sharedPage = page(site, sharedUser());
+          await drain();
+          assert.notOk(site.calls.indexOf('getRegistrations') !== -1, 'the removal has not run yet');
+          site.land();
+          await drain();
+          assert.deepEqual(site.registered, [], 'removed once the registration landed');
+        } finally {
+          trustedPage.stopWatching();
+          trustedPage.appState.destroy();
+          if(sharedPage) { sharedPage.stopWatching(); sharedPage.appState.destroy(); }
+        }
+      });
+
+      test('an older page\'s trusted step that runs after a shared sign-in elsewhere does not register', async function(assert) {
+        assert.expect(2);
+        var site = sharedSite();
+        var release = site.hold();
+        var olderPage = page(site, trustedUser());
+        var sharedPage = page(site, sharedUser());
+        try {
+          await drain();
+          release();
+          await drain();
+          assert.false(site.calls.some(function(c) { return c.indexOf('register ') === 0; }), 'never registered');
+          assert.deepEqual(site.registered, []);
+        } finally {
+          olderPage.stopWatching();
+          olderPage.appState.destroy();
+          sharedPage.stopWatching();
+          sharedPage.appState.destroy();
+        }
+      });
+
+      test('a later trusted sign-in registers again', async function(assert) {
+        var site = sharedSite();
+        var sharedPage = page(site, sharedUser());
+        var trustedPage;
+        try {
+          await drain();
+          trustedPage = page(site, trustedUser());
+          await drain();
+          assert.deepEqual(site.registered, ['/sw.js']);
+        } finally {
+          sharedPage.stopWatching();
+          sharedPage.appState.destroy();
+          if(trustedPage) { trustedPage.stopWatching(); trustedPage.appState.destroy(); }
+        }
+      });
+    });
+
     test('stop() stops watching', async function(assert) {
       var t = setup(null);
       t.stop();
