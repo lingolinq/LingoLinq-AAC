@@ -127,6 +127,32 @@ test('an update that fails to install leaves the installed worker and its copy i
   }
 });
 
+// Added 2026-11-05 (review round 3). A changed worker can keep the cache name of the installed one (a
+// change the name does not cover). If its install then fails, it must not delete that cache: it belongs
+// to the installed worker.
+test('an update that keeps the cache name and fails to install leaves the installed copy in place', async () => {
+  const context = await open();
+  try {
+    const page = context.pages()[0] || await context.newPage();
+    await page.goto(PAGE);
+    const before = await workerState(page);
+    expect(before.caches.length, 'one installed copy').toBe(1);
+    const servedBefore = serveEditedWorker(addMissingFile);
+    await page.evaluate(() => navigator.serviceWorker.getRegistration('/').then((r) => r.update()).then(null, () => {}));
+    expect(proxy.state.served, 'the browser fetched the edited worker').toBeGreaterThan(servedBefore);
+    await expect.poll(() => registrationState(page), { timeout: 60_000 }).toEqual({ active: true, waiting: false, installing: false });
+    expect((await workerState(page)).caches, 'the installed copy is still there').toEqual(before.caches);
+    proxy.state.edit = null;
+    await context.setOffline(true);
+    const response = await page.goto(PAGE);
+    expect(response.fromServiceWorker()).toBe(true);
+    expect(response.headers()['x-robots-tag'], 'the cached copy still opens the app').toBe('noindex');
+  } finally {
+    await context.setOffline(false).catch(() => {});
+    await context.close();
+  }
+});
+
 test('an update waits until the old worker\'s pages close, then replaces its copy and keeps the language file', async () => {
   let context = await open();
   let next;

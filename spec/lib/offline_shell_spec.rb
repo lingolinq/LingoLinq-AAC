@@ -150,7 +150,10 @@ describe OfflineShell do
     # offline, and the old language file (consent text included) online.
     it "covers the worker's code, the page it caches and every locale file" do
       files = OfflineShell.source_files
-      %w[app/views/offline_shell/service_worker.js.erb app/views/layouts/application.html.erb app/views/boards/index.html.erb].each do |path|
+      # Review round 3: also the lists the worker embeds (lib/offline_shell.rb) and the partial the page
+      # renders.
+      %w[app/views/offline_shell/service_worker.js.erb app/views/layouts/application.html.erb app/views/boards/index.html.erb
+         lib/offline_shell.rb app/views/shared/_footer.html.erb].each do |path|
         expect(files).to include(path)
       end
       locales = Dir[Rails.root.join('public/locales/*.json')].map { |f| "public/locales/#{File.basename(f)}" }

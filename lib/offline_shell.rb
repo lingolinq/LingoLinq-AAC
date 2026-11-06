@@ -23,12 +23,15 @@ module OfflineShell
   # and the locale files already do that on their own (SOURCE_TEMPLATES, source_files).
   WORKER_VERSION = 2
 
-  # The worker's code and the templates of the page it caches. Their contents feed the cache name with the
-  # locale files', so a deploy that changes only one of them still gives devices a new version.
+  # The worker's code, this file (its lists are written into the worker) and the templates of the page it
+  # caches, with the partial that page renders. Their contents feed the cache name with the locale files',
+  # so a deploy that changes only one of them still gives devices a new version.
   SOURCE_TEMPLATES = %w[
     app/views/offline_shell/service_worker.js.erb
+    lib/offline_shell.rb
     app/views/layouts/application.html.erb
     app/views/boards/index.html.erb
+    app/views/shared/_footer.html.erb
   ].freeze
 
   # Fingerprinted by rake assets:precompile; listed through asset_path, as the page itself loads them.

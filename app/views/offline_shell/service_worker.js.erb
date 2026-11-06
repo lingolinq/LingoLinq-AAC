@@ -50,8 +50,12 @@ function freshRequest(path) {
 }
 
 self.addEventListener('install', function(event) {
+  var existed = false;
   event.waitUntil(
-    caches.open(CACHE_NAME).then(function(cache) {
+    caches.has(CACHE_NAME).then(function(has) {
+      existed = has;
+      return caches.open(CACHE_NAME);
+    }).then(function(cache) {
       return Promise.all(PRECACHE.map(function(path) {
         return fetch(freshRequest(path)).then(function(response) {
           if(!plainResponse(response)) {
@@ -63,8 +67,10 @@ self.addEventListener('install', function(event) {
         return carryRuntimeFiles(cache, true);
       });
     }).catch(function(error) {
-      // Never leave a half-filled cache behind; the install fails and the browser tries again later.
-      return caches.delete(CACHE_NAME).then(function() { throw error; });
+      // Never leave a half-filled cache behind; the install fails and the browser tries again later. A
+      // cache that was there before this install belongs to the installed worker (a version with the
+      // same name), so it is left alone.
+      return (existed ? Promise.resolve() : caches.delete(CACHE_NAME)).then(function() { throw error; });
     })
   );
 });
