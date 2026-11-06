@@ -1186,10 +1186,10 @@ export default Component.extend({
       this.set('coppa_submit_parent_notice', null);
       var _this = this;
       var data = this.getProperties('identification', 'password', 'client_secret', 'long_token', 'browserless');
-      if(capabilities.browserless || capabilities.installed_app) {
-        data.long_token = true;
-        data.browserless = true;
-      }
+      // An installed app is trusted without asking. A Home Screen web app is asked "Trust this Device"
+      // like the browser, so a shared classroom iPad is not trusted by default
+      // (device_login_flags, at the end of this file).
+      device_login_flags(data, capabilities);
       if (!isEmpty(data.identification) && !isEmpty(data.password)) {
         _this.set('login_followup_already_long_token', false);
         _this.session.authenticate(data).then(function(data) {
@@ -1390,3 +1390,19 @@ export default Component.extend({
     return !this.get('prompt') && !!this.get('app_state.feature_flags.emergency_boards');
   })
 });
+
+// Which sign-ins are trusted without asking. An installed app (Cordova, Electron) always signs in with a
+// long token, as before. A web app opened from a Home Screen (navigator.standalone, capabilities
+// `browserless`) keeps the form's choice, so when the server's answer is not a long token the app asks
+// "Trust this Device" or "This is a Shared Device" (handle_auth, login.device), as in a browser. It used
+// to be trusted like an installed app, so a shared classroom iPad never asked, and the offline app shell
+// (utils/offline_shell.js) kept the last person's session on it.
+export function device_login_flags(data, caps) {
+  if(caps && caps.installed_app) {
+    data.long_token = true;
+    data.browserless = true;
+  } else if(caps && caps.browserless) {
+    data.browserless = true;
+  }
+  return data;
+}

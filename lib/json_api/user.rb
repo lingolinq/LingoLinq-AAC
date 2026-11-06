@@ -127,8 +127,12 @@ json['preferences']['skin'] = user.settings['preferences']['skin']
         json['preferences']['device'] = json['preferences']['device'].merge(user.settings['preferences']['devices'][args[:device].unique_device_key])
         json['preferences']['device']['id'] = args[:device].global_id
         json['preferences']['device']['name'] = args[:device].settings['name'] || json['preferences']['device']['name']
-        json['preferences']['device']['long_token'] = args[:device].settings['long_token']
       end
+      # The "Trust this Device" choice is this device's own, never borrowed from the device whose
+      # preferences were copied above: nil until it is chosen here. The app keeps the offline shell only
+      # when it is true (app/frontend/app/utils/offline_shell.js device_trust), and a borrowed true sent
+      # back on a save would mark this device trusted without anyone choosing it (User#process_device).
+      json['preferences']['device']['long_token'] = args[:device].settings['long_token'] if args[:device]
       if !args[:device] || FeatureFlags.user_created_after?(args[:device], 'browser_no_autosync')
         json['preferences']['device']['ever_synced'] ||= false
       else
