@@ -3,7 +3,7 @@
 > Generated from `audit-reports/FINDINGS.json` by `scripts/citation-check.rb --render`.
 > Do not hand-edit; edit the JSON (the source of truth) and re-render.
 
-**Audited:** `compliance/scot-q3-makeup-run-20eb9dd6 (== origin/develop tip 070b5e61 at run start, 2026-10-31). PARTIAL COVERAGE: 0 of 6 finders complete, 0 of 18 live reads succeeded; details are in the private run record. Internal automated review by AI agents against our own checklists, not a third-party audit; it says what was examined, not that it passed, and open findings are counted separately. Standing limits: callers outside the repo; vendor internals; provider-side key revocation. Scot sign-off: pending. Excludes assistive-technology testing (tracked separately in the conformance report).` @ `070b5e614071aec8fd917fa4b4067f5412460614` on 2026-10-31  
+**Audited:** `compliance/scot-q3-makeup-run-20eb9dd6 (== origin/develop tip 070b5e61 at run start, 2026-10-31). PARTIAL COVERAGE: 0 of 6 finders complete, 0 of 18 live reads succeeded; details are in the private run record. Internal automated review by AI agents against our own checklists, not a third-party audit; it says what was examined, not that it passed, and open findings are counted separately. Standing limits: callers outside the repo; vendor internals; provider-side key revocation. Scot sign-off: approved 2026-11-06. Excludes assistive-technology testing (tracked separately in the conformance report).` @ `070b5e614071aec8fd917fa4b4067f5412460614` on 2026-10-31  
 **Seed:** audit-reports/unified-audit-2026-04-09.md  
 **Headline (open + remediated-unverified):** 2 Critical / 51 High
 

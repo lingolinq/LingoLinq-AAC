@@ -10,9 +10,9 @@
 > (see `audit-reports/notion/README.md`).
 
 **Audited commit:** `070b5e614071aec8fd917fa4b4067f5412460614`  
-**Audited ref:** `compliance/scot-q3-makeup-run-20eb9dd6 (== origin/develop tip 070b5e61 at run start, 2026-10-31). PARTIAL COVERAGE: 0 of 6 finders complete, 0 of 18 live reads succeeded; details are in the private run record. Internal automated review by AI agents against our own checklists, not a third-party audit; it says what was examined, not that it passed, and open findings are counted separately. Standing limits: callers outside the repo; vendor internals; provider-side key revocation. Scot sign-off: pending. Excludes assistive-technology testing (tracked separately in the conformance report).`  
+**Audited ref:** `compliance/scot-q3-makeup-run-20eb9dd6 (== origin/develop tip 070b5e61 at run start, 2026-10-31). PARTIAL COVERAGE: 0 of 6 finders complete, 0 of 18 live reads succeeded; details are in the private run record. Internal automated review by AI agents against our own checklists, not a third-party audit; it says what was examined, not that it passed, and open findings are counted separately. Standing limits: callers outside the repo; vendor internals; provider-side key revocation. Scot sign-off: approved 2026-11-06. Excludes assistive-technology testing (tracked separately in the conformance report).`  
 **Run date:** 2026-10-31  
-**Page generated:** 2026-11-07T01:34:45Z
+**Page generated:** 2026-11-07T04:50:47Z
 
 ## Headline - live findings (open + awaiting verification)
 
