@@ -686,6 +686,16 @@ export default Route.extend({
   // database too, and it writes nothing, so a read that outlives the limit has no effect. The server
   // did not answer, so that check treats this as offline whatever `online` says.
   _find_copy: function(nav) {
+    var _this = this;
+    return this._session_user_loaded().then(function() { return _this._checked_copy(nav); });
+  },
+  // On a cold start the session user is still loading, and the denial and revocation rules say nothing
+  // until it has (board_revocation.js#acting_as_self), so wait for the read that is already running.
+  _session_user_loaded: function() {
+    if(this.appState.get('sessionUser')) { return RSVP.resolve(); }
+    return wait_for_session_user(this.appState, { promise: this.appState.get('session_user_promise') });
+  },
+  _checked_copy: function(nav) {
     if(this._copy_refused(nav) || !this._may_read_copies()) { return RSVP.resolve(null); }
     if(!nav.lookup) {
       var appState = this.appState;
@@ -764,3 +774,4 @@ export default Route.extend({
 import boardRevocation from '../../utils/board_revocation';
 import { DEVICE_COPY_WAIT_MS, DEVICE_READ_WAIT_MS, read_device_copy, server_refused, session_ended, usable_copy, within } from '../../utils/board_device_copy';
 import offline_shell from '../../utils/offline_shell';
+import { wait_for_session_user } from '../../utils/session_user_wait';

@@ -239,7 +239,7 @@ test.describe('offline launch from the offline app shell', () => {
       await expect(deviceCopyNotice(page), 'the page says this is the saved copy').toBeVisible();
       expect(await apiAnsweredOffline(page)).toBe('network error');
 
-      await page.getByText('more', { exact: true }).click();
+      await page.getByRole('button', { name: 'more' }).click();
       await expect(page.getByText('cookie', { exact: true }), 'a synced folder opens offline').toBeVisible({ timeout: 30_000 });
       await expect(deviceCopyNotice(page)).toBeVisible();
 

@@ -230,6 +230,19 @@ module('Unit | Route | user/board-detail device copy', function(hooks) {
     assert.strictEqual(refreshes, 1, 'a failure that is not a refusal leaves the copy');
   });
 
+  test('on a cold start, a denial waits for the session user before it is judged', async function(assert) {
+    var user = this.appState.get('sessionUser');
+    var loading = deferred();
+    this.appState.setProperties({sessionUser: null, session_user_promise: loading.promise});
+    var _this = this;
+    this.answers = [denied];
+    var opened = open(this);
+    await wait(5);
+    _this.appState.set('sessionUser', user);
+    loading.resolve(user);
+    assert.true((await opened).error, 'the copy does not open');
+  });
+
   test('a real denial wins in Speak Mode too, which Modern turns on for everyone', async function(assert) {
     this.appState.set('speak_mode', true);
     this.answers = [denied];
