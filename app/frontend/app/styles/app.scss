@@ -64882,6 +64882,10 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
   font-size: 1.25rem;
   line-height: 1.3;
   text-align: center;
+  /* One line always: the grid reserves one line's height, and a wrap would clip its last row. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 /* The error is presented as a discrete CARD on the board canvas rather than bare
    centred text, so it reads as a considered state instead of a failure dump. */

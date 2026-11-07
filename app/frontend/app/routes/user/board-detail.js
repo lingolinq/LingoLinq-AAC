@@ -648,6 +648,8 @@ export default Route.extend({
   session: service('session'),
   device_copy_wait: DEVICE_COPY_WAIT_MS,
   device_read_wait: DEVICE_READ_WAIT_MS,
+  session_wait: DEFAULT_WAIT_MS,
+  denial_session_wait: 10000,
   // Network first with a timeout, then the device copy (#1213), all in order. Each step has ended before
   // the next starts, so no answer for this board can arrive after the page has moved on. `nav` stands
   // for this navigation: a superseded one may still be running, and must change nothing.
@@ -687,13 +689,18 @@ export default Route.extend({
   // did not answer, so that check treats this as offline whatever `online` says.
   _find_copy: function(nav) {
     var _this = this;
-    return this._session_user_loaded().then(function() { return _this._checked_copy(nav); });
+    return this._session_user_loaded(nav).then(function() { return _this._checked_copy(nav); });
   },
   // On a cold start the session user is still loading, and the denial and revocation rules say nothing
   // until it has (board_revocation.js#acting_as_self), so wait for the read that is already running.
-  _session_user_loaded: function() {
+  _session_user_loaded: function(nav) {
     if(this.appState.get('sessionUser')) { return RSVP.resolve(); }
-    return wait_for_session_user(this.appState, { promise: this.appState.get('session_user_promise') });
+    // Longer when the server has answered, because then a board may be wrongly opened.
+    var answered = nav.failures.some(function(err) { return err && err.fakeXHR && err.fakeXHR.status; });
+    return wait_for_session_user(this.appState, {
+      promise: this.appState.get('session_user_promise'),
+      timeout: answered ? this.denial_session_wait : this.session_wait
+    });
   },
   _checked_copy: function(nav) {
     if(this._copy_refused(nav) || !this._may_read_copies()) { return RSVP.resolve(null); }
@@ -744,8 +751,9 @@ export default Route.extend({
     if(token && this._dead_token === token && offline_shell.device_trust(this.appState.get('sessionUser')) !== 'trusted') {
       return true;
     }
-    if(this._refused()[nav.board_key] === token) { return true; }
-    if(!server_refused(nav.failures, nav.board_key, this.appState)) { return false; }
+    if(this._refused()[nav.board_key] === token) { return !board_kept_on_refusal(nav.board_key, this.appState); }
+    // Unknown user: home and sidebar boards cannot be told apart yet, so nothing is remembered.
+    if(!this.appState.get('sessionUser') || !server_refused(nav.failures, nav.board_key, this.appState)) { return false; }
     this._refused()[nav.board_key] = token;
     boardDetailCache.invalidate(nav.board_key);
     return true;
@@ -772,6 +780,6 @@ export default Route.extend({
 });
 // Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
 import boardRevocation from '../../utils/board_revocation';
-import { DEVICE_COPY_WAIT_MS, DEVICE_READ_WAIT_MS, read_device_copy, server_refused, session_ended, usable_copy, within } from '../../utils/board_device_copy';
+import { DEVICE_COPY_WAIT_MS, DEVICE_READ_WAIT_MS, board_kept_on_refusal, read_device_copy, server_refused, session_ended, usable_copy, within } from '../../utils/board_device_copy';
 import offline_shell from '../../utils/offline_shell';
-import { wait_for_session_user } from '../../utils/session_user_wait';
+import { DEFAULT_WAIT_MS, wait_for_session_user } from '../../utils/session_user_wait';

@@ -243,6 +243,40 @@ module('Unit | Route | user/board-detail device copy', function(hooks) {
     assert.true((await opened).error, 'the copy does not open');
   });
 
+  test('a 404 is not remembered before the session user is known, so a home board keeps its copy', async function(assert) {
+    var user = this.appState.get('sessionUser');
+    user.set('preferences.home_board', {id: '1_7', key: 'me/board'});
+    this.appState.set('sessionUser', null);
+    this.route.session_wait = 1;
+    this.route.denial_session_wait = 1;
+    this.answers = [missing];
+    await open(this);
+    this.appState.set('sessionUser', user);
+    assert.notOk((await open(this)).error, 'Try Again with the user loaded opens the copy');
+  });
+
+  test('a home board keeps its copy even if a refusal was remembered first', async function(assert) {
+    this.answers = [denied];
+    await open(this);
+    this.appState.set('sessionUser.preferences.home_board', {id: '1_7', key: 'me/board'});
+    this.answers = [no_answer];
+    assert.notOk((await open(this)).error);
+  });
+
+  test('after a server refusal, the session user gets longer to arrive', async function(assert) {
+    var user = this.appState.get('sessionUser');
+    var loading = deferred();
+    this.appState.setProperties({sessionUser: null, session_user_promise: loading.promise});
+    this.route.session_wait = 1;
+    this.route.denial_session_wait = 2000;
+    this.answers = [denied];
+    var opened = open(this);
+    await wait(40);
+    this.appState.set('sessionUser', user);
+    loading.resolve(user);
+    assert.true((await opened).error, 'a slow sign-in does not open a denied board');
+  });
+
   test('a real denial wins in Speak Mode too, which Modern turns on for everyone', async function(assert) {
     this.appState.set('speak_mode', true);
     this.answers = [denied];
