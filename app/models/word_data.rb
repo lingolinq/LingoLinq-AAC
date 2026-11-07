@@ -11,6 +11,8 @@ class WordData < ApplicationRecord
   # (extras:translate_ui_locales) stops counting them as still to translate.
   # spec/lib/privacy_locale_english_pins_spec.rb pins every locale to this list.
   ENGLISH_PINNED_LOCALE_KEYS = %w[
+    privacy_security_retention_active
+    privacy_security_retention_inactive
     privacy_security_retention_children
     privacy_security_retention_ai_logs
     privacy_special_coppa_v2
