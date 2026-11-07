@@ -2,7 +2,12 @@ require "spec_helper"
 
 describe UserMailer, :type => :mailer do
   after(:each) do
+    JsonApi::Json.set_host(@mailer_spec_host) if @mailer_spec_host
     JsonApi::Json.load_domain("default")
+  end
+
+  before(:each) do
+    @mailer_spec_host = JsonApi::Json.current_host
   end
 
   describe "schedule_delivery" do
@@ -449,19 +454,30 @@ describe UserMailer, :type => :mailer do
       l.data['note'] = {'text' => 'you are my friend'}
       l.save
 
-      JsonApi::Json.set_host('https://override-mail.example.test')
-      ActionMailer::Base.deliveries.clear
-      UserMailer.schedule_delivery(:log_message, u.global_id, l.global_id)
-      Worker.process_queues
+      previous_host = JsonApi::Json.current_host
+      begin
+        JsonApi::Json.set_host('https://override-mail.example.test')
+        ActionMailer::Base.deliveries.clear
+        UserMailer.schedule_delivery(:log_message, u.global_id, l.global_id)
+        Worker.process_queues
 
-      expect(ActionMailer::Base.deliveries.length).to eq(1)
-      mail = ActionMailer::Base.deliveries.last
-      html = message_body(mail, :html)
-      text = message_body(mail, :text)
-      expect(html).to include('ZXQ-html-override-912-not-in-default')
-      expect(text).to include('ZXQ-text-override-912-not-in-default')
-      expect(html).not_to match(/just posted a message/)
-      expect(text).not_to match(/just posted a message/)
+        expect(ActionMailer::Base.deliveries.length).to eq(1)
+        mail = ActionMailer::Base.deliveries.last
+        html = message_body(mail, :html)
+        text = message_body(mail, :text)
+        expect(html).to include('ZXQ-html-override-912-not-in-default')
+        expect(text).to include('ZXQ-text-override-912-not-in-default')
+        expect(html).not_to match(/just posted a message/)
+        expect(text).not_to match(/just posted a message/)
+      ensure
+        JsonApi::Json.set_host(previous_host)
+      end
+    end
+
+    # Catches a leaked set_host: load_domain("default") does not reset current_host,
+    # so later examples (lesson_assigned) would build expected URLs from this host.
+    it "does not leave the override-mail host set for later examples" do
+      expect(JsonApi::Json.current_host.to_s).not_to include('override-mail.example.test')
     end
 
     it "should include a status-check footer if specified" do
