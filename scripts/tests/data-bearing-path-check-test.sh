@@ -271,6 +271,9 @@ field() { local kv; for kv in "${fields[@]}"; do [ "${kv%%=*}" = "$1" ] && { pri
 case "$method $url" in
   "POST "*/statuses/*)
     [ "${GH_TOKEN:-}" = app-token ] || { echo "gh stub: status posted without the App token" >&2; exit 9; } ;;
+  "GET "*/commits/*/statuses*)
+    # The head's statuses are read with the workflow token, an earlier head's with the App's.
+    case "${GH_TOKEN:-}" in app-token|actions-token) ;; *) echo "gh stub: $method $url without a known token" >&2; exit 9 ;; esac ;;
   *)
     [ "${GH_TOKEN:-}" = actions-token ] || { echo "gh stub: $method $url without the workflow token" >&2; exit 9; } ;;
 esac
@@ -283,6 +286,9 @@ case "$method $url" in
     sha="${url##*/}"
     ctx="$(field context)"
     case "$ctx" in data-bearing-approval/*) f=approve ;; *) f=verdict ;; esac
+    # GitHub's practical description limit (other tools trim to 140; GitHub's docs give none).
+    d="$(field description)"
+    [ "${#d}" -le 140 ] || { echo "gh stub: description of ${#d} characters" >&2; exit 9; }
     if [ -e "$GH_STUB/$f.fail" ]; then cat "$GH_STUB/$f.fail"; exit 1; fi
     printf '%s %s %s\n' "$sha" "$ctx" "$(field state)" >> "$GH_STUB/posted"
     jq --arg c "$ctx" --arg s "$(field state)" --arg sha "$sha" --arg d "$(field description)" \
@@ -297,6 +303,8 @@ esac
 if [ -e "$GH_STUB/$f.fail" ]; then cat "$GH_STUB/$f.fail"; exit 1; fi
 if [ "$f" = statuses ]; then
   sha="${url#*/commits/}"; sha="${sha%%/*}"
+  printf '%s %s\n' "$sha" "$GH_TOKEN" >> "$GH_STUB/reads"
+  if [ -e "$GH_STUB/statuses.fail.$sha" ]; then echo boom; exit 1; fi
   # Without --paginate, gh returns only the first page.
   if [ "$paginate" = yes ]; then sel='[.[] | select(.sha == $sha)]'; else sel='[.[] | select(.sha == $sha)] | .[0:100]'; fi
   jq --arg sha "$sha" "$sel" "$GH_STUB/statuses.json" > "$GH_STUB/sel.json"
@@ -309,7 +317,8 @@ GHEOF
 chmod +x "$GHBIN/gh"
 MARK="$WORK/check-ran"
 SPY="$WORK/check-spy.sh"
-printf '#!/usr/bin/env bash\ntouch "%s"\nexec bash "%s" "$@"\n' "$MARK" "$CHECK" > "$SPY"
+# The spy marks the verdict run only; the CI script also runs the check's --data-scope mode.
+printf '#!/usr/bin/env bash\n[ "${1:-}" = --data-scope ] || touch "%s"\nexec bash "%s" "$@"\n' "$MARK" "$CHECK" > "$SPY"
 
 # A real origin, so the live base is fetched as the workflow fetches it. The local
 # remote-tracking refs start out equal to it; some cases make them stale. A push to the
@@ -582,6 +591,313 @@ stub_pr "$REL_CODE" main
 run_ci 3 no 'live base branch missing on the remote fails closed' "$REL_CODE" EVENT_BASE_REF=main
 set_origin main "$BASE"
 
+# --- Carrying a develop approval to a later head. A PR to develop keeps its approval
+# across pushes that leave every flagged file (data-bearing, workflow, or the check's own)
+# exactly as approved: same paths, same old and new blobs and modes, against the same
+# merge-base blobs. The approval must sit on an earlier head on the PR's first-parent
+# chain, within the newest 50 commits, with no commit in between whose flagged files
+# differ. Nothing new is posted as an approval; the verdict names the approved commit.
+# chain <start> <n> <tag>: n code-only commits on top of start; prints the last.
+chain() {
+  local start="$1" n="$2" tag="$3" i
+  git -C "$REPO" checkout -q -B "chain-$tag" "$start"
+  mkdir -p "$REPO/app/models"
+  for i in $(seq 1 "$n"); do
+    printf 'class K%s; end\n' "$i" > "$REPO/app/models/k_${tag}_$i.rb"
+    git -C "$REPO" add -A && git -C "$REPO" commit -q -m "chain $tag $i"
+  done
+  git -C "$REPO" rev-parse HEAD
+}
+# on_top <start> <tag> <cmd...>: one commit running the command on top of start.
+on_top() {
+  local start="$1" tag="$2"
+  shift 2
+  git -C "$REPO" checkout -q -B "top-$tag" "$start"
+  (cd "$REPO" && "$@")
+  git -C "$REPO" add -A && git -C "$REPO" commit -q -m "top $tag"
+  git -C "$REPO" rev-parse HEAD
+}
+# move_head <sha> [base-sha]: a push. The PR's head (and base sha) move; statuses stay.
+move_head() {
+  local b="${2:-$(jq -r .base.sha "$GH_STUB/pr.json")}"
+  jq --arg h "$1" --arg b "$b" '.head.sha = $h | .base.sha = $b' "$GH_STUB/pr.json" > "$GH_STUB/pr.tmp" \
+    && mv "$GH_STUB/pr.tmp" "$GH_STUB/pr.json"
+}
+# approve <head> <base-ref> [base-sha]: a fresh PR whose labeled run records an approval
+# on that head (counted as a case, so a broken setup shows), with the label then gone.
+approve() {
+  stub_pr "$1" "$2" "${3:-$BASE}"
+  run_ci 0 yes "setup: the label approves $(git -C "$REPO" log -1 --format=%s "$1") for $2" "$1" \
+    EVENT_ACTION=labeled LABEL_NAME=synthetic-data EVENT_BASE_REF="$2"
+  stub_labels '[]'
+}
+# sync_case <expect-exit> <label> <head> [env...]: the run a push triggers.
+sync_case() {
+  local expect="$1" label="$2" h="$3"
+  shift 3
+  run_ci "$expect" yes "$label" "$h" EVENT_ACTION=synchronize "$@"
+}
+# verdict_has <sha> <text> <label>: the newest verdict description on sha contains text.
+verdict_has() {
+  local d
+  total=$((total + 1))
+  d="$(jq -r --arg s "$1" '[.[] | select(.sha == $s and (.context | startswith("data-bearing-paths/")))][0].description' "$GH_STUB/statuses.json")"
+  case "$d" in
+    *"$2"*) printf '  ok   verdict  ci: %s\n' "$3" ;;
+    *) printf '  FAIL verdict [%s] (expected to contain [%s])  ci: %s\n' "$d" "$2" "$3"; fails=$((fails + 1)) ;;
+  esac
+}
+# data_scope_for <base> <head> <ERE>: the data scope computed here, independently of the
+# check: sha256 (first 40 hex) of "develop", then the raw records (core.quotepath=false)
+# whose path matches the ERE, one per line.
+data_scope_for() {
+  { printf 'develop\n'
+    git -C "$REPO" -c core.quotepath=false diff --raw --no-abbrev --no-renames --no-relative "$1...$2" \
+      | LC_ALL=C grep -aE -- $'\t'"$3" || true
+  } | sha256sum | cut -c1-40
+}
+# scope_case <label> <expected-line> <check args...>: run the check's --data-scope mode.
+scope_case() {
+  local label="$1" want="$2" got rc=0
+  shift 2
+  total=$((total + 1))
+  got="$(cd "$REPO" && bash "$CHECK" --data-scope "$@" 2>/dev/null)" || rc=$?
+  if [ "$rc" = 0 ] && [ "$got" = "$want" ]; then printf '  ok   scope  %s\n' "$label"
+  else printf '  FAIL scope exit %s [%s] (expected [%s])  %s\n' "$rc" "$got" "$want" "$label"; fails=$((fails + 1)); fi
+}
+scope_fail_case() {
+  local label="$1" rc=0
+  shift
+  total=$((total + 1))
+  (cd "$REPO" && env "$@") >/dev/null 2>&1 || rc=$?
+  if [ "$rc" = 3 ]; then printf '  ok   exit 3  %s\n' "$label"
+  else printf '  FAIL exit %s (expected 3)  %s\n' "$rc" "$label"; fails=$((fails + 1)); fi
+}
+
+EMPTY_SCOPE="$(printf 'develop\n' | sha256sum | cut -c1-40)"
+C1="$(chain "$FIX" 1 c1)"
+C2="$(chain "$FIX" 2 c2)"
+C_EDITDATA="$(on_top "$FIX" editdata bash -c 'printf "name: y\n" > spec/fixtures/new.yml')"
+C_BACK="$(on_top "$C_EDITDATA" back bash -c 'printf "name: x\n" > spec/fixtures/new.yml; mkdir -p app/models; printf "class Bk; end\n" > app/models/bk.rb')"
+C_MODE="$(on_top "$FIX" mode chmod +x spec/fixtures/new.yml)"
+C_NEWDATA="$(on_top "$FIX" newdata bash -c 'printf "name: o\n" > spec/fixtures/other.yml')"
+C_WF="$(on_top "$FIX" wf bash -c 'mkdir -p .github/workflows && printf "on: push\n" > .github/workflows/x.yml')"
+C_CTRL="$(on_top "$FIX" ctrl bash -c 'mkdir -p scripts && printf "# edit\n" > scripts/codex-review-path-classifier.sh')"
+C35="$(chain "$FIX" 35 c35)"
+C55="$(chain "$FIX" 55 c55)"
+
+echo "data-bearing-path-check --data-scope:"
+scope_case 'a fixture commit: its data scope covers the fixture record' \
+  "$FIX $(data_scope_for "$BASE" "$FIX" 'spec/fixtures/new\.yml$')" "$BASE" "$FIX"
+scope_case 'a code-only push on top: the same data scope' \
+  "$C2 $(data_scope_for "$BASE" "$FIX" 'spec/fixtures/new\.yml$')" "$BASE" "$C2"
+scope_case 'a code-only commit: the empty data scope' "$CODE $EMPTY_SCOPE" "$BASE" "$CODE"
+scope_case 'several commits: one line each, in order' \
+  "$C2 $(data_scope_for "$BASE" "$C2" 'spec/fixtures/')
+$CODE $EMPTY_SCOPE" "$BASE" "$C2" "$CODE"
+scope_case 'a workflow and a control file are in the data scope' \
+  "$C_WF $(data_scope_for "$BASE" "$C_WF" '(spec/fixtures/|\.github/workflows/)')" "$BASE" "$C_WF"
+scope_case 'a mode-only change is a different record' \
+  "$C_MODE $(data_scope_for "$BASE" "$C_MODE" 'spec/fixtures/')" "$BASE" "$C_MODE"
+scope_fail_case '--data-scope is develop-only' PR_BASE_REF=staging DEVELOP_SHA="$BASE" bash "$CHECK" --data-scope "$BASE" "$FIX"
+scope_fail_case '--data-scope with no commit fails closed' bash "$CHECK" --data-scope "$BASE"
+scope_fail_case '--data-scope with an unknown commit fails closed' bash "$CHECK" --data-scope "$BASE" 0123456789abcdef0123456789abcdef01234567
+scope_fail_case '--data-scope with a classifier failure fails closed' CLASSIFIER="$STUB" bash "$CHECK" --data-scope "$BASE" "$FIX"
+# Drift guard: a classifier that flags the whole list but no single path of it.
+STUBDRIFT="$WORK/classifier-drift.sh"
+cat > "$STUBDRIFT" <<'EOF'
+#!/usr/bin/env bash
+f="${3:-}"; n=0
+[ -n "$f" ] && n="$(grep -c '' "$f")"
+if [ "$n" -gt 1 ]; then echo data_bearing=true >> "$GITHUB_OUTPUT"; else echo data_bearing=false >> "$GITHUB_OUTPUT"; fi
+EOF
+scope_fail_case 'a list verdict no single path explains fails closed' CLASSIFIER="$STUBDRIFT" bash "$CHECK" --data-scope "$BASE" "$C1"
+
+echo "data-bearing-path-check-ci carry:"
+approve "$FIX" develop; move_head "$C2"
+sync_case 0 'a code-only push after an approval keeps it' "$C2"
+posted_case "$C2 data-bearing-paths/develop success" 'a carried pass posts only the verdict, never an approval'
+verdict_has "$C2" "${FIX:0:12}" 'the carried verdict names the approved commit'
+sync_case 0 'a re-run (attempt 2) of that push carries too' "$C2" GITHUB_RUN_ATTEMPT=2
+stub_labels '[{"name":"synthetic-data"}]'
+run_ci 0 yes 'a re-run of a labeled run on the carried head records nothing' "$C2" EVENT_ACTION=labeled LABEL_NAME=synthetic-data GITHUB_RUN_ATTEMPT=2
+posted_case "$C2 data-bearing-paths/develop success" 'no approval is posted by a re-run, carried or not'
+stub_pr "$C1" develop
+run_ci 3 no 'labeled with a classifier that drifts: fails closed, records nothing' "$C1" EVENT_ACTION=labeled LABEL_NAME=synthetic-data CLASSIFIER="$STUBDRIFT"
+posted_case "$C1 data-bearing-paths/develop error" 'only an error verdict when the data scope cannot be trusted'
+for pair in "C_EDITDATA:a content edit of the approved fixture" "C_MODE:a mode-only change of the approved fixture" \
+            "C_NEWDATA:a new fixture" "C_WF:a new workflow" "C_CTRL:an edit to the classifier (a control file)" \
+            "C_BACK:a fixture changed and changed back (the run of unchanged commits is broken)" \
+            "C55:an approval more than 50 commits back"; do
+  var="${pair%%:*}"
+  approve "$FIX" develop; move_head "${!var}"
+  sync_case 1 "after an approval, ${pair#*:}: not kept" "${!var}"
+done
+approve "$FIX" develop; move_head "$C35"
+sync_case 0 'an approval 35 commits back is kept' "$C35"
+approve "$FIX" develop; move_head "$C_EDITDATA"; move_head "$C2"
+sync_case 0 'a head reset back past an edit is judged on its own chain: kept' "$C2"
+
+# Latin-1 names: approved through the same listing the verdict reads.
+L1C="$(chain "$L1FIX" 1 l1)"
+L1E="$(on_top "$L1FIX" l1edit bash -c "printf 'name: y\n' > \$'spec/fixtures/caf\\351.yml'")"
+approve "$L1FIX" develop; move_head "$L1C"
+sync_case 0 'a Latin-1 fixture name: kept across a code-only push' "$L1C"
+approve "$L1FIX" develop; move_head "$L1E"
+sync_case 1 'a Latin-1 fixture name: not kept after an edit' "$L1E"
+
+# A fixture moved to a path that is not data-bearing: the delete record is flagged and
+# approved; the file at its new path is ordinary code (it would need no approval if it
+# were added fresh), so editing it there keeps the approval. Moving it back does not.
+MV_EDIT="$(on_top "$MOVE" mvedit bash -c 'printf "name: edited\n" > spec/support/existing.yml')"
+MV_BACK="$(on_top "$MV_EDIT" mvback bash -c 'mkdir -p spec/fixtures && git mv spec/support/existing.yml spec/fixtures/existing.yml')"
+approve "$MOVE" develop; move_head "$MV_EDIT"
+sync_case 0 'a fixture moved out of a data path: editing it at the new path keeps the approval' "$MV_EDIT"
+approve "$MOVE" develop; move_head "$MV_BACK"
+sync_case 1 'the moved fixture moved back with new content: not kept' "$MV_BACK"
+
+# The classifier (from develop) gains a pattern after the label: the flagged set grows.
+GROWN="$WORK/classifier-grown.sh"
+awk '{ print } /^DATA_BEARING_PATTERNS=\($/ { print "  '"'"'(^|/)app/models/k_'"'"'" }' "$REPO_ROOT/scripts/codex-review-path-classifier.sh" > "$GROWN"
+approve "$FIX" develop; move_head "$C2"
+sync_case 1 'the classifier gains a pattern matching the pushed code: not kept' "$C2" CLASSIFIER="$GROWN"
+
+# develop merged into the PR. The data scope reads the PR's base now: a data file whose
+# merge-base blob changed is not the change that was approved.
+git -C "$REPO" checkout -q -B dev-data "$BASE"
+printf 'name: develop\n' > "$REPO/spec/fixtures/existing.yml"
+git -C "$REPO" add -A && git -C "$REPO" commit -q -m 'develop edits the fixture'
+DEV_DATA="$(git -C "$REPO" rev-parse HEAD)"
+git -C "$REPO" checkout -q -B dev-code "$BASE"
+mkdir -p "$REPO/app/models" && printf 'class Dv; end\n' > "$REPO/app/models/dv.rb"
+git -C "$REPO" add -A && git -C "$REPO" commit -q -m 'develop adds code'
+DEV_CODE="$(git -C "$REPO" rev-parse HEAD)"
+git -C "$REPO" checkout -q -B pr-merge-code "$EDIT"
+git -C "$REPO" merge -q --no-edit "$DEV_CODE" >/dev/null
+M_CODE="$(git -C "$REPO" rev-parse HEAD)"
+git -C "$REPO" checkout -q -B pr-merge-data "$EDIT"
+git -C "$REPO" merge -q -s ours --no-edit "$DEV_DATA" >/dev/null
+M_DATA="$(git -C "$REPO" rev-parse HEAD)"
+approve "$EDIT" develop; set_origin develop "$DEV_CODE"; move_head "$M_CODE" "$DEV_CODE"
+sync_case 0 'develop merged in, its change unrelated to the data: kept' "$M_CODE"
+set_origin develop "$FIX"
+approve "$EDIT" develop; set_origin develop "$DEV_DATA"; move_head "$M_DATA" "$DEV_DATA"
+sync_case 1 'develop merged in, the data file changed under it: not kept' "$M_DATA"
+set_origin develop "$FIX"
+
+# Force-push: the same fixture rebuilt on a new commit has the same data scope, but the
+# approved commit is no longer in the PR, so nothing is kept.
+FIXAGAIN="$(commit_change fixture-again bash -c 'printf "name: x\n" > spec/fixtures/new.yml')"
+FP="$(chain "$FIXAGAIN" 1 fp)"
+scope_case 'the rebuilt head has the approved data scope (only ancestry refuses it)' \
+  "$FP $(data_scope_for "$BASE" "$FIX" 'spec/fixtures/new\.yml$')" "$BASE" "$FP"
+approve "$FIX" develop; move_head "$FP"
+sync_case 1 'the approved commit force-pushed out of the PR: not kept' "$FP"
+
+# What counts on the earlier head: the newest App success with the data scope now.
+approve "$FIX" develop
+D_FIX="$(jq -r --arg s "$FIX" --arg c "$APPROVAL_DEV" '[.[] | select(.sha == $s and .context == $c)][0].description' "$GH_STUB/statuses.json")"
+add_status "$FIX" "$APPROVAL_DEV" failure "$APP_LOGIN" 'withdrawn'; move_head "$C2"
+sync_case 1 'the newest approval status on the earlier head is a failure: not kept' "$C2"
+for who in 'github-actions[bot]' mallory; do
+  stub_pr "$C2" develop; stub_labels '[]'; add_status "$FIX" "$APPROVAL_DEV" success "$who" "$D_FIX"
+  sync_case 1 "a copied approval on the earlier head posted by $who: not kept" "$C2"
+done
+stub_pr "$C2" develop; stub_labels '[]'; add_status "$FIX" "$APPROVAL_DEV" success "$APP_LOGIN" "$D_FIX"
+sync_case 0 'control: the same description from the App is kept' "$C2"
+stub_pr "$C2" develop; stub_labels '[]'; add_status "$FIX" "$APPROVAL_DEV" success "$APP_LOGIN" "$D_FIX x"
+sync_case 1 'an App approval with trailing text: not kept' "$C2"
+stub_pr "$C2" develop; stub_labels '[]'; add_status "$FIX" "$APPROVAL_DEV" success "$APP_LOGIN" "${D_FIX/Synthetic data confirmed/Data confirmed}"
+sync_case 1 'an App approval without the label-born prefix: not kept' "$C2"
+stub_pr "$C2" develop; stub_labels '[]'; add_status "$FIX" "$APPROVAL_DEV" success
+sync_case 1 'an old-form scope approval on an earlier head: not kept (it counts on its own head only)' "$C2"
+stub_pr "$C2" develop; stub_labels '[]'; add_status "$FIX" "$APPROVAL_DEV" success "$APP_LOGIN" "$D_FIX"
+C2P="$(git -C "$REPO" rev-parse "$C2^")"
+add_status "$C2P" "$APPROVAL_DEV" success "$APP_LOGIN" "$D_FIX"
+sync_case 0 'two earlier approvals: the newer is found first' "$C2"
+verdict_has "$C2" "${C2P:0:12}" 'the verdict names the newer approved commit'
+stub_pr "$C2" develop; stub_labels '[]'; add_status "$FIX" "$APPROVAL_DEV" success "$APP_LOGIN" "$D_FIX"
+: > "$GH_STUB/statuses.fail.$FIX"
+run_ci 3 no 'a status lookup on an earlier head fails: fails closed' "$C2" EVENT_ACTION=synchronize
+posted_case "$C2 data-bearing-paths/develop error" 'a walk lookup failure posts an error verdict'
+
+# Staging and main never carry: the approval covers one head.
+REL2="$(chain "$REL_FIX" 1 rel2)"
+approve "$REL_FIX" staging; move_head "$REL2"
+sync_case 1 'PR to staging: a code-only push after an approval needs the label again' "$REL2" EVENT_BASE_REF=staging
+approve "$REL_FIX" main; move_head "$REL2"
+sync_case 1 'PR to main: a code-only push after an approval needs the label again' "$REL2" EVENT_BASE_REF=main
+
+# Descriptions fit GitHub's practical 140-character limit (the stub refuses longer).
+L39="$(printf 'a%.0s' $(seq 1 39))"
+stub_pr "$FIX" develop
+run_ci 0 yes 'a 39-character login fits the develop approval description' "$FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data SENDER_LOGIN="$L39"
+posted_case "$FIX $APPROVAL_DEV success|$FIX data-bearing-paths/develop success" 'the long-login approval is posted'
+stub_pr "$REL_FIX" staging
+run_ci 0 yes 'a 39-character login fits the staging approval description' "$REL_FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data EVENT_BASE_REF=staging SENDER_LOGIN="$L39"
+total=$((total + 1)); rc=0
+GH_TOKEN=app-token GH_STUB="$GH_STUB" "$GHBIN/gh" api -X POST repos/o/r/statuses/abc -f context=x -f state=success \
+  -f description="$(printf 'd%.0s' $(seq 1 141))" >/dev/null 2>&1 || rc=$?
+if [ "$rc" = 9 ]; then printf '  ok   exit 9  stub: a description over 140 characters is refused\n'
+else printf '  FAIL exit %s (expected 9)  stub: a description over 140 characters is refused\n' "$rc"; fails=$((fails + 1)); fi
+
+# Another PR whose head builds on an approved commit keeps it too: the approval binds the
+# flagged files, and two PRs that merge the same ones share it (Scot, 2026-10-11).
+approve "$FIX" develop; move_head "$C2"
+sync_case 0 'PR 8 building on PR 7'"'"'s approved commit keeps the approval' "$C2" PR_NUMBER=8
+
+# The walk reads statuses with the App token (its own rate-limit budget, not the
+# repository's workflow-token budget), one read per unchanged commit, newest first.
+approve "$FIX" develop; move_head "$C2"; rm -f "$GH_STUB/reads"
+sync_case 0 'a carried run (reads counted)' "$C2"
+total=$((total + 1))
+want_reads="$C2 actions-token|$(git -C "$REPO" rev-parse "$C2^") app-token|$FIX app-token"
+got_reads="$(paste -sd'|' "$GH_STUB/reads" 2>/dev/null)"
+if [ "$got_reads" = "$want_reads" ]; then printf '  ok   reads  ci: the head is read with the workflow token, the walk with the App token\n'
+else printf '  FAIL reads [%s] (expected [%s])  ci: walk reads\n' "$got_reads" "$want_reads"; fails=$((fails + 1)); fi
+
+# A classifier that flags a path inside a list but not alone: the data scope would leave
+# that path out, so the paths it calls clean must also be clean as a list.
+STUBMISS="$WORK/classifier-miss.sh"
+cat > "$STUBMISS" <<'MEOF'
+#!/usr/bin/env bash
+f="${3:-}"; v=false
+grep -q 'spec/fixtures/' "$f" && v=true
+[ "$(grep -c '' "$f")" -gt 1 ] && grep -q 'app/models/k_' "$f" && v=true
+echo "data_bearing=$v" >> "$GITHUB_OUTPUT"
+MEOF
+scope_fail_case 'a path flagged in the list but not alone fails closed' CLASSIFIER="$STUBMISS" bash "$CHECK" --data-scope "$BASE" "$C2"
+
+# Names are data, never code: a name holding $(...) or [$(...)] runs nothing, in the
+# data scope or the verdict. (A bash [ -v "a[$name]" ] test would run it.)
+INJ="$(commit_change inject bash -c 'printf "name: x\n" > "spec/fixtures/\$(touch inj1).yml"; printf "x\n" > "app/a[\$(touch inj2)].rb"; printf "y\n" > "app/b[\$(touch inj3)]"')"
+INJ2="$(chain "$INJ" 1 inj)"
+approve "$INJ" develop; move_head "$INJ2"
+sync_case 0 'names holding $(...): kept across a code-only push' "$INJ2"
+total=$((total + 1))
+if [ ! -e "$REPO/inj1" ] && [ ! -e "$REPO/inj2" ] && [ ! -e "$REPO/inj3" ] && [ ! -e "$REPO/app/inj2" ]; then
+  printf '  ok   no marker  a name holding $(...) ran nothing\n'
+else printf '  FAIL marker  a name holding $(...) ran a command\n'; fails=$((fails + 1)); fi
+
+# A trailing space is part of the name: "app/x.csv " is not a .csv file to the classifier,
+# so editing it keeps the approval; trimming the name would flag it.
+TSP="$(commit_change trailing-space bash -c 'printf "name: x\n" > spec/fixtures/new.yml; mkdir -p app; printf "a\n" > "app/x.csv "')"
+TSP2="$(on_top "$TSP" tsp bash -c 'printf "b\n" > "app/x.csv "')"
+approve "$TSP" develop; move_head "$TSP2"
+sync_case 0 'a name with a trailing space is read whole' "$TSP2"
+# A name that is only whitespace cannot be classified alone: fail closed, never open.
+WSP="$(commit_change whitespace bash -c 'printf "name: x\n" > spec/fixtures/new.yml; printf "a\n" > " "')"
+scope_fail_case 'a whitespace-only name next to a fixture fails closed' bash "$CHECK" --data-scope "$BASE" "$WSP"
+
+# staging still records the scope form.
+stub_pr "$REL_FIX" staging
+run_ci 0 yes 'labeled for staging: approval recorded' "$REL_FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data EVENT_BASE_REF=staging
+total=$((total + 1))
+got_desc="$(jq -r '[.[] | select(.context == "data-bearing-approval/staging")][0].description' "$GH_STUB/statuses.json")"
+want_desc="Synthetic data confirmed by reviewer; scope $(scope_of staging "$BASE" "$REL_FIX" "$FIX")"
+if [ "$got_desc" = "$want_desc" ]; then printf '  ok   description  ci: a staging approval still names its scope\n'
+else printf '  FAIL description [%s] (expected [%s])  ci: staging description\n' "$got_desc" "$want_desc"; fails=$((fails + 1)); fi
+
 # The approval covers one change set: the scope recorded in it (the merge bases for
 # develop, the commits beyond develop and the base for staging and main) must equal the
 # scope now. A base rewrite with the same head changes the scope, so the old approval no
@@ -610,7 +926,7 @@ stub_pr "$REL_FIX" develop "$FIX"
 run_ci 0 yes 'labeled: approval recorded with its scope' "$REL_FIX" EVENT_ACTION=labeled LABEL_NAME=synthetic-data
 total=$((total + 1))
 got_desc="$(jq -r --arg c "$APPROVAL_DEV" '[.[] | select(.context == $c)][0].description' "$GH_STUB/statuses.json")"
-want_desc="Synthetic data confirmed by reviewer; scope $(scope_of develop "$FIX" "$REL_FIX")"
+want_desc="Synthetic data confirmed by reviewer; data $(data_scope_for "$FIX" "$REL_FIX" 'spec/fixtures/direct\.yml$')"
 if [ "$got_desc" = "$want_desc" ]; then printf '  ok   description  ci: the recorded approval names its scope\n'
 else printf '  FAIL description [%s] (expected [%s])  ci: the recorded approval names its scope\n' "$got_desc" "$want_desc"; fails=$((fails + 1)); fi
 # A label event whose base had another scope (the base changed between the label and the
