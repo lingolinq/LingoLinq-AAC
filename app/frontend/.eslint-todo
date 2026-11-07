@@ -1,7 +1,7 @@
 # ESLint baseline (grandfathered findings). Do not hand-edit.
 # Regenerate: npm run lint:js:todo
 # Format: file|ruleId|line|column|severity|messageHash
-# Generated: 2026-11-06T23:07:46.133Z
+# Generated: 2026-11-07T00:30:42.603Z
 app/app.js|ember/no-runloop|102|5|2|0843889163d3
 app/app.js|ember/no-runloop|168|7|2|0843889163d3
 app/app.js|ember/no-runloop|193|7|2|0843889163d3
@@ -117,20 +117,20 @@ app/components/confirm-delete-board.js|ember/require-computed-property-dependenc
 app/components/confirm-delete-user.js|ember/no-runloop|88|13|2|5addc2170315
 app/components/confirm-org-action.js|ember/require-computed-property-dependencies|107|18|1|4f3cfbc971db
 app/components/copying-board.js|lingolinq/no-orphaned-action|410|5|1|981d7ce18fc2
-app/components/create-board-new.js|ember/no-incorrect-calls-with-inline-anonymous-functions|2888|41|1|2da67c91d637
-app/components/create-board-new.js|ember/no-runloop|1486|5|2|ab6701509d85
-app/components/create-board-new.js|ember/no-runloop|1552|7|2|513c0395fe72
-app/components/create-board-new.js|ember/no-runloop|1554|35|2|ab6701509d85
-app/components/create-board-new.js|ember/no-runloop|1674|7|2|513c0395fe72
-app/components/create-board-new.js|ember/no-runloop|2782|7|2|00fc6802e68e
-app/components/create-board-new.js|ember/no-runloop|2888|7|2|513c0395fe72
-app/components/create-board-new.js|ember/no-runloop|3545|9|2|00fc6802e68e
-app/components/create-board-new.js|ember/require-computed-property-dependencies|1997|25|1|7f66d53536ea
-app/components/create-board-new.js|ember/require-computed-property-dependencies|2001|26|1|7f66d53536ea
-app/components/create-board-new.js|ember/require-computed-property-dependencies|2053|26|1|cb3b82a4722f
-app/components/create-board-new.js|ember/require-computed-property-dependencies|2057|23|1|cb3b82a4722f
-app/components/create-board-new.js|ember/require-computed-property-dependencies|2063|20|1|cb3b82a4722f
-app/components/create-board-new.js|ember/require-computed-property-dependencies|823|31|1|f4993249c296
+app/components/create-board-new.js|ember/no-incorrect-calls-with-inline-anonymous-functions|2894|41|1|2da67c91d637
+app/components/create-board-new.js|ember/no-runloop|1492|5|2|ab6701509d85
+app/components/create-board-new.js|ember/no-runloop|1558|7|2|513c0395fe72
+app/components/create-board-new.js|ember/no-runloop|1560|35|2|ab6701509d85
+app/components/create-board-new.js|ember/no-runloop|1680|7|2|513c0395fe72
+app/components/create-board-new.js|ember/no-runloop|2788|7|2|00fc6802e68e
+app/components/create-board-new.js|ember/no-runloop|2894|7|2|513c0395fe72
+app/components/create-board-new.js|ember/no-runloop|3551|9|2|00fc6802e68e
+app/components/create-board-new.js|ember/require-computed-property-dependencies|2003|25|1|7f66d53536ea
+app/components/create-board-new.js|ember/require-computed-property-dependencies|2007|26|1|7f66d53536ea
+app/components/create-board-new.js|ember/require-computed-property-dependencies|2059|26|1|cb3b82a4722f
+app/components/create-board-new.js|ember/require-computed-property-dependencies|2063|23|1|cb3b82a4722f
+app/components/create-board-new.js|ember/require-computed-property-dependencies|2069|20|1|cb3b82a4722f
+app/components/create-board-new.js|ember/require-computed-property-dependencies|829|31|1|f4993249c296
 app/components/dashboard-supervisors-modal.js|ember/no-runloop|100|7|2|5addc2170315
 app/components/dashboard-supervisors-modal.js|ember/no-runloop|111|7|2|5addc2170315
 app/components/dashboard-supervisors-modal.js|ember/no-runloop|143|7|2|5addc2170315

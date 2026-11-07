@@ -154,5 +154,7 @@ test('a board made for a Spanish communicator says so, with its notice, and save
   await finishWizard(page);
   await seedLabels(page, ['sombrero', 'gato']);
   await save(page);
-  expect((await serverBoard(page)).locale).toBe('es');
+  const board = await serverBoard(page);
+  expect(board.locale).toBe('es');
+  expect(board.key.split('/')[0]).toBe('e2e_comm_es');
 });
