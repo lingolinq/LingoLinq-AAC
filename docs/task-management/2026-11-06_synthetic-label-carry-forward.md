@@ -249,3 +249,17 @@ Round-1 R1-1, R1-2, R1-4 and R1-5 confirmed fixed by both passes.
   dropping `DATA_SCOPE_CACHE` turns it red.
 - R2-3 Low (Codex): superseded text in this log marked SUPERSEDED (decisions and proposal).
 - R2-4 Low: R1-6 carried over, follow-up.
+
+## Dual review round 3 (at b67e3aaf7): no Critical or High; merged verdict approve
+
+Codex approved with comments; the adversary asked for two doc changes, made after the round
+(docs and test only, not dual-reviewed):
+- R3-1 Medium (adversary, CONFIRMED by probe P8): the docs said a failure voids older
+  approvals on its chain, which holds only for heads built on the withdrawn commit. The docs
+  now say to post the withdrawal on every commit that holds an App approval for that data,
+  with how to find them. P8 is pinned: withdrawn only on the later commit, a head built on
+  the older one keeps it; withdrawn on both, it does not.
+- R3-2 Low (adversary): a status does not re-run the check, so the docs now say to re-run it
+  on every open PR whose verdict names a withdrawn commit.
+- R3-3 Low: R1-6 follow-up, unchanged.
+Round cap reached (3 rounds). Final: 282 cases OK.

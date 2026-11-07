@@ -241,8 +241,9 @@ flagged file unchanged; a push that changes one, or a force-push that drops the 
 commit, needs the label again. On a PR to `staging` or `main`, add it again after every
 push. Editing the data does not withdraw a `develop` approval from the commit it sits on;
 a person withdraws it by posting `failure` on `data-bearing-approval/develop` at that commit
-(the verdict names it; never an agent: rule 15), which also voids older approvals on its
-chain, posts it on each pre-rebase head that holds one too, and marks the PR draft meanwhile.
+(the verdict names it; never an agent: rule 15) and on every other commit that holds an
+approval for that data (older ones on the chain, pre-rebase heads), re-runs the check on
+each open PR whose verdict names one of them, and marks the PR draft meanwhile.
 `develop` is squash-only, so a PR to it is
 judged by its net diff. PRs to `staging` and `main` are checked commit by commit for
 changes that never went through `develop`; a merge commit counts only for what it adds

@@ -17,9 +17,11 @@ name: Data-bearing paths
 # a later head back on the approved commit (a force-push from a stale clone, a stacked PR)
 # finds the approval again. To withdraw it for good, a person with write access posts
 # `failure` on data-bearing-approval/develop at the approved commit (the verdict names
-# it); that also stops every older approval on the same chain from counting. A rebase
-# leaves the old heads' approvals in place, so post it on each of them too. Mark the PR
-# draft to stop a merge meanwhile. Agents
+# it). Post it on every commit that holds an App approval for that data, older ones on the
+# chain included: a head that does not build on the withdrawn commit (a force-push from an
+# older clone, a rebase) can still reach them. Then re-run this check on every open PR to
+# develop whose verdict names one of them, since a status does not re-run the check. Mark
+# the PR draft to stop a merge meanwhile. Agents
 # never add this label: they run under a person's account, and the check cannot tell
 # them apart.
 #

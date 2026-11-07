@@ -874,9 +874,21 @@ move_head "$C2"
 sync_case 1 'a withdrawn approval stops the walk before an older one for the same data' "$C2"
 move_head "$C2P"
 sync_case 1 'a withdrawn head does not start the walk' "$C2P"
-# A rebase leaves the old heads' approvals in place, so a withdrawal goes on every commit
-# that holds one for that data (the docs say so); withdrawn on both, a stale push of the
-# old chain does not keep it.
+# A head that does not build on the withdrawn commit never reaches it: FIX approved, the
+# same data approved again on C2P and withdrawn there, and a head built on FIX alone (an
+# older clone) still finds FIX's approval. So the docs say to post the withdrawal on every
+# commit that holds an approval for that data; withdrawn on both, it is not kept.
+approve "$FIX" develop
+move_head "$C2P"
+run_ci 0 yes 'setup: the same data approved again on a later head' "$C2P" EVENT_ACTION=labeled LABEL_NAME=synthetic-data
+stub_labels '[]'
+add_status "$C2P" "$APPROVAL_DEV" failure mallory 'Withdrawn'
+move_head "$C1"
+sync_case 0 'withdrawn only on the later commit, a head built on the older one still keeps it' "$C1"
+add_status "$FIX" "$APPROVAL_DEV" failure mallory 'Withdrawn'
+sync_case 1 'withdrawn on the older commit too, it is not kept' "$C1"
+# A rebase leaves the old heads' approvals in place too: withdrawn on both, a stale push
+# of the old chain does not keep it.
 approve "$FIXAGAIN" develop
 add_status "$FIXAGAIN" "$APPROVAL_DEV" failure mallory 'Withdrawn'
 add_status "$FIX" "$APPROVAL_DEV" success "$APP_LOGIN" "$D_FIX"

@@ -73,10 +73,13 @@
 #     gh api -X POST repos/<owner>/<repo>/statuses/<approved sha> -f state=failure \
 #       -f context=data-bearing-approval/develop -f description="Withdrawn"
 #   The newest status on that commit is the one that counts, so the approval no longer
-#   counts there or for any later head, and the walk stops at that commit, so no older
-#   approval for the same data on the chain counts either. A rebase leaves the old heads'
-#   approvals on commits no longer on the chain, where a stale push could bring them back:
-#   post the failure on each commit that holds an approval for that data. Agents never post
+#   counts there, and a walk that reaches that commit stops there. A head that does not
+#   build on it (a force-push from an older clone, a rebase) never reaches it and can still
+#   find an older approval for the same data, so post the failure on every commit that
+#   holds an App approval for that data: the approval statuses on
+#   `git rev-list --first-parent <withdrawn commit>`, and the earlier heads the PR's
+#   force-push events name. A status does not re-run this check, so then re-run it on
+#   every open PR to develop whose verdict names one of those commits. Agents never post
 #   it (they run under a person's account). Mark the PR draft to stop a merge meanwhile.
 #   Staging and main never keep an approval across a push.
 #
