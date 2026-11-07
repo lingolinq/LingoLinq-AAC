@@ -61,14 +61,19 @@ the connection gate, the keepalive, repeat encrypts and unsaved records.
 
 Round 2 of both passes, at `4d37a5531`: senior-dev approved with comments, adversary said ship, with Low
 findings only. After that round `in_room` moved to the end of the condition, so it runs only for users
-sharing a sentence, and became safe with no `connection`; that edit was not separately reviewed.
+sharing a sentence, and became safe with no `connection`.
 
 After that, `.eslint-todo` rows had shifted, so the same logic moved into helpers at the end of the service and
 edits kept their line counts, with no baseline change. The tests and the mutations above were rerun.
 
+Final round of both passes at `bd0457bb4`, covering those edits: senior-dev approved with comments, adversary
+said ship, with Low findings only.
+
 ## Unresolved
 
 - The observer still runs inline in the press; a future throw there would end the press again.
+- A link button's looked-up sound URL now reaches the usage log event, because the press no longer returns early.
+- No test drives the keepalive retry after a failed encrypt.
 - An async write to a button (a sound or license) can change the sentence during an encrypt; that sentence
   then waits for the keepalive, up to 20 seconds.
 - The send after encrypting does not re-check the room, and `in_room` is true before a subscription is
