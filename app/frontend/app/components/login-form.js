@@ -896,7 +896,7 @@ export default Component.extend({
       if(choice) {
         _this.send('login_followup', true);
       } else {
-        _this.session.invalidate(true);
+        _this.session.sign_out();
       }
     },
     login_followup: function(choice) {
@@ -1054,7 +1054,7 @@ export default Component.extend({
       });
     },
     logout: function() {
-      this.session.invalidate(true);
+      this.session.sign_out();
     },
     continue_with_google: function(event) {
       if(this.get('noSecret')) {

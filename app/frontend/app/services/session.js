@@ -953,5 +953,31 @@ export default Service.extend({
       });
     });
 
+  },
+  // invalidate only clears this device's copy of the token; this also ends it on the server.
+  // wait_ms caps how long a slow or unreachable server can hold up signing out.
+  sign_out: function(wait_ms) {
+    var _this = this;
+    if(this.sign_out_promise) { return this.sign_out_promise; }
+    if(!this.get('access_token')) {
+      this.invalidate(true);
+      return RSVP.resolve();
+    }
+    // The server would refuse a request made as another user if that user can no longer be viewed
+    this.set('as_user_id', null);
+    this.sign_out_promise = new RSVP.Promise(function(resolve) {
+      var timer = null;
+      var done = function() {
+        if(!timer) { return; }
+        clearTimeout(timer);
+        timer = null;
+        _this.sign_out_promise = null;
+        _this.invalidate(true);
+        resolve();
+      };
+      timer = setTimeout(done, wait_ms || 2000);
+      _this.persistence.ajax('/api/v1/token', {type: 'DELETE'}).then(done, done);
+    });
+    return this.sign_out_promise;
   }
 });
