@@ -422,6 +422,48 @@ describe UserMailer, :type => :mailer do
       expect(m.subject).to eq(nil)
     end
 
+    # #912: org.settings['email_templates'] is copied onto the domain in
+    # Organization.load_domains (three lines that no other spec reads). A stored
+    # override must survive set_host -> enqueue -> Worker.process_queues ->
+    # SystemEmailTemplates.lookup -> SystemEmailOverride#mail and appear in BOTH
+    # MIME parts. Calling set_domain_id directly would skip the queue restore.
+    it "delivers a stored org email-template override through the worker queue" do
+      o = Organization.create(custom_domain: true)
+      o.settings['hosts'] = ['override-mail.example.test']
+      o.settings['host_settings'] = {}
+      o.settings['email_templates'] = {
+        'user_mailer/log_message' => {
+          'html_body' => '<p>ZXQ-html-override-912-not-in-default</p>',
+          'text_body' => 'ZXQ-text-override-912-not-in-default'
+        }
+      }
+      o.save
+      # Same drain as the cheddar.org app_name examples; with transactional
+      # fixtures the after-commit domain refresh may not run, and the mail job
+      # below still rebuilds an empty Redis domain cache via load_domains.
+      Worker.process_queues
+
+      u = User.create(settings: {email: 'test@example.com'})
+      d = Device.create(:user => u)
+      l = LogSession.create(:user => u, :author => u, :device => d)
+      l.data['note'] = {'text' => 'you are my friend'}
+      l.save
+
+      JsonApi::Json.set_host('https://override-mail.example.test')
+      ActionMailer::Base.deliveries.clear
+      UserMailer.schedule_delivery(:log_message, u.global_id, l.global_id)
+      Worker.process_queues
+
+      expect(ActionMailer::Base.deliveries.length).to eq(1)
+      mail = ActionMailer::Base.deliveries.last
+      html = message_body(mail, :html)
+      text = message_body(mail, :text)
+      expect(html).to include('ZXQ-html-override-912-not-in-default')
+      expect(text).to include('ZXQ-text-override-912-not-in-default')
+      expect(html).not_to match(/just posted a message/)
+      expect(text).not_to match(/just posted a message/)
+    end
+
     it "should include a status-check footer if specified" do
       u = User.create(settings: {email: 'test@example.com'})
       d = Device.create(:user => u)
