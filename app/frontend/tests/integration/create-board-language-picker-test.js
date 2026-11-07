@@ -79,11 +79,12 @@ QUnit.module('Integration | Component | create-board-new language picker', funct
     const appState = this.owner.lookup('service:app-state');
     const prior = appState.get('currentUser');
     const priorSession = appState.get('sessionUser');
-    appState.set('currentUser', EmberObject.create({ feature_flags: { english_first_board_generation: true } }));
     appState.set('sessionUser', EmberObject.create({
       supporter_role: true,
       known_supervisees: [{ id: 'u-es', user_name: 'communicator', locale: 'es' }]
     }));
+    // After sessionUser, whose observers replace currentUser.
+    appState.set('currentUser', EmberObject.create({ feature_flags: { english_first_board_generation: true } }));
     const seen = capture(this.owner);
     try {
       await render(hbs`<CreateBoardNew />`);
