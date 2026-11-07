@@ -2526,6 +2526,15 @@ var capabilities;
   };
   capabilities.sensor_listen();
 
+  // With no database, storage calls queued in dbman.not_ready would wait forever (#1205): settle them,
+  // and later calls fail at once. A native setup call can also simply never return.
+  capabilities.db_setup_wait = 30000;
+  capabilities.database_unavailable = function(err, promise) {
+    capabilities.db = false;
+    (capabilities.queued_db_actions || []).forEach(function(m) { m[2].reject({error: 'db not initialized'}); });
+    capabilities.queued_db_actions = [];
+    promise.reject(err);
+  };
   capabilities.setup_database = function() {
     delete capabilities['db'];
     var promise = capabilities.mini_promise();
@@ -2541,7 +2550,9 @@ var capabilities;
   
   
       var setup = capabilities.dbman.setup_database(key, capabilities.dbman.dbversion);
-      setup.then(function(db) {
+      var setup_failed = function(err) { capabilities.database_unavailable(err, promise); };
+      var setup_timer = setTimeout(function() { setup_failed({error: 'db setup timed out'}); }, capabilities.db_setup_wait);
+      setup.then(function(db) { clearTimeout(setup_timer);
         // Don't proceed with app initialization until db_connect completes, ensuring
         // stashes is populated with whatever data is available.
         var connect = stashes.db_connect(capabilities);
@@ -2559,7 +2570,8 @@ var capabilities;
           promise.reject(err);
         });
       }, function(err) {
-        promise.reject(err);
+        clearTimeout(setup_timer);
+        setup_failed(err);
       });
   
 
