@@ -1073,8 +1073,11 @@ LingoLinq.Board = BaseModel.extend({
       // If setting a new default locale, do it here
       var new_loc = this.get('default_locale');
       var old_loc = this.get('locale');
-      var trans = this.get('translations');
+      var trans = this.get('translations') || {};
       var buttons = board.get('buttons') || [];
+      // Same gate as Relinking#update_default_locale!: with nothing translated the labels
+      // stay in the old language, so the board must too.
+      var anything_translated = false;
       buttons.forEach(function(btn) {
         trans[btn.id] = trans[btn.id] || {};
         trans[btn.id][old_loc] = trans[btn.id][old_loc] || {}
@@ -1084,16 +1087,19 @@ LingoLinq.Board = BaseModel.extend({
           trans[btn.id][old_loc].inflections = btn.inflections;  
         }
         if(trans[btn.id][new_loc]) {
+          anything_translated = true;
           btn.label = trans[btn.id][new_loc].label;
           btn.vocalization = trans[btn.id][new_loc].vocalization;
           btn.inflections = trans[btn.id][new_loc].inflections;
         }
       });
-      if(trans['board_name'] && trans['board_name'][new_loc]) {
-        board.set('name', trans['board_name'][new_loc]);
+      if(anything_translated) {
+        if(trans['board_name'] && trans['board_name'][new_loc]) {
+          board.set('name', trans['board_name'][new_loc]);
+        }
+        board.set('buttons', buttons);
+        board.set('locale', new_loc);
       }
-      board.set('buttons', buttons);
-      board.set('locale', new_loc);
     }
     if(this.get('local_only')) {
       board.set('parent_board_id', null);

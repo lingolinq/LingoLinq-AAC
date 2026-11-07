@@ -1565,6 +1565,16 @@ describe Api::BoardsController, :type => :controller do
       json = JSON.parse(response.body)
       expect(json['board']['locale']).to eq('en')
     end
+
+    it "keeps the language of a copy when the source board has no translations" do
+      token_user
+      source = Board.process_new({ 'name' => "Fuente", 'locale' => "es", 'buttons' => [{ 'id' => 1, 'label' => "sombrero" }],
+        'grid' => { 'rows' => 1, 'columns' => 1, 'order' => [[1]] } }, { user: @user })
+      post :create, params: { board: { name: "Fuente", locale: "es", parent_board_id: source.global_id } }
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['board']['locale']).to eq('es')
+    end
   end
 
   describe "create (Art.50(2) marker persistence)" do

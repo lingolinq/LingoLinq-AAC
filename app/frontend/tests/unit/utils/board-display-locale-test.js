@@ -4,7 +4,8 @@ import {
   available_board_langs,
   board_default_locale,
   resolve_board_display_locale,
-  session_board_locale
+  session_board_locale,
+  board_language_for_session
 } from 'frontend/utils/board_display_locale';
 
 module('Unit | Utility | board_display_locale', function() {
@@ -79,6 +80,27 @@ module('Unit | Utility | board_display_locale', function() {
   test('session_board_locale: a board with no language stays unset so readers use their own fallback', function(assert) {
     const stashes = stashesWith({ label_locale: 'es' });
     assert.strictEqual(session_board_locale(stashes, 'label_locale', undefined, []), undefined);
+  });
+
+  function boardIn(locale, locales) {
+    return { get: function(key) { return key === 'locale' ? locale : locales; } };
+  }
+
+  test('board_language_for_session: a language left over from another board does not apply', function(assert) {
+    const stashes = stashesWith({ label_locale: 'es' });
+    assert.strictEqual(board_language_for_session(stashes, boardIn('en', ['en'])), 'en');
+    assert.strictEqual(board_language_for_session(stashes, boardIn('en', ['en', 'es'])), 'en');
+  });
+
+  test('board_language_for_session: Switch Languages applies where the board has that language', function(assert) {
+    const stashes = stashesWith({ label_locale: 'es', override_label_locale: 'es' });
+    assert.strictEqual(board_language_for_session(stashes, boardIn('en', ['en', 'es'])), 'es');
+    assert.strictEqual(board_language_for_session(stashes, boardIn('en', ['en'])), 'en');
+  });
+
+  test('board_language_for_session: a language the board only has as a regional variant stays on the board language', function(assert) {
+    const stashes = stashesWith({ label_locale: 'es', override_label_locale: 'es' });
+    assert.strictEqual(board_language_for_session(stashes, boardIn('en', ['en', 'es_US'])), 'en');
   });
 
   test('board_default_locale: a keyboard board with English is English for a user with no language', function(assert) {

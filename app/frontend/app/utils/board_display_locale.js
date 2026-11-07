@@ -69,3 +69,13 @@ export function session_board_locale(stashes, loc_type, board_default, board_lan
     preferred: stashes.get(loc_type) || stashes.get('override_' + loc_type) || override
   });
 }
+
+// The language a copy of this board starts in. The session language stays on the last board
+// viewed, so it counts only through the rule above, and only if the board literally has it:
+// the resolver can answer with a root language (es) for a board that stores a regional one (es_US).
+export function board_language_for_session(stashes, board) {
+  var own = board.get('locale');
+  var board_langs = available_board_langs(board, null);
+  var session = session_board_locale(stashes, 'label_locale', own, board_langs);
+  return board_langs.indexOf(session) === -1 ? own : session;
+}
