@@ -2453,7 +2453,7 @@ var persistence = Service.extend({
         if(_this_sync.stashes && _this_sync.stashes.persist) {
           _this_sync.stashes.persist('last_sync_status', 'failed');
         }
-        _this_sync.set('sync_status_error', null);
+        _this_sync.set('sync_status_error', capabilities.db ? null : i18n.t('device_storage_unavailable', "This device can't save boards right now. Try restarting the app."));
         if(err.board_unauthorized) {
           _this_sync.set('sync_status_error', i18n.t('board_unauthorized', "One or more boards are private"));
         } else if(!_this_sync.get('online')) {

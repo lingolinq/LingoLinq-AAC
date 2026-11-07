@@ -448,3 +448,18 @@ A success-path test was dropped: order-dependent hang with neighbouring tests, a
 **#1201: partial.** `capabilities.mobile` is true on an iPad. `system` stays "Mac": the iOS branch reads an iOS version the Mac agent lacks,
 and `system == 'iOS'` changes file URLs and database indexes, which the simulator passed without. Needs a simulator run. Side effect:
 a signed-out iPad Home Screen launch gets the iPhone's sign-in overlay.
+
+### #1205 and #1201 follow-up (2026-11-06)
+
+Both were reported as more done than they were. #1205 now covers a `db_settings` failure; a `db_connect` failure runs the queue, since the
+database itself is open. Decision: show an error, not an IndexedDB fallback, which would hide a failed database behind boards that look saved. The text
+reaches the user through `sync_status_error` (Modern's Sync failed notice); untested. The 30 s limit covers setup only, not every native call in
+mobile #6. Simulator check with a forced failure not done. Two tests were dropped (success path, `db_settings` failure): after the neighbouring `capabilities`
+tests they hang or receive a promise, so something there leaks state. Not traced.
+
+#1201 readers of `capabilities.system`, what `iOS` would change on an iPad:
+- Would improve: `no_linky`, native voices (`voice-output`, `tts_voices`, preferences), iOS subscription handling, `confirm-external-app`.
+- Needs a simulator: `fix_url` file URLs (`capabilities.js:1537`, `:1571`), `local_url` encoding (`persistence.js:434`, `:1337`), `dbman.js:763-764` IndexedDB
+  indexes (existing web databases), `app.js:144`.
+- `system_version` / `ios_version`: none on an iPad (the agent says `10_15_7`), so unset; the version parse no longer throws without it.
+`capabilities.mobile` uses `Capacitor.getPlatform()` in the app. `system` stays Mac until a simulator run.

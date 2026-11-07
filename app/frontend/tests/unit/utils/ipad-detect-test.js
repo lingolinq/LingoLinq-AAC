@@ -8,6 +8,14 @@ module('Unit | Utility | ipad_detect', function() {
     assert.true(is_ipad_with_mac_agent({userAgent: mac, maxTouchPoints: 5}));
   });
 
+  test('in the native app the platform decides', function(assert) {
+    var ios = {Capacitor: {getPlatform: function() { return 'ios'; }}};
+    var web = {Capacitor: {getPlatform: function() { return 'web'; }}};
+    assert.true(is_ipad_with_mac_agent({userAgent: mac, maxTouchPoints: 0}, ios));
+    assert.false(is_ipad_with_mac_agent({userAgent: mac, maxTouchPoints: 0}, web));
+    assert.false(is_ipad_with_mac_agent({userAgent: mac, maxTouchPoints: 0}, {}));
+  });
+
   test('a real Mac and everything else are not', function(assert) {
     assert.false(is_ipad_with_mac_agent({userAgent: mac, maxTouchPoints: 0}), 'a Mac');
     assert.false(is_ipad_with_mac_agent({userAgent: mac, maxTouchPoints: 1}), 'a Mac with a single-touch device');

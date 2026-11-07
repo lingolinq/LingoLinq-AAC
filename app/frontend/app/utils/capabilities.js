@@ -205,7 +205,7 @@ var capabilities;
       } else if(navigator.userAgent.match(/safari/i)) {
         capabilities.browser = "Safari";
       }
-      var version = navigator.userAgent.match(/OS\s+([\d_]+)\s+like/)[1];
+      var version = (navigator.userAgent.match(/OS\s+([\d_]+)\s+like/) || [])[1];
       version = parseInt(version && version.split(/_/)[0], 10);
       if(version && isFinite(version)) {
         capabilities.system_version = version;
@@ -227,7 +227,7 @@ var capabilities;
       capabilities.system = "Windows Phone";
     } else {
       if(navigator.userAgent.match(/macintosh/i)) {
-        capabilities.system = "Mac"; capabilities.mobile = is_ipad_with_mac_agent(navigator); // `system` stays: see #1201
+        capabilities.system = "Mac"; capabilities.mobile = is_ipad_with_mac_agent(navigator, window); // `system` stays: see #1201
       } else if(navigator.userAgent.match(/windows\snt/i)) {
         capabilities.system = "Windows";
       } else if(navigator.userAgent.match(/LingoLinq Desktop App/)) {
@@ -2536,6 +2536,16 @@ var capabilities;
     capabilities.queued_db_actions = [];
     promise.reject(err);
   };
+  capabilities.run_queued_db_actions = function() {
+    (capabilities.queued_db_actions || []).forEach(function(m) {
+      m[0](m[1]).then(function(res) {
+        m[2].resolve(res);
+      }, function(err) {
+        m[2].reject(err);
+      });
+    });
+    capabilities.queued_db_actions = [];
+  };
   capabilities.setup_database = function() {
     delete capabilities['db'];
     var promise = capabilities.mini_promise();
@@ -2558,16 +2568,11 @@ var capabilities;
         // stashes is populated with whatever data is available.
         var connect = stashes.db_connect(capabilities);
         connect.then(function() {
-          (capabilities.queued_db_actions || []).forEach(function(m) {
-            m[0](m[1]).then(function(res) {
-              m[2].resolve(res);
-            }, function(err) {
-              m[2].reject(err);
-            });
-          });
-          capabilities.queued_db_actions = [];
+          capabilities.run_queued_db_actions();
           promise.resolve();
         }, function(err) {
+          // The database itself is open, only the stash read failed, so what was waiting can still run.
+          capabilities.run_queued_db_actions();
           promise.reject(err);
         });
       }, function(err) {
@@ -2577,7 +2582,7 @@ var capabilities;
   
 
     }, function(err) {
-      promise.reject({error: err});
+      capabilities.database_unavailable({error: err}, promise);
     });
 
     return promise;

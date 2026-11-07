@@ -47,6 +47,18 @@ module('Unit | Utility | capabilities database setup failure', function(hooks) {
     setTimeout(function() { setup.reject({error: 'duplicate column name: key_id'}); }, 0);
   });
 
+  test('queued calls can still run when the database itself is open', function(assert) {
+    assert.expect(2);
+    var waiting = queued();
+    capabilities.run_queued_db_actions();
+    var done = assert.async();
+    setTimeout(function() {
+      assert.strictEqual(waiting.resolved, 'ran');
+      assert.deepEqual(capabilities.queued_db_actions, []);
+      done();
+    }, 0);
+  });
+
   test('a setup that never answers gives up, rather than leaving reads waiting', function(assert) {
     assert.expect(3);
     stub(capabilities.dbman, 'setup_database', function() { return capabilities.mini_promise(); });
