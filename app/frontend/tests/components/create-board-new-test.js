@@ -721,6 +721,19 @@ describe('CreateBoardNewComponent', 'component:create-board-new', function() {
       expect(c.get('language_from_owner')).toEqual(true);
     });
 
+    it('stops crediting the owner once the person picks a language', function() {
+      var c = makeComponent();
+      c.set('appState', EmberObject.create({
+        feature_flags: EmberObject.create({ english_first_board_generation: true }),
+        sessionUser: EmberObject.create({ known_supervisees: [{ id: 'u-es', locale: 'es' }] })
+      }));
+      c.set('model.locale', 'en');
+      c.send('setForUserId', 'u-es');
+      c.send('setLocale', 'fr');
+      expect(c.get('language_from_owner')).toEqual(false);
+      expect(c.get('model.locale')).toEqual('fr');
+    });
+
     it('does not carry one supervisee language over to the next', function() {
       var c = makeComponent();
       c.set('appState', EmberObject.create({

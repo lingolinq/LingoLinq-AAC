@@ -1376,8 +1376,8 @@ export default Component.extend({
     });
   },
 
-  /** When creating for a supervisee, use their locale if the list already
-   *  carries one. Otherwise leave the current authoring locale in place. */
+  /** When creating for a supervisee, use their locale if the list carries one,
+   *  otherwise the creator's. A language picked on step 1 always stays. */
   _apply_supervisee_authoring_locale(userId) {
     if(!this.appState.get('feature_flags.english_first_board_generation')) {
       return;
@@ -2654,7 +2654,7 @@ export default Component.extend({
     },
     setLocale: function(value) {
       // The list's placeholder rows have a blank id, and a board needs a real language.
-      this.set('authoring_locale_chosen', !!value);
+      this.setProperties({ authoring_locale_chosen: !!value, language_from_owner: false });
       this._set_authoring_locale(value || this.get('preferred_communicator_locale') || 'en');
     },
     setLabelsOrder: function(value) {

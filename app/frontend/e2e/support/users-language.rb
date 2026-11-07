@@ -1,4 +1,4 @@
-# Creates (or resets) the synthetic local users e2e/create-board-new-language.spec.js signs in
+# Creates (or resets) the synthetic local users e2e/board-language.spec.js signs in
 # as. LOCAL DEV DATABASE ONLY: the spec clicks real buttons. Every value here is made up.
 #
 #   DB_USER=... bin/rails runner app/frontend/e2e/support/users-language.rb
