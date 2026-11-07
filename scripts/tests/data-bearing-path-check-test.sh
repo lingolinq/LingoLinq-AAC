@@ -319,7 +319,9 @@ chmod +x "$GHBIN/gh"
 MARK="$WORK/check-ran"
 SPY="$WORK/check-spy.sh"
 # The spy marks the verdict run only; the CI script also runs the check's --data-scope mode.
-printf '#!/usr/bin/env bash\n[ "${1:-}" = --data-scope ] || touch "%s"\nexec bash "%s" "$@"\n' "$MARK" "$CHECK" > "$SPY"
+# It also records any token it was given: the check reads git only and gets neither.
+LEAK="$WORK/token-leak"
+printf '#!/usr/bin/env bash\n[ -z "${GH_TOKEN+x}${STATUS_TOKEN+x}" ] || echo "$*" >> "%s"\n[ "${1:-}" = --data-scope ] || touch "%s"\nexec bash "%s" "$@"\n' "$LEAK" "$MARK" "$CHECK" > "$SPY"
 
 # A real origin, so the live base is fetched as the workflow fetches it. The local
 # remote-tracking refs start out equal to it; some cases make them stale. A push to the
@@ -843,9 +845,69 @@ if [ "$rc" = 9 ]; then printf '  ok   exit 9  stub: a description over 140 chara
 else printf '  FAIL exit %s (expected 9)  stub: a description over 140 characters is refused\n' "$rc"; fails=$((fails + 1)); fi
 
 # Another PR whose head builds on an approved commit keeps it too: the approval binds the
-# flagged files, and two PRs that merge the same ones share it (Scot, 2026-10-11).
+# flagged files and the commit it sits on, not the PR (the 2026-10-11 decision covered
+# identical heads; this extends it to heads built on one).
 approve "$FIX" develop; move_head "$C2"
 sync_case 0 'PR 8 building on PR 7'"'"'s approved commit keeps the approval' "$C2" PR_NUMBER=8
+
+# Withdrawing: editing the data voids the approval for heads built on the edit, but a
+# later head back on the approved commit (a force-push from a stale clone, a stacked PR)
+# would find it again. A person posting failure on data-bearing-approval/develop at the
+# approved commit withdraws it for good: the newest status on that commit is what counts.
+approve "$FIX" develop
+add_status "$FIX" "$APPROVAL_DEV" failure mallory 'Withdrawn: the fixture holds real data'
+move_head "$C2"
+sync_case 1 'a person'"'"'s failure on the approved commit withdraws it for a later head' "$C2"
+sync_case 1 'and for a stacked PR built on it' "$C2" PR_NUMBER=8
+move_head "$FIX"
+sync_case 1 'and for the approved head itself' "$FIX"
+
+# The exact data scope binds the approval: after develop is rewritten (to scrub data, say)
+# the same head brings in more, and neither the head nor a later head keeps it.
+set_origin develop "$FIX"
+approve "$REL_FIX" develop "$FIX"
+set_origin develop "$BASE"; move_head "$REL_FIX" "$BASE"
+sync_case 1 'develop rewritten under a data-form approval: the head does not keep it' "$REL_FIX"
+REL3="$(chain "$REL_FIX" 1 rel3)"
+move_head "$REL3" "$BASE"
+sync_case 1 'develop rewritten under a data-form approval: a later head does not keep it' "$REL3"
+set_origin develop "$FIX"
+
+# A workflow path that is also data-bearing by name is both: it can be approved and kept.
+WFDATA="$(commit_change wf-data bash -c 'mkdir -p .github/workflows && printf "a,b\n" > .github/workflows/data.csv')"
+scope_case 'a workflow path that is also data-bearing is in the data scope once' \
+  "$WFDATA $(data_scope_for "$BASE" "$WFDATA" '\.github/workflows/data\.csv$')" "$BASE" "$WFDATA"
+WFDATA2="$(chain "$WFDATA" 1 wfdata)"
+approve "$WFDATA" develop; move_head "$WFDATA2"
+sync_case 0 'a workflow data file: approved, then kept across a code-only push' "$WFDATA2"
+
+# An earlier commit that cannot be scoped (here a git-quoted name, added and then removed)
+# ends the walk instead of failing the run: an approval found before it still counts, and
+# without one the verdict is the ordinary failure.
+git -C "$REPO" checkout -q -B quoted "$BASE"
+printf 'name: x\n' > "$REPO/spec/fixtures/new.yml"; mkdir -p "$REPO/app"; printf 'x\n' > "$REPO/app/q\"x.rb"
+git -C "$REPO" add -A && git -C "$REPO" commit -q -m 'quoted name'
+git -C "$REPO" rm -q 'app/q"x.rb' && git -C "$REPO" commit -q -m 'remove it'
+QA="$(git -C "$REPO" rev-parse HEAD)"
+QH="$(chain "$QA" 1 qh)"
+approve "$QA" develop; move_head "$QH"
+sync_case 0 'an unscopable commit behind the approved one does not stop the carry' "$QH"
+stub_pr "$QH" develop; stub_labels '[]'
+sync_case 1 'an unscopable earlier commit and no approval: the ordinary failure' "$QH"
+
+# Output from --data-scope that does not name the commit asked for is not trusted.
+BADSCOPE="$WORK/check-bad-scope.sh"
+cat > "$BADSCOPE" <<BEOF
+#!/usr/bin/env bash
+if [ "\${1:-}" = --data-scope ] && [ "\${3:-}" != "\${FAKE_GOOD:-}" ]; then
+  echo "0123456789abcdef0123456789abcdef01234567 $EMPTY_SCOPE"; exit 0
+fi
+exec bash "$SPY" "\$@"
+BEOF
+stub_pr "$FIX" develop
+run_ci 3 no 'a malformed data scope for the head fails closed' "$FIX" CHECK="$BADSCOPE"
+approve "$FIX" develop; move_head "$C2"
+run_ci 3 no 'a malformed data scope for an earlier commit fails closed' "$C2" EVENT_ACTION=synchronize CHECK="$BADSCOPE" FAKE_GOOD="$C2"
 
 # The walk reads statuses with the App token (its own rate-limit budget, not the
 # repository's workflow-token budget), one read per unchanged commit, newest first.
@@ -1006,6 +1068,10 @@ run_ci --mark-success 3 no 'mark accepts only pending or error' "$FIX"
 posted_case NONE 'no status for a refused mark'
 stub_pr "$FIX" develop
 run_ci --mark-pending 3 no 'mark without the App token fails closed' "$FIX" STATUS_TOKEN=
+
+total=$((total + 1))
+if [ ! -s "$LEAK" ]; then printf '  ok   tokens  ci: the check never ran with GH_TOKEN or STATUS_TOKEN set\n'
+else printf '  FAIL tokens  ci: the check ran with a token set (%s)\n' "$(head -1 "$LEAK")"; fails=$((fails + 1)); fi
 
 echo
 if [ "$fails" -eq 0 ]; then
