@@ -1,0 +1,64 @@
+<!--
+  Added to the host's policy.xml through MAGICK_CONFIGURE_PATH (set in the Dockerfile). Debian's policy
+  leaves several scripting and file-reading coders open. The app's own commands read image files by path.
+  Debian already denies PDF; the obf gem's direct gs call is not an ImageMagick delegate, so it is unaffected.
+  This does not stop an SVG referring to a local image by path; SVGs are sanitized before they get here.
+
+  Rules follow Active Storage's own policy (active_storage/image_magick/policy.xml in Rails 8.1.4.1).
+
+  Do not put a backtick anywhere in this file. ImageMagick's tokenizer treats a backtick as an
+  opening quote and silently drops every rule up to the next apostrophe.
+-->
+<policymap>
+  <!-- Scripting coder that reads and writes files named inside the image. -->
+  <policy domain="coder" rights="none" pattern="MSL"/>
+
+  <!-- Coders that read a file, or delete one, other than the image being processed. -->
+  <policy domain="coder" rights="none" pattern="EPHEMERAL"/>
+  <policy domain="coder" rights="none" pattern="TEXT"/>
+
+  <!-- Coder that reads back a pixel cache from a file the image header names. -->
+  <policy domain="coder" rights="none" pattern="MPC"/>
+
+  <!-- Coders that display to a screen. -->
+  <policy domain="coder" rights="none" pattern="SHOW"/>
+  <policy domain="coder" rights="none" pattern="WIN"/>
+  <policy domain="coder" rights="none" pattern="PLT"/>
+
+  <!-- Coders that read a reference named by a URL. FILE reads file://. -->
+  <policy domain="coder" rights="none" pattern="URL"/>
+  <policy domain="coder" rights="none" pattern="HTTP"/>
+  <policy domain="coder" rights="none" pattern="HTTPS"/>
+  <policy domain="coder" rights="none" pattern="FTP"/>
+  <policy domain="coder" rights="none" pattern="FILE"/>
+
+  <!-- Interpreters that read and write files of their own. Ghostscript backs the PS and PDF
+       coders and their token aliases; GhostXPS and GhostPCL back XPS and PCL. The "gs" delegate
+       covers ImageMagick builds that run Ghostscript as an external command, and the coder rules
+       cover builds that link it in-process, where the delegate rule never applies. An
+       application that transforms PostScript or PDF through ImageMagick must allow the "gs"
+       delegate, and the coders it uses, again in the host's policy.xml. -->
+  <policy domain="delegate" rights="none" pattern="gs"/>
+  <policy domain="coder" rights="none" pattern="PS"/>
+  <policy domain="coder" rights="none" pattern="PS2"/>
+  <policy domain="coder" rights="none" pattern="PS3"/>
+  <policy domain="coder" rights="none" pattern="EPS"/>
+  <policy domain="coder" rights="none" pattern="EPS2"/>
+  <policy domain="coder" rights="none" pattern="EPS3"/>
+  <policy domain="coder" rights="none" pattern="EPI"/>
+  <policy domain="coder" rights="none" pattern="EPSF"/>
+  <policy domain="coder" rights="none" pattern="EPSI"/>
+  <policy domain="coder" rights="none" pattern="EPT"/>
+  <policy domain="coder" rights="none" pattern="EPT2"/>
+  <policy domain="coder" rights="none" pattern="EPT3"/>
+  <policy domain="coder" rights="none" pattern="PDF"/>
+  <policy domain="coder" rights="none" pattern="AI"/>
+  <policy domain="coder" rights="none" pattern="EPDF"/>
+  <policy domain="coder" rights="none" pattern="PDFA"/>
+  <policy domain="coder" rights="none" pattern="POCKETMOD"/>
+  <policy domain="coder" rights="none" pattern="XPS"/>
+  <policy domain="coder" rights="none" pattern="PCL"/>
+
+  <!-- Indirect reads such as text:@/etc/passwd, which substitute a file for an argument. -->
+  <policy domain="path" rights="none" pattern="@*"/>
+</policymap>

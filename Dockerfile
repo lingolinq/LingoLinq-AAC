@@ -25,7 +25,7 @@ FROM ruby:3.4.4-slim
 WORKDIR /app
 
 # Install system dependencies
-# imagemagick (convert/identify/montage) and ghostscript (gs, ImageMagick's PDF/PS delegate) are
+# imagemagick (convert/identify/montage) and ghostscript (gs, which the obf gem runs directly to merge PDFs) are
 # required by ButtonImage upload processing (app/models/concerns/uploadable.rb `identify`)
 # and lib/sentence_pic.rb (`convert`) -- LL-5954bcbbe6: missing here caused
 # "No such file or directory - identify" Resque failures in the Cloud Run image.
@@ -53,12 +53,18 @@ ENV RAILS_ENV="production" \
     BUNDLE_WITHOUT="development test" \
     BUNDLE_DEPLOYMENT="1"
 
+# Extra ImageMagick rules on top of Debian's policy; see the file for why.
+ENV MAGICK_CONFIGURE_PATH=/app/config/imagemagick
+
 # Install gems
 COPY Gemfile Gemfile.lock ./
 RUN bundle install
 
 # Copy application code
 COPY . .
+
+# Fails the build unless the policy above is really applied by this image's ImageMagick.
+RUN convert text:/etc/passwd null: 2>&1 | grep -q 'security policy'
 
 # Copy built Ember assets from the frontend-builder stage
 COPY --from=frontend-builder /app/frontend/dist ./app/frontend/dist
