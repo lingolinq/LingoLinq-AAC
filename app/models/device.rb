@@ -218,8 +218,22 @@ class Device < ApplicationRecord
   end
   
   def logout!
+    old_keys = self.settings['keys'] || []
     self.settings['keys'] = []
     self.save
+    old_keys.each { |key| RedisInit.permissions.del("user_token/#{key['value']}") }
+  end
+
+  # Ends one session. A row can hold several (SSO logins share one), so the others are left alone.
+  # The marker comes first and check_token reads it first, so a request already in flight cannot
+  # bring the token back by caching it again or saving the row's old keys.
+  def revoke_token!(token)
+    Permissions.setex(RedisInit.permissions, "revoked_token/#{token}", [self.token_timeout, 13.hours.to_i].max, 'true')
+    self.with_lock do
+      self.settings['keys'] = (self.settings['keys'] || []).reject { |key| key['value'] == token }
+      self.save
+    end
+    RedisInit.permissions.del("user_token/#{token}")
   end
   
   def unique_device_key
@@ -309,6 +323,9 @@ class Device < ApplicationRecord
     scopes = nil
     valet = nil
     valet_mode = false
+    if RedisInit.permissions.exists?("revoked_token/#{token}")
+      return {error: "Invalid token", skip_on_token_check: true, invalid_token: true}
+    end
     cached = RedisInit.permissions.get("user_token/#{token}")
     res = {}
     if cached
@@ -374,7 +391,12 @@ class Device < ApplicationRecord
         user.permission_scopes = scopes
 
         store = [user_id, device_id, PermissionScopesNormalize.for_api(scopes).join(','), valet_mode].join("::")
-        Permissions.setex(RedisInit.permissions, "user_token/#{token}", 12.hours.to_i, store) if !res[:error]
+        if res[:cached] && !res[:error]
+          # EXPIRE, not SETEX: it keeps an active session going but cannot recreate a deleted entry
+          RedisInit.permissions.expire("user_token/#{token}", 12.hours.to_i)
+        elsif !res[:cached] && !res[:error]
+          Permissions.setex(RedisInit.permissions, "user_token/#{token}", 12.hours.to_i, store)
+        end
         res[:user] = user
         user.assert_valet_mode! if valet_mode
         res[:device_id] = device_id
