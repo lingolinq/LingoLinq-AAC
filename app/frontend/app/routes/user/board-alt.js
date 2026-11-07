@@ -112,6 +112,16 @@ export default Route.extend({
     };
     return find_board(true);
   },
+  // Offline with nothing to show, and the server did not refuse it: never a dead end.
+  session: service('session'),
+  router: service('router'),
+  persistence_for_board: service('persistence'),
+  afterModel: function(model) {
+    var error = model && model.get && model.get('id') === 'bad' && model.get('error');
+    if(error && !error.unauthorized && !error.revoked) {
+      leave_unsaved_board(this.router, this.persistence_for_board, this.session);
+    }
+  },
   serialize: function(model) {
     var boardname;
     if (model && typeof model.get === 'function') {
@@ -147,3 +157,4 @@ export default Route.extend({
 });
 // Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
 import boardRevocation from '../../utils/board_revocation';
+import { leave_unsaved_board } from '../../utils/board_device_copy';

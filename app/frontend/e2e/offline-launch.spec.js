@@ -74,6 +74,7 @@ async function launchOffline(context, page, url, expected) {
   await expect(expected.first()).toBeVisible();
 }
 
+const NOT_SAVED = /isn't saved on this device yet/;
 const NEEDS_CONNECTION = 'This board needs an Internet connection to do that.';
 // The server's refusal of the view permission (application_controller#allowed?).
 const DENIED = JSON.stringify({ error: 'Not authorized', unauthorized: true, permission: 'view', status: 400 });
@@ -299,6 +300,29 @@ test.describe('offline launch from the offline app shell', () => {
         window.dispatchEvent(new PopStateEvent('popstate', { state: {} }));
       });
       await expect(errorPage(page), 'the owner\'s boards page cannot be shown offline').toHaveCount(1, { timeout: 30_000 });
+    } finally {
+      await context.setOffline(false).catch(() => {});
+      await context.close();
+    }
+  });
+
+  // A board that is not on the device is never a dead end (#1209).
+  test('offline, a board that is not saved leads to the boards page, and a folder that is not saved stays put', async () => {
+    const context = await openProfile('not-saved');
+    try {
+      const page = context.pages()[0] || await context.newPage();
+      await prepare(page, USERS.modern);
+      await launchOffline(context, page, USERS.modern.path(USERS.modern.board), page.getByText('all done', { exact: true }));
+      await page.evaluate((key) => window.lingoLinqExtras.storage.find('board', key).then((row) => window.lingoLinqExtras.storage.remove('board', row.id)), `${USERS.modern.user}/${USERS.modern.folder}`).catch(() => {});
+      await page.evaluate((id) => { window.persistence.known_missing = {}; }, null);
+      await page.getByRole('button', { name: 'more' }).click();
+      await expect(page.getByText(NOT_SAVED).first(), 'an answer at once').toBeVisible({ timeout: 5_000 });
+      await expect(page.getByText('all done', { exact: true }), 'the board stays').toBeVisible();
+
+      await page.goto(USERS.modern.path('not-saved-anywhere'));
+      await expect.poll(() => new URL(page.url()).pathname, { message: 'to the boards page', timeout: 30_000 })
+        .toBe(`/${USERS.modern.user}/boards`);
+      await expect(errorPage(page)).toHaveCount(0);
     } finally {
       await context.setOffline(false).catch(() => {});
       await context.close();

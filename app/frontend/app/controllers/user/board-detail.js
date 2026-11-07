@@ -8729,10 +8729,10 @@ const BoardDetailController = Controller.extend(prefClasses, {
         var board_key = load_board.key;
         if(board_key && board_key.indexOf('/') !== -1) {
           actionLock.run('board-link:' + (_this.get('model.key') || _this.get('model.id') || 'board-detail') + ':' + board_key, function() {
-            _this._push_nav_history();
-            return _this._preferred_board_detail_key(board_key).then(function(preferred_key) {
-              var key_parts = preferred_key.split('/');
-              return _this.get('router').transitionTo('user.board-detail', key_parts[0], key_parts.slice(1).join('/'));
+            return board_saved_here(persistence, boardDetailCache, board_key).then(function(saved) {
+              if(!saved) { return warn_board_not_saved(); } // offline: answer at once; the board and sentence stay
+              _this._push_nav_history();
+              return _this._preferred_board_detail_key(board_key).then(function(preferred_key) { var key_parts = preferred_key.split('/'); return _this.get('router').transitionTo('user.board-detail', key_parts[0], key_parts.slice(1).join('/')); });
             });
           }, {timeout: 5000});
           return;
@@ -10440,7 +10440,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
 
 // Imported last so the .eslint-todo rows above keep their lines.
 import { maybe_offer_tour } from '../../utils/tours/tour_offer';
-import { usable_copy } from '../../utils/board_device_copy';
+import { board_saved_here, usable_copy, warn_board_not_saved } from '../../utils/board_device_copy';
 
 /* A TRIAL LASTS THROUGH THE TRIED BOARD'S FOLDERS (2026-10-13, see `try_origin_board` above). True on the
    tried board itself, and on any board whose trail (`board_detail_nav_history`, the boards navigated FROM)

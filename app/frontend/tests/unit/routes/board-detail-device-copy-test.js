@@ -453,6 +453,22 @@ module('Unit | Route | user/board-detail device copy', function(hooks) {
     assert.false(this.controller.get('served_from_device'));
   });
 
+  test('offline with nothing to show goes to the boards page; a refusal keeps its error page', async function(assert) {
+    var moved = [];
+    this.route.set('router', {replaceWith: function() { moved.push(Array.prototype.slice.call(arguments)); }});
+    this.owner.lookup('service:session').set('user_name', 'me');
+    stub(modal, 'warning', function() { });
+    this.persistenceService.set('online', false);
+    this.device = {};
+    this.answers = [offline];
+    this.route.afterModel(await open(this));
+    assert.deepEqual(moved, [['user.boards', 'me']]);
+    moved.length = 0;
+    this.answers = [denied];
+    this.route.afterModel(await open(this));
+    assert.deepEqual(moved, [], 'refused');
+  });
+
   test('the waits are the ones the design promises', function(assert) {
     assert.strictEqual(DEVICE_COPY_WAIT_MS, 8000, 'the normal first GET limit (utils/extras.js)');
     assert.strictEqual(DEVICE_READ_WAIT_MS, 5000);

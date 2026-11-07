@@ -646,6 +646,13 @@ export default Route.extend({
   },
 
   session: service('session'),
+  router: service('router'),
+  // Offline with nothing to show, and the server did not refuse it: never a dead end.
+  afterModel: function(model) {
+    if(model && model.error && !this._refused()[this._board_nav && this._board_nav.board_key]) {
+      leave_unsaved_board(this.router, persistence, this.session);
+    }
+  },
   device_copy_wait: DEVICE_COPY_WAIT_MS,
   device_read_wait: DEVICE_READ_WAIT_MS,
   session_wait: DEFAULT_WAIT_MS,
@@ -798,6 +805,6 @@ export default Route.extend({
 });
 // Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
 import boardRevocation from '../../utils/board_revocation';
-import { DEVICE_COPY_WAIT_MS, DEVICE_READ_WAIT_MS, board_kept_on_refusal, read_device_copy, server_refused, session_ended, usable_copy, within } from '../../utils/board_device_copy';
+import { DEVICE_COPY_WAIT_MS, DEVICE_READ_WAIT_MS, board_kept_on_refusal, leave_unsaved_board, read_device_copy, server_refused, session_ended, usable_copy, within } from '../../utils/board_device_copy';
 import offline_shell from '../../utils/offline_shell';
 import { DEFAULT_WAIT_MS, wait_for_session_user } from '../../utils/session_user_wait';

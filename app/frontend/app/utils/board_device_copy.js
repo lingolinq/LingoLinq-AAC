@@ -1,4 +1,7 @@
 import RSVP from 'rsvp';
+import i18n from './i18n';
+import modal from './modal';
+import { opens_in_view_route } from './board_view';
 import { is_protected_board, route_refuses_local } from './board_revocation';
 
 // The copy of a board the Modern board page falls back on when the server gives no usable answer
@@ -29,6 +32,29 @@ export function read_device_copy(persistence, board_key, memory_raw) {
   }, function() {
     return newest_copy(null, memory);
   });
+}
+
+// Offline, is this board on the device? A key with no owner (obf/, integrations/) has its own loader.
+// Read before leaving the board on screen: the loading page clears it as soon as a transition starts.
+export function board_saved_here(persistence, board_cache, key) {
+  if(persistence.get('online') !== false || !key || !opens_in_view_route(key)) { return RSVP.resolve(true); }
+  if(usable_copy(board_cache.peek(key))) { return RSVP.resolve(true); }
+  var read = persistence.find('board', key).then(usable_copy, function() { return false; });
+  return within(read, DEVICE_READ_WAIT_MS).then(function(saved) { return !!saved; });
+}
+
+export function warn_board_not_saved() {
+  modal.warning(i18n.t('board_not_saved_here', "That board isn't saved on this device yet."));
+}
+
+// Offline with no board to show: the user's boards, never a dead end (#1209). Called from a route's
+// afterModel, so the transition is replaced before the board page appears.
+export function leave_unsaved_board(router, persistence, session) {
+  var user_name = session.get('user_name');
+  if(persistence.get('online') !== false || !session.get('access_token') || !user_name) { return false; }
+  router.replaceWith('user.boards', user_name);
+  modal.warning(i18n.t('board_not_saved_pick_another', "That board isn't saved on this device yet. Choose one that is."));
+  return true;
 }
 
 // Settles with `promise`, or with null after `ms`, so a stuck database cannot hold a page.

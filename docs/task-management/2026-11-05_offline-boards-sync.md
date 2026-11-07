@@ -391,3 +391,22 @@ background; tests for the grid cache and Translate. Not changed: `get` (two revi
 (Safari 15.4, the worker's own floor); no fail-closed when the session user misses the 10 s wait (it would risk a home
 board; matches Basic). `extras.js` does not change `options.attempt` (CONFIRMED `:178-182`, `:364`). New strings are
 in `en.json` only: `i18n_generator.rb` needs a 1Password session; add them to #1234.
+
+## Full fix on #1268 (2026-11-06)
+
+Scot asked for the full fix on his PR; Traci: make every fix that can be made. Order: other-owner boards and no-internet
+launch; #1209; iPad pictures; #1201; #1212, #1221, #1219; #1034, N of M, `all_reload`, #1229, #1230; #1206.
+Not ours to do here: `security-scan` fails on develop too (activestorage and activesupport advisories); a Gemfile
+change is shared config, so raised with Traci.
+
+### Other-owner boards and no-internet launch (done)
+`routes/user.js#_board_page_owner`, from Scot's safer design (task log 2026-11-03) minus its `OFFLINE_APP_SHELL` gate:
+native apps never set it, and this runs only where the error page was the alternative. Real record first; a stand-in
+only when the owner's board is on the device; replaced on the first non-board page. `one_try` on the adapter bounds the
+request. Mutations red: no refresh (browser), owner check, trust check, refusal check, bound.
+
+### #1209 (done)
+Offline: `board_saved_here` before leaving the board (Modern folder tap and `app_state.jump_to_board`, so sidebar and
+Basic folders); the loading page clears the board once a transition starts, so this must come first.
+`afterModel` sends a board that cannot show to the boards page; a refusal keeps its error page. `route.replaceWith` does
+not exist in Ember 5: the browser caught it, a stub had hidden it.
