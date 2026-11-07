@@ -10462,6 +10462,7 @@ BoardDetailController.reopen({
      With a connection, the board is fetched again so the action works on the next try. */
   _blocked_on_device_copy: function() {
     if(!this.get('served_from_device')) { return false; }
+    this._close_options_menu();
     if(persistence.get('online')) {
       modal.warning(i18n.t('board_action_updating', "Getting the latest version of this board. Try again in a moment."));
       this._refresh_device_copy();

@@ -353,6 +353,7 @@ module('Unit | Route | user/board-detail device copy', function(hooks) {
     slow = deferred();
     stub(this.persistenceService, 'ajax', function() { return slow.promise; });
     this.route.set('_raw_board_data', null);
+    boardDetailCache.clear();
     opened = open(this);
     this.route.resetController(this.controller, true);
     slow.reject(no_answer);
@@ -491,10 +492,12 @@ module('Unit | Controller | user/board-detail on a device copy', function(hooks)
     var controller = this.owner.lookup('controller:user/board-detail');
     controller.set('model', EmberObject.create({key: 'me/board'}));
     controller.set('served_from_device', true);
+    controller.set('show_options_menu', true);
     var actions = ['share_board', 'open_board_privacy', 'translate_board', 'make_a_copy', 'enter_edit_mode', 'set_as_home'];
     actions.forEach(function(action) { controller.send(action); });
     assert.deepEqual(opened, []);
     assert.strictEqual(warned.length, actions.length);
+    assert.false(controller.get('show_options_menu'), 'the menu closes, so the message can be read');
     controller.set('served_from_device', false);
     controller.send('open_board_privacy');
     controller.send('translate_board');

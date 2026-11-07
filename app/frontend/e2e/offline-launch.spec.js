@@ -82,11 +82,15 @@ function deviceCopyNotice(page) {
   return page.locator('.md-board-detail-device-copy');
 }
 
-// Taps an item in the board page's options menu, opening its submenu first when it has one.
-async function tapMenuItem(page, action, submenu) {
-  await page.locator('[data-bd-action="toggle_options_menu"]').first().click();
-  if (submenu) { await page.locator(`[data-bd-action="${submenu}"]`).first().click(); }
-  await page.locator(`.md-board-detail-actions-menu__item[data-bd-action="${action}"]`).first().click();
+// The board page's options menu. Some of its controls also exist hidden, so only visible ones count.
+async function tapMenuItem(page, action) {
+  const visible = (name) => page.locator(`[data-bd-action="${name}"]:visible`).first();
+  await visible('toggle_options_menu').click({ timeout: 10_000 });
+  await visible(action).click({ timeout: 10_000 });
+}
+
+function tapEdit(page) {
+  return tapMenuItem(page, 'enter_edit_mode');
 }
 
 async function apiAnsweredOffline(page) {
@@ -243,12 +247,9 @@ test.describe('offline launch from the offline app shell', () => {
       await expect(page.getByText('cookie', { exact: true }), 'a synced folder opens offline').toBeVisible({ timeout: 30_000 });
       await expect(deviceCopyNotice(page)).toBeVisible();
 
-      await tapMenuItem(page, 'enter_edit_mode');
+      await tapEdit(page);
       await expect(page.getByText(NEEDS_CONNECTION).first(), 'Edit says why it stopped').toBeVisible();
       expect(page.url(), 'Edit did not open').not.toContain('/edit');
-
-      await tapMenuItem(page, 'share_board', 'toggle_share_print_submenu');
-      await expect(page.locator('.modal-dialog, .la-modal').filter({ hasText: /share/i }), 'Share did not open').toHaveCount(0);
 
       // A direct way into Edit, on a cold launch.
       await page.goto(USERS.modern.path(USERS.modern.board) + '/edit');
@@ -264,10 +265,10 @@ test.describe('offline launch from the offline app shell', () => {
       });
       await expect.poll(() => page.evaluate(() => window.persistence.get('online')), { timeout: 40_000 }).toBe(true);
       await expect(deviceCopyNotice(page), 'no swap on reconnect').toBeVisible();
-      await tapMenuItem(page, 'enter_edit_mode');
+      await tapEdit(page);
       await expect(deviceCopyNotice(page), 'the server answered').toBeHidden({ timeout: 30_000 });
       await expect(page.getByText('all done', { exact: true }), 'the rebuilt grid').toBeVisible();
-      await tapMenuItem(page, 'enter_edit_mode');
+      await tapEdit(page);
       await expect.poll(() => new URL(page.url()).pathname, { message: 'Edit opens on the server copy', timeout: 30_000 })
         .toBe(USERS.modern.path(USERS.modern.board) + '/edit');
     } finally {
