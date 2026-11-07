@@ -629,7 +629,7 @@ export default Route.extend({
         controller.set('_was_not_speak_mode', false);
         this.stashes.persist('current_mode', 'default');
       }
-      this._board_nav = null;
+      // Not `_board_nav`: a slow board shows the loading page, which exits this route mid-navigation.
       controller.set('served_from_device', false);
     }
   },

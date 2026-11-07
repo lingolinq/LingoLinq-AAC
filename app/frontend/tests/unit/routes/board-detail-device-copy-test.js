@@ -340,7 +340,24 @@ module('Unit | Route | user/board-detail device copy', function(hooks) {
     this.controller.set('served_from_device', true);
     this.route.resetController(this.controller, true);
     assert.false(this.controller.get('served_from_device'), 'on exit');
-    assert.strictEqual(this.route._board_nav, null);
+  });
+
+  test('the loading page exits this route mid-navigation, and the board still arrives', async function(assert) {
+    var slow = deferred();
+    stub(this.persistenceService, 'ajax', function() { return slow.promise; });
+    var opened = open(this);
+    this.route.resetController(this.controller, true);
+    slow.resolve(server_board({name: 'Fresh'}));
+    await opened;
+    assert.strictEqual(this.route.get('_raw_board_data.name'), 'Fresh', 'a server answer');
+    slow = deferred();
+    stub(this.persistenceService, 'ajax', function() { return slow.promise; });
+    this.route.set('_raw_board_data', null);
+    opened = open(this);
+    this.route.resetController(this.controller, true);
+    slow.reject(no_answer);
+    assert.strictEqual((await opened).get('key'), 'me/board', 'a device copy');
+    assert.true(this.controller.get('served_from_device'));
   });
 
   test('the flag stays on the board on screen until the next one has loaded', async function(assert) {
