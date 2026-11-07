@@ -14,6 +14,7 @@ import modalUtil from '../../utils/modal';
 import persistence from '../../utils/persistence';
 import editManager from '../../utils/edit_manager';
 import speecher from '../../utils/speecher';
+import { settled } from '@ember/test-helpers';
 
 /*
  * create-board-new component coverage — Scot #3 (High) pre-merge review.
@@ -732,6 +733,53 @@ describe('CreateBoardNewComponent', 'component:create-board-new', function() {
       c.send('setLocale', 'fr');
       expect(c.get('language_from_owner')).toEqual(false);
       expect(c.get('model.locale')).toEqual('fr');
+    });
+
+    itAsync('leaves board speech working after teardown without speech recognition', async function() {
+      var priorRecognition = window.webkitSpeechRecognition;
+      var priorReady = speecher.get('ready');
+      window.webkitSpeechRecognition = undefined;
+      speecher.set('ready', true);
+      try {
+        makeComponent().destroy();
+        await settled();
+        expect(speecher.get('ready')).toEqual(true);
+      } finally {
+        window.webkitSpeechRecognition = priorRecognition;
+        speecher.set('ready', priorReady);
+      }
+    });
+
+    it('rechecks the no-voice notice when voices arrive', function() {
+      var c = makeComponent();
+      var priorVoices = speecher.get('voices');
+      var available = false;
+      stub(speecher, 'has_voice_for', function() { return available; });
+      c.set('model.locale', 'es');
+      expect(c.get('shows_no_voice_notice')).toEqual(true);
+      available = true;
+      speecher.set('voices', [{ lang: 'es-ES', voiceURI: 'a', name: 'a' }]);
+      expect(c.get('shows_no_voice_notice')).toEqual(false);
+      speecher.set('voices', priorVoices);
+    });
+
+    it('says the words stay when the language changes after labels exist', function() {
+      var c = makeComponent();
+      c.set('model.locale', 'es');
+      c.set('model.grid.labels', 'hello');
+      c._set_authoring_locale('fr');
+      expect(c.get('language_changed_after_labels')).toEqual(true);
+    });
+
+    it('leaves out people the creator cannot make a board for', function() {
+      var c = makeComponent();
+      c.set('appState', EmberObject.create({
+        sessionUser: EmberObject.create({ known_supervisees: [
+          { id: 'u-edit', user_name: 'can', edit_permission: true },
+          { id: 'u-model', user_name: 'cannot', edit_permission: false }
+        ] })
+      }));
+      expect(c.get('user_options')).toEqual([{ id: 'u-edit', name: 'can' }]);
     });
 
     it('does not carry one supervisee language over to the next', function() {

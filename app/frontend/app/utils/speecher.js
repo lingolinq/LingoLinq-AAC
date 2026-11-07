@@ -548,7 +548,7 @@ var speecher = EmberObject.extend({
   // which falls back to a voice in another language when the device has none. An empty list
   // means voices have not loaded yet, not that there are none.
   has_voice_for: function(locale) {
-    if((speecher.get('voices') || []).length === 0) { return true; }
+    if((speecher.get('voices') || []).length === 0 || speecher.voiceURI == 'force_default') { return true; }
     var language = (locale || 'en').toLowerCase().split(/[-_]/)[0];
     var mapped_lang = i18n.lang_map[language] || language;
     var voice = speecher.find_voice_by_uri(speecher.voiceURI, locale || 'en', true);

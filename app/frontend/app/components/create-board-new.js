@@ -279,7 +279,8 @@ export default Component.extend({
    *  granted explicit edit access for a supervisee still appears here). */
   user_options: computed('appState.sessionUser.known_supervisees.[]', function() {
     var supers = this.appState.get('sessionUser.known_supervisees') || [];
-    return supers.map(function(s) {
+    // boards#create needs edit access to author a board for someone.
+    return supers.filter(function(s) { return s.edit_permission !== false; }).map(function(s) {
       return {id: s.id, name: s.user_name};
     });
   }),
@@ -1247,11 +1248,13 @@ export default Component.extend({
     return i18n.readable_language(this.get('model.locale') || 'en');
   }),
 
-  /** speecher fills `voices` after load, so the notice below watches it. */
-  speech: speecher,
+  /** speecher fills `voices` after load, so the notice below watches it. Not `speech`:
+   *  that is the recognition state, which teardown clears, and speecher.ready is what
+   *  lets every board button make a sound. */
+  speech_output: speecher,
 
   /** True when this device cannot speak the chosen language with a matching voice. */
-  shows_no_voice_notice: computed('model.locale', 'speech.voices', function() {
+  shows_no_voice_notice: computed('model.locale', 'speech_output.voices', function() {
     return !speecher.has_voice_for(this.get('model.locale') || 'en');
   }),
 
@@ -1416,6 +1419,7 @@ export default Component.extend({
     var nextRoot = ((loc || 'en').split(/_|-/)[0] || 'en').toLowerCase();
     this.set('model.locale', loc);
     if(prevRoot !== nextRoot) {
+      this.set('language_changed_after_labels', (this.get('parsed_labels') || []).length > 0);
       this._invalidate_authoring_locale_caches();
     }
   },

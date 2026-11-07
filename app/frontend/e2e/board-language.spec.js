@@ -30,9 +30,12 @@ async function setUpDevice(page, voices) {
       setTimeout(() => utterance.onend && utterance.onend({}), 0);
     };
   }, voices);
-  await page.route('**/api/v1/users/self/translate', (route) => route.fulfill({
-    json: { translations: { sombrero: 'hat', gato: 'cat', Sombreros: 'Hats' } },
-  }));
+  const lookups = { count: 0 };
+  await page.route('**/api/v1/users/self/translate', (route) => {
+    lookups.count += 1;
+    return route.fulfill({ json: { translations: { sombrero: 'hat', gato: 'cat', Sombreros: 'Hats' } } });
+  });
+  return lookups;
 }
 
 function language(page) {
@@ -79,8 +82,9 @@ async function serverBoard(page) {
 
 for (const user of ['e2e_basic_lang', 'e2e_modern_lang']) {
   test.describe(user, () => {
+    let lookups;
     test.beforeEach(async ({ page }) => {
-      await setUpDevice(page, VOICES);
+      lookups = await setUpDevice(page, VOICES);
       await signIn(page, user, 'users-language.rb');
     });
 
@@ -90,6 +94,8 @@ for (const user of ['e2e_basic_lang', 'e2e_modern_lang']) {
       await seedLabels(page, ['sombrero', 'gato']);
       await save(page);
 
+      // The stub answered, so these words never reached the real translate endpoint.
+      expect(lookups.count).toBeGreaterThan(0);
       const board = await serverBoard(page);
       expect(board.locale).toBe('es');
       expect(board.translated_locales).toEqual(expect.arrayContaining(['es', 'en']));

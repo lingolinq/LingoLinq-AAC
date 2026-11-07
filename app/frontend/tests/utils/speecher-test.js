@@ -79,6 +79,13 @@ describe('speecher', function() {
       stub(speecher, 'get_persistence', function() { return {get: function() { return true; }}; });
       expect(speecher.has_voice_for('es')).toEqual(false);
     });
+    it("should not warn someone using the device's default voice", function() {
+      var priorVoice = speecher.voiceURI;
+      speecher.set('voices', [{lang: 'en-US', voiceURI: 'a', name: 'a', default: true}]);
+      speecher.voiceURI = 'force_default';
+      expect(speecher.has_voice_for('es')).toEqual(true);
+      speecher.voiceURI = priorVoice;
+    });
     it("should not warn before voices have loaded", function() {
       speecher.set('voices', []);
       expect(speecher.has_voice_for('es')).toEqual(true);

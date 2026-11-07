@@ -113,8 +113,8 @@ export default Component.extend({
     return !this.get('can_start_translation');
   }),
 
-  speech: speecher,
-  shows_no_voice_notice: computed('translate_locale', 'speech.voices', function() {
+  speech_output: speecher,
+  shows_no_voice_notice: computed('translate_locale', 'speech_output.voices', function() {
     const locale = this.get('translate_locale');
     return !!locale && !speecher.has_voice_for(locale);
   }),

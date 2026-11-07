@@ -1,3 +1,6 @@
+{{#if @labelsKept}}
+  <p class="nb-field__hint" data-test-labels-kept-notice>{{t "The words on this board stay as they are. Retype them if you want them in this language." key="create_board_labels_kept"}}</p>
+{{/if}}
 {{#if @noVoice}}
   <p class="nb-field__hint" data-test-no-voice-notice>{{t "This device has no voice for this language, so boards may speak with a different voice." key="no_voice_for_language"}}</p>
 {{/if}}
