@@ -402,9 +402,11 @@ no secrets:
    `new`/`reseen`/`regressions`/`skipped` counts, `newIds`, the adversary verdict tally,
    `citationCheck` status, and the open Critical/High headline. Recurrence is then a diff over
    `runs.jsonl`. See `audit-reports/run-log/README.md`. `.jsonl` is a data-bearing extension
-   (`scripts/codex-review-path-classifier.sh`), so the PR that commits this line fails
-   `data-bearing-paths` until a reviewer confirms the rows are synthetic and adds the
-   `synthetic-data` label. Never add that label yourself (root `CLAUDE.md` rule 15).
+   (`scripts/codex-review-path-classifier.sh`), so `data-bearing-paths` scans the line this
+   PR adds. It passes unless the scan flags a value (an email on a non-example domain, a
+   phone number outside 555-0100 to 555-0199, an SSN-shaped number); then it fails until a
+   reviewer confirms the rows are synthetic and adds the `synthetic-data` label. Never add
+   that label yourself (root `CLAUDE.md` rule 15).
 
 ## Step 7b: Read the public text before any push (every mode)
 This repo is public. A pushed branch is published whether or not it merges, a push publishes every

@@ -35,6 +35,13 @@ include children and clinical patients; FERPA, HIPAA, GDPR and COPPA apply.
 - **PII never leaves the platform.** Every AI or external-service call goes through
   `lib/pii_scrubber.rb`. Never paste fixtures, seeds, cassettes, migrations, `db/language/` files or logs that
   could hold real student or patient rows into a prompt for a reviewer without a BAA.
+- **No production data in this repo or in any non-production environment** (dev,
+  staging, a local database). Test data is generated or obviously fake: `example.com`
+  addresses, phone numbers from 555-0100 to 555-0199, names like "Test Student". The
+  `data-bearing-paths` check scans the lines a PR adds under data-bearing paths (emails,
+  phone numbers, SSN-shaped numbers, base64 image, audio or video `data:` URIs, binary
+  files) and is the automated check; a clean change passes with no label. It sees shapes, not meaning, so your own look comes first.
+  This rule is about what goes in: Tier 1 handling of dev and staging is unchanged.
 - **Node 22** (`.nvmrc`), **Ruby 3.4.4** (`.ruby-version`). No TypeScript conversion.
 - **Never suppress a deprecation**; fix the root cause. Edit existing SCSS selectors in
   place; never stack overrides. Preserve styling class names.

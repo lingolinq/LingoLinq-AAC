@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 #
-# data-bearing-path-check-test.sh - proves scripts/data-bearing-path-check.sh blocks a
-# PR that changes a data-bearing path unless its head commit carries an approval, and
-# that scripts/data-bearing-path-check-ci.sh records approvals and verdicts as commit
-# statuses on the exact head commit and fails closed when it cannot decide.
+# data-bearing-path-check-test.sh - proves scripts/data-bearing-path-check.sh passes a
+# data-bearing change whose added lines its content scan finds clean, blocks one the scan
+# flags (and binary files, db/language/, VCR cassettes, the check's own files and any
+# workflow that names the App's environment, key or client id) unless
+# its head commit carries an approval, and fails closed when it cannot decide; and that
+# scripts/data-bearing-path-check-ci.sh records approvals and verdicts as commit
+# statuses on the exact head commit. Mutation cases at the end of the check section
+# prove the scan cases catch a broken scanner. All test data is fake by construction.
 #
 # WHY THIS EXISTS
 #   This repo is public, so a PR's contents are published the moment its branch is
@@ -75,15 +79,15 @@ run_check() {
 }
 
 CODE="$(commit_change code bash -c 'mkdir -p app/models && printf "class A; end\n" > app/models/a.rb')"
-FIX="$(commit_change fixture bash -c 'printf "name: x\n" > spec/fixtures/new.yml')"
-EDIT="$(commit_change edit bash -c 'printf "name: changed\n" > spec/fixtures/existing.yml')"
+FIX="$(commit_change fixture bash -c 'printf "ssn: 123-45-6789\n" > spec/fixtures/new.yml')"
+EDIT="$(commit_change edit bash -c 'printf "ssn: 123-45-6789\n" > spec/fixtures/existing.yml')"
 MOVE="$(commit_change move bash -c 'mkdir -p spec/support && git mv spec/fixtures/existing.yml spec/support/existing.yml')"
-CSV="$(commit_change csv bash -c 'mkdir -p tmp && printf "a,b\n" > tmp/export.csv')"
+CSV="$(commit_change csv bash -c 'mkdir -p tmp && printf "ssn\n123-45-6789\n" > tmp/export.csv')"
 LANG_="$(commit_change lang bash -c 'mkdir -p db/language/en && printf "{}\n" > db/language/en/words.json')"
 # Two commits: a fixture, then a code-only change. A check that looked only at the
 # last commit would miss the fixture.
 git -C "$REPO" checkout -q -B multi "$BASE"
-printf 'name: early\n' > "$REPO/spec/fixtures/early.yml"
+printf 'ssn: 123-45-6789\n' > "$REPO/spec/fixtures/early.yml"
 git -C "$REPO" add -A && git -C "$REPO" commit -q -m 'multi 1: fixture'
 mkdir -p "$REPO/app/models" && printf 'class B; end\n' > "$REPO/app/models/b.rb"
 git -C "$REPO" add -A && git -C "$REPO" commit -q -m 'multi 2: code'
@@ -94,7 +98,7 @@ run_check 0 'code-only change passes with no approval'              "$CODE" fals
 run_check 1 'new fixture with no approval fails'                     "$FIX"  false
 run_check 0 'new fixture with an approval passes'                    "$FIX"  true
 run_check 1 'edited existing fixture with no approval fails'         "$EDIT" false
-run_check 1 'fixture renamed out of spec/fixtures fails'             "$MOVE" false
+run_check 0 'fixture renamed out of spec/fixtures passes (only removed lines on a data path)' "$MOVE" false
 run_check 1 'csv data file fails'                                    "$CSV"  false
 run_check 1 'db/language file fails'                                 "$LANG_" false
 run_check 1 'fixture in an earlier commit of the PR fails'           "$MULTI" false
@@ -107,7 +111,7 @@ run_check 3 'APPROVED empty fails closed'                            "$FIX"  ''
 # A name that is not UTF-8 is judged on its path like any other: the classifier's UTF-8
 # check protects the reviewer steps only, and this check sends nothing to a reviewer.
 L1CODE="$(commit_change latin1-code bash -c "mkdir -p app/models && printf 'class C; end\n' > \$'app/models/caf\\351.rb'")"
-L1FIX="$(commit_change latin1-fixture bash -c "printf 'name: x\n' > \$'spec/fixtures/caf\\351.yml'")"
+L1FIX="$(commit_change latin1-fixture bash -c "printf 'ssn: 123-45-6789\n' > \$'spec/fixtures/caf\\351.yml'")"
 run_check 0 'a Latin-1 code name passes with no approval'           "$L1CODE" false
 run_check 1 'a Latin-1 fixture name with no approval fails'         "$L1FIX"  false
 run_check 0 'a Latin-1 fixture name with an approval passes'        "$L1FIX"  true
@@ -143,7 +147,7 @@ mkdir -p "$REPO/app/models" && printf 'class C; end\n' > "$REPO/app/models/c.rb"
 git -C "$REPO" add -A && git -C "$REPO" commit -q -m 'code on top of develop'
 REL_CODE="$(git -C "$REPO" rev-parse HEAD)"
 git -C "$REPO" checkout -q -B on-develop-fix "$FIX"
-printf 'name: direct\n' > "$REPO/spec/fixtures/direct.yml"
+printf 'ssn: 123-45-6789\n' > "$REPO/spec/fixtures/direct.yml"
 git -C "$REPO" add -A && git -C "$REPO" commit -q -m 'fixture not in develop'
 REL_FIX="$(git -C "$REPO" rev-parse HEAD)"
 run_check 0 'PR to main carrying only develop content passes'        "$FIX"      false PR_BASE_REF=main DEVELOP_SHA="$FIX"
@@ -154,7 +158,7 @@ run_check 3 'PR to main without DEVELOP_SHA fails closed'            "$REL_FIX" 
 # Add then delete inside the PR: develop is squash-only, so only the net diff merges;
 # staging and main take merge commits, so every commit not in develop is checked.
 git -C "$REPO" checkout -q -B add-del "$FIX"
-printf 'name: real-looking\n' > "$REPO/spec/fixtures/gone.yml"
+printf 'ssn: 123-45-6789\n' > "$REPO/spec/fixtures/gone.yml"
 git -C "$REPO" add -A && git -C "$REPO" commit -q -m 'add a fixture'
 git -C "$REPO" rm -q spec/fixtures/gone.yml
 mkdir -p "$REPO/app/models" && printf 'class D; end\n' > "$REPO/app/models/d.rb"
@@ -189,10 +193,10 @@ merge_into() {
   git -C "$REPO" rev-parse HEAD
 }
 RELMERGE="$(merge_into rel-merge "$BASE" "$FIX")"
-EVILFIX="$(merge_into evil-fix "$BASE" "$FIX" bash -c 'printf "name: evil\n" > spec/fixtures/evil.yml')"
+EVILFIX="$(merge_into evil-fix "$BASE" "$FIX" bash -c 'printf "ssn: 123-45-6789\n" > spec/fixtures/evil.yml')"
 EVILCODE="$(merge_into evil-code "$BASE" "$FIX" bash -c 'mkdir -p app/models && printf "class E; end\n" > app/models/e.rb')"
 git -C "$REPO" checkout -q -B side-branch "$BASE"
-printf 'name: side\n' > "$REPO/spec/fixtures/side.yml"
+printf 'ssn: 123-45-6789\n' > "$REPO/spec/fixtures/side.yml"
 git -C "$REPO" add -A && git -C "$REPO" commit -q -m 'side: fixture'
 SIDE="$(git -C "$REPO" rev-parse HEAD)"
 SIDEMERGE="$(merge_into side-merge "$FIX" "$SIDE")"
@@ -206,7 +210,7 @@ run_check 3 'PR to main: classifier failure on a merge fails closed' "$EVILCODE"
 git -C "$REPO" checkout -q --orphan orphan-data
 git -C "$REPO" rm -rq --cached . >/dev/null 2>&1
 git -C "$REPO" clean -fdq
-mkdir -p "$REPO/spec/fixtures" && printf 'name: orphan\n' > "$REPO/spec/fixtures/orphan.yml"
+mkdir -p "$REPO/spec/fixtures" && printf 'ssn: 123-45-6789\n' > "$REPO/spec/fixtures/orphan.yml"
 git -C "$REPO" add -A && git -C "$REPO" commit -q -m 'orphan: fixture'
 ORPHAN="$(git -C "$REPO" rev-parse HEAD)"
 git -C "$REPO" checkout -q -B orphan-merge "$FIX"
@@ -224,22 +228,289 @@ git -C "$REPO" add -A && git -C "$REPO" commit -q -m 'code on top of staging'
 ON_STAGING="$(git -C "$REPO" rev-parse HEAD)"
 CHECK_BASE="$STAGING_TIP" run_check 0 'PR to staging: a fixture already on staging does not count' "$ON_STAGING" false PR_BASE_REF=staging DEVELOP_SHA="$FIX"
 
-# Any workflow change needs an approval: a workflow in a same-repo PR runs with a token
-# that can post statuses, so it gets a reviewer's look before it merges.
+# Workflow files are not part of this gate (Scot, 2026-11-06): the required check is
+# pinned to the App, so a PR's own workflow token cannot post a status that satisfies it.
+# This check's own workflow is still a control file, and a workflow that names the App's
+# environment, key or client id still needs an approval (both below).
 WF="$(commit_change workflow bash -c 'mkdir -p .github/workflows && printf "on: pull_request\n" > .github/workflows/shadow.yml')"
-run_check 1 'adding a workflow needs an approval'                    "$WF" false
+run_check 0 'adding a workflow passes with no approval'              "$WF" false
 run_check 0 'adding a workflow with an approval passes'              "$WF" true
 git -C "$REPO" checkout -q -B wf-add-del "$FIX"
 mkdir -p "$REPO/.github/workflows" && printf 'on: pull_request\n' > "$REPO/.github/workflows/shadow.yml"
 git -C "$REPO" add -A && git -C "$REPO" commit -q -m 'add a workflow'
 git -C "$REPO" rm -q .github/workflows/shadow.yml && git -C "$REPO" commit -q -m 'remove it'
 WFADDDEL="$(git -C "$REPO" rev-parse HEAD)"
-run_check 1 'PR to staging: a workflow added then removed needs an approval' "$WFADDDEL" false PR_BASE_REF=staging DEVELOP_SHA="$FIX"
+run_check 0 'PR to staging: a workflow added then removed passes with no approval' "$WFADDDEL" false PR_BASE_REF=staging DEVELOP_SHA="$FIX"
 git -C "$REPO" checkout -q -B ctrl-beyond "$FIX"
 mkdir -p "$REPO/scripts" && printf '# edit\n' > "$REPO/scripts/data-bearing-path-check.sh"
 git -C "$REPO" add -A && git -C "$REPO" commit -q -m 'edit the check'
 CTRLREL="$(git -C "$REPO" rev-parse HEAD)"
 run_check 1 "PR to main: editing the check's script beyond develop needs an approval" "$CTRLREL" false PR_BASE_REF=main DEVELOP_SHA="$FIX"
+
+# --- The content scan (Scot, 2026-11-06). A data-bearing path no longer needs an approval
+# by itself: the lines it ADDS are scanned, and only a value that looks like real personal
+# data, a binary file, or a path that always needs one (db/language/, a VCR cassette) does.
+# Every value below is fake by construction: reserved example domains (RFC 2606), the
+# fictional 555-0100 to 555-0199 numbers, "Test Student", 123-45-6789, and one invented
+# domain (not-a-real-school.com) where a non-reserved domain is the point of the case.
+echo "content scan:"
+# The unreadable-blob cases delete loose objects from a copy of this repo, so nothing may
+# pack them first.
+git -C "$REPO" config gc.auto 0
+
+# fixture_change <branch> <path> <content> [start, default $BASE]: write <content> to
+# <path> on a branch from <start>, commit, and print the new head.
+fixture_change() {
+  local branch="$1" path="$2" content="$3" start="${4:-$BASE}"
+  git -C "$REPO" checkout -q -B "$branch" "$start"
+  mkdir -p "$REPO/$(dirname -- "$path")"
+  printf '%s' "$content" > "$REPO/$path"
+  git -C "$REPO" add -A
+  git -C "$REPO" commit -q -m "$branch"
+  git -C "$REPO" rev-parse HEAD
+}
+
+# Every reserved form, in both letter cases, plus number shapes that are not phone numbers
+# (SVG path data, a dotted run after a number, a UUID, a date). A dropped reserved arm
+# turns this case red.
+CLEAN_TEXT=$'name: Test Student\nemail: test.student@example.com\nupper: Test.Student@EXAMPLE.COM\nnet: teacher@example.net\nnet_upper: Teacher@Sub.Example.Net\norg: parent@Example.Org\nsub: staff@mail.example.com\ntest_tld: aide@school.test\ntest_upper: aide@school.TEST\nexample_tld: aide@school.example\ninvalid_tld: aide@school.Invalid\nlocalhost_tld: aide@host.localhost\nphone: 555-555-0100\nphone_paren: (801) 555-0199\nphone_paren_tight: (801)555-0101\nphone_dots: +1 801.555.0142\nphone_prefix: 1-801-555-0150\nsvg: "M123-456-7890 L10-555-1234 12.123.456.7890"\nuuid: 123e4567-e89b-12d3-a456-426614174000\ndate: 2026-11-06\n'
+CLEAN="$(fixture_change clean spec/fixtures/contacts.yml "$CLEAN_TEXT")"
+run_check 0 'only reserved example values: passes with no approval'   "$CLEAN" false
+run_check 0 'PR to staging: only reserved example values pass'         "$CLEAN" false PR_BASE_REF=staging DEVELOP_SHA="$BASE"
+run_check 0 'a clean csv data file passes'                             "$(fixture_change clean-csv tmp/export.csv $'name,email\nTest Student,test.student@example.com\n')" false
+
+# Values that look real: each needs an approval, and the label clears it.
+EMAIL="$(fixture_change email spec/fixtures/contacts.yml $'name: Test Student\nemail: test.student@not-a-real-school.com\n')"
+run_check 1 'an email on a non-reserved domain fails'                   "$EMAIL" false
+run_check 0 'an email on a non-reserved domain with an approval passes' "$EMAIL" true
+run_check 1 'PR to main: an email on a non-reserved domain fails'       "$EMAIL" false PR_BASE_REF=main DEVELOP_SHA="$BASE"
+i=0
+for v in 'x@notexample.com' 'x@example.com.not-a-real-school.com' 'x@example.co' 'x@school.testing' 'X@NOT-A-REAL-SCHOOL.COM' \
+         '555-555-0200' '555-555-0099' '(555) 555-0234' '(555)555-0234' '555.555.0200' '555-556-0150' '+1 555-555-1234' \
+         '123-45-6789' 'id 123-45-6789.'; do
+  i=$((i + 1))
+  run_check 1 "a value that looks real fails: $v" "$(fixture_change "real-$i" spec/fixtures/contacts.yml "name: Test Student"$'\n'"value: $v"$'\n')" false
+done
+# A value right after a JSON or YAML escape (\n, \t, \r) is still a value: the escape's
+# letter must not hide it.
+i=0
+for v in '{"note":"Test Student\n555-555-1234"}' '{"note":"SSN\t123-45-6789"}' 'note: "call\n(555) 555-1234"' \
+         '{"note":"x\r555.555.0200"}'; do
+  i=$((i + 1))
+  run_check 1 "a value after an escape fails: $v" "$(fixture_change "escaped-$i" spec/fixtures/notes.json "$v"$'\n')" false
+done
+run_check 0 'a reserved value after an escape passes' \
+  "$(fixture_change escaped-clean spec/fixtures/notes.json '{"note":"Test Student\n555-555-0150\tparent@example.com"}'$'\n')" false
+# Media inlined as a base64 data: URI is a photo or a recording (a voice recording is
+# student data), so it needs an approval like a binary file (Scot, 2026-11-07). The
+# payloads are a few placeholder bytes. Every type arm, in both letter cases.
+i=0
+for v in '{"img":"data:image/png;base64,AAAA"}' '{"img":"DATA:IMAGE/JPEG;BASE64,AAAA"}' \
+         '{"clip":"data:audio/webm;codecs=opus;base64,AAAA"}' '{"clip":"data:Audio/MPEG;Base64,AAAA"}' \
+         '{"clip":"data:video/mp4;base64,AAAA"}' '{"clip":"DATA:VIDEO/WEBM;BASE64,AAAA"}' \
+         'image: "data:image/svg+xml;base64,AAAA"'; do
+  i=$((i + 1))
+  run_check 1 "a base64 media data: URI fails: $v" "$(fixture_change "media-$i" spec/fixtures/board.json "$v"$'\n')" false
+done
+MEDIA="$(fixture_change media-approved spec/fixtures/board.json '{"img":"data:image/png;base64,AAAA"}'$'\n')"
+run_check 0 'a base64 media data: URI with an approval passes'          "$MEDIA" true
+run_check 1 'PR to staging: a base64 media data: URI fails'             "$MEDIA" false PR_BASE_REF=staging DEVELOP_SHA="$BASE"
+for v in '{"img":"data:image/svg+xml;utf8,<svg/>"}' '{"txt":"data:text/plain;base64,AAAA"}' \
+         '{"doc":"data:application/json;base64,AAAA"}' '{"note":"see the image/png docs; base64 is an encoding"}'; do
+  i=$((i + 1))
+  run_check 0 "not a base64 media data: URI, passes: $v" "$(fixture_change "media-$i" spec/fixtures/board.json "$v"$'\n')" false
+done
+run_check 0 'a base64 media data: URI outside a data-bearing path is not scanned' \
+  "$(fixture_change media-code app/assets/icon.js $'export default "data:image/png;base64,AAAA";\n')" false
+# Latin-1 bytes inside a file do not stop the scan.
+run_check 1 'a Latin-1 file body with a real-looking email fails' \
+  "$(commit_change latin1-body bash -c "printf 'name: Test Student caf\\351\nemail: test.student@not-a-real-school.com\n' > spec/fixtures/latin1-body.yml")" false
+
+# A non-ASCII (Latin-1) file name is scanned, not skipped, and is not exit 3.
+L1CLEAN="$(fixture_change latin1-clean $'spec/fixtures/caf\351-clean.yml' "$CLEAN_TEXT")"
+run_check 0 'a Latin-1 fixture name with clean content passes'          "$L1CLEAN" false
+run_check 0 'PR to staging: a Latin-1 fixture name with clean content passes' "$L1CLEAN" false PR_BASE_REF=staging DEVELOP_SHA="$BASE"
+L1REAL="$(fixture_change latin1-real $'spec/fixtures/caf\351-real.yml' $'email: test.student@not-a-real-school.com\n')"
+run_check 1 'a Latin-1 fixture name with a real-looking email fails'    "$L1REAL" false
+run_check 1 'PR to staging: a Latin-1 fixture name with a real-looking email fails' "$L1REAL" false PR_BASE_REF=staging DEVELOP_SHA="$BASE"
+
+# Binary files cannot be scanned as text, so they always need an approval: by content (a
+# NUL byte) or by extension (every arm, in both letter cases, with text-only content).
+WAV="$(commit_change binary-wav bash -c "mkdir -p spec/fixtures/files && printf 'RIFF\\000\\000\\000\\000WAVEfmt ' > spec/fixtures/files/beep.wav")"
+run_check 1 'a binary audio file under fixtures fails'                   "$WAV" false
+run_check 0 'a binary audio file under fixtures with an approval passes' "$WAV" true
+run_check 1 'PR to staging: a binary audio file under fixtures fails'    "$WAV" false PR_BASE_REF=staging DEVELOP_SHA="$BASE"
+run_check 1 'a .yml fixture holding a NUL byte fails' \
+  "$(commit_change nul-yml bash -c "printf 'name: Test Student\\000\n' > spec/fixtures/nul.yml")" false
+for ext in png jpg jpeg gif bmp webp tif tiff ico heic heif mp3 wav ogg oga m4a aac flac opus mp4 m4v mov webm avi mkv \
+           pdf doc docx xls xlsx ppt pptx odt ods zip gz tgz 7z rar sqlite sqlite3 db parquet; do
+  for e in "$ext" "$(printf '%s' "$ext" | tr 'a-z' 'A-Z')"; do
+    i=$((i + 1))
+    run_check 1 "a .$e file under fixtures fails even as text" \
+      "$(fixture_change "ext-$i" "spec/fixtures/files/sample.$e" $'Test Student\n')" false
+  done
+done
+# A submodule (gitlink) under a fixtures path has no content to scan.
+git -C "$REPO" checkout -q -B gitlink "$BASE"
+git -C "$REPO" update-index --add --cacheinfo "160000,$BASE,spec/fixtures/vendored"
+git -C "$REPO" commit -q -m gitlink
+run_check 1 'a submodule under a fixtures path fails' "$(git -C "$REPO" rev-parse HEAD)" false
+
+# db/language/ and VCR cassettes always need an approval, clean or not, and also when a
+# file is deleted (Scot, 2026-11-06): a scan cannot see names or a vocabulary built from a
+# user's buttons. Every arm, in both letter cases.
+for p in db/language/en/words.json DB/Language/en/words.json db/language/README.md spec/cassettes/a.yml \
+         spec/vcr_cassettes/a.yml test/vcr/a.yml spec/fixtures/vcr_cassettes/a.yml Spec/Fixtures/VCR_Cassettes/a.yml \
+         spec/fixtures/Cassettes/a.yml spec/fixtures/VCR/a.yml; do
+  i=$((i + 1))
+  run_check 1 "always needs an approval, even clean: $p" "$(fixture_change "always-$i" "$p" $'name: Test Student\n')" false
+done
+CASS="$(fixture_change cassette spec/cassettes/a.yml $'name: Test Student\n')"
+run_check 0 'a clean cassette with an approval passes'                 "$CASS" true
+run_check 1 'PR to staging: a clean cassette fails'                    "$CASS" false PR_BASE_REF=staging DEVELOP_SHA="$BASE"
+git -C "$REPO" checkout -q -B cassette-delete "$CASS"
+git -C "$REPO" rm -q spec/cassettes/a.yml && git -C "$REPO" commit -q -m 'delete the cassette'
+CHECK_BASE="$CASS" run_check 1 'deleting a cassette still needs an approval' "$(git -C "$REPO" rev-parse HEAD)" false
+
+# This check's own files still need an approval, the workflow among them, though workflow
+# files in general no longer do.
+for p in .github/workflows/data-bearing-paths.yml scripts/data-bearing-path-check.sh scripts/data-bearing-path-check-ci.sh \
+         scripts/tests/data-bearing-path-check-test.sh scripts/codex-review-path-classifier.sh \
+         scripts/tests/codex-review-path-classifier-test.sh; do
+  i=$((i + 1))
+  run_check 1 "a control file still needs an approval: $p" "$(fixture_change "ctrl-$i" "$p" $'# edit\n')" false
+done
+CTRLWF="$(fixture_change ctrl-wf .github/workflows/data-bearing-paths.yml $'# edit\n')"
+run_check 0 "editing the check's own workflow with an approval passes" "$CTRLWF" true
+run_check 1 "PR to staging: editing the check's own workflow fails"    "$CTRLWF" false PR_BASE_REF=staging DEVELOP_SHA="$BASE"
+
+# A workflow file that names the App's environment or its key or client id still needs an
+# approval (Scot, 2026-11-07): once on develop, such a workflow could mint the App token and
+# post this check's statuses. Judged on the whole new file, in any letter case; a workflow
+# that names none of them passes (above), and deleting one needs nothing.
+for v in 'environment: data-bearing-status' 'environment: { name: Data-Bearing-Status }' \
+         'key: ${{ secrets.DATA_BEARING_APP_PRIVATE_KEY }}' 'id: ${{ vars.data_bearing_app_client_id }}'; do
+  i=$((i + 1))
+  run_check 1 "a workflow naming the App's environment or secret needs an approval: $v" \
+    "$(fixture_change "wf-app-$i" .github/workflows/other.yml "on: push"$'\n'"jobs: { x: { runs-on: ubuntu-latest, $v, steps: [ { run: 'true' } ] } }"$'\n')" false
+done
+WFAPP="$(fixture_change wf-app-base .github/workflows/other.yml $'on: push\njobs:\n  x:\n    environment: data-bearing-status\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo one\n')"
+run_check 0 "a workflow naming the App's environment with an approval passes" "$WFAPP" true
+run_check 1 "PR to staging: a workflow naming the App's environment needs an approval" "$WFAPP" false PR_BASE_REF=staging DEVELOP_SHA="$BASE"
+WFAPP_EDIT="$(fixture_change wf-app-edit .github/workflows/other.yml $'on: push\njobs:\n  x:\n    environment: data-bearing-status\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo two\n' "$WFAPP")"
+CHECK_BASE="$WFAPP" run_check 1 "editing another line of a workflow that names the App's environment needs an approval" "$WFAPP_EDIT" false
+git -C "$REPO" checkout -q -B wf-app-delete "$WFAPP"
+git -C "$REPO" rm -q .github/workflows/other.yml && git -C "$REPO" commit -q -m 'delete the workflow'
+CHECK_BASE="$WFAPP" run_check 0 "deleting a workflow that names the App's environment passes" "$(git -C "$REPO" rev-parse HEAD)" false
+run_check 0 'a workflow naming a different environment passes' \
+  "$(fixture_change wf-other-env .github/workflows/other.yml $'on: push\njobs:\n  x:\n    environment: data-bearing-status-preview\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo DATA_BEARING_APP\n')" false
+run_check 0 'a non-workflow file that mentions the App environment passes' \
+  "$(fixture_change wf-app-docs docs/notes.md $'The gate uses data-bearing-status.\n')" false
+# Its unreadable-blob case is with the others below.
+WFUNREAD="$(fixture_change wf-unread .github/workflows/unread.yml $'on: push # unreadable-workflow-case\n')"
+
+# A code-only push after a scanner-clean data change passes.
+git -C "$REPO" checkout -q -B clean-then-code "$CLEAN"
+mkdir -p "$REPO/app/models" && printf 'class F; end\n' > "$REPO/app/models/f.rb"
+git -C "$REPO" add -A && git -C "$REPO" commit -q -m 'code after a clean fixture'
+CLEANCODE="$(git -C "$REPO" rev-parse HEAD)"
+run_check 0 'a code-only push after a clean data change passes'        "$CLEANCODE" false
+run_check 0 'PR to staging: a code-only push after a clean data change passes' "$CLEANCODE" false PR_BASE_REF=staging DEVELOP_SHA="$BASE"
+
+# Only ADDED lines are scanned: removing a real-looking line, deleting the file, or editing
+# another line next to it passes; adding one fails.
+DIRTY="$(fixture_change dirty-base spec/fixtures/legacy.yml $'name: Test Student\nssn: 123-45-6789\ngrade: 3\n')"
+RM_LINE="$(fixture_change rm-line spec/fixtures/legacy.yml $'name: Test Student\ngrade: 3\n' "$DIRTY")"
+EDIT_NEXT="$(fixture_change edit-next spec/fixtures/legacy.yml $'name: Test Student\nssn: 123-45-6789\ngrade: 4\n' "$DIRTY")"
+ADD_LINE="$(fixture_change add-line spec/fixtures/legacy.yml $'name: Test Student\nssn: 123-45-6789\ngrade: 3\nemail: test.student@not-a-real-school.com\n' "$DIRTY")"
+git -C "$REPO" checkout -q -B rm-file "$DIRTY"
+git -C "$REPO" rm -q spec/fixtures/legacy.yml && git -C "$REPO" commit -q -m 'delete the fixture'
+RM_FILE="$(git -C "$REPO" rev-parse HEAD)"
+CHECK_BASE="$DIRTY" run_check 0 'a removed real-looking line is not scanned'          "$RM_LINE" false
+CHECK_BASE="$DIRTY" run_check 0 'a deleted fixture is not scanned'                    "$RM_FILE" false
+CHECK_BASE="$DIRTY" run_check 0 'an unchanged real-looking line next to an edit is not scanned' "$EDIT_NEXT" false
+CHECK_BASE="$DIRTY" run_check 1 'an added real-looking line is scanned'               "$ADD_LINE" false
+CHECK_BASE="$DIRTY" run_check 0 'PR to staging: a removed real-looking line is not scanned' "$RM_LINE" false PR_BASE_REF=staging DEVELOP_SHA="$DIRTY"
+CHECK_BASE="$DIRTY" run_check 0 'PR to staging: an unchanged real-looking line next to an edit is not scanned' "$EDIT_NEXT" false PR_BASE_REF=staging DEVELOP_SHA="$DIRTY"
+CHECK_BASE="$DIRTY" run_check 1 'PR to staging: an added real-looking line is scanned' "$ADD_LINE" false PR_BASE_REF=staging DEVELOP_SHA="$DIRTY"
+# A mode-only change keeps the same blob, so it adds no lines.
+git -C "$REPO" checkout -q -B mode-only "$DIRTY"
+git -C "$REPO" update-index --chmod=+x spec/fixtures/legacy.yml && git -C "$REPO" commit -q -m 'mode only'
+MODEONLY="$(git -C "$REPO" rev-parse HEAD)"
+CHECK_BASE="$DIRTY" run_check 0 'a mode-only change adds no lines'                    "$MODEONLY" false
+CHECK_BASE="$DIRTY" run_check 0 'PR to staging: a mode-only change adds no lines'     "$MODEONLY" false PR_BASE_REF=staging DEVELOP_SHA="$DIRTY"
+# A symlink's target is its content, and is scanned.
+run_check 1 'a symlink under fixtures whose target looks real fails' \
+  "$(commit_change symlink bash -c 'ln -s "test.student@not-a-real-school.com" spec/fixtures/link')" false
+
+# Merge commits: only lines the merge adds beyond EVERY parent are new. A release merge
+# carries develop's line (reviewed on develop) and staging's own line; neither is new to
+# both parents, so it passes. A line added inside the merge itself is scanned.
+ROSTER=$'name: Test Student\ngrade: 3\nl3\nl4\nl5\nl6\nl7\nl8\n'
+R0="$(fixture_change roster-base spec/fixtures/roster.yml "$ROSTER")"
+RDEV="$(fixture_change roster-dev spec/fixtures/roster.yml "ssn: 123-45-6789"$'\n'"$ROSTER" "$R0")"
+RSTG="$(fixture_change roster-stg spec/fixtures/roster.yml "$ROSTER"$'note: Test Student\n' "$R0")"
+git -C "$REPO" checkout -q -B roster-merge "$RSTG"
+git -C "$REPO" merge -q --no-edit "$RDEV" -m 'release merge' >/dev/null 2>&1
+RMERGE="$(git -C "$REPO" rev-parse HEAD)"
+git -C "$REPO" checkout -q -B roster-evil "$RSTG"
+git -C "$REPO" merge -q --no-ff --no-commit "$RDEV" >/dev/null 2>&1
+printf 'email: test.student@not-a-real-school.com\n' >> "$REPO/spec/fixtures/roster.yml"
+git -C "$REPO" add -A && git -C "$REPO" commit -q --no-edit -m 'evil merge'
+REVIL="$(git -C "$REPO" rev-parse HEAD)"
+CLEANEVIL="$(merge_into clean-evil "$BASE" "$FIX" bash -c 'printf "name: Test Student\n" > spec/fixtures/clean-evil.yml')"
+CHECK_BASE="$R0" run_check 0 'PR to main: a release merge carrying a develop line passes' "$RMERGE" false PR_BASE_REF=main DEVELOP_SHA="$RDEV"
+CHECK_BASE="$R0" run_check 1 'PR to main: a real-looking line added inside a merge fails' "$REVIL" false PR_BASE_REF=main DEVELOP_SHA="$RDEV"
+run_check 0 'PR to main: a clean fixture added inside a merge passes'   "$CLEANEVIL" false PR_BASE_REF=main DEVELOP_SHA="$FIX"
+
+# The scanner fails closed: an error, a silent exit, an unexpected answer, or an unreadable
+# blob is exit 3, never a pass, label or not. Stubs stand in for python3 on PATH; the
+# classifier does not use python3 in --data-bearing-only mode.
+PYBIN="$WORK/pybin"
+for s in fail silent odd; do mkdir -p "$PYBIN/$s"; done
+printf '#!/usr/bin/env bash\nexit 1\n' > "$PYBIN/fail/python3"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$PYBIN/silent/python3"
+printf '#!/usr/bin/env bash\necho nothing\necho done\n' > "$PYBIN/odd/python3"
+chmod +x "$PYBIN"/*/python3
+run_check 3 'scanner error fails closed'                               "$CLEAN" false PATH="$PYBIN/fail:$PATH"
+run_check 3 'scanner error fails closed even when approved'            "$FIX"   true  PATH="$PYBIN/fail:$PATH"
+run_check 3 'PR to staging: scanner error fails closed'                "$CLEAN" false PATH="$PYBIN/fail:$PATH" PR_BASE_REF=staging DEVELOP_SHA="$BASE"
+run_check 3 'a scanner that exits 0 with no answer fails closed'       "$CLEAN" false PATH="$PYBIN/silent:$PATH"
+run_check 3 'a scanner with an unexpected answer fails closed'         "$CLEAN" false PATH="$PYBIN/odd:$PATH"
+UNREAD="$(fixture_change unreadable spec/fixtures/unread.yml $'name: Test Student unreadable-case\n')"
+BROKEN="$WORK/repo-broken"
+cp -a "$REPO" "$BROKEN"
+for blob in "$(git -C "$REPO" rev-parse "$UNREAD:spec/fixtures/unread.yml")" "$(git -C "$REPO" rev-parse "$BASE:spec/fixtures/existing.yml")" \
+            "$(git -C "$REPO" rev-parse "$WFUNREAD:.github/workflows/unread.yml")"; do
+  rm -f "$BROKEN/.git/objects/${blob:0:2}/${blob:2}"
+done
+REPO="$BROKEN" run_check 3 'an unreadable added blob fails closed'          "$UNREAD" false
+REPO="$BROKEN" run_check 3 'an unreadable added blob fails closed even when approved' "$UNREAD" true
+REPO="$BROKEN" run_check 3 'an unreadable old blob fails closed'            "$EDIT"   false
+REPO="$BROKEN" run_check 3 'PR to staging: an unreadable added blob fails closed' "$UNREAD" false PR_BASE_REF=staging DEVELOP_SHA="$BASE"
+REPO="$BROKEN" run_check 3 'an unreadable workflow blob fails closed'        "$WFUNREAD" false
+REPO="$BROKEN" run_check 3 'PR to staging: an unreadable workflow blob fails closed' "$WFUNREAD" false PR_BASE_REF=staging DEVELOP_SHA="$BASE"
+
+# Mutation checks: copies of the check with one scanner rule broken must get these cases
+# wrong, which shows the cases above would catch that break. A mutant whose text was not
+# found fails the suite rather than passing it.
+# mutant_case <label> <from> <to> <exit-the-mutant-gives> <head> [env...]
+mutant_case() {
+  local label="$1" from="$2" to="$3" expect="$4" head="$5" m="$WORK/mutant.sh"
+  shift 5
+  if ! FROM="$from" TO="$to" awk '{ i = index($0, ENVIRON["FROM"]); if (i) { $0 = substr($0, 1, i - 1) ENVIRON["TO"] substr($0, i + length(ENVIRON["FROM"])); n++ } print } END { exit n ? 0 : 1 }' "$CHECK" > "$m"; then
+    total=$((total + 1)); fails=$((fails + 1))
+    printf '  FAIL mutant not built (text not found)  mutant: %s\n' "$label"
+    return
+  fi
+  CHECK="$m" run_check "$expect" "mutant: $label" "$head" false CLASSIFIER="$REPO_ROOT/scripts/codex-review-path-classifier.sh" "$@"
+}
+mutant_case 'a scanner that always returns clean lets the real email through' \
+  'scan_text() {' 'scan_text() { return 0;' 0 "$EMAIL"
+mutant_case 'scanning file names instead of contents misses the email in the content' \
+  'scan_text "$ADDED" "$path"' 'printf "%s\n" "$path" > "$ADDED"; scan_text "$ADDED" "$path"' 0 "$EMAIL"
+CHECK_BASE="$DIRTY" mutant_case 'scanning the whole new file flags an unchanged line' \
+  'added_lines "$new" "$@"' 'cat -- "$NEWF" > "$ADDED"' 1 "$EDIT_NEXT"
 
 # --- The CI entry script, against a stubbed gh. The stub applies the real --jq
 # filter to canned JSON, so the filters are tested too. Statuses it is asked to post
@@ -429,6 +700,9 @@ posted_case "$FIX data-bearing-paths/develop failure" 'the failure is posted as 
 stub_pr "$CODE" develop
 run_ci 0 yes 'no approval, code only passes' "$CODE"
 posted_case "$CODE data-bearing-paths/develop success" 'the pass is posted as a status on the head'
+stub_pr "$CLEAN" develop
+run_ci 0 yes 'no approval, a scanner-clean fixture passes' "$CLEAN"
+posted_case "$CLEAN data-bearing-paths/develop success" 'the scanner-clean pass is posted as a status on the head'
 
 # Approvals: a success status from the App, for this base, on this exact head. Two PRs
 # with the same head and base merge identical content, so they share it.
