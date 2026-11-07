@@ -369,3 +369,14 @@ device for up to 5 minutes; trial Use and the modal's Translate say "needs a con
 
 Final run: QUnit filter 396 of 396; `offline-launch` + `offline-worker-lifecycle` 11 of 11;
 `offline-kill-switch` 2 of 2 (one commit earlier; that commit changed no worker code).
+
+### Decisions and full RSpec (2026-11-06)
+
+Traci: accept and log both. (1) A denial does not survive a relaunch: a denied folder can reopen from the device
+offline until the next sync marks it; matches Basic. (2) Trial Use from a folder can copy an older tried board
+in a narrow state; it only makes a new copy, and the original is untouched.
+
+Full RSpec on this branch: 8,538 examples, 28 failures, none new; unchanged develop fails the same 28 plus 4 under the
+same settings. Causes, verified: 22 are the blank upload settings used to keep tests off real storage (those
+files: 778 examples, 0 failures with made-up values); 6 are `jq` missing on this machine
+(`deploy_cloudrun_migrate_env_spec.rb`), so CI is the check for those.
