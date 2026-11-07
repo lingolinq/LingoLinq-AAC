@@ -47,6 +47,8 @@ describe 'retracted HIPAA six-year-floor citations' do
     /HIPAA six-year (?:floor|fail-safe)/,
     /6-year HIPAA (?:audit )?floor/,
     /HIPAA 6-year floor/,
+    /six-year HIPAA floor/i,
+    /\| HIPAA 45 CFR(?: §)? 164\.316\(b\)\(2\)\(i\)/,
     /audit-floor purposes/,
     /six-year access-log rule/,
     /\| EU AI Act Article 50 record-keeping/
@@ -72,10 +74,39 @@ describe 'retracted HIPAA six-year-floor citations' do
     expect(source).not_to match(/DATA_RETENTION\.md|AI_DATA_FLOW_CLASSIFICATION\.md/)
   end
 
-  # GitHub #1060: app/models/cluster_location.rb has no purge, so the schedule must
-  # not state 90 days as the retention window.
-  it 'does not state an enforced 90-day window for ClusterLocation' do
-    source = File.read(Rails.root.join('docs/legal/2026-09-22_data-retention.md'))
-    expect(source).not_to match(/^\| ClusterLocation \(IP and geolocation\) \| 90 days \|/)
+  # GitHub #1060 and #1061, cell by cell: a schedule row must not state a window or
+  # basis the code or the retraction contradicts. Notes cells may quote the old text.
+  describe 'the 2026-09-22 retention schedule' do
+    schedule = File.read(Rails.root.join('docs/legal/2026-09-22_data-retention.md'))
+    cell = lambda do |label, index|
+      row = schedule.lines.find { |line| line.start_with?("| #{label}") }
+      row && row.split('|')[index].to_s.strip
+    end
+
+    {
+      'User account records' => /12 months/,
+      'Communication snapshots' => /no cascade/,
+      'ClusterLocation' => /\ANo window enforced|\A\*\*No window enforced/,
+      'Authentication and audit trails' => /intended, not implemented/,
+      'Analytics events' => /intended, not implemented/,
+      "Children's data" => /not automatically deleted/
+    }.each do |label, window|
+      it "states the real window for #{label}" do
+        expect(cell.call(label, 2)).to match(window)
+      end
+    end
+
+    it 'keeps the 2-year soft delete out of the account window' do
+      expect(cell.call('User account records', 2)).not_to match(/soft-delete|2 years/)
+    end
+
+    [
+      'AI API logs (`AiApiLog`), EU-jurisdiction accounts',
+      'AI API logs (`AiApiLog`), healthcare-linked accounts'
+    ].each do |label|
+      it "states no established basis for #{label}" do
+        expect(cell.call(label, 3)).to include('Not established')
+      end
+    end
   end
 end

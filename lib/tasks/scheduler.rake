@@ -194,7 +194,7 @@ task "scheduler:dispatch" => :environment do
     # up to 5 years EU-jurisdiction, up to 6 years for healthcare-linked accounts
     # (disclosed window; the earlier "45 CFR 164.316(b)(2) six-year floor" framing
     # was retracted 2026-08-30, #888). NOT a flat 24-month purge. Both windows are
-    # under counsel review.
+    # open for counsel.
     #
     # WIRED here today (per-item status below; the EU purge currently matches zero rows):
     #   - EU 5-year purge (purge_old_eu_ai_api_logs below): scans jurisdiction = 'EU'
@@ -225,7 +225,7 @@ task "scheduler:dispatch" => :environment do
     # 24-month delete is not shipped: it would cut the disclosed up-to-6-years healthcare
     # window to 24 months. That window is a stated maximum, not a floor, but ai_api_log.rb
     # says a shorter default is a separate decision that must weigh it, and the window is
-    # under counsel review. Tracked in
+    # open for counsel. Tracked in
     # docs/legal/2026-09-22_data-retention.md and
     # docs/legal/2026-08-25_ai-data-flow-classification.md section 6.
     run_task.call("purge_old_eu_ai_api_logs") do

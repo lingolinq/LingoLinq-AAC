@@ -14,7 +14,11 @@ Follows #1269, which fixed `lib/eu_jurisdiction.rb` and `lib/tasks/scheduler.rak
 - 2026-08-25 draft: section 6 and the scope note, same retraction.
 - Governance memo: dated bracket at the "open" item, matching that file's correction style.
 - `scheduler.rake` now points at the two current drafts. Spec comments no longer imply early deletion against a floor.
-- `spec/lib/retracted_hipaa_floor_citations_spec.rb` now covers the three drafts, the rake pointers and the `ClusterLocation` cell. Red first: 5 of 7 failing, then green.
+- `spec/lib/retracted_hipaa_floor_citations_spec.rb` now covers the three drafts, the rake pointers and the `ClusterLocation` cell. Red first, then green; falsified against the parent bytes and single-row mutants.
+
+## Adversary review (commit 7d8d3cbb5)
+
+Seven findings, none Critical or High, all verified and fixed: `ClusterLocation` also has a live-account flush path; the earlier wording gave a false reason for withholding the purge (the recorded reason was the floor); `HIPAA audit` remained on two rows; `PaperTrail` and analytics windows stated unimplemented periods; the spec passed against 10 mutants, so it now asserts per-row cells; stale header text; counsel wording in the rake file.
 
 ## Wording choice
 
@@ -26,4 +30,4 @@ Follows #1269, which fixed `lib/eu_jurisdiction.rb` and `lib/tasks/scheduler.rak
 - The privacy page (#1050).
 - Spec titles at `spec/lib/lingo_linq/article50_disclosures_spec.rb:168,174` and `spec/lib/eu_jurisdiction_spec.rb:142` (Rule 14 needs approval), and the `lingolinq_hipaa_floor` metadata key.
 - `lib/flusher.rb:123-125` and `spec/lib/flusher_spec.rb:1054` still cite the frozen schedule's 6-year `PaperTrail` line. Different data class, and that comment justifies report-only behaviour.
-- `config/locales/en.yml` and `lib/tasks/scheduler.rake` still say "under review with our lawyers" / "under counsel review". True only once the memorandum goes out.
+- `config/locales/en.yml`, `app/models/ai_api_log.rb` and `lib/lingo_linq/article50_disclosures.rb` still say the windows are under review with counsel. True only once the memorandum goes out. `scheduler.rake` now says "open for counsel".
