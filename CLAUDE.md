@@ -236,7 +236,11 @@ or the check's own files fails the `data-bearing-paths/<base>` status until a re
 write access confirms every changed data file is synthetic (and has looked at any workflow
 change) and adds the `synthetic-data` label (never an agent: rule 15). That records an
 approval as a commit status on the current head commit for that base, and the label is
-removed; after a later push, add it again. `develop` is squash-only, so a PR to it is
+removed. On a PR to `develop` the approval is kept across later pushes that leave every
+flagged file unchanged; a push that changes one, or a force-push that drops the approved
+commit, needs the label again. On a PR to `staging` or `main`, add it again after every
+push. To withdraw a `develop` approval, change the data file, and mark the PR draft to stop
+a merge meanwhile. `develop` is squash-only, so a PR to it is
 judged by its net diff. PRs to `staging` and `main` are checked commit by commit for
 changes that never went through `develop`; a merge commit counts only for what it adds
 beyond its parents, so a release merge of `develop` does not trip again. The author may

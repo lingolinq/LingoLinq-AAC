@@ -6,12 +6,17 @@ name: Data-bearing paths
 # reviewer with write access confirms the data is synthetic and adds the
 # `synthetic-data` label. That records an approval as a commit status on the PR's
 # current head commit for its base (data-bearing-approval/<base>), naming the change set
-# it covers (its scope), and the label is removed. A later push is a new commit with no
-# approval, so the reviewer adds the label again for it; pushing a new commit is also how
-# an approval is withdrawn. An approval counts only while the change set is the one it
-# names, so a change to the base that changes it needs the label again. Agents never
-# add this label: they run under a person's account, and the check cannot tell them
-# apart.
+# it covers (its scope), and the label is removed. On a PR to develop the scope is the
+# flagged files only (each one's path, mode and old and new content), so the approval is
+# kept across later pushes that leave every flagged file as it was approved; a push that
+# changes, adds or removes one needs the label again, and so does a force-push that drops
+# the approved commit. On a PR to staging or main the scope is the whole change set and
+# every later push needs the label again. An approval counts only while its scope is the
+# one it names, so a change to the base that changes it needs the label again. There is
+# no withdraw label: to withdraw a develop approval, change the data file (or force-push
+# the approved commit away), and mark the PR draft to stop a merge meanwhile. Agents
+# never add this label: they run under a person's account, and the check cannot tell
+# them apart.
 #
 # The verdict is posted as a commit status on the head, data-bearing-paths/<base>.
 # Both statuses are posted with a token from a dedicated GitHub App, never the workflow
@@ -43,7 +48,10 @@ name: Data-bearing paths
 # branches with the source pinned to the App, then run the canary before relying on it:
 # a code-only PR; a fixture PR approved by the label; the same on a PR whose develop has
 # moved since its last push; a re-run of that labeled run after the label was removed
-# (it must record nothing); a push after approval; a label from a read-only account; a PR adding its own workflow and a same-named job; a fork PR; a
+# (it must record nothing); a code-only push after approval on a PR to develop (it must
+# pass, naming the approved commit); a data-file edit after approval (it must fail); a push
+# after approval on a PR to staging (it must fail); a label from a read-only account; a PR
+# adding its own workflow and a same-named job; a fork PR; a
 # pull_request job that names the environment (it must be refused); and confirming the
 # workflow token can read a collaborator's permission.
 #

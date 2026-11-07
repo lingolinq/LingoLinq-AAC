@@ -3,7 +3,8 @@
 # data-bearing-path-check-test.sh - proves scripts/data-bearing-path-check.sh blocks a
 # PR that changes a data-bearing path unless its head commit carries an approval, and
 # that scripts/data-bearing-path-check-ci.sh records approvals and verdicts as commit
-# statuses on the exact head commit and fails closed when it cannot decide.
+# statuses on the exact head commit, keeps a develop approval across pushes that leave
+# every flagged file unchanged (and nothing else), and fails closed when it cannot decide.
 #
 # WHY THIS EXISTS
 #   This repo is public, so a PR's contents are published the moment its branch is

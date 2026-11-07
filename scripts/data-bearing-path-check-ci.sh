@@ -9,8 +9,9 @@
 #   commit status sits on exactly one commit, and its name (context) carries the base:
 #   data-bearing-approval/<base>. Two PRs with the same head and base merge identical
 #   content, so they share it (Scot, 2026-10-11). A push makes a new head commit with
-#   no statuses, so nothing has to be reset, and no later event can carry an earlier
-#   approval forward to it. The verdict is a status on the same head,
+#   no statuses, so nothing has to be reset. On a PR to develop a later head can still
+#   rely on an earlier head's approval (KEEPING A DEVELOP APPROVAL below), but nothing is
+#   ever posted as an approval for it. The verdict is a status on the same head,
 #   data-bearing-paths/<base>, and that context is the required check, one per base
 #   branch so a head shared by PRs to different bases cannot overwrite another base's
 #   verdict.
@@ -32,15 +33,36 @@
 #   or admin), and the PR's head, base branch and change set are still the ones in the
 #   event, this script posts the approval status on the head and then removes the label.
 #   The label works as a button: adding it records an approval for the head current at
-#   that moment, and a later push needs it added again. A label added by a bot or by
+#   that moment. On a PR to staging or main a later push needs it added again; on a PR to
+#   develop only a push that changes a flagged file does. A label added by a bot or by
 #   someone with read or triage access records nothing and is removed. A re-run
 #   replays the same event, so it never records an approval, even when the label is
 #   still on (its removal is best effort); a labeled run removes the label on every
 #   exit it reaches.
 #
-#   The approval's description names its scope (scope_of below): the change set the
-#   check examines for that base and head. It counts only while the scope computed now
-#   is the same, so a base rewrite that changes what the head brings in voids it.
+#   The approval's description names what it covers. For staging and main that is
+#   "scope <hex>" (scope_of below): the change set the check examines for that base and
+#   head. For develop it is "data <hex>", the data scope from
+#   data-bearing-path-check.sh --data-scope: only the flagged records (data-bearing paths,
+#   workflows and the check's own files, each with its modes and old and new blobs) of
+#   base...head. Either counts only while the same value computed now matches, so a base
+#   rewrite that changes what the head brings in voids it. A develop approval recorded
+#   before data scopes existed ("scope <hex>") still counts on its own head, never later.
+#
+# KEEPING A DEVELOP APPROVAL (Scot, 2026-11-06)
+#   When the head of a PR to develop has no approval of its own and something is flagged,
+#   the script walks the PR's first-parent chain back from the head (git rev-list
+#   --first-parent, at most WALK_MAX commits, the head included), computes each commit's
+#   data scope, stops at the first one that differs from the head's, and accepts the first
+#   commit whose latest approval status is the App's success "Synthetic data confirmed by
+#   <login>; data <hex>" with <hex> the head's data scope now. So a push that leaves every
+#   flagged file as approved keeps the approval; a push that changes, adds or removes one,
+#   a change under one on develop that moves its merge-base blob, a force-push that drops
+#   the approved commit, or a merge that puts it on a second parent (git pull) needs the
+#   label again. Those reads use the App token, so the walk spends the App's rate limit,
+#   not the workflow token's, which every workflow in the repository shares. There is no
+#   withdraw label (Scot, 2026-11-06): change the data file, and mark the PR draft to stop
+#   a merge meanwhile. Staging and main never keep an approval across a push.
 #
 #   An approval status counts only when its latest entry is `success` and its creator is
 #   the App (STATUS_LOGIN). Agents never add this label: they run under a person's
@@ -82,9 +104,11 @@
 #   SENDER_TYPE     on a labeled event, User or Bot
 #   GH_TOKEN        the workflow token, for every call except posting statuses
 #                   (pull-requests: write, to remove the label)
-#   STATUS_TOKEN    the App's installation token (statuses: write), used only to post
+#   STATUS_TOKEN    the App's installation token (statuses: write), used to post, and to
+#                   read the statuses of a develop PR's earlier heads (KEEPING ... above)
 #   STATUS_LOGIN    the App's login, <slug>[bot]; an approval must come from it
-#   CHECK           optional; path to data-bearing-path-check.sh (tests override it)
+#   CHECK           optional; path to data-bearing-path-check.sh (tests override it). It is
+#                   run without GH_TOKEN or STATUS_TOKEN: it reads git only.
 #
 # EXIT CODES
 #   whatever the check returns (0, 1, 3); 0 when the event head has moved on (nothing
@@ -96,6 +120,9 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CHECK="${CHECK:-$REPO_ROOT/scripts/data-bearing-path-check.sh}"
 EXEMPT_LABEL="synthetic-data"
+# A develop approval is looked for on at most this many commits of the PR's first-parent
+# chain, the head included.
+WALK_MAX=50
 
 head_sha=""
 VERDICT_CTX=""
@@ -143,6 +170,15 @@ scope_of() {
   h="${h:0:40}"
   [[ "$h" =~ ^[0-9a-f]{40}$ ]] || return 1
   printf '%s' "$h"
+}
+
+# data_scopes <base-sha> <commit>...: "<commit> <data scope>" per commit, from the check
+# (data-bearing-path-check.sh --data-scope, develop only): the flagged records a develop
+# approval covers.
+# The check gets neither token: it reads git only, and a defect in it must not be able to
+# post a status.
+data_scopes() {
+  env -u STATUS_TOKEN -u GH_TOKEN PR_BASE_REF=develop bash "$CHECK" --data-scope "$@"
 }
 
 if [ "${1:-}" = --mark ]; then
@@ -214,6 +250,18 @@ fi
 scope_now="$(scope_of "$base_ref" "$base_sha" "$head_sha" "$develop_sha")" \
   || fail3 "could not compute the change set of $base_sha...$head_sha"
 
+# For develop, the data scope too: only the flagged records, so a push that leaves them
+# unchanged leaves it unchanged.
+data_now=""
+empty_data=""
+if [ "$base_ref" = develop ]; then
+  line="$(data_scopes "$base_sha" "$head_sha")" || fail3 "could not compute the data scope of $base_sha...$head_sha"
+  [[ "$line" =~ ^$head_sha\ ([0-9a-f]{40})$ ]] || fail3 "the data scope of $head_sha is malformed"
+  data_now="${BASH_REMATCH[1]}"
+  empty_data="$(printf 'develop\n' | sha256sum)" || fail3 "sha256sum failed"
+  empty_data="${empty_data:0:40}"
+fi
+
 # Recording an approval, after the base checks above. The label must still be on the
 # PR (a re-run replays the labeled event after the label was removed), and the event's
 # base must give the same scope as the base now, so a label added before the base
@@ -246,32 +294,83 @@ if [ "$approval_event" = true ]; then
     if [ "$event_scope" != "$scope_now" ]; then
       echo "data-bearing-path-check: the base changed between the label and this run, so the change set differs from the one labeled. No approval recorded; add the label again." >&2
     else
-      post_status "$head_sha" "$APPROVAL_CTX" success "Synthetic data confirmed by $SENDER_LOGIN; scope $scope_now" \
+      # develop records the data scope, so the approval can be kept across later pushes;
+      # staging and main record the scope and cover this head only.
+      if [ "$base_ref" = develop ]; then covers="data $data_now"; else covers="scope $scope_now"; fi
+      post_status "$head_sha" "$APPROVAL_CTX" success "Synthetic data confirmed by $SENDER_LOGIN; $covers" \
         || fail3 "could not record the approval"
-      echo "data-bearing-path-check: recorded $SENDER_LOGIN's approval on $head_sha ($APPROVAL_CTX, scope $scope_now)."
+      echo "data-bearing-path-check: recorded $SENDER_LOGIN's approval on $head_sha ($APPROVAL_CTX, $covers)."
     fi
   fi
   [ "$label_on" != true ] || remove_label
 fi
 
-# The latest status for the approval context comes first (the API lists newest
-# first), as "<state> <creator> <scope or none>". The context is built from an
-# allowlisted branch, so it is safe inside the filter. sed -n reads all of its input, so
-# the writer never meets a closed pipe.
-filter='.[] | select(.context == "'"$APPROVAL_CTX"'") | "\(.state) \(.creator.login // "") \(((.description // "") | capture("; scope (?<s>[0-9a-f]{40})$") | .s) // "none")"'
-found="$(gh api --paginate "repos/$REPO/commits/$head_sha/statuses?per_page=100" --jq "$filter")" \
-  || fail3 "could not read the statuses on $head_sha"
-latest="$(printf '%s\n' "$found" | sed -n '1p')"
+# latest_approval <sha>: the latest status for the approval context on that commit (the
+# API lists newest first), as "<state> <creator> <scope|data|none> <40 hex|none>", read
+# from a description the App writes on a label: "Synthetic data confirmed by <login>;
+# scope <hex>" or "...; data <hex>". The context is built from an allowlisted branch, so
+# it is safe inside the filter. sed -n reads all of its input, so the writer never meets a
+# closed pipe.
+filter='.[] | select(.context == "'"$APPROVAL_CTX"'") | "\(.state) \(.creator.login // "") \(((.description // "") | capture("^Synthetic data confirmed by [A-Za-z0-9-]+; (?<k>scope|data) (?<s>[0-9a-f]{40})$") | "\(.k) \(.s)") // "none none")"'
+# latest_approval <sha> [token]: the token defaults to the workflow token (GH_TOKEN).
+latest_approval() {
+  local found
+  found="$(GH_TOKEN="${2:-$GH_TOKEN}" gh api --paginate "repos/$REPO/commits/$1/statuses?per_page=100" --jq "$filter")" || return 1
+  printf '%s\n' "$found" | sed -n '1p'
+}
+
+latest="$(latest_approval "$head_sha")" || fail3 "could not read the statuses on $head_sha"
 approved=false
-[ "$latest" = "success $STATUS_LOGIN $scope_now" ] && approved=true
+approved_at=""
+[ "$latest" = "success $STATUS_LOGIN scope $scope_now" ] && approved=true
+[ "$base_ref" = develop ] && [ "$latest" = "success $STATUS_LOGIN data $data_now" ] && approved=true
+
+# Keeping a develop approval: an approval recorded on an earlier head counts for this head
+# when nothing flagged changed in between. Walk the PR's first-parent chain back from the
+# head (at most WALK_MAX commits, the head included), stop at the first commit whose data
+# scope differs from the head's, and take the first commit whose latest approval is the
+# App's, recorded on a label, for the data scope now. A commit force-pushed out of the PR
+# is not on the chain. Nothing is posted as an approval here, so a kept approval is never
+# the source of another.
+if [ "$approved" != true ] && [ "$base_ref" = develop ] && [ "$data_now" != "$empty_data" ]; then
+  chain="$(git rev-list --first-parent --max-count="$WALK_MAX" "$head_sha" "^$base_sha")" \
+    || fail3 "could not list the commits of $base_sha..$head_sha"
+  earlier=()
+  for c in $chain; do [ "$c" = "$head_sha" ] || earlier+=("$c"); done
+  if [ "${#earlier[@]}" -gt 0 ]; then
+    scopes="$(data_scopes "$base_sha" "${earlier[@]}")" \
+      || fail3 "could not compute the data scopes of the PR's earlier commits"
+    # One line per commit, in the order asked, or nothing from it is trusted.
+    mapfile -t scope_lines <<<"$scopes"
+    [ "${#scope_lines[@]}" = "${#earlier[@]}" ] || fail3 "the data scopes do not match the commits asked for"
+    for i in "${!earlier[@]}"; do
+      [[ "${scope_lines[$i]}" =~ ^${earlier[$i]}\ ([0-9a-f]{40})$ ]] || fail3 "a data scope line is malformed"
+    done
+    for i in "${!earlier[@]}"; do
+      c="${earlier[$i]}"
+      s="${scope_lines[$i]#* }"
+      [ "$s" = "$data_now" ] || break
+      # The App token: these reads come out of the App's own rate limit (5,000 an hour),
+      # not the workflow token's 1,000 an hour shared by every workflow in the repository.
+      got="$(latest_approval "$c" "$STATUS_TOKEN")" || fail3 "could not read the statuses on $c"
+      if [ "$got" = "success $STATUS_LOGIN data $data_now" ]; then
+        approved=true
+        approved_at="$c"
+        echo "data-bearing-path-check: kept the approval recorded on $c; no flagged file has changed since."
+        break
+      fi
+    done
+  fi
+fi
 
 rc=0
-APPROVED="$approved" PR_BASE_REF="$base_ref" DEVELOP_SHA="$develop_sha" \
-  bash "$CHECK" "$base_sha" "$head_sha" || rc=$?
+env -u STATUS_TOKEN -u GH_TOKEN APPROVED="$approved" APPROVED_AT="$approved_at" PR_BASE_REF="$base_ref" \
+  DEVELOP_SHA="$develop_sha" bash "$CHECK" "$base_sha" "$head_sha" || rc=$?
 
 case "$rc" in
-  0) state=success; desc="No unapproved data-bearing change." ;;
-  1) state=failure; desc="Data-bearing change needs a synthetic-data approval on this commit." ;;
+  0) state=success; desc="No unapproved data-bearing change."
+     [ -z "$approved_at" ] || desc="Approval kept from ${approved_at:0:12}; no flagged file changed since." ;;
+  1) state=failure; desc="Data-bearing change needs a synthetic-data approval (the label)." ;;
   *) state=error; desc="Could not decide; see the workflow run." ;;
 esac
 post_status "$head_sha" "$VERDICT_CTX" "$state" "$desc" || fail3 "could not post the verdict"
