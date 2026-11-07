@@ -57,6 +57,31 @@ export function leave_unsaved_board(router, persistence, session) {
   return true;
 }
 
+// Modern's grid reads url_cache as it builds. With file storage that is primed at startup. Without it
+// (Safari, current Chromium) pictures are in the database, so this reads the ones this board uses:
+// one board's worth, not every saved picture, which is why services/persistence.js does not cache them.
+export function load_copy_images(persistence, raw) {
+  // The storage check runs at startup and may still be going on a cold launch.
+  var ready = typeof persistence.prepare_local_files === 'function' ? persistence.prepare_local_files() : RSVP.resolve();
+  return RSVP.resolve(ready).then(function() {
+    return persistence.get('local_system.available') === false ? load_images(persistence, raw) : null;
+  });
+}
+
+function load_images(persistence, raw) {
+  var urls = {};
+  Object.values(raw.image_urls || {}).forEach(function(url) { if(url) { urls[url] = true; } });
+  (raw.images || []).forEach(function(image) { if(image && image.url) { urls[image.url] = true; } });
+  return RSVP.all(Object.keys(urls).map(function(url) {
+    return persistence.find_url(url, 'image').then(function(found) {
+      persistence.url_cache = persistence.url_cache || {};
+      persistence.url_uncache = persistence.url_uncache || {};
+      persistence.url_cache[url] = found;
+      persistence.url_uncache[url] = false;
+    }, function() { });
+  }));
+}
+
 // Settles with `promise`, or with null after `ms`, so a stuck database cannot hold a page.
 export function within(promise, ms) {
   return new RSVP.Promise(function(resolve) {

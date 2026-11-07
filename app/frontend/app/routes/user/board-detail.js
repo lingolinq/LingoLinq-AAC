@@ -752,7 +752,7 @@ export default Route.extend({
       var record = _this._record_for_copy(raw);
       _this.set('_raw_board_data', raw);
       nav.served = true;
-      return record;
+      return within(load_copy_images(_this.persistence, raw), _this.device_read_wait).then(function() { return record; });
     }).then(null, function() { return null; });
   },
   // Signed in, on that user's own database. `auth_settings` will not do: a forced logout leaves `{}`.
@@ -792,8 +792,12 @@ export default Route.extend({
   // rule as services/persistence.js#find_boards). The grid comes from the newest copy, not the record.
   // A row the store cannot take throws into _serve_copy's rejection handler: no copy.
   _record_for_copy: function(raw) {
-    return this.store.peekRecord('board', raw.id) ||
-      this.store.push(this.store.normalize('board', JSON.parse(JSON.stringify(raw))));
+    var existing = this.store.peekRecord('board', raw.id);
+    if(existing) { return existing; }
+    var attrs = JSON.parse(JSON.stringify(raw));
+    delete attrs.images; // sideloaded objects, not the relationship the model declares; the grid reads them from raw
+    delete attrs.sounds;
+    return this.store.push(this.store.normalize('board', attrs));
   },
   // The controller's flag is the one record of what is on screen: read by the notice, by
   // _finalize_board_display and by the actions that would save the board. Changed when a navigation
@@ -805,6 +809,6 @@ export default Route.extend({
 });
 // Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
 import boardRevocation from '../../utils/board_revocation';
-import { DEVICE_COPY_WAIT_MS, DEVICE_READ_WAIT_MS, board_kept_on_refusal, leave_unsaved_board, read_device_copy, server_refused, session_ended, usable_copy, within } from '../../utils/board_device_copy';
+import { DEVICE_COPY_WAIT_MS, DEVICE_READ_WAIT_MS, board_kept_on_refusal, leave_unsaved_board, load_copy_images, read_device_copy, server_refused, session_ended, usable_copy, within } from '../../utils/board_device_copy';
 import offline_shell from '../../utils/offline_shell';
 import { DEFAULT_WAIT_MS, wait_for_session_user } from '../../utils/session_user_wait';

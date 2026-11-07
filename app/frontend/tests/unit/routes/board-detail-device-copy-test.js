@@ -469,6 +469,41 @@ module('Unit | Route | user/board-detail device copy', function(hooks) {
     assert.deepEqual(moved, [], 'refused');
   });
 
+  test('with no file storage, a device copy loads its own pictures before the grid is built', async function(assert) {
+    var urls = [];
+    this.device = {'me/board': row({image_urls: {a: 'https://x/a.png'}, images: [{id: '1_9', url: 'https://x/b.png'}]})};
+    this.persistenceService.setProperties({local_system: {available: false}, url_uncache: {'https://x/a.png': true}});
+    this.persistenceService.find_url = function(url) {
+      urls.push(url);
+      return url.match(/a\.png/) ? RSVP.resolve('data:image/png;base64,AAAA') : RSVP.reject({error: 'not saved'});
+    };
+    this.answers = [no_answer];
+    await open(this);
+    assert.deepEqual(urls.sort(), ['https://x/a.png', 'https://x/b.png']);
+    assert.strictEqual(this.persistenceService.url_cache['https://x/a.png'], 'data:image/png;base64,AAAA');
+    assert.false(this.persistenceService.url_uncache['https://x/a.png'], 'the grid would skip it otherwise');
+    assert.notOk(this.persistenceService.url_cache['https://x/b.png'], 'a picture that was never saved is left alone');
+  });
+
+  test('with file storage, nothing extra is read', async function(assert) {
+    var reads = 0;
+    this.device = {'me/board': row({image_urls: {a: 'https://x/a.png'}})};
+    this.persistenceService.set('local_system', {available: true});
+    this.persistenceService.find_url = function() { reads++; return RSVP.resolve('x'); };
+    this.answers = [no_answer];
+    await open(this);
+    assert.strictEqual(reads, 0);
+  });
+
+  test('a picture read that sticks does not hold the board back', async function(assert) {
+    this.device = {'me/board': row({image_urls: {a: 'https://x/a.png'}})};
+    this.persistenceService.set('local_system', {available: false});
+    this.persistenceService.find_url = function() { return new RSVP.Promise(function() { }); };
+    this.route.device_read_wait = 5;
+    this.answers = [no_answer];
+    assert.strictEqual((await open(this)).get('key'), 'me/board');
+  });
+
   test('the waits are the ones the design promises', function(assert) {
     assert.strictEqual(DEVICE_COPY_WAIT_MS, 8000, 'the normal first GET limit (utils/extras.js)');
     assert.strictEqual(DEVICE_READ_WAIT_MS, 5000);

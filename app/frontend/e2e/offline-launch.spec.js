@@ -10,6 +10,7 @@
 //   3. cd app/frontend && E2E_BASE_URL=http://localhost:5077 npx playwright test --project=offline-launch
 // Then restart Rails with OFFLINE_APP_SHELL=off and run --project=offline-kill-switch.
 
+const path = require('path');
 const { test, expect } = require('@playwright/test');
 const { signIn } = require('./support/local-session');
 const { markInstalled, openProfile, workerState } = require('./support/offline-shell');
@@ -328,6 +329,43 @@ test.describe('offline launch from the offline app shell', () => {
       await context.close();
     }
   });
+
+  // Pictures are the words on most boards. Safari has no file storage, so an iPad Home Screen app keeps
+  // them in the database. Chromium does have it, so this removes it before the app starts, then checks each
+  // view with the browser's own cache cleared: only the app's saved copy can pass.
+  for (const [view, user, route] of [['Modern', 'e2e_offline_pictures', 'board-detail'], ['Classic', 'e2e_offline_pictures_classic', 'board']]) {
+    test(`${view} view shows a saved picture offline on a device with no file storage`, async () => {
+      const context = await openProfile(`pictures-${view}`);
+      const home = `/${user}/${route}/e2e-offline-pictures`;
+      const url = 'https://d18vdu4p71yql0.cloudfront.net/e2e-offline/bubble.png';
+      // A data: URL can only be the saved copy, since the address itself cannot answer offline.
+      const shown = (page) => page.evaluate(() => [...document.querySelectorAll('img')]
+        .some((img) => img.src.startsWith('data:image/png') && img.complete && img.naturalWidth > 0));
+      try {
+        await context.addInitScript(() => {
+          for (const name of ['webkitRequestFileSystem', 'requestFileSystem']) {
+            Object.defineProperty(window, name, { value: undefined, configurable: true });
+          }
+        });
+        await context.route('https://d18vdu4p71yql0.cloudfront.net/e2e-offline/**', (route) => route.fulfill({
+          path: path.join(__dirname, '../../../public/images/Bubble-come-here.png'),
+          contentType: 'image/png',
+          headers: { 'access-control-allow-origin': '*' },
+        }));
+        const page = context.pages()[0] || await context.newPage();
+        await prepare(page, { user });
+        expect(await page.evaluate(() => window.persistence.get('local_system.available')), 'the Safari path').toBe(false);
+        await expect.poll(() => page.evaluate((u) => window.persistence.find('dataCache', u).then((d) => !!d.data_uri, () => false), url),
+          { message: 'the sync saved it in the database', timeout: 20_000 }).toBe(true);
+        await (await context.newCDPSession(page)).send('Network.clearBrowserCache');
+        await launchOffline(context, page, home, page.getByText('bird', { exact: true }));
+        await expect.poll(() => shown(page), { message: 'the picture shows offline', timeout: 20_000 }).toBe(true);
+      } finally {
+        await context.setOffline(false).catch(() => {});
+        await context.close();
+      }
+    });
+  }
 
   // Wi-Fi with no internet: the device says it is online, and every request fails.
   test('a launch on a network with no internet opens the synced board', async () => {

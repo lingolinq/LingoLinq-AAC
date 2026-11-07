@@ -78,4 +78,25 @@ result = {}
   result[view] = { user: user.user_name, board: board.key, folder: folder.key }
 end
 
+# A board with a picture in each view, for the offline picture check. Their own users, because the boards
+# above must stay text only. The spec answers this address itself, so nothing is fetched: it is on the symbol CDN because
+# the app fetches those directly (other hosts go through the server's proxy), and it will not store
+# a picture from localhost. Offline nothing answers it, so it can only come from the device.
+{ 'modern' => 'e2e_offline_pictures', 'classic' => 'e2e_offline_pictures_classic' }.each do |view, user_name|
+  picture_user = e2e_user(user_name, 'board_view_style' => view, 'word_suggestions' => false, 'sidebar_boards' => e2e_sidebar)
+  picture_board = Board.find_by(key: "#{user_name}/e2e-offline-pictures")
+  unless picture_board
+    picture_board = Board.process_new({ 'name' => 'E2E Offline Pictures', 'key' => 'e2e-offline-pictures', 'public' => false }, { user: picture_user })
+    picture = ButtonImage.create!(user: picture_user, board: picture_board, url: 'https://d18vdu4p71yql0.cloudfront.net/e2e-offline/bubble.png', public: false,
+                                  settings: { 'content_type' => 'image/png', 'width' => 100, 'height' => 100, 'license' => { 'type' => 'private' } })
+    picture_board.process({
+      'grid' => { 'rows' => 1, 'columns' => 2, 'order' => [[1, 2]] },
+      'buttons' => [{ 'id' => 1, 'label' => 'bird', 'image_id' => picture.global_id }, { 'id' => 2, 'label' => 'words' }]
+    }, { user: picture_user })
+  end
+  picture_user.process_home_board({ 'id' => picture_board.global_id, 'key' => picture_board.key }, {})
+  picture_user.save!
+  result["pictures_#{view}"] = { user: picture_user.user_name, board: picture_board.key }
+end
+
 puts result.to_json

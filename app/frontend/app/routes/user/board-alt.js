@@ -143,7 +143,10 @@ export default Route.extend({
     var _this = this;
     var online = !!(this.persistence && this.persistence.get('online'));
     return boardRevocation.blocks_view_route(data, this.appState, online).then(function(blocked) {
-      return blocked ? boardRevocation.unavailable_record(_this, key) : data;
+      if(blocked) { return boardRevocation.unavailable_record(_this, key); }
+      if(online) { return data; }
+      // The board's tiles read url_cache as they render, as the Modern grid does.
+      return within(load_copy_images(_this.persistence, { image_urls: data.get('image_urls') }), DEVICE_READ_WAIT_MS).then(function() { return data; });
     });
   },
   actions: {
@@ -157,4 +160,4 @@ export default Route.extend({
 });
 // Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
 import boardRevocation from '../../utils/board_revocation';
-import { leave_unsaved_board } from '../../utils/board_device_copy';
+import { DEVICE_READ_WAIT_MS, leave_unsaved_board, load_copy_images, within } from '../../utils/board_device_copy';
