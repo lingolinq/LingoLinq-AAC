@@ -41,6 +41,11 @@ warning, but the race protection is missing for that token. Final senior-dev pas
 approved with comments. Its error guard on the `EXPIRE` branch is included; that edit was not separately reviewed.
 `sign_out` then moved to the end of the service so `.eslint-todo` rows do not shift, with no baseline change.
 
+Final round at `34f9dee01`: adversary said ship with conditions; senior-dev requested one missing `logout!` test,
+now added, with no defect in the code. Its valet concern was refuted: `valid_token?` matches the same
+`key['value']` that revocation removes. The `logout!` spec and the warning when no marker is stored came after
+that round. Production Redis has no custom config, so it uses Memorystore's default eviction policy.
+
 ## Unresolved
 
 - Revocation is one best-effort request. Offline, on a server error, or past the 2 second wait, the device
