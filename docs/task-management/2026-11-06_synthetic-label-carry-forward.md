@@ -230,3 +230,22 @@ match (red: "rewritten ... the head"), relax the walk `data` match (red: "... a 
 head"), drop either `env -u` (red: tokens), drop either format check (red: malformed scope),
 classify control paths only as control (red: the workflow data file cases), fail the run on
 an unscopable earlier commit (red: "unscopable").
+
+## Dual review round 2 (at 1d2220340): request-changes (Codex: approve with comments); disposition
+
+Findings file: `<git common dir>/pr-reviews/pr-branch-compliance-scot-synthetic-label-carry-forward-3e054164-r2.md`.
+Round-1 R1-1, R1-2, R1-4 and R1-5 confirmed fixed by both passes.
+- R2-1 Medium (adversary, CONFIRMED by probes; continues R1-3): a person's failure on one
+  approved commit was skipped by the walk, which went on to an older approval for the same
+  data, and a withdrawn head still started the walk. Fixed: the walk does not start when the
+  head's newest approval status is anything but an accepted approval, and stops at the first
+  earlier commit whose newest approval status is not the App's approval for this data. Docs:
+  a failure also voids older approvals on its chain; after a rebase, post it on each old head
+  that holds one. Tests: "a withdrawn approval stops the walk before an older one", "a
+  withdrawn head does not start the walk", "withdrawn on every approved commit, a stale push
+  of the old chain does not keep it". Mutants removing either stop turn their case red.
+- R2-2 Low (adversary, CONFIRMED by mutant): the cross-run cache was unpinned. Test: on a
+  two-path chain the flagged path is classified alone once across the head and the walk;
+  dropping `DATA_SCOPE_CACHE` turns it red.
+- R2-3 Low (Codex): superseded text in this log marked SUPERSEDED (decisions and proposal).
+- R2-4 Low: R1-6 carried over, follow-up.

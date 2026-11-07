@@ -73,9 +73,12 @@
 #     gh api -X POST repos/<owner>/<repo>/statuses/<approved sha> -f state=failure \
 #       -f context=data-bearing-approval/develop -f description="Withdrawn"
 #   The newest status on that commit is the one that counts, so the approval no longer
-#   counts there or for any later head. Agents never post it (they run under a person's
-#   account). Mark the PR draft to stop a merge meanwhile. Staging and main never keep an
-#   approval across a push.
+#   counts there or for any later head, and the walk stops at that commit, so no older
+#   approval for the same data on the chain counts either. A rebase leaves the old heads'
+#   approvals on commits no longer on the chain, where a stale push could bring them back:
+#   post the failure on each commit that holds an approval for that data. Agents never post
+#   it (they run under a person's account). Mark the PR draft to stop a merge meanwhile.
+#   Staging and main never keep an approval across a push.
 #
 #   An approval status counts only when its latest entry is `success` and its creator is
 #   the App (STATUS_LOGIN). Agents never add this label: they run under a person's
@@ -350,7 +353,13 @@ approved_at=""
 # App's, recorded on a label, for the data scope now. A commit force-pushed out of the PR
 # is not on the chain. Nothing is posted as an approval here, so a kept approval is never
 # the source of another.
-if [ "$approved" != true ] && [ "$base_ref" = develop ] && [ "$data_now" != "$empty_data" ]; then
+# The walk stops at the first commit, the head included, whose newest approval status is
+# anything other than the App's approval for this data: a person's failure there (a
+# withdrawal) also withdraws every older approval for the same data on the chain.
+if [ "$approved" != true ] && [ -n "$latest" ] && [ "$base_ref" = develop ]; then
+  echo "data-bearing-path-check: the head's newest approval status is not an approval for this data; no earlier approval is looked for."
+fi
+if [ "$approved" != true ] && [ -z "$latest" ] && [ "$base_ref" = develop ] && [ "$data_now" != "$empty_data" ]; then
   chain="$(git rev-list --first-parent --max-count="$WALK_MAX" "$head_sha" "^$base_sha")" \
     || fail3 "could not list the commits of $base_sha..$head_sha"
   earlier=()
@@ -374,6 +383,10 @@ if [ "$approved" != true ] && [ "$base_ref" = develop ] && [ "$data_now" != "$em
       approved=true
       approved_at="$c"
       echo "data-bearing-path-check: kept the approval recorded on $c; no flagged file has changed since."
+      break
+    fi
+    if [ -n "$got" ]; then
+      echo "data-bearing-path-check: the newest approval status on $c is not an approval for this data (withdrawn, say); looking no further back."
       break
     fi
   done
