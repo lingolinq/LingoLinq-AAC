@@ -65,6 +65,13 @@
 #   edit or a Scot decision between review passes), re-find it via promote-finding.rb again
 #   the same day. Must exit 0, not die().
 #
+#   Case 4 (issue #1022) is the audit-merge analog of the promote-finding "must actually fire"
+#   mutation: the previous end-of-run check required status == ASSIGNABLE_STATUS ('open') AND
+#   status in SCOT_OWNED_CLOSED, which can never both be true, so a scratch copy that forces
+#   every new record to verified-closed still exited 0. The created_ids form must die. A
+#   follow-on same-day flip (create today, out-of-band verified-closed, re-find) must still
+#   exit 0, so a date-proxy `firstSeen == run_date` "fix" cannot sneak through.
+#
 #   AUDIT_MERGE / PROMOTE_FINDING env overrides point at alternate copies, matching the
 #   REGISTER_LINT convention in scripts/tests/register-lint-shape-test.sh (used to prove this
 #   harness goes red against the pre-fix scripts; not used by CI or the default local run).
@@ -270,6 +277,126 @@ else
         fi
       fi
     fi
+  fi
+fi
+
+echo "-- audit-merge.rb: invariant must actually fire for a genuine same-run violation (issue #1022) --"
+
+# The end-of-run check in audit-merge.rb used to require status == ASSIGNABLE_STATUS ('open')
+# AND status in SCOT_OWNED_CLOSED, which can never both be true, so the branch never ran.
+# Mutating ASSIGNABLE_STATUS (the promote-finding proof) would make that dead conjunction
+# accidentally true. Instead, force a genuinely NEW record to verified-closed AFTER it is
+# appended, which is the violation the guard is for. Current code exits 0; the created_ids
+# fix must die with the invariant message.
+BROKEN_AM="$TMP/audit-merge-forces-verified-closed.rb"
+ruby -e '
+  src = File.read(ARGV[0])
+  needle = "findings << record"
+  count = src.scan(needle).size
+  abort "mutation setup failed: #{needle.inspect} occurs #{count} times, expected 1" unless count == 1
+  File.write(ARGV[1], src.sub(needle, "#{needle}\n      record['\''status'\''] = '\''verified-closed'\''"))
+' "$AUDIT_MERGE" "$BROKEN_AM"
+if ! grep -q "record\['status'\] = 'verified-closed'" "$BROKEN_AM"; then
+  bad "mutation setup failed: could not force a new record to verified-closed in the scratch copy"
+else
+  cat > "$TMP/am-empty-register.json" <<'JSON'
+{"meta":{"schemaVersion":"1.1"},"findings":[]}
+JSON
+  ruby -rjson -e '
+    File.write(ARGV[0], JSON.pretty_generate({"domain"=>"ci-smoke","findings"=>[
+      {"ruleKey"=>"fx-am-invariant-must-fire","title"=>"invariant-must-fire repro","severity"=>"low",
+       "evidence"=>{"type"=>"runtime","source"=>"ci-smoke","snippet"=>"refound"}}
+    ]}))
+  ' "$TMP/am-invariant-in.json"
+
+  if ruby "$BROKEN_AM" --register "$TMP/am-empty-register.json" \
+      --sha "0000000000000000000000000000000000000000" --no-restamp \
+      --in "$TMP/am-invariant-in.json" --out "$TMP/am-invariant-out.json" \
+      --date "$(date -u +%F)" > "$TMP/am-invariant-log.txt" 2>&1; then
+    bad "invariant did not fire: a mutated script that forces every new record to verified-closed exited 0 (the guard is not load-bearing)"
+  else
+    if grep -q "invariant violation: assigned a Scot-owned status" "$TMP/am-invariant-log.txt"; then
+      ok "invariant correctly dies when a genuinely new record would get a Scot-owned status (proves the guard is load-bearing, not just non-false-positive)"
+    else
+      bad "script exited non-zero but not via the expected invariant message:"
+      sed 's/^/      /' "$TMP/am-invariant-log.txt" >&2
+    fi
+  fi
+fi
+
+BROKEN_AM_DISP="$TMP/audit-merge-forces-accepted-disposition.rb"
+ruby -e '
+  src = File.read(ARGV[0])
+  needle = "findings << record"
+  count = src.scan(needle).size
+  abort "mutation setup failed: #{needle.inspect} occurs #{count} times, expected 1" unless count == 1
+  File.write(ARGV[1], src.sub(needle, "#{needle}\n      record['\''disposition'\''] = { '\''state'\'' => '\''accepted'\'' }"))
+' "$AUDIT_MERGE" "$BROKEN_AM_DISP"
+if ! grep -q "record\['disposition'\] = { 'state' => 'accepted' }" "$BROKEN_AM_DISP"; then
+  bad "mutation setup failed: could not force a new record to disposition accepted in the scratch copy"
+else
+  cat > "$TMP/am-empty-register.json" <<'JSON'
+{"meta":{"schemaVersion":"1.1"},"findings":[]}
+JSON
+  ruby -rjson -e '
+    File.write(ARGV[0], JSON.pretty_generate({"domain"=>"ci-smoke","findings"=>[
+      {"ruleKey"=>"fx-am-disp-invariant-must-fire","title"=>"disp invariant-must-fire repro","severity"=>"low",
+       "evidence"=>{"type"=>"runtime","source"=>"ci-smoke","snippet"=>"refound"}}
+    ]}))
+  ' "$TMP/am-disp-in.json"
+  if ruby "$BROKEN_AM_DISP" --register "$TMP/am-empty-register.json" \
+      --sha "0000000000000000000000000000000000000000" --no-restamp \
+      --in "$TMP/am-disp-in.json" --out "$TMP/am-disp-out.json" \
+      --date "$(date -u +%F)" > "$TMP/am-disp-log.txt" 2>&1; then
+    bad "disposition invariant did not fire: a mutated script that forces every new record to disposition accepted exited 0"
+  else
+    if grep -q "invariant violation: assigned disposition" "$TMP/am-disp-log.txt"; then
+      ok "invariant correctly dies when a genuinely new record would get a Scot-owned disposition"
+    else
+      bad "script exited non-zero but not via the expected disposition invariant message:"
+      sed 's/^/      /' "$TMP/am-disp-log.txt" >&2
+    fi
+  fi
+fi
+
+echo "-- audit-merge.rb: same-day invariant must not false-positive-abort (issue #1022) --"
+
+RK_AM_FLIP='fx-am-same-day-flip'
+cat > "$TMP/am-flip-empty-register.json" <<'JSON'
+{"meta":{"schemaVersion":"1.1"},"findings":[]}
+JSON
+ruby -rjson -e '
+  File.write(ARGV[0], JSON.pretty_generate({"domain"=>"ci-smoke","findings"=>[
+    {"ruleKey"=>ARGV[1],"title"=>"same-day flip repro","severity"=>"low",
+     "evidence"=>{"type"=>"runtime","source"=>"ci-smoke","snippet"=>"refound"}}
+  ]}))
+' "$TMP/am-flip-in.json" "$RK_AM_FLIP"
+
+if ! ruby "$AUDIT_MERGE" --register "$TMP/am-flip-empty-register.json" \
+    --sha "0000000000000000000000000000000000000000" --no-restamp \
+    --in "$TMP/am-flip-in.json" --out "$TMP/am-flip-r1.json" \
+    --date "$(date -u +%F)" > "$TMP/am-flip-log1.txt" 2>&1; then
+  bad "audit-merge.rb (step 1, create) exited non-zero:"
+  sed 's/^/      /' "$TMP/am-flip-log1.txt" >&2
+else
+  ID_AM_FLIP="$(id_of "$RK_AM_FLIP" "$RK_AM_FLIP")"
+  ruby -rjson -e '
+    j = JSON.parse(File.read(ARGV[0]))
+    f = j["findings"].find { |x| x["id"] == ARGV[1] }
+    abort "fixture setup failed: created row not found" unless f
+    f["status"] = "verified-closed"
+    File.write(ARGV[0], JSON.pretty_generate(j))
+  ' "$TMP/am-flip-r1.json" "$ID_AM_FLIP"
+  if ruby "$AUDIT_MERGE" --register "$TMP/am-flip-r1.json" \
+      --sha "0000000000000000000000000000000000000000" --no-restamp \
+      --in "$TMP/am-flip-in.json" --out "$TMP/am-flip-r2.json" \
+      --date "$(date -u +%F)" > "$TMP/am-flip-log2.txt" 2>&1; then
+    ok "same-day re-find after an out-of-band status flip does NOT abort the batch"
+    assert_regression "same-day flip: re-find is flagged as a regression, not silently reseen" \
+      "$TMP/am-flip-r2.json" "$ID_AM_FLIP" true
+  else
+    bad "same-day re-find after an out-of-band status flip aborted the batch (date-proxy false positive):"
+    sed 's/^/      /' "$TMP/am-flip-log2.txt" >&2
   fi
 fi
 
