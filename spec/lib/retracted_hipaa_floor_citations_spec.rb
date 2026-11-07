@@ -39,4 +39,43 @@ describe 'retracted HIPAA six-year-floor citations' do
         "#{rel} still asserts a retracted retention basis via #{hits.map(&:inspect).join(', ')}"
     end
   end
+
+  # The legal-doc side of the same retraction. Only the unattested drafts are
+  # listed: attested records are frozen, and a dated CORRECTED note may quote the
+  # withdrawn basis, so the Article 50 pattern anchors on the table cell.
+  retracted_doc_assertions = [
+    /HIPAA six-year (?:floor|fail-safe)/,
+    /6-year HIPAA (?:audit )?floor/,
+    /HIPAA 6-year floor/,
+    /audit-floor purposes/,
+    /six-year access-log rule/,
+    /\| EU AI Act Article 50 record-keeping/
+  ].freeze
+
+  [
+    'docs/legal/2026-09-22_data-retention.md',
+    'docs/legal/2026-08-25_ai-data-flow-classification.md',
+    'docs/legal/2026-08-24_ai-governance-memo.md'
+  ].each do |rel|
+    it "does not reassert a retracted retention basis in #{rel}" do
+      source = File.read(Rails.root.join(rel))
+      hits = retracted_doc_assertions.select { |pattern| source.match?(pattern) }
+      expect(hits).to eq([]),
+        "#{rel} still asserts a retracted retention basis via #{hits.map(&:inspect).join(', ')}"
+    end
+  end
+
+  it 'points scheduler.rake at the current retention drafts, not the frozen records' do
+    source = File.read(Rails.root.join('lib/tasks/scheduler.rake'))
+    expect(source).to include('docs/legal/2026-09-22_data-retention.md')
+    expect(source).to include('docs/legal/2026-08-25_ai-data-flow-classification.md')
+    expect(source).not_to match(/DATA_RETENTION\.md|AI_DATA_FLOW_CLASSIFICATION\.md/)
+  end
+
+  # GitHub #1060: app/models/cluster_location.rb has no purge, so the schedule must
+  # not state 90 days as the retention window.
+  it 'does not state an enforced 90-day window for ClusterLocation' do
+    source = File.read(Rails.root.join('docs/legal/2026-09-22_data-retention.md'))
+    expect(source).not_to match(/^\| ClusterLocation \(IP and geolocation\) \| 90 days \|/)
+  end
 end

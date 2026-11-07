@@ -188,9 +188,9 @@ task "scheduler:dispatch" => :environment do
       "#{count} AI log IPs redacted"
     end
 
-    # AiApiLog tiered retention (reconciled with docs/legal/DATA_RETENTION.md and
-    # docs/legal/AI_DATA_FLOW_CLASSIFICATION.md section 6; keep these three surfaces
-    # identical). Windows: 24 months general, 12 months rolling children (under-13),
+    # AiApiLog tiered retention (reconciled with docs/legal/2026-09-22_data-retention.md
+    # and docs/legal/2026-08-25_ai-data-flow-classification.md section 6; keep these
+    # three surfaces identical). Windows: 24 months general, 12 months rolling children (under-13),
     # up to 5 years EU-jurisdiction, up to 6 years for healthcare-linked accounts
     # (disclosed window; the earlier "45 CFR 164.316(b)(2) six-year floor" framing
     # was retracted 2026-08-30, #888). NOT a flat 24-month purge. Both windows are
@@ -203,7 +203,7 @@ task "scheduler:dispatch" => :environment do
     #     wherever Phase 4 is deployed (staged on staging; effective in production only
     #     after the Phase 4/5 prod deploy)". Phase 4 IS in production. The purge is
     #     WIRED but currently deletes NOTHING: the stamp writes 'EU' only for a
-    #     confirmed :eu user, production had none as of the 2026-08-23 audited read,
+    #     user resolving to :eu, production had none as of the 2026-08-23 audited read,
     #     and the filter is
     #     created_at < 5.years.ago while the jurisdiction column dates from
     #     2026-06-21 -- so a write-time-stamped row cannot match before ~2031-06
@@ -226,7 +226,8 @@ task "scheduler:dispatch" => :environment do
     # window to 24 months. That window is a stated maximum, not a floor, but ai_api_log.rb
     # says a shorter default is a separate decision that must weigh it, and the window is
     # under counsel review. Tracked in
-    # docs/legal/DATA_RETENTION.md and AI_DATA_FLOW_CLASSIFICATION.md section 6.
+    # docs/legal/2026-09-22_data-retention.md and
+    # docs/legal/2026-08-25_ai-data-flow-classification.md section 6.
     run_task.call("purge_old_eu_ai_api_logs") do
       count = AiApiLog.purge_old_eu_logs!
       "#{count} EU AI logs purged (5-year retention)"
