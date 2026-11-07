@@ -239,8 +239,10 @@ approval as a commit status on the current head commit for that base, and the la
 removed. On a PR to `develop` the approval is kept across later pushes that leave every
 flagged file unchanged; a push that changes one, or a force-push that drops the approved
 commit, needs the label again. On a PR to `staging` or `main`, add it again after every
-push. To withdraw a `develop` approval, change the data file, and mark the PR draft to stop
-a merge meanwhile. `develop` is squash-only, so a PR to it is
+push. Editing the data does not withdraw a `develop` approval from the commit it sits on;
+a person withdraws it by posting `failure` on `data-bearing-approval/develop` at that commit
+(the verdict names it; never an agent: rule 15), and marks the PR draft meanwhile.
+`develop` is squash-only, so a PR to it is
 judged by its net diff. PRs to `staging` and `main` are checked commit by commit for
 changes that never went through `develop`; a merge commit counts only for what it adds
 beyond its parents, so a release merge of `develop` does not trip again. The author may

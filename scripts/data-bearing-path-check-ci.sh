@@ -60,9 +60,22 @@
 #   a change under one on develop that moves its merge-base blob, a force-push that drops
 #   the approved commit, or a merge that puts it on a second parent (git pull) needs the
 #   label again. Those reads use the App token, so the walk spends the App's rate limit,
-#   not the workflow token's, which every workflow in the repository shares. There is no
-#   withdraw label (Scot, 2026-11-06): change the data file, and mark the PR draft to stop
-#   a merge meanwhile. Staging and main never keep an approval across a push.
+#   not the workflow token's, which every workflow in the repository shares. The approval
+#   binds the commit it sits on, not the PR, so a stacked PR built on that commit with the
+#   same flagged files keeps it too. Each earlier commit is scoped in its own run of the
+#   check, newest first, with one per-path cache (SCOPE_CACHE); an earlier commit that
+#   cannot be scoped ends the walk.
+#
+#   Withdrawing (there is no withdraw label, Scot, 2026-11-06): editing the data only
+#   needs a new label for heads built on the edit; a later head back on the approved
+#   commit finds the approval again. To withdraw it for good, a person with write access
+#   posts failure on the approved commit, which the verdict names:
+#     gh api -X POST repos/<owner>/<repo>/statuses/<approved sha> -f state=failure \
+#       -f context=data-bearing-approval/develop -f description="Withdrawn"
+#   The newest status on that commit is the one that counts, so the approval no longer
+#   counts there or for any later head. Agents never post it (they run under a person's
+#   account). Mark the PR draft to stop a merge meanwhile. Staging and main never keep an
+#   approval across a push.
 #
 #   An approval status counts only when its latest entry is `success` and its creator is
 #   the App (STATUS_LOGIN). Agents never add this label: they run under a person's
@@ -177,8 +190,11 @@ scope_of() {
 # approval covers.
 # The check gets neither token: it reads git only, and a defect in it must not be able to
 # post a status.
+# SCOPE_CACHE keeps the per-path classifier verdicts across those runs.
+SCOPE_CACHE=""
 data_scopes() {
-  env -u STATUS_TOKEN -u GH_TOKEN PR_BASE_REF=develop bash "$CHECK" --data-scope "$@"
+  env -u STATUS_TOKEN -u GH_TOKEN PR_BASE_REF=develop DATA_SCOPE_CACHE="$SCOPE_CACHE" \
+    bash "$CHECK" --data-scope "$@"
 }
 
 if [ "${1:-}" = --mark ]; then
@@ -255,6 +271,8 @@ scope_now="$(scope_of "$base_ref" "$base_sha" "$head_sha" "$develop_sha")" \
 data_now=""
 empty_data=""
 if [ "$base_ref" = develop ]; then
+  SCOPE_CACHE="$(mktemp)" || fail3 "mktemp failed"
+  trap 'rm -f "$SCOPE_CACHE"' EXIT
   line="$(data_scopes "$base_sha" "$head_sha")" || fail3 "could not compute the data scope of $base_sha...$head_sha"
   [[ "$line" =~ ^$head_sha\ ([0-9a-f]{40})$ ]] || fail3 "the data scope of $head_sha is malformed"
   data_now="${BASH_REMATCH[1]}"
@@ -337,30 +355,28 @@ if [ "$approved" != true ] && [ "$base_ref" = develop ] && [ "$data_now" != "$em
     || fail3 "could not list the commits of $base_sha..$head_sha"
   earlier=()
   for c in $chain; do [ "$c" = "$head_sha" ] || earlier+=("$c"); done
-  if [ "${#earlier[@]}" -gt 0 ]; then
-    scopes="$(data_scopes "$base_sha" "${earlier[@]}")" \
-      || fail3 "could not compute the data scopes of the PR's earlier commits"
-    # One line per commit, in the order asked, or nothing from it is trusted.
-    mapfile -t scope_lines <<<"$scopes"
-    [ "${#scope_lines[@]}" = "${#earlier[@]}" ] || fail3 "the data scopes do not match the commits asked for"
-    for i in "${!earlier[@]}"; do
-      [[ "${scope_lines[$i]}" =~ ^${earlier[$i]}\ ([0-9a-f]{40})$ ]] || fail3 "a data scope line is malformed"
-    done
-    for i in "${!earlier[@]}"; do
-      c="${earlier[$i]}"
-      s="${scope_lines[$i]#* }"
-      [ "$s" = "$data_now" ] || break
-      # The App token: these reads come out of the App's own rate limit (5,000 an hour),
-      # not the workflow token's 1,000 an hour shared by every workflow in the repository.
-      got="$(latest_approval "$c" "$STATUS_TOKEN")" || fail3 "could not read the statuses on $c"
-      if [ "$got" = "success $STATUS_LOGIN data $data_now" ]; then
-        approved=true
-        approved_at="$c"
-        echo "data-bearing-path-check: kept the approval recorded on $c; no flagged file has changed since."
-        break
-      fi
-    done
-  fi
+  # One commit per run, newest first, so the walk stops before scoping anything older
+  # than it needs. An earlier commit that cannot be scoped (a git-quoted name it added and
+  # a later commit removed, say) ends the walk: what is older is not looked at, and the
+  # verdict is decided on what was found. Output that does not name the commit asked for
+  # is a defect, not a data condition, and fails closed.
+  for c in "${earlier[@]}"; do
+    if ! line="$(data_scopes "$base_sha" "$c")"; then
+      echo "data-bearing-path-check: the data scope of $c could not be computed; looking no further back."
+      break
+    fi
+    [[ "$line" =~ ^$c\ ([0-9a-f]{40})$ ]] || fail3 "the data scope of $c is malformed"
+    [ "${BASH_REMATCH[1]}" = "$data_now" ] || break
+    # The App token: these reads come out of the App's own rate limit (5,000 an hour),
+    # not the workflow token's 1,000 an hour shared by every workflow in the repository.
+    got="$(latest_approval "$c" "$STATUS_TOKEN")" || fail3 "could not read the statuses on $c"
+    if [ "$got" = "success $STATUS_LOGIN data $data_now" ]; then
+      approved=true
+      approved_at="$c"
+      echo "data-bearing-path-check: kept the approval recorded on $c; no flagged file has changed since."
+      break
+    fi
+  done
 fi
 
 rc=0

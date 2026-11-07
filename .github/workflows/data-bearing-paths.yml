@@ -13,8 +13,11 @@ name: Data-bearing paths
 # the approved commit. On a PR to staging or main the scope is the whole change set and
 # every later push needs the label again. An approval counts only while its scope is the
 # one it names, so a change to the base that changes it needs the label again. There is
-# no withdraw label: to withdraw a develop approval, change the data file (or force-push
-# the approved commit away), and mark the PR draft to stop a merge meanwhile. Agents
+# no withdraw label. Editing the data only needs a new label for heads built on the edit:
+# a later head back on the approved commit (a force-push from a stale clone, a stacked PR)
+# finds the approval again. To withdraw it for good, a person with write access posts
+# `failure` on data-bearing-approval/develop at the approved commit (the verdict names
+# it), and marks the PR draft to stop a merge meanwhile. Agents
 # never add this label: they run under a person's account, and the check cannot tell
 # them apart.
 #

@@ -65,6 +65,8 @@
 #   APPROVED          true when the head commit carries an approval for this PR and
 #                     base, false when not (default: false; any other value is exit 3)
 #   APPROVED_AT       optional; the earlier head whose approval was kept, for the message
+#   DATA_SCOPE_CACHE  optional, --data-scope only; a file the per-path verdicts are kept in
+#                     across runs (see path_flagged)
 #   PR_BASE_REF       the PR's base branch (default: develop)
 #   DEVELOP_SHA       develop's tip; required when PR_BASE_REF is not develop
 #   CLASSIFIER        path to the classifier (tests override it)
@@ -183,13 +185,30 @@ is_control() {
 # "${DATA_PATH[$key]}" and written as DATA_PATH[$key]=, which expand it once as data. Never
 # test it with [ -v "DATA_PATH[$key]" ] or inside (( )): bash evaluates the subscript again
 # there and runs any command in the name.
+#
+# DATA_SCOPE_CACHE (optional) names a file that carries the cache across runs of this
+# script (the CI script asks for one commit per run): lines "<true|false><tab><path>",
+# written only here. A path holds no tab or newline (git C-quotes those, and the
+# classifier refuses a quoted name), so a line splits at its one tab.
 declare -A DATA_PATH=()
+if [ -n "${DATA_SCOPE_CACHE:-}" ] && [ -s "$DATA_SCOPE_CACHE" ]; then
+  while IFS= read -r cline; do
+    cv="${cline%%$'\t'*}"
+    cp="${cline#*$'\t'}"
+    case "$cv" in true|false) ;; *) die3 "a DATA_SCOPE_CACHE line is malformed" ;; esac
+    [ -n "$cp" ] && [ "$cp" != "$cline" ] || die3 "a DATA_SCOPE_CACHE line is malformed"
+    DATA_PATH["p:$cp"]="$cv"
+  done < "$DATA_SCOPE_CACHE"
+fi
 path_flagged() {
   local key="p:$1" v
   if [ -n "${DATA_PATH[$key]+set}" ]; then REPLY="${DATA_PATH[$key]}"; return 0; fi
   printf '%s\n' "$1" > "$ONE" || die3 "could not write the one-path list"
   v="$(classify --paths-from "$ONE")" || exit 3
   DATA_PATH[$key]="$v"
+  if [ -n "${DATA_SCOPE_CACHE:-}" ]; then
+    printf '%s\t%s\n' "$v" "$1" >> "$DATA_SCOPE_CACHE" || die3 "could not write DATA_SCOPE_CACHE"
+  fi
   REPLY="$v"
 }
 
@@ -203,7 +222,7 @@ path_flagged() {
 # single-path verdicts disagree (data-bearing as a list but no path alone, or the paths
 # called clean alone not clean as a list), the scope could miss a path, so it stops.
 data_scope() {
-  local recs line text p n_data=0 list_verdict=false clean_verdict control=false h
+  local recs line text p data_path n_data=0 list_verdict=false clean_verdict control=false h
   recs="$(raw_records "$1" "$2")" || die3 "git diff $1...$2 failed"
   text=$'develop\n'
   if nonblank "$recs"; then
@@ -218,17 +237,22 @@ data_scope() {
       : > "$CLEAN"
       while IFS= read -r line; do
         path_of "$line"
-        if is_control "$REPLY"; then
-          text+="$line"$'\n'
-        elif [ "$list_verdict" = true ]; then
-          p="$REPLY"
+        p="$REPLY"
+        # A control path can be data-bearing by name too (.github/workflows/data.csv), so
+        # it is classified like any other path when the list is data-bearing; each record
+        # goes into the scope once either way.
+        data_path=false
+        if [ "$list_verdict" = true ]; then
           path_flagged "$p"
-          if [ "$REPLY" = true ]; then
-            text+="$line"$'\n'
-            n_data=$((n_data + 1))
-          else
-            printf '%s\n' "$p" >> "$CLEAN" || die3 "could not write the clean-path list"
-          fi
+          data_path="$REPLY"
+        fi
+        if [ "$data_path" = true ]; then
+          n_data=$((n_data + 1))
+        elif [ "$list_verdict" = true ] && ! is_control "$p"; then
+          printf '%s\n' "$p" >> "$CLEAN" || die3 "could not write the clean-path list"
+        fi
+        if [ "$data_path" = true ] || is_control "$p"; then
+          text+="$line"$'\n'
         fi
       done <<<"$recs"
       # The scope must hold every path the list verdict counts: at least one path is

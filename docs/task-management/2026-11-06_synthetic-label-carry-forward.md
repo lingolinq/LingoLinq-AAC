@@ -191,3 +191,38 @@ Each finding was checked here before acting on it.
 | `WALK_MAX=500` | approval more than 50 back | red (2) |
 
 Final: `data-bearing-path-check-test.sh` OK (252 cases, about 64 s), classifier test OK (130).
+
+## Dual review round 1 (at ed8b7f349): request-changes; disposition
+
+Findings file: `<git common dir>/pr-reviews/pr-branch-compliance-scot-synthetic-label-carry-forward-3e054164-r1.md`.
+- R1-1 High (Codex; verifier CONFIRMED by reproduction, suggested Medium, severity kept): a
+  path both under `.github/workflows/` and data-bearing by name (`.github/workflows/data.csv`)
+  entered the scope only as a control record, so `n_data` stayed 0 and the drift guard exited
+  3 before any approval could be recorded. Fixed: when the list is data-bearing every path is
+  classified, control paths included; each record enters the scope once. Tests: "a workflow
+  path that is also data-bearing is in the data scope once", "a workflow data file: approved,
+  then kept".
+- R1-2 Medium (Codex): every earlier scope was computed before any approval was read, so an
+  unscopable older commit aborted a valid carry. Fixed: one commit per run of the check,
+  newest first, with a per-path cache file (`DATA_SCOPE_CACHE`) shared across runs; an
+  earlier commit that cannot be scoped ends the walk (the verdict is then the ordinary one).
+  Malformed output still fails closed.
+- R1-3 Medium (adversary, CONFIRMED): editing the data did not withdraw an approval from the
+  commit it sits on; a later head back on that commit found it again. Fixed in the docs (the
+  workflow header, the CI header, CLAUDE.md): a person posting `failure` on
+  `data-bearing-approval/develop` at the approved commit withdraws it for good (the newest
+  status on that commit is what counts). Tests pin it for a later head, a stacked PR and the
+  approved head itself. The cross-PR test comment no longer leans on the 2026-10-11 decision.
+- R1-4 Medium (adversary, CONFIRMED by mutants): no test pinned the exact `data` comparison.
+  Added the develop-rewrite probes in data form, on the head and through the walk.
+- R1-5 Low: the spy now records any token the check was given (asserted at the end), and a
+  fake check that prints a wrong commit pins both format checks.
+- R1-6 Low (PLAUSIBLE), not fixed here: a long unapproved chain makes up to 49 App reads a
+  run, which makes exhausting the App's 5,000 an hour cheaper (fail closed, but it would stall
+  every verdict). Follow-up: one GraphQL read for the chain, or a lower cap for non-writers.
+
+Falsification after round 1 (all 18 mutants red; the ten above plus): relax the head `data`
+match (red: "rewritten ... the head"), relax the walk `data` match (red: "... a later
+head"), drop either `env -u` (red: tokens), drop either format check (red: malformed scope),
+classify control paths only as control (red: the workflow data file cases), fail the run on
+an unscopable earlier commit (red: "unscopable").
