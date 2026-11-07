@@ -116,3 +116,7 @@ Not changed, flagged to Traci:
 - The Language picker is one-way (`readonly`), so a change really clears lookups. A language change after
   labels exist now says the words stay. Supervisee language and owner rows need edit permission.
 - Known and left: on the owner path the English lookup fires in the same render as the Google notice.
+- Real Google lookup checked on 2026-11-06 with made-up words through `WordData.translate_batch`: es to en
+  returned hat and cat, en to es returned sombrero. A no-token run minutes earlier returned nothing, so
+  these did not come from cache. Under `op run`, load local test settings after 1Password resolves, or
+  Rails stops at boot with `bad decrypt`.
