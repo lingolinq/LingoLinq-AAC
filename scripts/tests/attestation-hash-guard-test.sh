@@ -11,6 +11,11 @@
 #
 # Usage: scripts/tests/attestation-hash-guard-test.sh
 # Exit: 0 = every guard fired as expected; 1 = at least one guard is missing or misworded.
+#
+# Isolation (#777): the end-to-end cases still edit a real attested tracked file, but
+# that file is in a throwaway git worktree, not the caller's checkout. SIGKILL during
+# the edit window can leave the throwaway dirty; it must not leave docs/legal/ dirty
+# in the live tree. scripts/tests/attestation-hash-guard-isolation-test.sh proves it.
 
 set -u
 # Resolve this script's own path BEFORE the cd, so the flock re-exec below still
@@ -18,20 +23,56 @@ set -u
 SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
-# Serialize concurrent runs. This harness edits a REAL attested file in place
-# (see MEMO below) and snapshots it to restore afterwards, so two overlapping runs
-# race: B snapshots the bytes A already modified, then "restores" the file to A's
-# edit and leaves a tracked attested legal document dirty. Overlap stopped being
-# hypothetical when the harness was added to scripts/regenerate-register.sh - it
-# used to run only in CI, one job at a time, and now runs in the wrapper everyone
-# uses, including from several agent sessions sharing one checkout. Observed
-# concurrently: 5-6 spurious "fired with the wrong message" failures per run. A
-# false red on the anti-laundering harness is the failure most likely to be
-# "fixed" by weakening the assertion, which is the one thing that must not happen.
-# The lock lives in this worktree's own git dir, NOT under $TMPDIR: two callers with different
-# TMPDIR (routine in agent sandboxes and CI containers) would take different locks and silently
-# not serialize at all. --absolute-git-dir is per-worktree, which is the right grain - separate
-# worktrees have their own MEMO file and must not block each other.
+# Re-exec inside a throwaway worktree so printf >> MEMO never touches the live
+# checkout. Isolation is derived from the worktree path. The env var is only a
+# signal from this wrapper to the inner run; if it is set in a live checkout,
+# fail closed rather than edit docs/legal/.
+ROOT="$(git rev-parse --show-toplevel)"
+case "$ROOT" in
+  */ll-attestation-guard.*) isolated_tree=1 ;;
+  *) isolated_tree=0 ;;
+esac
+if [ -n "${ATTESTATION_GUARD_ISOLATED:-}" ] && [ "$isolated_tree" -eq 0 ]; then
+  echo "attestation-hash-guard-test: FAIL ATTESTATION_GUARD_ISOLATED is set but cwd is not a throwaway worktree ($ROOT)" >&2
+  exit 1
+fi
+if [ "$isolated_tree" -eq 0 ]; then
+  WT="${TMPDIR:-/tmp}/ll-attestation-guard.$$"
+  isolate_cleanup() {
+    git worktree remove --force "$WT" >/dev/null 2>&1 || true
+    rm -rf "$WT"
+  }
+  trap isolate_cleanup EXIT
+  trap 'isolate_cleanup; exit 130' INT
+  trap 'isolate_cleanup; exit 143' TERM
+  git worktree remove --force "$WT" >/dev/null 2>&1 || true
+  rm -rf "$WT"
+  add_err=$(mktemp)
+  if ! git worktree add --detach "$WT" HEAD >"$add_err" 2>&1; then
+    echo "attestation-hash-guard-test: FAIL could not add throwaway worktree at $WT" >&2
+    cat "$add_err" >&2
+    rm -f "$add_err"
+    isolate_cleanup
+    trap - EXIT INT TERM
+    exit 1
+  fi
+  rm -f "$add_err"
+  # cd into the worktree first. Inner does `cd "$(git rev-parse --show-toplevel)"`
+  # from its cwd; spawning bash $WT/script from the live tree cds back to live.
+  # bash "$SELF" so uncommitted harness edits are what the inner run executes.
+  unset GIT_DIR GIT_WORK_TREE
+  (cd "$WT" && unset GIT_DIR GIT_WORK_TREE && ATTESTATION_GUARD_ISOLATED=1 bash "$SELF")
+  rc=$?
+  isolate_cleanup
+  trap - EXIT INT TERM
+  exit $rc
+fi
+
+# Serialize concurrent runs inside the isolated worktree. Two overlapping runs
+# of the inner harness still race on THAT worktree's MEMO; the live checkout is
+# no longer the file they edit. The lock lives in this worktree's own git dir,
+# NOT under $TMPDIR: two callers with different TMPDIR would take different
+# locks. --absolute-git-dir is per-worktree.
 if [ -z "${ATTESTATION_GUARD_LOCK_HELD:-}" ] && command -v flock >/dev/null 2>&1; then
   export ATTESTATION_GUARD_LOCK_HELD=1
   exec flock "$(git rev-parse --absolute-git-dir)/ll-attestation-guard.lock" "$SELF" "$@"
