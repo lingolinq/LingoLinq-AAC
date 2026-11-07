@@ -67,9 +67,12 @@ async function save(page) {
   await page.getByRole('button', { name: 'Save Board' }).click();
   // A grid with empty cells asks first; the buttons differ by how empty it is.
   const confirm = page.locator('.md-modal-btn').filter({ hasText: /^\s*(Save blank board|Save board|Keep .* and save)\s*$/ }).first();
-  await confirm.click({ timeout: 5000 }).catch(() => {});
-  await page.waitForURL((url) => !/create-board-new/.test(url.pathname), { timeout: 30_000 });
-  await page.waitForLoadState('networkidle');
+  // The dialog follows the symbol lookups, so it can come late or not at all.
+  await expect.poll(async () => {
+    if (await confirm.isVisible()) { await confirm.click(); }
+    return /create-board-new/.test(new URL(page.url()).pathname);
+  }, { timeout: 45_000 }).toBe(false);
+  await page.waitForFunction(() => window.LingoLinq.appState.get('currentBoardState.key'));
 }
 
 async function serverBoard(page) {
@@ -103,7 +106,8 @@ for (const user of ['e2e_basic_lang', 'e2e_modern_lang']) {
 
       const url = page.url();
       await page.evaluate(() => window.LingoLinq.appState.jump_to_root_board());
-      await page.waitForLoadState('networkidle');
+      // Home leaves English in the session: the value that used to win on Basic.
+      await page.waitForFunction(() => window.LingoLinq.appState.stashes.get('label_locale') === 'en');
       await page.goto(url);
       await page.waitForFunction(() => window.LingoLinq && window.LingoLinq.appState && window.LingoLinq.appState.get('vocalization_locale'));
       expect(await language(page)).toEqual({ label: 'es', speak: 'es' });
