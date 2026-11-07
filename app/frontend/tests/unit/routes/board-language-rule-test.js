@@ -1,6 +1,8 @@
 import { module, test } from 'qunit';
 import EmberObject from '@ember/object';
 import { setupTest } from '../../helpers';
+import editManager from 'frontend/utils/edit_manager';
+import contentGrabbers from 'frontend/utils/content_grabbers';
 
 /*
  * Basic and the legacy board page must pick a board's language the way Modern does. A person
@@ -21,6 +23,8 @@ module('Unit | Route | board language rule', function(hooks) {
 
   function open(context, routeName, values) {
     const route = context.owner.lookup(routeName);
+    const editController = editManager.controller;
+    const grabberController = contentGrabbers.board_controller;
     KEYS.forEach(function(key) { route.stashes.persist(key, values[key] || null); });
     route.stashes.persist('root_board_state', { id: 'home' });
     try {
@@ -29,6 +33,10 @@ module('Unit | Route | board language rule', function(hooks) {
     } finally {
       KEYS.forEach(function(key) { route.stashes.persist(key, null); });
       route.stashes.persist('root_board_state', null);
+      // setupController hands these shared objects its stand-in controller and board state.
+      editManager.controller = editController;
+      contentGrabbers.board_controller = grabberController;
+      route.appState.setProperties({ label_locale: null, vocalization_locale: null, currentBoardState: null });
     }
   }
 
