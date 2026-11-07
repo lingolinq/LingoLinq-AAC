@@ -335,3 +335,24 @@ installs on a trusted device (not desktop browsers, until #1221); a deleted home
   `_refresh_device_copy` updates it.
 - **Notice:** explicit colour, and no push on the grid.
 - **First sync:** `models/user.js#auto_sync` true for a standalone display with the shell on, on a trusted device.
+
+### Simplified design: outcome (2026-11-06)
+
+Built as proposed, with the proposal review's conditions: `/tree` one bounded try; no answer and a copy goes to
+the copy; no copy keeps the normal retries (`attempt: 2`); the show request is bounded only when a copy exists;
+`_find_copy` writes nothing, so a read past its limit has no effect; a refused Edit fetch goes back through the
+router. First sync is a one-shot `offline_shell.first_sync_when_installed`, not a change to `auto_sync`.
+
+Found only by the real browser (each now has a test):
+- A denial on a cold reload opened the copy: the rule says nothing until the session user has loaded. Fixed by
+  waiting for the read already running.
+- Clearing `_board_nav` on exit (a review suggestion) threw away slow boards, because the loading page exits the
+  route: a blank grid online, an error for a synced folder offline. Removed.
+- A refused action left the options menu open over the message.
+
+Browser setup: use `ember build --environment production`. A development build includes Mirage, which answers
+the API. Worktree has no `.env`, so a made-up key and a private database are used.
+
+Run: QUnit filter 393 of 393; `offline-launch` 7 of 7; `offline-worker-lifecycle` 4 of 4 (before the menu change);
+`offline-kill-switch` 2 of 2; PR RSpec 125 of 125. Share is not in the browser journey (a communicator-only account
+has no Share menu); it is covered by the controller test.
