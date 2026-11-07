@@ -277,6 +277,51 @@ module('Unit | Route | user/board-detail device copy', function(hooks) {
     assert.true((await opened).error, 'a slow sign-in does not open a denied board');
   });
 
+  test('a failure inside the copy lookup moves on to the normal requests, never a hang', async function(assert) {
+    var calls = 0;
+    this.route._checked_copy = function() { calls++; throw new Error('lookup failed'); };
+    this.answers = [no_answer, server_board({name: 'Fresh'})];
+    assert.strictEqual((await open(this)).get('name'), 'Fresh');
+    assert.ok(calls > 0);
+  });
+
+  test('a read that timed out is tried again before the error page', async function(assert) {
+    var first = true;
+    var _this = this;
+    stub(this.persistenceService, 'find', function() {
+      if(first) { first = false; return new RSVP.Promise(function() { }); }
+      return RSVP.resolve(JSON.parse(JSON.stringify(_this.device['me/board'])));
+    });
+    this.route.device_read_wait = 5;
+    this.answers = [no_answer];
+    var model = await open(this);
+    assert.strictEqual(model.get('key'), 'me/board', 'the row was there all along');
+    assert.true(this.controller.get('served_from_device'));
+  });
+
+  test('a home board held by id keeps its copy after a refusal', async function(assert) {
+    this.appState.set('sessionUser.preferences.home_board', {id: '1_7'});
+    this.answers = [no_answer];
+    await open(this);
+    this.answers = [denied];
+    assert.notOk((await open(this)).error);
+  });
+
+  test('a device copy never fills the cached grid; a normal board does', function(assert) {
+    var stored = [];
+    stub(boardDetailCache, 'set_ordered_buttons', function() { stored.push(true); });
+    var controller = this.owner.lookup('controller:user/board-detail');
+    controller._apply_shift_to_ordered_buttons = function() { };
+    controller.set('model', EmberObject.create({key: 'me/board'}));
+    controller.set('served_from_device', true);
+    var no_grid = row({grid: null});
+    controller._build_from_raw(no_grid);
+    assert.deepEqual(stored, [], 'device copy');
+    controller.set('served_from_device', false);
+    controller._build_from_raw(no_grid);
+    assert.ok(stored.length > 0);
+  });
+
   test('a real denial wins in Speak Mode too, which Modern turns on for everyone', async function(assert) {
     this.appState.set('speak_mode', true);
     this.answers = [denied];
@@ -549,6 +594,22 @@ module('Unit | Controller | user/board-detail on a device copy', function(hooks)
     assert.true(opts[0].device_copy);
   });
 
+  test('the languages modal\'s Translate button refuses on a device copy', function(assert) {
+    var opened = [];
+    var warned = [];
+    stub(modal, 'open', function(name) { opened.push(name); return RSVP.resolve(); });
+    stub(modal, 'warning', function(text) { warned.push(text); });
+    var board = EmberObject.create({key: 'me/board'});
+    var languages = this.owner.factoryFor('component:switch-languages').create();
+    languages.set('model', {board: board, device_copy: true});
+    languages.send('open_translate');
+    assert.deepEqual(opened, []);
+    assert.strictEqual(warned.length, 1);
+    languages.set('model', {board: board, device_copy: false});
+    languages.send('open_translate');
+    assert.deepEqual(opened, ['translation-select']);
+  });
+
   test('the trial bar refuses Use on a device copy', async function(assert) {
     var warned = [];
     stub(modal, 'warning', function(text) { warned.push(text); });
@@ -594,6 +655,7 @@ module('Unit | Controller | user/board-detail on a device copy', function(hooks)
       assert.strictEqual(this.pushed[0].name, 'Fresh', 'the record is the server copy');
       assert.strictEqual(this.route.get('_raw_board_data.name'), 'Fresh', 'a pending setup will not rebuild the old copy');
       assert.strictEqual(boardDetailCache.get('me/board').name, 'Fresh');
+      assert.true(boardDetailCache.is_root_only('me/board'), 'a show answer has no descendants yet');
     });
 
     test('Edit keeps the copy read-only when the server does not give a board', async function(assert) {

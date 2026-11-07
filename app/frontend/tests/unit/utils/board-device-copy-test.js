@@ -50,15 +50,15 @@ module('Unit | Utility | board_device_copy', function(hooks) {
   });
 
   test('server_refused: no answer, a server error or offline never refuses', function(assert) {
-    assert.false(server_refused([no_answer, server_error, offline], 'me/board', state()));
-    assert.false(server_refused([], 'me/board', state()));
+    assert.false(server_refused([no_answer, server_error, offline], 'me/board', '1_7', state()));
+    assert.false(server_refused([], 'me/board', '1_7', state()));
   });
 
   test('server_refused: a real denial or a 404 on ANY attempt refuses, whatever came after', function(assert) {
-    assert.true(server_refused([denied], 'me/board', state()));
-    assert.true(server_refused([denied, no_answer], 'me/board', state()), 'denied, then the network dropped');
-    assert.true(server_refused([no_answer, denied], 'me/board', state()));
-    assert.true(server_refused([missing, no_answer], 'me/board', state()));
+    assert.true(server_refused([denied], 'me/board', '1_7', state()));
+    assert.true(server_refused([denied, no_answer], 'me/board', '1_7', state()), 'denied, then the network dropped');
+    assert.true(server_refused([no_answer, denied], 'me/board', '1_7', state()));
+    assert.true(server_refused([missing, no_answer], 'me/board', '1_7', state()));
   });
 
   test('session_ended reads the HTTP status and a 200 body', function(assert) {
@@ -70,17 +70,17 @@ module('Unit | Utility | board_device_copy', function(hooks) {
   });
 
   test('server_refused: a 404 counts only when it is the API speaking', function(assert) {
-    assert.true(server_refused([{fakeXHR: {status: 200}, result: {status: 404, error: 'Record not found'}}], 'me/board', state()), 'in a 200 body');
-    assert.false(server_refused([{fakeXHR: {status: 404}}], 'me/board', state()), 'a proxy with no API body');
+    assert.true(server_refused([{fakeXHR: {status: 200}, result: {status: 404, error: 'Record not found'}}], 'me/board', '1_7', state()), 'in a 200 body');
+    assert.false(server_refused([{fakeXHR: {status: 404}}], 'me/board', '1_7', state()), 'a proxy with no API body');
   });
 
   test('server_refused: a home or sidebar board keeps its copy even after a 404', function(assert) {
-    assert.false(server_refused([missing], 'me/board', state({sessionUser: {user_name: 'me', supervisees: [], preferences: {home_board: {id: '1_7', key: 'me/board'}}}})));
+    assert.false(server_refused([missing], 'me/board', '1_7', state({sessionUser: {user_name: 'me', supervisees: [], preferences: {home_board: {id: '1_7', key: 'me/board'}}}})));
   });
 
   test('server_refused: Speak Mode does not excuse a denial, a home board does', function(assert) {
-    assert.true(server_refused([denied], 'me/board', state({speak_mode: true})), 'Speak Mode');
-    assert.false(server_refused([denied], 'me/board', state({sessionUser: {user_name: 'me', supervisees: [], preferences: {home_board: {id: '1_7', key: 'me/board'}}}})), 'the home board');
-    assert.false(server_refused([dead_session], 'me/board', state()), 'a dead session is not a denial of this board');
+    assert.true(server_refused([denied], 'me/board', '1_7', state({speak_mode: true})), 'Speak Mode');
+    assert.false(server_refused([denied], 'me/board', '1_7', state({sessionUser: {user_name: 'me', supervisees: [], preferences: {home_board: {id: '1_7', key: 'me/board'}}}})), 'the home board');
+    assert.false(server_refused([dead_session], 'me/board', '1_7', state()), 'a dead session is not a denial of this board');
   });
 });

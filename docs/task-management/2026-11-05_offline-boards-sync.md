@@ -380,3 +380,14 @@ Full RSpec on this branch: 8,538 examples, 28 failures, none new; unchanged deve
 same settings. Causes, verified: 22 are the blank upload settings used to keep tests off real storage (those
 files: 778 examples, 0 failures with made-up values); 6 are `jq` missing on this machine
 (`deploy_cloudrun_migrate_env_spec.rb`), so CI is the check for those.
+
+### Senior-dev pass (2026-11-06)
+
+`REVIEWED=range origin/feat/scot-offline-app-shell-7a29ac97 (ee9f494579bbc20e980237c2770a0755d679e188) ... traci/fix/offline-boards-sync (9d7feb84af9aa579328568c68ed2950ef2c4dda8)`.
+Verdict request changes on one High, each finding checked against the code. Fixed: rejection in `_find_copy` falls
+through to the normal requests; `nav.patient` flag replaces reading `options.attempt`; a timed-out read is tried again;
+the row is read before refusal is judged, so a home board held by id is kept; `root_only` on the Edit fetch; opaque notice
+background; tests for the grid cache and Translate. Not changed: `get` (two reviews traced every reader); `:has()`
+(Safari 15.4, the worker's own floor); no fail-closed when the session user misses the 10 s wait (it would risk a home
+board; matches Basic). `extras.js` does not change `options.attempt` (CONFIRMED `:178-182`, `:364`). New strings are
+in `en.json` only: `i18n_generator.rb` needs a 1Password session; add them to #1234.

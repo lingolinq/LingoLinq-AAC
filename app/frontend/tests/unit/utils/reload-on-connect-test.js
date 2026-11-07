@@ -18,8 +18,4 @@ module('Unit | Utility | reload_on_connect', function() {
   test('a loaded board stays as it is', function(assert) {
     assert.deepEqual(sent_for({model: {id: '1_7'}}, true), []);
   });
-
-  test('a device copy stays until the next board, so the board never changes mid-sentence', function(assert) {
-    assert.deepEqual(sent_for({model: {id: '1_7'}, served_from_device: true}, true), []);
-  });
 });

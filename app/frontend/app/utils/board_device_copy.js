@@ -54,22 +54,22 @@ export function session_ended(err, session) {
   return session.dead_session_response(err.fakeXHR) || !!(err.result && err.result.invalid_token);
 }
 
-function key_only_board(board_key) {
-  return { get: function(attr) { return attr === 'key' ? board_key : null; } };
+function board_ref(board_key, board_id) {
+  return { get: function(attr) { return attr === 'key' ? board_key : (attr === 'id' ? board_id : null); } };
 }
 
 // The home and sidebar boards keep their copy whatever the server says.
-export function board_kept_on_refusal(board_key, appState) {
-  return is_protected_board(key_only_board(board_key), appState);
+export function board_kept_on_refusal(board_key, board_id, appState) {
+  return is_protected_board(board_ref(board_key, board_id), appState);
 }
 
 // Did the server say no, on any attempt of this navigation? `failures` are persistence.ajax rejections.
 // The home and sidebar boards keep their copy, so the communicator keeps a voice. Unlike the Basic view
 // Speak Mode is no exception, because the Modern page turns it on for everyone. Anything but a denial
 // or a 404 is not an answer about this board.
-export function server_refused(failures, board_key, appState) {
-  if(board_kept_on_refusal(board_key, appState)) { return false; }
-  var board = key_only_board(board_key);
+export function server_refused(failures, board_key, board_id, appState) {
+  if(board_kept_on_refusal(board_key, board_id, appState)) { return false; }
+  var board = board_ref(board_key, board_id);
   return failures.some(function(err) {
     return board_missing(err) || route_refuses_local(err, appState, board, { ignore_speak_mode: true });
   });

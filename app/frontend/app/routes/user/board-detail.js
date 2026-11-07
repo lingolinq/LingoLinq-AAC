@@ -271,7 +271,7 @@ export default Route.extend({
       };
 
       var root_started = Date.now();
-      var noBoardFromTree = function(options, err) { _this._after_tree_failure(nav, options, err || {}, requestTree, fallbackSingleBoard, function() { resolved = true; resolve({ error: true, boardname: params.boardname }); }); };
+      var noBoardFromTree = function(err) { _this._after_tree_failure(nav, err || {}, requestTree, fallbackSingleBoard, function() { resolved = true; resolve({ error: true, boardname: params.boardname }); }); };
       var requestTree = function(options) { persistence.ajax('/api/v1/boards/' + board_key + '/tree?root_only=1', options).then(function(data) {
         boardCacheDiag.mark('model:root_only_response', {
           board_key: board_key,
@@ -279,18 +279,18 @@ export default Route.extend({
           descendant_count: (data && data.descendants && data.descendants.length) || 0
         });
         if (!data || !data.root || !data.root.board) {
-          noBoardFromTree(options);
+          noBoardFromTree();
           return;
         }
         var rootBoardData = boardDetailCache.normalize_board_payload(data.root);
         if (!usable_copy(rootBoardData)) {
-          noBoardFromTree(options);
+          noBoardFromTree();
           return;
         }
         handleRoot(rootBoardData, 'tree_root_only');
         warmFullTreeInBackground();
       }, function(err) {
-        nav.failures.push(err); noBoardFromTree(options, err);
+        nav.failures.push(err); noBoardFromTree(err);
       }); }; requestTree(_this._one_try());
     });
   },
@@ -675,12 +675,15 @@ export default Route.extend({
   // What to do when the one bounded /tree attempt gave no board. No answer and a copy on the device:
   // the copy. No answer and no copy: this page has nothing else, so ask with the usual patience.
   // Anything else goes on to the show request, which is bounded too when there is a copy to fall back on.
-  _after_tree_failure: function(nav, options, err, request_tree, request_show, give_up) {
-    if(options.attempt !== 3) { return request_show(); }
+  _after_tree_failure: function(nav, err, request_tree, request_show, give_up) {
+    if(nav.patient) { return request_show(); }
     var no_answer = !!(err.short_circuit || (err.fakeXHR && err.fakeXHR.status === 0));
     this._find_copy(nav).then(function(raw) {
       if(raw && no_answer) { return give_up(); }
-      if(no_answer && !err.short_circuit) { return request_tree({ type: 'GET', attempt: 2 }); }
+      if(no_answer && !err.short_circuit) {
+        nav.patient = true;
+        return request_tree({ type: 'GET', attempt: 2 });
+      }
       request_show();
     });
   },
@@ -689,7 +692,9 @@ export default Route.extend({
   // did not answer, so that check treats this as offline whatever `online` says.
   _find_copy: function(nav) {
     var _this = this;
-    return this._session_user_loaded(nav).then(function() { return _this._checked_copy(nav); });
+    return this._session_user_loaded(nav).then(function() {
+      return _this._checked_copy(nav);
+    }).then(null, function() { return null; });
   },
   // On a cold start the session user is still loading, and the denial and revocation rules say nothing
   // until it has (board_revocation.js#acting_as_self), so wait for the read that is already running.
@@ -702,8 +707,19 @@ export default Route.extend({
       timeout: answered ? this.denial_session_wait : this.session_wait
     });
   },
+  // Read before judging, so a home board held by id is recognised. Judged even with no row, so a
+  // refusal or a dead session is remembered for the next board.
   _checked_copy: function(nav) {
-    if(this._copy_refused(nav) || !this._may_read_copies()) { return RSVP.resolve(null); }
+    var _this = this;
+    if(!this._may_read_copies()) {
+      this._copy_refused(nav);
+      return RSVP.resolve(null);
+    }
+    return this._read_copy(nav).then(function(raw) {
+      return (_this._copy_refused(nav) || !raw) ? null : raw;
+    });
+  },
+  _read_copy: function(nav) {
     if(!nav.lookup) {
       var appState = this.appState;
       var read = read_device_copy(persistence, nav.board_key, nav.memory_raw).then(function(raw) {
@@ -716,6 +732,7 @@ export default Route.extend({
       });
       nav.lookup = within(read, this.device_read_wait).then(function(raw) {
         nav.copy = raw;
+        if(!raw) { nav.lookup = null; } // it may only have been slow: read again before the error page
         return raw;
       });
     }
@@ -751,17 +768,18 @@ export default Route.extend({
     if(token && this._dead_token === token && offline_shell.device_trust(this.appState.get('sessionUser')) !== 'trusted') {
       return true;
     }
-    if(this._refused()[nav.board_key] === token) { return !board_kept_on_refusal(nav.board_key, this.appState); }
+    var copy_id = nav.copy && nav.copy.id;
+    if(this._refused()[nav.board_key] === token) { return !board_kept_on_refusal(nav.board_key, copy_id, this.appState); }
     // Unknown user: home and sidebar boards cannot be told apart yet, so nothing is remembered.
-    if(!this.appState.get('sessionUser') || !server_refused(nav.failures, nav.board_key, this.appState)) { return false; }
+    if(!this.appState.get('sessionUser') || !server_refused(nav.failures, nav.board_key, copy_id, this.appState)) { return false; }
     this._refused()[nav.board_key] = token;
     boardDetailCache.invalidate(nav.board_key);
     return true;
   },
   // The server answered a device copy's fetch (controllers/user/board-detail.js#_refresh_device_copy)
   // with a failure. A refusal goes back through model(), so the router shows the error page.
-  device_copy_fetch_failed: function(board_key, err) {
-    if(this._copy_refused({ board_key: board_key, failures: [err] })) { this.refresh(); }
+  device_copy_fetch_failed: function(board_key, err, board_id) {
+    if(this._copy_refused({ board_key: board_key, failures: [err], copy: { id: board_id } })) { this.refresh(); }
   },
   // A record already in memory keeps its identity, and may have changes waiting to save (the same
   // rule as services/persistence.js#find_boards). The grid comes from the newest copy, not the record.

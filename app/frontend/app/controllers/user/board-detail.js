@@ -10485,14 +10485,14 @@ BoardDetailController.reopen({
       var merged = boardDetailCache.normalize_board_payload(data);
       if(_this.isDestroyed || _this.isDestroying || !usable_copy(merged)) { return; }
       if(_this.get('model.key') !== key || !_this.get('served_from_device')) { return; }
-      boardDetailCache.set(JSON.parse(JSON.stringify(merged)), { force: true });
+      boardDetailCache.set(JSON.parse(JSON.stringify(merged)), { force: true, root_only: true });
       LingoLinq.store.push(LingoLinq.store.normalize('board', JSON.parse(JSON.stringify(merged))));
       _this.set('served_from_device', false);
       route.set('_raw_board_data', merged);
       _this._build_from_raw(merged);
     }, function(err) {
       done();
-      if(!_this.isDestroyed && !_this.isDestroying && _this.get('model.key') === key) { route.device_copy_fetch_failed(key, err); }
+      if(!_this.isDestroyed && !_this.isDestroying && _this.get('model.key') === key) { route.device_copy_fetch_failed(key, err, _this.get('model.id')); }
     });
   },
   _trial_home: function() {
