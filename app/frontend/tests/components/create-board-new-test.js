@@ -735,6 +735,13 @@ describe('CreateBoardNewComponent', 'component:create-board-new', function() {
       expect(c.get('language_from_owner')).toEqual(false);
     });
 
+    it('lets the owner dropdown write its selection back', function() {
+      // ModernSelect sets `selection` before calling its action, and a write to a computed
+      // with no setter throws, so the action never ran and the board kept no owner.
+      var c = makeComponent();
+      expect(function() { c.set('for_user_id', 'u-es'); }).not.toThrow();
+    });
+
     it('notes when the device has no voice for the chosen language', function() {
       var c = makeComponent();
       stub(speecher, 'has_voice_for', function(locale) { return locale !== 'es'; });

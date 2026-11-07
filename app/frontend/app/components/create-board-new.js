@@ -239,14 +239,20 @@ export default Component.extend({
     };
   },
 
-  for_user_id: computed('model.for_user_id', function() {
-    // Return null when the model points at 'self' so the dropdown shows
-    // its placeholder ("Select who this board is for") instead of acting
-    // like the user has already made a real choice. The save path falls
-    // back to 'self' at submit time when no supervisee is picked.
-    var id = this.get('model.for_user_id');
-    if(!id || id === 'self') { return null; }
-    return id;
+  for_user_id: computed('model.for_user_id', {
+    get() {
+      // Return null when the model points at 'self' so the dropdown shows
+      // its placeholder ("Select who this board is for") instead of acting
+      // like the user has already made a real choice. The save path falls
+      // back to 'self' at submit time when no supervisee is picked.
+      var id = this.get('model.for_user_id');
+      if(!id || id === 'self') { return null; }
+      return id;
+    },
+    // ModernSelect writes its selection back before calling setForUserId, which owns the model.
+    set(key, value) {
+      return value;
+    }
   }),
 
   /** Soft attention cue for the supervisee dropdown. When the toggle is
