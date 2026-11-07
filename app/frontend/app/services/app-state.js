@@ -1470,7 +1470,7 @@ export default Service.extend({
     if(preferred && current) {
       emberSet(preferred, 'text_direction', current.text_direction);
     }
-    if(preferred && this.get('label_locale') && this.get('label_locale') == this.get('vocalization_locale')) {
+    if(preferred && current && preferred.key == current.key && this.get('label_locale') && this.get('label_locale') == this.get('vocalization_locale')) {
       emberSet(preferred, 'locale', this.get('label_locale'));
     }
     
@@ -1680,7 +1680,7 @@ export default Service.extend({
           // locale, then update the user's preferences
           // to set the new locale as the new preference
           var home = user.get('preferences.home_board');
-          if(home && home.locale && opts.override_state && home.locale != opts.override_state.locale && user.get('preferences.home_board')) {
+          if(home && home.locale && opts.override_state && opts.override_state.locale && home.key == opts.override_state.key && home.locale != opts.override_state.locale) {
             user.set('preferences.home_board.locale', opts.override_state.locale);
             var save_user = false;
           }
@@ -1945,7 +1945,7 @@ export default Service.extend({
       }
     }
     var preferred = opts.force_board_state || user_preferred || opts.fallback_board_state || this.stashes.get('root_board_state') || null;
-    if(preferred && preferred.locale) {
+    if(preferred && preferred.locale && !this.stashes.get('override_label_locale')) {
       this.stashes.persist('label_locale', preferred.locale);
       this.stashes.persist('vocalization_locale', preferred.locale);
     }

@@ -697,6 +697,37 @@ describe('app_state', function() {
       expect(mode).toEqual('speak');
     });
 
+    describe('home board language', function() {
+      function enter_speak_mode(board_state) {
+        stub(app_state, 'toggle_mode', function() { });
+        stub(app_state, 'home_in_speak_mode', function() { });
+        primeSpeakModeUser({ preferences: { home_board: { key: 'me/home', id: '1_2', locale: 'en' } } });
+        stashes.set('current_mode', 'default');
+        app_state.set('currentBoardState', board_state);
+        app_state.set('label_locale', 'es');
+        app_state.set('vocalization_locale', 'es');
+        try {
+          app_state.toggle_speak_mode();
+        } finally {
+          app_state.set('label_locale', null);
+          app_state.set('vocalization_locale', null);
+        }
+        return app_state.get('currentUser.preferences.home_board.locale');
+      }
+
+      it("should not change when entering from another board", function() {
+        expect(enter_speak_mode({key: 'me/spanish', id: '1_9'})).toEqual('en');
+      });
+
+      it("should follow the session language when entering from the home board", function() {
+        expect(enter_speak_mode({key: 'me/home', id: '1_2'})).toEqual('es');
+      });
+
+      it("should not change when entering with no board on screen", function() {
+        expect(enter_speak_mode(null)).toEqual('en');
+      });
+    });
+
     it("should launch the current board in speak mode if currently on the user's home board", function() {
       var mode = null;
       stub(app_state, 'toggle_mode', function(m) {
@@ -1006,6 +1037,30 @@ describe('app_state', function() {
       expect(stashes.get('root_board_state')).toEqual({key: 'salt', id: '1_2'});
     });
 
+    it("should keep the home board language when entering speak mode on another board", function() {
+      primeSpeakModeUser({ preferences: { home_board: { key: 'me/home', id: '1_2', locale: 'en' } } });
+      app_state.set('currentBoardState', {key: 'me/spanish', id: '1_9'});
+      stashes.set('current_mode', 'default');
+      app_state.toggle_mode('speak', {override_state: {key: 'me/spanish', id: '1_9', locale: 'es'}});
+      expect(app_state.get('currentUser.preferences.home_board.locale')).toEqual('en');
+    });
+
+    it("should update the home board language when entering speak mode on the home board in another language", function() {
+      primeSpeakModeUser({ preferences: { home_board: { key: 'me/home', id: '1_2', locale: 'en' } } });
+      app_state.set('currentBoardState', {key: 'me/home', id: '1_2'});
+      stashes.set('current_mode', 'default');
+      app_state.toggle_mode('speak', {override_state: {key: 'me/home', id: '1_2', locale: 'es'}});
+      expect(app_state.get('currentUser.preferences.home_board.locale')).toEqual('es');
+    });
+
+    it("should not blank the home board language when the speak mode state has no language", function() {
+      primeSpeakModeUser({ preferences: { home_board: { key: 'me/home', id: '1_2', locale: 'en' } } });
+      app_state.set('currentBoardState', {key: 'me/home', id: '1_2'});
+      stashes.set('current_mode', 'default');
+      app_state.toggle_mode('speak', {override_state: {key: 'me/home', id: '1_2'}});
+      expect(app_state.get('currentUser.preferences.home_board.locale')).toEqual('en');
+    });
+
     it("should return to the stashed last_mode when leaving edit mode", function() {
       stashes.set('last_mode', 'bacon');
       stashes.set('current_mode', 'edit');
@@ -1194,6 +1249,32 @@ describe('app_state', function() {
 //   });
 
   describe('home_in_speak_mode', function() {
+    describe('session language', function() {
+      function go_home(override) {
+        primeSpeakModeUser({ preferences: { home_board: { key: 'me/home', id: '1_2', locale: 'es' } } });
+        stub(app_state, 'toggle_mode', function() { });
+        stubBoardTransition();
+        stashes.persist('override_label_locale', override);
+        stashes.persist('override_vocalization_locale', override);
+        try {
+          app_state.home_in_speak_mode();
+          return [stashes.get('label_locale'), stashes.get('vocalization_locale')];
+        } finally {
+          ['label_locale', 'vocalization_locale', 'override_label_locale', 'override_vocalization_locale'].forEach(function(key) {
+            stashes.persist(key, null);
+          });
+        }
+      }
+
+      it("should use the home board language with Switch Languages off", function() {
+        expect(go_home(null)).toEqual(['es', 'es']);
+      });
+
+      it("should not replace the session language with Switch Languages on", function() {
+        expect(go_home('en')).toEqual([null, null]);
+      });
+    });
+
     it("should call toggle_mode", function() {
       var found_mode = null;
       var found_options = null;
