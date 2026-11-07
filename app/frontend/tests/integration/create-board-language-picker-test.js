@@ -59,6 +59,7 @@ QUnit.module('Integration | Component | create-board-new language picker', funct
   }
 
   QUnit.test('choosing a language in the picker drops lookups from the old language', async function(assert) {
+    assert.expect(2);
     const appState = this.owner.lookup('service:app-state');
     const prior = appState.get('currentUser');
     appState.set('currentUser', EmberObject.create({ feature_flags: { english_first_board_generation: true } }));
@@ -76,6 +77,7 @@ QUnit.module('Integration | Component | create-board-new language picker', funct
   });
 
   QUnit.test('choosing the owner sets the owner and says the board will be in their language', async function(assert) {
+    assert.expect(3);
     const appState = this.owner.lookup('service:app-state');
     const prior = appState.get('currentUser');
     const priorSession = appState.get('sessionUser');
@@ -83,7 +85,7 @@ QUnit.module('Integration | Component | create-board-new language picker', funct
       supporter_role: true,
       known_supervisees: [{ id: 'u-es', user_name: 'communicator', locale: 'es' }]
     }));
-    // After sessionUser, whose observers replace currentUser.
+    // Set last: with sessionUser set after it, the flag was gone when the owner was chosen.
     appState.set('currentUser', EmberObject.create({ feature_flags: { english_first_board_generation: true } }));
     const seen = capture(this.owner);
     try {

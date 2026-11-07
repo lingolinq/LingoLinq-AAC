@@ -106,3 +106,13 @@ Not changed, flagged to Traci:
 - Boards with no language (obf/stars, integrations) stay unset rather than being forced to `en`.
 - Owner language shows on the owner step with both notices, and a supervisee with no language
   returns to the creator's language. Not sent on org rosters.
+
+## Third round (2026-11-06): browser journeys and the final review
+
+- Playwright (`board-language` project, local only) drove the real app. It found the owner dropdown
+  never reached setForUserId: a write to the setter-less `for_user_id` threw first.
+- Final red team found `speech: speecher` silenced board speech after leaving create-board in browsers
+  without webkitSpeechRecognition. Renamed to `speech_output`; test covers teardown.
+- The Language picker is one-way (`readonly`), so a change really clears lookups. A language change after
+  labels exist now says the words stay. Supervisee language and owner rows need edit permission.
+- Known and left: on the owner path the English lookup fires in the same render as the Google notice.
