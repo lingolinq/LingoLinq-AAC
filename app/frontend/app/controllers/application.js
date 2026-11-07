@@ -685,10 +685,8 @@ export default Controller.extend({
     },
     invalidateSession: function() {
       var sess = this.get('session');
-      if (sess && typeof sess.sign_out === 'function') {
-        sess.sign_out();
-      } else if (sess && typeof sess.invalidate === 'function') {
-        sess.invalidate(true);
+      if (sess && typeof sess.invalidate === 'function') {
+        if (sess.sign_out) { sess.sign_out(); } else { sess.invalidate(true); }
       } else if (LingoLinq.session && typeof LingoLinq.session.invalidate === 'function') {
         LingoLinq.session.invalidate(true);
       }

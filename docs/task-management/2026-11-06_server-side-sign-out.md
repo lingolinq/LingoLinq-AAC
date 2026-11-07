@@ -38,6 +38,7 @@ Adversary round 2 at `c99f72376`: both closed, ship with conditions. Its one con
 cache refresh would end active short-token sessions at about 12 hours; `EXPIRE` restores that behaviour. The
 marker now outlasts any cached check and survives a Redis out-of-memory error. Final senior-dev pass at `23971a47d`:
 approved with comments. Its error guard on the `EXPIRE` branch is included; that edit was not separately reviewed.
+`sign_out` then moved to the end of the service so `.eslint-todo` rows do not shift, with no baseline change.
 
 ## Unresolved
 
