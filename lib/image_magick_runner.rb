@@ -10,8 +10,7 @@ module ImageMagickRunner
   # Kernel#system treats a SINGLE argument as a shell command line, so a degenerate argv
   # would silently reintroduce the shell this module exists to remove.
   def self.run(*args)
-    args = args.flatten.map(&:to_s)
-    raise ArgumentError, 'ImageMagickRunner.run needs a command plus at least one argument' if args.length < 2
+    args = argv(args)
     # montage/convert fall back to reading STDIN when handed an empty path and then block
     # forever, which would wedge the Resque worker; the backticks this replaced never had
     # that failure mode because the shell dropped the empty word.
@@ -29,6 +28,22 @@ module ImageMagickRunner
     Rails.logger.warn("ImageMagickRunner could not execute #{args.first}") if result.nil? && defined?(Rails)
     result
   end
+
+  # Returns the command's stdout, for callers that parse it. A non-zero exit returns whatever was
+  # printed, as backticks did. Unlike run, a binary that cannot start raises: uploadable.rb's
+  # identify call always failed its job that way, so a missing binary stays visible. The output
+  # is scrubbed because a Regexp on invalid UTF-8 raises ArgumentError, and what a command prints
+  # can come from the file it read.
+  def self.capture(*args)
+    IO.popen(argv(args), :in => File::NULL, &:read).scrub
+  end
+
+  def self.argv(args)
+    args = args.flatten.map(&:to_s)
+    raise ArgumentError, 'ImageMagickRunner needs a command plus at least one argument' if args.length < 2
+    args
+  end
+  private_class_method :argv
 
   # ImageMagick interprets three things inside -label at the ARGV level, so dropping the
   # shell is necessary but not sufficient. Measured on IM 6.9.12-98 with `compare -metric AE`
