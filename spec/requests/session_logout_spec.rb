@@ -100,6 +100,30 @@ describe "DELETE /api/v1/token", type: :request do
     expect(JSON.parse(response.body)['authenticated']).to eq(false)
   end
 
+  it "still ends the token when the marker cannot be written" do
+    allow(Permissions).to receive(:setex).and_call_original
+    allow(Permissions).to receive(:setex).with(anything, "revoked_token/#{token}", anything, anything).and_return(nil)
+    expect(Rails.logger).to receive(:warn).with(/no marker written/).at_least(:once)
+    allow(Rails.logger).to receive(:warn)
+
+    delete '/api/v1/token', headers: { 'Authorization' => "Bearer #{token}" }
+
+    expect(response).to be_successful
+    expect(device.reload.settings['keys']).to eq([])
+  end
+
+  it "logout! also ends a token that has a cached check" do
+    headers = { 'Authorization' => "Bearer #{token}" }
+    get '/api/v1/users/self', headers: headers
+    expect(RedisInit.permissions.get("user_token/#{token}")).not_to eq(nil)
+
+    device.reload.logout!
+
+    expect(RedisInit.permissions.get("user_token/#{token}")).to eq(nil)
+    get '/api/v1/users/self', headers: headers
+    expect(response.status).to eq(400)
+  end
+
   it "requires a token" do
     delete '/api/v1/token'
     expect(response.status).to eq(400)

@@ -52,7 +52,7 @@ module('Unit | Service | session sign_out', function(hooks) {
     let viewing;
     this.reply = () => { viewing = this.session.get('as_user_id'); return RSVP.resolve({ logout: true }); };
     await this.session.sign_out();
-    assert.notOk(viewing, 'the request carries no X-As-User-Id, which could refuse it');
+    assert.notOk(viewing, 'cleared before the request, so extras.js adds no X-As-User-Id');
   });
 
   test('a second press while signing out does nothing more', async function(assert) {

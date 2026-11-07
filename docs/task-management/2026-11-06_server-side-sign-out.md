@@ -36,7 +36,8 @@ rows and cache revival, both fixed here.
 
 Adversary round 2 at `c99f72376`: both closed, ship with conditions. Its one condition was that removing the
 cache refresh would end active short-token sessions at about 12 hours; `EXPIRE` restores that behaviour. The
-marker now outlasts any cached check and survives a Redis out-of-memory error. Final senior-dev pass at `23971a47d`:
+marker now outlasts any cached check. If Redis cannot store it, the request still ends the token and logs a
+warning, but the race protection is missing for that token. Final senior-dev pass at `23971a47d`:
 approved with comments. Its error guard on the `EXPIRE` branch is included; that edit was not separately reviewed.
 `sign_out` then moved to the end of the service so `.eslint-todo` rows do not shift, with no baseline change.
 
@@ -50,6 +51,8 @@ approved with comments. Its error guard on the `EXPIRE` branch is included; that
 - `/api/v1/token_check?include_token=1` can return a row's last key for an expired token.
 - The admin cookie outlives Sign Out by up to 2 hours.
 - Installed apps were not tested on a device.
+- A press in the short gap after `sign_out` resolves can send a second DELETE and show the session-expired message.
+- The `application.js` fallback to `invalidate` exists for test stubs that have no `sign_out`.
 - `logout!`, used by the `oauth2/token` route, clears the cached check but writes no marker.
 - `token_logout` raises if the device row is gone; the frontend still signs out.
 - `approve_token` calls `valid_token?` directly, so it does not read the marker; a key restored by a stale

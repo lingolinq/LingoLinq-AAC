@@ -228,7 +228,8 @@ class Device < ApplicationRecord
   # The marker comes first and check_token reads it first, so a request already in flight cannot
   # bring the token back by caching it again or saving the row's old keys.
   def revoke_token!(token)
-    Permissions.setex(RedisInit.permissions, "revoked_token/#{token}", [self.token_timeout, 13.hours.to_i].max, 'true')
+    marked = Permissions.setex(RedisInit.permissions, "revoked_token/#{token}", [self.token_timeout, 13.hours.to_i].max, 'true')
+    Rails.logger.warn("revoke_token!: no marker written for device #{self.global_id}") unless marked
     self.with_lock do
       self.settings['keys'] = (self.settings['keys'] || []).reject { |key| key['value'] == token }
       self.save
