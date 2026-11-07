@@ -587,8 +587,9 @@ describe AiApiLog, :type => :model do
       count = AiApiLog.purge_old_eu_logs!
 
       # The helper-stamped EU row IS matched (previously inert); the :unknown row survives --
-      # D-01 retention fail-safe: an unsure, potentially HIPAA-covered row is never purged
-      # inside the 45 CFR 164.316(b)(2) six-year floor.
+      # D-01 retention fail-safe: the EU purge cannot be undone, so a row with no EU signal
+      # is not stamped for it (not the retracted 164.316(b)(2) statutory floor; 2026-08-30,
+      # #888).
       expect(count).to eq(1)
       expect(AiApiLog.where(id: eu_row.id)).to be_empty
       expect(unknown_row.reload).to be_present
