@@ -12,6 +12,9 @@ OK (163 cases), `scripts/tests/codex-review-path-classifier-test.sh` OK (130 cas
   anything over 140.
 - No revoke label. Withdrawing an approval = editing a flagged file (which changes the data
   scope) or force-pushing the approved commit out; marking the PR draft stops a merge meanwhile.
+  **SUPERSEDED by review round 1 (R1-3):** editing the data does not withdraw an approval from
+  the commit it sits on. The lasting withdrawal is a person posting `failure` on
+  `data-bearing-approval/develop` at the approved commit; see "Dual review round 1" below.
 
 ## Fact sheet
 
@@ -82,7 +85,8 @@ Candidate A (chosen, the plan's design minus the revoke label):
    `Synthetic data confirmed by <login>; data <data_now>`. At verdict time accept the head's own
    newest App `success` with `; scope <scope_now>` (legacy) or `; data <data_now>`; otherwise,
    when `data_now` is not the empty hash, walk `git rev-list --first-parent --max-count=50
-   base..head`, compute every commit's data scope in one call, and go newest first while the
+   base..head`, compute every commit's data scope in one call (**SUPERSEDED by R1-2:** one
+   commit per run with a shared cache, so the walk stops early), and go newest first while the
    scope equals `data_now` (stop at the first commit that differs), reading statuses on each;
    accept the first commit whose newest approval entry is App `success` matching
    `^Synthetic data confirmed by [A-Za-z0-9-]+; data <data_now>$`. The verdict description

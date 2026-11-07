@@ -862,6 +862,28 @@ sync_case 1 'and for a stacked PR built on it' "$C2" PR_NUMBER=8
 move_head "$FIX"
 sync_case 1 'and for the approved head itself' "$FIX"
 
+# A withdrawal stops the walk: the first commit (the head included) whose newest approval
+# status is anything but the App's approval for this data ends it, so an older approval
+# for the same data behind a withdrawn one does not count.
+approve "$FIX" develop
+move_head "$C2P"
+run_ci 0 yes 'setup: the label approves the same data again on a later head' "$C2P" EVENT_ACTION=labeled LABEL_NAME=synthetic-data
+stub_labels '[]'
+add_status "$C2P" "$APPROVAL_DEV" failure mallory 'Withdrawn: the fixture holds real data'
+move_head "$C2"
+sync_case 1 'a withdrawn approval stops the walk before an older one for the same data' "$C2"
+move_head "$C2P"
+sync_case 1 'a withdrawn head does not start the walk' "$C2P"
+# A rebase leaves the old heads' approvals in place, so a withdrawal goes on every commit
+# that holds one for that data (the docs say so); withdrawn on both, a stale push of the
+# old chain does not keep it.
+approve "$FIXAGAIN" develop
+add_status "$FIXAGAIN" "$APPROVAL_DEV" failure mallory 'Withdrawn'
+add_status "$FIX" "$APPROVAL_DEV" success "$APP_LOGIN" "$D_FIX"
+add_status "$FIX" "$APPROVAL_DEV" failure mallory 'Withdrawn'
+move_head "$C2"
+sync_case 1 'withdrawn on every approved commit, a stale push of the old chain does not keep it' "$C2"
+
 # The exact data scope binds the approval: after develop is rewritten (to scrub data, say)
 # the same head brings in more, and neither the head nor a later head keeps it.
 set_origin develop "$FIX"
@@ -1068,6 +1090,21 @@ run_ci --mark-success 3 no 'mark accepts only pending or error' "$FIX"
 posted_case NONE 'no status for a refused mark'
 stub_pr "$FIX" develop
 run_ci --mark-pending 3 no 'mark without the App token fails closed' "$FIX" STATUS_TOKEN=
+
+# The per-path cache is shared by the head and the walk: the flagged path is classified
+# alone once, not once per commit. Every commit here changes two paths, so no whole-commit
+# list is one line; a clean path can be classified again as the one line of the complement
+# list (that is the guard), so only the flagged path is counted.
+COUNTCLS="$WORK/classifier-count.sh"
+CLSLOG="$WORK/classified-alone"
+printf '#!/usr/bin/env bash\n[ "$(grep -c "" "$3")" = 1 ] && cat "$3" >> "%s"\nexec bash "%s" "$@"\n' \
+  "$CLSLOG" "$REPO_ROOT/scripts/codex-review-path-classifier.sh" > "$COUNTCLS"
+approve "$TSP" develop; move_head "$TSP2"; : > "$CLSLOG"
+sync_case 0 'a carried run with a counting classifier' "$TSP2" CLASSIFIER="$COUNTCLS"
+total=$((total + 1))
+n_new="$(grep -cx 'spec/fixtures/new.yml' "$CLSLOG")"
+if [ "$n_new" = 1 ]; then printf '  ok   cache  ci: the flagged path was classified alone once across the head and the walk\n'
+else printf '  FAIL cache  ci: the flagged path was classified alone %s times (expected 1)\n' "$n_new"; fails=$((fails + 1)); fi
 
 total=$((total + 1))
 if [ ! -s "$LEAK" ]; then printf '  ok   tokens  ci: the check never ran with GH_TOKEN or STATUS_TOKEN set\n'
