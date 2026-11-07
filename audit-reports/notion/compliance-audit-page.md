@@ -12,7 +12,7 @@
 **Audited commit:** `070b5e614071aec8fd917fa4b4067f5412460614`  
 **Audited ref:** `compliance/scot-q3-makeup-run-20eb9dd6 (== origin/develop tip 070b5e61 at run start, 2026-10-31). PARTIAL COVERAGE: 0 of 6 finders complete, 0 of 18 live reads succeeded; details are in the private run record. Internal automated review by AI agents against our own checklists, not a third-party audit; it says what was examined, not that it passed, and open findings are counted separately. Standing limits: callers outside the repo; vendor internals; provider-side key revocation. Scot sign-off: pending. Excludes assistive-technology testing (tracked separately in the conformance report).`  
 **Run date:** 2026-10-31  
-**Page generated:** 2026-11-06T19:15:04Z
+**Page generated:** 2026-11-06T22:01:00Z
 
 ## Headline - live findings (open + awaiting verification)
 
@@ -238,7 +238,7 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-fba170716e |  | medium | SOC2 | The SNS callback logs the full payload before verifying it on the SMS branch, performs no signature verification at all on the SubscriptionConfirmation branch, and reads the request body with no size bound | `app/controllers/api/callbacks_controller.rb`:15 |
 | LL-fcf4efee65 |  | medium | WCAG | View switcher tag uses raw denim token as small text on a light tint | `app/frontend/app/styles/_view-switcher.scss`:271 |
 | LL-fe5150389d |  | medium | WCAG | New User modal close button has only a non-descriptive name (the times glyph) | `app/frontend/app/components/new-user.hbs`:3 |
-| LL-feec65b1ec |  | medium |  | Twelve .la-modal-header-icon--* rule sets have identical bodies, and the comment admits there is no shared base rule | `app/frontend/app/styles/app.scss`:31639 |
+| LL-feec65b1ec |  | medium |  | Ten .la-modal-header-icon--* rule sets have identical bodies, and the comment admits there is no shared base rule | `app/frontend/app/styles/app.scss`:31639 |
 | LL-ffdd40d2e9 |  | medium | FERPA, HIPAA, GDPR | Team-message notification email embeds the full message body, the communicator's display name, and a deep link to their log, with no recipient-scoped content control | `app/views/user_mailer/log_message.text.erb`:4 |
 | LL-1890f6a922 | P2-5 | medium | GDPR, FERPA | DataPolicyEnforcer retention only purges session log sessions | `lib/data_policy_enforcer.rb`:14 |
 | LL-d35cbdb313 | P2-7 | medium | FERPA | User creation (incl. org start codes) generates no AuditEvent | `app/controllers/api/users_controller.rb`:244 |
@@ -327,7 +327,7 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-8005319b52 |  | low | WCAG | Organization room dropdown role=menu has no menuitem children | `app/frontend/app/templates/organization/room.hbs`:230 |
 | LL-816212fe89 |  | low | WCAG | Legacy board background image has no alt | `app/frontend/app/templates/board/index.hbs`:97 |
 | LL-86be748338 |  | low | SOC2, HIPAA | Retention schedule has no row for infrastructure logs | `docs/legal/2026-09-22_data-retention.md`:98 |
-| LL-8a9ed925f3 |  | low |  | Profiles and eval protocols index endpoints return bare arrays, unlike the keyed-and-paginated envelope every other list uses | `app/controllers/api/profiles_controller.rb`:21 |
+| LL-8a9ed925f3 |  | low |  | Profiles and eval protocols index endpoints return bare arrays instead of the keyed-and-paginated list envelope | `app/controllers/api/profiles_controller.rb`:21 |
 | LL-8ad71e0e49 |  | low | SOC2 | Availability review: job queue durability | `scripts/gcp/phase3-data-layer.sh`:1 |
 | LL-8b0e509116 |  | low |  | purchase-board modal template has no controller, route or opener | `app/frontend/app/templates/purchase-board.hbs`:1 |
 | LL-8bc8f025a7 |  | low | WCAG | Dropdown menus reference a nonexistent id via aria-labelledby (dLabel) in the app shell | `app/frontend/app/templates/application.hbs`:386 |
@@ -367,13 +367,13 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-c95c637f00 |  | low |  | setup/extra-supervisors.js + .hbs component has zero references anywhere | `app/frontend/app/components/setup/extra-supervisors.js`:3 |
 | LL-c9c625b898 |  | low | WCAG | Share bar supervisor avatars have no alt | `app/frontend/app/components/share-bar.hbs`:27 |
 | LL-cbaf7afddd |  | low |  | Ember LogSession model declares scalar user_id/video_id/goal_id/notify attrs that JsonApi::Log never emits as top-level keys | `app/frontend/app/models/log.js`:34 |
-| LL-cd0df99949 |  | low | WCAG | Language dropdown role=menu has no menuitem children | `app/frontend/app/components/page-footer.hbs`:62 |
+| LL-cd0df99949 |  | low | WCAG | Footer More Resources dropdown role=menu has no menuitem children | `app/frontend/app/components/page-footer.hbs`:62 |
 | LL-cf465c239d |  | low | WCAG | Bulk purchase receiver avatars have no alt | `app/frontend/app/templates/bulk_purchase.hbs`:100 |
 | LL-d4facdbeac |  | low |  | Organization model's offboarding_under_13/offboarding_under_16 attrs are computed and sent on every offboarding save but never read anywhere server-side | `app/frontend/app/models/organization.js`:64 |
 | LL-d7f17e65be |  | low | WCAG | Copy board dropdown role=menu has no menuitem children | `app/frontend/app/components/copy-just-this-board.hbs`:6 |
 | LL-d8072299bf |  | low | GDPR, COPPA | Retention coverage review: accounts without an organization | `lib/data_policy_enforcer.rb`:1 |
 | LL-d88cfdfbff |  | low | WCAG | Repairs remove icon has no alt | `app/frontend/app/components/repairs.hbs`:159 |
-| LL-db48d38e0c |  | low | WCAG | Footer language menu references the nonexistent dLabel id | `app/frontend/app/components/page-footer.hbs`:62 |
+| LL-db48d38e0c |  | low | WCAG | Footer More Resources menu references the nonexistent dLabel id | `app/frontend/app/components/page-footer.hbs`:62 |
 | LL-dbdcfb466c |  | low | SOC2 | The Notion sync workflows declare no permissions block, so jobs holding a third-party Notion API token inherit the repository-default GITHUB_TOKEN scope | `.github/workflows/sync-findings-to-notion.yml`:31 |
 | LL-de9c94bf36 |  | low | GDPR | Org retention policy purges a sponsored user's entire log history, including logs outside that org's context | `lib/data_policy_enforcer.rb`:31 |
 | LL-df0d71aa3c |  | low | WCAG | Button settings group has a raw, non-descriptive aria-label | `app/frontend/app/components/button-settings.hbs`:366 |

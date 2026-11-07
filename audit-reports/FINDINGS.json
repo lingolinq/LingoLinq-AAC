@@ -10395,7 +10395,7 @@
     {
       "id": "LL-8a9ed925f3",
       "ruleKey": "index-envelope-bare-array-profiles-eval-protocols",
-      "title": "Profiles and eval protocols index endpoints return bare arrays, unlike the keyed-and-paginated envelope every other list uses",
+      "title": "Profiles and eval protocols index endpoints return bare arrays instead of the keyed-and-paginated list envelope",
       "severity": "low",
       "confidence": "high",
       "frameworks": [],
@@ -10951,7 +10951,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by accessibility finder on 2026-10-31. WCAG 3.1.2; EN 301 549 9.1.3 parent family. templates/board/index.hbs line 80 and templates/user/board-alt/index.hbs line 74 bind lang to app_state.board_lang, which follows label_locale. No lang attribute in board-detail-grid.hbs or templates/user/board-detail.hbs, so a translated board inherits the page UI language. Static only; coverage detail is in the private run record. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). Grid has no lang attribute and no template ancestor supplies one, while the classic board template binds the board language."
+      "notes": "Surfaced by accessibility finder on 2026-10-31. WCAG 3.1.2; EN 301 549 9.1.3 parent family. templates/board/index.hbs line 80 and templates/user/board-alt/index.hbs line 74 bind lang to app_state.board_lang, which follows label_locale. No lang attribute in board-detail-grid.hbs or templates/user/board-detail.hbs, so a translated board inherits the page UI language. Coverage detail is in the private run record. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). Grid has no lang attribute and no template ancestor supplies one, while the classic board template binds the board language."
     },
     {
       "id": "LL-cb563da6ef",
@@ -11044,7 +11044,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by accessibility finder on 2026-10-31. WCAG 2.4.7; EN 301 549 9.2.4. The global ring is a box-shadow with outline none, both !important. This higher-specificity rule sets box-shadow none !important, background transparent and border none, so no focus change remains from this rule. Orchestrator Tab walk noFocusStyle on signed-in scans. Rendered appearance not assessed by this agent. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). Rule forces box-shadow none on focus; the global ring is a box-shadow with outline none, so no indicator remains. Live focus walk agrees."
+      "notes": "Surfaced by accessibility finder on 2026-10-31. WCAG 2.4.7; EN 301 549 9.2.4. The global ring is a box-shadow with outline none, both !important. This higher-specificity rule sets box-shadow none !important, background transparent and border none, so no focus change remains from this rule. Orchestrator Tab walk noFocusStyle on signed-in scans. Coverage detail is in the private run record. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). Rule forces box-shadow none on focus; the global ring is a box-shadow with outline none, so no indicator remains. Live focus walk agrees."
     },
     {
       "id": "LL-76fe5b06f7",
@@ -11137,7 +11137,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by accessibility finder on 2026-10-31. WCAG 1.3.1, 4.1.2. Same markup; invoked from dashboard/authenticated-view.hbs in its boards embed branch. Static only, so medium confidence; coverage detail is in the private run record. | adversary: refuted (high confidence, fresh context, at 070b5e614, 2026-10-31). Template is unreachable: its only render site requires activeTab boards, and no code path sets that value. Recommendation for Scot: drop or re-scope; not removed by this run."
+      "notes": "Surfaced by accessibility finder on 2026-10-31. WCAG 1.3.1, 4.1.2. Same markup; invoked from dashboard/authenticated-view.hbs in its boards embed branch. Medium confidence; coverage detail is in the private run record. | adversary: refuted (high confidence, fresh context, at 070b5e614, 2026-10-31). Template is unreachable: its only render site requires activeTab boards, and no code path sets that value. Recommendation for Scot: drop or re-scope; not removed by this run."
     },
     {
       "id": "LL-436af085af",
@@ -11292,7 +11292,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by accessibility finder on 2026-10-31. WCAG 1.4.3. .ll-viewswitch__item-tag is 14px bold, not large-scale, on a translucent denim tint inside a light menu. Token-use check only; coverage detail is in the private run record. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). View switcher tag uses raw denim at 14px bold on its tint; computed about 3.2:1, and 14px bold is not large text."
+      "notes": "Surfaced by accessibility finder on 2026-10-31. WCAG 1.4.3. .ll-viewswitch__item-tag is 14px bold, not large-scale, on a translucent denim tint inside a light menu. Coverage detail is in the private run record. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). View switcher tag uses raw denim at 14px bold on its tint; computed about 3.2:1, and 14px bold is not large text."
     },
     {
       "id": "LL-ef1a7f776e",
@@ -11323,7 +11323,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by accessibility finder on 2026-10-31. WCAG 3.3.2, 4.1.2. No id, placeholder, label or aria-label. Static; coverage detail is in the private run record. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). Rename input has no label, aria-label or placeholder at the call site."
+      "notes": "Surfaced by accessibility finder on 2026-10-31. WCAG 3.3.2, 4.1.2. No id, placeholder, label or aria-label. Coverage detail is in the private run record. | adversary: confirmed (high confidence, fresh context, at 070b5e614, 2026-10-31). Rename input has no label, aria-label or placeholder at the call site."
     },
     {
       "id": "LL-a68aaebeb5",
@@ -12134,7 +12134,7 @@
     {
       "id": "LL-cd0df99949",
       "ruleKey": "role-menu-missing-menuitem-children",
-      "title": "Language dropdown role=menu has no menuitem children",
+      "title": "Footer More Resources dropdown role=menu has no menuitem children",
       "severity": "low",
       "confidence": "high",
       "frameworks": [
@@ -12382,7 +12382,7 @@
     {
       "id": "LL-db48d38e0c",
       "ruleKey": "aria-labelledby-dangling-idref",
-      "title": "Footer language menu references the nonexistent dLabel id",
+      "title": "Footer More Resources menu references the nonexistent dLabel id",
       "severity": "low",
       "confidence": "high",
       "frameworks": [
@@ -14477,7 +14477,7 @@
     {
       "id": "LL-feec65b1ec",
       "ruleKey": "slop-near-duplicate-block",
-      "title": "Twelve .la-modal-header-icon--* rule sets have identical bodies, and the comment admits there is no shared base rule",
+      "title": "Ten .la-modal-header-icon--* rule sets have identical bodies, and the comment admits there is no shared base rule",
       "severity": "medium",
       "confidence": "high",
       "frameworks": [],

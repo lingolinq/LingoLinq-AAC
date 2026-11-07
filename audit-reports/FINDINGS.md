@@ -216,7 +216,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-709910aabe |  | medium |  | untriaged | audit-run | extra-colors-row component is never rendered (sibling extra-colors and extra-colors-modal are live) | `app/frontend/app/components/extra-colors-row.js`:11 |
 | LL-ca5cdcaa88 |  | medium |  | untriaged | audit-run | style-switcher component is never invoked (only comments and CSS mention it) | `app/frontend/app/components/style-switcher.js`:6 |
 | LL-549bbb6748 |  | medium |  | untriaged | audit-run | aggreement-terms template is not routed, rendered or opened as a modal | `app/frontend/app/templates/aggreement-terms.hbs`:2 |
-| LL-feec65b1ec |  | medium |  | untriaged | audit-run | Twelve .la-modal-header-icon--* rule sets have identical bodies, and the comment admits there is no shared base rule | `app/frontend/app/styles/app.scss`:31639 |
+| LL-feec65b1ec |  | medium |  | untriaged | audit-run | Ten .la-modal-header-icon--* rule sets have identical bodies, and the comment admits there is no shared base rule | `app/frontend/app/styles/app.scss`:31639 |
 | LL-1890f6a922 | P2-5 | medium | GDPR, FERPA | **accepted** | audit-run | DataPolicyEnforcer retention only purges session log sessions | `lib/data_policy_enforcer.rb`:14 |
 | LL-d35cbdb313 | P2-7 | medium | FERPA | **accepted** | audit-run | User creation (incl. org start codes) generates no AuditEvent | `app/controllers/api/users_controller.rb`:244 |
 | LL-310b464be4 | P2-8 | medium | FERPA | **accepted** | audit-run | protected_image accepts user_token via URL parameter | `app/controllers/api/users_controller.rb`:945 |
@@ -280,7 +280,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-4774165eec |  | low | SOC2 | untriaged | audit-run | Compliance finding (details withheld until remediation is verified) | `.claude/hooks/audit-readonly-guard.sh`:1 |
 | LL-07321f3c25 |  | low |  | untriaged | audit-run | Shared paginate accepts per_page of 0 and negative offset or per_page without validation | `lib/json_api/json.rb`:24 |
 | LL-abbc73af47 |  | low |  | untriaged | audit-run | allowed? answers authorization failures with HTTP 400 while other endpoints use 403 and 401 | `app/controllers/application_controller.rb`:309 |
-| LL-8a9ed925f3 |  | low |  | untriaged | audit-run | Profiles and eval protocols index endpoints return bare arrays, unlike the keyed-and-paginated envelope every other list uses | `app/controllers/api/profiles_controller.rb`:21 |
+| LL-8a9ed925f3 |  | low |  | untriaged | audit-run | Profiles and eval protocols index endpoints return bare arrays instead of the keyed-and-paginated list envelope | `app/controllers/api/profiles_controller.rb`:21 |
 | LL-a038bb6b07 |  | low |  | untriaged | audit-run | Admin-support branch of the user serializer discards its device query and then calls select on an unassigned variable | `lib/json_api/user.rb`:303 |
 | LL-4c9d0e52a0 |  | low |  | untriaged | audit-run | License list payload has no Ember consumer | `lib/json_api/license.rb`:8 |
 | LL-1753b1fdaa |  | low |  | untriaged | audit-run | Ember wraps the whole error body into errors[0] only when Rails omitted an errors array, so errors[0] is a string for some failures and an object for others | `app/frontend/app/utils/extras.js`:285 |
@@ -299,7 +299,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-fa0cfadf38 |  | low | WCAG | untriaged | audit-run | Goal badge popup opens from a click-only span | `app/frontend/app/templates/goals/goal.hbs`:261 |
 | LL-8c8b731abc |  | low | WCAG | untriaged | audit-run | Lesson description panel toggles from a click-only div | `app/frontend/app/templates/lesson.hbs`:53 |
 | LL-5b754f5f5e |  | low | WCAG | untriaged | audit-run | Account dropdown role=menu has no menuitem children | `app/frontend/app/components/app-navbar-authenticated-inner.hbs`:139 |
-| LL-cd0df99949 |  | low | WCAG | untriaged | audit-run | Language dropdown role=menu has no menuitem children | `app/frontend/app/components/page-footer.hbs`:62 |
+| LL-cd0df99949 |  | low | WCAG | untriaged | audit-run | Footer More Resources dropdown role=menu has no menuitem children | `app/frontend/app/components/page-footer.hbs`:62 |
 | LL-d7f17e65be |  | low | WCAG | untriaged | audit-run | Copy board dropdown role=menu has no menuitem children | `app/frontend/app/components/copy-just-this-board.hbs`:6 |
 | LL-1f930f5605 |  | low | WCAG | untriaged | audit-run | Record note template dropdown role=menu has no menuitem children | `app/frontend/app/components/record-note.hbs`:53 |
 | LL-1bb7a36d82 |  | low | WCAG | untriaged | audit-run | Which-home dropdown role=menu has no menuitem children | `app/frontend/app/components/which-home.hbs`:16 |
@@ -307,7 +307,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-58d882c46e |  | low | WCAG | untriaged | audit-run | Logs Add dropdown role=menu has no menuitem children | `app/frontend/app/templates/user/logs.hbs`:148 |
 | LL-8005319b52 |  | low | WCAG | untriaged | audit-run | Organization room dropdown role=menu has no menuitem children | `app/frontend/app/templates/organization/room.hbs`:230 |
 | LL-669d04a009 |  | low | WCAG | untriaged | audit-run | User status menu references the nonexistent dLabel id | `app/frontend/app/components/user-status.hbs`:40 |
-| LL-db48d38e0c |  | low | WCAG | untriaged | audit-run | Footer language menu references the nonexistent dLabel id | `app/frontend/app/components/page-footer.hbs`:62 |
+| LL-db48d38e0c |  | low | WCAG | untriaged | audit-run | Footer More Resources menu references the nonexistent dLabel id | `app/frontend/app/components/page-footer.hbs`:62 |
 | LL-45a875a37d |  | low | WCAG | untriaged | audit-run | Quick assessment tally steppers reference ids that do not exist | `app/frontend/app/components/quick-assessment.hbs`:43 |
 | LL-df0d71aa3c |  | low | WCAG | untriaged | audit-run | Button settings group has a raw, non-descriptive aria-label | `app/frontend/app/components/button-settings.hbs`:366 |
 | LL-ac1e5e72a6 |  | low | WCAG | untriaged | audit-run | Gift purchase plan group has a raw aria-label | `app/frontend/app/templates/gift_purchase.hbs`:68 |
