@@ -1100,7 +1100,7 @@ export default Service.extend({
       this.set('vocalization_locale', label);
     }
   },
-  jump_to_board: function(new_state, old_state) {
+  _jump_to_board: function(new_state, old_state) {
     buttonTracker.transitioning = true;
     if(new_state && old_state && new_state.id && (new_state.id == old_state.id || new_state.key == old_state.key)) {
       // transition was getting stuck when staying on the same board
@@ -5483,6 +5483,17 @@ export default Service.extend({
     var to_route = (transition && transition.to_route) || '';
     if(/^login(\.|$)/.test(to_route) || ['forgot_login', 'forgot_password', 'register', 'offline_boards'].indexOf(to_route) !== -1) { return false; }
     return !!(modal.is_open('force-logout') && this.session && this.session.logout_under_way());
+  },
+  // Offline, a board that is not on the device answers at once, and the board and the sentence stay
+  // (#1209). Online this is the same synchronous jump as ever.
+  jump_to_board: function(new_state, old_state) {
+    var persistence = this.persistence;
+    if(!new_state || !persistence || persistence.get('online') !== false) { return this._jump_to_board(new_state, old_state); }
+    var _this = this;
+    return board_saved_here(persistence, boardDetailCache, new_state.key).then(function(saved) {
+      if(saved) { return _this._jump_to_board(new_state, old_state); }
+      warn_board_not_saved();
+    });
   }
 });
 
@@ -5510,3 +5521,5 @@ import boardRevocation from '../utils/board_revocation';
 export function logout_already_under_way(session) {
   return !!(session && typeof session.logout_under_way === 'function' && session.logout_under_way());
 }
+// Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
+import { board_saved_here, warn_board_not_saved } from '../utils/board_device_copy';

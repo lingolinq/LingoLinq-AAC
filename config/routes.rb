@@ -90,8 +90,13 @@ LingoLinq::Application.routes.draw do
   get 'lessons/:lesson_id/:lesson_code/:user_token' => 'boards#lesson'
   
   # Rack::Offline (rack-offline gem) removed: gem was abandoned (last release 2012),
-  # HTML5 AppCache was removed from all modern browsers. Offline support is handled
-  # by IndexedDB/SQLite in the Ember frontend.
+  # HTML5 AppCache was removed from all modern browsers. Offline data is handled
+  # by IndexedDB/SQLite in the Ember frontend; the page itself by the offline app
+  # shell's service worker below (lib/offline_shell.rb). These three must stay above
+  # the ':id' catch-alls, which would read 'sw' or 'offline-shell' as a user name.
+  get 'sw.js' => 'offline_shell#service_worker', :format => false
+  get 'offline-shell' => 'offline_shell#shell'
+  get 'manifest.webmanifest' => 'offline_shell#manifest', :format => false
 
   get 'profile' => ember_handler
   get 'profile/:user_id/:profile_id' => ember_handler

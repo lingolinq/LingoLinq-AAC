@@ -88,7 +88,7 @@ export default Route.extend({
       controller._board_detail_images = raw.images;
     }
     controller._build_from_raw(raw);
-    if(controller.get('edit_mode')) { return; }
+    if(controller.get('edit_mode') || controller.get('served_from_device')) { return; } // a device copy: nothing to fetch
     var warm_opts = {
       skin: controller.get('app_state.referenced_user.preferences.skin'),
       preferred_symbols: controller.get('app_state.referenced_user.preferences.preferred_symbols')
@@ -111,7 +111,7 @@ export default Route.extend({
     }, 500);
   },
 
-  model: function(params) {
+  _model_from_cache_or_server: function(params, nav) {
     var _this = this;
     var user = this.modelFor('user');
     user.set('subroute_name', i18n.t('board_detail', "Board Detail"));
@@ -172,10 +172,10 @@ export default Route.extend({
       var resolved = false;
       var handleRoot = function(boardData, source) {
         var raw_copy = JSON.parse(JSON.stringify(boardData));
-        _this.set('_raw_board_data', raw_copy);
+        nav.answered = true; if(_this._board_nav === nav) { _this.set('_raw_board_data', raw_copy); } // only the current navigation sets the grid source
         // force: network response is authoritative for this navigation.
         // root_only: lite /tree and show fallback have no descendants yet.
-        boardDetailCache.set(raw_copy, { force: true, root_only: true });
+        boardDetailCache.set(raw_copy, { force: _this._board_nav === nav, root_only: true });
         var store = _this.store;
         var normalized = store.normalize('board', boardData);
         var record = store.push(normalized);
@@ -193,7 +193,7 @@ export default Route.extend({
       };
 
       var warmFullTreeInBackground = function() {
-        var tree_started = Date.now();
+        if(_this._board_nav !== nav) { return; } var tree_started = Date.now();
         boardCacheDiag.mark('model:background_tree_start', { board_key: board_key });
         boardDetailCache.warm_full_tree_if_root_only(board_key).then(function(result) {
           result = result || {};
@@ -239,22 +239,21 @@ export default Route.extend({
       };
       var fallbackSingleBoard = function() {
         boardCacheDiag.mark('model:tree_fallback_show', { board_key: board_key });
-        persistence.ajax('/api/v1/boards/' + board_key, { type: 'GET' }).then(function(data) {
+        persistence.ajax('/api/v1/boards/' + board_key, nav.copy ? _this._one_try() : { type: 'GET' }).then(function(data) {
           var boardData = boardDetailCache.normalize_board_payload(data);
-          if (boardData) {
+          if (usable_copy(boardData)) {
             handleRoot(boardData, 'show');
             warmFullTreeInBackground();
           } else if (!resolved) {
             resolved = true;
             resolve({ error: true, boardname: params.boardname });
           }
-        }, function(err) {
-          if (!resolved && !fallbackAttempted && !isDefinitive(err)) {
+        }, function(err) { nav.failures.push(err);
+          if (!resolved && !fallbackAttempted && !isDefinitive(err) && !nav.copy) {
             fallbackAttempted = true;
             boardCacheDiag.mark('model:fallback_retry', { board_key: board_key });
-            // Short pause so the retry lands after the login burst rather than
-            // adding to it. Guarded again on `resolved` because the background
-            // tree warm can resolve the model while this is pending.
+            // Short pause so the retry lands after the login burst, not in it. Guarded again
+            // on `resolved`: the background tree warm can resolve the model while this is pending.
             // `setTimeout`, not `runLater`, on purpose: the callback only re-fires
             // an ajax and touches promise-local state (no route/component
             // mutation), so it needs none of the run-loop scheduling guarantees —
@@ -272,26 +271,27 @@ export default Route.extend({
       };
 
       var root_started = Date.now();
-      persistence.ajax('/api/v1/boards/' + board_key + '/tree?root_only=1', { type: 'GET' }).then(function(data) {
+      var noBoardFromTree = function(err) { _this._after_tree_failure(nav, err || {}, requestTree, fallbackSingleBoard, function() { resolved = true; resolve({ error: true, boardname: params.boardname }); }); };
+      var requestTree = function(options) { persistence.ajax('/api/v1/boards/' + board_key + '/tree?root_only=1', options).then(function(data) {
         boardCacheDiag.mark('model:root_only_response', {
           board_key: board_key,
           ms: Date.now() - root_started,
           descendant_count: (data && data.descendants && data.descendants.length) || 0
         });
         if (!data || !data.root || !data.root.board) {
-          fallbackSingleBoard();
+          noBoardFromTree();
           return;
         }
         var rootBoardData = boardDetailCache.normalize_board_payload(data.root);
-        if (!rootBoardData) {
-          fallbackSingleBoard();
+        if (!usable_copy(rootBoardData)) {
+          noBoardFromTree();
           return;
         }
         handleRoot(rootBoardData, 'tree_root_only');
         warmFullTreeInBackground();
-      }, function() {
-        fallbackSingleBoard();
-      });
+      }, function(err) {
+        nav.failures.push(err); noBoardFromTree(err);
+      }); }; requestTree(_this._one_try());
     });
   },
 
@@ -532,7 +532,7 @@ export default Route.extend({
       });
       var prime_started = Date.now();
       _this._maybe_prime_caches().then(function() {
-        if(controller.isDestroyed || controller.isDestroying) { return; }
+        if(controller.isDestroyed || controller.isDestroying || _this.get('_raw_board_data') !== raw) { return; } // Edit can replace a device copy first
         boardCacheDiag.mark('setup:prime_done', {
           board_key: board_key,
           ms: Date.now() - prime_started,
@@ -629,6 +629,8 @@ export default Route.extend({
         controller.set('_was_not_speak_mode', false);
         this.stashes.persist('current_mode', 'default');
       }
+      // Not `_board_nav`: a slow board shows the loading page, which exits this route mid-navigation.
+      controller.set('served_from_device', false);
     }
   },
   // A cache hit serves a board without asking the server. Offline, a board whose
@@ -641,7 +643,172 @@ export default Route.extend({
     return boardRevocation.blocks_view_route(record, this.appState, online).then(function(blocked) {
       return blocked ? { error: true, boardname: boardname } : record;
     });
+  },
+
+  session: service('session'),
+  router: service('router'),
+  // Offline with nothing to show, and the server did not refuse it: never a dead end.
+  afterModel: function(model) {
+    if(model && model.error && !this._refused()[this._board_nav && this._board_nav.board_key]) {
+      leave_unsaved_board(this.router, persistence, this.session);
+    }
+  },
+  device_copy_wait: DEVICE_COPY_WAIT_MS,
+  device_read_wait: DEVICE_READ_WAIT_MS,
+  session_wait: DEFAULT_WAIT_MS,
+  denial_session_wait: 10000,
+  // Network first with a timeout, then the device copy (#1213), all in order. Each step has ended before
+  // the next starts, so no answer for this board can arrive after the page has moved on. `nav` stands
+  // for this navigation: a superseded one may still be running, and must change nothing.
+  model: function(params) {
+    var _this = this;
+    var board_key = this.modelFor('user').get('user_name') + '/' + params.boardname;
+    // Read first: boardDetailCache.get treats an expired entry as gone.
+    var nav = { board_key: board_key, memory_raw: boardDetailCache.peek(board_key), failures: [], served: false };
+    this._board_nav = nav;
+    return this._model_from_cache_or_server(params, nav).then(function(result) {
+      if(!result || !result.error) { return result; }
+      return _this._serve_copy(nav).then(function(record) { return record || result; });
+    }).then(function(result) {
+      if(_this._board_nav === nav) { _this._mark_device_copy(nav.served); }
+      if(nav.answered) { delete _this._refused()[board_key]; }
+      return result;
+    });
+  },
+  // One attempt that ends itself. A new object each time: $.ajax changes the options it is given.
+  _one_try: function() {
+    return { type: 'GET', timeout: this.device_copy_wait, attempt: 3 };
+  },
+  // What to do when the one bounded /tree attempt gave no board. No answer and a copy on the device:
+  // the copy. No answer and no copy: this page has nothing else, so ask with the usual patience.
+  // Anything else goes on to the show request, which is bounded too when there is a copy to fall back on.
+  _after_tree_failure: function(nav, err, request_tree, request_show, give_up) {
+    if(nav.patient) { return request_show(); }
+    var no_answer = !!(err.short_circuit || (err.fakeXHR && err.fakeXHR.status === 0));
+    this._find_copy(nav).then(function(raw) {
+      if(raw && no_answer) { return give_up(); }
+      if(no_answer && !err.short_circuit) {
+        nav.patient = true;
+        return request_tree({ type: 'GET', attempt: 2 });
+      }
+      request_show();
+    });
+  },
+  // The copy that may be shown, or null. Bounded as a whole, because the revocation check reads the
+  // database too, and it writes nothing, so a read that outlives the limit has no effect. The server
+  // did not answer, so that check treats this as offline whatever `online` says.
+  _find_copy: function(nav) {
+    var _this = this;
+    return this._session_user_loaded(nav).then(function() {
+      return _this._checked_copy(nav);
+    }).then(null, function() { return null; });
+  },
+  // On a cold start the session user is still loading, and the denial and revocation rules say nothing
+  // until it has (board_revocation.js#acting_as_self), so wait for the read that is already running.
+  _session_user_loaded: function(nav) {
+    if(this.appState.get('sessionUser')) { return RSVP.resolve(); }
+    // Longer when the server has answered, because then a board may be wrongly opened.
+    var answered = nav.failures.some(function(err) { return err && err.fakeXHR && err.fakeXHR.status; });
+    return wait_for_session_user(this.appState, {
+      promise: this.appState.get('session_user_promise'),
+      timeout: answered ? this.denial_session_wait : this.session_wait
+    });
+  },
+  // Read before judging, so a home board held by id is recognised. Judged even with no row, so a
+  // refusal or a dead session is remembered for the next board.
+  _checked_copy: function(nav) {
+    var _this = this;
+    if(!this._may_read_copies()) {
+      this._copy_refused(nav);
+      return RSVP.resolve(null);
+    }
+    return this._read_copy(nav).then(function(raw) {
+      return (_this._copy_refused(nav) || !raw) ? null : raw;
+    });
+  },
+  _read_copy: function(nav) {
+    if(!nav.lookup) {
+      var appState = this.appState;
+      var read = read_device_copy(persistence, nav.board_key, nav.memory_raw).then(function(raw) {
+        if(!raw) { return null; }
+        var board = { get: function(attr) { return raw[attr]; } };
+        // Modern turns Speak Mode on for everyone (setupController), so it excuses nothing here.
+        return boardRevocation.blocks_view_route(board, appState, false, { ignore_speak_mode: true }).then(function(blocked) {
+          return blocked ? null : raw;
+        });
+      });
+      nav.lookup = within(read, this.device_read_wait).then(function(raw) {
+        nav.copy = raw;
+        if(!raw) { nav.lookup = null; } // it may only have been slow: read again before the error page
+        return raw;
+      });
+    }
+    return nav.lookup;
+  },
+  _serve_copy: function(nav) {
+    var _this = this;
+    return this._find_copy(nav).then(function(raw) {
+      if(!raw || _this._board_nav !== nav || _this._copy_refused(nav)) { return null; }
+      var record = _this._record_for_copy(raw);
+      _this.set('_raw_board_data', raw);
+      nav.served = true;
+      return within(load_copy_images(_this.persistence, raw), _this.device_read_wait).then(function() { return record; });
+    }).then(null, function() { return null; });
+  },
+  // Signed in, on that user's own database. `auth_settings` will not do: a forced logout leaves `{}`.
+  _may_read_copies: function() {
+    return !!this.session.get('access_token') && persistence.local_db_is_current_user();
+  },
+  // Boards the server refused, by the token it refused: the answer holds until it says otherwise.
+  _refused: function() {
+    this._refused_boards = this._refused_boards || {};
+    return this._refused_boards;
+  },
+  // A dead session is remembered per token: in Speak Mode nothing logs out (utils/extras.js), and the
+  // next navigation may have no server answer to show it. Read even when there is no copy.
+  _copy_refused: function(nav) {
+    var session = this.session;
+    var token = session.get('access_token');
+    if(session.get('invalid_token') || nav.failures.some(function(err) { return session_ended(err, session); })) {
+      this._dead_token = token;
+    }
+    if(token && this._dead_token === token && offline_shell.device_trust(this.appState.get('sessionUser')) !== 'trusted') {
+      return true;
+    }
+    var copy_id = nav.copy && nav.copy.id;
+    if(this._refused()[nav.board_key] === token) { return !board_kept_on_refusal(nav.board_key, copy_id, this.appState); }
+    // Unknown user: home and sidebar boards cannot be told apart yet, so nothing is remembered.
+    if(!this.appState.get('sessionUser') || !server_refused(nav.failures, nav.board_key, copy_id, this.appState)) { return false; }
+    this._refused()[nav.board_key] = token;
+    boardDetailCache.invalidate(nav.board_key);
+    return true;
+  },
+  // The server answered a device copy's fetch (controllers/user/board-detail.js#_refresh_device_copy)
+  // with a failure. A refusal goes back through model(), so the router shows the error page.
+  device_copy_fetch_failed: function(board_key, err, board_id) {
+    if(this._copy_refused({ board_key: board_key, failures: [err], copy: { id: board_id } })) { this.refresh(); }
+  },
+  // A record already in memory keeps its identity, and may have changes waiting to save (the same
+  // rule as services/persistence.js#find_boards). The grid comes from the newest copy, not the record.
+  // A row the store cannot take throws into _serve_copy's rejection handler: no copy.
+  _record_for_copy: function(raw) {
+    var existing = this.store.peekRecord('board', raw.id);
+    if(existing) { return existing; }
+    var attrs = JSON.parse(JSON.stringify(raw));
+    delete attrs.images; // sideloaded objects, not the relationship the model declares; the grid reads them from raw
+    delete attrs.sounds;
+    return this.store.push(this.store.normalize('board', attrs));
+  },
+  // The controller's flag is the one record of what is on screen: read by the notice, by
+  // _finalize_board_display and by the actions that would save the board. Changed when a navigation
+  // settles, so a tap that is still loading leaves the current board's flag alone.
+  _mark_device_copy: function(served) {
+    var controller = this.controllerFor('user.board-detail', true);
+    if(controller) { controller.set('served_from_device', served); }
   }
 });
 // Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
 import boardRevocation from '../../utils/board_revocation';
+import { DEVICE_COPY_WAIT_MS, DEVICE_READ_WAIT_MS, board_kept_on_refusal, leave_unsaved_board, load_copy_images, read_device_copy, server_refused, session_ended, usable_copy, within } from '../../utils/board_device_copy';
+import offline_shell from '../../utils/offline_shell';
+import { DEFAULT_WAIT_MS, wait_for_session_user } from '../../utils/session_user_wait';

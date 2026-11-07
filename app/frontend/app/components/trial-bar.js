@@ -91,6 +91,11 @@ export default Component.extend({
   _performUse: function() {
     var _this = this;
     var appState = this.get('appState');
+    // A device copy can be older than the server's board, and adopting it posts its buttons (#1213).
+    if(this.get('deviceCopy')) {
+      modal.warning(i18n.t('board_action_needs_connection', "This board needs an Internet connection to do that."));
+      return RSVP.resolve();
+    }
     var trial = this.get('trial');
     var me = appState.get('currentUser');
     var forOther = !!this.get('forUserName');

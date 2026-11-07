@@ -1228,7 +1228,7 @@ var persistence = Service.extend({
       return RSVP.resolve(this.url_cache[url]);
     } else if(this.url_cache && alt_url && this.url_cache[alt_url]) {
       return RSVP.resolve(this.url_cache[alt_url]);
-    } else if(this.url_uncache && this.url_uncache[url]) {
+    } else if((this.url_uncache && this.url_uncache[url]) || this.get('local_system.available') === false) { // no file storage: the picture is in the database
       var _this = this;
       var find = this.find('dataCache', url);
       return find.then(function(data) {
@@ -2177,7 +2177,7 @@ var persistence = Service.extend({
 
       // Ensure the image filename cache is up-to-date
       var prime_image_cache = _this_sync.time_promise(confirm_quota_for_user.then(check_first(function(user) {
-        if(!ignore_supervisees) {
+        if(!ignore_supervisees && _this_sync.get('local_system.available')) { // no file storage (Safari): nothing to list, and listing rejects
           return capabilities.storage.list_files('image').then(function(images) {
             _this_sync.image_filename_cache = {};
             images.forEach(function(image) {
@@ -2453,7 +2453,7 @@ var persistence = Service.extend({
         if(_this_sync.stashes && _this_sync.stashes.persist) {
           _this_sync.stashes.persist('last_sync_status', 'failed');
         }
-        _this_sync.set('sync_status_error', null);
+        _this_sync.set('sync_status_error', capabilities.db ? null : i18n.t('device_storage_unavailable', "This device can't save boards right now. Try restarting the app."));
         if(err.board_unauthorized) {
           _this_sync.set('sync_status_error', i18n.t('board_unauthorized', "One or more boards are private"));
         } else if(!_this_sync.get('online')) {
@@ -4864,6 +4864,7 @@ persistence.reopen({
     _this._prepare_local_files_promise = ensure_local.then(function() {
       var local_after = _this.get('local_system');
       if(_this.isDestroyed || _this.isDestroying || !local_after || !local_after.available || !local_after.allowed) {
+        _this.primed = true; // nothing to prime, and find_url waits on this
         return RSVP.resolve();
       }
       return _this.prime_caches(true).then(null, function() {

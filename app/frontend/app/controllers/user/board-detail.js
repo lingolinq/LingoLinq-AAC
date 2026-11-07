@@ -2198,7 +2198,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
       _this._apply_focus_dim_to_ordered_buttons();
       _this._preload_grid_images([buttons]);
       if(!use_ember && cache_token) {
-        boardDetailCache.set_ordered_buttons(cache_token, [buttons], cache_ctx);
+        if(!_this.get('served_from_device')) { boardDetailCache.set_ordered_buttons(cache_token, [buttons], cache_ctx); }
       }
       return;
     }
@@ -2248,7 +2248,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
       // Cache the freshly-built grid so subsequent navigations to this
       // board can skip the rebuild loop entirely.
       if(cache_token) {
-        boardDetailCache.set_ordered_buttons(cache_token, result, cache_ctx);
+        if(!_this.get('served_from_device')) { boardDetailCache.set_ordered_buttons(cache_token, result, cache_ctx); }
       }
     }
 
@@ -7431,7 +7431,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
         app_state.set('board_detail_tour_pending_speak', key);
       }
     },
-    enter_edit_mode: function() {
+    enter_edit_mode: function() { if(this._blocked_on_device_copy()) { return; }
       /* New session, new baseline. `reset_edit_baseline` clears BOTH the snapshot and the
          board token, and the token is what `rebaseline_after_build` keys its
          no-recapture guard on — so clearing it here is what lets the first build of this
@@ -7730,7 +7730,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
     // they land back on the board-detail edit page rather than the
     // read-only view — the privacy POST + model reload can otherwise
     // sometimes drop edit state via re-render.
-    open_board_privacy: function() {
+    open_board_privacy: function() { if(this._blocked_on_device_copy()) { return; }
       var _this = this;
       var was_editing = this.get('edit_mode');
       var restore = function() {
@@ -8401,7 +8401,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
       }
     },
 
-    make_a_copy: function() {
+    make_a_copy: function() { if(this._blocked_on_device_copy()) { return; }
       this.set('share_dropdown_open', false);
       var _this = this;
       var board = _this.get('model');
@@ -8431,7 +8431,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
       }, function() { });
     },
 
-    set_as_home: function() {
+    set_as_home: function() { if(this._blocked_on_device_copy()) { return; }
       this._close_options_menu();
       var board = this.get('model');
       modal.open('set-as-home', {board: board});
@@ -8476,7 +8476,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
       }, function() {});
     },
 
-    share_board: function() {
+    share_board: function() { if(this._blocked_on_device_copy()) { return; }
       var _this = this;
       _this.set('share_dropdown_open', false);
       this.get('app_state').assert_source().then(function() {
@@ -8729,10 +8729,10 @@ const BoardDetailController = Controller.extend(prefClasses, {
         var board_key = load_board.key;
         if(board_key && board_key.indexOf('/') !== -1) {
           actionLock.run('board-link:' + (_this.get('model.key') || _this.get('model.id') || 'board-detail') + ':' + board_key, function() {
-            _this._push_nav_history();
-            return _this._preferred_board_detail_key(board_key).then(function(preferred_key) {
-              var key_parts = preferred_key.split('/');
-              return _this.get('router').transitionTo('user.board-detail', key_parts[0], key_parts.slice(1).join('/'));
+            return board_saved_here(persistence, boardDetailCache, board_key).then(function(saved) {
+              if(!saved) { return warn_board_not_saved(); } // offline: answer at once; the board and sentence stay
+              _this._push_nav_history();
+              return _this._preferred_board_detail_key(board_key).then(function(preferred_key) { var key_parts = preferred_key.split('/'); return _this.get('router').transitionTo('user.board-detail', key_parts[0], key_parts.slice(1).join('/')); });
             });
           }, {timeout: 5000});
           return;
@@ -9844,7 +9844,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
     // board-details-page version), so when the user dismisses the
     // translation modal they're back on the speak-mode board, not
     // bounced into a board-details modal first.
-    translate_board: function() {
+    translate_board: function() { if(this._blocked_on_device_copy()) { return; }
       this.set('show_options_menu', false);
       if(this.get('board_translate_in_progress')) {
         modal.flash(i18n.t('translation_in_progress', "Translation is already in progress. Please wait for it to finish."), 'notice');
@@ -9866,7 +9866,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
       var board = this.get('model');
       var _this = this;
       if(!board) { return; }
-      modal.open('switch-languages', { board: board }).then(function(res) {
+      modal.open('switch-languages', { board: board, device_copy: !!this.get('served_from_device') }).then(function(res) {
         if(res && res.switched) {
           if(board && board.set) {
             board.set('last_cb', null);
@@ -10440,6 +10440,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
 
 // Imported last so the .eslint-todo rows above keep their lines.
 import { maybe_offer_tour } from '../../utils/tours/tour_offer';
+import { board_saved_here, usable_copy, warn_board_not_saved } from '../../utils/board_device_copy';
 
 /* A TRIAL LASTS THROUGH THE TRIED BOARD'S FOLDERS (2026-10-13, see `try_origin_board` above). True on the
    tried board itself, and on any board whose trail (`board_detail_nav_history`, the boards navigated FROM)
@@ -10455,6 +10456,45 @@ BoardDetailController.reopen({
   // starts again there. Returns true when it handled Home. Board lock is checked first, as go_home does.
   // Also while a home board chosen with the trial bar's "Use this board" is still being copied
   // (`home_copy_pending`, components/trial-bar.js#use): Home goes to that board, not the old home board.
+  /* A DEVICE COPY OPENS FOR SPEAKING ONLY (#1213). It can be older than the board on the server, and a
+     save goes back with no conflict check (services/persistence.js#sync_changed), so anything that
+     would write it, or copy it to the server, stops here. Returns true when the action must stop.
+     With a connection, the board is fetched again so the action works on the next try. */
+  _blocked_on_device_copy: function() {
+    if(!this.get('served_from_device')) { return false; }
+    this._close_options_menu();
+    if(persistence.get('online')) {
+      modal.warning(i18n.t('board_action_updating', "Getting the latest version of this board. Try again in a moment."));
+      this._refresh_device_copy();
+    } else {
+      modal.warning(i18n.t('board_action_needs_connection', "This board needs an Internet connection to do that."));
+    }
+    return true;
+  },
+  // Not router.refresh(): a refresh that resolves the same record skips setupController, so the grid
+  // and _last_raw would stay on the old copy. Same steps as _refresh_on_board_reload_key, plus the store.
+  _refresh_device_copy: function() {
+    var _this = this;
+    var key = this.get('model.key');
+    if(!key || this._refreshing_device_copy) { return; }
+    var route = getOwner(this).lookup('route:user/board-detail');
+    this._refreshing_device_copy = true;
+    var done = function() { _this._refreshing_device_copy = false; };
+    persistence.ajax('/api/v1/boards/' + key, { type: 'GET' }).then(function(data) {
+      done();
+      var merged = boardDetailCache.normalize_board_payload(data);
+      if(_this.isDestroyed || _this.isDestroying || !usable_copy(merged)) { return; }
+      if(_this.get('model.key') !== key || !_this.get('served_from_device')) { return; }
+      boardDetailCache.set(JSON.parse(JSON.stringify(merged)), { force: true, root_only: true });
+      LingoLinq.store.push(LingoLinq.store.normalize('board', JSON.parse(JSON.stringify(merged))));
+      _this.set('served_from_device', false);
+      route.set('_raw_board_data', merged);
+      _this._build_from_raw(merged);
+    }, function(err) {
+      done();
+      if(!_this.isDestroyed && !_this.isDestroying && _this.get('model.key') === key) { route.device_copy_fetch_failed(key, err, _this.get('model.id')); }
+    });
+  },
   _trial_home: function() {
     var origin = this.get('try_origin_board') || this.get('app_state.home_copy_pending');
     if(!origin || !origin.key) { return false; }

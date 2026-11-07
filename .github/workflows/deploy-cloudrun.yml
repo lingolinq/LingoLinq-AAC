@@ -635,7 +635,8 @@ jobs:
         # OPTIONAL (omitted entirely when blank, never set to ""): UPLOADS_S3_CDN,
         # REDIS_NAMESPACE_SUFFIX, REMOTE_EXTRA_DATA, STRIPE_PUBLIC_KEY, NEW_REGISTRATION_EMAIL,
         # MEDIACONVERT_ROLE_ARN, MEDIACONVERT_QUEUE_ARN, MEDIACONVERT_ENDPOINT,
-        # SNS_ARNS, SNS_REGION.
+        # SNS_ARNS, SNS_REGION, OFFLINE_APP_SHELL (the offline app shell's on/off setting,
+        # lib/offline_shell.rb; unset means off; flip it per environment and redeploy).
         # Omission matters: REMOTE_EXTRA_DATA is a presence check in Ruby, and
         # config/initializers/resque.rb only falls through to its default namespace when
         # REDIS_NAMESPACE_SUFFIX is UNSET, not when it is empty.
@@ -653,6 +654,7 @@ jobs:
           V_MEDIACONVERT_ENDPOINT: ${{ vars.APP_MEDIACONVERT_ENDPOINT }}
           V_SNS_ARNS: ${{ vars.APP_SNS_ARNS }}
           V_SNS_REGION: ${{ vars.APP_SNS_REGION }}
+          V_OFFLINE_APP_SHELL: ${{ vars.APP_OFFLINE_APP_SHELL }}
         run: |
           set -euo pipefail
           missing=""
@@ -708,7 +710,8 @@ jobs:
                       "STRIPE_PUBLIC_KEY=${V_STRIPE_PUBLIC_KEY:-}" "NEW_REGISTRATION_EMAIL=${V_NEW_REGISTRATION_EMAIL:-}" \
                       "APP_MEDIACONVERT_ROLE_ARN=${V_MEDIACONVERT_ROLE_ARN:-}" "APP_MEDIACONVERT_QUEUE_ARN=${V_MEDIACONVERT_QUEUE_ARN:-}" \
                       "APP_MEDIACONVERT_ENDPOINT=${V_MEDIACONVERT_ENDPOINT:-}" \
-                      "APP_SNS_ARNS=${V_SNS_ARNS:-}" "APP_SNS_REGION=${V_SNS_REGION:-}"; do
+                      "APP_SNS_ARNS=${V_SNS_ARNS:-}" "APP_SNS_REGION=${V_SNS_REGION:-}" \
+                      "APP_OFFLINE_APP_SHELL=${V_OFFLINE_APP_SHELL:-}"; do
             val="${pair#*=}"
             # Shell pattern, not grep: grep is line-oriented and a value containing a newline would
             # pass it. `[:space:]` here includes newline, tab, and carriage return.
@@ -732,6 +735,7 @@ jobs:
           [ -n "${V_MEDIACONVERT_ENDPOINT:-}" ]  && ev="$ev,MEDIACONVERT_ENDPOINT=$V_MEDIACONVERT_ENDPOINT"
           [ -n "${V_SNS_ARNS:-}" ]               && ev="$ev,SNS_ARNS=$V_SNS_ARNS"
           [ -n "${V_SNS_REGION:-}" ]             && ev="$ev,SNS_REGION=$V_SNS_REGION"
+          [ -n "${V_OFFLINE_APP_SHELL:-}" ]      && ev="$ev,OFFLINE_APP_SHELL=$V_OFFLINE_APP_SHELL"
           echo "APP_ENV_VARS=$ev" >> "$GITHUB_ENV"
           # The migrate Job keeps its boot-only env, plus the workers' namespace suffix: operators
           # run one-off rake tasks through it, and without the suffix every job they enqueued in
