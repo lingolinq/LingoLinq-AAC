@@ -25,16 +25,18 @@ Base: `develop` at `1e502ccf2`.
 
 - PDF: Debian's policy already denies it, so rasterizing a PDF was already refused. The obf gem's `gs` call
   runs directly, not through ImageMagick, so the `gs` delegate rule does not reach it.
-- An SVG can still refer to a local image by path; the policy does not stop that.
 
-Canonical senior-dev and adversary passes at `5f39a9c54`. The adversary pass said ship on condition that
-something proves the policy is loaded; the build check above does that. The senior-dev pass's PDF concern was
-refuted as described. Later edits to the spec, the build check and comments were not separately reviewed.
+Canonical senior-dev and adversary passes at `5f39a9c54` and again at `a88c0e31f`. Final round: senior-dev
+approved with comments, adversary said ship with two conditions, both met here. The stronger build check came
+from that round and was not separately reviewed.
 
 ## Unresolved
 
 - Debian's ImageMagick 6.9.11, the production version, was not run locally: Docker's VM on this machine is
-  broken. The final image stage now fails its build unless ImageMagick refuses a `text:` read, so a dev build
-  proves the policy loads on 6.9.11. After it deploys, also confirm one image upload, one SVG conversion and
-  one sentence preview.
+  broken. The final image stage fails its build unless ImageMagick lists this file, reads through its last
+  coder rule and refuses a `text:` read, so the first dev build is the first real 6.9.11 run. That check has no
+  pre-merge gate, because CI does not build the Dockerfile. If it fails, dev keeps its old revision and every
+  later `develop` deploy fails until it is fixed.
+- Image work runs on Resque, and dev deploys no worker, so upload, SVG and sentence-preview checks prove nothing
+  on dev. Run one of each on staging after the release merge.
 - The rules only apply where `MAGICK_CONFIGURE_PATH` is set, so local development is unchanged.

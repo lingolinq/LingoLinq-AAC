@@ -2,7 +2,6 @@
   Added to the host's policy.xml through MAGICK_CONFIGURE_PATH (set in the Dockerfile). Debian's policy
   leaves several scripting and file-reading coders open. The app's own commands read image files by path.
   Debian already denies PDF; the obf gem's direct gs call is not an ImageMagick delegate, so it is unaffected.
-  This does not stop an SVG referring to a local image by path; SVGs are sanitized before they get here.
 
   Rules follow Active Storage's own policy (active_storage/image_magick/policy.xml in Rails 8.1.4.1).
 

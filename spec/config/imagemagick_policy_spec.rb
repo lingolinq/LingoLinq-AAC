@@ -27,6 +27,11 @@ describe "ImageMagick policy" do
   it "is set in the final image stage, which fails its build if the policy is not applied" do
     final_stage = dockerfile.split(/^FROM /).last
     expect(final_stage).to match(%r{^ENV MAGICK_CONFIGURE_PATH=/app/config/imagemagick$})
-    expect(final_stage).to match(/^COPY \. \.\n.*^RUN convert text:\/etc\/passwd null: 2>&1 \| grep -q 'security policy'$/m)
+    copied = final_stage.index(/^COPY \. \.$/)
+    check = final_stage.index('convert -list policy')
+    expect(check).to be > copied
+    expect(final_stage).to include("grep -q 'Path: /app/config/imagemagick/policy.xml'")
+    expect(final_stage).to include("grep -qi 'pattern: PCL'")
+    expect(final_stage).to include(%q(convert text:/etc/passwd null: 2>&1 | grep -q "security policy .TEXT"))
   end
 end

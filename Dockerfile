@@ -63,8 +63,12 @@ RUN bundle install
 # Copy application code
 COPY . .
 
-# Fails the build unless the policy above is really applied by this image's ImageMagick.
-RUN convert text:/etc/passwd null: 2>&1 | grep -q 'security policy'
+# Fails the build unless ImageMagick lists our policy file, reads through its last coder rule, and enforces it.
+RUN convert -list policy > /tmp/policy.txt && \
+    grep -q 'Path: /app/config/imagemagick/policy.xml' /tmp/policy.txt && \
+    grep -qi 'pattern: PCL' /tmp/policy.txt && \
+    convert text:/etc/passwd null: 2>&1 | grep -q "security policy .TEXT" && \
+    rm /tmp/policy.txt
 
 # Copy built Ember assets from the frontend-builder stage
 COPY --from=frontend-builder /app/frontend/dist ./app/frontend/dist
