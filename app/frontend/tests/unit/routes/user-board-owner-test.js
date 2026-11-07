@@ -32,6 +32,8 @@ module('Unit | Route | user owner of a board page', function(hooks) {
     this.route.session = EmberObject.create({access_token: 'tok', user_name: 'me', user_id: '1_1'});
     this.route.appState = EmberObject.create({currentUser: null, session_user_promise: null});
     this.route.offline_shell_on = function() { return false; };
+    this.watching = 0;
+    this.route.set('router', {on: function() { _this.watching++; }, off: function() { _this.watching--; }});
     this.pushed = [];
     this.route.store = {
       peekAll: function() { return _this.loaded || []; },
@@ -48,6 +50,16 @@ module('Unit | Route | user owner of a board page', function(hooks) {
     assert.true(owner.get('board_owner_stand_in'));
     assert.true(this.route.get('owner_stand_in'));
     assert.deepEqual(this.queries, [], 'no request while offline');
+    assert.strictEqual(this.watching, 1, 'watching for the page that replaces it');
+    this.route.resetController(EmberObject.create(), true);
+    assert.strictEqual(this.watching, 0, 'and not after leaving');
+  });
+
+  test('nothing is watched unless a stand-in is in use', async function(assert) {
+    this.route.persistence.set('online', true);
+    this.server = function() { return RSVP.resolve(EmberObject.create({user_name: 'lingolinq', really_fresh: true})); };
+    await this.route.model({user_id: 'lingolinq'}, to_board('crisis'));
+    assert.strictEqual(this.watching, 0);
   });
 
   test('a stand-in holds nothing but the name, and survives the setup of the page that replaces it', async function(assert) {

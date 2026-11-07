@@ -91,7 +91,7 @@ export default Route.extend({
 
     // A board page with no server (#1213). See _board_page_owner.
     var boardname = board_target(transition);
-    this.set('owner_stand_in', false);
+    this._end_stand_in();
     if(boardname && session && session.get('access_token')) {
       return this._board_page_owner(params.user_id, boardname, own_page, query_server, finish);
     }
@@ -131,24 +131,31 @@ export default Route.extend({
       if(own_page) { return null; }
       return within(_this.persistence.find('board', user_id + '/' + boardname), _this.offline_session_wait_ms).then(function(board) {
         if(!board || !board.key || board.key.split('/')[0] !== user_id) { return null; }
-        _this.set('owner_stand_in', true);
+        _this._watch_stand_in();
         return owner_stand_in(user_id);
       });
     }).then(null, function() { return null; });
   },
   // A stand-in serves board pages only, and Ember keeps a parent's model while its params are the same,
-  // so moving to the owner's other pages must look them up properly.
-  init: function() {
-    this._super(...arguments);
+  // so moving to the owner's other pages must look them up properly. Watched only while one is in use.
+  _watch_stand_in: function() {
     var _this = this;
-    this.router.on('routeDidChange', function(transition) {
-      if(_this.isDestroyed || _this.isDestroying || !_this.get('owner_stand_in')) { return; }
+    this.set('owner_stand_in', true);
+    if(this._stand_in_watch) { return; }
+    this._stand_in_watch = function(transition) {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
       var name = transition && transition.to && transition.to.name;
       if(name && name.indexOf('user.') === 0 && !is_board_page(name)) {
-        _this.set('owner_stand_in', false);
+        _this._end_stand_in();
         _this.refresh();
       }
-    });
+    };
+    this.router.on('routeDidChange', this._stand_in_watch);
+  },
+  _end_stand_in: function() {
+    this.set('owner_stand_in', false);
+    if(this._stand_in_watch) { this.router.off('routeDidChange', this._stand_in_watch); }
+    this._stand_in_watch = null;
   },
   // How long an offline cold boot waits for the device read above. Offline the fallback can only
   // fail, so a long wait costs nothing but the signed-in user's own pages.
@@ -170,7 +177,7 @@ export default Route.extend({
     this._super.apply(this, arguments);
     if(isExiting) {
       this.appState.set('page_user', null);
-      this.set('owner_stand_in', false);
+      this._end_stand_in();
     }
   },
   actions: {
