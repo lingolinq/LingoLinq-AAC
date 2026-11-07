@@ -149,6 +149,11 @@ var sync = EmberObject.extend({
       sub.started = sub.started || now;
     });
   },
+  in_room: function(user_id) {
+    var con = sync.con;
+    if(!con || !con.connection || !con.connection.isOpen()) { return false; }
+    return !!con.subscriptions.subscriptions.find(function(s) { return s.user_id == user_id; });
+  },
   last_accesses: function() {
     if(!sync.con) { return {}; }
     var res = {};

@@ -1850,30 +1850,36 @@ export default Service.extend({
   }),
   sync_send_utterance: observer('stashes.working_vocalization', function() {
     if(!LingoLinq || !LingoLinq.store) { return; }
-    var shareable_voc = function() {
+    var shareable_voc = () => {
       var u = LingoLinq.store.createRecord('utterance', {
         button_list: this.stashes.get('working_vocalization') || [], 
         timestamp: (new Date()).getTime() / 1000,
         user_id: this.get('referenced_user.id')
       });
       u.assert_remote_urls();
-      return u.get('button_list');
+      var list = u.get('button_list');
+      u.unloadRecord();
+      return list;
     };
 
     if(!this.get('sessionUser.supporter_view')) {
       // TODO: DRY this check, it's in sync too
-      if(this.get('sessionUser.preferences.remote_modeling') && (this.get('pairing') || this.get('sessionUser.preferences.remote_modeling_auto_follow') || this.get('followers.allowed'))) {
+      // Without an open connection to this room the sentence has nowhere to go, so it stays on the device
+      if(this.get('sessionUser.preferences.remote_modeling') && (this.get('pairing') || this.get('sessionUser.preferences.remote_modeling_auto_follow') || this.get('followers.allowed')) && sync.in_room(this.get('referenced_user.id') || this.get('currentUser.id'))) {
         var str = JSON.stringify(shareable_voc());
         // If the sentence has changed or hasn't been
         // encoded, then send it through encoding
-        if((str != this.get('sync_utterance.json') || !this.get('sync_utterance.encoded')) && window.persistence) {
+        var encoding = this.get('sync_utterance.encoding');
+        if((str != this.get('sync_utterance.json') || (!this.get('sync_utterance.encoded') && !encoding)) && window.persistence) {
           this.set('sync_utterance', {
-            json: str
+            json: str,
+            encoding: true
           });
           window.persistence.ajax('/api/v1/users/' + this.get('sessionUser.id') + '/ws_encrypt', {
             type: 'POST',
             data: {text: str}
-          }).then(function(res) {
+          }).then((res) => {
+            if(this.isDestroyed || this.isDestroying) { return; }
             if(JSON.stringify(shareable_voc()) == str) {
               this.set('sync_utterance', {
                 json: str,
@@ -1882,7 +1888,12 @@ export default Service.extend({
               });
               sync.send_update(this.get('referenced_user.id') || this.get('currentUser.id'), {utterance: res.encoded});
             }
-          }, function(err) { });
+          }, (err) => {
+            if(this.isDestroyed || this.isDestroying) { return; }
+            if(this.get('sync_utterance.json') == str) {
+              this.set('sync_utterance.encoding', false);
+            }
+          });
         } else {
           var encoded = this.get('sync_utterance.encoded');
           if(encoded) {
@@ -1890,6 +1901,9 @@ export default Service.extend({
             this.set('sync_utterance.attempted', true);
           }
         }
+      } else if(this.get('sync_utterance')) {
+        // The keepalive resends this copy, and the sentence may change while it is not being shared
+        this.set('sync_utterance', null);
       }
     }
   }),
@@ -4420,6 +4434,7 @@ export default Service.extend({
             obj.spoken = true;
             obj.for_speaking = true;
             var speakDone = false;
+            var speakPending = false;
             var doSpeak = function() {
               if(speakDone) { return; }
               speakDone = true;
@@ -4453,9 +4468,8 @@ export default Service.extend({
               if (soundUrl) {
                 button_to_speak.sound = soundUrl;
                 doSpeak();
-                return;
               }
-              if (soundId && button.load_sound) {
+              if (!soundUrl && soundId && button.load_sound) {
                 // Use the board URL map via 'local' first. Only fall back to
                 // 'remote' findRecord when online and the map has no URL —
                 // calling remote first skips board.sound_urls and TTS-falls-back
@@ -4483,11 +4497,14 @@ export default Service.extend({
                       doSpeak();
                     }
                   });
-                  return;
+                  speakPending = true;
                 }
               }
             }
-            doSpeak();
+            // Speech may finish later; the rest of the press (log, send, link) must still run
+            if(!speakPending) {
+              doSpeak();
+            }
           }
         } else {
           click_sound();
