@@ -7,6 +7,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 // import $ from 'jquery';
 import stashes from './_stashes';
+import { is_ipad_with_mac_agent } from './ipad_detect';
 import tts_voices from './tts_voices';
 import dbman from './dbman';
 import useStandaloneIdbShim from './standalone_idb_shim';
@@ -226,7 +227,7 @@ var capabilities;
       capabilities.system = "Windows Phone";
     } else {
       if(navigator.userAgent.match(/macintosh/i)) {
-        capabilities.system = "Mac";
+        capabilities.system = "Mac"; capabilities.mobile = is_ipad_with_mac_agent(navigator); // `system` stays: see #1201
       } else if(navigator.userAgent.match(/windows\snt/i)) {
         capabilities.system = "Windows";
       } else if(navigator.userAgent.match(/LingoLinq Desktop App/)) {

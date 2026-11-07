@@ -427,3 +427,24 @@ Work is in `git stash` ("wip: iPad pictures offline") in this worktree, not on t
 
 Next after pictures: #1201, #1212, #1221, #1219, #1034, N of M, `all_reload`, #1229, #1230, #1206. Then the two final reviews
 of everything since `3f42ae94e`, `/review-pr`, and Scot's requested review.
+
+### Priority 1 (2026-11-06)
+
+Traci's order after re-reading the issues: P1 pictures and sounds, #1205, #1201; P2 #1221, #1212, #1219, picture repair; P3 #1034, N of M, `all_reload`,
+#1229, #1230; P4 #1206, leftovers. #736 and #1139 dropped: neither stops a saved board showing.
+
+**Sync on a device with no file storage: was failing outright.** `capabilities.storage.list_files` ran unguarded, so with no
+`webkitRequestFileSystem` (Safari) every sync rejected `not enabled` in 25 ms and saved nothing. So an iPad Home Screen web app
+could not sync. Found by removing the API from Chromium; confirm on a real iPad.
+
+**Pictures on that path: done.** Red with the browser cache cleared. `primed` set when nothing to prime; `find_url` reads the database;
+`load_copy_images` fills `url_cache` for one board, in both views. `_record_for_copy` strips sideloaded `images`, which threw in `store.push`.
+The sync "gap" was a test artifact: `store_url_now` refuses localhost, and other hosts go through the server proxy. Mutations red in both views.
+Sounds use the same `find_url` path but are NOT tested.
+
+**#1205: done.** `capabilities.database_unavailable` on a failed setup, plus a 30 s limit. Fixes queued calls for IndexedDB too.
+A success-path test was dropped: order-dependent hang with neighbouring tests, and every browser journey runs that path.
+
+**#1201: partial.** `capabilities.mobile` is true on an iPad. `system` stays "Mac": the iOS branch reads an iOS version the Mac agent lacks,
+and `system == 'iOS'` changes file URLs and database indexes, which the simulator passed without. Needs a simulator run. Side effect:
+a signed-out iPad Home Screen launch gets the iPhone's sign-in overlay.
