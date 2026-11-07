@@ -277,6 +277,51 @@ test.describe('offline launch from the offline app shell', () => {
     }
   });
 
+  // Sync saves other owners' boards but not the owners, and every board URL sits under its owner's name.
+  // Crisis Vocabulary is the system account's board on the default sidebar.
+  test('a synced board owned by someone else opens offline, and the owner\'s other pages are not faked', async () => {
+    const context = await openProfile('other-owner');
+    const crisis = '/lingolinq/board-detail/crisis-vocabulary';
+    try {
+      const page = context.pages()[0] || await context.newPage();
+      await prepare(page, USERS.modern);
+      await launchOffline(context, page, USERS.modern.path(USERS.modern.board), page.getByText('all done', { exact: true }));
+      await page.getByRole('button', { name: /Crisis/ }).first().click();
+      await expect(page.getByText('help', { exact: true }), 'from the sidebar').toBeVisible({ timeout: 30_000 });
+      await expect(deviceCopyNotice(page)).toBeVisible();
+
+      await page.goto(crisis);
+      await expect(page.getByText('help', { exact: true }), 'a cold launch straight onto it').toBeVisible({ timeout: 60_000 });
+
+      // Ember keeps the parent's model between these two pages, so this is where a stand-in could leak.
+      await page.evaluate(() => {
+        history.pushState({}, '', '/lingolinq/boards');
+        window.dispatchEvent(new PopStateEvent('popstate', { state: {} }));
+      });
+      await expect(errorPage(page), 'the owner\'s boards page cannot be shown offline').toHaveCount(1, { timeout: 30_000 });
+    } finally {
+      await context.setOffline(false).catch(() => {});
+      await context.close();
+    }
+  });
+
+  // Wi-Fi with no internet: the device says it is online, and every request fails.
+  test('a launch on a network with no internet opens the synced board', async () => {
+    const context = await openProfile('no-internet');
+    try {
+      const page = context.pages()[0] || await context.newPage();
+      await prepare(page, USERS.modern);
+      await context.route('**/api/v1/**', (route) => route.abort('failed'));
+      await page.goto(USERS.modern.path(USERS.modern.board));
+      await expect(page.getByText('all done', { exact: true })).toBeVisible({ timeout: 60_000 });
+      await expect(deviceCopyNotice(page)).toBeVisible();
+      await expect(errorPage(page)).toHaveCount(0);
+    } finally {
+      await context.unrouteAll().catch(() => {});
+      await context.close();
+    }
+  });
+
   // Online, through the real router: what the board page does with each kind of server failure. The
   // folder, not the home board, because a home board keeps its copy after a denial.
   test('Modern view online: a hung server, an outage, and a denial that holds through Try Again', async () => {

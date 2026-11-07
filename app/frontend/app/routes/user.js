@@ -8,7 +8,7 @@ export default Route.extend({
   store: service('store'),
   persistence: service('persistence'),
   appState: service('app-state'),
-  model: function(params) {
+  model: function(params, transition) {
     // Check for reserved paths that should be handled by Rails routes
     // These paths (like 'jobby' for Resque, 'cache' for the cache iframe) would
     // otherwise be caught by the Ember router and cause 400/404 when loading as users
@@ -53,8 +53,8 @@ export default Route.extend({
       return finish(current);
     }
 
-    var query_server = function() {
-      return _this.store.queryRecord('user', { path: params.user_id }).then(function(data) {
+    var query_server = function(query) {
+      return _this.store.queryRecord('user', Object.assign({ path: params.user_id }, query)).then(function(data) {
         // queryRecord just fetched fresh — only refresh if the record is somehow stale
         // (preserves the prior behaviour for non-self users).
         if(!data.get('really_fresh')) { bg_reload(data); }
@@ -89,7 +89,66 @@ export default Route.extend({
       });
     }
 
+    // A board page with no server (#1213). See _board_page_owner.
+    var boardname = board_target(transition);
+    this.set('owner_stand_in', false);
+    if(boardname && session && session.get('access_token')) {
+      return this._board_page_owner(params.user_id, boardname, own_page, query_server, finish);
+    }
+
     return query_server();
+  },
+  // The owner for a board page: the server if it answers in one bounded try, else what the device has.
+  // Only here does a failed lookup change anything, and it would otherwise be the error page, so it runs
+  // wherever that is true, native apps included. A refusal from the server stays a refusal.
+  _board_page_owner: function(user_id, boardname, own_page, query_server, finish) {
+    var _this = this;
+    var from_device = function() {
+      return _this._device_owner(user_id, boardname, own_page).then(function(owner) {
+        return owner ? finish(owner) : query_server();
+      });
+    };
+    if(!this.persistence.get('online')) { return from_device(); }
+    return query_server({ one_try: this.owner_wait_ms }).then(null, function(err) {
+      if(!no_server_answer(err)) { return RSVP.reject(err); }
+      return from_device();
+    });
+  },
+  owner_wait_ms: 8000,
+  // A real record first: supervisees are saved on the device, and speak-as needs theirs. A stand-in only
+  // when this owner's board is on the device. On your own page the record says who was last signed in,
+  // so it needs a trusted device (utils/offline_shell.js device_trust).
+  _device_owner: function(user_id, boardname, own_page) {
+    var _this = this;
+    var named = function(user) { return user && user.get('user_name') === user_id; };
+    var loaded = this.store.peekAll('user').find(named);
+    var stored = loaded ? RSVP.resolve(loaded) : this.persistence.find('user', user_id).then(function(raw) {
+      return _this.store.push(_this.store.normalize('user', raw));
+    }, function() { return null; });
+    return within(stored, this.offline_session_wait_ms).then(function(user) {
+      if(own_page && offline_shell.device_trust(user) !== 'trusted') { return null; }
+      if(named(user)) { return user; }
+      if(own_page) { return null; }
+      return within(_this.persistence.find('board', user_id + '/' + boardname), _this.offline_session_wait_ms).then(function(board) {
+        if(!board || !board.key || board.key.split('/')[0] !== user_id) { return null; }
+        _this.set('owner_stand_in', true);
+        return owner_stand_in(user_id);
+      });
+    }).then(null, function() { return null; });
+  },
+  // A stand-in serves board pages only, and Ember keeps a parent's model while its params are the same,
+  // so moving to the owner's other pages must look them up properly.
+  init: function() {
+    this._super(...arguments);
+    var _this = this;
+    this.router.on('routeDidChange', function(transition) {
+      if(_this.isDestroyed || _this.isDestroying || !_this.get('owner_stand_in')) { return; }
+      var name = transition && transition.to && transition.to.name;
+      if(name && name.indexOf('user.') === 0 && !is_board_page(name)) {
+        _this.set('owner_stand_in', false);
+        _this.refresh();
+      }
+    });
   },
   // How long an offline cold boot waits for the device read above. Offline the fallback can only
   // fail, so a long wait costs nothing but the signed-in user's own pages.
@@ -111,6 +170,7 @@ export default Route.extend({
     this._super.apply(this, arguments);
     if(isExiting) {
       this.appState.set('page_user', null);
+      this.set('owner_stand_in', false);
     }
   },
   actions: {
@@ -144,3 +204,5 @@ export default Route.extend({
 import modal from '../utils/modal';
 import { wait_for_session_user } from '../utils/session_user_wait';
 import offline_shell from '../utils/offline_shell';
+import { board_target, is_board_page, no_server_answer, owner_stand_in } from '../utils/board_owner';
+import { within } from '../utils/board_device_copy';
