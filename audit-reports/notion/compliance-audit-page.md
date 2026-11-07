@@ -12,7 +12,7 @@
 **Audited commit:** `070b5e614071aec8fd917fa4b4067f5412460614`  
 **Audited ref:** `compliance/scot-q3-makeup-run-20eb9dd6 (== origin/develop tip 070b5e61 at run start, 2026-10-31). PARTIAL COVERAGE: 0 of 6 finders complete, 0 of 18 live reads succeeded; details are in the private run record. Internal automated review by AI agents against our own checklists, not a third-party audit; it says what was examined, not that it passed, and open findings are counted separately. Standing limits: callers outside the repo; vendor internals; provider-side key revocation. Scot sign-off: pending. Excludes assistive-technology testing (tracked separately in the conformance report).`  
 **Run date:** 2026-10-31  
-**Page generated:** 2026-11-06T22:01:00Z
+**Page generated:** 2026-11-07T01:34:45Z
 
 ## Headline - live findings (open + awaiting verification)
 
@@ -31,7 +31,7 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-ae4e34bce0 |  | critical | GDPR, FERPA, COPPA | Compliance finding (details withheld until remediation is verified) | `app/models/user.rb`:1 |
 | LL-06d36ffeeb |  | high | GDPR, FERPA, COPPA, HIPAA | Board translation writes raw user-authored label text into the global word_data dictionary, which has no user_id or organization_id: translated personal labels are served cross-account as cache hits and survive account erasure (GDPR Art. 5(1)(f)/17, FERPA, district data isolation) | `app/models/word_data.rb`:858 |
 | LL-09ac4107c4 |  | high | GDPR, COPPA, FERPA, HIPAA | Erasure completeness review: user profile extras | `app/models/user_extra.rb`:1 |
-| LL-0b5443f43b |  | high | SOC2, HIPAA | Compliance finding (details withheld until remediation is verified) | `scripts/gcp/phase5-frontend-lb.sh`:1 |
+| LL-0b5443f43b |  | high | SOC2, HIPAA | Production Cloud Run service is deployed with public ingress, so the direct run.app URL bypasses the load balancer and its attached Cloud Armor policy | `scripts/gcp/phase5-frontend-lb.sh`:490 |
 | LL-10409152d2 |  | high | GDPR, FERPA, COPPA, HIPAA, SOC2 | The 2026-08-08 quarterly subprocessor review claims every external host in lib/, app/models/, app/controllers/ and config/ was enumerated and found only two omissions, but at least five further live third-party egress paths are absent from the register (Google Maps Places, OpenSymbols, workshop.openaac.org, YouTube, Zendesk) | `docs/legal/2026-08-16_subprocessor-register.md`:120 |
 | LL-104bfa61dc |  | high | WCAG | Terms-agree modal is unreachable by switch scanning (no .modal_targets / .btn, opened without scannable) | `app/frontend/app/components/terms-agree.hbs`:27 |
 | LL-135ee6ca59 |  | high | COPPA, GDPR, FERPA | User#ai_consent_granted? has no runtime caller, so the separate AI data-sharing consent promised to parents on the privacy page is never enforced by the AI feature gate | `lib/feature_flags.rb`:242 |
@@ -72,7 +72,7 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-c740766308 |  | high | GDPR, COPPA, FERPA | Retention coverage review: telemetry events | `app/models/telemetry_event.rb`:1 |
 | LL-c7bbfa452a |  | high | COPPA, FERPA | School-authorized account creation skips the COPPA block entirely, so settings coppa is never written and the under-13 AI gate that reads it passes for exactly the accounts it was written to protect | `app/models/user.rb`:2423 |
 | LL-cb563da6ef |  | high | WCAG | Authenticated navbar account menu trigger has no accessible name | `app/frontend/app/components/app-navbar-authenticated-inner.hbs`:119 |
-| LL-cb9f9c865a |  | high | GDPR, HIPAA, FERPA | Compliance finding (details withheld until remediation is verified) | `lib/flusher.rb`:1 |
+| LL-cb9f9c865a |  | high | GDPR, HIPAA, FERPA | RemoteTarget rows survive account deletion, retaining a phone-number hash beside the per-row salt that reverses it (right-to-erasure gap) | `lib/flusher.rb`:470 |
 | LL-cbc8bc4211 |  | high | GDPR, FERPA, HIPAA, COPPA, SOC2 | Impact of the 2026-07-21 to 2026-09-02 production scheduler-dispatch interruption is unassessed: what accumulated in the window, which data subjects were affected, and what residual retention and deletion work remains | `lib/tasks/scheduler.rake`:157 |
 | LL-d0d1ef011e |  | high | SOC2, HIPAA, FERPA | Compliance finding (details withheld until remediation is verified) | `app/models/concerns/passwords.rb`:1 |
 | LL-dbc950d96d |  | high | GDPR, COPPA, FERPA | Erasure completeness review: supervisor relationships | `app/models/supervisor_relationship.rb`:1 |

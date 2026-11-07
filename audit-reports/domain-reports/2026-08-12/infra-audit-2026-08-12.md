@@ -8,11 +8,14 @@
 
 ## HIGH (6)
 
-### Compliance finding (details withheld until remediation is verified)
+### Production Cloud Run service is deployed with public ingress, so the direct run.app URL bypasses the load balancer and its attached Cloud Armor policy
 
-- **ID:** `LL-0b5443f43b`  |  **ruleKey:** `minimized-finding-ll-0b5443f43b`
-- **Current status:** see `audit-reports/FINDINGS.json`.
-- **Amended 2026-11-05:** this section was replaced with a pointer under the security disclosure policy (Scot Wahlquist). The rest of this report is as generated on 2026-08-12.
+- **ID:** `LL-0b5443f43b`  |  **ruleKey:** `cloudrun-ingress-all-bypasses-cloud-armor`  |  **confidence:** high
+- **Location:** `scripts/gcp/phase5-frontend-lb.sh`:490
+- **Frameworks:** SOC2, HIPAA
+- **First seen:** 2026-08-12  |  **Last seen:** 2026-08-12  |  **Disposition:** untriaged
+- **Adversary:** confirmed -- Live service shows ingress=all and allUsers bound to run.invoker; confirmed the run.app URL returns HTTP 200 directly, bypassing the Cloud Armor policy attached only to the LB backend.
+- **Remediation:** Run the ingress lockdown that already exists in the repo (phase5-frontend-lb.sh step 3, gated behind CONFIRM_INGRESS_LOCKDOWN=1) so the web service only accepts traffic from the load balancer. The coupling documented at phase5-frontend-lb.sh:465-474 and deploy-cloudrun.yml:498-507 must be resolved in the SAME change or every subsequent deploy goes red fail-closed: the candidate health probe runs from a public GitHub runner against the candidate---* tag URL, and Cloud Run ingress restrictions apply to tag URLs too. Move that probe behind the LB (tag-targeted serverless NEG) or into the VPC first. Decide explicitly which flips first.
 
 ### Committed WIF provisioning script omits the assertion.ref branch lock the deploy pipeline names as a control, and reconciles (overwrites) the live provider on every re-run
 
