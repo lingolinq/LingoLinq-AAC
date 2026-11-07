@@ -356,3 +356,16 @@ the API. Worktree has no `.env`, so a made-up key and a private database are use
 Run: QUnit filter 393 of 393; `offline-launch` 7 of 7; `offline-worker-lifecycle` 4 of 4 (before the menu change);
 `offline-kill-switch` 2 of 2; PR RSpec 125 of 125. Share is not in the browser journey (a communicator-only account
 has no Share menu); it is covered by the controller test.
+
+### Final reviews (2026-11-06, at `3f42ae94e`): adversary SHIP, security SHIP
+
+No Critical or High. All eight invariants traced. Fixed after: a 404 is not remembered before the session user
+is known, and protection is read before the latch; a longer session wait after a server refusal; the notice
+stays on one line.
+
+Left, for Traci: a denial does not survive a relaunch (next sync marks the board; matches Basic); trial Use on
+a folder can copy a device-copy root in a narrow state; the cache-hit path ignores a dead session on a shared
+device for up to 5 minutes; trial Use and the modal's Translate say "needs a connection" even when online.
+
+Final run: QUnit filter 396 of 396; `offline-launch` + `offline-worker-lifecycle` 11 of 11;
+`offline-kill-switch` 2 of 2 (one commit earlier; that commit changed no worker code).
