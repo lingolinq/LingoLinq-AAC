@@ -410,3 +410,20 @@ Offline: `board_saved_here` before leaving the board (Modern folder tap and `app
 Basic folders); the loading page clears the board once a transition starts, so this must come first.
 `afterModel` sends a board that cannot show to the boards page; a refusal keeps its error page. `route.replaceWith` does
 not exist in Ember 5: the browser caught it, a stub had hidden it.
+
+### iPad pictures (NOT done; stopped under Rule 13)
+
+Work is in `git stash` ("wip: iPad pictures offline") in this worktree, not on the PR. What is known:
+- CONFIRMED by a red browser run: with the browser cache cleared, a board picture does not show offline.
+  The first version of that test passed on the browser's HTTP cache; it must clear it.
+- CORRECTION: Chromium does NOT take the Safari path. `local_system.available` is true and pictures use
+  `filesystem:` URLs. To test the Safari path, remove `webkitRequestFileSystem` before boot.
+- The seeded picture was not saved by sync (`dataCache` miss). A hand-created `ButtonImage` has no image record
+  in the board response; how sync selects pictures is not traced. Seed through the real image flow.
+- With the file API removed, the test timed out before the picture check, step not identified (read the trace; a
+  sync that hangs without file storage would be its own bug).
+- The stashed fix has three parts: `primed` set when there is no file storage; `find_url` reads the database
+  there; `load_copy_images` fills `url_cache` for one board, since Modern's grid reads it synchronously. Unproven.
+
+Next after pictures: #1201, #1212, #1221, #1219, #1034, N of M, `all_reload`, #1229, #1230, #1206. Then the two final reviews
+of everything since `3f42ae94e`, `/review-pr`, and Scot's requested review.
