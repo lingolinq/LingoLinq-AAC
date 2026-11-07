@@ -63,6 +63,9 @@ Round 2 of both passes, at `4d37a5531`: senior-dev approved with comments, adver
 findings only. After that round `in_room` moved to the end of the condition, so it runs only for users
 sharing a sentence, and became safe with no `connection`; that edit was not separately reviewed.
 
+After that, `.eslint-todo` rows had shifted, so the same logic moved into helpers at the end of the service and
+edits kept their line counts, with no baseline change. The tests and the mutations above were rerun.
+
 ## Unresolved
 
 - The observer still runs inline in the press; a future throw there would end the press again.
