@@ -1350,7 +1350,8 @@ export default Component.extend({
       return RSVP.resolve();
     }
     var name = (this.get('model.name') || '').trim();
-    if(!name) {
+    // A board with no labels stores no English name, so it has no reason to send this one.
+    if(!name || !(this.get('parsed_labels') || []).length) {
       return RSVP.resolve();
     }
     if(this.get('_board_name_english')) {

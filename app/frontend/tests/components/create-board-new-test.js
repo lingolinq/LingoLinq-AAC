@@ -615,6 +615,35 @@ describe('CreateBoardNewComponent', 'component:create-board-new', function() {
       expect(c.get('_label_images.sombrero.image_url')).toEqual('https://example.com/hat.png');
     });
 
+    function translated_words(c) {
+      var words = [];
+      stub(persistence, 'ajax', function(url, opts) {
+        if(String(url).indexOf('/users/self/translate') !== -1) {
+          words = words.concat(opts.data.words);
+          return RSVP.resolve({ translations: {} });
+        }
+        return RSVP.resolve([]);
+      });
+      return c._ensure_label_images_before_save().then(function() { return words; });
+    }
+
+    itAsync('does not send the name of a blank board for translation', async function() {
+      var c = makeComponent();
+      c.set('appState', stubEnglishFirstAppState(true));
+      c.set('model.locale', 'es');
+      c.set('model.name', 'Mi tablero');
+      expect(await translated_words(c)).toEqual([]);
+    });
+
+    itAsync('sends the board name for translation when the board has labels', async function() {
+      var c = makeComponent();
+      c.set('appState', stubEnglishFirstAppState(true));
+      c.set('model.locale', 'es');
+      c.set('model.name', 'Mi tablero');
+      c.set('model.grid.labels', 'sombrero');
+      expect((await translated_words(c)).indexOf('Mi tablero') !== -1).toEqual(true);
+    });
+
     itAsync('does not call translate when authoring in English', async function() {
       var c = makeComponent();
       c.set('appState', stubEnglishFirstAppState(true));
