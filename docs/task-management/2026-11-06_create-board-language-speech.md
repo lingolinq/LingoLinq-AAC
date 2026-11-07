@@ -120,3 +120,35 @@ Not changed, flagged to Traci:
   returned hat and cat, en to es returned sombrero. A no-token run minutes earlier returned nothing, so
   these did not come from cache. Under `op run`, load local test settings after 1Password resolves, or
   Rails stops at boot with `bad decrypt`.
+
+## Round 4: full review and deep dive (2026-11-06)
+
+Lines above marked as early thinking are superseded here: the session is no longer written on create,
+Language is on step 1 not under Advanced, and `JsonApi::User` now sends `locale` to people with edit
+rights.
+
+Two reviewers read the whole branch, then each claim was run. Results:
+- Language on supervisee rows is not a new disclosure: view-only and modeling-only people already get
+  `preferences.home_board.locale` from `GET /users/:id`. Only the code comment was wrong.
+- Goal summaries do reach a modeling-only caller through another supporter's caseload. Older than this
+  branch, narrow, filed as #1277.
+- Speak Mode wrote the viewed language onto the home board in two places, though the comment at the second
+  says this is for the home board only. Both are now guarded on the home board's key.
+- A copy with no translations was rewritten to `en` by boards#create; copies are now exempt.
+- The copy dialog seeded from the leftover session language, which crashed `create_copy` on a plain English
+  board. The dialog now uses the session rule, and `create_copy` changes language only if something was
+  translated, matching `Relinking#update_default_locale!`.
+- A blank board no longer sends its name to Google.
+- `home_in_speak_mode` no longer replaces the session language with Switch Languages on. The wider reorder
+  in `session_board_locale` was rejected: it moves a supporter's Switch choice onto a communicator's first
+  screen under Speak As, and flips a board after an explicit edit language.
+
+Not done, and why:
+- Clamping `home_board.locale` on the server: `spec/models/user_spec.rb:4871` pins storing a language the
+  board lacks, and tests are not edited to fit a fix. Seven other client writers still pass `label_locale`.
+- Route test for board-detail: its setup starts the board build and shared edit state, so it leaks. The
+  local Modern journeys cover that page.
+- Whether Switch Languages belongs to the device or the person (Speak As) is an open product question.
+
+`board-language-rule-test` leaked its stand-in controller through `editManager`, which failed 18 of the speak
+tests when run together. Targeted runs had hidden this. It now restores the shared state.
