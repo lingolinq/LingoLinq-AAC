@@ -15,22 +15,28 @@ describe 'retracted HIPAA six-year-floor citations' do
   # patterns match that sentence.
   retracted_assertions = [
     /HIPAA six-year audit trail \(45 CFR 164\.316\(b\)\(2\)/,
-    /INSIDE the six-year floor/,
-    /inside the six-year floor/,
+    # \s+ and the optional # span a comment line break: develop wrapped one of
+    # these as "inside" / "# the six-year floor".
+    /inside\s+(?:#\s+)?the six-year floor/i,
     /HIPAA hard floor/,
     /6-year HIPAA audit floor/,
-    /HIPAA audit-floor rows/
+    /HIPAA audit-floor rows/,
+    # The same #888 retraction: Article 50 imposes no record-keeping period.
+    /Article 50 RETENTION/,
+    # purge_old_eu_logs! has no healthcare carve-out; only the absence of a
+    # per-row marker is true today.
+    /it excludes (?:HIPAA-covered|healthcare-linked) rows/
   ].freeze
 
   [
     'lib/eu_jurisdiction.rb',
     'lib/tasks/scheduler.rake'
   ].each do |rel|
-    it "does not reassert the retracted 164.316(b)(2) statutory floor in #{rel}" do
+    it "does not reassert a retracted retention basis in #{rel}" do
       source = File.read(Rails.root.join(rel))
       hits = retracted_assertions.select { |pattern| source.match?(pattern) }
       expect(hits).to eq([]),
-        "#{rel} still asserts the retracted statutory floor via #{hits.map(&:inspect).join(', ')}"
+        "#{rel} still asserts a retracted retention basis via #{hits.map(&:inspect).join(', ')}"
     end
   end
 end

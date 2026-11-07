@@ -62,7 +62,8 @@ module EuJurisdiction
     status(user) == :eu
   end
 
-  # EU AI Act Article 50 RETENTION stamp for AiApiLog.jurisdiction. Deliberately the
+  # Retention stamp for AiApiLog.jurisdiction (not an Article 50 duty: that article
+  # imposes no record-keeping period; see ai_api_log.rb BASIS NOTE, #888). Deliberately the
   # OPPOSITE fail-safe direction from disclosure_required?: only a CONFIRMED :eu user is
   # stamped 'EU', because this column drives AiApiLog.purge_old_eu_logs! (5yr delete).
   # Those rows also sit inside the disclosed up-to-6-years window for healthcare-linked
@@ -77,13 +78,13 @@ module EuJurisdiction
   # are intentionally decoupled and fail safe in OPPOSITE directions.
   #
   # ASSUMPTION the resolver leans on (adversary L1): a confirmed :eu user who is ALSO
-  # healthcare-linked would, once purge_old_eu_logs! is scheduled, be deleted at 5yr --
-  # inside the disclosed up-to-6-years window -- because this resolver stamps them 'EU'.
-  # Phase 4 does NOT resolve that; the mutual-exclusivity (EU-school vs US-hospital) is
-  # an ASSUMPTION not enforced here. Phase 5 RET-01's tiered purge owns the carve-out
-  # (it excludes healthcare-linked rows before deleting EU rows; see CONTEXT Deferred
-  # Ideas). The five-year EU window and the six-year healthcare window are both under
-  # counsel review.
+  # healthcare-linked is deleted at 5yr -- inside the disclosed up-to-6-years window --
+  # because this resolver stamps them 'EU' and purge_old_eu_logs! (already wired in
+  # scheduler:dispatch) filters only on jurisdiction and age. There is NO healthcare
+  # carve-out today: ai_api_logs has no per-row marker to build one from, and the
+  # mutual-exclusivity (EU-school vs US-hospital) is an ASSUMPTION not enforced here.
+  # No row can reach the 5-year cutoff before ~2031 (see scheduler.rake). The five-year
+  # EU window and the six-year healthcare window are both under counsel review.
   def retention_stamp(user)
     status(user) == :eu ? 'EU' : nil
   end
