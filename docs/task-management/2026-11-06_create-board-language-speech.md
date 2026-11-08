@@ -153,3 +153,20 @@ Not done, and why:
 
 `board-language-rule-test` leaked its stand-in controller through `editManager`, which failed unrelated speak
 tests when run together. Targeted runs had hidden this. It now restores the shared state.
+
+## Switch Languages follows the person: design, reviewed, not built (2026-11-07)
+
+Traci decided a supervisor's Switch Languages choice must not carry onto a communicator they model for or
+speak as, and must come back when they stop. Proposal: store whose choice it is, and apply it only while
+that person is active (`referenced_speak_mode_user_id`). The red team confirmed the owner check, the entry
+paths, and that no other path into modeling exists. It found the proposal does not yet deliver the
+return:
+- On exit (`app-state.js` speak-mode teardown) nothing rewrites the session language, so the communicator's
+  language lingers until Back or Home.
+- Basic does not redraw labels on a same-board switch, so it would show one language and speak another.
+- The language sync has to use the full board rule, and run only when no route follows.
+- One saved slot loses choices on clear and on board copy; a per-person slot avoids that.
+- Several places clear the person on screen but not in storage, and the expired-account path writes it
+  before the premium check.
+Status on this branch: Speak As behaves as on `develop`. The design and the seven conditions are in the
+round 3 proposal and its review.
