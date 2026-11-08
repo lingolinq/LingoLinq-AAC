@@ -16,7 +16,7 @@ const { signIn } = require('./support/local-session');
 const { markInstalled, openProfile, workerState } = require('./support/offline-shell');
 
 const USERS = {
-  classic: { user: 'e2e_offline_classic', board: 'e2e-offline-classic-home', path: (b) => `/e2e_offline_classic/board/${b}` },
+  classic: { user: 'e2e_offline_classic', board: 'e2e-offline-classic-home', folder: 'e2e-offline-classic-folder', path: (b) => `/e2e_offline_classic/board/${b}` },
   modern: { user: 'e2e_offline_modern', board: 'e2e-offline-modern-home', folder: 'e2e-offline-modern-folder', path: (b) => `/e2e_offline_modern/board-detail/${b}` },
 };
 
@@ -328,6 +328,46 @@ test.describe('offline launch from the offline app shell', () => {
       await page.goto('/lingolinq/board-detail/not-saved-anywhere');
       await expect(page.getByText('all done', { exact: true }), 'also home').toBeVisible({ timeout: 30_000 });
       await expect(errorPage(page)).toHaveCount(0);
+    } finally {
+      await context.setOffline(false).catch(() => {});
+      await context.close();
+    }
+  });
+
+  // Added 2026-11-07. Basic view (the `classic` setting) opens boards on its own page (user.board-alt), so
+  // the Modern cases above do not prove it. A synced folder, someone else's synced board (Crisis
+  // Vocabulary, the system account's sidebar board) and a board that is not saved, all offline.
+  test('Basic view offline: a synced folder and someone else\'s synced board open, and a board that is not saved is not a dead end', async () => {
+    const context = await openProfile('basic-offline');
+    const home = USERS.classic.path(USERS.classic.board);
+    try {
+      const page = context.pages()[0] || await context.newPage();
+      await prepare(page, USERS.classic);
+      await launchOffline(context, page, home, page.getByText('all done', { exact: true }));
+
+      await page.getByText('more', { exact: true }).first().click();
+      await expect(page.getByText('cookie', { exact: true }), 'a synced folder opens offline').toBeVisible({ timeout: 30_000 });
+      await expect(errorPage(page)).toHaveCount(0);
+
+      await page.goto('/lingolinq/board/crisis-vocabulary');
+      await expect(page.getByText('help', { exact: true }).first(), 'someone else\'s synced board, on a cold launch').toBeVisible({ timeout: 60_000 });
+      await expect(errorPage(page)).toHaveCount(0);
+
+      await page.goto(USERS.classic.path('not-saved-anywhere'));
+      await expect(page.getByText('all done', { exact: true }), 'the home board, not the error page').toBeVisible({ timeout: 30_000 });
+      await expect(errorPage(page)).toHaveCount(0);
+
+      // Under another owner, the parent route fails first, so the board page's own escape cannot run.
+      await page.goto('/lingolinq/board/not-saved-anywhere');
+      await expect(page.getByText('all done', { exact: true }), 'also home').toBeVisible({ timeout: 30_000 });
+      await expect(errorPage(page)).toHaveCount(0);
+
+      // A folder whose copy is gone: the tap answers at once and the board stays.
+      await page.evaluate((key) => window.lingoLinqExtras.storage.find('board', key).then((row) => window.lingoLinqExtras.storage.remove('board', row.id)), `${USERS.classic.user}/${USERS.classic.folder}`).catch(() => {});
+      await page.evaluate(() => { window.persistence.known_missing = {}; });
+      await page.getByText('more', { exact: true }).first().click();
+      await expect(page.getByText(NOT_SAVED).first(), 'an answer at once').toBeVisible({ timeout: 5_000 });
+      await expect(page.getByText('all done', { exact: true }), 'the board stays').toBeVisible();
     } finally {
       await context.setOffline(false).catch(() => {});
       await context.close();
