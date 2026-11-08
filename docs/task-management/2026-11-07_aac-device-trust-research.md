@@ -10,7 +10,13 @@ trusted mark forever (`app/models/device.rb:172` only ever raises it), so anyone
 Screen icon before the PR stays trusted and is never asked. On a shared classroom iPad, those students stay
 signed in for months.
 
-Two candidate fixes:
+Scot's review found this (task log `2026-11-03_offline-app-shell.md`, round 3) and listed it in the PR's
+known limits, with a manual workaround: change Preferences > Session Timeout ("Keep me logged in on this
+private device") on each affected iPad. Since 2026-11-07 the question is asked only where the offline shell
+is on (Scot's open item 1), so with the shell off nothing changes for Home Screen sign-ins. This research
+asks whether a code fix should replace the manual workaround.
+
+Two candidate code fixes:
 1. **Reset once:** clear the trusted mark on those Home Screen devices.
 2. **Ignore unchosen marks:** at the next Home Screen sign-in, ask again unless the person actually chose.
 

@@ -495,7 +495,7 @@ Noted, older than this work: the own-page offline branch still reaches `error.hb
 Device trust and the Home Screen sign-in (security-reviewer); two-tab lock (adversary); deploy workflow
 and e2e seed read inline. Specs: workflow, `json_api/user`, `offline_shell` 93/93 on the test database.
 (An earlier red run of `json_api/user_spec.rb:974` came from running against the e2e database by mistake.)
-- Medium, CONFIRMED: a Device row already trusted (older Home Screen sign-ins forced `long_token`) stays
+- Medium, CONFIRMED (already found by Scot's round 3 review and listed in the PR's known limits with a manual workaround; our reviewer rediscovered it because the open-items summary it was given left it out): a Device row already trusted (older Home Screen sign-ins forced `long_token`) stays
   trusted; `device.rb:172` never lowers it, so those installs never get the question. Needs a decision
   (reset rows, or ignore stored trust for Home Screen sign-ins). Prod has no real users yet.
 - Low, CONFIRMED: `lib/json_api/user.rb` keeps the nearest device's `long_token` when there is no
@@ -507,3 +507,13 @@ and e2e seed read inline. Specs: workflow, `json_api/user`, `offline_shell` 93/9
   can survive a removal racing an install (generic content only).
 - Deploy workflow: sound (`--set-env-vars` replaces the set, so deleting the variable turns the shell off;
   the value passes the comma and whitespace check). Seed: guarded to local dev/e2e databases, made-up values.
+
+### Scot's open item 1 done (2026-11-07)
+
+The Home Screen "Trust this Device" question is asked only where `OFFLINE_APP_SHELL` is on
+(`components/login-form.js` `device_login_flags`, reading `offline_shell.setting(window)`). With it off or
+unset, a Home Screen sign-in is trusted as before the PR, so the change no longer alters production sign-in
+on its own and a dedicated AAC iPad is not asked. Two new unit cases red before; restoring the old
+condition turns them red again. The Home Screen unit case was rewritten for the changed specification
+(Scot's suggestion, Traci's approval). Units 76/76, lint gate OK, e2e launch and lifecycle 16/16 with the shell on.
+Research on a code fix for the earlier trusted iPads: `2026-11-07_aac-device-trust-research.md`.

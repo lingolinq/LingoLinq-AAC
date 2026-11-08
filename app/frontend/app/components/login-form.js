@@ -1189,7 +1189,7 @@ export default Component.extend({
       // An installed app is trusted without asking. A Home Screen web app is asked "Trust this Device"
       // like the browser, so a shared classroom iPad is not trusted by default
       // (device_login_flags, at the end of this file).
-      device_login_flags(data, capabilities);
+      device_login_flags(data, capabilities, window);
       if (!isEmpty(data.identification) && !isEmpty(data.password)) {
         _this.set('login_followup_already_long_token', false);
         _this.session.authenticate(data).then(function(data) {
@@ -1396,9 +1396,12 @@ export default Component.extend({
 // `browserless`) keeps the form's choice, so when the server's answer is not a long token the app asks
 // "Trust this Device" or "This is a Shared Device" (handle_auth, login.device), as in a browser. It used
 // to be trusted like an installed app, so a shared classroom iPad never asked, and the offline app shell
-// (utils/offline_shell.js) kept the last person's session on it.
-export function device_login_flags(data, caps) {
-  if(caps && caps.installed_app) {
+// (utils/offline_shell.js) kept the last person's session on it. It asks only where the shell is on
+// (`win`, offline_shell.setting): the old auto-trust is only unsafe with the shell, and elsewhere a
+// dedicated AAC iPad is trusted as before rather than asked a question it could answer "Shared" by
+// mistake (signed out after 12 hours without use).
+export function device_login_flags(data, caps, win) {
+  if(caps && (caps.installed_app || (caps.browserless && offline_shell.setting(win) !== 'on'))) {
     data.long_token = true;
     data.browserless = true;
   } else if(caps && caps.browserless) {
@@ -1406,3 +1409,4 @@ export function device_login_flags(data, caps) {
   }
   return data;
 }
+import offline_shell from '../utils/offline_shell';
