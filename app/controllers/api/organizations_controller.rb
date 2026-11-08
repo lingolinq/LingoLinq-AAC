@@ -34,7 +34,7 @@ class Api::OrganizationsController < ApplicationController
     end
     prefix = "/organizations/#{@org.global_id}/users"
     org_manager = @org.allows?(@api_user, 'manage')
-    render json: JsonApi::User.paginate(params, users, {:limited_identity => true, :supervisor => @api_user, :include_email => true, :organization => @org, :prefix => prefix, :organization_manager => org_manager, :profile_type => 'supervisor'})
+    render json: JsonApi::User.paginate(params, users, {:limited_identity => true, :supervisor => @api_user, :viewer => @api_user, :include_email => true, :organization => @org, :prefix => prefix, :organization_manager => org_manager, :profile_type => 'supervisor'})
   end
 
   def set_status

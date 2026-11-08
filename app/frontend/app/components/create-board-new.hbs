@@ -291,6 +291,17 @@
                       <label for="new_board_description" class="nb-field__label">{{t "Description" key="description"}}{{#if this.ai_mode}}<span class="nb-field__required-pill">{{t "required" key="required"}}</span>{{else}}<span class="nb-field__optional-pill">{{t "optional" key="optional"}}</span>{{/if}}</label>
                       <textarea class="form-control nb-field__input nb-field__input--fill" id="new_board_description" placeholder={{t "Brief description of the board" key="new_board_description_placeholder"}} rows="1" {{on "input" (set-field this "model.description")}}>{{this.model.description}}</textarea>
                     </div>
+                    {{!-- On step 1 so the language is set before AI generation, which writes labels in it. --}}
+                    <div class="nb-field new-board-field--locale">
+                      <label for="locale" class="nb-field__label">{{t "Language" key="locale"}}</label>
+                      <div>
+                        <ModernSelect @class="new-board-select--modern" @selectId="locale" @content={{this.locales}} @selection={{readonly this.model.locale}} @action={{this.ctrlAction "setLocale"}} @ariaLabel={{t "Language" key="locale"}} />
+                        {{#if this.appState.feature_flags.english_first_board_generation}}
+                          <p class="nb-field__hint">{{t "Create in your language. Symbols and colors are matched using English in the background." key="create_board_locale_english_lookup_hint"}}</p>
+                        {{/if}}
+                        <BoardLanguageNotices @noVoice={{this.shows_no_voice_notice}} @translation={{this.shows_translation_notice}} @labelsKept={{this.language_changed_after_labels}} />
+                      </div>
+                    </div>
                 </div>
               </div>
             {{else if (is_equal this.wizard_step 2)}}
@@ -372,6 +383,11 @@
                       <ModernSelect @class="new-board-select--modern new-board-for-select" @selectId="new_board_for_user" @content={{this.user_options}} @selection={{this.for_user_id}} @action={{this.ctrlAction "setForUserId"}} @ariaLabel={{t "Who is this board for?" key="for_user_aria"}} @placeholder={{t "Select who this board is for" key="select_who_for"}} />
                     </div>
                   </div>
+                {{/if}}
+                {{!-- The owner's language applies here, after step 1, so say so where it happens. --}}
+                {{#if this.language_from_owner}}
+                  <p class="nb-field__hint" data-test-owner-language>{{t "This board will be in %{language}, the language of the person it is for. You can change it on the first step." key="create_board_owner_language" language=this.authoring_language_name}}</p>
+                  <BoardLanguageNotices @noVoice={{this.shows_no_voice_notice}} @translation={{this.shows_translation_notice}} @labelsKept={{this.language_changed_after_labels}} />
                 {{/if}}
               </div>
             {{/if}}
@@ -1442,7 +1458,6 @@
               <ul class="nb-section__hint nb-advanced-toggle__hint" role="list" aria-label={{t "Includes" key="advanced_options_includes_aria"}}>
                 <li class="nb-advanced-toggle__hint-item">{{t "Fill order" key="advanced_hint_fill_order"}}</li>
                 <li class="nb-advanced-toggle__hint-item">{{t "Board key" key="advanced_hint_board_key"}}</li>
-                <li class="nb-advanced-toggle__hint-item">{{t "Language" key="advanced_hint_language"}}</li>
                 <li class="nb-advanced-toggle__hint-item">{{t "Icon" key="advanced_hint_icon"}}</li>
               </ul>
             </span>
@@ -1478,14 +1493,6 @@
               <div class="nb-field new-board-field--key">
                 <label for="new_board_key" class="nb-field__label">{{t "Key" key="key"}}</label>
                 <input value={{this.model.key}} class="form-control nb-field__input nb-field__input--narrow" id="new_board_key" placeholder={{this.key_placeholder}} {{on "input" (set-field this "model.key")}} />
-              </div>
-              <div class="nb-field new-board-field--locale">
-                <label for="locale" class="nb-field__label">{{t "Language" key="locale"}}</label>
-                {{#if this.appState.feature_flags.english_first_board_generation}}
-                  <p class="nb-field__hint">{{t "Create in your language. Symbols and colors are matched using English in the background." key="create_board_locale_english_lookup_hint"}}</p>
-                {{else}}
-                  <ModernSelect @class="new-board-select--modern" @selectId="locale" @content={{this.locales}} @selection={{this.model.locale}} @action={{this.ctrlAction "setLocale"}} @ariaLabel={{t "Language" key="locale"}} />
-                {{/if}}
               </div>
               <div class="nb-field new-board-field--icon nb-icon-disclosure {{if this.icon_picker_open 'nb-icon-disclosure--open'}}">
                 <button
