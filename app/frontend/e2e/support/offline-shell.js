@@ -7,7 +7,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { chromium, devices } = require('@playwright/test');
+const { chromium, webkit, devices } = require('@playwright/test');
 const { assertLocalStack } = require('./local-session');
 
 const CACHE_PREFIX = 'll-offline-shell-';
@@ -22,16 +22,32 @@ function profileDir(name) {
 
 // options.locale sets the browser language (navigator.language), which picks the interface language;
 // options.baseURL points the profile at another local address (offline-worker-lifecycle's proxy).
+//
+// E2E_BROWSER=webkit runs the same specs in WebKit (Safari's engine) as a current iPad: an iPad screen and
+// touch, and Safari's Mac identity, which iPadOS 13 and later sends by default (utils/ipad_detect.js tells
+// it apart by its touch points). WebKit on Linux reports no touch points and a Linux platform, so the
+// profile reports what an iPad does. Not iOS: no Home Screen mode, and Chromium-only calls (a CDP
+// session) fail there. Chromium stays the default.
+const IPAD_AS_MAC = {
+  viewport: devices['iPad (gen 11)'].viewport,
+  deviceScaleFactor: devices['iPad (gen 11)'].deviceScaleFactor,
+  userAgent: devices['Desktop Safari'].userAgent,
+  hasTouch: true,
+};
+
 async function openProfile(name, options) {
   assertLocalStack();
+  const common = { baseURL: (options && options.baseURL) || baseURL(), locale: (options && options.locale) || 'en-US' };
+  if ((options && options.browser) === 'webkit' || process.env.E2E_BROWSER === 'webkit') {
+    const context = await webkit.launchPersistentContext(profileDir(name), { ...IPAD_AS_MAC, ...common });
+    await context.addInitScript(() => {
+      Object.defineProperty(Navigator.prototype, 'maxTouchPoints', { get: () => 5, configurable: true });
+      Object.defineProperty(Navigator.prototype, 'platform', { get: () => 'MacIntel', configurable: true });
+    });
+    return context;
+  }
   const { viewport, userAgent, deviceScaleFactor } = devices['Desktop Chrome'];
-  return chromium.launchPersistentContext(profileDir(name), {
-    baseURL: (options && options.baseURL) || baseURL(),
-    viewport: viewport,
-    userAgent: userAgent,
-    deviceScaleFactor: deviceScaleFactor,
-    locale: (options && options.locale) || 'en-US',
-  });
+  return chromium.launchPersistentContext(profileDir(name), { ...common, viewport, userAgent, deviceScaleFactor });
 }
 
 // What the page can see of the worker and its caches.

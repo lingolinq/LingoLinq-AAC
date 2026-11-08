@@ -93,6 +93,14 @@ module.exports = defineConfig({
       testMatch: /offline-worker-lifecycle\.spec\.js/,
       timeout: 300_000,
     },
+    // WebKit (Safari's engine) as an iPad, offline through an unreachable server (offline-webkit.spec.js
+    // has why). Same server as offline-launch; needs `npx playwright install webkit` and its system
+    // libraries.
+    {
+      name: 'offline-webkit',
+      testMatch: /offline-webkit\.spec\.js/,
+      timeout: 600_000,
+    },
     {
       name: 'offline-kill-switch',
       testMatch: /offline-kill-switch\.spec\.js/,

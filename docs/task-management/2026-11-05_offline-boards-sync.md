@@ -569,3 +569,19 @@ before commit; nothing from it is in the branch.
 Vocabulary, cold launch), a board that is not saved (own and another owner's URL: home board), and a folder
 whose copy is gone (answer at once, board stays). Passed; red with `board-alt.js` afterModel's
 leave_unsaved_board removed ("the home board, not the error page").
+
+### WebKit (Safari's engine) as an iPad (2026-11-07)
+
+iOS Simulator needs a Mac; this machine is WSL. Playwright WebKit 26.5 installed (system libraries by Traci).
+`E2E_BROWSER=webkit` (or `openProfile(..., {browser: 'webkit'})`) runs a profile as a current iPad: iPad
+screen and touch, Safari's Mac identity, 5 touch points, `MacIntel`.
+- offline-launch and lifecycle in WebKit: 3 passed, 12 failed, all from Playwright, not the app. After
+  `setOffline(true)` a navigation through the worker fails inside WebKit ("internal error"), and
+  `context.route` never sees a worker-controlled page's requests (probe: a routed abort saw 0 requests;
+  the request reached Rails). Before that point every case signed in, installed the worker and synced in
+  WebKit; the picture cases saved the picture in the database (no file storage, as on an iPad).
+- New `e2e/offline-webkit.spec.js` (project offline-webkit): goes offline by closing a pass-through proxy
+  (nothing answers) with navigator.onLine false. Modern, Basic and Basic with a picture: cached app page
+  from the worker, synced board, synced folder, saved picture as a data: URL. 3/3 passed.
+- Chrome offline-launch and lifecycle after the helper change: 17/17.
+Not iOS and no Home Screen mode: a real device is still needed.
