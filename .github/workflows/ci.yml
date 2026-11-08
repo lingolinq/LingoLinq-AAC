@@ -641,6 +641,11 @@ jobs:
       - name: Verify attestedContentHash guards (drift + closed exemption set)
         run: scripts/tests/attestation-hash-guard-test.sh
 
+      # CI-only: chmod a-w on the runner checkout. Do not add this to
+      # regenerate-register.sh --check; that would chmod live attested files.
+      - name: Verify attestation harness does not write live docs/legal/
+        run: scripts/tests/attestation-hash-guard-isolation-test.sh
+
       - name: Verify compliance publication status report
         run: ruby scripts/compliance-publication-status.rb --check
 

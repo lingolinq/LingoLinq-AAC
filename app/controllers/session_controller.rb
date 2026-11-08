@@ -1,5 +1,5 @@
 class SessionController < ApplicationController
-  before_action :require_api_token, :only => [:oauth_logout]
+  before_action :require_api_token, :only => [:oauth_logout, :token_logout]
   
   def oauth
     error = nil
@@ -213,6 +213,11 @@ class SessionController < ApplicationController
     render json: {logout: true}
   end
   
+  def token_logout
+    Device.find_by_global_id(@api_device_id).revoke_token!(@token)
+    render json: {logout: true}
+  end
+
   def oauth_local
     response.headers.except! 'X-Frame-Options'
   end

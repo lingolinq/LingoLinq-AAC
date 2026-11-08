@@ -1058,6 +1058,11 @@ var sync = EmberObject.extend({
     sync.listeners = sync.listeners || {};
     delete sync.listeners[listen_id];
   },
+  in_room: function(user_id) {
+    var con = sync.con;
+    if(!con || !con.connection || !con.connection.isOpen()) { return false; }
+    return !!con.subscriptions.subscriptions.find(function(s) { return s.user_id == user_id; });
+  },
   send: function(user_id, message_obj) {
     var sub = sync.con && sync.con.subscriptions.subscriptions.find(function(s) { return s.user_id == user_id; });
     if(!sub) { return false; }

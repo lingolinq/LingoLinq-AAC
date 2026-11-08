@@ -1,6 +1,7 @@
 require 'mime/types'
 require 'uri'
 require Rails.root.join('lib/svg_sanitizer').to_s
+require Rails.root.join('lib/image_magick_runner').to_s
 
 module Uploadable
   extend ActiveSupport::Concern
@@ -286,16 +287,11 @@ module Uploadable
         file.write(body)
 
         if file_type == 'images' && !self.settings['width'] && !SvgSanitizer.svg_content_type?(self.settings['content_type'])
-          identify_data = `identify -verbose #{file.path}`
-          identify_data.split(/\n/).each do |line|
-            pre, post = line.sub(/^\s+/, '').split(/:\s/, 2)
-            if pre == 'Geometry'
-              match = (post || "").match(/(\d+)x(\d+)/)
-              if match && match[1] && match[2]
-                self.settings['width'] = match[1].to_i
-                self.settings['height'] = match[2].to_i
-              end
-            end
+          file.flush
+          match = ImageMagickRunner.capture('identify', '-format', '%w %h', "#{file.path}[0]").match(/\A(\d+) (\d+)/)
+          if match
+            self.settings['width'] = match[1].to_i
+            self.settings['height'] = match[2].to_i
           end
         end
       else
@@ -382,7 +378,8 @@ module Uploadable
     # TODO: PCS images aren't getting sized correctly with 
     # server-side convert, other SVGs probably have problems too
     # TODO: remove font-family from svg's as a tag attribute, it causes problems with rendering
-    `convert -background none -density 300 -resize 400x400 -gravity center -extent 400x400 #{path} #{path}.raster.png`
+    ImageMagickRunner.run('convert', '-background', 'none', '-density', '300', '-resize', '400x400',
+      '-gravity', 'center', '-extent', '400x400', path, "#{path}.raster.png")
   end
 
   # Images stay on SvgSanitizer (image/* only, SVG XSS path). Audio data URIs

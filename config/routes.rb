@@ -85,6 +85,7 @@ LingoLinq::Application.routes.draw do
 
   post 'api/v1/token/refresh' => 'session#oauth_token_refresh'
   post 'token' => 'session#token'
+  delete 'api/v1/token' => 'session#token_logout'
   post 'wait/token' => 'session#token_wait'
 
   get 'lessons/:lesson_id/:lesson_code/:user_token' => 'boards#lesson'

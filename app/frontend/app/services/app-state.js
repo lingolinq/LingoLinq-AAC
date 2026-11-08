@@ -1850,31 +1850,31 @@ export default Service.extend({
   }),
   sync_send_utterance: observer('stashes.working_vocalization', function() {
     if(!LingoLinq || !LingoLinq.store) { return; }
-    var shareable_voc = function() {
+    var shareable_voc = () => {
       var u = LingoLinq.store.createRecord('utterance', {
         button_list: this.stashes.get('working_vocalization') || [], 
         timestamp: (new Date()).getTime() / 1000,
         user_id: this.get('referenced_user.id')
       });
       u.assert_remote_urls();
-      return u.get('button_list');
+      return this.release_sentence_record(u);
     };
 
     if(!this.get('sessionUser.supporter_view')) {
       // TODO: DRY this check, it's in sync too
-      if(this.get('sessionUser.preferences.remote_modeling') && (this.get('pairing') || this.get('sessionUser.preferences.remote_modeling_auto_follow') || this.get('followers.allowed'))) {
+      if(this.get('sessionUser.preferences.remote_modeling') && (this.get('pairing') || this.get('sessionUser.preferences.remote_modeling_auto_follow') || this.get('followers.allowed')) && this.in_sentence_room()) {
         var str = JSON.stringify(shareable_voc());
         // If the sentence has changed or hasn't been
         // encoded, then send it through encoding
-        if((str != this.get('sync_utterance.json') || !this.get('sync_utterance.encoded')) && window.persistence) {
+        if(this.sentence_needs_encoding(str) && window.persistence) {
           this.set('sync_utterance', {
-            json: str
+            json: str, encoding: true
           });
           window.persistence.ajax('/api/v1/users/' + this.get('sessionUser.id') + '/ws_encrypt', {
             type: 'POST',
             data: {text: str}
-          }).then(function(res) {
-            if(JSON.stringify(shareable_voc()) == str) {
+          }).then((res) => {
+            if(!this.isDestroyed && !this.isDestroying && JSON.stringify(shareable_voc()) == str) {
               this.set('sync_utterance', {
                 json: str,
                 encoded: res.encoded,
@@ -1882,7 +1882,7 @@ export default Service.extend({
               });
               sync.send_update(this.get('referenced_user.id') || this.get('currentUser.id'), {utterance: res.encoded});
             }
-          }, function(err) { });
+          }, (err) => { this.sentence_encoding_failed(str); });
         } else {
           var encoded = this.get('sync_utterance.encoded');
           if(encoded) {
@@ -1890,7 +1890,7 @@ export default Service.extend({
             this.set('sync_utterance.attempted', true);
           }
         }
-      }
+      } else if(this.get('sync_utterance')) { this.set('sync_utterance', null); }
     }
   }),
   sync_keepalive: observer('short_refresh_stamp', function() {
@@ -4419,7 +4419,7 @@ export default Service.extend({
           } else {
             obj.spoken = true;
             obj.for_speaking = true;
-            var speakDone = false;
+            var speakDone = false, speakPending = false;
             var doSpeak = function() {
               if(speakDone) { return; }
               speakDone = true;
@@ -4453,9 +4453,9 @@ export default Service.extend({
               if (soundUrl) {
                 button_to_speak.sound = soundUrl;
                 doSpeak();
-                return;
+                // Speech can finish later; the rest of the press (log, send, link) must still run
               }
-              if (soundId && button.load_sound) {
+              if (!soundUrl && soundId && button.load_sound) {
                 // Use the board URL map via 'local' first. Only fall back to
                 // 'remote' findRecord when online and the map has no URL —
                 // calling remote first skips board.sound_urls and TTS-falls-back
@@ -4483,11 +4483,11 @@ export default Service.extend({
                       doSpeak();
                     }
                   });
-                  return;
+                  speakPending = true;
                 }
               }
             }
-            doSpeak();
+            if(!speakPending) { doSpeak(); }
           }
         } else {
           click_sound();
@@ -5496,6 +5496,26 @@ export default Service.extend({
       if(saved) { return _this._jump_to_board(new_state, old_state); }
       warn_board_not_saved();
     });
+  },
+  // sync_send_utterance's helpers live here, below the rows .eslint-todo anchors by line.
+  release_sentence_record: function(record) {
+    var list = record.get('button_list');
+    record.unloadRecord();
+    return list;
+  },
+  // Without an open connection to this room the sentence has nowhere to go, so it stays on the device
+  in_sentence_room: function() {
+    return sync.in_room(this.get('referenced_user.id') || this.get('currentUser.id'));
+  },
+  sentence_needs_encoding: function(str) {
+    if(str != this.get('sync_utterance.json')) { return true; }
+    return !this.get('sync_utterance.encoded') && !this.get('sync_utterance.encoding');
+  },
+  sentence_encoding_failed: function(str) {
+    if(this.isDestroyed || this.isDestroying) { return; }
+    if(this.get('sync_utterance.json') == str) {
+      this.set('sync_utterance.encoding', false);
+    }
   }
 });
 

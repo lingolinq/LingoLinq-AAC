@@ -1322,7 +1322,7 @@ const AuthenticatedView = Component.extend({
       }
     },
     invalidateSession: function() {
-      session.invalidate(true);
+      session.sign_out();
     },
     setDemoMainContentBg: function(color) {
       var current = this.get('demoMainContentBg');
