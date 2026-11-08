@@ -559,3 +559,6 @@ Proposal review (adversary, 2026-11-07): candidate A BLOCKED as written. No code
 Amended design: an explicit answer endpoint (Trust and Shared, never stored offline), process_device leaves a
 chosen row alone, a pending flag with a re-ask at app start, the SAML and Google callers, own-device and
 no-act-as guards. Estimate 2 to 3 days with reviews. Stopped for Traci's decision.
+Decision (Traci, 2026-11-07): not in #1268, because Scot did not ask for it. Filed as issue #1285 for Scot to
+decide (code fix or keep the manual workaround). A build of the amended design was started and reverted
+before commit; nothing from it is in the branch.
