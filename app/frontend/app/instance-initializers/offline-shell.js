@@ -11,7 +11,7 @@ export function start(owner, win) {
   if(!setting) { return null; }
   if(setting !== 'on') {
     offline_shell.when_loaded(win, function() {
-      offline_shell.sync_registration(win, win.navigator);
+      offline_shell.apply_device_trust(win, win.navigator, null, null); // the removal, under the site-wide lock
     });
     return null;
   }

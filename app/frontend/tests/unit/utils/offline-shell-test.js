@@ -810,6 +810,20 @@ module('Unit | Utility | offline_shell', function() {
       assert.strictEqual(stopWatching, null);
     });
 
+    // Added 2026-11-07: when the setting is flipped, a page that boots with it off must not remove the
+    // worker or its caches in the middle of another page's install, which holds the site-wide lock.
+    test('when off, removes the worker only once another page\'s step has released the lock', async function(assert) {
+      var nav = fakeNavigator({ registered: ['https://app.example/sw.js'] });
+      var release;
+      nav.locks.request('ll-offline-shell-worker', function() { return new Promise(function(resolve) { release = resolve; }); });
+      start(fakeOwner({}), { offline_shell_enabled: false, navigator: nav, document: { readyState: 'complete' } });
+      await drain();
+      assert.deepEqual(nav.calls, [], 'nothing removed while another page holds the lock');
+      release();
+      await drain();
+      assert.deepEqual(nav.calls, ['getRegistrations', 'unregister https://app.example/sw.js']);
+    });
+
     // Rewritten 2026-11-05 (approved): supplies a trusted session user (see above); what it checks is
     // unchanged.
     test('waits for the page to finish loading before registering', async function(assert) {

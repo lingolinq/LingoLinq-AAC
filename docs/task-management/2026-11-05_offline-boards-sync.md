@@ -500,7 +500,7 @@ and e2e seed read inline. Specs: workflow, `json_api/user`, `offline_shell` 93/9
   (reset rows, or ignore stored trust for Home Screen sign-ins). Prod has no real users yet.
 - Low, CONFIRMED: `lib/json_api/user.rb` keeps the nearest device's `long_token` when there is no
   device (supervisor view); the commit message's "nil until chosen" does not hold there.
-- Low, CONFIRMED: the off-setting removal in `instance-initializers/offline-shell.js` skips the site-wide lock.
+- Low, CONFIRMED, FIXED: the off-setting removal in `instance-initializers/offline-shell.js` skipped the site-wide lock; it now runs through `apply_device_trust`, which takes it. Test red before the fix; kill switch e2e 2/2, launch and lifecycle 16/16. The other Lows were judged not necessary (Traci) and stay open items.
 - Low, CONFIRMED: `apply_device_trust` reads the page token when the queued step starts, not with the
   trust answer, so a sign-out and shared sign-in in the same page while waiting can register for the shared user.
 - Low: three lock guards survive their removal in node replicas of the unit tests; an orphan shell cache
