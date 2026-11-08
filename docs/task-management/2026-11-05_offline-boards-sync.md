@@ -715,3 +715,32 @@ Traci: keep "Like" in both views, add the wording.
   production build: the Like row and the message render.
 - Found: in Modern, Like sits in Edit mode > Action Panel > Board Actions; there is no Like on the board page
   outside Edit.
+
+### #1221 slow-down 2: the same records written twice in one sync (2026-11-08)
+
+To do after this PR's work (Traci, 2026-11-08): run `i18n_generator.rb --generate` and `--merge`, then
+`op run --env-file=.env.op.local -- bundle exec rake extras:translate_ui_locales LOCALE=all` (needs 1Password
+signed in; es.json alone has 701 `***` strings waiting), likely as its own PR under #1234.
+
+Facts:
+- Measured locally (IndexedDB, Chromium, e2e_offline_modern, every IndexedDB put recorded during a manual sync):
+  15 writes, 13 distinct; the user record twice (12 KB, the second from a different caller 2.9 s later) and a
+  button set twice 200 ms apart, both through the eventual-store queue (`next_eventual_store`). CONFIRMED.
+- The issue's 1.7 MB / 550 KB repeats were `dataCache` rows for button-set chunks: `models/buttonset.js`
+  (:223, :253, :274, :301) -> `persistence.store_json` -> `store_url(url, 'json')`. The local stack has
+  uploads off, so this path does not run here (NOT reproduced).
+- `store_url` (`services/persistence.js:1466-1514`) queues every request; nothing merges a request for an URL
+  already queued or in progress. CONFIRMED.
+- `store_url_now` reuses a stored copy only when `check_for_local` (`:1556-1572`): trusted URLs, or any URL in an
+  installed app (the issue's emulator), unless a manual sync re-downloads untrusted URLs. Chunks are in the
+  uploads bucket, so untrusted: in a browser every request re-downloads and re-writes. CONFIRMED.
+- So on the installed app a request that starts after the first finished is answered from storage; the
+  emulator's repeats were most likely overlapping requests for the same chunk (PLAUSIBLE, not observed).
+- The eventual-store queue (`services/persistence.js:653-663`, `utils/persistence.js:646-656`) appends a second
+  entry for a store and key already waiting. CONFIRMED.
+
+Proposal: (1) `store_url` returns the pending request for the same URL, type and keep_big instead of queueing
+another (a forced re-download merges only with a forced one); (2) the eventual-store queue replaces a waiting
+entry for the same store and key with the newer object instead of appending (both copies). Rejected: skipping a
+write when the content hash is unchanged (an extra serialization on every write; a second tab can make it skip
+a write it should not).
