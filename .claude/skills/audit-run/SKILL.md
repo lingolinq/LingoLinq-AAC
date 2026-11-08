@@ -26,8 +26,9 @@ quarterly or monthly requirement.
 - **Ad hoc run:** `/audit-run` stays available at any time, in either mode, for example after a large
   change or before a customer review. It follows every step below except that its stamp reads
   `Ad hoc run, no sign-off stamp PR` in place of the sign-off clause, so no sign-off stamp PR
-  follows. It is reviewed in its register PR like any other PR, and it does not count as the year's
-  formal audit.
+  follows. Where a step below says a verdict or restamp rests on Scot's sign-off, an ad hoc run's
+  rests on the finders' receipts and its register PR review instead. It is reviewed in its register PR
+  like any other PR, and it does not count as the year's formal audit.
 
 Two run modes, either of which an ad hoc run may use:
 
@@ -288,7 +289,8 @@ Pass the result as `--ref` in Step 3, quoted. Every stamp carries the standing l
 limit only if the provider console was opened. In the partial stamp, `<m>` is the number of reads on
 the live-read list. Write "FULL COVERAGE" only with a full verdict, and do not use the word "full" in
 any other stamp outside a branch name. In the annual formal run the stamp is written before Scot signs:
-when he does, a sign-off stamp PR replaces `Scot sign-off: pending` with `Scot signed <YYYY-MM-DD>`.
+when he does, a sign-off stamp PR replaces `Scot sign-off: pending` with
+`Scot sign-off: approved <YYYY-MM-DD>`.
 In an ad hoc run, replace `Scot sign-off: pending` in the template with
 `Ad hoc run, no sign-off stamp PR`; no sign-off stamp PR follows. A light run is always ad hoc.
 

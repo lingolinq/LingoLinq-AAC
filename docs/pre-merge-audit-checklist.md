@@ -14,8 +14,8 @@ they get fixed by the author rather than caught by the reviewer.
 > This doc is the per-PR smoke test that complements it.
 
 > **Adversarial framing.** Per Scot's governance note, sensitive-path
-> PRs go through `/review-pr + /adversary-review` (Phase 1 dual
-> review). This checklist is structured so that **Tier 3 is what the
+> PRs go through `/review-pr + /adversary-review` (dual review,
+> section 4.6). This checklist is structured so that **Tier 3 is what the
 > adversarial reviewer will actually run** — the author is expected
 > to run it on themselves first. The cooperative checks (Tier 2,
 > Tier 4) catch hygiene mistakes; the adversarial sweep (Tier 3)
@@ -68,7 +68,7 @@ they get fixed by the author rather than caught by the reviewer.
 | Trigger | Run | Why |
 |---|---|---|
 | Before opening a PR against `develop` | Tier 1 + Tier 2 + Tier 4 | Catch hygiene blockers before review |
-| Before opening a PR touching a [sensitive path](#46-dual-review-for-sensitive-paths) (security / AI / user data / feature flags / mailers / tree/bulk/global_id/board/board_content/SlowWorker) | Tier 1 + Tier 2 + **Tier 3** + Tier 4 | Dual-review will run Tier 3 on you; better to find it first |
+| Before opening a PR touching a [sensitive path](#46-dual-review-for-sensitive-paths) (auth or sessions / consent or account ownership / cross-user or cross-org data access / billing / AI routing or client / infra or deploy / data-bearing gate) | Tier 1 + Tier 2 + **Tier 3** + Tier 4 | Dual-review will run Tier 3 on you; better to find it first |
 | Before opening any PR ≥ 10 files | Tier 1 + Tier 2 + **Tier 3** + Tier 4 | Large PRs have more attack surface than the author can comprehensively self-audit; Tier 3 is the methodology that catches what skimming misses |
 | After every round of review fixes | Re-run whichever tier(s) the review touched | Fixes can introduce new debris, and a fix to a Tier 3 finding can introduce a Tier 2 regression |
 | Before committing a hotfix to a release branch | Tier 1 + Tier 2.1 (flags) + Tier 2.6 (N+1 if touching list endpoints) + Tier 3.6 (removed-code guarantees) | Hotfix scope is narrower but Tier 3.6 is non-negotiable — hotfixes that delete code are the highest-risk class |
@@ -741,21 +741,17 @@ git diff develop...HEAD | grep '<flag-name>'
 
 ### 4.6 Dual review for sensitive paths
 
-**🔴 BLOCK** — Per Scot's governance note (soft freeze), any PR touching these paths needs **Phase 1 dual review** (`/review-pr + /adversary-review`) before merge:
+**🔴 BLOCK**: any PR touching one of these areas needs dual review (`/review-pr + /adversary-review`) before merge. The canonical list is `CLAUDE.md`, "Before a PR"; if this section and that one differ, `CLAUDE.md` wins. Every other PR needs one review (the Codex GitHub connector's automatic review counts, or one `/review-pr`).
 
-- security
-- AI generation
-- user data flows
-- feature flags (`lib/feature_flags.rb`)
-- mailers
-- `#tree` / bulk / `global_id` / `board` / `board_content` / `SlowWorker` paths
+- authentication or sessions
+- consent or account ownership
+- access to another user's or organization's data
+- billing
+- AI model routing or the AI client
+- infra or deploy config
+- the `data-bearing-paths` gate
 
-```bash
-# Quick check for sensitive paths in your diff:
-git diff develop...HEAD --name-only | grep -E "(feature_flags|mailers/|app/models/board|app/models/board_content|lib/slow_worker|global_id|app/jobs/.*tree|bulk)" | head
-```
-
-If any results, **flag in the PR description** that dual review is required. **Run Tier 3 on yourself first** — the adversarial reviewer is going to.
+If any apply, **flag in the PR description** that dual review is required, and **run Tier 3 on yourself first**: the adversarial reviewer is going to.
 
 ### 4.7 Rubocop not yet in CI — run manually
 
