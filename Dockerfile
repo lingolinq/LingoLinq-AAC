@@ -25,8 +25,8 @@ FROM ruby:3.4.4-slim
 WORKDIR /app
 
 # Install system dependencies
-# imagemagick (convert/identify/montage) and ghostscript (gs, ImageMagick's PDF/PS delegate) are
-# required by ButtonImage upload processing (app/models/concerns/uploadable.rb `identify -verbose`)
+# imagemagick (convert/identify/montage) and ghostscript (gs, which the obf gem runs directly to merge PDFs) are
+# required by ButtonImage upload processing (app/models/concerns/uploadable.rb `identify`)
 # and lib/sentence_pic.rb (`convert`) -- LL-5954bcbbe6: missing here caused
 # "No such file or directory - identify" Resque failures in the Cloud Run image.
 RUN apt-get update -qq && apt-get install -y \
@@ -53,12 +53,22 @@ ENV RAILS_ENV="production" \
     BUNDLE_WITHOUT="development test" \
     BUNDLE_DEPLOYMENT="1"
 
+# Extra ImageMagick rules on top of Debian's policy; see the file for why.
+ENV MAGICK_CONFIGURE_PATH=/app/config/imagemagick
+
 # Install gems
 COPY Gemfile Gemfile.lock ./
 RUN bundle install
 
 # Copy application code
 COPY . .
+
+# Fails the build unless ImageMagick lists our policy file, reads through its last coder rule, and enforces it.
+RUN convert -list policy > /tmp/policy.txt && \
+    grep -q 'Path: /app/config/imagemagick/policy.xml' /tmp/policy.txt && \
+    grep -qi 'pattern: PCL' /tmp/policy.txt && \
+    convert text:/etc/passwd null: 2>&1 | grep -q "security policy .TEXT" && \
+    rm /tmp/policy.txt
 
 # Copy built Ember assets from the frontend-builder stage
 COPY --from=frontend-builder /app/frontend/dist ./app/frontend/dist
