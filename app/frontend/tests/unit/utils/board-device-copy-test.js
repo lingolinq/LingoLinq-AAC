@@ -5,7 +5,7 @@ import LingoLinq from 'frontend/app';
 import RSVP from 'rsvp';
 import modal from 'frontend/utils/modal';
 import { stub, restoreStubs } from 'frontend/tests/helpers/jasmine';
-import { usable_copy, newest_copy, server_refused, session_ended, board_saved_here, leave_unsaved_board } from 'frontend/utils/board_device_copy';
+import { usable_copy, newest_copy, server_refused, session_ended, board_saved_here, device_has_board, leave_unsaved_board } from 'frontend/utils/board_device_copy';
 
 /* Which copy of a board the Modern board page may show when the server gave no usable answer
  * (#1213). The rejection shapes are the real ones: utils/extras.js wraps every failure as
@@ -51,18 +51,35 @@ module('Unit | Utility | board_device_copy', function(hooks) {
       assert.true(await board_saved_here(device(false, {}), cache, 'obf/emergency'), 'not a stored board');
     });
 
-    test('leave_unsaved_board goes to the boards page, offline and signed in only', function(assert) {
+    test('a slow read is not a missing board', async function(assert) {
+      assert.true(await device_has_board(EmberObject.extend({ find: function() { return RSVP.reject({}); } }).create(), {peek: function() { return raw; }}, 'me/board'), 'in memory');
+    });
+
+    function leaving(home, rows) {
       var moved = [];
-      var warned = [];
-      stub(modal, 'warning', function(text) { warned.push(text); });
-      var route = { replaceWith: function() { moved.push(Array.prototype.slice.call(arguments)); } };
-      var session = EmberObject.create({access_token: 'tok', user_name: 'me'});
-      assert.true(leave_unsaved_board(route, EmberObject.create({online: false}), session));
-      assert.deepEqual(moved, [['user.boards', 'me']]);
-      assert.strictEqual(warned.length, 1, 'and says why');
-      assert.false(leave_unsaved_board(route, EmberObject.create({online: true}), session), 'online');
-      assert.false(leave_unsaved_board(route, EmberObject.create({online: false}), EmberObject.create({})), 'signed out');
-      assert.strictEqual(moved.length, 1);
+      var user = EmberObject.create({preferences: {home_board: home ? {key: home} : null}});
+      stub(modal, 'warning', function() { });
+      return leave_unsaved_board({ replaceWith: function() { moved.push(Array.prototype.slice.call(arguments)); } },
+        EmberObject.create({sessionUser: user}), device(false, rows), cache, 'me/gone').then(function() { return moved; });
+    }
+
+    test('leave_unsaved_board goes to the home board when it is here', async function(assert) {
+      assert.deepEqual(await leaving('me/home', {'me/home': raw}), [['user.board-detail', 'me', 'home']]);
+    });
+
+    test('a message that cannot show yet never stops the move', async function(assert) {
+      var moved = [];
+      stub(modal, 'warning', function() { throw new Error('must call setup before trying to show a flash message'); });
+      await leave_unsaved_board({ replaceWith: function(name) { moved.push(name); } },
+        EmberObject.create({sessionUser: null}), device(false, {}), cache, 'me/gone');
+      await new RSVP.Promise(function(res) { setTimeout(res, 0); });
+      assert.deepEqual(moved, ['offline_boards']);
+    });
+
+    test('leave_unsaved_board goes to the bundled boards otherwise, never the same board', async function(assert) {
+      assert.deepEqual(await leaving('me/home', {}), [['offline_boards']], 'home not saved');
+      assert.deepEqual(await leaving(null, {}), [['offline_boards']], 'no home board');
+      assert.deepEqual(await leaving('me/gone', {'me/gone': raw}), [['offline_boards']], 'the home board is the one that failed');
     });
   });
 

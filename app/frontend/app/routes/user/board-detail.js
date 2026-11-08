@@ -649,8 +649,10 @@ export default Route.extend({
   router: service('router'),
   // Offline with nothing to show, and the server did not refuse it: never a dead end.
   afterModel: function(model) {
-    if(model && model.error && !this._refused()[this._board_nav && this._board_nav.board_key]) {
-      leave_unsaved_board(this.router, persistence, this.session);
+    var nav = this._board_nav;
+    if(!model || !model.error || !nav || !this.session.get('access_token') || this._refused()[nav.board_key]) { return; }
+    if(persistence.get('online') === false || (nav.failures.length && nav.failures.every(no_connection))) {
+      return leave_unsaved_board(this.router, this.appState, persistence, boardDetailCache, nav.board_key);
     }
   },
   device_copy_wait: DEVICE_COPY_WAIT_MS,
@@ -667,7 +669,10 @@ export default Route.extend({
     var nav = { board_key: board_key, memory_raw: boardDetailCache.peek(board_key), failures: [], served: false };
     this._board_nav = nav;
     return this._model_from_cache_or_server(params, nav).then(function(result) {
-      if(!result || !result.error) { return result; }
+      if(!result || !result.error) {
+        // A memory hit with no connection is a copy too, as far as its pictures go.
+        return nav.answered ? result : within(load_copy_images(_this.persistence, _this.get('_raw_board_data') || {}), _this.device_read_wait).then(function() { return result; });
+      }
       return _this._serve_copy(nav).then(function(record) { return record || result; });
     }).then(function(result) {
       if(_this._board_nav === nav) { _this._mark_device_copy(nav.served); }
@@ -812,3 +817,4 @@ import boardRevocation from '../../utils/board_revocation';
 import { DEVICE_COPY_WAIT_MS, DEVICE_READ_WAIT_MS, board_kept_on_refusal, leave_unsaved_board, load_copy_images, read_device_copy, server_refused, session_ended, usable_copy, within } from '../../utils/board_device_copy';
 import offline_shell from '../../utils/offline_shell';
 import { DEFAULT_WAIT_MS, wait_for_session_user } from '../../utils/session_user_wait';
+import { no_connection } from '../../utils/board_owner';

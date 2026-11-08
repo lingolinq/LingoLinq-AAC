@@ -103,9 +103,16 @@ export default Route.extend({
   // wherever that is true, native apps included. A refusal from the server stays a refusal.
   _board_page_owner: function(user_id, boardname, own_page, query_server, finish) {
     var _this = this;
+    // With no connection and no owner, the board page cannot start, so its own escape cannot run.
+    var give_up = function(err) {
+      if(_this.persistence.get('online') !== false && !no_connection(err)) { return RSVP.reject(err); }
+      return leave_unsaved_board(_this.router, _this.appState, _this.persistence, boardDetailCache, user_id + '/' + boardname).then(function() {
+        return RSVP.reject({ status: 404, reserved_path: true }); // redirected; see the error action
+      });
+    };
     var from_device = function() {
       return _this._device_owner(user_id, boardname, own_page).then(function(owner) {
-        return owner ? finish(owner) : query_server();
+        return owner ? finish(owner) : query_server().then(null, give_up);
       });
     };
     if(!this.persistence.get('online')) { return from_device(); }
@@ -121,23 +128,34 @@ export default Route.extend({
   _device_owner: function(user_id, boardname, own_page) {
     var _this = this;
     var named = function(user) { return user && user.get('user_name') === user_id; };
+    // The open database is chosen once per app start, so after a sign-in with no reload it is someone else's.
+    if(!this.persistence.local_db_is_current_user()) { return RSVP.resolve(null); }
+    var trusted = function() { return offline_shell.device_trust(_this.appState.get('sessionUser')) === 'trusted'; };
     var loaded = this.store.peekAll('user').find(named);
     var stored = loaded ? RSVP.resolve(loaded) : this.persistence.find('user', user_id).then(function(raw) {
       return _this.store.push(_this.store.normalize('user', raw));
     }, function() { return null; });
+    var key = user_id + '/' + boardname;
     return within(stored, this.offline_session_wait_ms).then(function(user) {
-      if(own_page && offline_shell.device_trust(user) !== 'trusted') { return null; }
-      if(named(user)) { return user; }
-      if(own_page) { return null; }
-      return within(_this.persistence.find('board', user_id + '/' + boardname), _this.offline_session_wait_ms).then(function(board) {
-        if(!board || !board.key || board.key.split('/')[0] !== user_id) { return null; }
-        _this._watch_stand_in();
-        return owner_stand_in(user_id);
+      if(own_page) { return (named(user) && offline_shell.device_trust(user) === 'trusted') ? user : null; }
+      return wait_for_session_user(_this.appState, { promise: _this.appState.get('session_user_promise'), timeout: _this.offline_session_wait_ms }).then(function() {
+        if(!trusted()) { return null; } // offline the server cannot end a shared device's session
+        if(named(user)) {
+          _this._watch_stand_in();
+          return user;
+        }
+        var memory = boardDetailCache.peek(key);
+        var saved = memory ? RSVP.resolve(memory) : within(_this.persistence.find('board', key), _this.offline_session_wait_ms);
+        return saved.then(function(board) {
+          if(!board || !board.key || board.key.split('/')[0] !== user_id) { return null; }
+          _this._watch_stand_in();
+          return owner_stand_in(user_id);
+        });
       });
     }).then(null, function() { return null; });
   },
-  // A stand-in serves board pages only, and Ember keeps a parent's model while its params are the same,
-  // so moving to the owner's other pages must look them up properly. Watched only while one is in use.
+  // An owner found on the device serves board pages only, and Ember keeps a parent's model while its
+  // params are the same, so moving to their other pages must look them up. Watched only while in use.
   _watch_stand_in: function() {
     var _this = this;
     this.set('owner_stand_in', true);
@@ -211,5 +229,6 @@ export default Route.extend({
 import modal from '../utils/modal';
 import { wait_for_session_user } from '../utils/session_user_wait';
 import offline_shell from '../utils/offline_shell';
-import { board_target, is_board_page, no_server_answer, owner_stand_in } from '../utils/board_owner';
-import { within } from '../utils/board_device_copy';
+import { board_target, is_board_page, no_connection, no_server_answer, owner_stand_in } from '../utils/board_owner';
+import { leave_unsaved_board, within } from '../utils/board_device_copy';
+import boardDetailCache from '../utils/board_detail_cache';

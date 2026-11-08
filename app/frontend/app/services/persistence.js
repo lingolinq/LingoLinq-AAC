@@ -2177,7 +2177,7 @@ var persistence = Service.extend({
 
       // Ensure the image filename cache is up-to-date
       var prime_image_cache = _this_sync.time_promise(confirm_quota_for_user.then(check_first(function(user) {
-        if(!ignore_supervisees && _this_sync.get('local_system.available')) { // no file storage (Safari): nothing to list, and listing rejects
+        if(!ignore_supervisees && _this_sync.get('local_system.available') !== false) { // no file storage (Safari): nothing to list, and listing rejects
           return capabilities.storage.list_files('image').then(function(images) {
             _this_sync.image_filename_cache = {};
             images.forEach(function(image) {

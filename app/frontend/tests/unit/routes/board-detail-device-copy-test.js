@@ -453,53 +453,61 @@ module('Unit | Route | user/board-detail device copy', function(hooks) {
     assert.false(this.controller.get('served_from_device'));
   });
 
-  test('offline with nothing to show goes to the boards page; a refusal keeps its error page', async function(assert) {
+  test('offline with nothing to show leaves the page; a refusal keeps its error page', async function(assert) {
     var moved = [];
     this.route.set('router', {replaceWith: function() { moved.push(Array.prototype.slice.call(arguments)); }});
-    this.owner.lookup('service:session').set('user_name', 'me');
     stub(modal, 'warning', function() { });
     this.persistenceService.set('online', false);
     this.device = {};
     this.answers = [offline];
-    this.route.afterModel(await open(this));
-    assert.deepEqual(moved, [['user.boards', 'me']]);
+    await this.route.afterModel(await open(this));
+    assert.deepEqual(moved, [['offline_boards']]);
     moved.length = 0;
     this.answers = [denied];
-    this.route.afterModel(await open(this));
+    await this.route.afterModel(await open(this));
     assert.deepEqual(moved, [], 'refused');
   });
 
-  test('with no file storage, a device copy loads its own pictures before the grid is built', async function(assert) {
+  test('online with no connection at all also leaves; a server error keeps the error page', async function(assert) {
+    var moved = [];
+    this.route.set('router', {replaceWith: function() { moved.push(Array.prototype.slice.call(arguments)); }});
+    stub(modal, 'warning', function() { });
+    this.device = {};
+    this.answers = [no_answer];
+    await this.route.afterModel(await open(this));
+    assert.deepEqual(moved, [['offline_boards']]);
+    moved.length = 0;
+    this.answers = [server_error];
+    await this.route.afterModel(await open(this));
+    assert.deepEqual(moved, [], 'a server error has its own retry');
+  });
+
+  test('a memory hit with no connection loads its pictures', async function(assert) {
     var urls = [];
-    this.device = {'me/board': row({image_urls: {a: 'https://x/a.png'}, images: [{id: '1_9', url: 'https://x/b.png'}]})};
-    this.persistenceService.setProperties({local_system: {available: false}, url_uncache: {'https://x/a.png': true}});
-    this.persistenceService.find_url = function(url) {
-      urls.push(url);
-      return url.match(/a\.png/) ? RSVP.resolve('data:image/png;base64,AAAA') : RSVP.reject({error: 'not saved'});
-    };
-    this.answers = [no_answer];
+    this.persistenceService.set('local_system', {available: false});
+    this.persistenceService.find_url = function(url) { urls.push(url); return RSVP.resolve('data:x'); };
+    var store = this.owner.lookup('service:store');
+    store.push(store.normalize('board', row()));
+    boardDetailCache.set(row({image_urls: {a: 'https://x/a.png'}}));
     await open(this);
-    assert.deepEqual(urls.sort(), ['https://x/a.png', 'https://x/b.png']);
-    assert.strictEqual(this.persistenceService.url_cache['https://x/a.png'], 'data:image/png;base64,AAAA');
-    assert.false(this.persistenceService.url_uncache['https://x/a.png'], 'the grid would skip it otherwise');
-    assert.notOk(this.persistenceService.url_cache['https://x/b.png'], 'a picture that was never saved is left alone');
+    assert.deepEqual(urls, ['https://x/a.png']);
   });
 
-  test('with file storage, nothing extra is read', async function(assert) {
-    var reads = 0;
-    this.device = {'me/board': row({image_urls: {a: 'https://x/a.png'}})};
-    this.persistenceService.set('local_system', {available: true});
-    this.persistenceService.find_url = function() { reads++; return RSVP.resolve('x'); };
+  test('only one board of pictures is kept in memory', async function(assert) {
+    this.persistenceService.set('local_system', {available: false});
+    this.persistenceService.find_url = function() { return RSVP.resolve('data:x'); };
+    this.device = {'me/a': row({id: '1_8', key: 'me/a', image_urls: {a: 'https://x/a.png'}}), 'me/b': row({id: '1_9', key: 'me/b', image_urls: {b: 'https://x/b.png'}})};
     this.answers = [no_answer];
-    await open(this);
-    assert.strictEqual(reads, 0);
+    await open(this, 'a');
+    await open(this, 'b');
+    assert.notOk(this.persistenceService.url_cache['https://x/a.png'], 'the last board let go');
+    assert.ok(this.persistenceService.url_cache['https://x/b.png']);
   });
 
-  test('a picture read that sticks does not hold the board back', async function(assert) {
+  test('a picture failure does not cost the board', async function(assert) {
     this.device = {'me/board': row({image_urls: {a: 'https://x/a.png'}})};
     this.persistenceService.set('local_system', {available: false});
-    this.persistenceService.find_url = function() { return new RSVP.Promise(function() { }); };
-    this.route.device_read_wait = 5;
+    this.persistenceService.prepare_local_files = function() { return RSVP.reject({error: 'no'}); };
     this.answers = [no_answer];
     assert.strictEqual((await open(this)).get('key'), 'me/board');
   });

@@ -308,7 +308,7 @@ test.describe('offline launch from the offline app shell', () => {
   });
 
   // A board that is not on the device is never a dead end (#1209).
-  test('offline, a board that is not saved leads to the boards page, and a folder that is not saved stays put', async () => {
+  test('offline, a board that is not saved leads home, and a folder that is not saved stays put', async () => {
     const context = await openProfile('not-saved');
     try {
       const page = context.pages()[0] || await context.newPage();
@@ -321,8 +321,12 @@ test.describe('offline launch from the offline app shell', () => {
       await expect(page.getByText('all done', { exact: true }), 'the board stays').toBeVisible();
 
       await page.goto(USERS.modern.path('not-saved-anywhere'));
-      await expect.poll(() => new URL(page.url()).pathname, { message: 'to the boards page', timeout: 30_000 })
-        .toBe(`/${USERS.modern.user}/boards`);
+      await expect(page.getByText('all done', { exact: true }), 'the home board, not an empty list').toBeVisible({ timeout: 30_000 });
+      await expect(errorPage(page)).toHaveCount(0);
+
+      // Under another owner, the parent route fails first, so the board page's own escape cannot run.
+      await page.goto('/lingolinq/board-detail/not-saved-anywhere');
+      await expect(page.getByText('all done', { exact: true }), 'also home').toBeVisible({ timeout: 30_000 });
       await expect(errorPage(page)).toHaveCount(0);
     } finally {
       await context.setOffline(false).catch(() => {});

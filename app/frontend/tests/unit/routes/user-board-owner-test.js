@@ -2,7 +2,10 @@ import { module, test } from 'qunit';
 import EmberObject from '@ember/object';
 import RSVP from 'rsvp';
 import { setupTest } from '../../helpers';
-import { board_target, is_board_page, no_server_answer, owner_stand_in } from 'frontend/utils/board_owner';
+import { board_target, is_board_page, no_connection, no_server_answer, owner_stand_in } from 'frontend/utils/board_owner';
+import boardDetailCache from 'frontend/utils/board_detail_cache';
+import modal from 'frontend/utils/modal';
+import { stub, restoreStubs } from 'frontend/tests/helpers/jasmine';
 
 /* Every board URL sits under its owner's name, so the `user` route must resolve before a board can
  * open, and sync saves boards but not their owners (#1213). routes/user.js finds an owner for a board
@@ -28,12 +31,15 @@ module('Unit | Route | user owner of a board page', function(hooks) {
         var found = _this.device[store][key];
         return found ? RSVP.resolve(found) : RSVP.reject({error: 'not found'});
       }
-    }).create({online: false});
+    }).create({online: false, local_db_is_current_user: function() { return _this.db_current; }});
     this.route.session = EmberObject.create({access_token: 'tok', user_name: 'me', user_id: '1_1'});
-    this.route.appState = EmberObject.create({currentUser: null, session_user_promise: null});
+    this.route.appState = EmberObject.create({currentUser: null, session_user_promise: null, sessionUser: EmberObject.create({preferences: {device: {long_token: true}}})});
     this.route.offline_shell_on = function() { return false; };
     this.watching = 0;
-    this.route.set('router', {on: function() { _this.watching++; }, off: function() { _this.watching--; }});
+    this.moved = [];
+    this.route.set('router', {on: function() { _this.watching++; }, off: function() { _this.watching--; }, replaceWith: function() { _this.moved.push(Array.prototype.slice.call(arguments)); }});
+    this.db_current = true;
+    stub(modal, 'warning', function() { });
     this.pushed = [];
     this.route.store = {
       peekAll: function() { return _this.loaded || []; },
@@ -42,6 +48,8 @@ module('Unit | Route | user owner of a board page', function(hooks) {
       queryRecord: function(type, query) { _this.queries.push(query); return _this.server(query); }
     };
   });
+
+  hooks.afterEach(function() { restoreStubs(); });
 
   test('offline: a synced board under an owner the device never saved gets a stand-in', async function(assert) {
     this.device.board['lingolinq/crisis'] = {id: '1_9', key: 'lingolinq/crisis'};
@@ -69,13 +77,46 @@ module('Unit | Route | user owner of a board page', function(hooks) {
     assert.strictEqual(await owner.reload(), owner);
   });
 
+  test('another user\'s open database is never read', async function(assert) {
+    this.db_current = false;
+    this.device.user.kid = {id: '1_4', user_name: 'kid'};
+    this.device.board['kid/home'] = {id: '1_9', key: 'kid/home'};
+    await assert.rejects(this.route.model({user_id: 'kid'}, to_board('home')));
+    assert.deepEqual(this.pushed, [], 'the record stayed out of the store');
+  });
+
+  test('a shared device gets no owner from the device, supervisee or stand-in', async function(assert) {
+    this.route.appState.set('sessionUser', EmberObject.create({preferences: {device: {long_token: false}}}));
+    this.device.user.kid = {id: '1_4', user_name: 'kid'};
+    this.device.board['kid/home'] = {id: '1_9', key: 'kid/home'};
+    await assert.rejects(this.route.model({user_id: 'kid'}, to_board('home')));
+  });
+
+  test('a board only in memory still gets its owner, so the tap that was allowed works', async function(assert) {
+    boardDetailCache.set({id: '1_9', key: 'lingolinq/crisis', buttons: []});
+    var owner = await this.route.model({user_id: 'lingolinq'}, to_board('crisis'));
+    boardDetailCache.clear();
+    assert.true(owner.get('board_owner_stand_in'));
+  });
+
+  test('with no owner and no connection, it leaves for a safe page, not the error page', async function(assert) {
+    var err = await this.route.model({user_id: 'lingolinq'}, to_board('crisis')).then(null, function(e) { return e; });
+    assert.true(err.reserved_path, 'the error action treats this as already redirected');
+    assert.deepEqual(this.moved, [['offline_boards']]);
+  });
+
+  test('a real record is watched too, so it serves board pages only', async function(assert) {
+    this.device.user.kid = {id: '1_4', user_name: 'kid'};
+    await this.route.model({user_id: 'kid'}, to_board('home'));
+    assert.strictEqual(this.watching, 1);
+  });
+
   test('a real stored record comes first, so speak-as keeps the supervisee\'s preferences', async function(assert) {
     this.device.user.kid = {id: '1_4', user_name: 'kid', preferences: {skin: 'dark'}};
     this.device.board['kid/home'] = {id: '1_9', key: 'kid/home'};
     var owner = await this.route.model({user_id: 'kid'}, to_board('home'));
     assert.strictEqual(owner.get('id'), '1_4');
     assert.notOk(owner.get('board_owner_stand_in'));
-    assert.notOk(this.route.get('owner_stand_in'));
   });
 
   test('a record already in memory comes before the device', async function(assert) {
@@ -160,6 +201,13 @@ module('Unit | Utility | board_owner', function() {
     assert.strictEqual(board_target(to_board('crisis')), 'crisis');
     assert.strictEqual(board_target({to: {name: 'user.boards', params: {}}}), null);
     assert.strictEqual(board_target(null), null);
+  });
+
+  test('no_connection: only when nothing answered', function(assert) {
+    assert.true(no_connection(no_answer));
+    assert.true(no_connection({short_circuit: true}));
+    assert.false(no_connection({fakeXHR: {status: 503}}));
+    assert.false(no_connection(missing));
   });
 
   test('no_server_answer: no answer and server errors, not refusals', function(assert) {

@@ -5490,7 +5490,9 @@ export default Service.extend({
     var persistence = this.persistence;
     if(!new_state || !persistence || persistence.get('online') !== false) { return this._jump_to_board(new_state, old_state); }
     var _this = this;
+    var jump = this._latest_jump = {}; // the check is async, so only the latest tap may go ahead
     return board_saved_here(persistence, boardDetailCache, new_state.key).then(function(saved) {
+      if(jump !== _this._latest_jump) { return; }
       if(saved) { return _this._jump_to_board(new_state, old_state); }
       warn_board_not_saved();
     });

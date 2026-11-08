@@ -463,3 +463,20 @@ tests they hang or receive a promise, so something there leaks state. Not traced
   indexes (existing web databases), `app.js:144`.
 - `system_version` / `ios_version`: none on an iPad (the agent says `10_15_7`), so unset; the version parse no longer throws without it.
 `capabilities.mobile` uses `Capacitor.getPlatform()` in the app. `system` stays Mac until a simulator run.
+
+### Reviews at `e7d8aaede` (2026-11-06)
+
+Security ship, senior-dev approve with comments, adversary BLOCK on two Highs. Checked each.
+- A memory copy passed the pre-check, then the parent route failed with no owner, landing on `error.hbs` with no Home or Back. `_device_owner` accepts a
+  memory copy, and no owner plus no connection leaves for a safe page; the rejection carries `reserved_path`, so the error action shows nothing.
+- The escape page said "You don't have any boards yet": its list needs the network. Destination changed: the home board when saved, else `offline_boards`, which is
+  bundled. This replaces the boards page #1209 proposed. The e2e now asserts the board is visible, not just the URL.
+- `_device_owner` gates on `local_db_is_current_user` and a trusted device, and marks real records as watched too.
+- Basic: an owner from the device means no server answer, so the revocation check and pictures treat it as offline.
+- Also: sync guard is `!== false` (a truthy check skipped the listing while the check ran); a timed-out read is not "not saved"; `load_copy_images` swallows failures;
+  `jump_to_board` ignores a superseded tap; one board of pictures in `url_cache`; memory hits load pictures; #1209 covers no connection with `online` true.
+- Browser only: a message before the first render threw `must call setup before trying to show a flash message`, which stopped the redirect. The message now follows the move.
+- `reload-on-connect` test restored.
+
+Left: Home and Back do not pre-check (they reach the same escape). Owner then board can wait 8 s each on a hung network (M10). A late setup success after 30 s is not specially
+handled (reviewer found it safe: same database). Sounds untested. Check `auth_spa_transition` in production.

@@ -29,6 +29,13 @@ export function no_server_answer(err) {
   return xhr.status === 0 || xhr.status >= 500;
 }
 
+// True when there was no connection at all, as opposed to a server that answered badly.
+export function no_connection(err) {
+  if(err && err.short_circuit) { return true; }
+  var xhr = err && (err.fakeXHR || (err._result && err._result.fakeXHR));
+  return !!xhr && xhr.status === 0;
+}
+
 // Stands in for an owner the device never saved, on a board page only. It holds no user data. The
 // `user` route replaces it as soon as a page other than a board opens, and `reload` is for those pages'
 // setup, which can run first.

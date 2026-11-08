@@ -1,7 +1,8 @@
 import RSVP from 'rsvp';
 import i18n from './i18n';
 import modal from './modal';
-import { opens_in_view_route } from './board_view';
+import { get as emberGet } from '@ember/object';
+import { board_view_route, opens_in_view_route } from './board_view';
 import { is_protected_board, route_refuses_local } from './board_revocation';
 
 // The copy of a board the Modern board page falls back on when the server gives no usable answer
@@ -34,44 +35,60 @@ export function read_device_copy(persistence, board_key, memory_raw) {
   });
 }
 
-// Offline, is this board on the device? A key with no owner (obf/, integrations/) has its own loader.
-// Read before leaving the board on screen: the loading page clears it as soon as a transition starts.
-export function board_saved_here(persistence, board_cache, key) {
-  if(persistence.get('online') !== false || !key || !opens_in_view_route(key)) { return RSVP.resolve(true); }
+// Is this board on the device, or in memory from this session? A read that runs out of time says yes:
+// the board route has its own fallback, and a slow database is not a missing board.
+export function device_has_board(persistence, board_cache, key) {
   if(usable_copy(board_cache.peek(key))) { return RSVP.resolve(true); }
   var read = persistence.find('board', key).then(usable_copy, function() { return false; });
-  return within(read, DEVICE_READ_WAIT_MS).then(function(saved) { return !!saved; });
+  return within(read, DEVICE_READ_WAIT_MS).then(function(saved) { return saved !== false; });
+}
+
+// Offline, can this board open? Read before leaving the board on screen: the loading page clears it as
+// soon as a transition starts. A key with no owner (obf/, integrations/) has its own loader.
+export function board_saved_here(persistence, board_cache, key) {
+  if(persistence.get('online') !== false || !key || !opens_in_view_route(key)) { return RSVP.resolve(true); }
+  return device_has_board(persistence, board_cache, key);
 }
 
 export function warn_board_not_saved() {
   modal.warning(i18n.t('board_not_saved_here', "That board isn't saved on this device yet."));
 }
 
-// Offline with no board to show: the user's boards, never a dead end (#1209). Called from a route's
-// afterModel, so the transition is replaced before the board page appears.
-export function leave_unsaved_board(router, persistence, session) {
-  var user_name = session.get('user_name');
-  if(persistence.get('online') !== false || !session.get('access_token') || !user_name) { return false; }
-  router.replaceWith('user.boards', user_name);
-  modal.warning(i18n.t('board_not_saved_pick_another', "That board isn't saved on this device yet. Choose one that is."));
-  return true;
+// No connection and nothing to show: the user's home board if it is here, else the bundled boards at
+// /offline-boards, which always open. Not the boards page: its list needs the network (#1209).
+export function leave_unsaved_board(router, appState, persistence, board_cache, failed_key) {
+  var user = appState.get('sessionUser') || appState.get('currentUser');
+  var home = user && emberGet(user, 'preferences.home_board.key');
+  var check = (home && home !== failed_key) ? device_has_board(persistence, board_cache, home) : RSVP.resolve(false);
+  return check.then(function(saved) {
+    var parts = saved ? home.split('/') : null;
+    var moving = saved ? router.replaceWith(board_view_route(user), parts[0], parts.slice(1).join('/')) : router.replaceWith('offline_boards');
+    // After arriving: on a cold start messages are not ready yet, and a message must never stop the move.
+    RSVP.resolve(moving).then(function() {
+      try { warn_board_not_saved(); } catch(e) { /* the page itself is the answer */ }
+    }, function() { });
+  });
 }
 
 // Modern's grid reads url_cache as it builds. With file storage that is primed at startup. Without it
-// (Safari, current Chromium) pictures are in the database, so this reads the ones this board uses:
-// one board's worth, not every saved picture, which is why services/persistence.js does not cache them.
+// (Safari) pictures are in the database, so this reads the ones this board uses. Only one board's worth
+// is kept: data URIs are why services/persistence.js does not cache them.
 export function load_copy_images(persistence, raw) {
   // The storage check runs at startup and may still be going on a cold launch.
   var ready = typeof persistence.prepare_local_files === 'function' ? persistence.prepare_local_files() : RSVP.resolve();
   return RSVP.resolve(ready).then(function() {
     return persistence.get('local_system.available') === false ? load_images(persistence, raw) : null;
-  });
+  }).then(null, function() { }); // pictures are optional: a failure here must not cost the board
 }
 
 function load_images(persistence, raw) {
   var urls = {};
   Object.values(raw.image_urls || {}).forEach(function(url) { if(url) { urls[url] = true; } });
   (raw.images || []).forEach(function(image) { if(image && image.url) { urls[image.url] = true; } });
+  (persistence.copy_image_urls || []).forEach(function(url) {
+    if(!urls[url] && persistence.url_cache) { delete persistence.url_cache[url]; }
+  });
+  persistence.copy_image_urls = Object.keys(urls);
   return RSVP.all(Object.keys(urls).map(function(url) {
     return persistence.find_url(url, 'image').then(function(found) {
       persistence.url_cache = persistence.url_cache || {};
