@@ -1015,10 +1015,15 @@ body.ll-layout-focused .md-workspace:has(.md-stats-main, .md-org-rooms, .md-org-
   display: none;
 }
 
-body.ll-layout-focused #within_ember #content:has(.md-shell--org:not(.md-shell--org-directory)) {
+/* NOT UNDER THE ORG TABS (2026-11-08): with the org tabs in the app shell's nav slot
+   (templates/application.hbs, `ll-appshell--org-tabs`) the page has a nav to clear, and `#content`
+   keeps Focused's usual padding so the tabs sit where the home pill nav does at every width
+   (at 900px and below the nav is in the flow, so this padding moved it 20px up). Those pages take
+   their clearance from the org-section rule beside `.md-shell--org-directory`'s, in app.scss. */
+body.ll-layout-focused #within_ember #content:has(.md-shell--org:not(.md-shell--org-directory)):not(:has(.ll-appshell--org-tabs)) {
   padding-top: calc(var(--topbar-height) + 1rem) !important;
 }
-body.ll-layout-focused #content:has(.md-shell--org:not(.md-shell--org-directory)) .ll-appshell .md-shell {
+body.ll-layout-focused #content:has(.md-shell--org:not(.md-shell--org-directory)):not(:has(.ll-appshell--org-tabs)) .ll-appshell .md-shell {
   padding-top: 0 !important;
 }
 

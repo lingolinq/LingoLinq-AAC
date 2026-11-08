@@ -339,6 +339,12 @@ export default Controller.extend({
     if(!this.get('showBasicOrgTabs')) { return false; }
     return this.get('isClassic') ? true : !!this.get('showSectionPillNav');
   }),
+  /* WHERE THEY RENDER: in this page for Basic only. Modern mounts the same component in the app
+     shell's nav slot (controllers/application.js `showOrgNav`), so it sits where the home pill nav
+     does in both layouts (requested 2026-11-08). */
+  showInPageOrgTabs: computed('isClassic', 'showOrgTabs', function() {
+    return !!this.get('isClassic') && !!this.get('showOrgTabs');
+  }),
   /* Modern's "< Home | <section>" strip, now only for someone who is not an org editor (they have
      no tabs, and their rail is the personal account rail). Never in Basic, as before. */
   showBackStrip: computed('isClassic', 'showBasicOrgTabs', 'showSectionPillNav', function() {
@@ -348,7 +354,13 @@ export default Controller.extend({
      markup and its six permission-free links, two skins. `ch-tabs-fit` / {{fit-or-select}} accept
      either strip class (modifiers/fit-or-select.js). */
   orgTabsNavClass: computed('isClassic', function() {
-    return this.get('isClassic') ? 'ch-tabs ch-tabs--primary' : 'md-pillnav md-pillnav--dashboard md-pillnav--org-tabs';
+    return this.get('isClassic') ? 'ch-tabs ch-tabs--primary' : 'md-pillnav md-pillnav--dashboard md-pillnav--primary md-pillnav--org-tabs';
+  }),
+  /* `--primary` in Modern, on the strip above and on its dropdown here: in the app shell's nav slot
+     the org tabs ARE the primary nav, so they take its narrow-width behaviour (app.scss, "MODERN
+     PRIMARY NAV ... COLLAPSES AT <=640px"): the same swap point, the same dropdown position. */
+  orgTabsDropdownClass: computed('isClassic', function() {
+    return this.get('isClassic') ? '' : 'md-pillnav-dropdown--primary';
   }),
   orgTabClass: computed('isClassic', function() {
     return this.get('isClassic') ? 'ch-tab' : 'md-pillnav__pill';

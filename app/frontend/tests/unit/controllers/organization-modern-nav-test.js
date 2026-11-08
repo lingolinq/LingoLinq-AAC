@@ -46,6 +46,19 @@ module('Unit | Controller | organization org tabs in both views', function(hooks
     assert.false(viewOnly.get('showBackStrip'), 'and no Modern strip in Basic either');
   });
 
+  /* Modern draws them in the app shell's nav slot, where the home pill nav sits (requested
+     2026-11-08), so the org page itself draws them only in Basic; and in Modern they wear the
+     primary nav's `--primary` hooks so they collapse at the same width, to the same place. */
+  test('Basic draws the tabs in the page; Modern leaves them to the app shell, as its primary nav', function(assert) {
+    var basic = controllerAt(this, 'organization.index', 'classic', { view: true, edit: true });
+    assert.true(basic.get('showInPageOrgTabs'), 'Basic: in the page');
+    assert.strictEqual(basic.get('orgTabsDropdownClass'), '', 'Basic: no Modern dropdown hook');
+    var modern = controllerAt(this, 'organization.index', 'modern', { view: true, edit: true });
+    assert.false(modern.get('showInPageOrgTabs'), 'Modern: not in the page');
+    assert.true(modern.get('orgTabsNavClass').split(' ').includes('md-pillnav--primary'), 'Modern strip is the primary nav');
+    assert.strictEqual(modern.get('orgTabsDropdownClass'), 'md-pillnav-dropdown--primary', 'and so is its dropdown');
+  });
+
   test('a view-only visitor in Modern keeps the back strip and gets no tabs', function(assert) {
     var c = controllerAt(this, 'organization.index', 'modern', { view: true });
     assert.false(c.get('showOrgTabs'));
@@ -103,5 +116,17 @@ module('Unit | Controller | application org pages get the Modern rail', function
 
   test('the pill nav does not come with it for a manager', function(assert) {
     assert.false(appAt(this, 'organization.index', 'modern').get('showPillNav'));
+  });
+
+  test('an org editor\'s org page puts the org tabs in the nav slot', function(assert) {
+    var app = appAt(this, 'organization.index', 'modern', { id: '1_1', permissions: { view: true, edit: true } });
+    assert.true(app.get('showOrgNav'), 'the org tabs take the slot');
+    assert.true(app.get('showNavbar'), 'so the slot renders, and the shell clears it');
+  });
+
+  test('a view-only visitor\'s org page leaves the slot empty', function(assert) {
+    var app = appAt(this, 'organization.index', 'modern', { id: '1_1', permissions: { view: true } });
+    assert.false(app.get('showOrgNav'));
+    assert.false(app.get('showNavbar'));
   });
 });

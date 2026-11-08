@@ -1,0 +1,46 @@
+{{!-- THE ORG TABS: Admin plus the five people sections, with the dropdown that stands in for them
+     while they do not fit ({{fit-or-select}}). Extracted 2026-11-08 so the two views can mount ONE
+     copy in two places: Basic in the org page itself (templates/organization.hbs), Modern in the app
+     shell's nav slot (templates/application.hbs), so the strip sits exactly where the home pill nav
+     does in Gentle and Focused (requested). The reasoning for the tabs, their order, the people
+     `section` param and the dropdown is recorded at the Basic mount in templates/organization.hbs.
+     Every value comes from controllers/organization.js: @orgId (model.id), @adminActive
+     (adminTabActive), @activeSection (activePeopleSection), @label (orgTabLabel), @navClass and
+     @tabClass (orgTabsNavClass / orgTabClass, the base classes swapped by view), @dropdownClass
+     (orgTabsDropdownClass). --}}
+<div class="ch-tabs-fit" {{fit-or-select}}>
+<nav class={{@navClass}} aria-label={{t "Organization Navigation" key="org_navigation"}}>
+  <LinkTo @route="organization.index" @model={{@orgId}} class="{{@tabClass}} {{if @adminActive "is-active"}}" aria-current={{if @adminActive "page"}}>
+    <span class="ch-tab__label">{{t "Admin" key="admin"}}</span>
+  </LinkTo>
+  <LinkTo @route="organization.people" @model={{@orgId}} @query={{hash section="managers"}} class="{{@tabClass}} {{if (is_equal @activeSection "managers") "is-active"}}" aria-current={{if (is_equal @activeSection "managers") "page"}}>
+    <span class="ch-tab__label">{{t "Managers" key="managers"}}</span>
+  </LinkTo>
+  <LinkTo @route="organization.people" @model={{@orgId}} @query={{hash section="supervisors"}} class="{{@tabClass}} {{if (is_equal @activeSection "supervisors") "is-active"}}" aria-current={{if (is_equal @activeSection "supervisors") "page"}}>
+    <span class="ch-tab__label">{{t "Supervisors" key="supervisors"}}</span>
+  </LinkTo>
+  <LinkTo @route="organization.people" @model={{@orgId}} @query={{hash section="communicators"}} class="{{@tabClass}} {{if (is_equal @activeSection "communicators") "is-active"}}" aria-current={{if (is_equal @activeSection "communicators") "page"}}>
+    <span class="ch-tab__label">{{t "Communicators" key="communicators"}}</span>
+  </LinkTo>
+  <LinkTo @route="organization.people" @model={{@orgId}} @query={{hash section="evals"}} class="{{@tabClass}} {{if (is_equal @activeSection "evals") "is-active"}}" aria-current={{if (is_equal @activeSection "evals") "page"}}>
+    <span class="ch-tab__label">{{t "Evals" key="evals"}}</span>
+  </LinkTo>
+  <LinkTo @route="organization.people" @model={{@orgId}} @query={{hash section="extras"}} class="{{@tabClass}} {{if (is_equal @activeSection "extras") "is-active"}}" aria-current={{if (is_equal @activeSection "extras") "page"}}>
+    <span class="ch-tab__label">{{t "Symbols" key="symbols"}}</span>
+  </LinkTo>
+</nav>
+<details class="md-pillnav-dropdown md-pillnav-dropdown--user md-pillnav-dropdown--fit {{@dropdownClass}}" {{details-autoclose}}>
+  <summary class="md-pillnav-dropdown__trigger" aria-haspopup="menu">
+    <span class="md-pillnav-dropdown__label">{{@label}}</span>
+    <svg class="md-pillnav-dropdown__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+  </summary>
+  <ul class="md-pillnav-dropdown__list" aria-label={{t "Organization Navigation" key="org_navigation"}}>
+    <li><LinkTo @route="organization.index" @model={{@orgId}} class="md-pillnav-dropdown__option {{if @adminActive "is-active"}}" aria-current={{if @adminActive "page"}}>{{t "Admin" key="admin"}}</LinkTo></li>
+    <li><LinkTo @route="organization.people" @model={{@orgId}} @query={{hash section="managers"}} class="md-pillnav-dropdown__option {{if (is_equal @activeSection "managers") "is-active"}}" aria-current={{if (is_equal @activeSection "managers") "page"}}>{{t "Managers" key="managers"}}</LinkTo></li>
+    <li><LinkTo @route="organization.people" @model={{@orgId}} @query={{hash section="supervisors"}} class="md-pillnav-dropdown__option {{if (is_equal @activeSection "supervisors") "is-active"}}" aria-current={{if (is_equal @activeSection "supervisors") "page"}}>{{t "Supervisors" key="supervisors"}}</LinkTo></li>
+    <li><LinkTo @route="organization.people" @model={{@orgId}} @query={{hash section="communicators"}} class="md-pillnav-dropdown__option {{if (is_equal @activeSection "communicators") "is-active"}}" aria-current={{if (is_equal @activeSection "communicators") "page"}}>{{t "Communicators" key="communicators"}}</LinkTo></li>
+    <li><LinkTo @route="organization.people" @model={{@orgId}} @query={{hash section="evals"}} class="md-pillnav-dropdown__option {{if (is_equal @activeSection "evals") "is-active"}}" aria-current={{if (is_equal @activeSection "evals") "page"}}>{{t "Evals" key="evals"}}</LinkTo></li>
+    <li><LinkTo @route="organization.people" @model={{@orgId}} @query={{hash section="extras"}} class="md-pillnav-dropdown__option {{if (is_equal @activeSection "extras") "is-active"}}" aria-current={{if (is_equal @activeSection "extras") "page"}}>{{t "Symbols" key="symbols"}}</LinkTo></li>
+  </ul>
+</details>
+</div>

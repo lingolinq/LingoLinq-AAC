@@ -2421,6 +2421,22 @@ export default Controller.extend({
     return this.get('organizationController.model') || null;
   }),
 
+  /* THE ORG TABS IN THE NAV SLOT (2026-11-08, requested: the org top menu "positioned in the same
+     place on modern focused as the home pill menu shows, and ... on modern gentle"). Every rule that
+     places the home pill nav keys on `.ll-appshell__navbar` (its sticky offset, the shell's nav
+     clearance, the <=900px stacking), so the org tabs go IN that slot rather than being nudged to
+     match it from inside the page. Shown where the org page would have drawn them
+     (organization.js `showOrgTabs`: org editors, and never where the home pill nav already is). */
+  showOrgNav: computed('globalChromeOrg', 'showPillNav', 'organizationController.showOrgTabs', function() {
+    if(!this.get('globalChromeOrg') || this.get('showPillNav')) { return false; }
+    return !!this.get('organizationController.showOrgTabs');
+  }),
+  /* Whether the nav slot renders at all: the home pill nav or the org tabs. Also what tells the shell
+     there is a nav to clear (`ll-appshell--no-nav`). */
+  showNavbar: computed('showPillNav', 'showOrgNav', function() {
+    return !!this.get('showPillNav') || !!this.get('showOrgNav');
+  }),
+
   content_class: computed(
     'appState.sidebar_visible',
     'appState.index_view',

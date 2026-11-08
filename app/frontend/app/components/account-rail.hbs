@@ -115,11 +115,14 @@
        The board NAME rides along on a second line, so the row says which board it goes to
        rather than just that one exists. `board-key-name` strips the `username/` half of the
        key; the human-readable board name is not in `preferences.home_board` (it stores only
-       id, key, locale and level), so the slug is what is available without a fetch. --}}
+       id, key, locale and level).
+       THE NAME SINCE 2026-11-08 (requested: "the home board needs to show the board name, not the
+       board id"): `homeBoardName` reads the board record (account-rail.js), and the slug stays as
+       the fallback while it loads or offline. --}}
   {{#if this.user.preferences.home_board.key}}
   <LinkTo @route="board" @model={{this.user.preferences.home_board.key}} class="md-acct-rail__row md-acct-rail__row--board">
   <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5" stroke="#46505F"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" stroke="#46505F"/><rect x="8.4" y="13.7" width="7.2" height="6.1" rx="1" stroke-width="1.2" stroke="#2A9D8F"/></svg></span>
-  <span class="md-acct-rail__label">{{t "Home Board" key="home_board"}}<span class="md-acct-rail__sublabel">{{board-key-name this.user.preferences.home_board.key}}</span></span>
+  <span class="md-acct-rail__label">{{t "Home Board" key="home_board"}}<span class="md-acct-rail__sublabel">{{or this.homeBoardName (board-key-name this.user.preferences.home_board.key)}}</span></span>
   </LinkTo>
   {{/if}}
   {{/if}}

@@ -52,3 +52,35 @@ the organization page."
   Not removed: deleting `pick` shifts a line-anchored `.eslint-todo` row in that file.
 - The Modern org index's own tools section (`org-admin-links` `basic` flag) still lists Admin
   Actions / Telemetry, which the rail now also carries.
+
+## Round 2 (same day): positions, rail order, home board name
+
+Requests: the Organizations directory title was under the nav in Modern Gentle; the org tabs must
+sit where the home pill nav sits in Gentle and Focused; the org rail alphabetized; the Home Board
+row shows the board's name, not its key.
+
+- Directory title (pre-existing on develop, measured on :8184): the gentle zeroing rule
+  (`#content:has(.ll-appshell):not(:has(.md-main--updates-arrival)) .ll-appshell .md-shell`, 1,5,1)
+  outweighed the directory's own 70px rule (1,4,1), so the shell had 0 padding and the title sat
+  at 114 under a nav ending at 128. The zeroing rule now skips the directory; the directory value
+  was stale (worked out when gentle `#content` padded 26px) and is now 42, landing the title at
+  156, the same as Focused.
+- Org tabs: extracted to `components/org-tabs.hbs`. Basic mounts it in the org page; Modern mounts
+  it in the app shell's `.ll-appshell__navbar` slot (`showOrgNav`/`showNavbar`), where every rule
+  that positions the home pill nav applies. It wears the `--primary` hooks in Modern, so it
+  collapses at 640px to the same dropdown position; the 12px navbar rule now matches the dropdown
+  at any depth. The Focused org rules (`#content` 26px, shell 0, written for org pages with no
+  nav) skip pages under the tabs (`ll-appshell--org-tabs`), and a rule beside the directory's gives
+  those pages their clearance (Gentle 30px, Focused 10px: title at 156).
+- Measured (1440/1100/900/641/640/600/460/375, both layouts): the org tabs or their dropdown sit at
+  exactly the directory's pill-nav position at every width, and the home page's at every width
+  except Focused <=900, where the home page alone is 30px higher (an existing home-only rule).
+  The org title is at 156 at desktop, the directory's value.
+- Rail: org rows alphabetical (Home Page stays first). Home Board row: `homeBoardName` reads the
+  board record (peek by id, then key; fetched once), falling back to the key's slug. Verified:
+  "Vocal Flair 84", "Crisis Vocabulary".
+- Tests: 4 new (all red with this round's app changes stashed). Targeted run 122/122;
+  `lint:js:ci` new=0; template lint clean.
+- Process note: probes initially read the layout before the user record hydrated (a Gentle
+  reading on a Focused account); measurements since set the layout in memory first. Loading `/`
+  resumes the last org page (develop too), so `/<user>/home` is the home baseline.

@@ -42,6 +42,28 @@ module('Unit | Component | account-rail org mode', function(hooks) {
     assert.strictEqual(rail(this, 'organization.index', EDITOR).get('orgRow'), null, 'Admin is a tab');
   });
 
+  /* THE HOME BOARD ROW SHOWS THE BOARD'S NAME (requested 2026-11-08), read from the board record;
+     `preferences.home_board` carries only id, key, locale and level. The store is stubbed: a board
+     found by id, a board found only by key, and none (the template then shows the key's slug). */
+  function railWithBoards(context, user, boards) {
+    context.owner.unregister('service:store');
+    context.owner.register('service:store', Service.extend({
+      peekRecord(type, id) { return boards.find(function(b) { return b.id === id; }) || null; },
+      peekAll() { return boards; }
+    }));
+    var c = rail(context, 'user.goals', null);
+    c.set('user', user);
+    return c;
+  }
+  function board(id, key, name) { return { id: id, key: key, get(k) { return { id: id, key: key, name: name }[k]; } }; }
+  test('the Home Board row names the board, from its record', function(assert) {
+    var user = { preferences: { home_board: { id: '1_9', key: 'someone/vocal-flair-84' } } };
+    assert.strictEqual(railWithBoards(this, user, [board('1_9', 'someone/vocal-flair-84', "Vocal Flair")]).get('homeBoardName'), "Vocal Flair", 'by id');
+    var noId = { preferences: { home_board: { key: 'someone/vocal-flair-84' } } };
+    assert.strictEqual(railWithBoards(this, noId, [board('1_9', 'someone/vocal-flair-84', "Vocal Flair")]).get('homeBoardName'), "Vocal Flair", 'by key');
+    assert.strictEqual(railWithBoards(this, user, []).get('homeBoardName'), null, 'not loaded: null, so the slug shows');
+  });
+
   test('the narrow-screen trigger names the org row, else the org menu', function(assert) {
     var reports = rail(this, 'organization.reports', EDITOR);
     var menu = i18n.t('classic_org_rail_aria', "Organization navigation");
