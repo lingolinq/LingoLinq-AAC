@@ -41,7 +41,7 @@ gate's own files.
   (`scan_raw`, `scan_entry`, `added_lines`, `scan_text`), the `ALWAYS_LABEL_RE` and
   `BINARY_EXT_RE` lists, workflow rule removed, headers rewritten. Scanner is an inline python3
   program reading bytes; it prints kinds, never values.
-- Tests: 163 cases before, 360 after, including three built-in mutants.
+- Tests: 163 cases before, 379 after, including three built-in mutants.
 - Headers of the workflow and CI script, the canary list, `CLAUDE.md` (new "no production
   data" rule and the Before a PR paragraph), `AGENTS.md`, `.github/copilot-instructions.md`,
   `.claude/rules/data-bearing-paths.md`, and the two audit-run skills' run-log notes.
@@ -75,6 +75,16 @@ SSNs, URL-encoded emails).
 - The governance memo and the brain instructions stay out of this PR (tracked as a follow-up).
 - shellcheck is skipped: CI does not run it (Scot).
 - Supersedes #1279 (closed draft, approval carry-forward across pushes).
+
+## Second fresh-context review (2026-11-07)
+
+No blocking finding. Fixed after reproducing, red tests first (19 cases): JSON's `\/` escape
+hid a `data:image\/png;base64,` URI; a non-ASCII email local part (`josé@...`) was missed;
+voice-recorder extensions (amr, 3gp, 3g2, caf, aif, aiff, wma) were not in the binary list; a
+symlinked workflow was checked on its target string, not its target. The failure message now
+fits a workflow-only finding, and both audit-run skills list every flagged kind. Documented,
+not changed: the workflow match is text-level (a YAML escape or line continuation inside the
+name, a run-time expression, or a reusable workflow from another repository is not seen).
 
 ## Not done here (follow-ups)
 

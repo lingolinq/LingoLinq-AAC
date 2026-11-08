@@ -287,7 +287,7 @@ run_check 1 'PR to main: an email on a non-reserved domain fails'       "$EMAIL"
 i=0
 for v in 'x@notexample.com' 'x@example.com.not-a-real-school.com' 'x@example.co' 'x@school.testing' 'X@NOT-A-REAL-SCHOOL.COM' \
          '555-555-0200' '555-555-0099' '(555) 555-0234' '(555)555-0234' '555.555.0200' '555-556-0150' '+1 555-555-1234' \
-         '123-45-6789' 'id 123-45-6789.'; do
+         '123-45-6789' 'id 123-45-6789.' $'jos\303\251@not-a-real-school.com' $'jos\351@not-a-real-school.com'; do
   i=$((i + 1))
   run_check 1 "a value that looks real fails: $v" "$(fixture_change "real-$i" spec/fixtures/contacts.yml "name: Test Student"$'\n'"value: $v"$'\n')" false
 done
@@ -308,7 +308,8 @@ i=0
 for v in '{"img":"data:image/png;base64,AAAA"}' '{"img":"DATA:IMAGE/JPEG;BASE64,AAAA"}' \
          '{"clip":"data:audio/webm;codecs=opus;base64,AAAA"}' '{"clip":"data:Audio/MPEG;Base64,AAAA"}' \
          '{"clip":"data:video/mp4;base64,AAAA"}' '{"clip":"DATA:VIDEO/WEBM;BASE64,AAAA"}' \
-         'image: "data:image/svg+xml;base64,AAAA"'; do
+         'image: "data:image/svg+xml;base64,AAAA"' '{"data":"data:image\/png;base64,AAAA"}' \
+         '{"clip":"data:audio\/webm;base64,AAAA"}'; do
   i=$((i + 1))
   run_check 1 "a base64 media data: URI fails: $v" "$(fixture_change "media-$i" spec/fixtures/board.json "$v"$'\n')" false
 done
@@ -343,7 +344,8 @@ run_check 1 'PR to staging: a binary audio file under fixtures fails'    "$WAV" 
 run_check 1 'a .yml fixture holding a NUL byte fails' \
   "$(commit_change nul-yml bash -c "printf 'name: Test Student\\000\n' > spec/fixtures/nul.yml")" false
 for ext in png jpg jpeg gif bmp webp tif tiff ico heic heif mp3 wav ogg oga m4a aac flac opus mp4 m4v mov webm avi mkv \
-           pdf doc docx xls xlsx ppt pptx odt ods zip gz tgz 7z rar sqlite sqlite3 db parquet; do
+           pdf doc docx xls xlsx ppt pptx odt ods zip gz tgz 7z rar sqlite sqlite3 db parquet \
+           amr 3gp 3g2 caf aif aiff wma; do
   for e in "$ext" "$(printf '%s' "$ext" | tr 'a-z' 'A-Z')"; do
     i=$((i + 1))
     run_check 1 "a .$e file under fixtures fails even as text" \
@@ -406,6 +408,9 @@ run_check 0 'a workflow naming a different environment passes' \
   "$(fixture_change wf-other-env .github/workflows/other.yml $'on: push\njobs:\n  x:\n    environment: data-bearing-status-preview\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo DATA_BEARING_APP\n')" false
 run_check 0 'a non-workflow file that mentions the App environment passes' \
   "$(fixture_change wf-app-docs docs/notes.md $'The gate uses data-bearing-status.\n')" false
+# A workflow that is a symlink (or any non-file entry) cannot be checked through its target.
+run_check 1 'a symlinked workflow file needs an approval' \
+  "$(commit_change wf-symlink bash -c 'mkdir -p .github/workflows && ln -s ../../docs/template.yml .github/workflows/link.yml')" false
 # Its unreadable-blob case is with the others below.
 WFUNREAD="$(fixture_change wf-unread .github/workflows/unread.yml $'on: push # unreadable-workflow-case\n')"
 

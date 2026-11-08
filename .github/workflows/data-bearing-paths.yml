@@ -13,7 +13,9 @@ name: Data-bearing paths
 # or when it adds or changes a workflow file that names the data-bearing-status
 # environment, DATA_BEARING_APP_PRIVATE_KEY or DATA_BEARING_APP_CLIENT_ID (Scot,
 # 2026-11-07): once on develop, such a workflow could mint the App token and post these
-# statuses on any PR. Other workflow files are not gated: the required check is pinned
+# statuses on any PR. The match is on the file's text, so a name it does not spell out (a
+# YAML escape, a line continuation, an expression, a reusable workflow from another
+# repository) is not seen; see the check's header. Other workflow files are not gated: the required check is pinned
 # to the App, so a PR's own workflow token cannot satisfy it. The rules are in
 # scripts/data-bearing-path-check.sh. The label records an approval as a commit status on the PR's
 # current head commit for its base (data-bearing-approval/<base>), naming the change set

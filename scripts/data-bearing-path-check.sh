@@ -58,18 +58,21 @@
 #       not reserved for examples, a US phone number outside the fictional 555-0100 to
 #       555-0199 range, a number shaped like a Social Security number, or an image,
 #       audio or video file inlined as a base64 data: URI (a voice recording is student
-#       data; Scot, 2026-11-07) needs an approval. Reserved: example.com, example.net and example.org with their
-#       subdomains, and the .test, .example, .invalid and .localhost top-level domains
-#       (RFC 2606).
+#       data; Scot, 2026-11-07) needs an approval. Reserved: example.com, example.net
+#       and example.org with their subdomains, and the .test, .example, .invalid and
+#       .localhost top-level domains (RFC 2606). An email's local part may hold
+#       non-ASCII bytes (josé@...).
 #     - Removed and unchanged lines are never scanned. For a merge commit only the lines
 #       new to EVERY parent count, so a release merge does not scan develop's lines again.
 #     The scan sees shapes, not meaning. These pass it: a name, a street address, a
 #     birth date, a free-text note; a phone number in another format (international,
 #     unseparated, space-separated, mixed separators, "(NNN)-NNN-NNNN", or glued to a
 #     word); an SSN without dashes; a URL-encoded email; media inlined any way other
-#     than a base64 data: URI; and a file name, since only content is scanned. A JSON or YAML
-#     escape (\n, \t) before a value does not hide it. That is why test data must be
-#     generated or obviously fake (CLAUDE.md). Blobs are read from git objects only: git cat-file, and git diff
+#     than a base64 data: URI; and a file name, since only content is scanned. A JSON or
+#     YAML escape (\n, \t, and JSON's \/) does not hide a value. A binary file is caught
+#     by its extension or a NUL byte, so a NUL-free file with an unlisted extension is
+#     read as text. That is why test data must be generated or obviously fake
+#     (CLAUDE.md). Blobs are read from git objects only: git cat-file, and git diff
 #     between two blob ids, which reads no .gitattributes and runs no diff driver.
 #     Nothing from the PR is checked out or run. Matched values are never printed, only
 #     the path and the kind of value: the CI log is public.
@@ -83,8 +86,12 @@
 #     any PR. A workflow file whose new content names that environment,
 #     DATA_BEARING_APP_PRIVATE_KEY or DATA_BEARING_APP_CLIENT_ID (as a whole name, in any
 #     letter case) needs an approval; the whole file counts, since an edit to any of its
-#     jobs changes what runs with the key. Residual: the match is on text, so a name
-#     built at run time (an expression that assembles it) is not seen.
+#     jobs changes what runs with the key. A symlink or other non-file entry under
+#     .github/workflows/ needs one too, since its target is not checked. Residual: the
+#     match is on the file's text, so a name the file does not spell out is not seen: a
+#     YAML escape or line continuation inside the name, an expression that assembles it
+#     at run time, or a reusable workflow from another repository that names the
+#     environment itself.
 #
 #   The path patterns are not duplicated here. This script asks
 #   scripts/codex-review-path-classifier.sh, which holds the list vendored from the
@@ -132,7 +139,7 @@ CONTROL_FILES=(
 GITQ='git -c core.quotepath=false'
 # Matched in any letter case, against a path the classifier already called data-bearing.
 ALWAYS_LABEL_RE='(^|/)db/language(/|$)|(^|/)(cassettes|vcr_cassettes|vcr)/'
-BINARY_EXT_RE='\.(png|jpe?g|gif|bmp|webp|tiff?|ico|heic|heif|mp3|wav|ogg|oga|m4a|aac|flac|opus|mp4|m4v|mov|webm|avi|mkv|pdf|docx?|xlsx?|pptx?|odt|ods|zip|gz|tgz|7z|rar|sqlite3?|db|parquet)$'
+BINARY_EXT_RE='\.(png|jpe?g|gif|bmp|webp|tiff?|ico|heic|heif|mp3|wav|ogg|oga|m4a|aac|flac|opus|amr|3gp|3g2|caf|aiff?|wma|mp4|m4v|mov|webm|avi|mkv|pdf|docx?|xlsx?|pptx?|odt|ods|zip|gz|tgz|7z|rar|sqlite3?|db|parquet)$'
 ZERO_SHA_RE='^0+$'
 # A workflow file whose new content names the App's environment, its key or its client id
 # (each as a whole name, in any letter case) needs an approval (Scot, 2026-11-07).
@@ -149,9 +156,10 @@ import re, sys
 data = open(sys.argv[1], "rb").read()
 # A JSON or YAML escape (\n, \t, ...) is a boundary, not a letter before the value.
 data = re.sub(rb"\\[nrtfv]", b" ", data)
+data = data.replace(b"\\/", b"/")
 found = set()
 # Bounded parts keep the scan linear on a long run with no "@".
-for m in re.finditer(rb"[A-Za-z0-9._%+-]{1,64}@([A-Za-z0-9-]{1,63}(?:\.[A-Za-z0-9-]{1,63}){0,8}\.[A-Za-z]{2,63})", data):
+for m in re.finditer(rb"[A-Za-z0-9._%+\x80-\xff-]{1,64}@([A-Za-z0-9-]{1,63}(?:\.[A-Za-z0-9-]{1,63}){0,8}\.[A-Za-z]{2,63})", data):
     d = m.group(1).lower()
     tld = d.rsplit(b".", 1)[-1]
     if tld in (b"test", b"example", b"invalid", b"localhost"):
@@ -319,12 +327,17 @@ scan_text() {
   [ "$answered" = true ] || die3 "the content scanner gave no answer on $2"
 }
 
-# check_workflow <path> <new-blob>: note a workflow file whose new content names the App's
-# environment, key or client id. The whole file counts, not only added lines: an edit to
-# any job of such a workflow changes what runs with the key. A deleted file runs nothing.
+# check_workflow <path> <new-blob> <new-mode>: note a workflow file whose new content names
+# the App's environment, key or client id. The whole file counts, not only added lines: an
+# edit to any job of such a workflow changes what runs with the key. A deleted file runs
+# nothing. A symlink or other non-file entry is noted, since its target is not checked.
 check_workflow() {
   local rc=0
   if [[ "$2" =~ $ZERO_SHA_RE ]]; then return 0; fi
+  case "$3" in
+    100644|100755) ;;
+    *) note "$1" "is a workflow entry that is not a regular file (mode $3), so it cannot be checked"; return 0 ;;
+  esac
   $GITQ cat-file blob "$2" > "$NEWF" || die3 "could not read blob $2"
   grep -a -i -E -- "$APP_NAMES_RE" "$NEWF" > /dev/null || rc=$?
   case "$rc" in
@@ -338,7 +351,7 @@ check_workflow() {
 scan_entry() {
   local path="$1" mode="$2" new="$3" o
   shift 3
-  if [[ "$path" =~ $WORKFLOW_RE ]]; then check_workflow "$path" "$new"; fi
+  if [[ "$path" =~ $WORKFLOW_RE ]]; then check_workflow "$path" "$new" "$mode"; fi
   is_data_path "$path" || return 0
   if matches_ci "$path" "$ALWAYS_LABEL_RE"; then
     note "$path" "is under db/language/ or a VCR cassette directory, which always needs an approval"
@@ -434,7 +447,7 @@ if [ -z "$FINDINGS" ] && [ "$control_touched" = false ]; then
 fi
 
 if [ -n "$FINDINGS" ]; then
-  what="has data-bearing changes that need a reviewer's look:"$'\n'"$FINDINGS"
+  what="has changes that need a reviewer's look:"$'\n'"$FINDINGS"
   [ "$control_touched" = false ] || what+="It also changes this check's own files."
 else
   what="changes this check's own files."
@@ -442,7 +455,7 @@ fi
 
 if [ "$APPROVED" = true ]; then
   echo "data-bearing-path-check: this PR $what"
-  echo "data-bearing-path-check: exempted by a reviewer's approval recorded on this head commit (the reviewer confirmed the data is synthetic)."
+  echo "data-bearing-path-check: exempted by a reviewer's approval recorded on this head commit (the reviewer confirmed the data is synthetic and any flagged workflow is safe)."
   exit 0
 fi
 
@@ -452,8 +465,8 @@ This repo is public, so real user data must never be committed here. The matched
 are not printed, because this log is public: open each file above to see them.
 Test data should be generated or obviously fake: example.com addresses, phone numbers
 from 555-0100 to 555-0199, "Test Student".
-If every flagged value is synthetic, a reviewer with write access confirms that and
-adds the 'synthetic-data' label. That records an approval for the current head commit
+If every flagged data file is synthetic and every flagged workflow or control file is
+safe, a reviewer with write access confirms that and adds the 'synthetic-data' label. That records an approval for the current head commit
 only, so a later push needs the label added again. The label is removed once the
 approval is recorded. The path patterns are in scripts/codex-review-path-classifier.sh;
 the content scan is scan_text in scripts/data-bearing-path-check.sh.

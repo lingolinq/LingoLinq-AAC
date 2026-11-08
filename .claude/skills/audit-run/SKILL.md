@@ -404,7 +404,8 @@ no secrets:
    `runs.jsonl`. See `audit-reports/run-log/README.md`. `.jsonl` is a data-bearing extension
    (`scripts/codex-review-path-classifier.sh`), so `data-bearing-paths` scans the line this
    PR adds. It passes unless the scan flags a value (an email on a non-example domain, a
-   phone number outside 555-0100 to 555-0199, an SSN-shaped number); then it fails until a
+   phone number outside 555-0100 to 555-0199, an SSN-shaped number, a base64 image, audio
+   or video `data:` URI); then it fails until a
    reviewer confirms the rows are synthetic and adds the `synthetic-data` label. Never add
    that label yourself (root `CLAUDE.md` rule 15).
 
