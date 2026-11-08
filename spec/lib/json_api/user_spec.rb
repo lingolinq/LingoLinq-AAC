@@ -675,6 +675,34 @@ describe JsonApi::User do
         expect(row['edit_permission']).to eq(true)
       end
 
+      # Positive side of the nested list, which caseloads under 10 use (models/user.js only refetches
+      # /supervisees at 10 or more): a viewer allowed to set goals still gets them.
+      it "should nest goals for a supporter viewing their own caseload" do
+        sup = User.create
+        child = User.create
+        User.link_supervisor_to_user(sup, child, nil, true)
+        UserGoal.create(user: child, active: true, settings: {'summary' => "Probe goal"})
+
+        row = (JsonApi::User.build_json(sup.reload, permissions: sup)['supervisees'] || []).find { |s| s['id'] == child.global_id }
+        expect(row['can_set_goals']).to eq(true)
+        expect(row['active_goals'].map { |g| g['summary'] }).to eq(["Probe goal"])
+      end
+
+      it "should nest goals for an editing viewer through a modeling-only supporter" do
+        viewer = User.create
+        supporter = User.create
+        child = User.create
+        User.link_supervisor_to_user(supporter, child, nil, 'modeling_only')
+        User.link_supervisor_to_user(viewer, child, nil, true)
+        User.link_supervisor_to_user(viewer, supporter)
+        UserGoal.create(user: child, active: true, settings: {'summary' => "Probe goal"})
+
+        row = (JsonApi::User.build_json(supporter.reload, permissions: viewer.reload)['supervisees'] || []).find { |s| s['id'] == child.global_id }
+        expect(row['can_set_goals']).to eq(true)
+        expect(row['active_goals'].map { |g| g['summary'] }).to eq(["Probe goal"])
+        expect(row['modeling_only']).to eq(true)
+      end
+
       it "should give goal access by the viewer passed in, and none to a nil viewer" do
         sup = User.create
         comm = User.create

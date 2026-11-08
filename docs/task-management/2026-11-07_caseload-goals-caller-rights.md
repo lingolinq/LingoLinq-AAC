@@ -33,13 +33,13 @@ Learnings consulted: "authorizing the supervisee-list owner does not authorize t
 
 ## Proposal
 
-A (chosen): pass the caller as `supervisor:` at the two owner sites: `supervisor: @api_user` in
+A (first choice, replaced after review: see below): pass the caller as `supervisor:` at the two owner sites: `supervisor: @api_user` in
 `users#supervisees`, `supervisor: caller` in the nested list. When the caller is the owner (the normal
 case) nothing changes. Every field in the branch then describes what the caller can do, as the org roster
 already does.
 
-B: add a separate `viewer:` argument and read `args[:viewer] || args[:supervisor]` in the branch. Rejected:
-more surface for the same result, and a caller that forgets `viewer:` silently keeps the bug.
+B: add a separate `viewer:` argument. First rejected because a caller that forgets `viewer:` keeps the
+bug; adopted after review in a narrower form (goal access only), with that risk accepted below.
 
 C: gate goals on both owner and caller. Rejected: `edit_permission`, `modeling_only` and `locale` would
 still describe the owner, and the client acts as the caller.
@@ -50,15 +50,9 @@ Risks
 - Restricted OAuth tokens: scopes now come from the caller, which is stricter and correct.
 - Nested list when the caller is nil: rows are already filtered to none.
 
-Tests (red first)
-- `spec/controllers/api/users_controller_spec.rb` GET supervisees: modeling-only caller who supervises the
-  owner gets `can_set_goals` false, `edit_permission` false and no goal fields; an editing caller gets them.
-- `spec/lib/json_api/user_spec.rb`: the nested list built with `permissions: caller` follows the caller.
-- Mutation: restore `supervisor: user` at each site; its spec goes red.
+Tests: superseded by the plan in "After adversarial review" below.
 
-Unresolved
-- Does any client screen rely on the owner's rights in those rows? Only `models/user.js:850` loads
-  another user's list; server actions already enforce the caller's rights.
+Unresolved: answered in (c) above: `supervision-settings.hbs` relies on the owner's link labels.
 
 ## After adversarial review (2026-11-07)
 
@@ -73,7 +67,24 @@ Not changed: `goal` (the primary goal summary) is still on every row. A modeling
 it, and `target_words` and `home_board_key`, from `GET /users/:id` (the `model` block), so gating the row
 alone would not reduce what they can see. Recorded for the data-minimization owner.
 
-Verification: four red specs (both routes, the reverse case of a modeling-only owner with an editing caller,
-and the nil viewer). The four spec files under one seed: 8 failures without the fix (the 4 new plus 4
-order-dependent ones), 1 with it; that one (`user_spec.rb:456`, last profile run, a self view) fails and
-passes alone on identical code.
+Verification
+- Red first: both routes, the reverse case (modeling-only owner, editing caller) and the nil viewer.
+- Nested positive specs, added after the second review: a supporter's own caseload and an editing viewer
+  through a modeling-only supporter. Caseloads under 10 only use the nested list.
+- Mutants that turn a spec red: drop `viewer:` in users#supervisees; `viewer: nil` or `viewer:` dropped at
+  the nested site; `args[:viewer] || args[:supervisor]` for the fallback. The `!!goal_viewer &&` guard is
+  redundant (`allows?` already denies nil) and survives its mutant.
+- The four spec files under `--seed 4242`: without the fix, 8 failures: the 4 new specs plus
+  `users_controller_spec.rb:1317` (create with start code), `:2572` (subscribe redemption), `:3448` and
+  `:3824` (board_revisions). With the fix, 1: `user_spec.rb:456` (last profile run, a self view). Different
+  examples failed on identical code with the same seed, and `:456` failed then passed alone, so these depend
+  on shared state in the local test database and Redis, not on this change. CI is the clean baseline.
+
+Accepted risk: `viewer:` defaults to the supervisor when left out, so a new endpoint that omits it would
+bring #1277 back. All three current callers pass it.
+
+Found in review, older than this change: a billing-lapsed supporter with a per-link modeling-only link still
+holds `set_goals` (`app/models/user.rb` set_goals rule tests `modeling_only_for?`, which returns true for
+any billing-lapsed supporter before the per-link check). Goal `view` is also granted to any `model` holder
+(`user_goal.rb`), so this PR is data minimization on the caseload rows, not the end of goal access for
+modeling-only links.
