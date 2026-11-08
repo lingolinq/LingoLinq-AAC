@@ -747,6 +747,8 @@
   "board_action_updating": "Getting the latest version of this board. Try again in a moment.",
   "board_device_copy_notice": "Showing the copy saved on this device",
   "device_storage_unavailable": "This device can't save boards right now. Try restarting the app.",
+  "device_storage_full": "This device is out of storage, so boards could not be saved for offline use. Free up some space, then sync again.",
+  "device_storage_write_failed": "This device could not save boards for offline use. Try syncing again.",
   "board_not_saved_here": "That board isn't saved on this device yet.",
   "sticky_board_notice": "Board lock is enabled, disable to leave this board.",
   "word_prediction_save_failed": "Couldn't save the Prediction setting. Please try again.",

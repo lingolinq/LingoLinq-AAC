@@ -770,7 +770,7 @@ var persistence = Service.extend({
           resolve(obj);
         }, function(error) {
           root.errors = root.errors || [];
-          root.errors.push({error: error, message: "Failed to store object", object: obj, store: store, key: key});
+          root.errors.push({error: error, message: "Failed to store object", object: obj, store: store, key: key}); note_failed_write(root, error); // a sync counts it (utils/storage_failures.js)
           // Deliberately resolve, not reject. store() has never rejected on a
           // failed write (see "should not reject (but log an error) on a failed
           // storage attempt"), and several callers fire-and-forget the returned
@@ -2040,7 +2040,7 @@ var persistence = Service.extend({
     }
     this.set('last_sync_event_at', (new Date()).getTime());
 
-    this.set('sync_status', 'syncing');
+    this.set('sync_status', 'syncing'); var writes_before = failed_write_count(this); // writes that fail during this sync end it as failed (utils/storage_failures.js)
     var synced_boards = [];
     // TODO: this could move to bg.js, that way it can run in the background
     // even if the app itself isn't running. whaaaat?! yeah.
@@ -2397,7 +2397,7 @@ var persistence = Service.extend({
           });
           _this_sync.set('sync_progress', null);
           var sync_message = null;
-          if(errors.length > 0) {
+          var storage_failed = end_sync_if_storage_failed(_this_sync, writes_before); if(storage_failed) { sync_message = _this_sync.get('sync_status_error'); } else if(errors.length > 0) {
             _this_sync.set('sync_status', 'finished');
             if(_this_sync.stashes && _this_sync.stashes.persist) {
               _this_sync.stashes.persist('last_sync_status', 'finished');
@@ -2412,7 +2412,7 @@ var persistence = Service.extend({
             sync_message = i18n.t('finised_without_errors', "Finished syncing %{user_id} without errors", {user_id: user_name});
           }
           console.log('synced!');
-          _this_sync.store('settings', {last_sync: last_sync, stamps: sync_stamps}, 'lastSync').then(function(res) {
+          (storage_failed ? RSVP.resolve({last_sync: last_sync, stamps: _this_sync.get('sync_stamps')}) : _this_sync.store('settings', {last_sync: last_sync, stamps: sync_stamps}, 'lastSync')).then(function(res) { // after failed writes the stamps stay, so the next sync saves those boards again; the time moves on, so automatic syncs keep their pace
             _this_sync.set('last_sync_event_at', (new Date()).getTime());
             _this_sync.set('sync_stamps', res.stamps);
             _this_sync.set('last_sync_at', res.last_sync);
@@ -4949,3 +4949,4 @@ export default persistence;
 // Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
 import boardRevocation from '../utils/board_revocation';
 import { keep_queued_keys, replay_save_options } from '../utils/preference_save';
+import { note_failed_write, failed_write_count, end_sync_if_storage_failed } from '../utils/storage_failures';

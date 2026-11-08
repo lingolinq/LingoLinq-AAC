@@ -602,3 +602,27 @@ Exploration script (not a test), Chromium with a Home Screen profile against loc
   transaction's abort (QuotaExceededError) after that, which nothing listens for, so even a genuine full
   device reports the write as saved. Whether `persistence.sync` also ignores store errors is not yet checked.
 - Not yet fixed: needs an estimate and a decision (Traci).
+
+### Fix: a device that cannot save no longer reports a sync as succeeded (2026-11-07)
+
+Traci: fix on this PR.
+- `utils/dbman.js` store_internal (IndexedDB): answers once, on the transaction's commit (saved) or its abort,
+  a request error, or a thrown put (not saved; `quota` when QuotaExceededError). It used to answer saved on
+  the request's success, before commit, and a thrown put never answered.
+- `persistence.store` keeps its never-reject contract and counts failed writes (`utils/storage_failures.js`).
+  A sync that saw a failed write since it started ends as failed with a message (out of storage, could not
+  save, or the existing "restart the app" when there is no database), and keeps the sync stamps so the next
+  sync saves those boards again; the last sync time moves on, so automatic syncs keep their pace.
+  Single-line edits in persistence.js (line-keyed ESLint baseline).
+- Strings: `device_storage_full`, `device_storage_write_failed` (en only; #1234 for the 12 locales).
+- Tests: 4 store_internal cases with a stand-in database (3 red before); 4 sync cases (2 red before, 1 red
+  before the timing change, 1 guard); mutants `writes_before = 0` and "always store lastSync" each turn one
+  red. e2e "a device that cannot save boards is told so" (Chrome).
+- Review (adversary, code): ship with conditions; Medium (repeated full syncs) and the test gaps fixed, the
+  "restart the app" advice added. Known limits: writes through the Ember Data adapter's utils copy
+  (`utils/persistence.js` store_eventually) are not counted and land after a sync; the SQLite path never
+  sets `quota`; the reason is not kept across a relaunch.
+- Runs: units (persistence, sync, dbman, capabilities, offline) 631 pass, 0 fail; Chrome offline 18/18;
+  WebKit spec 3 runs, 2 passed, 1 failed on sign-in (after "Trust this Device" the page stayed on the question
+  and no user save was sent). Not reproduced in 9 isolated WebKit sign-ins or 6 more in 2 spec runs. Cause
+  unknown: OPEN.

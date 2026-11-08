@@ -374,6 +374,33 @@ test.describe('offline launch from the offline app shell', () => {
     }
   });
 
+  // Added 2026-11-07. A device that cannot save (out of storage: an iPad's free space, or the 1 GB limit
+  // before iPadOS 17) used to report the sync as succeeded with no boards saved, so it looked ready
+  // offline. Every database write is made to fail here (its transaction aborts), as on a full device.
+  test('a device that cannot save boards is told so, and the sync is not reported as succeeded', async () => {
+    const context = await openProfile('storage-full');
+    try {
+      const page = context.pages()[0] || await context.newPage();
+      await signIn(page, USERS.modern.user, 'offline-launch.rb');
+      await page.evaluate(() => {
+        for (const name of ['put', 'add']) {
+          const orig = IDBObjectStore.prototype[name];
+          IDBObjectStore.prototype[name] = function() {
+            const request = orig.apply(this, arguments);
+            try { this.transaction.abort(); } catch (e) { /* already finished */ }
+            return request;
+          };
+        }
+      });
+      await page.evaluate(() => { window.persistence.sync('self', null, null, 'manual_sync').then(null, () => {}); });
+      await page.waitForFunction(() => ['succeeded', 'finished', 'failed'].indexOf(window.persistence.get('sync_status')) !== -1, null, { timeout: 300_000 });
+      expect(await page.evaluate(() => window.persistence.get('sync_status')), 'not reported as succeeded').toBe('failed');
+      expect(await page.evaluate(() => window.persistence.get('sync_status_error'))).toMatch(/could not save boards for offline use/);
+    } finally {
+      await context.close();
+    }
+  });
+
   // Pictures are the words on most boards. Safari has no file storage, so an iPad Home Screen app keeps
   // them in the database. Chromium does have it, so this removes it before the app starts, then checks each
   // view with the browser's own cache cleared: only the app's saved copy can pass.

@@ -5619,6 +5619,127 @@ describe("persistence-sync", function() {
       });
     });
   });
+
+  // Added 2026-11-07 (PR #1268). A device out of storage saved nothing, and the sync still reported
+  // success, so the device looked ready offline with no boards on it. persistence.store never rejects
+  // (see "should not reject (but log an error) on a failed storage attempt"), so the sync counts the
+  // writes that failed while it ran (utils/storage_failures.js).
+  function syncWithFailingWrites(writeError) {
+    cancelSyncTailWork();
+    unloadSyncStoreRecords();
+    persistence.set('sync_progress', null);
+    persistence.set('sync_status', null);
+    persistence.set('sync_status_error', null);
+    stub(capabilities.dbman, 'store_internal', function(store, record, success, error) { setTimeout(function() { error(writeError); }, 0); });
+    stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+    stubOnPersistence('sync_user', function() { return RSVP.resolve(); });
+    stubOnPersistence('sync_boards', function() {
+      return persistence.store('board', {id: '1_77', key: 'fred/full'}, 'fred/full').then(function() { return RSVP.resolve(); });
+    });
+    queryLog.defineFixture({
+      method: 'GET',
+      type: 'user',
+      response: RSVP.resolve({user: {id: '1340', user_name: 'fred'}}),
+      id: "1340"
+    });
+    var state = {done: false};
+    persistence.sync(1340).then(function() { state.done = true; }, function() { state.done = true; });
+    return state;
+  }
+
+  it("should not report a sync as succeeded when the device ran out of storage", function() {
+    db_wait(function() {
+      var state = syncWithFailingWrites({error: 'error storing record in db', quota: true});
+      waitsFor(function() { return state.done && persistence.get('sync_status') !== 'syncing'; });
+      runs(function() {
+        expect(persistence.get('sync_status')).toEqual('failed');
+        expect(stashes.get('last_sync_status')).toEqual('failed');
+        expect(persistence.get('sync_status_error')).toMatch(/out of storage/);
+        stashes.persist('last_sync_status', null);
+        persistence.set('sync_status_error', null);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+      });
+    });
+  });
+
+  it("should not report a sync as succeeded when the device could not save its boards", function() {
+    db_wait(function() {
+      var state = syncWithFailingWrites({error: 'error storing record in db', quota: false});
+      waitsFor(function() { return state.done && persistence.get('sync_status') !== 'syncing'; });
+      runs(function() {
+        expect(persistence.get('sync_status')).toEqual('failed');
+        expect(persistence.get('sync_status_error')).toMatch(/could not save boards/);
+        stashes.persist('last_sync_status', null);
+        persistence.set('sync_status_error', null);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+      });
+    });
+  });
+
+  // The sync stamps say which boards are already on the device, so after failed writes they stay as
+  // they were and the next sync saves those boards again. The last sync time moves on, so automatic
+  // syncs keep their usual pace instead of retrying a full download every half hour.
+  it("should keep the sync stamps but move the last sync time after the device could not save", function() {
+    db_wait(function() {
+      persistence.set('sync_stamps', {kept: 1});
+      persistence.set('last_sync_at', 5);
+      var state = syncWithFailingWrites({error: 'error storing record in db', quota: true});
+      waitsFor(function() { return state.done && persistence.get('sync_status') !== 'syncing'; });
+      runs(function() {
+        expect(persistence.get('sync_status')).toEqual('failed');
+        expect(persistence.get('sync_stamps')).toEqual({kept: 1});
+        expect(persistence.get('last_sync_at') > 5).toEqual(true);
+        stashes.persist('last_sync_status', null);
+        persistence.set('sync_status_error', null);
+        persistence.set('sync_stamps', null);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+      });
+    });
+  });
+
+  // Only the writes that fail while this sync runs count: an earlier failure does not fail a later,
+  // healthy sync.
+  it("should not fail a sync for a write that failed before it started", function() {
+    db_wait(function() {
+      var failing = true;
+      var real = capabilities.dbman.store_internal;
+      stub(capabilities.dbman, 'store_internal', function(store, record, success, error) {
+        if(failing) { setTimeout(function() { error({error: 'error storing record in db', quota: true}); }, 0); return; }
+        return real.apply(this, arguments);
+      });
+      var earlier = false;
+      persistence.store('settings', {id: 'x'}, 'earlier').then(function() { earlier = true; });
+      waitsFor(function() { return earlier; });
+      runs(function() {
+        failing = false;
+        cancelSyncTailWork();
+        unloadSyncStoreRecords();
+        persistence.set('sync_progress', null);
+        persistence.set('sync_status', null);
+        stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+        stubOnPersistence('sync_user', function() { return RSVP.resolve(); });
+        stubOnPersistence('sync_boards', function() { return RSVP.resolve(); });
+        queryLog.defineFixture({
+          method: 'GET',
+          type: 'user',
+          response: RSVP.resolve({user: {id: '1340', user_name: 'fred'}}),
+          id: "1340"
+        });
+        var done = false;
+        persistence.sync(1340).then(function() { done = true; }, function() { done = true; });
+        waitsFor(function() { return done && persistence.get('sync_status') !== 'syncing'; });
+        runs(function() {
+          expect(persistence.get('sync_status')).toEqual('succeeded');
+          stashes.persist('last_sync_status', null);
+          cancelSyncTailWork();
+          persistence.set('sync_progress', null);
+        });
+      });
+    });
+  });
 });
 // Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
 import boardRevocation from '../../utils/board_revocation';

@@ -451,20 +451,31 @@ var dbman = {
   store_internal: function(store, record, success, error) {
     var done = log_timing('store', store, record);
     if(dbman.db_type == 'indexeddb') {
+      // Saved only when the transaction commits: a put request can succeed and its transaction still abort
+      // at commit, which is where a device out of storage reports QuotaExceededError. `quota` tells the
+      // caller which (utils/storage_failures.js). One answer per write.
       var transaction = capabilities.db.transaction([store], 'readwrite');
+      var answered = false;
+      var res = null;
+      var answer = function(err) {
+        if(answered) { return; }
+        answered = true;
+        done();
+        if(err) {
+          error({error: err.message || "error storing record in db", quota: err.name === 'QuotaExceededError'});
+        } else {
+          setTimeout(function() { success(record); }, 0);
+        }
+      };
+      var failed = function() { answer(transaction.error || (res && res.error) || {}); };
+      transaction.oncomplete = function() { answer(null); };
+      transaction.onabort = failed;
       try {
-        var res = transaction.objectStore(store).put(record);
-        res.onsuccess = function(event) {
-          done();
-          setTimeout(function() {
-            success(record);
-          }, 0);
-        };
-        res.onerror = function(event) {
-          done();
-          error({error: "error storing record in db"});
-        };
-      } catch(e) { debugger; }
+        res = transaction.objectStore(store).put(record);
+        res.onerror = failed;
+      } catch(e) {
+        answer(e || {});
+      }
     } else if(dbman.db_type == 'sqlite_plugin') {
       var store_name = null;
       if(stores[store]) { store_name = store; }
