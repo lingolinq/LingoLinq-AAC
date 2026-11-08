@@ -47,8 +47,11 @@
 #   account, and this check cannot tell the two apart. The author may approve their own
 #   PR. Anyone with write access can still get past the check deliberately (for example
 #   by adding the label without looking, or through a ruleset bypass); it guards against
-#   mistakes and fork PRs. Any change under .github/workflows/ needs an approval before
-#   it merges.
+#   mistakes and fork PRs. What needs an approval is decided by
+#   scripts/data-bearing-path-check.sh: a data-bearing change its content scan flags, a
+#   path that always needs one (db/language/, a VCR cassette), a change to the check's
+#   own files, or a workflow file that names the App's environment, key or client id.
+#   Other workflow files are not gated (Scot, 2026-11-06 and 2026-11-07).
 #
 # BASE
 #   The base branch must be develop, staging or main. It is fetched live from origin

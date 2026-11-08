@@ -6,8 +6,9 @@
 # with --data-bearing-only; the route cases date from the retired codex-review.yml.
 #
 # WHY THIS EXISTS
-#   The classifier decides whether a PR changes a data-bearing path, which the merge
-#   gate holds until a person confirms the data is synthetic. A pattern that silently
+#   The classifier decides whether a PR changes a data-bearing path, whose added lines
+#   the merge gate then scans (and holds until a person confirms the data is synthetic
+#   when the scan flags something, or always for db/language/ and cassettes). A pattern that silently
 #   stops matching, or a failure that reads as "no match", lets a data-bearing change
 #   merge unexamined. Every case below runs the real script
 #   against a real two-commit range (or a stubbed git or grep for shapes git cannot

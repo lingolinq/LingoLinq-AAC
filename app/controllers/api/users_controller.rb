@@ -636,7 +636,7 @@ class Api::UsersController < ApplicationController
     # no stranger, so a manager reviewing a therapist's in-org caseload is
     # unaffected and only the out-of-org rows drop out.
     supervisees = user.supervisees.select{|s| supervisee_listable?(s) }
-    render json: JsonApi::User.paginate(params, supervisees, limited_identity: true, supervisor: user, prefix: "/users/#{user.global_id}/supervisees")
+    render json: JsonApi::User.paginate(params, supervisees, limited_identity: true, supervisor: user, viewer: @api_user, prefix: "/users/#{user.global_id}/supervisees")
   end
   
   def subscribe

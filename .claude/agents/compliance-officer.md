@@ -54,8 +54,12 @@ Scot's attestation. You are the role the Phase 0 plan calls out as the missing *
   data is kept out of commits by the author's own check before pushing; this repo is public, so
   a pushed branch is already published. The `data-bearing-paths` merge gate (which reads
   `scripts/codex-review-path-classifier.sh`, vendored from the brain's `codex-review-guard.sh`)
-  fails a PR that changes a data-bearing path until a person confirms the data is synthetic
-  (it gates merges, not publication), and local reviews run the brain's `review-preflight.sh` first. Nothing in CI sits in front
+  scans the lines a PR adds under data-bearing paths. A clean change passes with no human
+  look. It fails until a person confirms the data is synthetic only when the scan flags a
+  shape (a real-looking email, phone number, SSN-shaped number, base64 media, a binary file),
+  or `db/language/`, a VCR cassette, the gate's own files or a workflow naming its App
+  change. It sees shapes, not meaning, so never describe it as a human review of every
+  data-bearing change (it gates merges, not publication), and local reviews run the brain's `review-preflight.sh` first. Nothing in CI sits in front
   of the Codex GitHub connector, which reviews every PR when it opens.
 
 ## What you own

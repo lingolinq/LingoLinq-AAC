@@ -76,7 +76,7 @@ class User < ApplicationRecord
   # still supervise and model; per-link "modeling only" supervision still must not set goals.
   add_permissions('set_goals', ['full', 'basic_supervision']) {|user|
     next false unless user.supervisor_for?(self) && !user.valet_mode?
-    next false if user.modeling_only_for?(self) && !user.modeling_only?
+    next false if user.link_modeling_only_for?(self)
 
     true
   }

@@ -42,6 +42,9 @@
     <div class="la-translate-board-section">
       <label class="la-translate-board-label" for="translate_locale">{{t "Language" key="language"}}</label>
       <BoundSelect @select_class="la-translate-board-select" @select_id="translate_locale" @content={{this.locales}} @selection={{this.translate_locale}} @action={{this.ctrlAction "updateTranslateLocale"}} @searchable={{true}} @search_placeholder={{t "Search languages..." key="search_languages"}} />
+      {{#if this.shows_no_voice_notice}}
+        <p class="la-translate-board-info" data-test-no-voice-notice>{{t "This device has no voice for this language, so boards may speak with a different voice." key="no_voice_for_language"}}</p>
+      {{/if}}
     </div>
 
     {{#unless this.cannot_translate}}
