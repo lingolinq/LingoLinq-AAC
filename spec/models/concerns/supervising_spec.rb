@@ -181,6 +181,7 @@ describe Supervising, :type => :model do
       comm = User.create
       User.link_supervisor_to_user(sup, comm, nil, false)
       expect(comm.reload.allows?(sup.reload, 'set_goals')).to eq(true)
+      expect(comm.allows?(sup, 'set_goals', ['basic_supervision'])).to eq(true)
     end
 
     it "should error on supervisee failure when editing" do
