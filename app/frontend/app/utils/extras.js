@@ -384,7 +384,7 @@ import app_state from './app_state';
         /* A DEAD SESSION ENDS IN A LOGIN PROMPT, NOT IN A BROKEN PAGE (2026-10-09).
            After the inactivity window every request answers 400 + `invalid_token`
            (app/models/device.rb:285-297) and there is NO browser refresh path — the only
-           endpoint is integration-only (config/routes.rb:86) — so the session is simply over.
+           endpoint is integration-only (`post 'api/v1/token/refresh'` in config/routes.rb) — so the session is simply over.
            Nothing acted on that: the sibling check at :297 lives in the SUCCESS continuation
            (an HTTP 200 carrying an error body) and a real 400 lands here instead, and the
            route-level handlers each do their own thing with the rejection

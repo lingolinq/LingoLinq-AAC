@@ -3,7 +3,7 @@ require 'spec_helper'
 # Classic view renders a board at /<user>/board/<boardname> (Ember route `user.board-alt`,
 # app/frontend/app/router.js:150). On a hard load, bookmark or shared link that URL reaches
 # Rails first, so it needs the same SPA fallback the board-detail URLs have
-# (config/routes.rb:109-110), or it 404s (#1037).
+# (the `:id/board-detail/:boardname` routes in config/routes.rb), or it 404s (#1037).
 describe "Classic board routes" do
   it "hands a Classic board URL to the Ember app" do
     expect(get: '/example/board/vocal-flair-84').to route_to(

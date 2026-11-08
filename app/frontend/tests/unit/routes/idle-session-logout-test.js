@@ -7,7 +7,7 @@ import { setupTest } from '../../helpers';
  * (app/models/device.rb:285-297); `valid_token?` then returns false (:412) and every request
  * answers 400 with `{error: "Token needs refresh", invalid_token: true}`
  * (app/controllers/application_controller.rb:157-162). No browser refresh path exists — the only
- * endpoint is integration-only (config/routes.rb:86) — so a clean logout is the intended end.
+ * endpoint is integration-only (`post 'api/v1/token/refresh'` in config/routes.rb) — so a clean logout is the intended end.
  *
  * `invalid_token` IS THE DISCRIMINATOR, not the message text. `allowed?` answers EVERY permission
  * denial with 400 and `unauthorized: true` (application_controller.rb:282) and the message

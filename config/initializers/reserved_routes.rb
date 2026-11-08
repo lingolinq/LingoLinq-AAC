@@ -1,7 +1,8 @@
-# Top-level path segments users and boards may not take as a user name or key
-# (Processable#generate_unique_key). Defined here, not in config/routes.rb, because Rails 8
-# draws routes lazily when eager_load is false (tests and rake tasks), and this must exist at
-# boot. When adding a top-level route in config/routes.rb, add its first segment here.
+# Top-level path segments that Processable#generate_unique_key suffixes when generating a user
+# name or board key. Defined here, not in config/routes.rb, because Rails 8 draws routes lazily
+# in development and test when eager_load is false (the test env and dev rake tasks, including
+# Procfile workers), and this must exist at boot. Frozen so routes.rb cannot append to it.
+# When adding a top-level route in config/routes.rb, add its first segment here.
 
 LingoLinq::RESERVED_ROUTES = [
   'admin', 'database', 'etc', 'settings', 'status', 'reports', 'stats', 'search',
@@ -19,4 +20,4 @@ LingoLinq::RESERVED_ROUTES = [
   'js', 'css', 'scripts', 'script', 'pics', 'images', 'lessons', 'lesson',
   'find', 'unknown', 'nobody', 'goals', 'notes', 'rooms', 'cough_drop',
   'mylingolinq', 'inflection', 'inflections', 'saml', 'eval', 'ai_consent'
-]
+].freeze
