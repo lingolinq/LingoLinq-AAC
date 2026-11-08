@@ -517,3 +517,45 @@ on its own and a dedicated AAC iPad is not asked. Two new unit cases red before;
 condition turns them red again. The Home Screen unit case was rewritten for the changed specification
 (Scot's suggestion, Traci's approval). Units 76/76, lint gate OK, e2e launch and lifecycle 16/16 with the shell on.
 Research on a code fix for the earlier trusted iPads: `2026-11-07_aac-device-trust-research.md`.
+
+### Code fix for earlier trusted Home Screen iPads: fact sheet and proposal (2026-11-07)
+
+Traci: build it on this PR (Scot asked for the full fix). Research: `2026-11-07_aac-device-trust-research.md`.
+
+Facts:
+- READ: trust for a sign-in is decided in `SessionController#assert_session_device` (`session_controller.rb:1301`,
+  `long_token = params['long_token'] ...`) and kept by `Device#generate_token!` (`device.rb:172`: a browser row
+  with `settings['long_token']` true stays long whatever the sign-in sends). CONFIRMED.
+- SHAPES of `Device#settings['long_token']`: true, false, nil; nil counts as trusted in `token_timeout`
+  (`device.rb:24`). CONFIRMED.
+- `long_token_set` and `preferences.device.asserted` cannot mean "a person chose": `process_device`
+  (`user.rb:3851-3853`) sets `long_token_set` on any save carrying `device.long_token`, and stores every device
+  key including `asserted` (`user.rb:3878-3882`), which the serializer sends back and whole-record saves
+  (`app-state.js:550, 1727`, `persistence.js:3562`) post again. CONFIRMED.
+- The sign-in request does not send `browserless` (`services/session.js:148-159`). CONFIRMED.
+- Device rows are per user and per install id (`lingolinqDeviceId`, `extras.js`), so only users who signed in
+  from that Home Screen install before the PR are affected. CONFIRMED.
+
+Candidate A (chosen for review): (1) the sign-in sends `browserless=true` from a Home Screen web app; (2) in
+`assert_session_device`, when not a native app, `browserless`, `OfflineShell.enabled?`, the sign-in did not ask
+for a long token, and the row is trusted (`settings['long_token']` true) without `settings['long_token_chosen']`,
+set the row untrusted before `generate_token!`, so the token is short and the app asks Trust or Shared;
+(3) in `process_device`, on the user's own device, set `long_token_chosen` when the save changes the row's trust
+value. An echo never changes it, so it never marks; choosing Trust after (2) is a change (false to true).
+Candidate B: the app re-asks when the token is long but unchosen (token JSON carries the mark). Weaker: the
+session stays long until answered, and closing the app skips it.
+Known interactions: the supervisor-save path (accepted item) could mark a supervisee's row by a change; a
+person who ticks "keep me logged in" on the sign-in form keeps a long token but is asked again next time.
+
+Proposal review (adversary, 2026-11-07): candidate A BLOCKED as written. No code written.
+- High, CONFIRMED in code (timing PLAUSIBLE): an offline replay of a whole-record save from the old trusted
+  session (`persistence.js:3616` replays the stored copy; `users_controller.rb:198` passes the own device)
+  carries `long_token: true`, which the change rule reads as a choice, overturning a Shared answer.
+- High, CONFIRMED: SAML-enforced sign-ins redirect before `assert_session_device` (`session_controller.rb:529-531`),
+  and the SAML and Google configs carry no `browserless`, so district iPads would never be reached.
+- Medium: an unanswered question leaves a short session and nothing asks again (AAC: signed out after 12 h idle).
+- Medium: supervisor and act-as saves can mark a row. Lows: one extra 2FA prompt; an org timeout outlives a
+  Trust answer; people who answered Trust under #1268 are asked once more.
+Amended design: an explicit answer endpoint (Trust and Shared, never stored offline), process_device leaves a
+chosen row alone, a pending flag with a re-ask at app start, the SAML and Google callers, own-device and
+no-act-as guards. Estimate 2 to 3 days with reviews. Stopped for Traci's decision.
