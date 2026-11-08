@@ -202,8 +202,9 @@ differ, `CLAUDE.md` wins.
 
 ### One review for a normal PR
 
-A normal PR gets one review: the Codex GitHub connector's automatic review
-counts, or one senior-dev pass (`/review-pr`).
+A normal team PR gets one review: the Codex GitHub connector's automatic review
+counts, or one senior-dev pass (`/review-pr`). A PR from an outside contributor
+(a fork) also needs a human review from the core team.
 
 ### When dual review is mandatory
 

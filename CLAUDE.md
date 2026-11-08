@@ -67,9 +67,9 @@ everything else in this file.
     shapes it can hold; is each cross-file claim TRUE. Label every fact CONFIRMED
     (`file:line`) or ASSUMED, and let nothing ASSUMED carry a fix. "This one is obvious" is
     the signal to write the sheet, not to skip it. Migrations count as data handling, and
-    workflows, entrypoints and deploy config count as infra. For UI, styling, copy, docs
-    and small isolated fixes the sheet and red-test-first are optional (a red test is still
-    welcome); items 1 to 4 still apply.
+    workflows, entrypoints and deploy config count as infra. For anything else (UI,
+    styling, copy, docs, small isolated fixes, backend logic outside that list) the sheet and
+    red-test-first are optional (a red test is still welcome); items 1 to 4 still apply.
 13. **One coherent change per unit, and stop when the error rate rises.** Two
     self-inflicted errors close together, or a verification step re-run because the
     first attempt was botched, means commit what is verified, write down what remains,
@@ -230,7 +230,8 @@ test DB `lingolinq-test`. Deploy prep: `bin/deploy_prep`, `rake extras:mobile`,
 Run `/pr-preflight`. Then review, sized to what the PR touches:
 
 - **A normal PR gets one review.** The Codex GitHub connector's automatic review counts, or
-  one `/review-pr` pass.
+  one `/review-pr` pass. A PR from an outside contributor (a fork) also needs a human review
+  from the core team.
 - **Dual review** (`/review-pr` senior-dev pass plus `/adversary-review` red team) only
   when the PR touches authentication or sessions, consent or account ownership, access to
   another user's or organization's data, billing, AI model routing or the AI client, infra

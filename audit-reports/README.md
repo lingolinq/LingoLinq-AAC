@@ -153,8 +153,11 @@ their statuses as current.
 
 One formal full `/audit-run` per year, tracked in `compliance-calendar.json` as
 `rev-audit-run-annual-full` (Scot, 2026-11-07). There is no quarterly or monthly requirement.
-`/audit-run` stays available for ad hoc runs, in full or light mode; an ad hoc run needs no sign-off
-stamp PR and does not count as the year's formal audit. Run steps and stamps:
+A run that ends partial still counts as the annual audit, as long as its report lists what it did
+not cover (in the private run record; public text carries counts only). `/audit-run` stays available
+for ad hoc runs, in full or light mode; an ad hoc run needs no sign-off stamp PR, its register PR needs
+one review like any other PR unless it closes a finding, downgrades a severity or accepts risk (those
+still need Scot), and it does not count as the year's formal audit. Run steps and stamps:
 `.claude/skills/audit-run/SKILL.md` ("Cadence").
 
 ## Conventions going forward

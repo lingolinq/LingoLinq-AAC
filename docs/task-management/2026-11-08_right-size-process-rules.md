@@ -31,6 +31,19 @@ Text and config only; no application code.
    `.claude/rules/compliance-docs.md`: add a gate, review round, attestation or consent step only
    when a law, a signed contract or a real incident calls for it, and name which.
 
+## Follow-up answers (Scot, 2026-11-08)
+
+- Fix-proposal review follows the review tiers (the separate "two independent reviewers for High
+  or above" line is gone). Backend logic outside the required list stays optional.
+- A partial-coverage run counts as the annual audit, as long as its report lists what it did not
+  cover (privately; public text carries counts only).
+- A PR from an outside contributor (a fork) also needs a human core-team review; team PRs follow
+  the tiers. Stated in `CLAUDE.md` and its mirrors so the "CLAUDE.md wins" clause holds.
+- An ad hoc register PR needs one connector review, unless it closes a finding, downgrades a
+  severity or accepts risk; those still need Scot.
+- Deferred to a follow-up: the other quarterly calendar rows, `scripts/audit-merge.rb` wording and
+  the dated MVP punchlist doc.
+
 ## Kept unchanged
 
 Rule 14, rule 15, the public-repo filter, Tier 1 data rules, Bedrock-only runtime AI. Finder

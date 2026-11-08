@@ -91,7 +91,8 @@ standards (which kind of test, red-then-falsify, test isolation enforced by the 
 check, Playwright e2e is not in CI, the CI gates) are in `.claude/rules/testing-frontend.md`.
 
 Then review, sized to what the PR touches. A normal PR gets one review: the Codex GitHub
-connector's automatic review counts, or one senior-dev pass. Dual review (a senior-dev
+connector's automatic review counts, or one senior-dev pass; a PR from an outside
+contributor (a fork) also needs a human review from the core team. Dual review (a senior-dev
 pass and an adversarial red-team pass) applies only when the PR touches authentication or
 sessions, consent or account ownership, access to another user's or organization's data,
 billing, AI model routing or the AI client, infra or deploy config, or the
@@ -155,8 +156,9 @@ first; use `gh` when it is installed and logged in, otherwise the git credential
 OAuth token; never print the credential or write it to a tracked file).
 For a bug fix or behaviour change in data handling, auth, sync and offline, or any area on
 the dual-review list above, the fact-sheet and red-test-first discipline in
-`.claude/skills/fix-proposal/SKILL.md` is required. For UI, styling, copy, docs and small
-isolated fixes it is optional (a red test is still welcome).
+`.claude/skills/fix-proposal/SKILL.md` is required. For anything else (UI, styling, copy,
+docs, small isolated fixes, backend logic outside that list) it is optional (a red test is
+still welcome).
 
 Backend architecture and hotspots: `CLAUDE.md`. Frontend: `app/frontend/CLAUDE.md`.
 Infra: `docs/INFRASTRUCTURE.md`. Debugging: `docs/CODE_INVESTIGATION.md`. Durable

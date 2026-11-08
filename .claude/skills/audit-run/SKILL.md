@@ -22,13 +22,16 @@ quarterly or monthly requirement.
 
 - **Annual formal run:** a full run (below). Its stamp carries `Scot sign-off: pending`, and his
   sign-off is recorded afterwards in a sign-off stamp PR (Step 2c). Only a signed run counts as the
-  year's formal audit and updates `lastDone` on the calendar row.
+  year's formal audit and updates `lastDone` on the calendar row. A run that ends partial still counts,
+  as long as its Step 6 report lists what it did not cover (that list lives in the private run record;
+  public text carries the verdict and counts only, Step 2c).
 - **Ad hoc run:** `/audit-run` stays available at any time, in either mode, for example after a large
   change or before a customer review. It follows every step below except that its stamp reads
   `Ad hoc run, no sign-off stamp PR` in place of the sign-off clause, so no sign-off stamp PR
   follows. Where a step below says a verdict or restamp rests on Scot's sign-off, an ad hoc run's
   rests on the finders' receipts and its register PR review instead. It is reviewed in its register PR
-  like any other PR, and it does not count as the year's formal audit.
+  like any other PR (one Codex connector review is enough), and it does not count as the year's formal
+  audit. A register PR that closes a finding, downgrades a severity or accepts risk still needs Scot.
 
 Two run modes, either of which an ad hoc run may use:
 

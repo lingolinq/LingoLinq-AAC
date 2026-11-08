@@ -119,7 +119,8 @@ click-test of the SPECIFIC steps, listed.
 Size the review to what the PR touches (root `CLAUDE.md`, "Before a PR"):
 
 - **Normal PR: one review.** The Codex GitHub connector's automatic review counts, or one
-  `/review-pr` pass. Confirm the PR actually got the connector review before counting it.
+  `/review-pr` pass. Confirm the PR actually got the connector review before counting it. A PR
+  from an outside contributor (a fork) also needs a human review from the core team.
 - **Dual review: `/review-pr` and then `/adversary-review`**, only when the PR touches
   authentication or sessions, consent or account ownership, access to another user's or
   organization's data, billing, AI model routing or the AI client, infra or deploy config,

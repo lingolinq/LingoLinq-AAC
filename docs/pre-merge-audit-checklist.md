@@ -741,7 +741,7 @@ git diff develop...HEAD | grep '<flag-name>'
 
 ### 4.6 Dual review for sensitive paths
 
-**🔴 BLOCK**: any PR touching one of these areas needs dual review (`/review-pr + /adversary-review`) before merge. The canonical list is `CLAUDE.md`, "Before a PR"; if this section and that one differ, `CLAUDE.md` wins. Every other PR needs one review (the Codex GitHub connector's automatic review counts, or one `/review-pr`).
+**🔴 BLOCK**: any PR touching one of these areas needs dual review (`/review-pr + /adversary-review`) before merge. The canonical list is `CLAUDE.md`, "Before a PR"; if this section and that one differ, `CLAUDE.md` wins. Every other PR needs one review (the Codex GitHub connector's automatic review counts, or one `/review-pr`); a PR from an outside contributor (a fork) also needs a human review from the core team.
 
 - authentication or sessions
 - consent or account ownership
