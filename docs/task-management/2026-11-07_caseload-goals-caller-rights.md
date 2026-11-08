@@ -141,6 +141,10 @@ Result
 - After deploy, cached permission answers live up to 30 minutes (`permissions.rb`), so someone already in the
   overlap keeps set_goals until then. Accepted; production Redis is not flushed.
 
-Found, not in this change: per-link flags are never cleared. `link_supervisor_to_user` only sets
-`edit_permission` or `modeling_only` to true and `UserLink.generate` reuses the old state, so re-adding an
-editor as modeling-only leaves them an editor. Reachability from the UI is unconfirmed.
+Found, and left by decision: per-link flags are never cleared. `link_supervisor_to_user` only sets
+`edit_permission` or `modeling_only` to true and `UserLink.generate` reuses the old state. Probed through
+`SupervisorKeyProcessor` (the add-supervisor dialog's path): an editor re-added as view-only stays a full
+editor; re-added as modeling-only keeps edit and manage_supervision; modeling-only re-added as editor gets edit
+without supervise or set_goals. Removing then re-adding sets the level correctly. The dialog does not block
+re-adding and the page has no change-level control. Rooms probably behave the same (not run). Traci
+(2026-11-08): likelihood too low, leave it; no issue filed.
