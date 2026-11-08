@@ -5,8 +5,9 @@ Status: research complete, no application change made (2026-11-07). Tracks GitHu
 **Summary.** Rails 7.2 is end of life and the 18 advisories failing `security-scan` are fixed only
 on 8.x; 8.0 leaves support today, so the target is 8.1.4.1. A trial upgrade needed three Gemfile
 lines plus moving one constant out of `config/routes.rb`. On 8.1 the app boots, precompiles,
-serves pages and API calls, sends Ember byte-identical JSON, and the full suite has no new
-confirmed failures. Ember needs no change.
+serves pages and API calls, sends Ember byte-identical JSON, and with CI-like credentials the full
+suite has no new failures. Ember needs no change. One open item (section 4.4) must be explained
+before the upgrade PR leaves draft.
 Branch: `traci/docs/rails-8-upgrade-plan` (worktree `LingoLinq-AAC-rails8`), from develop `eea21d4e1`.
 The trial upgrade ran in a separate, uncommitted scratch worktree (`LingoLinq-AAC-rails8-spike`)
 against its own test database (`lingolinq-test-rails8`).
@@ -94,12 +95,17 @@ on develop today; they are unrelated to Rails.
 - Our test environment has `eager_load = false` (`config/environments/test.rb:13`), so any spec that
   creates a board before a route has been touched raises `NameError`. Production and development
   have `eager_load = true` and are unaffected.
-- Evidence: the 52 spec files' worth of new failures in the first full 8.1 run, and 469 failures when
-  the affected files ran on their own. Moving the 17-line constant into
-  `config/initializers/reserved_routes.rb` (trial only) took the same 586 examples to 0 failures on
-  8.1, matching 7.2.
-- Fix in the real PR: move the constant out of `config/routes.rb` into its own file loaded at boot.
-  Behaviour on 7.2 is unchanged by that move, so it can land on develop before the upgrade.
+- Evidence: 469 failures when the affected files ran on their own on 8.1. Moving the 17-line
+  constant into `config/initializers/reserved_routes.rb` took the same 586 examples to 0 failures,
+  matching 7.2. Dev rake tasks are affected too: `task :environment` sets
+  `eager_load = rake_eager_load` (default false, `railties-8.1.4.1/lib/rails/application.rb:563`),
+  so dev seeds and Procfile workers would raise the same `NameError`.
+- **Correction (2026-11-08):** an earlier version of this section also credited the ~50 new
+  failures of the first full 8.1 run to this constant. That was wrong. In a full run, controller
+  specs draw the routes first, so the constant exists; those failures were blocked OpenSymbols
+  token requests (section 4.4).
+- Fix: PR #1286 moves the constant, frozen and unchanged, into its own initializer. Behaviour on 7.2
+  is unchanged (same 94 entries, same digest).
 
 ### 4.2 Not a Rails 8 issue (CONFIRMED by re-running)
 
@@ -124,6 +130,23 @@ on develop today; they are unrelated to Rails.
   Watch it in the upgrade PR's CI; if it reproduces there, trace which extra queries run.
 - The 17 other baseline failures (stray AuditEvent rows in the shared test DB, assets, throttling
   timing) did not occur against the clean trial DB.
+
+### 4.4 Open: OpenSymbols token requests in full 8.1 runs with a local secret (CONFIRMED facts, cause unknown)
+
+- With a real `OPENSYMBOLS_SECRET` in the local environment, full runs on 7.2 made 0 token requests
+  (2 runs); full runs on 8.1 made about 45 (`POST https://www.opensymbols.org/api/v2/token`,
+  blocked by WebMock) in 2 of 3 runs. The path is `Board#process_suggested_symbols`
+  (`app/models/board.rb:1431`) to `OpenSymbols.search_many` to `access_token`.
+- The same files pass alone on 8.1. Pairing `spec/config`, `spec/features`, `spec/initializers` or
+  `spec/controllers` with `spec/lib/accessibility_seed_spec.rb` did not reproduce it.
+- CI has no secret, so `generate_new_token` returns nil before any request; a full 8.1 run with
+  the secret stripped (as in CI) gave 8,526 examples, 6 failures, all the `jq`-dependent deploy
+  specs that fail on 7.2 locally.
+- Separate pre-existing bug found here: `RedisAccess` is not defined anywhere, so
+  `OpenSymbols#get_cached_token` and `#cache_token` (`lib/open_symbols.rb:291-316`) never run and
+  every lookup requests a fresh token, in production too.
+- Must be explained before the upgrade PR leaves draft: it may mean 8.1 reaches symbol lookups in
+  cases 7.2 did not.
 
 ## 5. Gem compatibility (CONFIRMED unless marked)
 
