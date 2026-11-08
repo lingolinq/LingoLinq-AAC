@@ -1627,7 +1627,7 @@
         {{!-- THE RAIL SITS BETWEEN THE NAV AND THE PAGE (2026-10-11) so keyboard and screen-reader
              order match what is drawn: at 900px and below the rail is a dropdown drawn below the
              pill nav. Above 900px it is a fixed panel, so where it sits here does not move it. --}}
-        <AccountRail @user={{this.globalChromeUser}} />
+        <AccountRail @user={{this.globalChromeUser}} @org={{this.globalChromeOrg}} />
         <div class="ll-appshell__content">
           {{ outlet }}
         </div>

@@ -82873,6 +82873,15 @@ span.md-board-detail-modeling-btn--badge {
    the access badge (500 vs 700) per spec — these convey passive
    counts/dates, the access badge conveys a permission state. */
 
+/* THE ORG TABS IN MODERN (2026-11-08): Admin, Managers ... Symbols above every org page
+   (templates/organization.hbs). The nav sits inside `.ch-tabs-fit` (the fit-or-select wrapper), a
+   block, so `.md-pillnav` stretched to its 1120px max-width there instead of hugging its pills as
+   it does as a direct child of `.md-workspace`. `fit-content` gives the pill-bar look back, and
+   `.md-pillnav`'s `margin: ... auto` centres it -- the same fix as `.ll-appshell__navbar .md-pillnav`.
+   Too wide to fit, it still overflows its box, which is what {{fit-or-select}} measures. */
+.md-pillnav--org-tabs {
+  width: fit-content;
+}
 /* Sub-navigation pills inside admin index (Managers, Supervisors, etc.) */
 .md-pillnav--org-sub {
   width: fit-content !important;

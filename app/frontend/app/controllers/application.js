@@ -2338,8 +2338,16 @@ export default Controller.extend({
        line in CHROME_ROUTES: a flat entry would have given managers the account rail on exactly
        one page of a section that has none.
        ASKED OF `globalNavActive`, so the rail and the nav turn on together and share the one
-       reading of the user in utils/rooms_nav. */
-    if(route === 'organization.rooms') { return !!this.get('globalNavActive'); }
+       reading of the user in utils/rooms_nav.
+       SUPERSEDED 2026-11-08 (requested: Modern org pages need "their own side menu", as Basic's
+       have). EVERY `organization.*` PAGE NOW GETS THE RAIL, for everyone: an org editor's rail
+       switches to the org's own rows (`globalChromeOrg` below; components/account-rail.js
+       `orgNav`), anyone else keeps their account rail. The PILL NAV is unaffected: it still follows
+       `globalNavActive` alone (`showPillNav`), so it appears on the rooms page for a rooms-only
+       supervisor exactly as before and nowhere else in the section. A PREFIX, not a list, because
+       the section's pages are router.js's to add to; the org directory (`organizations`) is a
+       separate entry in CHROME_ROUTES. */
+    if(route.indexOf('organization.') === 0) { return true; }
     return CHROME_ROUTES.indexOf(route) !== -1;
   }),
 
@@ -2400,6 +2408,17 @@ export default Controller.extend({
       if(viewed) { return viewed; }
     }
     return this.appState.get('currentUser');
+  }),
+
+  /* THE ORGANISATION THE RAIL SERVES, on an `organization.*` page (2026-11-08); null elsewhere.
+     Read from the `organization` controller's model for the same reason `globalChromeUser` reads
+     the `user` controller's: the rail is mounted once in the app shell, so no page template can
+     hand it one. The rail decides from this org's permissions whether to show its rows. */
+  organizationController: controller('organization'),
+  globalChromeOrg: computed('appState.current_route', 'organizationController.model', function() {
+    var route = this.appState.get('current_route') || '';
+    if(route.indexOf('organization.') !== 0) { return null; }
+    return this.get('organizationController.model') || null;
   }),
 
   content_class: computed(

@@ -1490,7 +1490,8 @@ button.ch-row--sync:focus-visible {
 .ch-tabs-fit {
   position: relative;
 }
-.ch-tabs-fit.is-squeezed > .ch-tabs {
+.ch-tabs-fit.is-squeezed > .ch-tabs,
+.ch-tabs-fit.is-squeezed > .md-pillnav {
   position: absolute;
   top: 0;
   left: 0;

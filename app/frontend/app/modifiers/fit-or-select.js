@@ -20,10 +20,15 @@ import { modifier } from 'ember-modifier';
  * and is never marked; the dropdown shows there through that same rule.
  *
  * Usage: <div {{fit-or-select}}><nav class="ch-tabs">…</nav><select class="ch-tabselect">…</select></div>
+ *
+ * THE STRIP IS `.ch-tabs` (Basic) OR `.md-pillnav` (Modern) since 2026-11-08, when the org tabs
+ * (templates/organization.hbs) started rendering in Modern with Modern's base classes.
  */
+const STRIP = '.ch-tabs, .md-pillnav';
+
 export default modifier(function fitOrSelect(element) {
   var check = function() {
-    var strip = element.querySelector('.ch-tabs');
+    var strip = element.querySelector(STRIP);
     var squeezed = !!strip && strip.scrollWidth > strip.clientWidth + 1;
     element.classList.toggle('is-squeezed', squeezed);
   };
@@ -31,7 +36,7 @@ export default modifier(function fitOrSelect(element) {
   if (typeof ResizeObserver === 'undefined') { return; }
   var observer = new ResizeObserver(check);
   observer.observe(element);
-  var strip = element.querySelector('.ch-tabs');
+  var strip = element.querySelector(STRIP);
   if (strip) { observer.observe(strip); }
   return function() { observer.disconnect(); };
 });
