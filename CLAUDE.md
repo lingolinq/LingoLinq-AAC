@@ -160,6 +160,13 @@ data isolation between district accounts is mandatory.
   refused in production. Only `console` and `runner` are audited; `rake`, other
   `bin/rails` subcommands, direct Ruby boots and `psql` are not (finding LL-7f7372e3eb).
 - **Never commit secrets.** Reference 1Password items and Secret Manager names.
+- **No production data in this repo or in any non-production environment** (dev, staging,
+  a local database). Test data is generated or obviously fake: `example.com` addresses,
+  phone numbers from 555-0100 to 555-0199, names like "Test Student". The content scan in
+  the `data-bearing-paths` check is the automated check; it sees shapes (emails, phone
+  numbers, SSN-shaped numbers, base64 media), not meaning, so the author's own look comes first. This
+  rule is about what goes in, not a statement about what is there: Tier 1 handling of dev
+  and staging is unchanged.
 - No em dashes in user-facing prose.
 
 ## Backend architecture
@@ -230,13 +237,18 @@ wrong diff and records a pass it did not earn. That guard lives at a
 LingoLinq-internal path: if you cannot reach `~/ai-company-brain/`, you are not set up to
 run this pass, so stop and hand it to someone who is rather than proceeding without it.
 Codex-specific invocation detail lives in `AGENTS.md`. The Codex GitHub connector is set to review every PR automatically; that review skips the PII pre-flight and is neither dual-review pass, so confirm a PR actually got it rather than assuming. A `@codex review` comment requests one; it posts under your GitHub account, so ask before posting. No repository rule requests Copilot code review (an author's own Copilot settings may still request one).
-A PR that adds or changes a data-bearing path (fixtures, factories, seeds, migrations, VCR
-cassettes, data rake tasks, data files, `db/language/`), any file under `.github/workflows/`,
-or the check's own files fails the `data-bearing-paths/<base>` status until a reviewer with
-write access confirms every changed data file is synthetic (and has looked at any workflow
-change) and adds the `synthetic-data` label (never an agent: rule 15). That records an
-approval as a commit status on the current head commit for that base, and the label is
-removed; after a later push, add it again. `develop` is squash-only, so a PR to it is
+When a PR adds or changes a data-bearing path (fixtures, factories, seeds, migrations, VCR
+cassettes, data rake tasks, data files, `db/language/`), the `data-bearing-paths/<base>`
+check scans the lines it adds there. A clean change passes with no label. The status fails
+until a reviewer with write access confirms the data is synthetic and adds the
+`synthetic-data` label (never an agent: rule 15) when the scan finds an email on a domain
+not reserved for examples, a phone number outside 555-0100 to 555-0199, an SSN-shaped
+number, or an image, audio or video file inlined as a base64 `data:` URI; when a binary
+file is added under such a path; when `db/language/` or a VCR cassette changes (always);
+when the check's own files change; or when a workflow file names the `data-bearing-status`
+environment, `DATA_BEARING_APP_PRIVATE_KEY` or `DATA_BEARING_APP_CLIENT_ID`. Other workflow
+files are not gated. The label records an approval as a commit status on the current head commit for
+that base, and the label is removed; after a later push, add it again. `develop` is squash-only, so a PR to it is
 judged by its net diff. PRs to `staging` and `main` are checked commit by commit for
 changes that never went through `develop`; a merge commit counts only for what it adds
 beyond its parents, so a release merge of `develop` does not trip again. The author may
