@@ -3174,6 +3174,37 @@ describe Api::UsersController, :type => :controller do
       expect(json['user'].map{|u| u['id']}).to eq([shared.global_id])
     end
 
+    # #1277: goal access follows the CALLER, while edit_permission and modeling_only
+    # stay labels for the list owner's link (supervision-settings.hbs shows them that way).
+    def supervisees_row_for(owner_link, caller_link)
+      token_user
+      supporter = User.create
+      child = User.create
+      User.link_supervisor_to_user(supporter, child, nil, owner_link)
+      User.link_supervisor_to_user(@user, child, nil, caller_link)
+      User.link_supervisor_to_user(@user, supporter)
+      UserGoal.create(user: child, active: true, settings: {'summary' => "Probe goal"})
+      get 'supervisees', params: {'user_id' => supporter.global_id}
+      expect(response).to be_successful
+      JSON.parse(response.body)['user'].find { |u| u['id'] == child.global_id }
+    end
+
+    it "should not give a modeling-only caller the child's goals through an editing owner's list" do
+      row = supervisees_row_for(true, 'modeling_only')
+      expect(row).to_not eq(nil)
+      expect(row['can_set_goals']).to eq(false)
+      expect(row['goals_count']).to eq(nil)
+      expect(row['active_goals']).to eq(nil)
+      expect(row['edit_permission']).to eq(true)
+    end
+
+    it "should give an editing caller the child's goals through a modeling-only owner's list" do
+      row = supervisees_row_for('modeling_only', true)
+      expect(row['can_set_goals']).to eq(true)
+      expect(row['active_goals'].map { |g| g['summary'] }).to eq(["Probe goal"])
+      expect(row['modeling_only']).to eq(true)
+    end
+
     # Regression guard for the fix above over-reaching. `supervise` (the
     # permission the first version of this filter used) carries a
     # modeling_only conjunct, and modeling_only_for? returns true for ANY
