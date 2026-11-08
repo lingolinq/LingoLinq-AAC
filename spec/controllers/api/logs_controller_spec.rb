@@ -39,6 +39,34 @@ describe Api::LogsController, :type => :controller do
       expect(json['log'].length).to eq(1)
     end
 
+    # Goal-linked notes are clinical content. A supporter whose billing lapsed keeps
+    # set_goals on an ordinary link, but a modeling-only link must not reach them.
+    it "rejects a lapsed supporter on a modeling-only link when filtered by goal_id" do
+      sup = User.create
+      sup.settings['preferences']['role'] = 'supporter'
+      sup.save
+      sup.expires_at = 2.days.ago
+      sup.save
+      expect(sup.reload.modeling_only?).to eq(true)
+      comm = User.create
+      User.link_supervisor_to_user(sup, comm, nil, 'modeling_only')
+      dev = Device.create(:user => sup, :developer_key_id => 0, :device_key => 'bacon')
+      request.headers['Authorization'] = "Bearer #{dev.tokens[0]}"
+      request.headers['Check-Token'] = 'true'
+
+      goal = UserGoal.create(:user => comm)
+      goal.settings['summary'] = 'scoped goal'
+      goal.save!
+      d = Device.create(:user => comm)
+      LogSession.process_new({
+        'note' => {'text' => 'goal note', 'timestamp' => 5.minutes.ago.to_i},
+        'goal_id' => goal.global_id
+      }, {:user => comm, :author => comm, :device => d, :ip_address => '1.2.3.4'})
+
+      get :index, params: {:user_id => comm.global_id, :goal_id => goal.global_id, :type => 'note'}
+      assert_unauthorized
+    end
+
     it "still rejects basic_supervision token for unrestricted log index" do
       sup = User.create
       comm = User.create

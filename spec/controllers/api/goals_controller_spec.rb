@@ -343,6 +343,24 @@ describe Api::GoalsController, type: :controller do
       expect(json['goal']['summary']).to eq('goal from modeling-only billing sup')
     end
 
+    it "should not allow a billing modeling-only supporter on a modeling-only link to create a goal" do
+      sup = User.create
+      comm = User.create
+      sup.settings['preferences'] ||= {}
+      sup.settings['preferences']['role'] = 'supporter'
+      sup.save
+      sup.expires_at = 2.days.ago
+      sup.save
+      sup.reload
+      expect(sup.modeling_only?).to eq(true)
+      dev = Device.create(:user => sup, :developer_key_id => 0, :device_key => 'hippo')
+      request.headers['Authorization'] = "Bearer #{dev.tokens[0]}"
+      request.headers['Check-Token'] = 'true'
+      User.link_supervisor_to_user(sup, comm, nil, 'modeling_only')
+      post :create, params: {:goal => {'user_id' => comm.global_id, 'summary' => 'goal from a modeling-only link'}}
+      assert_unauthorized
+    end
+
     it "should allow a supervisor to create a goal when redis token cache stores a lone star scope" do
       sup = User.create
       comm = User.create

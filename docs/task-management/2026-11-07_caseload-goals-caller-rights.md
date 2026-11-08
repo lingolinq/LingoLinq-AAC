@@ -88,3 +88,59 @@ holds `set_goals` (`app/models/user.rb` set_goals rule tests `modeling_only_for?
 any billing-lapsed supporter before the per-link check). Goal `view` is also granted to any `model` holder
 (`user_goal.rb`), so this PR is data minimization on the caseload rows, not the end of goal access for
 modeling-only links.
+
+## Part 2: a lapsed supporter on a modeling-only link keeps set_goals (2026-11-07)
+
+Traci asked to fold this in, and to check GitHub for related issues.
+
+Fact sheet
+- (a) Read: the `set_goals` rule at `app/models/user.rb:77-82` (deny line :79):
+  `next false if user.modeling_only_for?(self) && !user.modeling_only?`. CONFIRMED.
+- (b) Shapes of "modeling only": the supporter's own billing state (`modeling_only?`, :modeling_only when
+  lapsed), an approved `SupervisorRelationship` with `permission_level: 'modeling_only'`, and a per-link
+  `state['modeling_only']` flag. `modeling_only_for?` (`supervising.rb:121-126`) returns true at once for the
+  first, so for a lapsed supporter the rule never sees the other two. CONFIRMED.
+- (c) Intent: `supervising.rb:145-149` says set_goals "excludes a PER-LINK modeling-only supporter but
+  deliberately KEEPS a globally billing-lapsed one". The code does both only when they do not overlap.
+- Reach: `set_goals` also gates the goal-linked logs (`logs_controller.rb:29`), badge edit and delete
+  (`user_badge.rb:24`), the badge list (`badges_controller.rb:27`), the goal page's time-zone regrouping
+  (`goals_controller.rb:123`), goal create (`goals_controller.rb:60`), goal `view` for `basic_supervision`
+  and `read_profile` tokens (`user_goal.rb:25`), `permissions.set_goals` on users#show (read by
+  `goals.hbs`), and the caseload `can_set_goals` row field.
+- Must keep passing: `goals_controller_spec.rb` "should allow a billing modeling-only supporter to create a
+  goal" (lapsed, ordinary link) and `user_spec.rb` "should not allow modeling-only supervisors to do as much"
+  (lapsed, ordinary link keeps set_goals).
+
+Proposal
+- A (chosen): add `link_modeling_only_for?(supervisee)` to `supervising.rb` holding the two per-link
+  checks; `modeling_only_for?` becomes `modeling_only? || link_modeling_only_for?(supervisee)`, same result
+  for every caller; the rule becomes `next false if user.link_modeling_only_for?(self)`. For a supporter who
+  is not lapsed this equals the old test; for a lapsed one it adds the per-link exclusion.
+- B: keep the rule and inline the two per-link checks there. Rejected: a second copy of the per-link test.
+- Not changed: goal `view` for `model` holders (`user_goal.rb:21-22`). #1210 records that viewers without
+  log access, modeling-only links among them, see goal charts grouped in UTC, which assumes they can view
+  goals; no issue questions that access.
+
+Tests (red first)
+- `supervising_spec.rb`: lapsed supporter on a per-link modeling-only link, and on a modeling-only
+  relationship: `set_goals` false. Lapsed on an ordinary link: true (already pinned, kept).
+- `goals_controller_spec.rb`: lapsed supporter on a per-link modeling-only link cannot create a goal.
+- Mutation: restore the old rule; the new specs go red.
+
+Related GitHub issues checked: #1126, #1145, #1174, #1175, #1210 and others matching goals, modeling-only,
+supervisee, caseload and permissions. None covers this rule or the caseload rows. The carve-out came from
+PRs #811, #820, #825 and #828 (2026-07), whose comment already said per-link modeling-only must not set goals.
+
+Result
+- `supervising.rb` `link_modeling_only_for?` holds the per-link checks; `modeling_only_for?` is
+  `modeling_only? || link_modeling_only_for?`, the same answer for every caller. The `set_goals` rule denies on
+  `link_modeling_only_for?`, so only the overlap (lapsed and modeling-only link) changes, from allowed to denied.
+- Red first, then green: supervising_spec (per-link flag, with `basic_supervision` too; relationship;
+  ordinary link kept), goals#create, and logs#index with `goal_id` (goal-linked notes are clinical content).
+  Seven related spec files: 1190 examples, 0 failures, 9 pending.
+- After deploy, cached permission answers live up to 30 minutes (`permissions.rb`), so someone already in the
+  overlap keeps set_goals until then. Accepted; production Redis is not flushed.
+
+Found, not in this change: per-link flags are never cleared. `link_supervisor_to_user` only sets
+`edit_permission` or `modeling_only` to true and `UserLink.generate` reuses the old state, so re-adding an
+editor as modeling-only leaves them an editor. Reachability from the UI is unconfirmed.

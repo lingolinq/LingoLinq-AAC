@@ -141,6 +141,48 @@ describe Supervising, :type => :model do
       expect(comm.allows?(sup, 'set_goals')).to eq(false)
     end
 
+    # The set_goals carve-out keeps goals for a supporter whose billing lapsed, but a modeling-only
+    # LINK still bars them; lapsing used to short-circuit the per-link check.
+    def lapsed_supporter
+      sup = User.create
+      sup.settings['preferences']['role'] = 'supporter'
+      sup.save
+      sup.expires_at = 2.days.ago
+      sup.save
+      expect(sup.reload.modeling_only?).to eq(true)
+      sup
+    end
+
+    it "denies set_goals to a lapsed supporter on a per-link modeling-only link" do
+      sup = lapsed_supporter
+      comm = User.create
+      User.link_supervisor_to_user(sup, comm, nil, 'modeling_only')
+      expect(comm.reload.allows?(sup.reload, 'set_goals')).to eq(false)
+      # The carve-out rule also serves basic_supervision tokens (user.rb:77).
+      expect(comm.allows?(sup, 'set_goals', ['basic_supervision'])).to eq(false)
+    end
+
+    it "denies set_goals to a lapsed supporter on a modeling-only relationship" do
+      sup = lapsed_supporter
+      comm = User.create
+      SupervisorRelationship.create!(
+        supervisor_user: sup,
+        communicator_user: comm,
+        status: 'approved',
+        permission_level: 'modeling_only',
+        initiated_by: 'communicator',
+        creation_method: 'test'
+      )
+      expect(comm.reload.allows?(sup.reload, 'set_goals')).to eq(false)
+    end
+
+    it "keeps set_goals for a lapsed supporter on an ordinary link" do
+      sup = lapsed_supporter
+      comm = User.create
+      User.link_supervisor_to_user(sup, comm, nil, false)
+      expect(comm.reload.allows?(sup.reload, 'set_goals')).to eq(true)
+    end
+
     it "should error on supervisee failure when editing" do
       res = User.process_new({:supervisee_code => "1_1"})
       expect(res.errored?).to eq(true)
