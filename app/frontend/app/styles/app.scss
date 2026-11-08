@@ -59987,6 +59987,12 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
      individual borders, letting the active fill stand out against
      the shared track. */
 .board-picker__tabs,
+.ub-boards-page__offline-note {
+  margin: 12px 0 0;
+  color: var(--md-muted);
+  font-size: 18px;
+  line-height: 1.5;
+}
 .ub-boards-page__tabs {
   list-style: none;
   padding: 4px;

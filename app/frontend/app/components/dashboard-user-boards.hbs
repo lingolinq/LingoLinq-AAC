@@ -143,6 +143,9 @@
       {{/unless}}
     </ul>
 
+    {{#if this.boardsCtrl.starred_selected}}
+      <p class="ub-boards-page__offline-note">{{t "Liked boards are kept on this device for offline use." key="liked_boards_offline_note"}}</p>
+    {{/if}}
     <div class="ub-boards-page__boards-body">
       <AvailableBoardsSection @boardsCtrl={{this.boardsCtrl}} @filterInputId="ub-boards-filter-input-dashboard" />
     </div>

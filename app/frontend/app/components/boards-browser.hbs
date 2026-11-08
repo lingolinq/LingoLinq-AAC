@@ -30,6 +30,9 @@
        then refines with the filter input. See that template for the
        rendered <ul class="ub-boards-page__tabs"> markup. --}}
 
+  {{#if this.boardsCtrl.starred_selected}}
+    <p class="ub-boards-page__offline-note">{{t "Liked boards are kept on this device for offline use." key="liked_boards_offline_note"}}</p>
+  {{/if}}
   {{!-- Board grid (Mine folders, filter, DnD) --}}
   <div class="ub-boards-page__boards-body">
     <AvailableBoardsSection @boardsCtrl={{this.boardsCtrl}} @filterInputId={{this.filterInputId}} />

@@ -979,7 +979,7 @@ LingoLinq.Board = BaseModel.extend({
       }
     }).then(function(data) {
       _this.set('starred', data.starred);
-      _this.set('stars', data.stars);
+      _this.set('stars', data.stars); if(star && data.starred) { modal.success(i18n.t('liked_kept_offline', "Liked. This board will be kept on this device for offline use after the next sync.")); }
     }, function() {
       modal.warning(i18n.t('star_failed', "Like action failed"));
     });

@@ -696,3 +696,22 @@ browsing online.
 - Runs: units 614 pass, 0 fail; Chrome offline 19/19; WebKit 3/3; lint gate clean.
 - Not done: slow-down 2 (duplicate large writes), the before/after board count on a real account, and wording
   that tells people a star saves a board offline (Traci).
+
+### Like keeps a board offline: the wording (2026-11-08)
+
+Traci: keep "Like" in both views, add the wording.
+- Modern: "Set as Favorite" renamed "Like" (`templates/user/board-detail.hbs`, edit panel, Board Actions), tooltip
+  "Like this board to keep it on this device for offline use". Basic: the same text as hover text on the header
+  Like button and the small-screen menu item (`templates/application.hbs`). Same-line edits (template lint rows).
+- After liking, both views (`models/board.js` star_or_unstar): "Liked. This board will be kept on this device for
+  offline use after the next sync." Hover text never shows on an iPad. Unliking says nothing.
+- Boards page, Liked tab selected (`dashboard-user-boards.hbs`, `boards-browser.hbs`): "Liked boards are kept on this
+  device for offline use." New rule `.ub-boards-page__offline-note`, 18px.
+- Sync details (`sync-details.hbs`): "Kept on this device for offline use: your home board and its folders, your
+  sidebar boards, your liked boards, and Crisis Vocabulary."
+- en.json: like_offline_hint, liked_kept_offline, liked_boards_offline_note, sync_offline_scope (#1234 for the 12 locales).
+- Tests: 2 unit cases for the message (red with it removed); 287 component and page tests pass; ESLint gate,
+  template lint clean; stylelint's one error (app.scss:74, a `//` comment) is pre-existing. Screenshot in a
+  production build: the Like row and the message render.
+- Found: in Modern, Like sits in Edit mode > Action Panel > Board Actions; there is no Like on the board page
+  outside Edit.
