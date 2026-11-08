@@ -955,6 +955,52 @@ describe JsonApi::User do
       end
     end
 
+    describe "supervisee limited_identity locale" do
+      def supervisee_json(prefs)
+        sup = User.create
+        comm = User.create
+        comm.settings['preferences'].merge!(prefs)
+        comm.save
+        User.link_supervisor_to_user(sup, comm, nil, true)
+        JsonApi::User.build_json(comm.reload, limited_identity: true, supervisor: sup.reload)
+      end
+
+      it "uses the home board language first" do
+        json = supervisee_json('locale' => 'en', 'home_board' => {'id' => '1_1', 'key' => 'a/b', 'locale' => 'es'})
+        expect(json['locale']).to eq('es')
+      end
+
+      it "falls back to the language preference" do
+        expect(supervisee_json('locale' => 'fr')['locale']).to eq('fr')
+      end
+
+      it "is not sent to a modeling-only supervisor" do
+        sup = User.create
+        comm = User.create
+        comm.settings['preferences']['locale'] = 'fr'
+        comm.save
+        User.link_supervisor_to_user(sup, comm, nil, false)
+        json = JsonApi::User.build_json(comm.reload, limited_identity: true, supervisor: sup.reload)
+        expect(json['locale']).to eq(nil)
+      end
+
+      it "is not sent on an organization roster" do
+        sup = User.create
+        comm = User.create
+        comm.settings['preferences']['locale'] = 'fr'
+        comm.save
+        User.link_supervisor_to_user(sup, comm, nil, true)
+        json = JsonApi::User.build_json(comm.reload, limited_identity: true, supervisor: sup.reload, organization: Organization.create)
+        expect(json['locale']).to eq(nil)
+      end
+
+      it "is not sent without a supervisor" do
+        comm = User.create
+        comm.settings['preferences']['locale'] = 'fr'
+        expect(JsonApi::User.build_json(comm, limited_identity: true)['locale']).to eq(nil)
+      end
+    end
+
     describe "supervisee limited_identity can_set_goals" do
       it "is true for a supervisor with edit supervision" do
         sup = User.create

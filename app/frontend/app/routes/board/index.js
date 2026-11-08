@@ -6,7 +6,7 @@ import i18n from '../../utils/i18n';
 import LingoLinq from '../../app';
 import contentGrabbers from '../../utils/content_grabbers';
 import speecher from '../../utils/speecher';
-import { available_board_langs, resolve_board_display_locale } from '../../utils/board_display_locale';
+import { available_board_langs, board_default_locale, session_board_locale } from '../../utils/board_display_locale';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater } from '@ember/runloop';
 import { computed } from '@ember/object';
@@ -84,24 +84,12 @@ export default Route.extend({
     if (_this.appState.get('speak_mode') && _this.stashes.get('board_level')) {
       _this.appState.set('currentBoardState.level', _this.stashes.get('board_level'));
     }
-    // By default use whatever locale is set for the board, but
-    // if the user has explicitly set a preferred locale then try
-    // to use that. An empty locales list is "unknown", not English.
     var board_langs = available_board_langs(model, null);
-    var loc_types = ['label_locale', 'vocalization_locale'];
-    loc_types.forEach(function(loc_type) {
-      var preferred_lang = _this.stashes.get(loc_type);
-      var override = _this.stashes.get('override_' + loc_type) || preferred_lang;
-      if(preferred_lang) {
-        _this.appState.set(loc_type, resolve_board_display_locale({
-          boardDefault: model.get('locale') || 'en',
-          boardLangs: board_langs,
-          override: override,
-          preferred: preferred_lang
-        }));
-      } else {
-        _this.appState.set(loc_type, model.get('locale'));
-      }
+    var user_locale = _this.appState.get('currentUser.preferences.locale') ||
+      _this.appState.get('sessionUser.preferences.locale');
+    var default_locale = board_default_locale(model.get('locale'), model.get('key'), user_locale, board_langs);
+    ['label_locale', 'vocalization_locale'].forEach(function(loc_type) {
+      _this.appState.set(loc_type, session_board_locale(_this.stashes, loc_type, default_locale, board_langs));
     });
     if (LingoLinq.embedded && !_this.appState.get('speak_mode')) {
       // Embedded mode should only operate in Speak Mode, so force it

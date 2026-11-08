@@ -8,6 +8,7 @@ import app_state from '../utils/app_state';
 import persistence from '../utils/persistence';
 import progress_tracker from '../utils/progress_tracker';
 import stashes from '../utils/_stashes';
+import speecher from '../utils/speecher';
 
 /**
  * Translation Select modal (Phase 2).
@@ -112,6 +113,11 @@ export default Component.extend({
     return !this.get('can_start_translation');
   }),
 
+  speech_output: speecher,
+  shows_no_voice_notice: computed('translate_locale', 'speech_output.voices', function() {
+    const locale = this.get('translate_locale');
+    return !!locale && !speecher.has_voice_for(locale);
+  }),
   existing_default_language: computed('default_language', 'translate_locale', 'model.board.locales', function() {
     const loc = this.get('translate_locale');
     const list = this.get('model.board.locales') || [];

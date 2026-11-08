@@ -1536,12 +1536,44 @@ describe Api::BoardsController, :type => :controller do
       expect(trans['1']['es']['label']).to eq('sombrero')
     end
 
+    it "keeps a non-English locale on a blank board when translations carry only the language header" do
+      token_user
+      post :create, params: {
+        board: {
+          name: "Mi tablero",
+          locale: "es",
+          translations: {
+            "default" => "es",
+            "current_label" => "es",
+            "current_vocalization" => "es",
+            "board_name" => { "es" => "Mi tablero" }
+          }
+        }
+      }
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['board']['locale']).to eq('es')
+      board = Board.find_by_path(json['board']['id'])
+      trans = BoardContent.load_content(board, 'translations')
+      expect(trans['current_vocalization']).to eq('es')
+    end
+
     it "rewrites a non-English locale to en when english_first is on and translations are blank" do
       token_user
       post :create, params: { board: { name: "Mi tablero", locale: "es" } }
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json['board']['locale']).to eq('en')
+    end
+
+    it "keeps the language of a copy when the source board has no translations" do
+      token_user
+      source = Board.process_new({ 'name' => "Fuente", 'locale' => "es", 'buttons' => [{ 'id' => 1, 'label' => "sombrero" }],
+        'grid' => { 'rows' => 1, 'columns' => 1, 'order' => [[1]] } }, { user: @user })
+      post :create, params: { board: { name: "Fuente", locale: "es", parent_board_id: source.global_id } }
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['board']['locale']).to eq('es')
     end
   end
 

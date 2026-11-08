@@ -700,7 +700,8 @@ class Api::BoardsController < ApplicationController
       # Create-board-new sends both locales in translations when the user
       # authored in a non-English language. Keep that locale. Only rewrite
       # to English when the payload has no translations (legacy clients).
-      if locale.present? && !locale.match?(/^en/i) && translations.blank?
+      # A copy keeps its source's language, which may have no translations.
+      if locale.present? && !locale.match?(/^en/i) && translations.blank? && board_params['parent_board_id'].blank?
         board_params['locale'] = 'en'
       end
     end

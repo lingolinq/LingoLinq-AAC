@@ -65,6 +65,33 @@ describe('speecher', function() {
     });
   });
 
+  describe("has_voice_for", function() {
+    var prior;
+    beforeEach(function() { prior = speecher.get('voices'); });
+    afterEach(function() { speecher.set('voices', prior); });
+    it("should match on the language, ignoring region", function() {
+      speecher.set('voices', [{lang: 'es-MX', voiceURI: 'a', name: 'a'}]);
+      expect(speecher.has_voice_for('es')).toEqual(true);
+      expect(speecher.has_voice_for('es_ES')).toEqual(true);
+    });
+    it("should say no when speech would fall back to a voice in another language", function() {
+      speecher.set('voices', [{lang: 'en-US', voiceURI: 'a', name: 'a', default: true}]);
+      stub(speecher, 'get_persistence', function() { return {get: function() { return true; }}; });
+      expect(speecher.has_voice_for('es')).toEqual(false);
+    });
+    it("should not warn someone using the device's default voice", function() {
+      var priorVoice = speecher.voiceURI;
+      speecher.set('voices', [{lang: 'en-US', voiceURI: 'a', name: 'a', default: true}]);
+      speecher.voiceURI = 'force_default';
+      expect(speecher.has_voice_for('es')).toEqual(true);
+      speecher.voiceURI = priorVoice;
+    });
+    it("should not warn before voices have loaded", function() {
+      speecher.set('voices', []);
+      expect(speecher.has_voice_for('es')).toEqual(true);
+    });
+  });
+
   describe("speak_text", function() {
     beforeEach(function() {
       speecher.appState = app_state;
@@ -126,6 +153,44 @@ describe('speecher', function() {
         expect(utterance.text).toEqual("hippo");
         expect(utterance.voice).toNotEqual(null);
         expect(utterance.lang).toEqual('asdf');
+      });
+    });
+    it("should use opts.locale over the session speak language when choosing a voice", function() {
+      var utterance = null;
+      stub(window.speechSynthesis, 'speak', function(u) { utterance = u; });
+      stub(window.speechSynthesis, 'cancel', function() { });
+      stub(speecher.scope, 'SpeechSynthesisUtterance', function() { });
+      speecher.set('voices', [
+        {default: true, lang: 'en-US', voiceURI: 'english', name: 'english'},
+        {lang: 'es-ES', voiceURI: 'spanish', name: 'spanish'}
+      ]);
+      speecher.voiceURI = 'english';
+      speecher.voiceLang = 'en-US';
+      app_state.set('vocalization_locale', 'en');
+      speecher.speak_text("sombrero", null, {locale: 'es'});
+      waitsFor(function() { return utterance; });
+      runs(function() {
+        app_state.set('vocalization_locale', null);
+        expect(utterance.lang).toEqual('es-ES');
+      });
+    });
+    it("should keep using the session speak language when opts.locale is not passed", function() {
+      var utterance = null;
+      stub(window.speechSynthesis, 'speak', function(u) { utterance = u; });
+      stub(window.speechSynthesis, 'cancel', function() { });
+      stub(speecher.scope, 'SpeechSynthesisUtterance', function() { });
+      speecher.set('voices', [
+        {default: true, lang: 'en-US', voiceURI: 'english', name: 'english'},
+        {lang: 'es-ES', voiceURI: 'spanish', name: 'spanish'}
+      ]);
+      speecher.voiceURI = 'english';
+      speecher.voiceLang = 'en-US';
+      app_state.set('vocalization_locale', 'es');
+      speecher.speak_text("sombrero");
+      waitsFor(function() { return utterance; });
+      runs(function() {
+        app_state.set('vocalization_locale', null);
+        expect(utterance.lang).toEqual('es-ES');
       });
     });
     it("should not set a voiceURI or voice or lang for force_default voice", function() {

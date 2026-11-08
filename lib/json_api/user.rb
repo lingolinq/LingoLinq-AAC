@@ -369,6 +369,10 @@ json['preferences']['skin'] = user.settings['preferences']['skin']
         json['premium'] = user.any_premium_or_grace_period?
         json['skin'] = user.settings['preferences']['skin']
         json['symbols'] = user.settings['preferences']['preferred_symbols']
+        # create-board-new makes a board for this communicator in their language, which needs
+        # edit access (boards#create). args[:supervisor] can be the list owner, not the caller
+        # (#1277), but anyone listed here can already read this in preferences.home_board.
+        json['locale'] = (user.settings['preferences']['home_board'] || {})['locale'] || user.settings['preferences']['locale'] if json['edit_permission'] && !args[:organization]
         json['goal'] = user.settings['primary_goal']
         # Total count + a small slice of this user's active goals so the
         # supervisor's caseload card can show a real "GOALS n" count
