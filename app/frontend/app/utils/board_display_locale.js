@@ -74,6 +74,8 @@ export function session_board_locale(stashes, loc_type, board_default, board_lan
 // viewed, so it counts only through the rule above, and only if the board literally has it:
 // the resolver can answer with a root language (es) for a board that stores a regional one (es_US).
 export function board_language_for_session(stashes, board) {
+  // A preview can still be a plain { loading: true } object.
+  if(!board || !board.get) { return undefined; }
   var own = board.get('locale');
   var board_langs = available_board_langs(board, null);
   var session = session_board_locale(stashes, 'label_locale', own, board_langs);

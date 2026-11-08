@@ -1945,7 +1945,7 @@ export default Service.extend({
       }
     }
     var preferred = opts.force_board_state || user_preferred || opts.fallback_board_state || this.stashes.get('root_board_state') || null;
-    if(preferred && preferred.locale && !this.stashes.get('override_label_locale')) {
+    if(preferred && preferred.locale) {
       this.stashes.persist('label_locale', preferred.locale);
       this.stashes.persist('vocalization_locale', preferred.locale);
     }

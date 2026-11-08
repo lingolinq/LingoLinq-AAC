@@ -100,8 +100,8 @@ Not changed, flagged to Traci:
   board-alt" line in the fact sheet above no longer applies.
 - The session write on create is removed: routes now ignore the plain stash, so it only disturbed
   Switch Languages. Gap G2 is solved by the route rule instead.
-- Home board saved language is not honoured, as in Modern: `app-state.js:1474` copies the viewed
-  language onto it, so promoting it to an override would stick people in a language by accident.
+- Home board saved language is not honoured, as in Modern: Speak Mode used to copy the viewed language
+  onto it (now only on the home board, see Round 4), and other writers still pass the session language.
 - `has_voice_for` asks `find_voice_by_uri`; a list check said yes on English-only online devices.
 - Boards with no language (obf/stars, integrations) stay unset rather than being forced to `en`.
 - Owner language shows on the owner step with both notices, and a supervisee with no language
@@ -123,9 +123,9 @@ Not changed, flagged to Traci:
 
 ## Round 4: full review and deep dive (2026-11-06)
 
-Lines above marked as early thinking are superseded here: the session is no longer written on create,
-Language is on step 1 not under Advanced, and `JsonApi::User` now sends `locale` to people with edit
-rights.
+The fact sheet, risks and open questions near the top were written first and are superseded here: the
+session is no longer written on create, Language is on step 1 not under Advanced, and `JsonApi::User` now
+sends `locale` to people with edit rights.
 
 Two reviewers read the whole branch, then each claim was run. Results:
 - Language on supervisee rows is not a new disclosure: view-only and modeling-only people already get
@@ -137,18 +137,19 @@ Two reviewers read the whole branch, then each claim was run. Results:
 - A copy with no translations was rewritten to `en` by boards#create; copies are now exempt.
 - The copy dialog seeded from the leftover session language, which crashed `create_copy` on a plain English
   board. The dialog now uses the session rule, and `create_copy` changes language only if something was
-  translated, matching `Relinking#update_default_locale!`.
+  translated, buttons or name, matching `Relinking#update_default_locale!`.
 - A blank board no longer sends its name to Google.
-- `home_in_speak_mode` no longer replaces the session language with Switch Languages on. The wider reorder
-  in `session_board_locale` was rejected: it moves a supporter's Switch choice onto a communicator's first
-  screen under Speak As, and flips a board after an explicit edit language.
+- Switch Languages losing at Speak Mode entry is unchanged from `develop`. A guard in `home_in_speak_mode` was
+  tried and removed: it put a supporter's Switch language on a communicator under Speak As, and left the plain
+  stash null, which switches off the level block at `app-state.js:1688`. The reorder in `session_board_locale`
+  was rejected for the same Speak As reason. Traci decided Switch Languages follows the person; the reviewed
+  owner design for that is recorded below.
 
 Not done, and why:
 - Clamping `home_board.locale` on the server: `spec/models/user_spec.rb:4871` pins storing a language the
   board lacks, and tests are not edited to fit a fix. Seven other client writers still pass `label_locale`.
 - Route test for board-detail: its setup starts the board build and shared edit state, so it leaks. The
   local Modern journeys cover that page.
-- Whether Switch Languages belongs to the device or the person (Speak As) is an open product question.
 
-`board-language-rule-test` leaked its stand-in controller through `editManager`, which failed 18 of the speak
+`board-language-rule-test` leaked its stand-in controller through `editManager`, which failed unrelated speak
 tests when run together. Targeted runs had hidden this. It now restores the shared state.

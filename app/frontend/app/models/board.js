@@ -1093,10 +1093,11 @@ LingoLinq.Board = BaseModel.extend({
           btn.inflections = trans[btn.id][new_loc].inflections;
         }
       });
+      if(trans['board_name'] && trans['board_name'][new_loc]) {
+        anything_translated = true;
+        board.set('name', trans['board_name'][new_loc]);
+      }
       if(anything_translated) {
-        if(trans['board_name'] && trans['board_name'][new_loc]) {
-          board.set('name', trans['board_name'][new_loc]);
-        }
         board.set('buttons', buttons);
         board.set('locale', new_loc);
       }

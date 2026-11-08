@@ -1269,10 +1269,6 @@ describe('app_state', function() {
       it("should use the home board language with Switch Languages off", function() {
         expect(go_home(null)).toEqual(['es', 'es']);
       });
-
-      it("should not replace the session language with Switch Languages on", function() {
-        expect(go_home('en')).toEqual([null, null]);
-      });
     });
 
     it("should call toggle_mode", function() {

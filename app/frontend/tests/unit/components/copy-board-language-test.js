@@ -1,8 +1,10 @@
 import { module, test } from 'qunit';
 import EmberObject from '@ember/object';
 import RSVP from 'rsvp';
+import { waitUntil } from '@ember/test-helpers';
 import { setupTest } from '../../helpers';
 import LingoLinq from 'frontend/app';
+import { board_language_for_session } from 'frontend/utils/board_display_locale';
 
 /* A copy keeps its own language unless something on it can actually be shown in the new one. The
  * session language stays on the last board viewed, and an ordinary English board has no
@@ -46,7 +48,22 @@ module('Unit | copy-board language', function(hooks) {
     assert.strictEqual(copy.get('buttons')[0].label, 'sombrero');
   });
 
-  test('the copy dialog ignores a language left over from another board', function(assert) {
+  test('create_copy: a board with only its name in the new language changes to it, as the server does', function(assert) {
+    const copy = copy_with(this.owner, { board_name: { es: 'Sombreros' } });
+    assert.strictEqual(copy.get('locale'), 'es');
+    assert.strictEqual(copy.get('name'), 'Sombreros');
+  });
+
+  test('create_copy: the name stays when nothing is in the new language', function(assert) {
+    assert.strictEqual(copy_with(this.owner, { board_name: { fr: 'Chapeaux' } }).get('name'), 'Hats');
+  });
+
+  test('board_language_for_session is safe on a preview that has not loaded', function(assert) {
+    const stashes = this.owner.lookup('service:stashes');
+    assert.strictEqual(board_language_for_session(stashes, { loading: true }), undefined);
+  });
+
+  test('the copy dialog ignores a language left over from another board', async function(assert) {
     assert.expect(1);
     const appState = this.owner.lookup('service:app-state');
     const realLocale = appState.get('label_locale');
@@ -57,6 +74,8 @@ module('Unit | copy-board language', function(hooks) {
     try {
       component.runOpening();
       assert.strictEqual(component.get('default_locale'), 'en');
+      // Opening selects 'self', which fetches that user (components/copy-board.js:209-226).
+      await waitUntil(function() { return component.get('loading') === false; });
     } finally {
       appState.set('label_locale', realLocale);
       component.destroy();
