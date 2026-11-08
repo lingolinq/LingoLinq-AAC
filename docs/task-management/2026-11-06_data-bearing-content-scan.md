@@ -41,7 +41,8 @@ gate's own files.
   (`scan_raw`, `scan_entry`, `added_lines`, `scan_text`), the `ALWAYS_LABEL_RE` and
   `BINARY_EXT_RE` lists, workflow rule removed, headers rewritten. Scanner is an inline python3
   program reading bytes; it prints kinds, never values.
-- Tests: 163 cases before, 379 after, including three built-in mutants.
+- Tests: 163 cases before, 399 after, including three built-in mutants and three
+  fault-injection cases.
 - Headers of the workflow and CI script, the canary list, `CLAUDE.md` (new "no production
   data" rule and the Before a PR paragraph), `AGENTS.md`, `.github/copilot-instructions.md`,
   `.claude/rules/data-bearing-paths.md`, and the two audit-run skills' run-log notes.
@@ -85,6 +86,26 @@ symlinked workflow was checked on its target string, not its target. The failure
 fits a workflow-only finding, and both audit-run skills list every flagged kind. Documented,
 not changed: the workflow match is text-level (a YAML escape or line continuation inside the
 name, a run-time expression, or a reusable workflow from another repository is not seen).
+
+## Dual review round 1 (2026-11-07, at 94918ebba)
+
+Codex (gpt-6.1-sol, high) returned request-changes. Reproduced and fixed, red tests first (10
+cases): a space before `base64` in a `data:` URL (valid, and decoded by browsers) hid a
+recording; internationalized email domains (`@école-...fr`, non-ASCII or punycode top-level
+domains) were missed; a `scan_raw` redirect failure returned 1 to a caller that read it as done,
+reaching a pass, and an unterminated final record was dropped. The fix is one guard inside
+`scan_raw` (`done 9< ... || die3`, then a leftover-record check); a second, redundant guard was
+removed after its mutant showed it carried no weight. Accepted by Scot as documented, not fixed:
+the workflow rule's text-level residual (a YAML escape inside the name). Findings file:
+`<git-common-dir>/pr-reviews/pr-1280-r1.md`.
+
+The adversary pass found no Critical or High. Fixed, red tests first (5 cases): base64 audio of
+the types the app itself records (`application/ogg`, `application/octet-stream` from an empty
+File.type, an empty type; `services/content-grabbers.js` `looks_like_audio`); a Git LFS pointer
+now needs the label; the media pattern was quadratic (88 KB took 10.4 s, now 0.07 s). Text: the
+compliance-officer agent and the classifier test header no longer say every data-bearing change
+waits for a person; AGENTS.md and copilot-instructions.md carry CLAUDE.md's full clause.
+Refuted: `export LC_ALL=C` does not change the classifier, which sets it itself.
 
 ## Not done here (follow-ups)
 

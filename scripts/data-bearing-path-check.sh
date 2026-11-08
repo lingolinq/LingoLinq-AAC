@@ -60,15 +60,19 @@
 #       audio or video file inlined as a base64 data: URI (a voice recording is student
 #       data; Scot, 2026-11-07) needs an approval. Reserved: example.com, example.net
 #       and example.org with their subdomains, and the .test, .example, .invalid and
-#       .localhost top-level domains (RFC 2606). An email's local part may hold
-#       non-ASCII bytes (josé@...).
+#       .localhost top-level domains (RFC 2606). An email may be internationalized
+#       (josé@école.fr, a punycode xn-- top-level domain), and a data: URL may carry
+#       spaces around its media type and before "base64".
 #     - Removed and unchanged lines are never scanned. For a merge commit only the lines
 #       new to EVERY parent count, so a release merge does not scan develop's lines again.
 #     The scan sees shapes, not meaning. These pass it: a name, a street address, a
 #     birth date, a free-text note; a phone number in another format (international,
 #     unseparated, space-separated, mixed separators, "(NNN)-NNN-NNNN", or glued to a
-#     word); an SSN without dashes; a URL-encoded email; media inlined any way other
-#     than a base64 data: URI; and a file name, since only content is scanned. A JSON or
+#     word); an SSN without dashes; a URL-encoded email; media inlined other than as a
+#     base64 data: URI of an image, audio or video type, application/ogg,
+#     application/octet-stream or no type (a base64 data: URI with another declared type,
+#     such as text/plain, passes); and a file name, since only content is scanned. A
+#     Git LFS pointer needs an approval, since its content is stored elsewhere. A JSON or
 #     YAML escape (\n, \t, and JSON's \/) does not hide a value. A binary file is caught
 #     by its extension or a NUL byte, so a NUL-free file with an unlisted extension is
 #     read as text. That is why test data must be generated or obviously fake
@@ -90,8 +94,8 @@
 #     .github/workflows/ needs one too, since its target is not checked. Residual: the
 #     match is on the file's text, so a name the file does not spell out is not seen: a
 #     YAML escape or line continuation inside the name, an expression that assembles it
-#     at run time, or a reusable workflow from another repository that names the
-#     environment itself.
+#     at run time, or a reusable workflow, from another repository or another ref of
+#     this one, that names the environment itself.
 #
 #   The path patterns are not duplicated here. This script asks
 #   scripts/codex-review-path-classifier.sh, which holds the list vendored from the
@@ -159,7 +163,9 @@ data = re.sub(rb"\\[nrtfv]", b" ", data)
 data = data.replace(b"\\/", b"/")
 found = set()
 # Bounded parts keep the scan linear on a long run with no "@".
-for m in re.finditer(rb"[A-Za-z0-9._%+\x80-\xff-]{1,64}@([A-Za-z0-9-]{1,63}(?:\.[A-Za-z0-9-]{1,63}){0,8}\.[A-Za-z]{2,63})", data):
+# Domains may be internationalized: non-ASCII bytes in any label, a non-ASCII or punycode
+# (xn--) top-level domain.
+for m in re.finditer(rb"[A-Za-z0-9._%+\x80-\xff-]{1,64}@([A-Za-z0-9\x80-\xff-]{1,63}(?:\.[A-Za-z0-9\x80-\xff-]{1,63}){0,8}\.(?:xn--[A-Za-z0-9-]{1,59}|[A-Za-z\x80-\xff]{2,63}))", data):
     d = m.group(1).lower()
     tld = d.rsplit(b".", 1)[-1]
     if tld in (b"test", b"example", b"invalid", b"localhost"):
@@ -177,7 +183,12 @@ for m in re.finditer(phone, data):
         found.add("phone")
 if re.search(left + rb"[0-9]{3}-[0-9]{2}-[0-9]{4}" + right, data):
     found.add("ssn")
-if re.search(rb"data:(?:image|audio|video)/[^;,\s\x22\x27]*(?:;[^;,\s\x22\x27]*)*;base64,", data, re.I):
+# A data: URL allows spaces around the media type and before "base64" (WHATWG fetch). The
+# app records audio typed application/ogg or with no type, which a browser encodes as
+# application/octet-stream (services/content-grabbers.js looks_like_audio), so those count
+# too, as does an empty type. Bounded parts keep the scan linear.
+media = rb"data:[ \t]*(?:(?:image|audio|video)/[^;,\n\x22\x27]{0,127}|application/(?:ogg|octet-stream)[ \t]*|)(?:;[^;,\n\x22\x27]{0,256}){0,16};[ \t]*base64[ \t]*,"
+if re.search(media, data, re.I):
     found.add("media")
 for kind in sorted(found):
     print(kind)
@@ -373,6 +384,14 @@ scan_entry() {
     note "$path" "is binary (it holds a NUL byte), so its content cannot be scanned"
     return 0
   fi
+  # A Git LFS pointer names content stored elsewhere, which this scan never sees.
+  local first=""
+  IFS= read -r first < "$NEWF" || :
+  case "$first" in
+    'version https://git-lfs.github.com/spec/'*)
+      note "$path" "is a Git LFS pointer, so its content is stored elsewhere and cannot be scanned"
+      return 0 ;;
+  esac
   added_lines "$new" "$@"
   scan_text "$ADDED" "$path"
 }
@@ -380,9 +399,11 @@ scan_entry() {
 # scan_raw <file>: judge every path in a `--raw -z --no-abbrev` listing. A plain record
 # is ":<old-mode> <new-mode> <old-blob> <new-blob> <status>"; a merge's combined record
 # has one colon, mode and blob per parent ("::<m1> <m2> <mR> <b1> <b2> <bR> <status>").
-# Read on fd 9, so nothing run per path can read the listing from stdin.
+# Read on fd 9, so nothing run per path can read the listing from stdin. A listing that
+# cannot be opened, or that ends in a record with no closing NUL, stops the check: a
+# redirect failure on the loop would otherwise return 1 to a caller that reads it as done.
 scan_raw() {
-  local meta path n
+  local meta="" path n
   local -a fields
   while IFS= read -r -d '' -u 9 meta; do
     IFS= read -r -d '' -u 9 path || die3 "a raw diff record has no path"
@@ -392,7 +413,8 @@ scan_raw() {
     [ "${#fields[@]}" -eq $((2 * n + 3)) ] || die3 "unexpected raw diff record"
     case "$path" in *$'\n'*) die3 "a changed path holds a newline" ;; esac
     scan_entry "$path" "${fields[$n]}" "${fields[$((2 * n + 1))]}" "${fields[@]:$((n + 1)):$n}"
-  done 9< "$1"
+  done 9< "$1" || die3 "could not read the raw diff listing"
+  [ -z "$meta" ] || die3 "the raw diff listing ends in an unterminated record"
 }
 
 verdict=false

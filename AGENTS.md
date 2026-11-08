@@ -41,7 +41,8 @@ include children and clinical patients; FERPA, HIPAA, GDPR and COPPA apply.
   `data-bearing-paths` check scans the lines a PR adds under data-bearing paths (emails,
   phone numbers, SSN-shaped numbers, base64 image, audio or video `data:` URIs, binary
   files) and is the automated check; a clean change passes with no label. It sees shapes, not meaning, so your own look comes first.
-  This rule is about what goes in: Tier 1 handling of dev and staging is unchanged.
+  This rule is about what goes in, not a statement about what is there: Tier 1 handling
+  of dev and staging is unchanged.
 - **Node 22** (`.nvmrc`), **Ruby 3.4.4** (`.ruby-version`). No TypeScript conversion.
 - **Never suppress a deprecation**; fix the root cause. Edit existing SCSS selectors in
   place; never stack overrides. Preserve styling class names.

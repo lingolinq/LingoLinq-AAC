@@ -287,10 +287,14 @@ run_check 1 'PR to main: an email on a non-reserved domain fails'       "$EMAIL"
 i=0
 for v in 'x@notexample.com' 'x@example.com.not-a-real-school.com' 'x@example.co' 'x@school.testing' 'X@NOT-A-REAL-SCHOOL.COM' \
          '555-555-0200' '555-555-0099' '(555) 555-0234' '(555)555-0234' '555.555.0200' '555-556-0150' '+1 555-555-1234' \
-         '123-45-6789' 'id 123-45-6789.' $'jos\303\251@not-a-real-school.com' $'jos\351@not-a-real-school.com'; do
+         '123-45-6789' 'id 123-45-6789.' $'jos\303\251@not-a-real-school.com' $'jos\351@not-a-real-school.com' \
+         $'test.student@\303\251cole-fictive.fr' $'x@caf\351-fictive.fr' $'x@fictive-school.\321\200\321\204' 'x@fictive-school.xn--p1ai'; do
   i=$((i + 1))
   run_check 1 "a value that looks real fails: $v" "$(fixture_change "real-$i" spec/fixtures/contacts.yml "name: Test Student"$'\n'"value: $v"$'\n')" false
 done
+# An accented domain under a reserved example domain is still reserved.
+run_check 0 'an accented subdomain of a reserved domain passes' \
+  "$(fixture_change idn-reserved spec/fixtures/contacts.yml $'a: aide@\303\251cole.example.com\nb: aide@\303\251cole.test\n')" false
 # A value right after a JSON or YAML escape (\n, \t, \r) is still a value: the escape's
 # letter must not hide it.
 i=0
@@ -309,7 +313,11 @@ for v in '{"img":"data:image/png;base64,AAAA"}' '{"img":"DATA:IMAGE/JPEG;BASE64,
          '{"clip":"data:audio/webm;codecs=opus;base64,AAAA"}' '{"clip":"data:Audio/MPEG;Base64,AAAA"}' \
          '{"clip":"data:video/mp4;base64,AAAA"}' '{"clip":"DATA:VIDEO/WEBM;BASE64,AAAA"}' \
          'image: "data:image/svg+xml;base64,AAAA"' '{"data":"data:image\/png;base64,AAAA"}' \
-         '{"clip":"data:audio\/webm;base64,AAAA"}'; do
+         '{"clip":"data:audio\/webm;base64,AAAA"}' '{"clip":"data:audio/webm; base64,AAAA"}' \
+         '{"img":"data: image/png;base64,AAAA"}' '{"img":"data:image/png ;base64,AAAA"}' \
+         '{"clip":"data:audio/webm;codecs=opus ; base64 ,AAAA"}' '{"clip":"data:audio/ogg; codecs=opus;base64,AAAA"}' \
+         '{"clip":"data:application/ogg;base64,AAAA"}' '{"clip":"DATA:APPLICATION/OGG;BASE64,AAAA"}' \
+         '{"clip":"data:application/octet-stream;base64,AAAA"}' '{"clip":"data:;base64,AAAA"}'; do
   i=$((i + 1))
   run_check 1 "a base64 media data: URI fails: $v" "$(fixture_change "media-$i" spec/fixtures/board.json "$v"$'\n')" false
 done
@@ -317,7 +325,8 @@ MEDIA="$(fixture_change media-approved spec/fixtures/board.json '{"img":"data:im
 run_check 0 'a base64 media data: URI with an approval passes'          "$MEDIA" true
 run_check 1 'PR to staging: a base64 media data: URI fails'             "$MEDIA" false PR_BASE_REF=staging DEVELOP_SHA="$BASE"
 for v in '{"img":"data:image/svg+xml;utf8,<svg/>"}' '{"txt":"data:text/plain;base64,AAAA"}' \
-         '{"doc":"data:application/json;base64,AAAA"}' '{"note":"see the image/png docs; base64 is an encoding"}'; do
+         '{"doc":"data:application/json;base64,AAAA"}' '{"note":"see the image/png docs; base64 is an encoding"}' \
+         '{"txt":"data:text/plain; base64,AAAA"}'; do
   i=$((i + 1))
   run_check 0 "not a base64 media data: URI, passes: $v" "$(fixture_change "media-$i" spec/fixtures/board.json "$v"$'\n')" false
 done
@@ -352,6 +361,11 @@ for ext in png jpg jpeg gif bmp webp tif tiff ico heic heif mp3 wav ogg oga m4a 
       "$(fixture_change "ext-$i" "spec/fixtures/files/sample.$e" $'Test Student\n')" false
   done
 done
+# A Git LFS pointer holds no content to scan: the real file is stored elsewhere.
+run_check 1 'a Git LFS pointer under a data path fails' \
+  "$(fixture_change lfs-pointer tmp/roster.csv $'version https://git-lfs.github.com/spec/v1\noid sha256:0000000000000000000000000000000000000000000000000000000000000000\nsize 12\n')" false
+run_check 0 'a csv that only mentions git-lfs later in the file passes' \
+  "$(fixture_change lfs-mention tmp/notes.csv $'name,note\nTest Student,see version https://git-lfs.github.com/spec/v1\n')" false
 # A submodule (gitlink) under a fixtures path has no content to scan.
 git -C "$REPO" checkout -q -B gitlink "$BASE"
 git -C "$REPO" update-index --add --cacheinfo "160000,$BASE,spec/fixtures/vendored"
@@ -516,6 +530,14 @@ mutant_case 'scanning file names instead of contents misses the email in the con
   'scan_text "$ADDED" "$path"' 'printf "%s\n" "$path" > "$ADDED"; scan_text "$ADDED" "$path"' 0 "$EMAIL"
 CHECK_BASE="$DIRTY" mutant_case 'scanning the whole new file flags an unchanged line' \
   'added_lines "$new" "$@"' 'cat -- "$NEWF" > "$ADDED"' 1 "$EDIT_NEXT"
+# Fault injection through the same helper: the raw listing goes missing, or ends in an
+# unterminated record, before it is read. Both must stop the check (exit 3), never pass it.
+mutant_case 'fault: a missing raw listing fails closed' \
+  'scan_raw "$RAW"' 'rm -f -- "$RAW"; scan_raw "$RAW"' 3 "$FIX"
+mutant_case 'fault: PR to staging, a missing raw listing fails closed' \
+  'scan_raw "$RAW"' 'rm -f -- "$RAW"; scan_raw "$RAW"' 3 "$REL_FIX" PR_BASE_REF=staging DEVELOP_SHA="$FIX"
+mutant_case 'fault: an unterminated raw record fails closed' \
+  'scan_raw "$RAW"' 'printf ":100644 100644 0" >> "$RAW"; scan_raw "$RAW"' 3 "$FIX"
 
 # --- The CI entry script, against a stubbed gh. The stub applies the real --jq
 # filter to canned JSON, so the filters are tested too. Statuses it is asked to post
