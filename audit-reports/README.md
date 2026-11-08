@@ -70,7 +70,7 @@ every item in its own checklist and every read on the named live-read list succe
 is stamped partial. Only three things a repo read cannot answer are disclosed standing limits, not
 gaps: callers outside the repo, vendor internals, and provider-side key revocation unless the provider
 console is opened. Open findings do not affect coverage. The coverage verdict rests on the finders'
-own receipts and Scot's sign-off, not on a mechanical check. The live-read list and how a run decides
+own receipts and, in the annual formal run, Scot's sign-off, not on a mechanical check. The live-read list and how a run decides
 are in `.claude/skills/audit-run/SKILL.md`. Every full stamp carries this exact line:
 
 ```

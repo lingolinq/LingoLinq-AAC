@@ -218,8 +218,6 @@ adversary, red-team, review) before merge if it touches any of:
 - Infra or deploy config
 - The `data-bearing-paths` gate
 
-At most two review rounds; a third needs Scot's OK.
-
 ### The two passes
 
 1. **Senior-dev pass** (`/review-pr`): correctness, edge cases, security, privacy,
@@ -235,6 +233,7 @@ At most two review rounds; a third needs Scot's OK.
   PR, or get explicit sign-off to defer with a tracked follow-up issue.
 - **Medium**: surface to the approver for triage.
 - **Low**: log and continue.
+- **Rounds**: at most two review rounds on any PR; a third needs Scot's OK.
 
 ## Commit Messages
 
