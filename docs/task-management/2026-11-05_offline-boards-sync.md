@@ -669,3 +669,30 @@ roots being on the device). Conditions:
   option only the sync passes. Low: leave the field off shallow clones. Low: spec the field on
   `boards#index?user_id=` (list summary), not `as_json`.
 Estimate with the conditions: about a day with tests and a code review. Waiting on Traci.
+
+### #1221 slow-down 1 done: the offline sync takes home, sidebar, starred and Crisis Vocabulary (2026-11-08)
+
+Traci's final decision (replacing the tag plan above): to have a starter board or any other board offline, star
+it. The offline sync starts from the home board, the sidebar, starred boards (not the system's suggestions,
+unless "Make my Home Board a list of all my liked boards") and Crisis Vocabulary, always (the sidebar misses it
+when the whole sidebar was replaced: `User.merge_missing_default_sidebar_boards` re-adds it only while a default
+entry remains). Not owned roots or public roots; the background prefetch setting now only warms memory for
+browsing online.
+- `utils/offline_sync_seeds.js`, used by both sync copies (`services/persistence.js`, `utils/persistence.js`);
+  the list fetch for the sync is gone, and so is the now unused planner import.
+- Lint baseline updated with Traci's approval: 69 rows in the two sync files moved line numbers only (same
+  1,549 rows before and after, compared ignoring line numbers; gate clean).
+- Found on the way (CONFIRMED, `api/boards_controller.rb` user filter): listing another account's boards needs
+  view_detailed on it, so for an ordinary user the library list (user_id=lingolinq) answers 400, which rejects
+  the whole prefetch list fetch (`board_prefetch_planner.js` fetchBoardListsForPrefetch), so owned and public
+  roots were not reaching an ordinary user's sync before this change. The 1,355 extra boards in #1221 most
+  likely came from an account allowed to list the library (not checked).
+- Tests: 7 unit cases for the rule; e2e "a sync saves the home board, starred boards and Crisis Vocabulary, and
+  not an unstarred board" (new user e2e_offline_stars; star! needs User#remember_starred_board!, run directly
+  as no workers run locally). Red with starred boards dropped from the rule. The "not an unstarred board" check
+  could not be made red locally (see the 400 above). Four sync tests updated with Traci's approval for the new
+  Crisis Vocabulary start: their fake server answers it, one count 2 to 3, two status lookups by id or key
+  instead of position, one list of reloaded boards.
+- Runs: units 614 pass, 0 fail; Chrome offline 19/19; WebKit 3/3; lint gate clean.
+- Not done: slow-down 2 (duplicate large writes), the before/after board count on a real account, and wording
+  that tells people a star saves a board offline (Traci).

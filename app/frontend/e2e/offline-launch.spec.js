@@ -374,6 +374,26 @@ test.describe('offline launch from the offline app shell', () => {
     }
   });
 
+  // Added 2026-11-08 (#1221). A sync takes the home board, the sidebar, starred boards and Crisis
+  // Vocabulary, and their folders; not the person's other boards, the starter copies made at sign-up, or
+  // public boards. To have another board on the device, star it.
+  test('a sync saves the home board, starred boards and Crisis Vocabulary, and not an unstarred board', async () => {
+    const context = await openProfile('stars');
+    try {
+      const page = context.pages()[0] || await context.newPage();
+      await signIn(page, 'e2e_offline_stars', 'offline-launch.rb');
+      await page.evaluate(() => { window.persistence.sync('self', null, null, 'manual_sync').then(null, () => {}); });
+      await page.waitForFunction(() => ['succeeded', 'finished', 'failed'].indexOf(window.persistence.get('sync_status')) !== -1, null, { timeout: 300_000 });
+      const saved = await page.evaluate(() => window.lingoLinqExtras.storage.find_all('board').then((rows) => rows.map((r) => r.data && r.data.raw && r.data.raw.key)));
+      expect(saved).toContain('e2e_offline_stars/e2e-offline-stars-home');
+      expect(saved).toContain('e2e_offline_stars/e2e-offline-starred');
+      expect(saved.some((k) => /crisis-vocabulary$/.test(k || '')), 'Crisis Vocabulary').toBe(true);
+      expect(saved, 'an unstarred board of the person\'s own is not synced').not.toContain('e2e_offline_stars/e2e-offline-unstarred');
+    } finally {
+      await context.close();
+    }
+  });
+
   // Added 2026-11-07. A device that cannot save (out of storage: an iPad's free space, or the 1 GB limit
   // before iPadOS 17) used to report the sync as succeeded with no boards saved, so it looked ready
   // offline. Every database write is made to fail here (its transaction aborts), as on a full device.

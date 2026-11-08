@@ -99,4 +99,17 @@ end
   result["pictures_#{view}"] = { user: picture_user.user_name, board: picture_board.key }
 end
 
+# Which boards a sync takes (#1221): home, sidebar, starred and Crisis Vocabulary; not the person's other
+# boards. One board of the person's own is starred, one is not; neither is linked from the home board.
+stars_user = e2e_user('e2e_offline_stars', 'board_view_style' => 'modern', 'word_suggestions' => false, 'sidebar_boards' => e2e_sidebar)
+stars_home = without_pictures!(offline_e2e_text_board(stars_user, 'e2e-offline-stars-home', 'E2E Offline Stars Home', false, %w[hi bye]))
+starred = without_pictures!(offline_e2e_text_board(stars_user, 'e2e-offline-starred', 'E2E Offline Starred', false, %w[apple]))
+unstarred = without_pictures!(offline_e2e_text_board(stars_user, 'e2e-offline-unstarred', 'E2E Offline Unstarred', false, %w[pear]))
+# star! hands the user's list to a background job (User#remember_starred_board!); no workers run here.
+starred.star!(stars_user, true)
+stars_user.remember_starred_board!(starred.global_id)
+stars_user.process_home_board({ 'id' => stars_home.global_id, 'key' => stars_home.key }, {})
+stars_user.save!
+result['stars'] = { user: stars_user.user_name, home: stars_home.key, starred: starred.key, unstarred: unstarred.key, crisis: crisis_key }
+
 puts result.to_json

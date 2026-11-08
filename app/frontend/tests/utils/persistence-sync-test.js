@@ -1652,7 +1652,7 @@ describe("persistence-sync", function() {
       cacheStoredUrl('http://example.com/pic.png');
       cacheStoredUrl('http://example.com/board.png');
       cacheStoredUrl('http://example.com/image.png');
-      cacheStoredUrl('http://example.com/sound.mp3');
+      cacheStoredUrl('http://example.com/sound.mp3'); defineCrisisVocabularyFixture(); // every sync also starts from Crisis Vocabulary (#1221)
 
       var result = null;
       persistence.sync(1340).then(function(res) {
@@ -1670,10 +1670,10 @@ describe("persistence-sync", function() {
         expect(log.length).toEqual(1);
         expect(log[0].user_id).toEqual('fred');
         expect(log[0].issues).toEqual(true);
-        expect(log[0].statuses.length).toEqual(2);
+        expect(log[0].statuses.length).toEqual(3); // the home board, its folder, and Crisis Vocabulary (#1221; updated 2026-11-08, approved)
         expect(log[0].statuses[0].id).toEqual('145');
-        expect(log[0].statuses[1].id).toEqual('167');
-        expect(log[0].statuses[1].error).toEqual('board 167 failed retrieval for syncing, linked from 145');
+        var failed = log[0].statuses.find(function(s) { return s.id == '167'; }) || {}; expect(failed.id).toEqual('167'); // found by id: Crisis Vocabulary also has an entry
+        expect(failed.error).toEqual('board 167 failed retrieval for syncing, linked from 145');
         cancelSyncTailWork();
         persistence.set('sync_progress', null);
         LingoLinq.sync_testing_real_boards = false;
@@ -2625,7 +2625,7 @@ describe("persistence-sync", function() {
         type: 'board',
         response: r,
         id: 'aa/cc'
-      });
+      }); defineCrisisVocabularyFixture(); // every sync also starts from Crisis Vocabulary (#1221)
 
       var prevFindRecord = LingoLinq.store.findRecord.bind(LingoLinq.store);
       stub(LingoLinq.store, 'findRecord', function(type, id) {
@@ -2662,7 +2662,7 @@ describe("persistence-sync", function() {
         expect(logs[0].issues).toEqual(true);
         expect(logs[0].user_id).toEqual('fred');
         expect(logs[0].statuses[0].key).toEqual('aa/bb');
-        expect(logs[0].statuses[1].error).toEqual('board aa/cc failed retrieval for syncing, linked from aa/bb');
+        expect((logs[0].statuses.find(function(s) { return s.key == 'aa/cc'; }) || {}).error).toEqual('board aa/cc failed retrieval for syncing, linked from aa/bb'); // found by key: Crisis Vocabulary also has an entry (#1221; updated 2026-11-08, approved)
         cancelSyncTailWork();
         persistence.set('sync_progress', null);
         LingoLinq.sync_testing_real_boards = false;
@@ -5283,7 +5283,7 @@ describe("persistence-sync", function() {
         stubBoardReloadTracking([boards[0], boards[1]], reloads);
         stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
         stub(window.$, 'realAjax', function(options) {
-          if(options.url === '/api/v1/users/1340') {
+          if(isCrisisVocabularyRequest(options.url)) { return RSVP.resolve({board: crisisVocabularyBoard()}); } if(options.url === '/api/v1/users/1340') { // every sync also starts from Crisis Vocabulary (#1221)
             return RSVP.resolve({user: {id: '1340', user_name: 'fred', avatar_url: 'http://example.com/pic.png', preferences: {home_board: {id: '1_145'}}}});
           } else if(options.url == '/api/v1/boards/1_178' || options.url == '/api/v1/boards/other/shared') {
             outcome.fetched_revoked = true;
@@ -5400,7 +5400,7 @@ describe("persistence-sync", function() {
           expect(outcome.utils_traversal).toEqual(true);
           expect(outcome.revisions_opts.data.include_revoked).toEqual('1');
           expect(outcome.revisions_opts.data.check_ids).toEqual(undefined);
-          expect(statuses.map(function(s) { return s.id; }).sort()).toEqual(['1_145', '1_167']);
+          expect(statuses.map(function(s) { return s.id; }).sort()).toEqual(['1_145', '1_167', 'lingolinq/crisis-vocabulary']); // and Crisis Vocabulary (#1221; updated 2026-11-08, approved)
           expect(outcome.fetched_revoked).toEqual(undefined);
           cancelSyncTailWork();
           persistence.set('sync_progress', null);
@@ -5741,5 +5741,17 @@ describe("persistence-sync", function() {
     });
   });
 });
+// Every sync also starts from Crisis Vocabulary (#1221, utils/offline_sync_seeds.js), so the tests that run a
+// real sync answer it. Placed last so the ESLint baseline rows above do not move; function declarations are hoisted.
+function crisisVocabularyBoard() {
+  return {id: '1_900', key: 'lingolinq/crisis-vocabulary', full_set_revision: 'current', permissions: {}, current_revision: 'current',
+    image_urls: {}, image_url: 'http://example.com/board.png', buttons: [], grid: {rows: 1, columns: 1, order: [[null]]}};
+}
+function isCrisisVocabularyRequest(url) {
+  return !!url && /\/api\/v1\/boards\/(lingolinq\/crisis-vocabulary|1_900)(\?|$)/.test(url);
+}
+function defineCrisisVocabularyFixture() {
+  queryLog.defineFixture({ method: 'GET', type: 'board', response: RSVP.resolve({board: crisisVocabularyBoard()}), id: 'lingolinq/crisis-vocabulary' });
+}
 // Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
 import boardRevocation from '../../utils/board_revocation';

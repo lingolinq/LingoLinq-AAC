@@ -17,7 +17,6 @@ import contentGrabbers from './content_grabbers';
 import Utils from './misc';
 import modal from './modal';
 import capabilities from './capabilities';
-import boardPrefetchPlanner from './board_prefetch_planner';
 import rewriteBrokenSymbolUrl from './symbol-url';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
@@ -3073,7 +3072,7 @@ var persistence = EmberObject.extend({
     });
 
     var sync_all_boards = get_sounds.then(function() {
-      var startBoardSync = function(listData) {
+      var startBoardSync = function() {
         return new RSVP.Promise(function(resolve, reject) {
         var persist = getPersistence();
         if(!persist || persist.isDestroyed || persist.isDestroying || !safeGet(persist, 'sync_progress') || safeGet(persist, 'sync_progress.canceled')) {
@@ -3084,53 +3083,9 @@ var persistence = EmberObject.extend({
           resolve();
           return;
         }
-        var to_visit_boards = [];
-        var backgroundPrefetch = user && boardPrefetchPlanner.backgroundBoardPrefetchEnabled(user);
-        if(user.get('preferences.home_board.id')) {
-          var board = user.get('preferences.home_board');
-          board.depth = 0;
-          board.visit_source = "home board";
-          to_visit_boards.push(board);
-        }
-        if(user.get('preferences.sidebar_boards')) {
-          user.get('preferences.sidebar_boards').forEach(function(b) {
-            if(b.key) {
-              to_visit_boards.push({key: b.key, depth: 1, image: b.image, visit_source: "sidebar board"});
-            }
-          });
-        }
-        if(backgroundPrefetch) {
-          var phased = boardPrefetchPlanner.buildPhasedLookups(user, {
-            ownedBoards: listData && listData.ownedBoards,
-            catalogBoards: listData && listData.catalogBoards,
-            globalBoards: listData && listData.globalBoards,
-            includeLiked: true
-          });
-          to_visit_boards = to_visit_boards.concat(
-            boardPrefetchPlanner.lookupsToSyncSeeds(phased.phase2, 'starred board', 0)
-          );
-          to_visit_boards = to_visit_boards.concat(
-            boardPrefetchPlanner.lookupsToSyncSeeds(phased.phase3, 'owned root', 0)
-          );
-          if(boardPrefetchPlanner.publicPrefetchEnabled(user)) {
-            to_visit_boards = to_visit_boards.concat(
-              boardPrefetchPlanner.lookupsToSyncSeeds(phased.phase4, 'public root', 0)
-            );
-          }
-        } else if(user.get('preferences.sync_starred_boards') === true || (!user.get('preferences.home_board.id') && user.get('preferences.sync_starred_boards') !== false)) {
-          var sync_all = user.get('preferences.sync_starred_boards') === true;
-          user.get('stats.starred_board_refs').forEach(function(ref) {
-            if(sync_all || !ref.suggested) {
-              if(ref.style && ref.style.options) {
-                ref.style.options.forEach(function(opt) {
-                  to_visit_boards.push({key: opt.key, depth: 1, image: opt.url || ref.image_url, visit_source: "suggested board"});
-                })
-              } else {
-                to_visit_boards.push({key: ref.key, depth: 1, image: ref.image_url, visit_source: ref.suggested ? "suggested board" : "starred board"});
-              }
-            }
-          });
-        }
+        // Home, sidebar, starred and Crisis Vocabulary (#1221; utils/offline_sync_seeds.js). Not the person's
+        // other boards, the starter copies made at sign-up, or public boards: to have a board on the device, star it.
+        var to_visit_boards = offlineSyncSeeds.seeds(user);
         var safely_cached_boards = {};
         var checked_linked_boards = {};
 
@@ -3513,20 +3468,6 @@ var persistence = EmberObject.extend({
       });
       };
 
-      if(user && boardPrefetchPlanner.backgroundBoardPrefetchEnabled(user)) {
-        return boardPrefetchPlanner.fetchBoardListsForPrefetch(
-          persistence.ajax.bind(persistence),
-          user,
-          {
-            includeOwned: true,
-            includePublic: boardPrefetchPlanner.publicPrefetchEnabled(user)
-          }
-        ).then(function(listData) {
-          return startBoardSync(listData);
-        }, function() {
-          return startBoardSync(null);
-        });
-      }
       return startBoardSync(null);
     });
 
@@ -4693,3 +4634,4 @@ export default persistenceProxy;
 // Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
 import boardRevocation from './board_revocation';
 import { keep_queued_keys, replay_save_options } from './preference_save';
+import offlineSyncSeeds from './offline_sync_seeds';
