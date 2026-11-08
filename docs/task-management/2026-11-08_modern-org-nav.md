@@ -84,3 +84,13 @@ row shows the board's name, not its key.
 - Process note: probes initially read the layout before the user record hydrated (a Gentle
   reading on a Focused account); measurements since set the layout in memory first. Loading `/`
   resumes the last org page (develop too), so `/<user>/home` is the home baseline.
+
+## Round 3: org tabs still lower than the home pill nav (Focused, 900px and below)
+
+Reported: "the md-pill-nav for the org tabs is still positioned down from where it should be ... should be fixed in modern gentle and modern focused views".
+
+- Measured as `lingolinq_admin` and `cedarvalleytherapy_manager_1`, direct load and click-through, at 1536/1440/1280/1100/1024/901/900/640/375. Above 900px both layouts already matched (86px). Gentle matched at every width.
+- Focused at 900px and below: home pill nav 86, org tabs 116 (dropdown at 640 and below: 126 vs 156). Cause (CDP matched rules on `#content`): the nav slot is in the flow there, so `#content`'s top padding places it. The Focused home page gets `var(--topbar-height)` (16px) from `#within_ember:has(.page-footer) #content.index.with_user:has(.md-shell--layout-focused)`; org pages get the base `#within_ember #content` `calc(var(--topbar-height) + 3rem)` (46px).
+- Fix (app.scss, beside the org-tabs clearance rules): Focused `#content:has(.ll-appshell--org-tabs)` takes `var(--topbar-height)`, and the Focused org-tabs shell padding goes 10 -> 40 so the title stays where it was.
+- After: org tabs at 86 (or the dropdown at 126) in both layouts at every width, same as the home page. Titles unchanged (156 desktop; 342 at Focused 900; 376 at Focused 640 and 375).
+- Not changed: the Organizations directory pill nav is still 30px lower than home in Focused at 900px and below (same cause, pre-existing, not asked).
