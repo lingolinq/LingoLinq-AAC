@@ -626,3 +626,46 @@ Traci: fix on this PR.
   WebKit spec 3 runs, 2 passed, 1 failed on sign-in (after "Trust this Device" the page stayed on the question
   and no user save was sent). Not reproduced in 9 isolated WebKit sign-ins or 6 more in 2 spec runs. Cause
   unknown: OPEN.
+
+### #1221 slow-down 1: which boards the offline sync takes (2026-11-07)
+
+Traci's decision: option 2 revised. The offline sync takes the home board and its folders, the sidebar, starred
+boards, and the boards the person made or copied themselves; not the starter copies made at sign-up (unless
+used as home, sidebar or starred, which brings them in through those), and not public or library boards.
+
+Facts:
+- Seeds READ in `services/persistence.js` startBoardSync: home (:3059), sidebar (:3065), then with
+  background prefetch on: phase2 starred, phase3 owned roots, phase4 public roots (:3074-3091) from
+  `utils/board_prefetch_planner.js` buildPhasedLookups; owned roots from GET /api/v1/boards?user_id=
+  (`fetchOwnedBoards`, cap 200) through `utils/board-roots.js` filterRootBoards. Lists fetched at :3494
+  (`includePublic`). The fallback copy in `utils/persistence.js` (:3115, :3522) mirrors it. CONFIRMED.
+- Public prefetch for browsing online is separate (`utils/board_detail_cache.js` :221, :863, :1015). CONFIRMED.
+- Sign-up starter copies: `lib/user_board_provisioner.rb` copies (background) vocal-flair-84, yesno,
+  inflections, quick-core-60, vocal-flair-60, crisis-vocabulary, senner-baud (Spanish: quick-core-60-es,
+  vocal-flair-60-es, inflections-es) through `User#copy_board_to_library` (only caller), updater = the
+  system owner. Full copies with their linked boards (`copy_board_links`, no id list). The copy records no
+  copier (`app/cloners/board_cloner.rb`), so a starter copy cannot be told from one the person made. CONFIRMED.
+- Flag `signup_default_library_boards` forced on (`lib/feature_flags.rb:151`). CONFIRMED.
+
+Proposal: (1) `copy_board_to_library` marks the root copy `settings['signup_starter'] = true` when the updater
+is the system owner; (2) `lib/json_api/board.rb` sends `signup_starter`; (3) collectOwnedRootLookups skips
+roots marked `signup_starter` (they still come in as home, sidebar or starred); (4) the offline sync no longer
+seeds phase4 public roots or fetches the public lists (service and the fallback copy). Existing accounts have
+no mark, so they keep syncing their starter copies; no backfill (production has no real users).
+Alternative: a client-side rule by parent board key (lingolinq/<sign-up slug>), no server change; rejected
+because it also drops a library board the person later copied on purpose.
+
+Proposal review (adversary, 2026-11-07): ship with conditions. No board a person uses is lost (sidebar seeds use
+the person's resolved copies; home, starred and linked folders come in by traversal; nothing depends on public
+roots being on the device). Conditions:
+- Medium: the mark must lift. Copy-as-home flows reuse the starter copy (`utils/board-copy.js:93,138`,
+  `User#copy_to_home_board` :3940-3950) and edits never clear settings, so a customised starter copy the person
+  opens from the boards page would drop out. Clear on the first edit by anyone but the system owner, and when it
+  becomes home or a sidebar entry.
+- Medium: write order. `copy_board_links` reloads and relinks the root (`user.rb:4686`,
+  `board_set_copier.rb:30-32,104`); marking the stale in-memory copy afterwards would undo the folder links.
+  Mark between `copy_for` and `copy_board_links`, with a spec that the links survive.
+- Low: `collectOwnedRootLookups` also feeds the online warm-up (`board_detail_cache.js:842-850`): make the skip an
+  option only the sync passes. Low: leave the field off shallow clones. Low: spec the field on
+  `boards#index?user_id=` (list summary), not `as_json`.
+Estimate with the conditions: about a day with tests and a code review. Waiting on Traci.
