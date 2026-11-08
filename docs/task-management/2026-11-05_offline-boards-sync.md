@@ -585,3 +585,20 @@ screen and touch, Safari's Mac identity, 5 touch points, `MacIntel`.
   from the worker, synced board, synced folder, saved picture as a data: URL. 3/3 passed.
 - Chrome offline-launch and lifecycle after the helper change: 17/17.
 Not iOS and no Home Screen mode: a real device is still needed.
+
+### Storage limits and eviction, explored (2026-11-07)
+
+Exploration script (not a test), Chromium with a Home Screen profile against local Rails with the shell on.
+- Wiped (iOS eviction or "Clear website data": worker, caches, IndexedDB, localStorage, cookies): offline,
+  the browser's own offline page (nothing left, unavoidable). Online, signed out; after signing in again from
+  the Home Screen the first sync starts on its own (offline_shell first_sync_when_installed) and all 3 boards
+  are back. Recovers.
+- Full storage: `Storage.overrideQuotaForOrigin` had no effect in a persistent context (quota still 10.7 GB),
+  so every IndexedDB write was made to fail (its transaction aborted). Sync reported `succeeded` with no error
+  and no notice, with 0 boards stored (14 failed writes). Offline the app went to `/offline-boards` (no dead
+  end), empty.
+- Cause (CONFIRMED by reading): `dbman.store_internal` (`app/utils/dbman.js:456-462`) calls success on the
+  put request's `onsuccess`, before the transaction commits. A real quota failure usually arrives as the
+  transaction's abort (QuotaExceededError) after that, which nothing listens for, so even a genuine full
+  device reports the write as saved. Whether `persistence.sync` also ignores store errors is not yet checked.
+- Not yet fixed: needs an estimate and a decision (Traci).
