@@ -66,6 +66,17 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
 - A device that cannot save (out of storage) no longer reports the sync as succeeded with nothing saved. The sync
   now ends as failed with a message ("This device is out of storage..."), and saves those boards on the next sync.
 - The offline sync saves only the boards above (#1221, first half).
+- The installed app (SQLite) keeps one row per record: two saves of the same row, or a save and a removal, now run
+  one after the other instead of overlapping, so they no longer insert the record twice (`utils/sqlite_row_queue.js`).
+  A second save still rewrites the whole record. A record that cannot be saved is now reported as failed instead
+  of leaving the save waiting forever. If a row's work never finishes (a lost answer or an error in a lookup),
+  later work on that row goes ahead after 5 minutes; a bridge that stops answering altogether still stalls every
+  save, as before. A removal by board key, rather than by id, is not held behind a save (no caller does this
+  today) (#1221, second half).
+- A record loaded twice in quick succession is saved once: a waiting save of the same record (same store, id and
+  key) is replaced by the newer copy (`utils/eventual_store_queue.js`). Measured locally: the button set written
+  twice is now written once (15 writes to 14). The signed-in user is still written twice per sync, because the sync
+  saves a fresh copy of it after the queue has written the first; that is a real update (#1221, second half).
 
 **Sign-in and trust**
 - A Home Screen sign-in asks "Trust this Device" or "This is a Shared Device", only where the offline shell is on.
@@ -122,11 +133,10 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
 
 ### Code work still to do (priority order)
 
-1. **#1221, second half: the same data written twice in one sync.** Reviewed and partly diagnosed (see the log):
-   - **Database rows:** in the installed app (SQLite), two saves of the same row can overlap and both insert. That
-     most likely explains 1,579 rows for 1,560 boards. Fix: one save at a time per row in `utils/dbman.js`.
-   - **The save queue:** one load can put the same record in the background save queue twice. Fix: merge waiting
-     entries by record id (not by "store and key", which would merge different boards).
+1. **#1221, second half: the same data written twice in one sync.** The overlapping SQLite saves and the save
+   queue are fixed (see "What's done"). Left:
+   - **Rows already duplicated on devices** stay until the record is removed; reads take one of the copies and
+     the next save updates both. No cleanup is in this branch.
    - **Button-set chunks:** the 1.7 MB chunk written twice is not diagnosed. It needs one trace on staging or the
      Android emulator (every chunk request and its caller during a first sync); uploads are off locally, so it
      cannot run here.

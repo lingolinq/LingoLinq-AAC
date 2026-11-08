@@ -648,7 +648,7 @@ var persistence = EmberObject.extend({
       return persistence.store(store, obj, key);
     }
     persistence.eventual_store = persistence.eventual_store || [];
-    persistence.eventual_store.push([store, obj, key, true]);
+    queue_eventual_store(persistence.eventual_store, store, obj, key); // one waiting save per record
     if(!persistence.eventual_store_timer) {
       persistence.eventual_store_timer = runLater(persistence, persistence.next_eventual_store, sync_test_delay(100));
     }
@@ -4635,3 +4635,4 @@ export default persistenceProxy;
 import boardRevocation from './board_revocation';
 import { keep_queued_keys, replay_save_options } from './preference_save';
 import offlineSyncSeeds from './offline_sync_seeds';
+import { queue_eventual_store } from './eventual_store_queue';

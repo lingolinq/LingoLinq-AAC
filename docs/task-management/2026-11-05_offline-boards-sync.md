@@ -744,3 +744,74 @@ another (a forced re-download merges only with a forced one); (2) the eventual-s
 entry for the same store and key with the newer object instead of appending (both copies). Rejected: skipping a
 write when the content hash is unchanged (an extra serialization on every write; a second tab can make it skip
 a write it should not).
+
+#### Revised proposal after the review block (2026-11-08, Traci: "fix 1 and 2 for the duplicate writes")
+
+The first proposal was blocked: (a) "the installed app reuses stored json" was false (json rows set
+`url_uncache`), so the `store_url` merge is withdrawn; (b) merging the eventual queue by key would merge
+different boards, since the adapter queues every fetched record with key null (`services/persistence.js:4523-4534`).
+
+Facts:
+- SQLite write = SELECT by ref_id, then INSERT or UPDATE, as two separately queued statements
+  (`utils/dbman.js:479-506`). The Capacitor shim runs statements one at a time but queues each on its own
+  (`utils/capacitor_sqlite_shim.js` executeSql/enqueue), so a second write's SELECT can run between the
+  first's SELECT and INSERT. The table has no unique key on ref_id (`dbman.js:830-831`). CONFIRMED by the
+  red test (two rows).
+- A removal racing an earlier write: SELECT (none), DELETE, INSERT leaves the row. CONFIRMED (red test).
+- Reads take `rows.item(0)` with no ORDER BY (`dbman.js:242-246`); UPDATE touches every row with the ref_id,
+  so duplicates hold the same data after the next write, but both rows take space and whole-table reads
+  return both. CONFIRMED by reading.
+- The shim's `transaction` collects statements only while `fn(tx)` runs; a `tx.executeSql` issued from a
+  result callback is never run. So a SELECT-then-write transaction is not a safe fix. CONFIRMED by reading.
+- Eventual queue entries are `[store, obj, key, true]`, consumed by `next_eventual_store` (shift, then
+  `store.apply`) and scanned by `validate_board` for a board id. Shapes of obj: `{<model>: raw, images?,
+  sounds?}` from the adapter; an image or sound record; `{id}` with key 'selfUserId'. Keys: null, 'self',
+  'selfUserId'. CONFIRMED (`services/persistence.js:539-545, 652-663, 686, 705-735, 4523-4534`).
+- `store()` writes a board's images and sounds as their own records; dropping an older board entry could
+  skip an image only it listed. CONFIRMED (`services/persistence.js:725-735`).
+
+Candidates:
+- Fix 1 A (chosen): a per-row queue in dbman: SQLite store and remove for the same store and ref_id run one
+  after another; different rows still interleave. Works on any bridge. B (rejected): SELECT and write in
+  one transaction (the shim drops the nested write). C (rejected here): UNIQUE index plus INSERT OR REPLACE
+  (needs a device migration that removes existing duplicates). D: serialize every SQLite write (slower, no
+  more correct than A).
+- Fix 2 A (chosen): a save for a waiting entry with the same store, record id (`(obj[store]||obj).id`) and
+  key replaces it in place with the newer object; entries carrying images or sounds, and records with no id
+  and no key, are never merged. Both copies (service and `utils/persistence.js`) via one shared util.
+  B (rejected): keep the first (older data wins). C: move the newer to the end (later write for no gain).
+- Not fixed: duplicate rows already on devices stay until the record is next removed.
+
+#### Review and result (2026-11-08)
+
+Adversary review of the revised proposal: one High and three Mediums, all acted on.
+- High (CONFIRMED): the Ember Data adapter mixes in the UTILS copy's DSExtend (`adapters/application.js:2,48`), so
+  its findRecord queues through the utils module's own `store_eventually`. My summary called the utils copy a
+  fallback; that was wrong. Added a test that drives the utils module-local queue (window.persistence cleared so
+  the Proxy returns its target).
+- Medium (CONFIRMED): removals go through `dbman.remove` (find, then delete only if found), not `remove_internal`.
+  The whole find-plus-delete is now queued under the row id (`store + ' ' + uniqify_key(key)`, the same key a
+  write uses, since `dbman.store` uniqifies the id); the test goes through `dbman.store` and `dbman.remove`.
+  A removal by board key (which resolves the id only after its lookup) is not held; no caller does that today.
+- Medium: a dropped bridge callback would hold the row forever; added a 60 s watchdog (`row_write_watchdog_ms`)
+  and a test. `finished()` is called after success is scheduled.
+- Medium: before/after counts. Local IndexedDB recorder, production build: e2e_offline_modern 15 -> 14 writes
+  (button set now once), e2e_offline_stars 15 writes / 14 distinct. The user record is still written twice: the
+  second write is a direct `persistence.store` from the sync 2.9 s later with different content (12,395 vs 12,366
+  bytes), not a queued duplicate, so it is left.
+- Low: duplicate rows already on devices are not cleaned up (stated in the status doc).
+
+Tests: 11 new (5 SQLite row, 6 queue), red before the fix for 4 of them (the rest guard over-merging). Mutants,
+each killed: utils wiring (test 11), service wiring (6), store queue (1-3), removal queue (3), watchdog (5),
+images guard (9). Related suites `/dbman|persistence|storage|offline|sync/i`: 554 run, 544 pass, 10 skip, 0 fail.
+ESLint gate: no new findings.
+
+Lessons: (1) "fallback copy" claims about utils vs service persistence must be checked against
+`adapters/application.js` and the Proxy's `in` test; class statics on the service fall through to the utils copy.
+(2) a test that drives an internal (`remove_internal`) can pass while the real entry point (`remove`) stays racy;
+drive the public route.
+- Second adversary pass on commit 3924d0c64: ship, four Lows, all acted on. The SQLite catch now reports
+  `error()` instead of re-throwing into the bridge (which swallows it and left the caller waiting; red test
+  added, red with the re-throw). Watchdog raised to 5 minutes: its clock includes time queued behind other
+  statements, and both bridges stall the whole queue on a lost answer, so it is a last resort, not a timeout.
+  Commit title and status doc reworded ("one row per record"; a second save still rewrites the record).

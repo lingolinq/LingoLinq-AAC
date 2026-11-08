@@ -655,7 +655,7 @@ var persistence = Service.extend({
       return _this.store(store, obj, key);
     }
     _this.eventual_store = _this.eventual_store || [];
-    _this.eventual_store.push([store, obj, key, true]);
+    queue_eventual_store(_this.eventual_store, store, obj, key); // one waiting save per record
     if(!_this.eventual_store_timer) {
       _this.eventual_store_timer = runLater(_this, _this.next_eventual_store, sync_test_delay(100));
     }
@@ -4892,3 +4892,4 @@ import boardRevocation from '../utils/board_revocation';
 import { keep_queued_keys, replay_save_options } from '../utils/preference_save';
 import { note_failed_write, failed_write_count, end_sync_if_storage_failed } from '../utils/storage_failures';
 import offlineSyncSeeds from '../utils/offline_sync_seeds';
+import { queue_eventual_store } from '../utils/eventual_store_queue';
