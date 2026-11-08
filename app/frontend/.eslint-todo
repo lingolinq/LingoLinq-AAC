@@ -1,7 +1,7 @@
 # ESLint baseline (grandfathered findings). Do not hand-edit.
 # Regenerate: npm run lint:js:todo
 # Format: file|ruleId|line|column|severity|messageHash
-# Generated: 2026-11-07T04:23:03.041Z
+# Generated: 2026-11-08T01:45:18.225Z
 app/app.js|ember/no-runloop|102|5|2|0843889163d3
 app/app.js|ember/no-runloop|168|7|2|0843889163d3
 app/app.js|ember/no-runloop|193|7|2|0843889163d3
@@ -117,19 +117,19 @@ app/components/confirm-delete-board.js|ember/require-computed-property-dependenc
 app/components/confirm-delete-user.js|ember/no-runloop|88|13|2|5addc2170315
 app/components/confirm-org-action.js|ember/require-computed-property-dependencies|107|18|1|4f3cfbc971db
 app/components/copying-board.js|lingolinq/no-orphaned-action|410|5|1|981d7ce18fc2
-app/components/create-board-new.js|ember/no-incorrect-calls-with-inline-anonymous-functions|2898|41|1|2da67c91d637
-app/components/create-board-new.js|ember/no-runloop|1496|5|2|ab6701509d85
-app/components/create-board-new.js|ember/no-runloop|1562|7|2|513c0395fe72
-app/components/create-board-new.js|ember/no-runloop|1564|35|2|ab6701509d85
-app/components/create-board-new.js|ember/no-runloop|1684|7|2|513c0395fe72
-app/components/create-board-new.js|ember/no-runloop|2792|7|2|00fc6802e68e
-app/components/create-board-new.js|ember/no-runloop|2898|7|2|513c0395fe72
-app/components/create-board-new.js|ember/no-runloop|3555|9|2|00fc6802e68e
-app/components/create-board-new.js|ember/require-computed-property-dependencies|2007|25|1|7f66d53536ea
-app/components/create-board-new.js|ember/require-computed-property-dependencies|2011|26|1|7f66d53536ea
-app/components/create-board-new.js|ember/require-computed-property-dependencies|2063|26|1|cb3b82a4722f
-app/components/create-board-new.js|ember/require-computed-property-dependencies|2067|23|1|cb3b82a4722f
-app/components/create-board-new.js|ember/require-computed-property-dependencies|2073|20|1|cb3b82a4722f
+app/components/create-board-new.js|ember/no-incorrect-calls-with-inline-anonymous-functions|2899|41|1|2da67c91d637
+app/components/create-board-new.js|ember/no-runloop|1497|5|2|ab6701509d85
+app/components/create-board-new.js|ember/no-runloop|1563|7|2|513c0395fe72
+app/components/create-board-new.js|ember/no-runloop|1565|35|2|ab6701509d85
+app/components/create-board-new.js|ember/no-runloop|1685|7|2|513c0395fe72
+app/components/create-board-new.js|ember/no-runloop|2793|7|2|00fc6802e68e
+app/components/create-board-new.js|ember/no-runloop|2899|7|2|513c0395fe72
+app/components/create-board-new.js|ember/no-runloop|3556|9|2|00fc6802e68e
+app/components/create-board-new.js|ember/require-computed-property-dependencies|2008|25|1|7f66d53536ea
+app/components/create-board-new.js|ember/require-computed-property-dependencies|2012|26|1|7f66d53536ea
+app/components/create-board-new.js|ember/require-computed-property-dependencies|2064|26|1|cb3b82a4722f
+app/components/create-board-new.js|ember/require-computed-property-dependencies|2068|23|1|cb3b82a4722f
+app/components/create-board-new.js|ember/require-computed-property-dependencies|2074|20|1|cb3b82a4722f
 app/components/create-board-new.js|ember/require-computed-property-dependencies|830|31|1|f4993249c296
 app/components/dashboard-supervisors-modal.js|ember/no-runloop|100|7|2|5addc2170315
 app/components/dashboard-supervisors-modal.js|ember/no-runloop|111|7|2|5addc2170315
@@ -615,18 +615,18 @@ app/mixins/pref-classes.js|ember/require-computed-property-dependencies|37|24|1|
 app/models/badge.js|ember/require-computed-property-dependencies|153|24|1|e07ead92f48a
 app/models/badge.js|ember/require-computed-property-dependencies|195|27|1|5eab7fee5cf8
 app/models/badge.js|ember/require-computed-property-dependencies|62|14|1|8aecac109e42
-app/models/board.js|ember/no-runloop|1237|9|2|513c0395fe72
-app/models/board.js|ember/no-runloop|1243|9|2|513c0395fe72
-app/models/board.js|ember/no-runloop|1247|36|2|5addc2170315
-app/models/board.js|ember/no-runloop|1265|36|2|5addc2170315
-app/models/board.js|ember/no-runloop|2023|5|2|5addc2170315
+app/models/board.js|ember/no-runloop|1244|9|2|513c0395fe72
+app/models/board.js|ember/no-runloop|1250|9|2|513c0395fe72
+app/models/board.js|ember/no-runloop|1254|36|2|5addc2170315
+app/models/board.js|ember/no-runloop|1272|36|2|5addc2170315
+app/models/board.js|ember/no-runloop|2030|5|2|5addc2170315
 app/models/board.js|ember/no-runloop|818|5|2|5addc2170315
-app/models/board.js|ember/no-string-prototype-extensions|1433|27|1|a79d5531a031
-app/models/board.js|ember/no-string-prototype-extensions|1442|27|1|a79d5531a031
-app/models/board.js|ember/no-string-prototype-extensions|1516|33|1|a79d5531a031
-app/models/board.js|ember/no-string-prototype-extensions|1552|37|1|a79d5531a031
-app/models/board.js|ember/require-computed-property-dependencies|1303|18|1|9e67138b6b64
-app/models/board.js|ember/require-computed-property-dependencies|1316|22|1|e86afbbdfdc6
+app/models/board.js|ember/no-string-prototype-extensions|1440|27|1|a79d5531a031
+app/models/board.js|ember/no-string-prototype-extensions|1449|27|1|a79d5531a031
+app/models/board.js|ember/no-string-prototype-extensions|1523|33|1|a79d5531a031
+app/models/board.js|ember/no-string-prototype-extensions|1559|37|1|a79d5531a031
+app/models/board.js|ember/require-computed-property-dependencies|1310|18|1|9e67138b6b64
+app/models/board.js|ember/require-computed-property-dependencies|1323|22|1|e86afbbdfdc6
 app/models/board.js|ember/require-computed-property-dependencies|212|20|1|b96230b89d1a
 app/models/board.js|ember/require-computed-property-dependencies|229|27|1|86048f891c0d
 app/models/board.js|ember/require-computed-property-dependencies|252|19|1|51a7a47cf59c
@@ -1478,7 +1478,7 @@ tests/unit/utils/tours/registry-test.js|qunit/no-assert-equal|9|5|1|8b9cc9ba7f61
 tests/unit/view-style-coverage-test.js|qunit/no-assert-logical-expression|89|17|1|10e4caa62dd1
 tests/unit/view-style-coverage-test.js|qunit/no-ok-equality|124|5|1|65fd871ce649
 tests/unit/view-style-coverage-test.js|qunit/no-ok-equality|51|5|1|0bb71725fa05
-tests/utils/app_state-test.js|ember/no-runloop|3109|7|2|b7a9757b024f
+tests/utils/app_state-test.js|ember/no-runloop|3186|7|2|b7a9757b024f
 tests/utils/app_state-test.js|ember/no-runloop|436|7|2|513c0395fe72
 tests/utils/app_state-test.js|ember/no-runloop|449|7|2|513c0395fe72
 tests/utils/capabilities-test.js|ember/no-runloop|121|11|2|b7a9757b024f
