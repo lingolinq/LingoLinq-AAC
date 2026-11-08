@@ -45,6 +45,9 @@ if [ "$isolated_tree" -eq 0 ]; then
   trap isolate_cleanup EXIT
   trap 'isolate_cleanup; exit 130' INT
   trap 'isolate_cleanup; exit 143' TERM
+  # A git hook exports these for the CALLER's checkout; left set, `git worktree add`
+  # below would write the caller's index.
+  unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY
   git worktree remove --force "$WT" >/dev/null 2>&1 || true
   rm -rf "$WT"
   add_err=$(mktemp)
@@ -57,11 +60,23 @@ if [ "$isolated_tree" -eq 0 ]; then
     exit 1
   fi
   rm -f "$add_err"
+  # The throwaway is checked out at HEAD. Copy the caller's uncommitted state of the
+  # paths this harness reads (render script, register, legal docs) into it, so the
+  # verdict is about the files on disk, as it was before #777. Read-only on the live
+  # tree; every write lands in $WT.
+  { git diff -z --name-only HEAD -- docs/legal audit-reports scripts
+    git ls-files -z --others --exclude-standard -- docs/legal audit-reports scripts
+  } | sort -zu | while IFS= read -r -d '' path; do
+    if [ -e "$path" ]; then
+      mkdir -p "$WT/$(dirname "$path")" && cp -p "$path" "$WT/$path"
+    else
+      rm -f "$WT/$path"
+    fi
+  done
   # cd into the worktree first. Inner does `cd "$(git rev-parse --show-toplevel)"`
   # from its cwd; spawning bash $WT/script from the live tree cds back to live.
   # bash "$SELF" so uncommitted harness edits are what the inner run executes.
-  unset GIT_DIR GIT_WORK_TREE
-  (cd "$WT" && unset GIT_DIR GIT_WORK_TREE && ATTESTATION_GUARD_ISOLATED=1 bash "$SELF")
+  (cd "$WT" && ATTESTATION_GUARD_ISOLATED=1 bash "$SELF")
   rc=$?
   isolate_cleanup
   trap - EXIT INT TERM

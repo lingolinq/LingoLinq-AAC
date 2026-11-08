@@ -31,3 +31,18 @@
 `scripts/tests/attestation-hash-guard-isolation-test.sh`: chmod a-w on the two
 live legal files, run the harness, assert exit 0 and byte identity. Fails
 today because the harness still appends to the live memo.
+
+## Review follow-up (senior-dev and adversary passes on 81549038e)
+
+The throwaway worktree is checked out at HEAD, so the harness judged committed files, not the files on disk. Two regressions against develop, both reproduced:
+
+- **False green:** with the pin check disabled by an uncommitted edit to `scripts/document-register-render.rb`, develop's harness reports 5 failures and this branch said OK.
+- **False red:** after committing an edit to an attested doc and reverting it on disk (the routine fix in `docs/legal/COMPLIANCE_DOCS_GUIDE.md`), develop passes and this branch failed 2 guards.
+
+Fix: after `git worktree add`, copy the caller's uncommitted state of `docs/legal`, `audit-reports` and `scripts` (modified, deleted and untracked non-ignored paths) into the throwaway. It reads the live tree only. After the fix both scenarios match develop. A full `--check` on a clean tree passes, and with an uncommitted legal-doc edit present only the render's expected contentHash step fails; in both runs no file under `docs/legal/` changed.
+
+Also: `unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY` now runs before `git worktree add`, so a git hook's environment cannot make it write the caller's index. A run with a hook-style `GIT_INDEX_FILE` left both indexes unchanged.
+
+Not automated: a test for the copy step would have to edit the live tree, which is what #777 removes. Verified by hand as above.
+
+Still open: acceptance criterion 5 (`--check` as a superset of CI) is not met by the CI-only isolation step; that is a decision for the issue owner.
