@@ -489,3 +489,21 @@ Both Highs closed; no new Critical or High. Three Mediums fixed after, each test
 - Every memory hit read pictures from the database on a no-file-storage device, online too. Now only offline.
 - A shared device's pre-check let a tap through that the owner lookup then refused. `board_saved_here` now refuses someone else's board there.
 Noted, older than this work: the own-page offline branch still reaches `error.hbs` if the session user cannot be read in 10 s.
+
+### Review of Scot's areas at `4c29c4189` (2026-11-07): no Critical or High
+
+Device trust and the Home Screen sign-in (security-reviewer); two-tab lock (adversary); deploy workflow
+and e2e seed read inline. Specs: workflow, `json_api/user`, `offline_shell` 93/93 on the test database.
+(An earlier red run of `json_api/user_spec.rb:974` came from running against the e2e database by mistake.)
+- Medium, CONFIRMED: a Device row already trusted (older Home Screen sign-ins forced `long_token`) stays
+  trusted; `device.rb:172` never lowers it, so those installs never get the question. Needs a decision
+  (reset rows, or ignore stored trust for Home Screen sign-ins). Prod has no real users yet.
+- Low, CONFIRMED: `lib/json_api/user.rb` keeps the nearest device's `long_token` when there is no
+  device (supervisor view); the commit message's "nil until chosen" does not hold there.
+- Low, CONFIRMED: the off-setting removal in `instance-initializers/offline-shell.js` skips the site-wide lock.
+- Low, CONFIRMED: `apply_device_trust` reads the page token when the queued step starts, not with the
+  trust answer, so a sign-out and shared sign-in in the same page while waiting can register for the shared user.
+- Low: three lock guards survive their removal in node replicas of the unit tests; an orphan shell cache
+  can survive a removal racing an install (generic content only).
+- Deploy workflow: sound (`--set-env-vars` replaces the set, so deleting the variable turns the shell off;
+  the value passes the comma and whitespace check). Seed: guarded to local dev/e2e databases, made-up values.
