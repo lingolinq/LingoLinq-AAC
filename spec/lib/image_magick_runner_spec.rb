@@ -219,4 +219,31 @@ describe ImageMagickRunner do
       expect(ImageMagickRunner.escape_label(nil)).to eq('')
     end
   end
+
+  describe "capture" do
+    it "returns the command's stdout" do
+      expect(ImageMagickRunner.capture('/bin/echo', 'hi')).to eq("hi\n")
+    end
+
+    it "does not interpret shell metacharacters" do
+      expect(ImageMagickRunner.capture('/bin/echo', '$(echo x);true')).to eq("$(echo x);true\n")
+    end
+
+    it "refuses a one-element argv" do
+      expect { ImageMagickRunner.capture('/bin/echo hi') }.to raise_error(ArgumentError)
+    end
+
+    it "returns what was printed when the command exits non-zero" do
+      expect(ImageMagickRunner.capture('/bin/sh', '-c', 'echo x; exit 1')).to eq("x\n")
+    end
+
+    it "redirects stdin away from the caller's" do
+      expect(IO).to receive(:popen).with(['/bin/cat', '-'], :in => File::NULL).and_return('')
+      ImageMagickRunner.capture('/bin/cat', '-')
+    end
+
+    it "raises when the process cannot be started" do
+      expect { ImageMagickRunner.capture('/nonexistent/identify', '-verbose') }.to raise_error(Errno::ENOENT)
+    end
+  end
 end

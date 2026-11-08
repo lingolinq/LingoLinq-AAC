@@ -25,4 +25,11 @@ describe "filter_parameter_logging" do
     expect(nested['owner_email']).to eq('[FILTERED]')
     expect(nested['permission_level']).to eq('view_only')
   end
+
+  it "filters the sentence sent to ws_encrypt, and only a param named exactly text" do
+    res = filter.filter('text' => '[{"label":"hello"}]', 'user_id' => '1_1', 'context' => 'a', 'next_text' => 'b')
+    expect(res['text']).to eq('[FILTERED]')
+    expect(res['context']).to eq('a')
+    expect(res['next_text']).to eq('b')
+  end
 end

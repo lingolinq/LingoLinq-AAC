@@ -109,7 +109,7 @@ export default Component.extend({
       location.reload();
     },
     logout: function() {
-      session.invalidate(true);
+      session.sign_out();
     },
     reset: function() {
       this.get('subscription').reset();

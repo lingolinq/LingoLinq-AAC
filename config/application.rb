@@ -62,6 +62,9 @@ module LingoLinq
     # Initialize configuration defaults for Rails 7.2
     config.load_defaults 7.2
 
+    # The app has no channels, and sync.js connects to LLWEBSOCKET_URL, so it serves no socket of its own.
+    config.action_cable.mount_path = nil
+
     # Settings in config/environments/* take precedence over those specified here.
     # Application configuration should go into files in config/initializers
     # -- all .rb files in that directory are automatically loaded.

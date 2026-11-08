@@ -12,7 +12,7 @@
 | Finding | Severity | Phase-3 decision | Phase-4 decision (with first-run evidence) | Applied in this branch? |
 |---|---|---|---|---|
 | LL-3483c28f3c (parallel-finder live-infra race) | low | Defer to Phase 4 | **Keep deferred + instruction-only hardening** | Yes (orchestrator instruction) |
-| LL-97f9001bb4 (guard denylist residual bypass) | low | Defer | **Keep deferred (unchanged)** | No (rationale below) |
+| LL-97f9001bb4 (details withheld) | low | Defer | **Keep deferred (unchanged)** | No (rationale below) |
 
 ## First-run evidence that informs both
 
@@ -56,24 +56,15 @@ The first full fan-out (four finders -> merge -> adversary verify -> citation-ch
   is the more pressing real-world manifestation and is covered by the same Step-2 instruction plus
   the mechanical citation gate. Stays `open` until Scot attests.
 
-### LL-97f9001bb4 - audit Bash guard is a denylist with residual fetch-and-exec bypass (low) -> KEEP DEFERRED (unchanged)
-- **Why defer holds:** the **primary** read-only guarantee for finders is the
-  `tools: Read, Grep, Glob, Bash` allowlist (no Edit/Write at all); the Bash denylist in
-  `audit-readonly-guard.sh` is defense-in-depth. The first run surfaced no bypass - and in fact did
-  not exercise the guard, since the run used registered stand-in agents that lack the wired hook.
-  No new evidence raises the risk.
-- **New this phase, checked for regressions:** the Phase-4 PostToolUse logger hook
-  (`audit-run-logger.sh`) added to the four finders is read-only (append-only to a local log,
-  always exits 0) and grants no write capability, so it does **not** widen the residual-bypass
-  exposure. The compliance-officer write-scope guard (Phase 3) remains allowlist-primary.
-- **What a real fix would take:** an allowlist-based command filter or a sandboxed finder shell - a
-  meaningful build, not warranted by first-run evidence. Stays `open`; revisit if a SOC 2 evidence
-  requirement demands a stronger mechanical control.
+### LL-97f9001bb4 (low) -> KEEP DEFERRED (unchanged)
+
+- Details withheld under the security disclosure policy; the decision is in `audit-reports/FINDINGS.json` and the rationale in the private run record.
+- **Amended 2026-11-06:** this section was replaced with a pointer (Scot Wahlquist). The rest of this document is as written on 2026-06-14.
 
 ## What Scot decides
 - Whether the instruction-only hardening for LL-3483c28f3c is sufficient, or the snapshot mechanism
   should be built sooner.
-- Whether LL-97f9001bb4 is acceptable to carry as-is (allowlist-primary, denylist defense-in-depth),
-  or warrants the sandbox/allowlist build now.
+- Whether LL-97f9001bb4 is acceptable to carry as-is (details withheld),
+  or warrants a structural fix now.
 - Both stay `open`; this doc recommends, it does not close. The register is unchanged in status by
   this triage (only the two findings' `notes` were annotated with this revisit).
