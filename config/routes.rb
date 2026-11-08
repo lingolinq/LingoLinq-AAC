@@ -1,20 +1,5 @@
-LingoLinq::RESERVED_ROUTES ||= [
-  'admin', 'database', 'etc', 'settings', 'status', 'reports', 'stats', 'search', 
-  'messages', 'inbox', 'log', 'logs', 'session', 'sessions', 'imports', 
-  'boards', 'users', 'groups', 'organizations', 'pages', 'people', 'videos', 
-  'root', 'www', 'add', 'self', 'files', 'feeds', 
-  'dev', 'auth', 'config', 'jobs', 'ssl', 'integration', 'integrations',
-  'api', 'account', 'accounts', 'oauth', 'oauth_success', 'token', 
-  'login', 'logout', 'register', 'profile', 'forgot_password', 
-  'support', 'help', 'forum', 'talk', 'chat', 'feedback', 'faq', 
-  'about', 'contact', 'info', 'docs', 'purchase', 'pricing', 'careers', 
-  'news', 'styleguide', 'tour', 'compare', 'guides', 'partners', 
-  'privacy', 'terms', 'hipaa', 'accessibility', 'history', 'parental_consent',
-  'eu_ai_parental_consent',
-  'js', 'css', 'scripts', 'script', 'pics', 'images', 'lessons', 'lesson', 
-  'find', 'unknown', 'nobody', 'goals', 'notes', 'rooms', 'cough_drop',
-  'mylingolinq', 'inflection', 'inflections', 'saml', 'eval', 'ai_consent'
-]
+# Reserved top-level names live in config/initializers/reserved_routes.rb; add new top-level
+# route segments there.
 require 'resque/server'
 require 'admin_constraint'
 
