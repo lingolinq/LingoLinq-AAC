@@ -1075,8 +1075,8 @@ LingoLinq.Board = BaseModel.extend({
       var old_loc = this.get('locale');
       var trans = this.get('translations') || {};
       var buttons = board.get('buttons') || [];
-      // Same gate as Relinking#update_default_locale!: with nothing translated the labels
-      // stay in the old language, so the board must too.
+      // Same gate as Relinking#update_default_locale!: a button or the name in the new language
+      // counts; with neither, the board keeps its language. Actions (+a, :space) stay as authored.
       var anything_translated = false;
       buttons.forEach(function(btn) {
         trans[btn.id] = trans[btn.id] || {};
@@ -1089,7 +1089,7 @@ LingoLinq.Board = BaseModel.extend({
         if(trans[btn.id][new_loc]) {
           anything_translated = true;
           btn.label = trans[btn.id][new_loc].label;
-          btn.vocalization = trans[btn.id][new_loc].vocalization;
+          if(!String(btn.vocalization || '').match(/^[:+]/)) { btn.vocalization = trans[btn.id][new_loc].vocalization; }
           btn.inflections = trans[btn.id][new_loc].inflections;
         }
       });

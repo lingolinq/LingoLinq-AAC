@@ -137,7 +137,8 @@ Two reviewers read the whole branch, then each claim was run. Results:
 - A copy with no translations was rewritten to `en` by boards#create; copies are now exempt.
 - The copy dialog seeded from the leftover session language, which crashed `create_copy` on a plain English
   board. The dialog now uses the session rule, and `create_copy` changes language only if something was
-  translated, buttons or name, matching `Relinking#update_default_locale!`.
+  translated, buttons or name, the same gate as `Relinking#update_default_locale!`. It also keeps keyboard and
+  action vocalizations (`+a`, `:space`) as the server does; develop's client dropped them on the copied top board.
 - A blank board no longer sends its name to Google.
 - Switch Languages losing at Speak Mode entry is unchanged from `develop`. A guard in `home_in_speak_mode` was
   tried and removed: it put a supporter's Switch language on a communicator under Speak As, and left the plain

@@ -12,7 +12,7 @@ import { board_language_for_session } from 'frontend/utils/board_display_locale'
 module('Unit | copy-board language', function(hooks) {
   setupTest(hooks);
 
-  function copy_with(owner, translations) {
+  function copy_with(owner, translations, buttons) {
     const create_copy = owner.lookup('service:store').createRecord('board', {}).create_copy;
     const realStore = LingoLinq.store;
     let made = null;
@@ -22,7 +22,7 @@ module('Unit | copy-board language', function(hooks) {
       return made;
     } };
     const source = EmberObject.create({ id: '1_1', key: 'me/hats', name: 'Hats', locale: 'en',
-      buttons: [{ id: 1, label: 'hat' }], grid: {}, translations: translations, default_locale: 'es' });
+      buttons: buttons || [{ id: 1, label: 'hat' }], grid: {}, translations: translations, default_locale: 'es' });
     source.rollbackAttributes = function() { };
     try {
       create_copy.call(source, null);
@@ -54,8 +54,21 @@ module('Unit | copy-board language', function(hooks) {
     assert.strictEqual(copy.get('name'), 'Sombreros');
   });
 
-  test('create_copy: the name stays when nothing is in the new language', function(assert) {
-    assert.strictEqual(copy_with(this.owner, { board_name: { fr: 'Chapeaux' } }).get('name'), 'Hats');
+  test('create_copy: a name in other languages does not count as translated', function(assert) {
+    // The server stores board_name in the board's own language on every save, so most boards have one.
+    const copy = copy_with(this.owner, { board_name: { en: 'Hats', fr: 'Chapeaux' } });
+    assert.strictEqual(copy.get('name'), 'Hats');
+    assert.strictEqual(copy.get('locale'), 'en');
+  });
+
+  test('create_copy: keyboard and action buttons keep their actions, as on the server', function(assert) {
+    const copy = copy_with(this.owner, {
+      1: { es: { label: 'a' } },
+      2: { es: { label: 'espacio' } },
+      3: { es: { label: 'gato', vocalization: 'gato' } }
+    }, [{ id: 1, label: 'a', vocalization: '+a' }, { id: 2, label: 'space', vocalization: ':space' }, { id: 3, label: 'cat' }]);
+    assert.strictEqual(copy.get('locale'), 'es');
+    assert.deepEqual(copy.get('buttons').map(function(btn) { return btn.vocalization; }), ['+a', ':space', 'gato']);
   });
 
   test('board_language_for_session is safe on a preview that has not loaded', function(assert) {
@@ -74,8 +87,8 @@ module('Unit | copy-board language', function(hooks) {
     try {
       component.runOpening();
       assert.strictEqual(component.get('default_locale'), 'en');
-      // Opening selects 'self', which fetches that user (components/copy-board.js:209-226).
-      await waitUntil(function() { return component.get('loading') === false; });
+      // Opening selects 'self', which fetches that user (components/copy-board.js:211-279).
+      await waitUntil(function() { return component.get('loading') === false; }, { timeout: 3000 });
     } finally {
       appState.set('label_locale', realLocale);
       component.destroy();
