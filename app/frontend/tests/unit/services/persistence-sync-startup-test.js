@@ -260,6 +260,161 @@ module('Unit | Service | persistence sync startup', function(hooks) {
       await reconnect();
       assert.strictEqual(this.requests.length, 1, 'a reconnect with no back-off checks the stamp at once');
     });
+
+    // #1229. A failure seen while `online` is still true starts the back-off. One reconnect
+    // may pass that back-off when the failure was a dropped connection, or landed within a
+    // few seconds of the offline flip. The next reconnect in the same back-off waits.
+    test('a reconnect retries once after a network-shaped automatic failure, then waits the back-off out', async function(assert) {
+      if(LingoLinq.session) { stub(LingoLinq.session, 'restore', function() {}); }
+      var svc = this.svc;
+      stub(svc.stashes, 'push_log', function() {});
+      var reconnect = async function() {
+        svc.set('online', false);
+        var saved = Object.getOwnPropertyDescriptor(LingoLinq, 'sync_testing');
+        LingoLinq.sync_testing = true;
+        svc.set('online', true);
+        if(saved) { Object.defineProperty(LingoLinq, 'sync_testing', saved); } else { delete LingoLinq.sync_testing; }
+        await settled();
+      };
+      svc._auto_sync_failure_network = true;
+      svc._auto_sync_failure_at = (new Date()).getTime();
+      svc._reconnect_skip_block_until = null;
+      svc.set('last_sync_at', 50);
+      svc.set('auto_sync_backoff_until', (new Date()).getTime() + 60000);
+
+      await reconnect();
+      assert.strictEqual(this.requests.length, 1, 'one stamp request on the reconnect after a dropped connection');
+
+      await reconnect();
+      assert.strictEqual(this.requests.length, 1, 'a second reconnect in the same back-off does not retry');
+
+      svc._auto_sync_failure_network = false;
+      svc._auto_sync_failure_at = null;
+      svc._reconnect_skip_block_until = null;
+      svc.set('last_sync_at', null);
+      svc.set('auto_sync_backoff_until', null);
+    });
+
+    // A device that has never finished a sync has last_sync_at of 1, and login has already copied
+    // the server stamp (services/app-state.js). The failure also sets last_sync_event_at, so the
+    // 48-hour branch is not syncable yet. A stamp check then matches and does not start the sync.
+    test('a reconnect starts the first sync for a device that has never finished one', async function(assert) {
+      if(LingoLinq.session) { stub(LingoLinq.session, 'restore', function() {}); }
+      var svc = this.svc;
+      stub(svc.stashes, 'push_log', function() {});
+      var reasons = [];
+      stub(svc, 'sync', function(id, force, ignore, reason) {
+        reasons.push(reason);
+        return RSVP.reject({error: 'no'});
+      });
+      stub(emberDebug, 'isTesting', function() { return false; });
+      var reconnect = async function() {
+        svc.set('online', false);
+        var saved = Object.getOwnPropertyDescriptor(LingoLinq, 'sync_testing');
+        LingoLinq.sync_testing = true;
+        svc.set('online', true);
+        if(saved) { Object.defineProperty(LingoLinq, 'sync_testing', saved); } else { delete LingoLinq.sync_testing; }
+        await settled();
+      };
+      svc.set('last_sync_at', 1);
+      svc.set('last_sync_stamp', 'server-stamp');
+      svc.set('last_sync_event_at', (new Date()).getTime());
+      svc._auto_sync_failure_network = true;
+      svc._auto_sync_failure_at = (new Date()).getTime();
+      svc._reconnect_skip_block_until = null;
+      svc.set('auto_sync_backoff_until', (new Date()).getTime() + 60000);
+
+      await reconnect();
+      assert.strictEqual(reasons.length, 1, 'the reconnect starts a sync');
+      assert.strictEqual((reasons[0] || '').indexOf('long_time_since_sync:'), 0, 'a new device takes the first-sync reason');
+      assert.strictEqual(this.requests.length, 0, 'it does not stop at a stamp check');
+
+      await reconnect();
+      assert.strictEqual(reasons.length, 1, 'a second reconnect in the same back-off does not start another sync');
+
+      svc._auto_sync_failure_network = false;
+      svc._auto_sync_failure_at = null;
+      svc._reconnect_skip_block_until = null;
+      svc.set('last_sync_at', null);
+      svc.set('last_sync_stamp', null);
+      svc.set('last_sync_event_at', null);
+      svc.set('auto_sync_backoff_until', null);
+    });
+
+    test('a reconnect still waits out the back-off after a failure that was not a dropped connection', async function(assert) {
+      if(LingoLinq.session) { stub(LingoLinq.session, 'restore', function() {}); }
+      var svc = this.svc;
+      stub(svc.stashes, 'push_log', function() {});
+      svc._auto_sync_failure_network = false;
+      svc._auto_sync_failure_at = (new Date()).getTime() - 60000;
+      svc._offline_at = null;
+      svc._reconnect_skip_block_until = null;
+      svc.set('auto_sync_backoff_until', (new Date()).getTime() + 60000);
+
+      svc.set('online', false);
+      var saved = Object.getOwnPropertyDescriptor(LingoLinq, 'sync_testing');
+      LingoLinq.sync_testing = true;
+      svc.set('online', true);
+      if(saved) { Object.defineProperty(LingoLinq, 'sync_testing', saved); } else { delete LingoLinq.sync_testing; }
+      await settled();
+
+      assert.strictEqual(this.requests.length, 0, 'a server error does not skip the back-off');
+      svc._auto_sync_failure_at = null;
+      svc._reconnect_skip_block_until = null;
+      svc.set('auto_sync_backoff_until', null);
+    });
+
+    test('a reconnect retries once when the automatic failure landed as the device went offline', async function(assert) {
+      if(LingoLinq.session) { stub(LingoLinq.session, 'restore', function() {}); }
+      var svc = this.svc;
+      stub(svc.stashes, 'push_log', function() {});
+      var failedAt = (new Date()).getTime();
+      svc._auto_sync_failure_network = false;
+      svc._auto_sync_failure_at = failedAt;
+      svc.set('last_sync_at', 50);
+      svc._offline_at = failedAt + 1000;
+      svc._reconnect_skip_block_until = null;
+      svc.set('auto_sync_backoff_until', (new Date()).getTime() + 60000);
+
+      svc.set('online', false);
+      var saved = Object.getOwnPropertyDescriptor(LingoLinq, 'sync_testing');
+      LingoLinq.sync_testing = true;
+      svc.set('online', true);
+      if(saved) { Object.defineProperty(LingoLinq, 'sync_testing', saved); } else { delete LingoLinq.sync_testing; }
+      await settled();
+
+      assert.strictEqual(this.requests.length, 1, 'the offline flip was within a few seconds of the failure');
+      svc._auto_sync_failure_at = null;
+      svc._auto_sync_failure_network = false;
+      svc._offline_at = null;
+      svc._reconnect_skip_block_until = null;
+      svc.set('last_sync_at', null);
+      svc.set('auto_sync_backoff_until', null);
+    });
+
+    // The 48-hour branch is a new device's only automatic entry (last_sync_at of 1). Once the
+    // back-off has passed, that marker still starts a sync. #1229.
+    test('a new device still on the first-sync marker syncs after the back-off', function(assert) {
+      var svc = this.svc;
+      var reasons = [];
+      stub(svc, 'sync', function(id, force, ignore, reason) {
+        reasons.push(reason);
+        return RSVP.reject({error: 'no'});
+      });
+      stub(emberDebug, 'isTesting', function() { return false; });
+      svc.set('last_sync_at', 1);
+      svc.set('last_sync_stamp', null);
+      svc.set('last_sync_event_at', 1);
+      svc.set('auto_sync_backoff_until', null);
+
+      assert.true(svc.check_for_needs_sync(), 'the 48-hour branch starts the sync');
+      assert.strictEqual((reasons[0] || '').indexOf('long_time_since_sync:'), 0, 'the reason is the long-time sync');
+
+      svc.set('last_sync_at', null);
+      svc.set('last_sync_stamp', null);
+      svc.set('last_sync_event_at', null);
+      svc.set('auto_sync_backoff_until', null);
+    });
   });
 
   // At sign-in the installed app reloads. The sign-in call used to clear `just_logged_in` at once and

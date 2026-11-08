@@ -5740,6 +5740,239 @@ describe("persistence-sync", function() {
       });
     });
   });
+
+  // #1229. A new device's only automatic sync is the 48-hour branch of check_for_needs_sync, which
+  // needs last_sync_at of 1 (setup() when nothing is saved). Two failed syncs used to store
+  // last_sync = now and close that branch for 48 hours. A device that has already synced still
+  // gets that reset. The stored lastSync is read after the write's delay so the assertion is not
+  // looking before the store's callback.
+  function armFailingAutomaticSync(reloadErr) {
+    cancelSyncTailWork();
+    unloadSyncStoreRecords();
+    persistence.set('sync_log', null);
+    persistence.set('sync_progress', null);
+    persistence.set('sync_status', null);
+    persistence.set('online', true);
+    stub(modal, 'error', function() { });
+    stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+    stubOnPersistence('sync_user', function() { return RSVP.resolve(); });
+    stubOnPersistence('sync_boards', function() { return RSVP.resolve({}); });
+    queryLog.defineFixture({
+      method: 'GET',
+      type: 'user',
+      response: RSVP.resolve({user: {id: '1340', user_name: 'fred'}}),
+      id: '1340'
+    });
+    var prevFind = LingoLinq.store.findRecord;
+    stub(LingoLinq.store, 'findRecord', function(type, id) {
+      return prevFind.apply(this, arguments).then(function(record) {
+        if(type === 'user' && String(id) === '1340' && record) {
+          stub(record, 'reload', function() {
+            return RSVP.reject(reloadErr || {error: 'failed to retrieve user details'});
+          });
+        }
+        return record;
+      });
+    });
+  }
+
+  function runFailingAutomaticSync() {
+    var state = {done: false, stored_last_sync: undefined};
+    persistence.sync(1340, null, null, 'long_time_since_sync:1:2').then(function() { state.done = true; }, function() { state.done = true; });
+    return state;
+  }
+
+  function readStoredLastSync(state, then) {
+    setTimeout(function() {
+      persistence.find('settings', 'lastSync').then(function(res) {
+        state.stored_last_sync = res && res.last_sync;
+        then();
+      }, function() {
+        state.stored_last_sync = null;
+        then();
+      });
+    }, 30);
+  }
+
+  it('should keep a new device on the first-sync marker after two failed syncs, then sync again once the back-off has passed', function() {
+    db_wait(function() {
+      var savedAuth = stashes.get('auth_settings');
+      var savedAuto = persistence.get('auto_sync');
+      armFailingAutomaticSync();
+      persistence.set('last_sync_at', 1);
+      persistence.set('last_sync_stamp', null);
+      persistence.set('auto_sync_backoff_until', null);
+      persistence.set('auto_sync_failures', 0);
+      stashes.persist('last_sync_status', null);
+      var first = runFailingAutomaticSync();
+      waitsFor(function() { return first.done && persistence.get('sync_status') === 'failed'; });
+      runs(function() {
+        expect(persistence.get('last_sync_at')).toEqual(1);
+        expect(stashes.get('last_sync_status')).toEqual('failed');
+        var second = runFailingAutomaticSync();
+        waitsFor(function() { return second.done && persistence.get('sync_status') === 'failed'; });
+        runs(function() {
+          var read = false;
+          readStoredLastSync(second, function() { read = true; });
+          waitsFor(function() { return read; });
+          runs(function() {
+            expect(persistence.get('last_sync_at')).toEqual(1);
+            expect(second.stored_last_sync == null || second.stored_last_sync <= 1).toEqual(true);
+            persistence.set('auto_sync_backoff_until', null);
+            persistence.set('last_sync_event_at', 1);
+            persistence.set('auto_sync', true);
+            persistence.set('last_sync_stamp', null);
+            if(!stashes.get('auth_settings')) { stashes.set('auth_settings', {user_name: 'fred'}); }
+            lingoLinqExtras.set('ready', true);
+            window.lingoLinqExtras = lingoLinqExtras;
+            var reasons = [];
+            stub(emberDebug, 'isTesting', function() { return false; });
+            stubOnPersistence('sync', function(id, force, ignore, reason) {
+              reasons.push(reason);
+              return RSVP.reject({error: 'stopped'});
+            });
+            expect(persistence.check_for_needs_sync()).toEqual(true);
+            expect((reasons[0] || '').indexOf('long_time_since_sync:') === 0).toEqual(true);
+            stashes.persist('last_sync_status', null);
+            stashes.set('auth_settings', savedAuth);
+            persistence.set('auto_sync', savedAuto);
+            persistence.set('last_sync_at', null);
+            persistence.set('auto_sync_backoff_until', null);
+            persistence.set('auto_sync_failures', 0);
+            cancelSyncTailWork();
+            persistence.set('sync_progress', null);
+          });
+        });
+      });
+    });
+  });
+
+  it('should still move the last sync time after two failures once a device has synced', function() {
+    db_wait(function() {
+      armFailingAutomaticSync();
+      persistence.set('last_sync_at', 50);
+      persistence.set('auto_sync_backoff_until', null);
+      persistence.set('auto_sync_failures', 0);
+      stashes.persist('last_sync_status', 'failed');
+      var state = runFailingAutomaticSync();
+      waitsFor(function() { return state.done && persistence.get('sync_status') === 'failed'; });
+      runs(function() {
+        var read = false;
+        readStoredLastSync(state, function() { read = true; });
+        waitsFor(function() { return read; });
+        runs(function() {
+          expect(persistence.get('last_sync_at') > 50).toEqual(true);
+          expect(state.stored_last_sync > 50).toEqual(true);
+          stashes.persist('last_sync_status', null);
+          persistence.set('last_sync_at', null);
+          persistence.set('auto_sync_backoff_until', null);
+          persistence.set('auto_sync_failures', 0);
+          cancelSyncTailWork();
+          persistence.set('sync_progress', null);
+        });
+      });
+    });
+  });
+
+  it('should not move the first-sync marker when the device could not save its boards', function() {
+    db_wait(function() {
+      persistence.set('last_sync_at', 1);
+      var state = syncWithFailingWrites({error: 'error storing record in db', quota: true});
+      waitsFor(function() { return state.done && persistence.get('sync_status') !== 'syncing'; });
+      runs(function() {
+        expect(persistence.get('sync_status')).toEqual('failed');
+        expect(persistence.get('last_sync_at')).toEqual(1);
+        stashes.persist('last_sync_status', null);
+        persistence.set('sync_status_error', null);
+        persistence.set('last_sync_at', null);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+      });
+    });
+  });
+
+  // #1229. A dropped request rejects as {fakeXHR: {status: 0}, message, result}
+  // (utils/extras.js ajax_reject). The sync used to replace that with a plain
+  // "failed to retrieve user details", so a reconnect could not tell it from a
+  // server error. A 500 keeps its status and is not a network failure.
+  it('should remember a dropped connection as a network failure', function() {
+    db_wait(function() {
+      armFailingAutomaticSync({fakeXHR: {status: 0}, message: 'error', result: 'error'});
+      persistence.set('last_sync_at', 50);
+      persistence.set('online', true);
+      var svc = persistenceTarget() || persistence;
+      svc._auto_sync_failure_network = false;
+      var state = runFailingAutomaticSync();
+      waitsFor(function() { return state.done && persistence.get('sync_status') === 'failed'; });
+      runs(function() {
+        expect(svc._auto_sync_failure_network).toEqual(true);
+        svc._auto_sync_failure_network = false;
+        svc._auto_sync_failure_at = null;
+        stashes.persist('last_sync_status', null);
+        persistence.set('last_sync_at', null);
+        persistence.set('auto_sync_backoff_until', null);
+        persistence.set('auto_sync_failures', 0);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+      });
+    });
+  });
+
+  it('should not remember a server error as a network failure', function() {
+    db_wait(function() {
+      armFailingAutomaticSync({fakeXHR: {status: 500}, message: 'error', result: 'Internal Server Error'});
+      persistence.set('last_sync_at', 50);
+      persistence.set('online', true);
+      var svc = persistenceTarget() || persistence;
+      svc._auto_sync_failure_network = false;
+      var state = runFailingAutomaticSync();
+      waitsFor(function() { return state.done && persistence.get('sync_status') === 'failed'; });
+      runs(function() {
+        expect(svc._auto_sync_failure_network).toEqual(false);
+        svc._auto_sync_failure_at = null;
+        stashes.persist('last_sync_status', null);
+        persistence.set('last_sync_at', null);
+        persistence.set('auto_sync_backoff_until', null);
+        persistence.set('auto_sync_failures', 0);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+      });
+    });
+  });
+
+  // The user reload used to be replaced with a fixed string. Keeping the xhr as `cause` put the
+  // response body on the object the failure branch logs (services/persistence.js). A dropped
+  // connection is still remembered, without that body.
+  it('should not keep the server response on a failed user reload', function() {
+    db_wait(function() {
+      var body = 'RESPONSE_BODY_MUST_NOT_LEAK';
+      armFailingAutomaticSync({fakeXHR: {status: 500, responseText: body, responseJSON: {user_name: 'fred'}}, message: 'error', result: 'error'});
+      persistence.set('last_sync_at', 50);
+      persistence.set('online', true);
+      var logged = [];
+      stub(console, 'log', function(value) { logged.push(value); });
+      var rejected = null;
+      persistence.sync(1340, null, null, 'long_time_since_sync:1:2').then(function() { }, function(err) { rejected = err; });
+      waitsFor(function() { return !!rejected && persistence.get('sync_status') === 'failed'; });
+      runs(function() {
+        expect(rejected.error).toEqual('failed to retrieve user details');
+        expect(rejected.responseText).toEqual(undefined);
+        expect(rejected.cause).toEqual(undefined);
+        expect(JSON.stringify(rejected).indexOf(body) === -1).toEqual(true);
+        expect(JSON.stringify(logged).indexOf(body) === -1).toEqual(true);
+        var svc = persistenceTarget() || persistence;
+        expect(svc._auto_sync_failure_network).toEqual(false);
+        svc._auto_sync_failure_at = null;
+        svc._auto_sync_failure_network = false;
+        stashes.persist('last_sync_status', null);
+        persistence.set('last_sync_at', null);
+        persistence.set('auto_sync_backoff_until', null);
+        persistence.set('auto_sync_failures', 0);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+      });
+    });
+  });
 });
 // Every sync also starts from Crisis Vocabulary (#1221, utils/offline_sync_seeds.js), so the tests that run a
 // real sync answer it. Placed last so the ESLint baseline rows above do not move; function declarations are hoisted.
@@ -5755,3 +5988,4 @@ function defineCrisisVocabularyFixture() {
 }
 // Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
 import boardRevocation from '../../utils/board_revocation';
+import * as emberDebug from '@ember/debug';

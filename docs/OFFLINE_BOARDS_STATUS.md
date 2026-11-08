@@ -67,6 +67,10 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
   now ends as failed with a message ("This device is out of storage..."), and saves those boards on the next sync.
 - The offline sync saves only the boards above (#1221, first half).
 
+**Retrying a failed sync (#1229)**
+- A device that has never finished a sync stays on the first-sync marker after a failed sync, including when the device could not save. The automatic retry is not pushed out 48 hours. A device that has already synced still waits 48 hours after two failures.
+- One reconnect starts the first sync for a device that has never finished one. A device that has already synced gets one stamp check instead. A failure that landed within a few seconds of going offline is included. The next reconnect in that same backoff waits.
+
 **Sign-in and trust**
 - A Home Screen sign-in asks "Trust this Device" or "This is a Shared Device", only where the offline shell is on.
 - A new device never borrows another device's trust choice.
@@ -134,7 +138,7 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
 2. **#1212:** board downloads time out under load (slow server, many requests at once, short client limits).
 3. **#1219:** the board tree request (`/tree`) fails on very large boards (Cloud Run response size cap).
 4. **Picture data repair (operations):** some saved picture addresses fail; a one-time data cleanup.
-5. **#1229:** retry gaps after a failed sync (a new device can wait 48 hours).
+5. **#1229:** done. A new device that has never finished a sync keeps retrying after the backoff, and one reconnect can retry a dropped connection. See the task log.
 6. **#1230:** Modern view's "Sync failed" notice can show the wrong state.
 7. **#1034:** "Pick for home" says "saved for offline use" and "Ready to communicate" when neither is true.
 8. **A "N of M boards saved" count** during sync.
@@ -214,7 +218,7 @@ Notes:
 | #1213 | Modern view never loads from the device | Fixed |
 | #1219 | `/tree` fails on large boards | Open |
 | #1221 | First offline sync too slow | First half done; second half partly diagnosed |
-| #1229 | Retry gaps after a failed sync | Open |
+| #1229 | Retry gaps after a failed sync | Fixed on this branch |
 | #1230 | Modern "Sync failed" notice | Open |
 | #1034 | "Pick for home" claims | Open |
 | #1234 | Translations for the 12 locales | Open (steps above) |

@@ -744,3 +744,103 @@ another (a forced re-download merges only with a forced one); (2) the eventual-s
 entry for the same store and key with the newer object instead of appending (both copies). Rejected: skipping a
 write when the content hash is unchanged (an extra serialization on every write; a second tab can make it skip
 a write it should not).
+
+## #1229 retry gaps after a failed sync (2026-11-08)
+
+Two units, each red first, then shown red again with the fix removed (restored from a copy). Stayed on
+`feat/scot-offline-app-shell-7a29ac97`. No new user-facing strings. #1230, #1034 and the "N of M" count
+were not touched.
+
+### Unit 1: a new device keeps its first-sync marker
+
+(a) Where `last_sync_at` is read. CONFIRMED `services/persistence.js:3972`: the live `check_for_needs_sync`
+starts a sync when `synced > 0` and `(now - synced) > 48h`. A new device gets `last_sync_at` of 1 from
+`setup()` when no `lastSync` is saved (`start_sync_state`). The copy of that method inside the comment
+block at `:4069` does not run.
+
+(b) Writers that move the clock after a failure. CONFIRMED. Two failures in a row store `last_sync = now`
+(`:2445`). A storage failure is not a rejected sync: the completion path sets `last_sync_at` to now in
+memory and does not store `lastSync` (`:2414-2417`). A successful sync still writes the clock.
+
+(c) `last_sync_stamp` is the wrong "never finished" signal. CONFIRMED `services/app-state.js:4180`: login
+copies the session stamp onto `last_sync_stamp` before any sync finishes, and that stamp matches the
+server, so the stamp branch does not start the first sync. The signal is `last_sync_at > 1` (the mobile
+boot guard already treats `synced > 1` as a real sync time).
+
+(d) The utils copy. CONFIRMED the app does not run `utils/persistence.js`'s failure store (`:2467`). The
+module proxies `sync` to the service once `window.persistence` has it. One test hides `sync` so the utils
+success path runs (`persistence-sync-test.js` `utilsSyncWindow`); that case does not enter the two-failure
+store. Left unchanged.
+
+Fix: `sync_clock_advances_on_failure` (reopen block) is true only when `last_sync_at > 1`. Called from the
+existing two-failure `if` and from the completion assignment, same line count, so the ESLint rows did not
+move. A device that has synced still gets the 48-hour reset. Rejected: deleting the reset for every device.
+
+Tests, red before the fix (`last_sync_at` became the current time, expected 1): "should keep a new device
+on the first-sync marker after two failed syncs, then sync again once the back-off has passed"; "should not
+move the first-sync marker when the device could not save its boards". Mutation (helper always returns true)
+turned both red again. Still green: "should still move the last sync time after two failures once a device
+has synced", and the existing storage test with `last_sync_at` of 5. The startup test "a new device still
+on the first-sync marker syncs after the back-off" pins the read and was already green.
+
+Known limit: a device that already stored a fake `lastSync` from this bug has `last_sync_at > 1`, so it
+keeps waiting until 48 hours pass or someone syncs by hand.
+
+### Unit 2: one reconnect after a dropped connection
+
+(a) What the sync promise rejects with. CONFIRMED the root user reload used to call
+`sync_reject({error: "failed to retrieve user details"})` and drop the original error (`:2109`, and the
+findRecord failure beside it). `sync_user` did the same (`:3471`). The ajax layer rejects
+`{fakeXHR, message, result}` (`utils/extras.js` `ajax_reject`), and `fakeXHR` leaves `status` 0 when the
+browser reports none. `persistence.ajax` rejects `{offline: true, short_circuit: true}` when it already
+knows there is no connection. `time_promise` rejects `{error: 'promise timed out:' + msg}` when the request
+never returns. Those three are the network shapes. A 500 is not.
+
+(b) When `online` flips. CONFIRMED `_setupOnlineListeners` (`:4188`): browser and Cordova `online`/`offline`
+events, plus a 30-second poller. `on_connect` calls `check_for_needs_sync(true, 'reconnect')` 500 ms after
+the device comes online. The wrapper waits out `auto_sync_backoff_until` on that trigger. The backoff
+watcher starts a backoff only when the failure happens while `online` is true.
+
+Fix: the reload and `sync_user` rejections keep the original error as `cause` (same lines, so the modal
+still reads `err.error`). The root `sync` wrapper records an automatic failure's time and whether it is a
+network shape. An `online` observer records when the device goes offline. One reconnect may pass the
+backoff when the failure was a network shape, or its time is within 5 seconds of that offline flip. The
+skip is then blocked until that backoff ends. A success clears the record. Rejected: never backing off on
+status 0, which would retry on the normal tick while the device still looks online.
+
+Tests, red before the fix (0 stamp requests, expected 1; the dropped-connection flag stayed false):
+"should remember a dropped connection as a network failure"; "a reconnect retries once after a
+network-shaped automatic failure, then waits the back-off out"; "a reconnect retries once when the
+automatic failure landed as the device went offline". Mutation (`reconnect_may_skip_backoff` returns false)
+turned the two reconnect tests red again. Still green: "should not remember a server error as a network
+failure", "a reconnect still waits out the back-off after a failure that was not a dropped connection",
+and the existing reconnect backoff test.
+
+Known limit: a captive portal that never flips `online` false and then true still waits out the backoff.
+Try Again and the Sync button remain the way out.
+
+Lint: `npm run lint:js:ci` new=0 (1549 baseline, unchanged).
+
+### Review fixes (2026-11-08)
+
+The reconnect check was only a stamp request. For a new device that request does not start a sync:
+login has copied the server stamp (`services/app-state.js:4180`), and the failure branch sets
+`last_sync_event_at`, so the 48-hour branch is not syncable for about five minutes
+(`services/persistence.js` `check_for_needs_sync`, `syncable`). Confirmed by reading those branches.
+
+Fix: when the one reconnect exemption is for a device whose `last_sync_at` is not greater than 1, and
+auto sync is on, call `sync` with `long_time_since_sync` and return before the stamp check. A device
+that has synced still gets the stamp check. Rejected: clearing `last_sync_event_at`, which would also
+let the normal tick start another sync.
+
+The reload rejection no longer carries the xhr. It carries `network: true` or `network: false`, decided
+from the xhr before the fixed string is rejected. `sync_user` does the same. The failure branch logs
+that object (`console.log(err)`), so a 500 body is not in the log. The wrapper asks
+`sync_failure_is_network`, which is the method that was previously unused.
+
+Tests, red first: "a reconnect starts the first sync for a device that has never finished one" (0 syncs,
+expected 1); "should not keep the server response on a failed user reload" (`cause` was the xhr).
+Removing the direct call turned the first red again. Putting `cause` back turned the second red again.
+Restored from a copy both times. The stamp-check reconnect tests now set `last_sync_at` to 50 so they
+keep describing a device that has synced.
+

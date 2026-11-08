@@ -2106,12 +2106,12 @@ var persistence = Service.extend({
             // already reloaded in sync_supervisees
             return user;
           } else {
-            return _this_sync.time_promise(user.reload(), 'reloading root user', 5000).then(null, function() {
-              sync_reject({error: "failed to retrieve user details"});
+            return _this_sync.time_promise(user.reload(), 'reloading root user', 5000).then(null, function(reloadErr) {
+              sync_reject({error: "failed to retrieve user details", network: sync_error_is_network(reloadErr)});
             });
           }
-        }, function() {
-          sync_reject({error: "failed to retrieve user details"});
+        }, function(findErr) {
+          sync_reject({error: "failed to retrieve user details", network: sync_error_is_network(findErr)});
         });
       }));
 
@@ -2411,10 +2411,10 @@ var persistence = Service.extend({
             sync_message = i18n.t('finised_without_errors', "Finished syncing %{user_id} without errors", {user_id: user_name});
           }
           console.log('synced!');
-          (storage_failed ? RSVP.resolve({last_sync: last_sync, stamps: _this_sync.get('sync_stamps')}) : _this_sync.store('settings', {last_sync: last_sync, stamps: sync_stamps}, 'lastSync')).then(function(res) { // after failed writes the stamps stay, so the next sync saves those boards again; the time moves on, so automatic syncs keep their pace
+          (storage_failed ? RSVP.resolve({last_sync: last_sync, stamps: _this_sync.get('sync_stamps')}) : _this_sync.store('settings', {last_sync: last_sync, stamps: sync_stamps}, 'lastSync')).then(function(res) { // after failed writes the stamps stay, so the next sync saves those boards again; the time moves on only once a sync has finished (sync_clock_advances_on_failure)
             _this_sync.set('last_sync_event_at', (new Date()).getTime());
             _this_sync.set('sync_stamps', res.stamps);
-            _this_sync.set('last_sync_at', res.last_sync);
+            if(!storage_failed || _this_sync.sync_clock_advances_on_failure()) { _this_sync.set('last_sync_at', res.last_sync); }
           }, function() {
             debugger;
           });
@@ -2442,7 +2442,7 @@ var persistence = Service.extend({
         _this_sync.set('sync_status', 'failed');
         // if last sync attempt ended in failure and this attempt also
         // failed, then set last_sync_at to prevent repeated attempts to sync
-        if(_this_sync.stashes.get('last_sync_status') == 'failed') {
+        if(_this_sync.stashes.get('last_sync_status') == 'failed' && _this_sync.sync_clock_advances_on_failure()) {
           var last_sync = (new Date()).getTime() / 1000;
           _this_sync.store('settings', {last_sync: last_sync, stamps: stamps}, 'lastSync').then(function(res) {
             _this_sync.set('last_sync_at', res.last_sync);
@@ -3467,8 +3467,8 @@ var persistence = Service.extend({
         }
 
         return RSVP.resolve(u);
-      }, function() {
-        reject({error: "failed to retrieve latest user details"});
+      }, function(reloadErr) {
+        reject({error: "failed to retrieve latest user details", network: sync_error_is_network(reloadErr)});
       });
 
       // also download the latest avatar as a data uri
@@ -4749,6 +4749,23 @@ persistence.allowInvalidTokenLocalFallback = function(err, type, id, still_onlin
 // class, so the ESLint baseline rows above do not shift.
 var AUTO_SYNC_BACKOFF_MS = 30 * 60 * 1000;
 var AUTO_SYNC_BACKOFF_MAX_MS = 6 * 60 * 60 * 1000;
+var RECONNECT_FAILURE_WINDOW_MS = 5 * 1000;
+// A dropped request is {fakeXHR: {status: 0}, message, result} (utils/extras.js ajax_reject;
+// fakeXHR leaves status 0 when the browser reports none). persistence.ajax rejects
+// {offline: true, short_circuit: true} when it already knows there is no connection.
+// time_promise rejects {error: 'promise timed out:...'} when the request never returns.
+function network_error_shape(err) {
+  if(!err) { return false; }
+  if(err.offline || err.short_circuit) { return true; }
+  var xhr = err.fakeXHR || (err._result && err._result.fakeXHR);
+  if(xhr && xhr.status === 0) { return true; }
+  return typeof err.error === 'string' && err.error.indexOf('promise timed out:') === 0;
+}
+function sync_error_is_network(err) {
+  // `network: true` is the sanitized reload failure (no xhr, so no response body).
+  if(err && err.network === true) { return true; }
+  return network_error_shape(err) || network_error_shape(err && err.cause);
+}
 persistence.reopen({
   init() {
     this._super(...arguments);
@@ -4829,7 +4846,27 @@ persistence.reopen({
     // Only the sign-in check skips the back-off. A reconnect (on_connect) is forced so it checks at
     // once, but on a flaky network it would otherwise retry the failed sync on every reconnect.
     var skips_backoff = force === true && trigger !== 'reconnect';
-    if(!skips_backoff && this.get('auto_sync_backoff_until') > (new Date()).getTime()) { return false; }
+    var in_backoff = this.get('auto_sync_backoff_until') > (new Date()).getTime();
+    // One reconnect may pass the back-off after a dropped connection, or a failure that
+    // landed within a few seconds of the offline flip. The skip is then blocked until
+    // that back-off ends, so a flaky link cannot retry on every reconnect. #1229.
+    var skip_for_reconnect = trigger === 'reconnect' && in_backoff && this.reconnect_may_skip_backoff();
+    if(!skips_backoff && in_backoff && !skip_for_reconnect) { return false; }
+    if(skip_for_reconnect) {
+      this._reconnect_skip_block_until = this.get('auto_sync_backoff_until');
+      this._auto_sync_failure_at = null;
+      this._auto_sync_failure_network = false;
+    }
+    // A device that has never finished a sync cannot get in through the stamp check. Login already
+    // copied the server stamp (services/app-state.js:4180), and the failure branch sets
+    // last_sync_event_at, so the 48-hour branch is not syncable for about five minutes. Start that
+    // sync directly. A device that has synced still uses the stamp check.
+    if(skip_for_reconnect && !this.sync_clock_advances_on_failure() && this.get('online') && this.get('auto_sync') !== false && this.get('auto_sync') != null && extrasIsReady()) {
+      var syncedAt = this.get('last_sync_at') || 0;
+      var nowSeconds = (new Date()).getTime() / 1000;
+      this.sync('self', null, null, 'long_time_since_sync:' + syncedAt + ':' + nowSeconds).then(null, function() { });
+      return true;
+    }
     return this._super(...arguments);
   },
   // The database is chosen once per app start from the signed-in user (capabilities.setup_database).
@@ -4852,6 +4889,9 @@ persistence.reopen({
     return this._super(...arguments).then(null, function(err) {
       if(_this.get('root_sync_canceled') && !_this.isDestroyed && _this.stashes) {
         _this.stashes.persist('last_sync_status', last_status);
+      } else if(_this.sync_is_automatic()) {
+        _this._auto_sync_failure_at = (new Date()).getTime();
+        _this._auto_sync_failure_network = _this.sync_failure_is_network(err);
       }
       return RSVP.reject(err);
     });
@@ -4866,6 +4906,31 @@ persistence.reopen({
   sync_is_automatic: function() {
     return /^(long_time_since_sync|sync_stamp_changed):/.test(this._root_sync_reason || '');
   },
+  // A failure may move last_sync_at only after a finished sync (a time greater than the
+  // sentinel 1). That sentinel is a new device's only way into check_for_needs_sync's
+  // 48-hour branch. Login copies a stamp first (services/app-state.js, the sessionUser
+  // observer), so last_sync_stamp is not this signal. #1229.
+  sync_clock_advances_on_failure: function() {
+    return (this.get('last_sync_at') || 0) > 1;
+  },
+  // True when this automatic failure, or the error it replaced, is a dropped connection.
+  sync_failure_is_network: function(err) {
+    return sync_error_is_network(err);
+  },
+  // The offline event can arrive after the failure. Record it so a reconnect can see
+  // that the two were a few seconds apart (check_for_needs_sync, trigger 'reconnect').
+  offline_flip_watcher: observer('online', function() {
+    if(this.isDestroyed || this.isDestroying) { return; }
+    if(this.get('online') === false) { this._offline_at = (new Date()).getTime(); }
+  }),
+  reconnect_may_skip_backoff: function() {
+    if(this._reconnect_skip_block_until > (new Date()).getTime()) { return false; }
+    var failedAt = this._auto_sync_failure_at;
+    if(!failedAt) { return false; }
+    if(this._auto_sync_failure_network) { return true; }
+    var offlineAt = this._offline_at || 0;
+    return Math.abs(offlineAt - failedAt) < RECONNECT_FAILURE_WINDOW_MS;
+  },
   // A sync the app started on its own backs off after failing (30 minutes, doubling to 6 hours)
   // instead of retrying every interval; a sync that completes resets it. Decided 2026-10-26.
   sync_backoff_watcher: observer('sync_status', function() {
@@ -4876,6 +4941,9 @@ persistence.reopen({
       this.set('last_sync_event_at', (new Date()).getTime());
       this.set('auto_sync_failures', 0);
       this.set('auto_sync_backoff_until', null);
+      this._auto_sync_failure_at = null;
+      this._auto_sync_failure_network = false;
+      this._reconnect_skip_block_until = null;
     } else if(status === 'failed' && this.sync_is_automatic() && this.get('online')) {
       // Not after a failure while offline: coming back online retries that one (on_connect).
       var failures = (this.get('auto_sync_failures') || 0) + 1;
