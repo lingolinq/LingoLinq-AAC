@@ -480,3 +480,12 @@ Security ship, senior-dev approve with comments, adversary BLOCK on two Highs. C
 
 Left: Home and Back do not pre-check (they reach the same escape). Owner then board can wait 8 s each on a hung network (M10). A late setup success after 30 s is not specially
 handled (reviewer found it safe: same database). Sounds untested. Check `auth_spa_transition` in production.
+
+### Verification review at `da588782d` (2026-11-07): SHIP
+
+Both Highs closed; no new Critical or High. Three Mediums fixed after, each test red with its fix reverted:
+- `owner_stand_in` could stay set after an early-returning navigation (your own board), so Basic treated a healthy online user as offline. Cleared at the top of every
+  `user` model.
+- Every memory hit read pictures from the database on a no-file-storage device, online too. Now only offline.
+- A shared device's pre-check let a tap through that the owner lookup then refused. `board_saved_here` now refuses someone else's board there.
+Noted, older than this work: the own-page offline branch still reaches `error.hbs` if the session user cannot be read in 10 s.

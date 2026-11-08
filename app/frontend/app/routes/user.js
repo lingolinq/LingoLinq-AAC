@@ -29,7 +29,7 @@ export default Route.extend({
     // Use queryRecord with 'path' to allow the adapter to construct the correct URL
     // while checking for a single record response, avoiding ID mismatch warnings
     // when 'example' redirects to '1_1'
-    var _this = this;
+    var _this = this; this._end_stand_in(); // every navigation starts with no owner from the device, early returns included
     var online = function() {
       return !!(_this && _this.persistence && typeof _this.persistence.get === 'function' && _this.persistence.get('online'));
     };

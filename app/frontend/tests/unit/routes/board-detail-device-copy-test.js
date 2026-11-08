@@ -484,6 +484,7 @@ module('Unit | Route | user/board-detail device copy', function(hooks) {
 
   test('a memory hit with no connection loads its pictures', async function(assert) {
     var urls = [];
+    this.persistenceService.set('online', false);
     this.persistenceService.set('local_system', {available: false});
     this.persistenceService.find_url = function(url) { urls.push(url); return RSVP.resolve('data:x'); };
     var store = this.owner.lookup('service:store');
@@ -491,6 +492,17 @@ module('Unit | Route | user/board-detail device copy', function(hooks) {
     boardDetailCache.set(row({image_urls: {a: 'https://x/a.png'}}));
     await open(this);
     assert.deepEqual(urls, ['https://x/a.png']);
+  });
+
+  test('online, a memory hit reads no pictures from the database', async function(assert) {
+    var reads = 0;
+    this.persistenceService.set('local_system', {available: false});
+    this.persistenceService.find_url = function() { reads++; return RSVP.resolve('data:x'); };
+    var store = this.owner.lookup('service:store');
+    store.push(store.normalize('board', row()));
+    boardDetailCache.set(row({image_urls: {a: 'https://x/a.png'}}));
+    await open(this);
+    assert.strictEqual(reads, 0);
   });
 
   test('only one board of pictures is kept in memory', async function(assert) {

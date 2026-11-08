@@ -105,6 +105,16 @@ module('Unit | Route | user owner of a board page', function(hooks) {
     assert.deepEqual(this.moved, [['offline_boards']]);
   });
 
+  test('any navigation starts with no owner from the device, also one that returns early', async function(assert) {
+    this.device.board['lingolinq/crisis'] = {id: '1_9', key: 'lingolinq/crisis'};
+    await this.route.model({user_id: 'lingolinq'}, to_board('crisis'));
+    assert.true(this.route.get('owner_stand_in'));
+    this.route.appState.set('currentUser', EmberObject.create({user_name: 'me', id: '1_1'}));
+    await this.route.model({user_id: 'me'}, to_board('home'));
+    assert.false(this.route.get('owner_stand_in'), 'your own board, which returns before the owner lookup');
+    assert.strictEqual(this.watching, 0);
+  });
+
   test('a real record is watched too, so it serves board pages only', async function(assert) {
     this.device.user.kid = {id: '1_4', user_name: 'kid'};
     await this.route.model({user_id: 'kid'}, to_board('home'));

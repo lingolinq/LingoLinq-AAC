@@ -42,13 +42,21 @@ module('Unit | Utility | board_device_copy', function(hooks) {
       }).create({online: online});
     }
 
+    var me = EmberObject.create({sessionUser: EmberObject.create({user_name: 'me', preferences: {device: {long_token: true}}})});
+    test('board_saved_here: a shared device cannot open someone else\'s board offline, saved or not', async function(assert) {
+      var shared = EmberObject.create({sessionUser: EmberObject.create({user_name: 'me', preferences: {device: {long_token: false}}})});
+      assert.false(await board_saved_here(device(false, {'lingolinq/crisis': raw}), cache, 'lingolinq/crisis', shared));
+      assert.true(await board_saved_here(device(false, {'me/board': raw}), cache, 'me/board', shared), 'its own board');
+      assert.true(await board_saved_here(device(false, {'lingolinq/crisis': raw}), cache, 'lingolinq/crisis', me), 'a trusted device');
+    });
+
     test('board_saved_here only says no offline, for a board that is really missing', async function(assert) {
-      assert.true(await board_saved_here(device(true, {}), cache, 'me/board'), 'online');
-      assert.false(await board_saved_here(device(false, {}), cache, 'me/board'), 'offline, not on the device');
-      assert.true(await board_saved_here(device(false, {'me/board': raw}), cache, 'me/board'), 'offline, on the device');
-      assert.false(await board_saved_here(device(false, {'me/board': {id: '1_7', key: 'me/board'}}), cache, 'me/board'), 'a row that cannot render');
-      assert.true(await board_saved_here(device(false, {}), {peek: function() { return raw; }}, 'me/board'), 'in memory');
-      assert.true(await board_saved_here(device(false, {}), cache, 'obf/emergency'), 'not a stored board');
+      assert.true(await board_saved_here(device(true, {}), cache, 'me/board', me), 'online');
+      assert.false(await board_saved_here(device(false, {}), cache, 'me/board', me), 'offline, not on the device');
+      assert.true(await board_saved_here(device(false, {'me/board': raw}), cache, 'me/board', me), 'offline, on the device');
+      assert.false(await board_saved_here(device(false, {'me/board': {id: '1_7', key: 'me/board'}}), cache, 'me/board', me), 'a row that cannot render');
+      assert.true(await board_saved_here(device(false, {}), {peek: function() { return raw; }}, 'me/board', me), 'in memory');
+      assert.true(await board_saved_here(device(false, {}), cache, 'obf/emergency', me), 'not a stored board');
     });
 
     test('a slow read is not a missing board', async function(assert) {

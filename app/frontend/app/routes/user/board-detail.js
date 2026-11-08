@@ -671,7 +671,7 @@ export default Route.extend({
     return this._model_from_cache_or_server(params, nav).then(function(result) {
       if(!result || !result.error) {
         // A memory hit with no connection is a copy too, as far as its pictures go.
-        return nav.answered ? result : within(load_copy_images(_this.persistence, _this.get('_raw_board_data') || {}), _this.device_read_wait).then(function() { return result; });
+        return (nav.answered || persistence.get('online') !== false) ? result : within(load_copy_images(_this.persistence, _this.get('_raw_board_data') || {}), _this.device_read_wait).then(function() { return result; });
       }
       return _this._serve_copy(nav).then(function(record) { return record || result; });
     }).then(function(result) {

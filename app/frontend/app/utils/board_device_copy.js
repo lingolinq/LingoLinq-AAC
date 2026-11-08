@@ -45,8 +45,13 @@ export function device_has_board(persistence, board_cache, key) {
 
 // Offline, can this board open? Read before leaving the board on screen: the loading page clears it as
 // soon as a transition starts. A key with no owner (obf/, integrations/) has its own loader.
-export function board_saved_here(persistence, board_cache, key) {
+// A shared device gets no owner from the device for someone else's board (routes/user.js
+// _device_owner), so that board cannot open offline there, whatever is saved.
+export function board_saved_here(persistence, board_cache, key, appState) {
   if(persistence.get('online') !== false || !key || !opens_in_view_route(key)) { return RSVP.resolve(true); }
+  var user = appState && (appState.get('sessionUser') || appState.get('currentUser'));
+  var own = user && key.split('/')[0] === emberGet(user, 'user_name');
+  if(!own && emberGet(user || {}, 'preferences.device.long_token') !== true) { return RSVP.resolve(false); }
   return device_has_board(persistence, board_cache, key);
 }
 

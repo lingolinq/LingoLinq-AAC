@@ -8729,7 +8729,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
         var board_key = load_board.key;
         if(board_key && board_key.indexOf('/') !== -1) {
           actionLock.run('board-link:' + (_this.get('model.key') || _this.get('model.id') || 'board-detail') + ':' + board_key, function() {
-            return board_saved_here(persistence, boardDetailCache, board_key).then(function(saved) {
+            return board_saved_here(persistence, boardDetailCache, board_key, _this.get('app_state')).then(function(saved) {
               if(!saved) { return warn_board_not_saved(); } // offline: answer at once; the board and sentence stay
               _this._push_nav_history();
               return _this._preferred_board_detail_key(board_key).then(function(preferred_key) { var key_parts = preferred_key.split('/'); return _this.get('router').transitionTo('user.board-detail', key_parts[0], key_parts.slice(1).join('/')); });
