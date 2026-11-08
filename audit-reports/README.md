@@ -46,14 +46,16 @@ adversary review and a Scot decision, never silently reopened, reclosed, or re-a
 `meta.auditedSha`/`auditedRef`/`auditedDate` are the **audit pointer**: they record the commit an
 `/audit-run` ran at, and `auditedRef` states how much of the audit that run reached. Per-finding
 `evidence.sha` is the **evidence anchor**: the commit that one snippet is proven to exist at. Only a
-real `/audit-run` moves the pointer, and moving it is a governance act requiring Scot's sign-off plus
-an analysis of the intervening commits (`meta.auditedShaPriorNote` records each restamp).
+real `/audit-run` moves the pointer, and moving it is a governance act: it needs an analysis of the
+intervening commits (`meta.auditedShaPriorNote` records each restamp), and in the annual formal run
+Scot's sign-off, recorded in a sign-off stamp PR. An ad hoc run's restamp is reviewed in its register
+PR and needs no sign-off stamp PR.
 
 So `audit-merge.rb` takes them separately:
 
 | Situation | Invocation | `meta` | `evidence.sha` |
 |---|---|---|---|
-| `/audit-run`, quarterly or monthly light | `--sha <auditedSha> --ref "<stamp>"` | restamped | `<auditedSha>` |
+| `/audit-run`, annual formal or ad hoc | `--sha <auditedSha> --ref "<stamp>"` | restamped | `<auditedSha>` |
 | Any other addition (hand-filed finding, targeted re-anchor) | `--sha <trueCommit> --no-restamp` | untouched | `<trueCommit>` |
 | PR-time promotion | `promote-finding.rb` (no sha flag) | untouched | each finding's own `evidence.sha` |
 
@@ -75,8 +77,8 @@ are in `.claude/skills/audit-run/SKILL.md`. Every full stamp carries this exact 
 Excludes assistive-technology testing (tracked separately in the conformance report).
 ```
 
-In any document, "full audit run", "quarterly full" and `type: full` name the size of the fan-out, and
-some older uses are looser still. Only "FULL COVERAGE" in the stamp means this definition.
+In any document, "full audit run", "quarterly full" (older documents), "annual full" and `type: full`
+name the size of the fan-out, and some older uses are looser still. Only "FULL COVERAGE" in the stamp means this definition.
 
 ### Structural validation
 
@@ -136,7 +138,7 @@ their statuses as current.
 | File(s) | Status |
 |---|---|
 | `audit-2026-02-21.{json,md}`, `audit-2026-02-22.{json,md}` | Superseded. February MVP-readiness snapshots; their P0s (permit_all_parameters, SQL injection, Bugsnag, Rack CVEs, token leakage) were resolved and are reflected as closed/obsolete in the register. |
-| `annual-compliance-audit-2026-02-23.md` | Superseded. Folds into the register (internal findings) and the future Compliance Posture Report (external posture). Annual cadence replaced by quarterly-full + monthly-light. |
+| `annual-compliance-audit-2026-02-23.md` | Superseded. Folds into the register (internal findings) and the future Compliance Posture Report (external posture). Annual cadence replaced by quarterly-full + monthly-light, then restored on 2026-11-07 as one formal full run per year (see "Audit cadence" below). |
 | `ember-audit-2026-02-21.json`, `frontend_audit.json`, `dependency-audit-report.json`, `brakeman_report.json` | Superseded. February point-in-time scan artifacts. Dependency/scan hygiene moves into the recurring codebase-health audit; security-relevant results flow into the register. |
 | `weekly-update-2026-02-24.md` | Historical status note. Not an audit report. |
 
@@ -147,18 +149,27 @@ their statuses as current.
 | `security-hotfix-2026-02-22.{json,md}` | Incident-remediation artifact, not a standing report. Linked from `docs/legal/INCIDENT_LOG.md`; out of the periodic audit set. |
 | `wcag-modernized-2026-04-11*.md` (main + `pass3`-`pass8` + `followup`) | Accessibility remediation **working notes**. Not a conformance statement. A standing Accessibility Conformance Report (VPAT/ACR) is a Phase 3 deliverable; these become its working notes. |
 
+## Audit cadence
+
+One formal full `/audit-run` per year, tracked in `compliance-calendar.json` as
+`rev-audit-run-annual-full` (Scot, 2026-11-07). There is no quarterly or monthly requirement.
+`/audit-run` stays available for ad hoc runs, in full or light mode; an ad hoc run needs no sign-off
+stamp PR and does not count as the year's formal audit. Run steps and stamps:
+`.claude/skills/audit-run/SKILL.md` ("Cadence").
+
 ## Conventions going forward
 
 - The register (`FINDINGS.json` + `FINDINGS.md`) lives here, in the LingoLinq-AAC repo, git-tracked.
 - Recurrence is a diff of the register between runs (finding IDs are deterministic).
-- Rendered quarterly/periodic reports will read **from** the register, never restate findings independently.
+- Rendered periodic reports will read **from** the register, never restate findings independently.
 - Plans and strategy docs live in `ai-company-brain/outputs/`, not here.
 - Only Scot closes a finding, downgrades severity, accepts risk, or sets a disposition; `closureEvidence.attestation` and `disposition.decidedBy` stay empty until he signs.
 
 _Phases 1-4 of the Audit/Compliance System Modernization. The read-only finder agents and the
 `/audit-run` orchestrator shipped in Phase 2; the compliance-officer, calendar, and customer-facing
 artifact skeletons in Phase 3. Phase 4 "Cadence" added the first full run, the quarterly-full +
-monthly-light cadence (`compliance-calendar.json`), hook-based per-run logging (`run-log/`), and
+monthly-light cadence (`compliance-calendar.json`; replaced 2026-11-07 by one formal full run per
+year), hook-based per-run logging (`run-log/`), and
 the one-way Notion publish generator (`scripts/compliance-notion-publish.rb` ->
 `notion/compliance-audit-page.md`; see `notion/README.md`). The actual push to Notion is a
 human-initiated one-way step._

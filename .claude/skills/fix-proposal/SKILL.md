@@ -1,6 +1,6 @@
 ---
 name: fix-proposal
-description: The LingoLinq-AAC discipline for any bug fix or behaviour change, from diagnosis to landed test. Write the three facts (where the value is read, every shape it can hold, whether each cross-file claim is true), label each CONFIRMED or ASSUMED, write the red test first, propose at least two candidate fixes with risks and unresolved questions, put the proposal through adversarial review before editing code, and falsify the test after the fix lands. Use before a bug fix or behaviour change in application code; invoke as /fix-proposal.
+description: The LingoLinq-AAC discipline for a bug fix or behaviour change, from diagnosis to landed test. Write the three facts (where the value is read, every shape it can hold, whether each cross-file claim is true), label each CONFIRMED or ASSUMED, write the red test first, propose at least two candidate fixes with risks and unresolved questions, put the proposal through adversarial review before editing code, and falsify the test after the fix lands. Required for fixes in data handling, auth, sync and offline, and the dual-review areas; optional for UI, styling, copy, docs and small isolated fixes. Invoke as /fix-proposal.
 allowed-tools: Read, Grep, Glob, Bash, Agent
 ---
 
@@ -10,6 +10,17 @@ Rule #0 in the root `CLAUDE.md` says diagnose before fixing and never guess. Thi
 is the mechanical form of that rule. Every step below exists because skipping it
 produced a real defect in this codebase; the case histories live in
 `docs/task-management/learnings-archive/`.
+
+## Scope
+
+- **Required** for a bug fix or behaviour change in data handling (migrations included),
+  auth, sync and offline, or any area on the dual-review list in the root `CLAUDE.md`
+  ("Before a PR"): authentication or sessions, consent or account ownership, access to
+  another user's or organization's data, billing, AI model routing or the AI client, infra
+  or deploy config, and the `data-bearing-paths` gate.
+- **Optional** for UI, styling, copy, docs and small isolated fixes. A red test is still
+  welcome there, and Rule #0 items 1 to 4 (diagnose first, never break working behaviour)
+  still apply.
 
 ## 1. The fact sheet (before any code)
 
