@@ -26,7 +26,7 @@ import EmberObject from '@ember/object';
 import utterance from '../utils/utterance';
 import { inject as service } from '@ember/service';
 import rewriteBrokenSymbolUrl from '../utils/symbol-url';
-
+import { isActionVocalization } from '../utils/special_vocalization';
 // Curated vocab boards (Quick Core / Vocal Flair / Sequoia) ship with our
 // own branded tile art under /images/. The board records still carry the
 // old ARASAAC library URL in image_url, so without this the find-a-board
@@ -1089,7 +1089,7 @@ LingoLinq.Board = BaseModel.extend({
         if(trans[btn.id][new_loc]) {
           anything_translated = true;
           btn.label = trans[btn.id][new_loc].label;
-          if(!String(btn.vocalization || '').match(/^[:+]/)) { btn.vocalization = trans[btn.id][new_loc].vocalization; }
+          if(!isActionVocalization(btn.vocalization)) { btn.vocalization = trans[btn.id][new_loc].vocalization; }
           btn.inflections = trans[btn.id][new_loc].inflections;
         }
       });

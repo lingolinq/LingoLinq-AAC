@@ -55,20 +55,34 @@ module('Unit | copy-board language', function(hooks) {
   });
 
   test('create_copy: a name in other languages does not count as translated', function(assert) {
-    // The server stores board_name in the board's own language on every save, so most boards have one.
+    // The server stores board_name in the board's own language whenever a save carries translations
+    // and a locale (Board#process_params).
     const copy = copy_with(this.owner, { board_name: { en: 'Hats', fr: 'Chapeaux' } });
     assert.strictEqual(copy.get('name'), 'Hats');
     assert.strictEqual(copy.get('locale'), 'en');
   });
 
   test('create_copy: keyboard and action buttons keep their actions, as on the server', function(assert) {
+    // Same result as Relinking#update_default_locale! on this board: labels are translated, actions
+    // (+a, :space) keep their vocalization, and other vocalizations and inflections take the translation's.
     const copy = copy_with(this.owner, {
       1: { es: { label: 'a' } },
       2: { es: { label: 'espacio' } },
-      3: { es: { label: 'gato', vocalization: 'gato' } }
-    }, [{ id: 1, label: 'a', vocalization: '+a' }, { id: 2, label: 'space', vocalization: ':space' }, { id: 3, label: 'cat' }]);
+      3: { es: { label: 'gato', vocalization: 'gato' } },
+      4: { es: { label: 'perro' } },
+      5: { es: { label: 'más', vocalization: 'más' } }
+    }, [
+      { id: 1, label: 'a', vocalization: '+a' },
+      { id: 2, label: 'space', vocalization: ':space' },
+      { id: 3, label: 'cat', inflections: { plural: 'cats' } },
+      { id: 4, label: 'dog', vocalization: 'doggy' },
+      { id: 5, label: 'plus', vocalization: 'a+b' }
+    ]);
+    const buttons = copy.get('buttons');
     assert.strictEqual(copy.get('locale'), 'es');
-    assert.deepEqual(copy.get('buttons').map(function(btn) { return btn.vocalization; }), ['+a', ':space', 'gato']);
+    assert.deepEqual(buttons.map(function(btn) { return btn.label; }), ['a', 'espacio', 'gato', 'perro', 'más']);
+    assert.deepEqual(buttons.map(function(btn) { return btn.vocalization; }), ['+a', ':space', 'gato', undefined, 'más']);
+    assert.strictEqual(buttons[2].inflections, undefined);
   });
 
   test('board_language_for_session is safe on a preview that has not loaded', function(assert) {
@@ -87,7 +101,7 @@ module('Unit | copy-board language', function(hooks) {
     try {
       component.runOpening();
       assert.strictEqual(component.get('default_locale'), 'en');
-      // Opening selects 'self', which fetches that user (components/copy-board.js:211-279).
+      // Opening selects 'self', which fetches that user (the user_board observer in components/copy-board.js).
       await waitUntil(function() { return component.get('loading') === false; }, { timeout: 3000 });
     } finally {
       appState.set('label_locale', realLocale);
