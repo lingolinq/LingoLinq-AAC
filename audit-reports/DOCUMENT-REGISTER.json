@@ -4079,7 +4079,7 @@
     },
     {
       "title": "Data Retention Schedule (2026-09-22 successor)",
-      "description": "Path A successor correcting three doc-versus-code defects the predecessor carried: the user-account inactivity row (2 years and soft-delete, where the code is 12 months and permanent destruction), the LogSession row (\"3 years default\", where no default exists in code), and the absence of any AuditEvent row (no retention control; the table grows without bound). Every other row is carried forward from the predecessor; the LogSnapshot mechanism and window cells and the two AiApiLog cells citing LL-3e36a18199 also changed, and the document discloses them.",
+      "description": "Path A successor correcting three doc-versus-code defects the predecessor carried: the user-account inactivity row (2 years and soft-delete, where the code is 12 months and permanent destruction), the LogSession row (\"3 years default\", where no default exists in code), and the absence of any AuditEvent row (no retention control; the table grows without bound). Every other row is carried forward from the predecessor; the LogSnapshot mechanism and window cells and the two AiApiLog cells citing LL-3e36a18199 also changed, and the document discloses them. Revised 2026-11-06 (#1061, #1060): further rows corrected, disclosed in the file's dated block.",
       "type": "policy",
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
