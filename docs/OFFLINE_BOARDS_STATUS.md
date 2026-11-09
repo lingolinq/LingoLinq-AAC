@@ -163,9 +163,11 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
      this fix is still kept; tapping Sync does not refresh trusted pictures.
    - **In a browser, a picture from an untrusted outside site** can still be downloaded twice in one sync when
      several boards ask at once: accepted; revisit with the item 10 measurements.
-   - **Button-set files cannot download on staging or dev** (private bucket, no CDN; the app then asks the server
-     to rebuild the same button set repeatedly): a CloudFront distribution for the dev bucket, asked of Scot. Not
-     fixed in code: having the proxy sign bucket links needs his security decision.
+   - **Button-set files on staging and dev:** the dev bucket refuses them (it has no CDN; production has one).
+     Syncing and offline use do not depend on them: the sync does not wait for the button-set file, and boards
+     and pictures sync and open offline (uploaded pictures in the dev bucket load). Only a few online features
+     that use the file are affected on dev (copy-and-translate, the copy dialog's sub-board picker, focus words,
+     batch recording, word suggestions). Not part of this PR.
    - The measurements that need production or a real device are item 10.
 2. **#1212:** board downloads time out under load (slow server, many requests at once, short client limits).
 3. **#1219:** the board tree request (`/tree`) fails on very large boards (Cloud Run response size cap).
