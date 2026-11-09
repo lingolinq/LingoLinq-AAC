@@ -6290,7 +6290,8 @@ describe("persistence-sync", function() {
         waitsFor(function() { return waitForSyncDoneAndSettled(state.result) && state.tailDone; });
         runs(function() {
           // In this harness a board that loads is asked for twice (find, then reload: status 're-downloaded'; measured
-          // with a fixture that succeeds at once), so: the failed request, then those two.
+          // with a fixture that succeeds at once), so: the failed request, then those two. Harness only: its findRecord
+          // (tests/helpers/ember_helper.js) skips the adapter's `retrieved` stamp, so the board is never `fresh`.
           expect(response.calls).toEqual(3);
           expect(statusFor167().status).toEqual('re-downloaded');
           expect(statusFor167().error).toEqual(undefined);

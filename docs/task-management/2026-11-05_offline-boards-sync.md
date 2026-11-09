@@ -1454,3 +1454,8 @@ Finding while testing: in this harness a board that loads is requested twice (a 
 is NOT checked; if it does, it doubles board requests under load and belongs to #1212.
 Result: commit `4442bf0de`. Mutants, each killed: no retry (3 red), cached rejection kept (3 red), refusals retried
 (1 red). Related suites incl. revocation: 669 run, 655 pass, 14 skip, 0 fail. ESLint gate clean.
+Follow-up, checked (2026-11-09): the "every board requested twice" lead is a TEST-HARNESS artifact, not production.
+The harness replaces ApplicationAdapter.findRecord (`tests/helpers/ember_helper.js:467-478`), skipping the adapter's
+`retrieved` stamp (`utils/persistence.js:4375-4378`); `fresh` needs `retrieved` (`models/base.js:44-53`), so the sync
+reloads it. In production a first-sync board arrives stamped, is fresh ('downloaded') and is not reloaded: one
+request per board. CONFIRMED by reading; not measured on a device.
