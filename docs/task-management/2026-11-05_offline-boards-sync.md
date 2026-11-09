@@ -1354,3 +1354,17 @@ server skipping TLS close_notify gets `:recv_error` and is now refused (safe dir
 - Still on the server file, so failing on dev by code (UI not opened for each): the offline sync's button-set step,
   copy board / board hierarchy, focus words, batch recording, word suggestions, inbox lookups, board intro, board
   selection tool, board details / actions background loads (`load_button_set` callers).
+
+#### Correction: uploaded pictures DO load on dev; only button-set files are refused (2026-11-09, checked for Scot)
+
+- Pictures: 12 of 12 `lingolinq-dev-uploads/images/...` objects (from local runs with the dev credentials, uploaded
+  2026-07-02 to 2026-11-08, sampled before, after and well after the bucket went private) answer an unsigned GET with
+  200 and real content (`image/svg+xml`). A missing picture key answers 403 (no listing). So the bucket lets anyone
+  read picture paths. CONFIRMED. My earlier "the private setting covers the whole bucket, so pictures very likely fail"
+  was wrong. Sounds: not tested (no uploaded sound found locally or on dev's 300 public boards).
+- Button-set files: dev's live `root_url` for lingolinq/crisis-vocabulary answers 403. The server hands out that link
+  only after `head_object` finds the file (`board_downstream_button_set.rb:218-221`, or within its 10-minute cache),
+  and the 2026-11-08 trace fetched the same kind of file signed, so this is refused, not missing. CONFIRMED.
+- Not established: whether the picture access comes from a bucket policy on `images/` or per-object settings
+  (needs the AWS console or credentials).
+- Effect: on dev and staging the CDN would fix button-set files (and other extras data), not pictures.
