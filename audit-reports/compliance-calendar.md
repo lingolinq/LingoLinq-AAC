@@ -18,14 +18,12 @@
 | 2026-09-01 | OpenRouter ZDR re-verification (after every key rotation, plus quarterly) | SOC2 | event-driven + quarterly |
 | 2026-09-01 | Google Gemini API fallback path BAA/DPA verification | HIPAA | annual |
 | 2026-09-01 | Mechanical secret-shaped-string rejector in audit toolchain (LL-b5c30235d3) | SOC2 | one-time |
-| 2026-10-16 | Monthly light /audit-run (diff-since-last-run scope, no full re-scan) | SOC2 | monthly |
 
 ## Recurring reviews (full set)
 
 | Framework | Review | Cadence | Last done | Next due |
 |---|---|---|---|---|
-| SOC2 | Full /audit-run (6 finders, full scope) + adversary verify - all frameworks | quarterly | 2026-09-16 | 2026-12-16 |
-| SOC2 | Monthly light /audit-run (diff-since-last-run scope, no full re-scan) | monthly | 2026-08-18 | 2026-10-16 |
+| SOC2 | Annual formal /audit-run (6 finders, full scope) + adversary verify - all frameworks | annual | 2026-09-16 | 2027-09-16 |
 | FERPA | FERPA vendor-disclosure + directory-info posture review | annual | (none) | 2026-09-01 |
 | HIPAA | HIPAA Security Rule risk assessment + BAA inventory review | annual | 2026-02-01 | 2027-02-01 |
 | GDPR | GDPR DPA + RoPA + data-residency review | annual | (none) | 2026-09-01 |
@@ -45,18 +43,11 @@
 The following details are part of each recurring review record. They are rendered so missed-cycle
 context, required work, and the source basis remain visible with the schedule.
 
-### Full /audit-run (6 finders, full scope) + adversary verify - all frameworks
+### Annual formal /audit-run (6 finders, full scope) + adversary verify - all frameworks
 
-- **Drafts:** Full fan-out: privacy/infra/api/dependency/accessibility/code-hygiene finders over the whole codebase, reconcile into FINDINGS.json via audit-merge.rb, adversary-verify every new/regressed finding in fresh context, citation-check green, render the quarterly unified report. Headline = open Critical/High counts (not a synthetic score).
-- **Watch:** Quarterly heavy run catches drift across the full surface. Schedule early in the weekly Pro/Max plan window (heavy parallel Opus consumes weekly caps). First full run on the migrated .claude/ system was 2026-06-14 (audited SHA 1aa5d2db). Q3 2026 run (2026-09-16) had PARTIAL coverage (finders without checklist skills or read-only guard, no AWS read, no bundle-audit, accessibility static only); its make-up pass is due before the October monthly light run.
-- **Basis:** plan 5.1, 9.1 (decision: quarterly full + monthly light); .claude/skills/audit-run cadence section
-- **Linked findings:** (none recorded)
-
-### Monthly light /audit-run (diff-since-last-run scope, no full re-scan)
-
-- **Drafts:** Diff-scoped run: finders scan only what changed since the last run (orchestrator steps 0-5), reconcile + adversary-verify new/regressed findings, citation-check green. No quarterly report render unless something material surfaces.
-- **Watch:** Light run is steps 0-5 plus its run-log line (no full re-scan, no quarterly report). Catches regressions between heavy runs without burning plan-cap headroom. nextDue is advisory scheduling, not a compliance claim. 2026-09-17: before the October light run, complete the Q3 make-up pass Scot approved with the partial-coverage restamp (finders spawned so checklist skills and the read-only guard load, verified by a guard canary; bundle-audit; AWS account-level read).
-- **Basis:** plan 5.1, 9.1; .claude/skills/audit-run cadence section
+- **Drafts:** Full fan-out: privacy/infra/api/dependency/accessibility/code-hygiene finders over the whole codebase, reconcile into FINDINGS.json via audit-merge.rb, adversary-verify every new/regressed finding in fresh context, citation-check green, render the unified report, then Scot's sign-off stamp PR. Headline = open Critical/High counts (not a synthetic score).
+- **Watch:** One formal full run per year (Scot, 2026-11-07), replacing the quarterly full plus monthly light cadence. /audit-run stays available for ad hoc runs in full or light mode; an ad hoc run needs no sign-off stamp PR and does not update lastDone here. lastDone 2026-09-16 is the last full-scope run (Q3 2026, partial coverage; its make-up pass, rev-audit-run-q3-makeup, was done 2026-10-31). nextDue 2027-09-16 set by Scot on 2026-11-08. Schedule early in the weekly Pro/Max plan window (heavy parallel Opus consumes weekly caps).
+- **Basis:** Scot decision 2026-11-07 (annual formal run; ad hoc runs need no sign-off stamp PR); replaces plan 5.1, 9.1 (quarterly full + monthly light); .claude/skills/audit-run cadence section
 - **Linked findings:** (none recorded)
 
 ### FERPA vendor-disclosure + directory-info posture review

@@ -68,7 +68,7 @@ Everything here is checkable by reading source and grepping the tree.
    Conversely, a flag removed from `AVAILABLE_FRONTEND_FEATURES` entirely but still referenced by
    a guard in code = the guarded branch can never execute. Only flag when you can show the flag's
    current state in `feature_flags.rb` AND the guard's specific location. A database override can
-   make production differ from that file. In a quarterly full run, check the production flag values
+   make production differ from that file. In a full run, check the production flag values
    the orchestrator hands you, and report a branch they show unused in production in `note` only,
    never as a finding. For a fully rolled-out flag, do not emit the finding unless those values show
    it on for everyone: off or mixed means the off-branch still runs for someone. Say why in `note`.

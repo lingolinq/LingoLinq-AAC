@@ -105,7 +105,7 @@ description of what this run did not reach. A `type:"code"` snippet stays verbat
 committed source is already public. `note` and the `coverage` block are never committed to this
 repo.
 
-**Live reads handed to you.** In a quarterly full run the orchestrator may hand you production
+**Live reads handed to you.** In a full run the orchestrator may hand you production
 feature-flag values (`/audit-run` Step 1b). They are not static evidence, so they never support a
 finding. Check them against the "Stale feature-flag branch" class, and say in `note` that you used
 them and which branches they show unused in production: Step 2c counts the read only if you confirm
