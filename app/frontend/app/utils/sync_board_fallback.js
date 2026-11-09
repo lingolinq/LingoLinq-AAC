@@ -37,3 +37,20 @@ export function keep_stored_board(record, err, board_statuses, id) {
   }
   return RSVP.reject(err);
 }
+
+// A first sync has no stored copy to keep, so a board whose lookup failed was lost with its folders. When the failure
+// is passing, the sync tries the board once more, later in the same sync (services/persistence.js nextBoard). The
+// claim is per board for the whole sync (`sync_progress.retried_lookups`), not per queue entry, so a board linked
+// from two places or synced for a supervisee is still asked for at most twice. The failed lookup cached in
+// `sync_progress.key_lookups` (board_lookup) is dropped, or the retry would get the same rejection back.
+export function claim_board_retry(sync_progress, id, err) {
+  if(!sync_progress || !id || !passing_failure(err)) { return false; }
+  sync_progress.retried_lookups = sync_progress.retried_lookups || {};
+  if(sync_progress.retried_lookups[id]) { return false; }
+  sync_progress.retried_lookups[id] = true;
+  if(sync_progress.key_lookups) { delete sync_progress.key_lookups[id]; }
+  return true;
+}
+
+// How long the sync waits before that second try, so the server's load can drop.
+export var BOARD_RETRY_DELAY_MS = 10000;

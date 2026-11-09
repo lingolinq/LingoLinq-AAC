@@ -3361,7 +3361,7 @@ var persistence = Service.extend({
                   nextBoard(defer);
                 }, 75);
               });
-            }, function(err) {
+            }, function(err) { if(claim_board_retry(_sync.get('sync_progress'), id, err)) { schedule_sync_board_step(function() { to_visit_boards.unshift(next); nextBoard(defer); }, BOARD_RETRY_DELAY_MS); return; } // #1212: once more, later (utils/sync_board_fallback.js)
               var board_unauthorized = (err && err.error == "Not authorized");
               if(next.link_disabled && board_unauthorized) {
                 // TODO: if a link is disabled, can we get away with ignoring an unauthorized board?
@@ -4963,4 +4963,4 @@ import offlineSyncSeeds from '../utils/offline_sync_seeds';
 import { queue_eventual_store } from '../utils/eventual_store_queue';
 import { is_permanent_upload_url } from '../utils/permanent_upload';
 import { picture_kept_in_database, usable_database_copy } from '../utils/database_picture';
-import { BOARD_RELOAD_MS, keep_stored_board } from '../utils/sync_board_fallback';
+import { BOARD_RELOAD_MS, keep_stored_board, claim_board_retry, BOARD_RETRY_DELAY_MS } from '../utils/sync_board_fallback';

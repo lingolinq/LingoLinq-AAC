@@ -1417,3 +1417,29 @@ wrapping keeps `fakeXHR.status`, by reading); the "first sync" guard lacks only 
 as a blank status; an invalid_token body under ApplicationCache times out and keeps the copy (session ending anyway);
 the utils copy of board_lookup still has 5 s (overridden by the service, dead). Left on #1212: first-sync boards slower
 than the adapter's 15 s cap (an app-wide limit; its own change), server capacity (staging/production), item 8.
+
+#### #1212 part 1: a first sync still loses a board slower than 15 s (2026-11-09, Traci: "push and start part 1")
+
+Facts (CONFIRMED):
+- A first sync has no stored copy, so `keep_stored_board` cannot help; the adapter rejects any server request at 15 s
+  (`utils/persistence.js:4357-4363`), and the board is reported "failed retrieval" with its folders never visited
+  (`services/persistence.js:3364-3384`).
+- A board is marked visited only after it loads (`:3132`), so it can be visited again.
+- `board_lookup` caches its lookup promise per board (`lookups[id]`, `:2791`) and reuses a pending or settled one
+  (`:2761-2762`); a failed one is never cleared, so a retry must delete it first.
+- A thread resolves when the queue is empty (`:3388-3392`), so a retry pushed back on a timer could be lost: the retry
+  must stay on its own thread.
+- Measured in the issue with mobile parallelism (what iPads now get): max request 19.3 s, 20 over 8 s; desktop
+  parallelism: max 92 s.
+
+Change: in the sync's lookup-failure handler, when the failure is passing (`passing_failure`, the same allow-list) and
+the board has not been retried, mark it retried, delete its cached lookup, wait (10 s; 1 ms under sync_testing via
+`schedule_sync_board_step`), put it at the front of the queue and continue on the same thread. A second failure, a
+refusal, a missing board or an unknown error is reported as today.
+Rejected: a longer adapter limit for sync requests only (the adapter's 15 s cap is shared by every request, both
+persistence copies; larger change); retrying immediately (same load that caused it); more than one retry (multiplies
+load under a struggling server).
+Risk: a board that fails twice costs the sync about 10 s more of one thread; under a server that never answers, every
+failing board is tried twice.
+Tests (real sync, queryLog fixtures answering per call): retried once and then synced (red), retried only once then
+reported (red), a refusal not retried (guard).

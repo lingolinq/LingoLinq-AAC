@@ -6231,6 +6231,119 @@ describe("persistence-sync", function() {
         persistence.set('sync_progress', null);
       });
     });
+
+    // A first sync has no stored copy to keep, so a board that timed out was lost with its folders. It is now tried
+    // once more, later in the same sync (services/persistence.js nextBoard; utils/sync_board_fallback.js).
+    function syncWithBoard167(response, twoParents) {
+      cancelSyncTailWork();
+      unloadSyncStoreRecords();
+      resetSyncTestCaches();
+      var state = { tailDone: false, result: null };
+      enableRealSyncBoards(stubOnPersistence, function() { state.tailDone = true; });
+      persistence.set('sync_log', null);
+      persistence.set('sync_progress', null);
+      persistence.set('sync_status', null);
+      stubStoreUrl(function(url) { return RSVP.resolve({url: url}); });
+      stub(modal, 'error', function() { });
+      stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+      queryLog.defineFixture({ method: 'GET', type: 'user', id: '1340', response: RSVP.resolve({user: {
+        id: '1340', user_name: 'fred', avatar_url: 'http://example.com/pic.png', preferences: {home_board: {id: '145'}}
+      }})});
+      queryLog.defineFixture({ method: 'GET', type: 'board', id: '145', response: RSVP.resolve({board: {
+        id: '145', image_url: 'http://example.com/board.png',
+        buttons: twoParents ? [{id: '1', load_board: {id: '160'}}, {id: '2', load_board: {id: '167'}}] : [{id: '1', load_board: {id: '167'}}],
+        grid: twoParents ? {rows: 1, columns: 2, order: [['1', '2']]} : {rows: 1, columns: 1, order: [['1']]}
+      }})});
+      if(twoParents) {
+        queryLog.defineFixture({ method: 'GET', type: 'board', id: '160', response: RSVP.resolve({board: {
+          id: '160', image_url: 'http://example.com/board.png',
+          buttons: [{id: '1', load_board: {id: '167'}}], grid: {rows: 1, columns: 1, order: [['1']]}
+        }})});
+      }
+      queryLog.defineFixture({ method: 'GET', type: 'board', id: '167', response: response });
+      cacheStoredUrl('http://example.com/pic.png');
+      cacheStoredUrl('http://example.com/board.png'); defineCrisisVocabularyFixture();
+      persistence.sync(1340).then(function(res) { state.result = res; });
+      return state;
+    }
+    // A fixture response the adapter reads once per request (tests/helpers/ember_helper.js respondAndLog).
+    function answers(list) {
+      var r = { calls: 0 };
+      r.then = function(ok, fail) {
+        var answer = list[Math.min(r.calls, list.length - 1)];
+        r.calls++;
+        var p = answer.reject ? RSVP.reject(answer.reject) : RSVP.resolve(answer.resolve);
+        return p.then(ok, fail);
+      };
+      return r;
+    }
+    var board167 = {board: {id: '167', image_url: 'http://example.com/board.png', buttons: [], grid: {rows: 1, columns: 1, order: [[null]]}}};
+    function statusFor167() {
+      var log = persistence.get('sync_log') || [];
+      return ((log[0] && log[0].statuses) || []).find(function(s) { return s.id == '167'; }) || {};
+    }
+
+    it("should try a board that timed out once more later in the same sync", function() {
+      db_wait(function() {
+        var response = answers([{ reject: { error: 'timeout' } }, { resolve: board167 }]);
+        var state = syncWithBoard167(response);
+        waitsFor(function() { return waitForSyncDoneAndSettled(state.result) && state.tailDone; });
+        runs(function() {
+          // In this harness a board that loads is asked for twice (find, then reload: status 're-downloaded'; measured
+          // with a fixture that succeeds at once), so: the failed request, then those two.
+          expect(response.calls).toEqual(3);
+          expect(statusFor167().status).toEqual('re-downloaded');
+          expect(statusFor167().error).toEqual(undefined);
+          cancelSyncTailWork();
+          persistence.set('sync_progress', null);
+          LingoLinq.sync_testing_real_boards = false;
+        });
+      });
+    });
+
+    it("should try a timed-out board only once more, then report it", function() {
+      db_wait(function() {
+        var response = answers([{ reject: { error: 'timeout' } }]);
+        var state = syncWithBoard167(response);
+        waitsFor(function() { return waitForSyncDoneAndSettled(state.result) && state.tailDone; });
+        runs(function() {
+          expect(response.calls).toEqual(2);
+          expect(statusFor167().error).toEqual('board 167 failed retrieval for syncing, linked from 145');
+          cancelSyncTailWork();
+          persistence.set('sync_progress', null);
+          LingoLinq.sync_testing_real_boards = false;
+        });
+      });
+    });
+
+    it("should ask for a board linked from two places at most twice", function() {
+      db_wait(function() {
+        var response = answers([{ reject: { error: 'timeout' } }]);
+        var state = syncWithBoard167(response, true);
+        waitsFor(function() { return waitForSyncDoneAndSettled(state.result) && state.tailDone; });
+        runs(function() {
+          expect(response.calls).toEqual(2);
+          cancelSyncTailWork();
+          persistence.set('sync_progress', null);
+          LingoLinq.sync_testing_real_boards = false;
+        });
+      });
+    });
+
+    it("should not try a board again when the server refused it", function() {
+      db_wait(function() {
+        var response = answers([{ reject: { error: 'Not authorized' } }, { resolve: board167 }]);
+        var state = syncWithBoard167(response);
+        waitsFor(function() { return waitForSyncDoneAndSettled(state.result) && state.tailDone; });
+        runs(function() {
+          expect(response.calls).toEqual(1);
+          expect(statusFor167().error).toEqual('board 167 failed retrieval for syncing, linked from 145');
+          cancelSyncTailWork();
+          persistence.set('sync_progress', null);
+          LingoLinq.sync_testing_real_boards = false;
+        });
+      });
+    });
   });
 });
 // Every sync also starts from Crisis Vocabulary (#1221, utils/offline_sync_seeds.js), so the tests that run a
