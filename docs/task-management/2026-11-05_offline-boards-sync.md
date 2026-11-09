@@ -1459,3 +1459,28 @@ The harness replaces ApplicationAdapter.findRecord (`tests/helpers/ember_helper.
 `retrieved` stamp (`utils/persistence.js:4375-4378`); `fresh` needs `retrieved` (`models/base.js:44-53`), so the sync
 reloads it. In production a first-sync board arrives stamped, is fresh ('downloaded') and is not reloaded: one
 request per board. CONFIRMED by reading; not measured on a device.
+
+#### #1212 remaining items: STOPPED under Rule 13 (2026-11-09)
+
+Traci asked to fix the remaining #1212 items and test on emulators. Stopped after two self-inflicted errors in this
+unit: (1) a test insert placed inside the previous test (fixed earlier); (2) I wired a longer adapter limit through
+`record.reload(options)` without checking that `BaseModel.reload(ignore_local)` calls `this._super()` with no
+arguments (`app/frontend/app/models/base.js:32-41`), so the reload half did nothing, and my tests replaced the reload
+and `findRecord` with stand-ins, so they could not see it. I also applied that wiring before its review (process slip).
+Adversary review blocked it (High, CONFIRMED by me).
+
+Saved outside the repo, worktree clean at `2874870e0` (nothing unfinished committed or pushed):
+- `/home/tracid/offline-sync-handoff/1212-request-limit-BLOCKED.patch`: sync board requests ask the adapter for 45 s
+  via adapterOptions (`sync_find_options`, `adapter_request_limit_ms`), reload 50 s, board lookup 60 s; util tests.
+  Blocked. To finish: (a) `BaseModel.reload(ignore_local, options)` passing `options` to `_super`, call
+  `record.reload(true, sync_find_options())`; (b) a test through the REAL `DSExtend.findRecord` timer (no stand-ins
+  for findRecord/reload) so reverting the adapter line or the base.js change goes red; (c) the third network try ends
+  at ~49 s, so 45 s still cuts it: decide 50 s+ (then reload/lookup above it) or state that only two tries fit;
+  (d) Low: each call builds a new adapterOptions object, so Ember Data no longer merges same-tick fetches of one board.
+- `/home/tracid/offline-sync-handoff/1212-sync-details-kept-UNREVIEWED.patch`: Sync Details counts and labels 'kept'
+  boards (`la-sync-details-kept`, `la-sync-details-status-kept`, keys `n_kept_from_device`, `kept_from_device`) with
+  an integration test (red then green, 2 tests). Not reviewed yet.
+Not started: the emulator before/after run (design: a LOCAL-ONLY patch in boards#show sleeping 18 s for about 1 in 8
+boards chosen by a hash of the id, so the same boards are slow in both runs; local puma is 1 worker x 5 threads;
+compare `7608092f9` with the finished fix on the Android emulator and WebKit, counting boards lost per first sync).
+Cannot be done here: server capacity (staging/production metrics), native iOS (needs a Mac).
