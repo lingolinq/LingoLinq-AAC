@@ -2779,7 +2779,7 @@ var persistence = Service.extend({
           } else {
             board_statuses.push({id: id, key: record.get('key'), status: 're-downloaded'});
             record.set('button_set_needs_reload', true);
-            return _this.time_promise(record.reload(), "reload board", 5000);
+            return _this.time_promise(record.reload(), "reload board", BOARD_RELOAD_MS).then(null, function(err) { return keep_stored_board(record, err, board_statuses, id); }); // #1212 (utils/sync_board_fallback.js)
           }
         } else {
           board_statuses.push({id: id, key: record.get('key'), status: 'downloaded'});
@@ -4963,3 +4963,4 @@ import offlineSyncSeeds from '../utils/offline_sync_seeds';
 import { queue_eventual_store } from '../utils/eventual_store_queue';
 import { is_permanent_upload_url } from '../utils/permanent_upload';
 import { picture_kept_in_database, usable_database_copy } from '../utils/database_picture';
+import { BOARD_RELOAD_MS, keep_stored_board } from '../utils/sync_board_fallback';

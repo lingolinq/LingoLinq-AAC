@@ -6147,6 +6147,91 @@ describe("persistence-sync", function() {
       });
     });
   });
+
+  // #1212. The sync cut a board reload off after 5 s, though the adapter's own limit for a server request is 15 s
+  // (utils/persistence.js find, `error({error: 'timeout'})`), and a board that failed was skipped with its whole folder
+  // tree (services/persistence.js "failed retrieval for syncing"). Now the reload gets longer than the adapter's limit,
+  // and when it still fails for a passing reason (timeout, no connection, a server error, too many requests) the
+  // device's complete copy is kept so its folders are still synced. A refusal or a missing board fails as before.
+  // Errors use the real shapes: the transport rejects with {fakeXHR, message, result} (utils/extras.js).
+  describe("board reloads under a slow server (#1212)", function() {
+    function storedBoard(complete) {
+      var rec = EmberObject.create({ id: '1_1212', key: 'example/slow', fresh: false });
+      if(complete) { rec.set('permissions', { view: true }); rec.set('image_urls', {}); }
+      stub(LingoLinq.store, 'peekRecord', function() { return null; });
+      stub(LingoLinq.store, 'findRecord', function(type, id) {
+        if(type == 'board' && id == '1_1212') {
+          if(!complete) { rec.set('permissions', { view: true }); }
+          return RSVP.resolve(rec);
+        }
+      });
+      return rec;
+    }
+    function lookupFailing(complete, err) {
+      persistence.set('sync_progress', {});
+      var rec = storedBoard(complete);
+      stub(rec, 'reload', function() { return RSVP.reject(err); });
+      var res = { done: false, rec: rec };
+      persistence.board_lookup('1_1212', {}).then(function(b) { res.board = b; res.done = true; }, function(e) { res.error = e; res.done = true; });
+      return res;
+    }
+    function lastStatus() {
+      var list = persistence.get('sync_progress.board_statuses') || [];
+      return list.length ? list[list.length - 1].status : null;
+    }
+    var xhrError = function(status, body) { return { fakeXHR: { status: status, responseJSON: body || {} }, message: 'error', result: 'error' }; };
+
+    it("should give a board reload longer than the adapter's own request limit", function() {
+      expect(BOARD_RELOAD_MS > 15000).toEqual(true); // the adapter rejects a server request at 15 s
+      expect(BOARD_RELOAD_MS < 30000).toEqual(true); // and the whole board lookup is cut at 30 s
+    });
+
+    [
+      ['the adapter timed out', { error: 'timeout' }],
+      ['the sync timed out', { error: 'promise timed out:reload board' }],
+      ['there was no connection', xhrError(0)],
+      ['the server failed', xhrError(502)],
+      ['the server was busy', xhrError(429)]
+    ].forEach(function(row) {
+      it("should keep the device's complete copy of a board when its refresh fails because " + row[0], function() {
+        var res = lookupFailing(true, row[1]);
+        waitsFor(function() { return res.done; });
+        runs(function() {
+          expect(res.error).toEqual(undefined);
+          expect(res.board).toEqual(res.rec);
+          expect(lastStatus()).toEqual('kept');
+          expect(res.rec.get('button_set_needs_reload')).toEqual(false);
+          persistence.set('sync_progress', null);
+        });
+      });
+    });
+
+    [
+      ['the board is not allowed', xhrError(400, { error: 'Not authorized', unauthorized: true, permission: 'view' })],
+      ['the board is gone', xhrError(404, { error: 'Record not found' })],
+      ['the board was deleted', xhrError(404, { error: 'Record not found', deleted: true })],
+      ['the reason is unknown', { message: 'something else' }]
+    ].forEach(function(row) {
+      it("should not keep the device's copy when " + row[0], function() {
+        var res = lookupFailing(true, row[1]);
+        waitsFor(function() { return res.done; });
+        runs(function() {
+          expect(res.board).toEqual(undefined);
+          expect(res.error).toEqual(row[1]);
+          persistence.set('sync_progress', null);
+        });
+      });
+    });
+
+    it("should still fail a board with no complete copy on the device (a first sync)", function() {
+      var res = lookupFailing(false, { error: 'timeout' });
+      waitsFor(function() { return res.done; });
+      runs(function() {
+        expect(res.board).toEqual(undefined);
+        persistence.set('sync_progress', null);
+      });
+    });
+  });
 });
 // Every sync also starts from Crisis Vocabulary (#1221, utils/offline_sync_seeds.js), so the tests that run a
 // real sync answer it. Placed last so the ESLint baseline rows above do not move; function declarations are hoisted.
@@ -6163,3 +6248,4 @@ function defineCrisisVocabularyFixture() {
 // Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
 import boardRevocation from '../../utils/board_revocation';
 import * as emberDebug from '@ember/debug';
+import { BOARD_RELOAD_MS } from '../../utils/sync_board_fallback';

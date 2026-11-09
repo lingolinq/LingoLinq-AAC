@@ -1368,3 +1368,44 @@ server skipping TLS close_notify gets `:recv_error` and is now refused (safe dir
 - Not established: whether the picture access comes from a bucket policy on `images/` or per-object settings
   (needs the AWS console or credentials).
 - Effect: on dev and staging the CDN would fix button-set files (and other extras data), not pictures.
+
+#### #1212 (item 2): board requests time out under load (2026-11-09, Traci: "deal with it decidedly, under an hour")
+
+Facts (CONFIRMED):
+- The network layer already retries a timed-out request: 3 tries for a GET, 8 s then 20 s then 20 s, 500 ms apart
+  (`utils/extras.js:186-190, 361-375`). Board fetches go through it (adapter `$.ajax`, `adapters/application.js:45-46`).
+- The sync cuts a board RELOAD off after 5 s (`services/persistence.js:2782`, `time_promise(record.reload(), "reload
+  board", 5000)`), shorter than the first attempt, so the built-in retry never runs for it; the per-board lookup is cut
+  at 30 s (`:3100`, time_promise default). The issue's "reload board over 5 s" counts (76 / 16 / 120) are these.
+- A board whose lookup fails is pushed to board_errors as "failed retrieval for syncing" and its sub-boards are not
+  visited (`:3361-3384`): one slow response removes a branch offline. "Not authorized" and "Record not found" +
+  deleted are recognised there (`:3364-3378`).
+- iPad detection (#1201): iPads with a Mac user agent get mobile parallelism already on this branch
+  (`utils/capabilities.js:230`, `is_ipad_with_mac_agent`). Issue step 1 is done.
+
+Change:
+- A: `board_reload_ms` (60 s) and `board_sync_ms` (75 s) on the service; the reload uses the first, the per-board
+  lookup the second, so neither cuts the network layer's own retries short (~49 s worst case).
+- B: if the reload still fails and the device has a complete stored copy (permissions and image_urls, the same test
+  the cached paths use), keep that copy and continue (its sub-boards are walked), unless the failure is "Not
+  authorized" or "Record not found" (then reject as today). No stored copy (a first sync): reject as today.
+Rejected: a retry loop in the sync on top of the network layer's (duplicates its ladder, multiplies server load under
+the very slowness that causes it); serving every failed board from the device without exceptions (would keep a board
+whose access was revoked).
+Not in scope here (cannot be done from this machine within the hour): server capacity measurement and right-sizing
+(issue step 3), "N of M boards saved" (item 8), the verify step on staging/production (item 10 style).
+Risk: under a very slow server a sync takes longer instead of failing fast (bounded at 75 s per board, with board
+lookups running 6 or 10 at a time). A kept copy may be older than the server's; the next sync refreshes it.
+Tests (sync suite, "board reloads under a slow server (#1212)"): limits cover the ladder (red), keep complete copy on
+failure (red), not on Not authorized / deleted (guards), no copy on a first sync (guard).
+
+Review (adversary): BLOCKED the first plan, rightly. CONFIRMED by me: (High) real rejections are
+`{fakeXHR: {status, responseJSON}, message, result}` (`utils/extras.js:422-426`), so the exclude-list check
+(`err.error`) would have kept a board whose access was revoked; (High) a plain 404 for a deleted board would have been
+kept too; (Medium) the adapter rejects every server request at 15 s with `{error: 'timeout'}`
+(`utils/persistence.js:4357-4363`), so a 60 s reload limit did nothing past 15 s; (Medium) a kept copy was recorded
+as 're-downloaded'; (Low) `button_set_needs_reload` stayed true, sending another request to the slow server.
+Revised: `utils/sync_board_fallback.js`. Reload limit 20 s (above the adapter's 15 s, below the 30 s board lookup);
+keep the stored copy only for passing failures (adapter or sync timeout, status 0, 429, 5xx), with status 'kept'
+(sync details counts only known statuses, so it is no longer counted as re-downloaded) and the button-set reload
+cleared. Refusals (400), missing or deleted (404) and unknown shapes fail as before. Tests use the real shapes.
