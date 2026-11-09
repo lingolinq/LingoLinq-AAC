@@ -89,7 +89,8 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
   copy is already saved (by address shape, so it works on the production CDN and the bucket alike). Button-set
   files on the same server still refresh. Not measurable locally (no uploaded pictures in the local data) (#1221).
 - With no file storage (iPad), a picture already saved in the database is reused instead of downloaded and written
-  again on every sync. Measured in WebKit, second sync: 1,692 writes (22.1 MB, 237 s) before, 7 writes (0.54 MB, 13 s) after, all 1,651 pictures still saved; first sync 56 records written more than once before, 2 after (#1221).
+  again on every sync. The picture proxy now refuses a download cut off part way, so a broken copy is not saved
+  (`spec/controllers/api/search_controller_spec.rb`). Measured in WebKit, second sync: 1,692 writes (22.1 MB, 237 s) before, 7 writes (0.54 MB, 13 s) after, all 1,651 pictures still saved; first sync 56 records written more than once before, 2 after (#1221).
 
 **Retrying a failed sync (#1229)**
 - A device that has never finished a sync stays on the first-sync marker after a failed sync, including when the device could not save. The automatic retry is not pushed out 48 hours. A device that has already synced still waits 48 hours after two failures.
@@ -152,19 +153,19 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
 ### Code work still to do (priority order)
 
 1. **#1221, second half: the same data written twice in one sync.** Code work done (see "What's done": SQLite
-   saves, the save queue, the doubled button list, and pictures written again). Left, decisions rather than code:
-   - **Rows already duplicated on devices** stay until the record is removed; reads take one of the copies and
-     the next save updates both. No cleanup is in this branch.
-   - **Rows saved before the button-list fix** keep both copies until the button set changes.
-   - **iPads with no file storage reuse a saved picture** from the database. A bad copy of a picture from a trusted
-     address (OpenSymbols, LingoLinq uploads) is kept: tapping Sync does not refresh trusted pictures, and a picture
-     the last sync used never counts as out of date. Only a bad download could cause this.
-   - **In a browser, a picture from an outside site** that is not on the trusted list can still be downloaded twice
-     in one sync when several boards ask for it at once.
-   - **Button-set files cannot download on staging or dev.** The uploads bucket is private and only production
-     has the CDN that serves these files (`UPLOADS_S3_CDN`); the search proxy fetches the raw bucket link, which
-     is refused, and the app then asks the server to rebuild the same button set repeatedly. Offline sync tested
-     on staging or dev is therefore slower than production and has no button-set files. Not fixed here.
+   saves, the save queue, the doubled button list, pictures written again, and the proxy refusing cut-off
+   downloads). Decided 2026-11-09 (Traci):
+   - **Rows already duplicated on devices:** accepted, no cleanup. Only devices that synced an older build of this
+     branch have them (assumed none in real use); reads take one copy and the next save updates both.
+   - **Rows saved before the button-list fix:** accepted; they shrink when the button set changes.
+   - **A bad saved picture on an iPad with no file storage:** fixed at the source. The server's picture proxy
+     accepted a download cut off part way (it still reports status 200) and now refuses it. A copy saved before
+     this fix is still kept; tapping Sync does not refresh trusted pictures.
+   - **In a browser, a picture from an untrusted outside site** can still be downloaded twice in one sync when
+     several boards ask at once: accepted; revisit with the item 10 measurements.
+   - **Button-set files cannot download on staging or dev** (private bucket, no CDN; the app then asks the server
+     to rebuild the same button set repeatedly): a CloudFront distribution for the dev bucket, asked of Scot. Not
+     fixed in code: having the proxy sign bucket links needs his security decision.
    - The measurements that need production or a real device are item 10.
 2. **#1212:** board downloads time out under load (slow server, many requests at once, short client limits).
 3. **#1219:** the board tree request (`/tree`) fails on very large boards (Cloud Run response size cap).
