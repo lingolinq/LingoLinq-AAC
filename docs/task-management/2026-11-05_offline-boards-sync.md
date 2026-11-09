@@ -1242,3 +1242,68 @@ Reading: unit 1 removed every repeated picture write in the installed app. The S
 build, which confirms the correction above (known pictures are skipped before store_url). Unit 3 is not exercised
 (no upload-shaped pictures locally). Not explained: the after run saved 54 more distinct rows (2,626 vs 2,588
 distinct store_url requests); not investigated, the runs fetch over a live local server.
+
+#### Unit 2, simpler design: the database row is the proof (2026-11-09, Traci: finish item 1 within the hour)
+
+Why the earlier design was blocked: it added session bookkeeping (`url_in_db`) that had to know whether a write
+landed, on top of a `store()` that never rejects. This design adds no state.
+
+Facts (CONFIRMED):
+- With no file storage, `store_url_now` keeps the picture in its dataCache row (`object.data_uri`, `persisted: true`,
+  `url: url_id`; `services/persistence.js:~1763-1767`); `find_url` reads that row when `local_system.available ===
+  false` (`:1230`).
+- The reuse step runs only when `check_for_local` (`:1556-1558`: trusted, or installed app). It resolves a found row
+  only if `has_local_copy(url)` (`:1568`), which only file-backed pictures set. That check exists because a row in
+  the installed app points to a FILE that can be missing ("needs to be repaired"); a no-file row holds the picture
+  itself, so nothing can be missing.
+- A resolved row has `persisted: true`, so `size_image` skips it and the no-file store branch returns it without a
+  write (`:~1763-1770`). If the row exists, its write landed: no failed-write question.
+- `protected_image` can answer with a fallback picture (users_controller.rb ~1165-1173); `api/v1/lang` is JSON.
+
+Change (service only, line-neutral):
+- New util `utils/database_picture.js`: `picture_kept_in_database(url, type)` (image or sound, not protected_image,
+  not api/v\d+/lang) and `usable_database_copy(url, type, row)` (that, plus `row.data_uri` a `data:` string and
+  `row.content_type` image/... for an image, audio/... for a sound).
+- `:1558`: `no_files` = NOT the store branch's own condition (`local_system.available && allowed && auth_settings`);
+  `check_for_local` also true when `no_files && picture_kept_in_database(url, type)`.
+- `:1568`: resolve when `has_local_copy(url) || (no_files && usable_database_copy(url, type, data))`. The force rule
+  before it is unchanged (a Sync tap still refreshes untrusted pictures; uploads and OpenSymbols are trusted).
+- Utils copy not mirrored (its store_url_now is not reached through the Proxy; no test could cover it).
+
+Not changed: the quick check still says "not saved" for database pictures, so each costs one queued request and one
+database read per sync, instead of a download plus a write. Candidates rejected: the earlier `url_in_db` bookkeeping
+(blocked twice, needs write confirmation); counting database pictures in the quick check (same problem).
+Risks: a bad copy saved once on an iPad is reused on automatic syncs until a Sync tap (untrusted) or never (trusted),
+the same rule the installed app already follows. Content types other than image/audio (e.g. octet-stream) are not
+reused (safe, just not faster).
+Tests: reuse with no file storage (red now); guards: row without picture data, wrong content type, protected_image,
+forced refresh of an untrusted picture, installed app WITH file storage still repairs, JSON not reused.
+Mutations: drop `no_files` gate (installed-app guard red), drop type/protected checks (guards red), remove the reuse
+(reuse test red).
+
+#### Unit 2 result (2026-11-09)
+
+Adversary review: nothing blocks; one Medium, acted on. CORRECTION of the proposal's Risks line: the installed app
+is NOT the same rule; it repairs a broken picture when shown (`utils/button.js:1255-1259`), which never runs for
+`data:` pictures (`:1177`). So a bad copy of a TRUSTED picture saved on a no-file iPad is kept (a Sync tap does not
+refresh trusted addresses). Acted on: reuse only rows not `outdated` (find, `services/persistence.js:422-430`).
+Checked myself: rows the last sync listed as important (its pictures) are never marked outdated, so this caps
+staleness only for pictures no longer used; the remaining risk is stated in the status doc and PR. Trigger needs a
+bad download saved once (PLAUSIBLE: the proxy may accept a truncated 200). Lows acted on: tests for a trusted
+address, an image row with an audio type, an outdated row, signed out. Utils copy not mirrored: its
+store_url_now is reached only before the service exists or from its own sync, and falls back to downloading.
+
+Commit `9dc8f0d44`. Mutants, each killed: no reuse (4 red), no `no_files` gate (installed-app guard red), no
+outdated check (outdated test red). Related suites: 623 run, 609 pass, 14 skip, 0 fail. ESLint gate clean.
+
+WebKit (no file storage), aiden_parker, `web-two-syncs.js`, same procedure, before = `c079cd53a`, after = `9dc8f0d44`:
+
+| | before | after |
+|---|---|---|
+| First sync: writes / records written more than once | 1,897 / 56 | 1,767 / 2 |
+| Second sync: writes | 1,692 | 7 |
+| Second sync: data / time | 22.1 MB / 237 s | 0.54 MB / 13 s |
+| Pictures saved in the database afterwards | 1,651 | 1,651 |
+
+Item 1 rescoped (Traci, 2026-11-09, "finish within the hour"): code work done; measurements that need production or
+a real device moved to a new item 10 (appended, nothing renumbered).

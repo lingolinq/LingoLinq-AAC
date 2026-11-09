@@ -82,6 +82,14 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
   every reader already used it first. Measured on the Android emulator (installed app, SQLite): that row is now
   1.90 MB, each chunk is written once, and after a relaunch the device reads back all 3,717 buttons. Rows saved
   before this change keep both copies until the button set changes (#1221, second half).
+- A picture used on several boards is saved once per sync. Saved pictures were recorded on the wrong object (a
+  leftover of the move to an Ember service), so the "already saved?" check never saw them. Measured on the Android
+  emulator, first sync: 42 records written more than once (one picture 48 times) before, none after (#1221).
+- Pictures and sounds uploaded to LingoLinq have permanent addresses and are no longer downloaded again when a
+  copy is already saved (by address shape, so it works on the production CDN and the bucket alike). Button-set
+  files on the same server still refresh. Not measurable locally (no uploaded pictures in the local data) (#1221).
+- With no file storage (iPad), a picture already saved in the database is reused instead of downloaded and written
+  again on every sync. Measured in WebKit, second sync: 1,692 writes (22.1 MB, 237 s) before, 7 writes (0.54 MB, 13 s) after, all 1,651 pictures still saved; first sync 56 records written more than once before, 2 after (#1221).
 
 **Retrying a failed sync (#1229)**
 - A device that has never finished a sync stays on the first-sync marker after a failed sync, including when the device could not save. The automatic retry is not pushed out 48 hours. A device that has already synced still waits 48 hours after two failures.
@@ -143,16 +151,21 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
 
 ### Code work still to do (priority order)
 
-1. **#1221, second half: the same data written twice in one sync.** The overlapping SQLite saves and the save
-   queue are fixed (see "What's done"). Left:
+1. **#1221, second half: the same data written twice in one sync.** Code work done (see "What's done": SQLite
+   saves, the save queue, the doubled button list, and pictures written again). Left, decisions rather than code:
    - **Rows already duplicated on devices** stay until the record is removed; reads take one of the copies and
      the next save updates both. No cleanup is in this branch.
-   - **Rows saved before the button-list fix** keep both copies until the button set changes (see "What's done").
-   - **The before-and-after board count** on a real account still needs staging or production.
+   - **Rows saved before the button-list fix** keep both copies until the button set changes.
+   - **iPads with no file storage reuse a saved picture** from the database. A bad copy of a picture from a trusted
+     address (OpenSymbols, LingoLinq uploads) is kept: tapping Sync does not refresh trusted pictures, and a picture
+     the last sync used never counts as out of date. Only a bad download could cause this.
+   - **In a browser, a picture from an outside site** that is not on the trusted list can still be downloaded twice
+     in one sync when several boards ask for it at once.
    - **Button-set files cannot download on staging or dev.** The uploads bucket is private and only production
      has the CDN that serves these files (`UPLOADS_S3_CDN`); the search proxy fetches the raw bucket link, which
      is refused, and the app then asks the server to rebuild the same button set repeatedly. Offline sync tested
      on staging or dev is therefore slower than production and has no button-set files. Not fixed here.
+   - The measurements that need production or a real device are item 10.
 2. **#1212:** board downloads time out under load (slow server, many requests at once, short client limits).
 3. **#1219:** the board tree request (`/tree`) fails on very large boards (Cloud Run response size cap).
 4. **Picture data repair (operations):** some saved picture addresses fail; a one-time data cleanup.
@@ -165,6 +178,9 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
    - "Needs a connection" wording that can show while online.
    - A 5-minute cache path on shared devices.
    - Up to 8 + 8 seconds of waiting on a hung network before the device copy opens.
+10. **Verify #1221 after release** (needs production or a real device): before and after timings on a
+    hardware-accelerated Android device and an iPad; the board count on a real account; one first sync checked
+    board by board for missing boards.
 
 ### Translations (after this PR's work, likely its own PR under #1234)
 
@@ -235,7 +251,7 @@ Notes:
 | #1212 | Board requests time out under load | Open |
 | #1213 | Modern view never loads from the device | Fixed |
 | #1219 | `/tree` fails on large boards | Open |
-| #1221 | First offline sync too slow | Board selection done; duplicate writes and the doubled button list fixed; board count on a real account not measured |
+| #1221 | First offline sync too slow | Code work done (board selection, duplicate writes, doubled button list, pictures written again); verification on production and real devices is item 10 |
 | #1229 | Retry gaps after a failed sync | Fixed on this branch |
 | #1230 | Modern "Sync failed" notice | Open |
 | #1034 | "Pick for home" claims | Open |
