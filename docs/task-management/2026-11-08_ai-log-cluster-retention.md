@@ -143,3 +143,12 @@ Checkpoint committed here and stopped for Traci.
 4. Spec rewrites, each listed for Scot: old EU purge block (6 examples, red now), stamp specs, registry
    specs, controller `/24 months/`, retracted_hipaa_floor table cells, privacy pin spec.
 5. PR description sections; production counts from Scot.
+
+## Completed after the checkpoint (2026-11-08)
+
+- Stamp removal committed alone (`0669a92dc`); text (`d82600008`); legal drafts and register (`62bb70d28`, `605362dd8`).
+- 20 affected spec files: 538 examples, 50 failures, 3 pending; the 50 are the approval table in the PR body.
+- Register, naming, disclosure-guard and whitespace checks pass.
+- Cross-doc sweep: governance memo and counsel-review record listed as follow-ups; three dated records left as history.
+- Scot's brief did not ask for AiFocusWordSet deletion or a pause switch; both are raised in the PR, not built.
+- Lessons appended to `learnings-archive/2026-11.md` "Retention purges and ClusterLocation".
