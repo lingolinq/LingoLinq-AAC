@@ -1220,3 +1220,25 @@ Measurement limit: the local database has 0 upload-shaped pictures (22,870 of 42
 bucket is private, and only production has the CDN, so no local run can show unit 3; tests are its evidence. Unit 1
 can be measured on the emulator (first sync: rows written more than once; before = 45 rows / 89 KB). Not run this
 session: it needs a production build served by Traci's running server, packaging, and the local-only proxy patch.
+
+#### Emulator before/after, units 1 and 3 (2026-11-09, Traci: "proceed with the emulator")
+
+Method: the same driver for both builds (scratchpad `emu-measure.js`): one CDP connection held through sign-in, write
+recorder (`emu-hooks.js`) installed on every page load, app data cleared, aiden_parker, Trust chosen. It records the
+sync the app starts by itself after sign-in, then a forced sync (`persistence.sync('self', true)`, the Sync button).
+Before = `bb941c2cf` frontend, after = `c079cd53a`; both production bundles served by the local server and packaged
+into the mobile shell; SQLite with file storage. Local-only proxy patch applied for both runs, then reverted. One run
+each, software rendering: times are not a claim.
+
+| | before (`bb941c2cf`) | after (`c079cd53a`) |
+|---|---|---|
+| First sync: writes / rows | 1,540 / 1,440 | 1,494 / 1,494 |
+| Rows written more than once | 42 (worst 48x, a picture) | 0 |
+| Repeat data | 60.7 KB | 0 |
+| First sync data / time | 55.0 MB / 180 s | 57.4 MB / 199 s |
+| Sync button: writes / picture writes | 7 / 0 | 8 / 0 (user record twice, known) |
+
+Reading: unit 1 removed every repeated picture write in the installed app. The Sync button wrote no pictures in either
+build, which confirms the correction above (known pictures are skipped before store_url). Unit 3 is not exercised
+(no upload-shaped pictures locally). Not explained: the after run saved 54 more distinct rows (2,626 vs 2,588
+distinct store_url requests); not investigated, the runs fetch over a live local server.
