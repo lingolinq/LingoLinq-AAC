@@ -544,6 +544,17 @@ var speecher = EmberObject.extend({
       callback();
     }
   },
+  // Whether speech in this language would really use a voice for it. Asks find_voice_by_uri,
+  // which falls back to a voice in another language when the device has none. An empty list
+  // means voices have not loaded yet, not that there are none.
+  has_voice_for: function(locale) {
+    if((speecher.get('voices') || []).length === 0 || speecher.voiceURI == 'force_default') { return true; }
+    var language = (locale || 'en').toLowerCase().split(/[-_]/)[0];
+    var mapped_lang = i18n.lang_map[language] || language;
+    var voice = speecher.find_voice_by_uri(speecher.voiceURI, locale || 'en', true);
+    var root = ((voice && voice.lang) || '').toLowerCase().split(/[-_]/)[0];
+    return root == language || root == mapped_lang || i18n.lang_map[root] == mapped_lang;
+  },
   find_voice_by_uri: function(uri, locale, allow_fallbacks) {
     if(uri == 'force_default') { return null; }
     var voices = speecher.get('voices');
@@ -629,16 +640,18 @@ var speecher = EmberObject.extend({
     }
     // Replace fancy quote marks with normal ones, or some TTS engines get confused
     text = text.replace(/‘|’/g, "'").replace(/“|”/g, '"');
-    var current_locale = this.appState.get('vocalization_locale');
+    // opts.locale speaks in a language the session is not in yet (create-board-new preview).
+    var speak_locale = opts.locale || this.appState.get('vocalization_locale');
+    var current_locale = speak_locale;
     if(opts.default_prompt && opts.voiceURI) { current_locale = 'any'; }
     if(opts.alternate_voice) {
       opts.volume = this.alternate_volume || ((opts.volume || 1.0) * 0.75);
       opts.pitch = this.alternate_pitch;
       opts.rate = this.alternate_rate;
       opts.voiceURI = this.alternate_voiceURI;
-      if(speecher.appState.get('vocalization_locale')) {
+      if(speak_locale) {
         // If the alternate voice doesn't match the expected locale, use a different voice
-        var set_locale = speecher.appState.get('vocalization_locale').split(/[-_]/)[0].toLowerCase();
+        var set_locale = speak_locale.split(/[-_]/)[0].toLowerCase();
         var voice_locale = (_this.alternate_voiceLang || navigator.language).split(/[-_]/)[0].toLowerCase();
         if(set_locale != voice_locale) {
           opts.voiceURI = (speecher.find_voice_by_uri(_this.alternate_voiceURI, current_locale, true) || {}).voiceURI || _this.alternate_voiceURI;
@@ -649,9 +662,9 @@ var speecher = EmberObject.extend({
     opts.pitch = opts.pitch || this.pitch || 1.0;
     if(!opts.voiceURI) {
       opts.voiceURI = this.voiceURI;
-      if(speecher.appState.get('vocalization_locale')) {
+      if(speak_locale) {
         // If the voice doesn't match the expected locale, use a different voice
-        var set_locale = speecher.appState.get('vocalization_locale').split(/[-_]/)[0].toLowerCase();
+        var set_locale = speak_locale.split(/[-_]/)[0].toLowerCase();
         var voice_locale = (this.voiceLang || navigator.language).split(/[-_]/)[0].toLowerCase();
         if(set_locale != voice_locale) {
           opts.voiceURI = (speecher.find_voice_by_uri(_this.voiceURI, current_locale, true) || {}).voiceURI || _this.voiceURI;
