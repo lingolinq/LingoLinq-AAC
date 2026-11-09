@@ -454,6 +454,10 @@ class Api::SearchController < ApplicationController
       if !response.success? && response.code != 200
         raise BadFileError, "Bad file, #{response.code}"
       end
+      # A transfer cut off part way still reports HTTP 200; curl's return code says it did not finish
+      # (e.g. :partial_file). Refuse it, or the app saves a broken picture (#1221).
+      return_code = response.respond_to?(:return_code) ? response.return_code : nil
+      raise BadFileError, "Download did not finish (#{return_code})" if return_code && return_code != :ok
       done = true
     end
     request.run

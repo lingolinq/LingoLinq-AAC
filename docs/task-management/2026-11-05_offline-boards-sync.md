@@ -1307,3 +1307,36 @@ WebKit (no file storage), aiden_parker, `web-two-syncs.js`, same procedure, befo
 
 Item 1 rescoped (Traci, 2026-11-09, "finish within the hour"): code work done; measurements that need production or
 a real device moved to a new item 10 (appended, nothing renumbered).
+
+#### Item 1 decision 3: the proxy accepts a download that did not finish (2026-11-09, Traci: "proceed")
+
+Decisions taken (Traci, on the recommendations): 1 accept (on the assumption no real device synced an older build of
+this branch), 2 accept, 3 fix here, 4 accept and revisit after item 10, 5 a dev-bucket CDN, owned by Scot.
+
+Facts:
+- `get_url_in_chunks` (`app/controllers/api/search_controller.rb:417-461`) accepts a response when
+  `response.success? || response.code == 200` (headers, :436) and raises in `on_complete` only when
+  `!response.success? && response.code != 200` (:455). CONFIRMED.
+- Typhoeus 1.5.0 `success?` is `(mock || return_code == :ok) && response_code && good code`
+  (`typhoeus/response/status.rb:49`). CONFIRMED.
+- A real truncated transfer (local server promising 100 bytes, sending 10, then closing) gives
+  `code: 200, return_code: :partial_file, success?: false`, body 10 bytes. CONFIRMED (scratchpad `partial_probe.rb`).
+  So the proxy returned a cut-off picture as a valid data URI. A timeout part way gives `:operation_timedout`, same path.
+- Callers: the proxy loop (:235) and the button-set regenerate retry (:319). Both get the check.
+- Spec fakes (`ProxyFakeRequest`) and Typhoeus mocks have no return_code (nil): treated as finished.
+
+Candidates: A (chosen) in `on_complete`, reject when the response reports a `return_code` that is not `:ok`
+("Download did not finish (<code>)"). B (rejected) compare the body to Content-Length: absent for chunked transfers,
+and compressed transfers do not match. C (rejected) drop the `|| response.code == 200` fallback: its original purpose
+is not recorded, and it also gates the headers check.
+Risk: a server that closes without finishing its transfer properly after sending everything is now refused (the
+picture is retried next sync): the safe direction.
+Red specs: `spec/controllers/api/search_controller_spec.rb` "should reject a download that did not finish",
+"... timed out part way" (red), "should accept a download that finished" (guard). Mutation: remove the check.
+Review (adversary, real-Typhoeus probe): nothing blocks. CONFIRMED: the raise in on_complete reaches the proxy's
+rescue (ethon calls complete after curl_easy_perform); full, close-delimited, chunked and gzip downloads end `:ok`;
+redirects and "File too big" leave before on_complete; the regenerate retry rescues everything. CORRECTION: a
+timeout cannot happen through the proxy (SafeHttp sets no timeout), so that spec now uses `:recv_error` and checks
+the message. Why `|| response.code == 200` exists: at header time `success?` is always false (return_code is not yet
+set), so option C would break every download. PLAUSIBLE Low: an HTTPS body delimited only by connection close from a
+server skipping TLS close_notify gets `:recv_error` and is now refused (safe direction).
