@@ -285,8 +285,8 @@ Current posture (verify at publish time):
   `lib/ai_word_predictor.rb`, so the external-model path should not run for child accounts.
 - Any future change that sends children's data to an external model for training, fine-tuning, or
   feedback loops requires a new consent flow and a calendar update before shipping.
-- Quarterly verification is tracked as `rev-coppa-retention-quarterly` and linked from fixed date
-  `fix-coppa-2026-04-22`.
+- Annual verification (quarterly until 2026-11-09, when Scot set it to annual) is tracked as
+  `rev-coppa-retention-quarterly` and linked from fixed date `fix-coppa-2026-04-22`.
 
 ## 3. The data-handling backstop: no identifiable data to external models
 

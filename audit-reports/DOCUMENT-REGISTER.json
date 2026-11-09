@@ -1760,7 +1760,7 @@
       "lastReviewed": "2026-06-16",
       "nextReviewDue": "2026-09-16",
       "attestation": {},
-      "contentHash": "75596d3aebb4cf4ac78790e02e432a111ae368d740af0ed41352bdfe72a561f6",
+      "contentHash": "11967e7dfee783f4e13c0904589491d66992278a5798be91b52ad28814d67cfd",
       "bundles": [
         "compliance-records-set-2026-06"
       ],
@@ -1878,7 +1878,7 @@
       "lastReviewed": "2026-06-21",
       "nextReviewDue": "2026-12-21",
       "attestation": {},
-      "contentHash": "57cd8f892864eb0cd7018a942ab0fb0d84d6b6e8ed56fe58b725fb1cc333cd4f",
+      "contentHash": "d2b30ceb385f75333a194f19ae4b8bac67a26185219f3b11a0032e7dae1ead96",
       "bundles": [],
       "mirrors": [],
       "id": "DOC-d9f17c6919",
@@ -3903,7 +3903,7 @@
       "supersedes": "DOC-39f37f8200",
       "notes": "Path A successor to DOC-39f37f8200 (attested 2026-08-04), created 2026-08-24 and reconciled 2026-08-25. Corrects TWO independent defect classes. (1) EU AI Act Article 50 status: the predecessor said the 50(1) disclosure modal is 'built and staged, gated OFF, not yet enabled for any user', that 'the whole path is inert', and that it is 'shown to no one in production'. A direct audited production read on 2026-08-23 falsified the enablement and inertness claims -- the article_50_disclosure flag IS ENABLED via the default_enabled_features DB Setting, which overrides the code constant (evidence: DOC-6c023a20a0, unattested). The same read does not establish that the modal was displayed; 'shown to no one because the flag is off' is false, but this record does not claim the UI rendered. (2) Bedrock runtime status, at four sites (section 2 operational-status note, section 3 BAA coverage bullet, the Runtime routing update paragraph, and the 2026-08-04 trailer), all of which stated or implied the runtime AI path has been not operational since revision 00014-5rw; credentials were re-mounted 53 minutes later on 00015-9l9. Those corrections were folded in from the never-merged PR #827 by three-way git merge-file over the frozen predecessor as common base; #827 is superseded by this record. BUNDLES: an earlier version of this note said security-review must not be retargeted until this record is attested. That rule was consciously OVERRIDDEN on 2026-08-25: the pack is customer-facing diligence and pinning it solely to the predecessor shipped the falsified 'shown to no one in production' claim to school districts and hospitals. Both records are now in the pack -- this successor for the corrected content, the predecessor so the pack still contains an ATTESTED AI-governance record. compliance-records-set-2026-06 is a frozen point-in-time binder and stays on the predecessor only. KNOWN GAP, not fixed here: docs/legal/2026-08-20_compliance-posture-report.md (also a security-review member) still says at :36 and :138 that article_50_disclosure 'remains AVAILABLE-only (not enabled)'. CORRECTED 2026-08-25: that file (DOC-59273ae805) is SUPERSEDED by DOC-c5408d90b7 (2026-08-22), which corrects exactly that claim at its own :106. The predecessor is attested and Path-A frozen, so \"until that is swept\" prescribed something impossible. The real residual is that the superseded row retains its bundle membership on this point. 2026-10-28 (issue #1227): a third, later correction: sections 2, 4 and 4.1 no longer describe the retired CI Codex review gate or the brain review guard as the data-bearing control, and section 4.1 now names the Codex GitHub connector. Still status:draft with empty attestation; only Scot attests.",
       "id": "DOC-506bbe2039",
-      "contentHash": "16c362ba768d3dd0c459d442e042b11876f5d0ff38569ffa635f8fcb418da152"
+      "contentHash": "17878c9e93e0e98da102cfa93cd098ea42c4999518cab5b7585fbf05c8eef11d"
     },
     {
       "title": "Minimum-Necessary Privacy, Data Retention, and AI Use Policy: Counsel Review Memorandum (2026-08-30 draft)",
@@ -4198,7 +4198,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-09-14_incident-response-breach-runbook.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "HIPAA",
         "GDPR",
@@ -4230,7 +4230,43 @@
       "supersedes": "DOC-28f19f73e4",
       "id": "DOC-f082212111",
       "contentHash": "a5ff3188832ab1439d30cf0ebb72a3cd978d878784552dc1598e865870bbdfc8",
-      "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen: it described a live write-frozen fallback that genuinely existed when written. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record, a dashboard screenshot or account-deletion email; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition."
+      "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen: it described a live write-frozen fallback that genuinely existed when written. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record, a dashboard screenshot or account-deletion email; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition.",
+      "supersededBy": "DOC-c731415bd9"
+    },
+    {
+      "title": "Incident Response & Breach Runbook (2026-11-09 successor)",
+      "description": "Path A successor stating which environments the runbook covers: production and any environment where real user data is found. Dev and staging hold no real user data by policy, so a problem confined to them, touching nothing shared with production, is fixed as a normal bug and noted in its pull request unless real user data is found there. Production handling, notification clocks, severity rules and vendor contacts are unchanged.",
+      "type": "runbook",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-11-09_incident-response-breach-runbook.md",
+      "status": "draft",
+      "frameworks": [
+        "HIPAA",
+        "GDPR",
+        "FERPA"
+      ],
+      "lastReviewed": "2026-11-09",
+      "nextReviewDue": "2027-08-02",
+      "bundles": [
+        "soc2-evidence",
+        "school-dpa-package",
+        "security-review",
+        "baa"
+      ],
+      "mirrors": [],
+      "notes": "Created 2026-11-09 from Scot Wahlquist's decisions of 2026-11-06 (dev and staging hold no real user content) and 2026-11-08 (a problem confined to dev or staging is a normal bug unless real user data is found there), as recorded in the company's agent data rules merged 2026-11-08. Changed: section 1 (new 'Environments in scope' paragraph), section 4.2 step 5, the header, the predecessor's DRAFT banner (replaced, since it went false at the 2026-09-15 attestation), and two section 13 entries. Nothing else differs from the predecessor's bytes. ATTESTER MUST CONFIRM: (1) n8n keeps its prior handling and is not covered by the dev and staging exception; (2) an account on dev or staging that the team did not create is a stop-and-tell-the-Incident-Commander trigger, not by itself an incident; (3) nextReviewDue 2027-08-02 follows the bytes, which carry the predecessor's next-review date. At attestation, retarget the bundleDefinitions requiredDocs that still point at the 2026-08-15 record. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition.",
+      "supersedes": "DOC-f082212111",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "id": "DOC-c731415bd9",
+      "contentHash": "c73ea73ded18c7a5be6ab405ce3add3737aafbf9cc240696f982827affd6e029"
     },
     {
       "id": "DOC-2bff04d268",
