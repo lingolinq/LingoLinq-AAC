@@ -70,6 +70,7 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
 **Retrying a failed sync (#1229)**
 - A device that has never finished a sync stays on the first-sync marker after a failed sync, including when the device could not save. The automatic retry is not pushed out 48 hours. A device that has already synced still waits 48 hours after two failures.
 - One reconnect starts the first sync for a device that has never finished one. A device that has already synced gets one stamp check instead. A failure that landed within a few seconds of going offline is included. The next reconnect in that same backoff waits.
+- Tested on an Android tablet emulator in Chrome on 2026-11-08. Syncing is working: a new account finished a sync, the tablet reported succeeded, and the board files downloaded. With the connection off, the synced boards still draw.
 
 **Sign-in and trust**
 - A Home Screen sign-in asks "Trust this Device" or "This is a Shared Device", only where the offline shell is on.
