@@ -1484,3 +1484,93 @@ Not started: the emulator before/after run (design: a LOCAL-ONLY patch in boards
 boards chosen by a hash of the id, so the same boards are slow in both runs; local puma is 1 worker x 5 threads;
 compare `7608092f9` with the finished fix on the Android emulator and WebKit, counting boards lost per first sync).
 Cannot be done here: server capacity (staging/production metrics), native iOS (needs a Mac).
+
+#### #1212 sync request limit: revised proposal (2026-11-09, second session)
+
+Fact sheet:
+- (a) READ: the adapter's limit is read once, `runLater(..., 15000)` at `utils/persistence.js:4357-4363`, in the UTILS
+  `DSExtend.findRecord`, which is what the adapter mixes in (`adapters/application.js:2, 48`). The services copy's
+  `DSExtend.findRecord` (`services/persistence.js:4243+`) is not mixed into any adapter; only `grabRecord` is read from
+  a DSExtend (`app.js:106`). CONFIRMED. The sync's limits are read at `services/persistence.js:2763` (findRecord),
+  `:2782` (reload, `BOARD_RELOAD_MS`) and `:3100` (lookup, time_promise default 30 s). CONFIRMED.
+- (b) SHAPES of the options on their way to the adapter: Ember Data 5.3.13 builds the snapshot from the options
+  (`legacy-compat/dist/-private-Dlia0pw1.js:1068-1072`, `adapter.findRecord(store, klass, id, snapshot)`) and sets
+  `snapshot.adapterOptions = options.adapterOptions` (`:311`). `Model.reload(options = {})` WRITES
+  `options.isReloading` and `options.reload` (`model/dist/model-rk3atPqV.js:2707-2709`), so a frozen whole options
+  object would throw; a frozen INNER adapterOptions object is only read. Same-tick fetches merge only when
+  `adapterOptions` is the same object or empty (`-private-Dlia0pw1.js:942-948`), so a shared inner object keeps merging.
+  `BaseModel.reload(ignore_local)` calls `this._super()` (`models/base.js:32-41`): options are dropped. CONFIRMED.
+- (c) CROSS-FILE claims: the network ladder for a GET is 8 s, 500 ms, 20 s, 500 ms, 20 s, about 49 s; each retry
+  recomputes its timeout because `original_options` is copied before the timeout is set (`utils/extras.js:177-190,
+  361-375`). CONFIRMED. Every `reload(` caller in app/ passes at most one argument (`ignore_local`), and
+  `this._super(undefined)` hits Ember Data's `options = {}` default exactly as `this._super()` does. CONFIRMED by grep.
+  The pushed test `tests/utils/persistence-sync-test.js:6184-6187` asserts `BOARD_RELOAD_MS < 30000`. CONFIRMED.
+- Where a board is actually LOST: only when the lookup fails with no stored copy (first sync, or a board new to the
+  device); a failed reload of a stored board already keeps the copy (`keep_stored_board`, `f2d463670`). CONFIRMED.
+
+Candidate A (smaller): only the sync's `findRecord` (`:2763`) passes `{adapterOptions: SYNC_ADAPTER_OPTIONS}` (a frozen
+shared object, fresh outer wrapper per call); the adapter timer reads `adapter_request_limit_ms(snapshot)`;
+`SYNC_REQUEST_MS` 55 s (the whole 49 s ladder plus margin); the lookup gets `BOARD_LOOKUP_MS` 70 s. The reload keeps
+15 s (adapter) / 20 s (sync) and its keep-the-stored-copy fallback. No base.js change; the pushed test stays as is and
+still holds (its "lookup is cut at 30 s" comment becomes stale; comment only).
+Candidate B (the handoff plan): A, plus `BaseModel.reload(ignore_local, options)` -> `this._super(options)` and
+`record.reload(true, sync_find_options())`, with `BOARD_RELOAD_MS` 60 s. Needs approval to rewrite the pushed test
+at `:6184` (its spec changes). Gain over A: a stored board under load gets refreshed instead of kept stale.
+Recommendation: A. It fixes the only path where a board is lost; B touches a model every screen uses for a
+refresh the fallback already covers.
+Rejected: 45 s (cuts the third try); only two tries (50 s would fit three anyway); a global adapter limit increase
+(every screen would wait up to 55 s on a dead server).
+Risks: under a server that never answers, a failing first-sync board holds a thread for up to 70 s + 10 s + 70 s
+(was 30 + 10 + 30; in practice 15 + 10 + 15 because the adapter cut first). A non-sync `findRecord('board', id)`
+issued while the sync's fetch of the same board is pending merges into the sync's request (gets 55 s). The extras
+first try aborts at 8 s while the server keeps working on it (pre-existing load doubling).
+Open questions: is there a sync-wide stop that bounds the dead-server case (not checked)? Should the services copy
+of DSExtend be kept in step (dead code; left unchanged)?
+Tests: (1) through the REAL adapter (`queryLog.real_lookup`, `$.realAjax` held pending, no stand-in for findRecord):
+`store.findRecord('board', id, sync_find_options())` schedules a new run-loop timer at SYNC_REQUEST_MS
+(`_backburner._timers`, as `tests/models/buttonset-test.js:991-995`), and a plain `findRecord` schedules 15 s and
+nothing longer (guard). (2) the sync's board_lookup passes the shared options to findRecord. (3) limits nest
+(lookup > request > ladder 49 s). Mutants: 15000 back in the adapter (1 red); options dropped at `:2763` (2 red);
+SYNC_REQUEST_MS 45000 (3 red). For B also: base.js `_super()` back (a reload-through-the-real-adapter test red).
+
+#### Sync Details "kept" patch: review (2026-11-09, second session)
+
+Adversary (on `1212-sync-details-kept-UNREVIEWED.patch`, not applied): REVISE, nothing Critical/High. CONFIRMED by me:
+the live component is `components/sync-details` (modal-container renders `<SyncDetails />`; `controllers/sync-details.js`
+has no template, dead, left alone); "kept" and "updated" never count one row (status string filters). To act on:
+(Medium) wording "kept from this device" can read as "withheld"; the app says "Kept on this device" (`en.json:753`);
+Traci's call. (Low) add both keys to `en.json`. (Low) the bare comma belongs inside the translation, as
+`en.json:6655-6656` do. (Low) tests miss a no-kept log (no span) and an error-only row (no kept label). (Low,
+PLAUSIBLE reach) flags are only added, so a late rewrite can leave `re_downloaded` and `kept` both set: test `kept`
+first in the template. Separate, from `4442bf0de` (CONFIRMED by reading `services/persistence.js:2779-2782`): a retried
+board leaves the first attempt's 're-downloaded' status, so it can count twice as updated; fold into this branch.
+Also noted: a sync whose only trouble is kept boards still reports "without errors" (`:2398-2410`), by design so far.
+
+#### #1212 candidate A: review, red, wiring, and a second Rule 13 stop (2026-11-09, second session)
+
+Traci: "only fix what needs to be fixed in order to make the syncing work and offline boards work". Scope cut to
+candidate A; Sync Details "kept" label, the retried-board double count and the emulator run are PARKED.
+Adversary on the proposal: REVISE then ship A, nothing Critical/High. Acted on: lookup limit raised to 85 s (a board
+looked up by key is fetched AND reloaded, `services/persistence.js:2754, 2766`, CONFIRMED); tests assert the
+constants exist; fresh-outer-object assert. Relabelled: "a failed lookup with no stored copy is the only loss path"
+is ASSUMED, not CONFIRMED: a board already in the store before the first sync (board list, Modern tree warm-up)
+goes to the reload, which keeps 15 s under A (reviewer, Medium, mechanism CONFIRMED by them, not by me).
+Red run (constants exported, nothing wired): 3 of 4 new tests red for the right reason, the 15 s guard green.
+After wiring: related suites 673 run, 658 pass, 14 skip, 1 fail; ESLint gate clean. The failing test is the one
+through the REAL adapter: the adapter's timer is still 15 s.
+Diagnosed (CONFIRMED by console logs in a test build): the live `findRecord` is the UTILS copy; it receives 4
+arguments, the 4th a real Ember Data `Snapshot` with an `adapterOptions` key whose VALUE is undefined, though the
+test passed `{adapterOptions: {sync_request_ms: 55000}}` to `LingoLinq.store.findRecord`. Read and found passing the
+options through: `store.findRecord` (`@ember-data/store/dist/many-array-BwVo-2vv.js:5090-5133`), the legacy handler
+(`legacy-compat/dist/index.js:522-575`), `fetchDataIfNeededForIdentifier` (`-private-Dlia0pw1.js:866-877`),
+`createSnapshot` (`:721-722`), `Snapshot` (`:311`). So where the value is lost is NOT found. Until it is, the
+change cannot be shown to do anything in the app (the sync-level tests pass only because they stub findRecord).
+Stopped under Rule 13 after two botched diagnostic steps: a log appended after a `//` comment (never ran), and a
+test wrapper on `store._fetchManager` before Ember Data creates it (lazy; TypeError).
+Saved: `/home/tracid/offline-sync-handoff/1212-request-limit-A-ADAPTEROPTIONS-LOST.patch` (util constants, adapter
+and sync wiring, 4 tests); code reverted to HEAD, worktree has only this log change.
+Next: find where adapterOptions is dropped between `store.findRecord` and the Snapshot (candidates not yet read:
+the RequestManager / CacheHandler path in `ember-data/store` and `@ember-data/request` in DEBUG builds, which may
+copy `request.data`; `getPendingFetch` returning an earlier pending fetch). Wrap `LingoLinq.store.request` alone
+first (it exists eagerly), log `req.data.options`, then go one step down. If adapterOptions cannot reach the adapter,
+the alternative is a flag the adapter reads by board id (e.g. a set of ids the sync is fetching), reviewed first.
