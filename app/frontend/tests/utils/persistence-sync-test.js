@@ -5973,6 +5973,180 @@ describe("persistence-sync", function() {
       });
     });
   });
+
+  // A linked board counts as cached when every picture it uses was saved, including pictures saved earlier in the
+  // session: the sync's check reads the running service's maps, where saves are recorded (#1221).
+  it("should treat a linked board as cached when its pictures are saved on the running service", function() {
+    db_wait(function() {
+      primeBoardCacheSyncHarness();
+      persistence.known_missing = {};
+      var tailDone = false;
+      enableRealSyncBoards(stubOnPersistence, function() { tailDone = true; });
+      var stores = [];
+      stubStoreUrl( function(url, type) {
+        stores.push(url);
+        console.log(url);
+        return RSVP.resolve({url: url});
+      });
+      var now = (new Date()).getTime();
+      var b1 = {
+        id: '145',
+        image_url: 'http://example.com/board.png',
+        permissions: {},
+        full_set_revision: 'current',
+        buttons: [
+          {id: '1', image_id: '1', sound_id: '3', load_board: {id: '167'}}
+        ],
+        image_urls: syncFixtureImageUrls,
+        grid: {
+          rows: 1,
+          columns: 1,
+          order: [['1']]
+        }
+      };
+      var b2 = {
+        id: '167',
+        full_set_revision: 'current',
+        permissions: {},
+        image_url: 'http://example.com/board.png',
+        buttons: [
+          {id: '1', image_id: '2', load_board: {id: '168'}},
+          {id: '2', image_id: '2'}
+        ],
+        image_urls: syncFixtureImageUrls,
+        grid: {
+          rows: 1,
+          columns: 1,
+          order: [['1']]
+        }
+      };
+      var b3 = {
+        id: '168',
+        full_set_revision: 'current',
+        permissions: {},
+        image_url: 'http://example.com/board.png',
+        buttons: [
+          {id: '1', image_id: '1'}
+        ],
+        image_urls: syncFixtureImageUrls,
+        grid: {
+          rows: 1,
+          columns: 1,
+          order: [['1']]
+        }
+      };
+
+      var revisions = {};
+      revisions[b1.id] = b1.full_set_revision;
+      revisions[b2.id] = b2.full_set_revision;
+      revisions[b3.id] = b3.full_set_revision;
+
+      primeLocalSyncStorage([
+        {id: '1', url: 'http://www.example.com/pic1.png'},
+        {id: '2', url: 'http://www.example.com/pic2.png'}
+      ]);
+      var store_promises = [];
+      store_promises.push(persistence.store('board', b1, b1.id));
+      store_promises.push(persistence.store('board', b2, b2.id));
+      store_promises.push(persistence.store('board', b3, b3.id));
+      store_promises.push(persistence.store('image', {id: '1', url: 'http://www.example.com/pic1.png'}, '1'));
+      store_promises.push(persistence.store('image', {id: '2', url: 'http://www.example.com/pic2.png'}, '2'));
+      store_promises.push(persistence.store('dataCache', {url: 'http://www.example.com/pic1.png', content_type: 'image/png', data_uri: 'data:image/png;base64,a0a'}, 'http://www.example.com/pic1.png'));
+      store_promises.push(persistence.store('dataCache', {url: 'http://www.example.com/pic2.png', content_type: 'image/png', data_uri: 'data:image/png;base64,b0b'}, 'http://www.example.com/pic2.png'));
+      store_promises.push(persistence.store('settings', revisions, 'synced_full_set_revisions'));
+      primeSyncUrlCache({
+        'http://www.example.com/pic1.png': 'data:image/png;base64,a0a',
+        'http://www.example.com/pic2.png': 'data:image/png;base64,b0b'
+      });
+      // primeSyncUrlCache keeps entries an earlier test left (they win the merge), so set these two directly on the
+      // running service, where the sync's linked-board check reads them.
+      var running = persistenceTarget();
+      ['http://www.example.com/pic1.png', 'http://www.example.com/pic2.png'].forEach(function(u) {
+        running.url_cache[u] = 'data:image/png;base64,' + (u.match(/pic1/) ? 'a0a' : 'b0b');
+        delete running.url_uncache[u];
+      });
+
+      var stored = false;
+      RSVP.all_wait(store_promises).then(function() {
+        return waitForBoardsStored(['145', '167', '168']);
+      }).then(function() {
+        stored = true;
+      }, function() {
+        stored = true;
+      });
+
+      var done = false;
+      var remote_checked_b1 = false;
+      var remote_checked_b2 = false;
+      var remote_checked_b3 = false;
+
+      waitsFor(function() { return stored; });
+      runs(function() {
+        LingoLinq.all_wait = true;
+        queryLog.real_lookup = true;
+        ['145', '167', '168'].forEach(function(boardId) {
+          var existing = LingoLinq.store.peekRecord('board', boardId);
+          if (existing) {
+            try {
+              LingoLinq.store.unloadRecord(existing);
+            } catch (e) { /* already gone */ }
+          }
+        });
+        seedBoardInStore(b3, { fresh: true });
+
+        stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
+        stub(window.$, 'realAjax', function(options) {
+          if(options.url === '/api/v1/users/1340') {
+            return RSVP.resolve({user: {
+              id: '1340',
+              user_name: 'fred',
+              avatar_url: 'http://example.com/pic.png',
+              preferences: {home_board: {id: '145'}}
+            }});
+          } else if(options.url == '/api/v1/boards/145') {
+            remote_checked_b1 = true;
+            return RSVP.resolve({
+              board: b1
+            });
+          } else if(options.url == '/api/v1/boards/167') {
+            remote_checked_b2 = true;
+            return RSVP.resolve({
+              board: b2
+            });
+          } else if(options.url == '/api/v1/boards/168') {
+            remote_checked_b3 = true;
+            return RSVP.resolve({
+              board: b3
+            });
+          } else if(options.url && options.url.match(/\/api\/v1\/buttonsets\//)) {
+            return RSVP.resolve({ buttonset: { buttons: [], full_set_revision: 'current' } });
+          }
+          return RSVP.reject({});
+        });
+        window.setTimeout(function() { // a plain timer: the waitsFor below waits for it
+          window.persistence = persistenceTarget() || persistence;
+          persistence.known_missing = {};
+          cancelSyncTailWork();
+          persistence.set('sync_status', null);
+          persistence.set('sync_progress', null);
+          persistence.sync(1340).then(function() {
+            done = true;
+          }, function() {
+            done = true;
+          });
+        }, 50);
+      });
+      waitsFor(function() { return waitForSyncDoneAndSettled(done) && tailDone; });
+      runs(function() {
+        expect(remote_checked_b1).toEqual(true);
+        expect(remote_checked_b2).toEqual(false);
+        expect(remote_checked_b3).toEqual(false);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+        LingoLinq.sync_testing_real_boards = false;
+      });
+    });
+  });
 });
 // Every sync also starts from Crisis Vocabulary (#1221, utils/offline_sync_seeds.js), so the tests that run a
 // real sync answer it. Placed last so the ESLint baseline rows above do not move; function declarations are hoisted.

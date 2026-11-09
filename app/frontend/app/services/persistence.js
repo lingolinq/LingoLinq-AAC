@@ -1111,7 +1111,7 @@ var persistence = Service.extend({
           }, function(err) {
             if(err && err.message == 'error' && err.fakeXHR && err.fakeXHR.status == 0) {
               _this.remove('dataCache', url);
-              persistence.url_cache[url] = null;
+              _this.url_cache[url] = null;
             }
             LingoLinq.track_error("JSON data retrieval error", (err || {}).error || err);
             reject(err);
@@ -1179,7 +1179,7 @@ var persistence = Service.extend({
           }, function(err) {
             if(err && err.message == 'error' && err.fakeXHR && err.fakeXHR.status == 0) {
               _this.remove('dataCache', storage.local_url);
-              persistence.url_cache[storage.local_url] = null;
+              _this.url_cache[storage.local_url] = null;
             }
             return RSVP.reject(err);
           });  
@@ -1455,13 +1455,13 @@ var persistence = Service.extend({
     return res;
   },
   url_cache: {},
+  // One answer to "is a saved copy of this URL known?", read by the quick check, the reuse check in store_url_now
+  // and the sync's linked-board check (#1221). The maps live on the running service: in this file the bare name
+  // `persistence` is the service class, so writing through it was never seen by these readers.
+  has_local_copy: function(url) { return !!(this.url_cache && this.url_cache[url] && (!this.url_uncache || !this.url_uncache[url])); },
   store_url_quick_check: function(url, type) {
-    var _this = this;
-    if(type == 'image' || type == 'sound') {
-      return (_this.url_cache && _this.url_cache[url] && (!_this.url_uncache || !_this.url_uncache[url]));
-    }
+    if(type == 'image' || type == 'sound') { return this.has_local_copy(url); }
     return false;
-
   },
   store_url: function store_url(url, type, keep_big, force_reload, sync_id) {
     persistence.urls_to_store = persistence.urls_to_store || [];
@@ -1565,7 +1565,7 @@ var persistence = Service.extend({
             if(force_reload && !trusted_not_to_change) {
               return RSVP.reject();
             // if we think it's stored locally but it's not in the cache, it needs to be repaired
-            } else if(_this.url_cache && _this.url_cache[url] && (!_this.url_uncache || !_this.url_uncache[url])) {
+            } else if(_this.has_local_copy(url)) {
               return RSVP.resolve(data);
             } else {
               return RSVP.reject();
@@ -1770,23 +1770,23 @@ var persistence = Service.extend({
           }
         }
       }).then(function(object) {
-        persistence.url_cache = persistence.url_cache || {};
-        persistence.url_uncache = persistence.url_uncache || {};
+        _this.url_cache = _this.url_cache || {};
+        _this.url_uncache = _this.url_uncache || {};
         if(object.local_url) {
           var local_url = capabilities.storage.fix_url(object.local_url, type == 'image');
-          persistence.url_cache[url_id] = local_url;
-          persistence.url_uncache[url_id] = false;
+          _this.url_cache[url_id] = local_url;
+          _this.url_uncache[url_id] = false;
           resolve(object);
         } else {
-          persistence.url_uncache[url_id] = true;
+          _this.url_uncache[url_id] = true;
           resolve(object);
         }
       }, function(err) {
-        persistence.url_uncache = persistence.url_uncache || {};
-        persistence.url_uncache[url_id] = true;
+        _this.url_uncache = _this.url_uncache || {};
+        _this.url_uncache[url_id] = true;
         if(type == 'json' && parsed_json_payload) {
-          persistence.url_cache = persistence.url_cache || {};
-          persistence.url_cache[url_id] = null;
+          _this.url_cache = _this.url_cache || {};
+          _this.url_cache[url_id] = null;
           resolve({url: url_id, type: 'json', json_payload: parsed_json_payload});
           return;
         }
@@ -1796,8 +1796,8 @@ var persistence = Service.extend({
           if(_this.stashes && _this.stashes.persist) {
             _this.stashes.persist('allow_local_filesystem_request', false);
           }
-          persistence.url_cache = persistence.url_cache || {};
-          persistence.url_cache[url_id] = null;
+          _this.url_cache = _this.url_cache || {};
+          _this.url_cache[url_id] = null;
           error.quota_maxed = true;
           _this.set('local_system.allowed', false);
         } else if(err && (err.error == 'rejected' || err.error == 'already_rejected')) {
@@ -1808,8 +1808,8 @@ var persistence = Service.extend({
             if(_this.stashes && _this.stashes.persist) {
               _this.stashes.persist('allow_local_filesystem_request', false);
             }
-            persistence.url_cache = persistence.url_cache || {};
-            persistence.url_cache[url_id] = null;
+            _this.url_cache = _this.url_cache || {};
+            _this.url_cache[url_id] = null;
             error.quota_maxed = true;
             _this.set('local_system.allowed', false);
           }
@@ -3276,13 +3276,13 @@ var persistence = Service.extend({
                           var valid = false;
                           var mapped_url = local_image_map[button.image_id]; // || all_image_urls[button.image_id];
                           if(mapped_url) {
-                            if((persistence.url_cache && persistence.url_cache[mapped_url]) && (!persistence.url_uncache || !persistence.url_uncache[mapped_url])) {
+                            if(_sync.has_local_copy(mapped_url)) {
                               valid = true;
                             }
                           } else if(all_image_urls[button.image_id]) {
                             // If there is at least a default image, you can use that
                             mapped_url = all_image_urls[button.image_id];
-                            if((persistence.url_cache && persistence.url_cache[mapped_url]) && (!persistence.url_uncache || !persistence.url_uncache[mapped_url])) {
+                            if(_sync.has_local_copy(mapped_url)) {
                               valid = true;
                             }
                           }
@@ -3294,7 +3294,7 @@ var persistence = Service.extend({
                           var valid = false;
                           var mapped_url = all_sound_urls[button.sound_id] || local_sound_map[button.sound_id];
                           if(mapped_url) {
-                            if((persistence.url_cache && persistence.url_cache[mapped_url]) && (!persistence.url_uncache || !persistence.url_uncache[mapped_url])) {
+                            if(_sync.has_local_copy(mapped_url)) {
                               valid = true;
                             }
                           }

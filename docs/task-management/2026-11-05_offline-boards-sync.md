@@ -995,3 +995,104 @@ Removing the direct call turned the first red again. Putting `cause` back turned
 Restored from a copy both times. The stamp-check reconnect tests now set `last_sync_at` to 50 so they
 keep describing a device that has synced.
 
+#### Does a repeat sync save only changes? (2026-11-08)
+
+Yes, by CoughDrop's design: the server's board revisions (`fresh_revisions`) against the device's
+`full_set_revisions` mark unchanged boards safely cached and skip them and their sub-boards
+(`services/persistence.js:3121-3130`, `board_lookup :2765-2770`). No issue covers it in either repo (searched
+LingoLinq-AAC and lingolinq_mobile; closest #1229 and mobile #3). Measured, second sync right after the first:
+
+| | Android app (SQLite) | Web, Chrome (files) | iPad, WebKit (no file storage) |
+|---|---|---|---|
+| 2nd sync writes | 7 | 7 | 1,692 |
+| 2nd sync data | 1.5 MB | 0.18 MB | 22.1 MB |
+| 2nd sync time | 43 s | 13 s | 271 s (1st: 279 s) |
+
+RETRACTED (same day): two findings from web runs that never answered the "Trust this Device / Shared Device"
+question after sign-in (the page stays on `/login/device`, on the signed-out database `lingolinqStorage::__===db`,
+with `local_system` unset). (1) "Sign-in does not switch to the user's database": with Trust chosen, the app
+opens `lingolinqStorage::aiden_parker===db`, the sync saves there and it survives a reload. (2) "The web app
+re-downloads every picture": in Chrome with Trust chosen, pictures are saved as files and skipped (table above).
+
+CONFIRMED and real: with no file storage (iPad Safari, `local_system.available === false`), pictures are saved in
+the database (1,651 rows, 0 files) and a repeat sync downloads and rewrites nearly all of them (1,683 rows, 22 MB),
+so it takes as long as the first. Cause (by reading): `store_url_quick_check` (`:1458-1463`) counts a picture as
+saved only through `url_cache`, which only file-backed pictures set; `find_url` does read database pictures when
+`local_system.available === false` (`:1230`). Offline display of database pictures is covered by the WebKit e2e
+"Basic pictures" case (passed). Also seen on every repeat sync: one unchanged board rewritten
+(`vocal-flair-84-things-at-home`) and the user record written twice; cause not looked at.
+
+#### Picture "already saved?" check: fact sheet so far, STOPPED before a proposal (2026-11-08)
+
+Facts (CONFIRMED unless marked):
+- In the service file the bare name `persistence` is the service CLASS (`var persistence = Service.extend`, :91); the
+  instance is `window.persistence = this` (:124). `store_url_now` records results on the class
+  (`persistence.url_cache` / `url_uncache`, :1773-1812; also :1114, :1182); the "already saved?" checks read the
+  instance (`store_url_quick_check` :1461, the reuse check :1568); the sync's missing-picture check reads the class
+  (:3279-3297; `_sync` is the instance there, :3047). Probe after one sync: Chrome instance maps 12/13 entries,
+  class 1,663/1,669; quick check false for a saved picture. Present since the service file was created.
+- `prime_caches` returns at once when there is no file storage (:1301-1306), so on an iPad nothing is registered
+  at startup.
+- Second sync (no force): all 102 boards logged "already been cached locally" in both browsers, yet pictures were
+  still requested (Chrome 2,017, WebKit 3,699 store_url calls). Chrome wrote none only because a saved picture's link
+  becomes `filesystem:http://localhost:5000/...`, which `store_url_now` returns early for (`localhost:` match,
+  :1523); with a production address that early return would not apply (ASSUMED, unchecked). WebKit (pictures in
+  the database) re-downloaded and rewrote 1,683.
+- The real Sync buttons pass force = true (`authenticated-view.js:1636`, `classic-rail.js:252`,
+  `sync-details.js:112`); the automatic and home-board syncs pass none. With force, the reuse step re-downloads every
+  untrusted resource by design (:1564-1566, "if it's a manual sync, always re-download untrusted resources"), on
+  every platform. Every measurement above used no force, so none shows what a person's Sync tap does.
+
+Stopped here (Rule 13: several corrections in a row today). Open question for Traci before any proposal: should a
+manual Sync keep re-downloading untrusted pictures (CoughDrop's design: it refreshes them), or reuse a saved copy?
+
+#### Option (b) research: can a manual Sync reuse saved pictures? (2026-11-08, Traci: "check option b")
+
+- Uploaded pictures, sounds and avatars get a permanent, unique address per record:
+  `images/<id digits>/<global_id>-<sha512(global_id, created_at)>.<ext>` (`app/models/concerns/uploadable.rb:58-80`);
+  avatars are saved as picture records (`services/content-grabbers.js:904`). A replaced picture is a new record
+  with a new address. CONFIRMED.
+- The one in-place overwrite (`replace_stored_upload_body!`, SVG sanitising, `uploadable.rb:560-623`) runs in
+  `upload_success` before the record is given its address (`controllers/concerns/remote_uploader.rb:20-29`), so no
+  device can hold the unsanitised copy. CONFIRMED.
+- CDN invalidation (`Uploader.invalidate_cdn`) has no live callers (`lib/uploader.rb:216-217`); its commented-out
+  call sites were for button-set / extra-data files, which now use checksum paths. CONFIRMED.
+- Pictures linked to outside sites without being copied (`download: false`) occur only in seed data
+  (`lib/beta_seed.rb:112-113, 477`). CONFIRMED.
+- CoughDrop trusted its own uploads: Brian Whitmer added CoughDrop's upload CDN to the trusted list in 2017
+  (`008250856`, "add cdn to trusted endpoints"); the 2025 rename (`8a6b83009`) turned `coughdrop-usercontent` into
+  `lingolinq-usercontent`, which is not one of LingoLinq's buckets (`docs/INFRASTRUCTURE.md:168-169`). Production
+  serves uploads from `https://d34sa6lc5jfe66.cloudfront.net` (bucket `lingolinq-prod-uploads`, GitHub
+  `production` variables); neither is on the list (`services/persistence.js:1546-1548`). So a manual Sync
+  re-downloading every uploaded picture is a side effect of the rename, not CoughDrop's design. CONFIRMED.
+- Button-set files (`extras.../BoardDownstreamButtonSet/...`) do change between revisions and must keep
+  refreshing; CoughDrop excluded them (`usercontent` + `/extras/`), but LingoLinq's paths are `extras<nonce>/`,
+  which that exclusion pattern does not match. Any widening of trust must exclude them. CONFIRMED by reading.
+- The client is not told the upload CDN address (nothing in controllers, views, json_api or the frontend).
+
+Conclusion: option (b) is safe for uploaded pictures, sounds and avatars. Design to propose (fix-proposal
+discipline still applies): trust LingoLinq's own upload hosts (the server sends its uploads CDN and bucket to the
+client; dev and staging have only the bucket) for pictures and sounds, keep button-set files refreshing, keep the
+repair path for a missing saved copy, plus the class/instance fix and database-saved pictures on iPad.
+
+#### Unit 1: saved pictures recorded on the running service (2026-11-08)
+
+Change: `has_local_copy(url)` on the service (in place of the old quick-check body, same line count) is the one
+answer read by `store_url_quick_check`, the reuse check in `store_url_now` and the sync's linked-board check; every
+`persistence.url_cache` / `url_uncache` write in the service file (find_json, store_json, store_url_now) now goes to
+the running service (`_this`), the linked-board reads to `_sync`.
+Adversary review of the proposal: nothing blocks. Conditions met: a test for the linked-board check (new
+"should treat a linked board as cached when its pictures are saved on the running service", added before the
+describe's closing line so no baseline row moves; it sets its two cache entries directly because
+`primeSyncUrlCache` lets entries left by earlier tests win the merge), site-group mutations, the sync module run
+before and after. Lows recorded, not acted on: a failed save now marks a picture "not cached" on the running
+service even when an older copy exists (offline it shows broken until the next prime_caches); find_url's
+`file_missing` branch is unreachable (old dead code); the linked check now also counts prime_caches entries that
+were not file-verified on automatic syncs.
+Tests: `persistence-saved-pictures-test.js` (red before: "the already-saved check sees it"; failed-save guard).
+Mutations: writes back on the class -> 8 red (the new test + 7 store_url tests); linked check back on the class ->
+the new sync test red. Related suites `/persistence|sync|dbman|storage|offline|buttonset|json/i`: baseline 602 run,
+587 pass, 14 skip, 1 fail (the red test); after 603 run, 589 pass, 14 skip, 0 fail. ESLint gate: no new findings
+(the copied test uses `window.setTimeout` and `window.$` instead of the baselined `later` and `$`).
+Scope: file-stored pictures. Pictures stored in the database (iPad) are unit 2; trusting LingoLinq's upload hosts
+on a manual Sync is unit 3.
