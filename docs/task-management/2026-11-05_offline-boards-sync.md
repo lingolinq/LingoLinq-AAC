@@ -1409,3 +1409,11 @@ Revised: `utils/sync_board_fallback.js`. Reload limit 20 s (above the adapter's 
 keep the stored copy only for passing failures (adapter or sync timeout, status 0, 429, 5xx), with status 'kept'
 (sync details counts only known statuses, so it is no longer counted as re-downloaded) and the button-set reload
 cleared. Refusals (400), missing or deleted (404) and unknown shapes fail as before. Tests use the real shapes.
+Result: commit `f2d463670`. Mutants, each killed: every failure counted as passing (the 4 refusal guards red), no
+fallback (the 5 keep tests red), limit back to 5 s (limit test red). Related suites incl. revocation: 665 run, 651
+pass, 14 skip, 0 fail. ESLint gate clean. Re-review of the code: ship; Lows recorded, not acted on: the classifier
+repeats `network_error_shape` (services/persistence.js:4757); tests stub `reload` with plain objects (Ember Data's
+wrapping keeps `fakeXHR.status`, by reading); the "first sync" guard lacks only image_urls; Sync Details shows 'kept'
+as a blank status; an invalid_token body under ApplicationCache times out and keeps the copy (session ending anyway);
+the utils copy of board_lookup still has 5 s (overridden by the service, dead). Left on #1212: first-sync boards slower
+than the adapter's 15 s cap (an app-wide limit; its own change), server capacity (staging/production), item 8.

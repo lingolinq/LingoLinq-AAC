@@ -170,6 +170,13 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
      batch recording, word suggestions). Not part of this PR.
    - The measurements that need production or a real device are item 10.
 2. **#1212:** board downloads time out under load (slow server, many requests at once, short client limits).
+   Partly done (2026-11-09): iPads use mobile parallelism (#1201); a board refresh is no longer cut off after 5 s
+   (now 20 s, above the adapter's own 15 s limit); when a refresh still fails for a passing reason (timeout, no
+   connection, server error, too many requests) and the device has the board, that copy is kept (status 'kept') and
+   its folders are still synced, instead of the whole branch going missing. A refusal or a deleted board fails as
+   before. Left: a FIRST sync still loses a board slower than the adapter's 15 s limit for every server request
+   (raising it touches every request in the app, so it needs its own change); Sync Details does not show 'kept'
+   boards yet; server capacity under a full sync is not measured (needs staging and production).
 3. **#1219:** the board tree request (`/tree`) fails on very large boards (Cloud Run response size cap).
 4. **Picture data repair (operations):** some saved picture addresses fail; a one-time data cleanup.
 5. **#1229:** done. A new device that has never finished a sync keeps retrying after the backoff, and one reconnect can retry a dropped connection. See the task log.
