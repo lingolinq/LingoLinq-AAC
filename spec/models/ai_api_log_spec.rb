@@ -447,6 +447,56 @@ describe AiApiLog, :type => :model do
     end
   end
 
+  # One 12-month window for every account (business need: debugging, safety review,
+  # usage and billing). Runs at a fixed instant away from any month boundary, because
+  # the purge computes its cutoff from the clock.
+  describe "purge_old_logs!" do
+    include ActiveSupport::Testing::TimeHelpers
+    let(:base) { Time.utc(2026, 6, 17, 12, 0, 0) }
+
+    def log_at(time, attrs = {})
+      log = AiApiLog.create!({ ai_provider: 'claude', request_type: 'word_prediction' }.merge(attrs))
+      log.update_column(:created_at, time)
+      log
+    end
+
+    it "deletes a row just outside 12 months and keeps one just inside" do
+      travel_to(base) do
+        outside = log_at(base - 12.months - 1.day)
+        inside = log_at(base - 12.months + 1.day)
+
+        expect(AiApiLog.purge_old_logs!).to eq(1)
+        expect(AiApiLog.where(id: outside.id)).to be_empty
+        expect(inside.reload).to be_present
+      end
+    end
+
+    it "applies to every account, whatever jurisdiction a row carries" do
+      travel_to(base) do
+        rows = [log_at(base - 13.months), log_at(base - 13.months, jurisdiction: 'EU'),
+                log_at(base - 13.months, jurisdiction: 'US')]
+
+        expect(AiApiLog.purge_old_logs!).to eq(3)
+        expect(AiApiLog.where(id: rows.map(&:id))).to be_empty
+      end
+    end
+
+    it "deletes every eligible row when they span several batches" do
+      travel_to(base) do
+        old = 3.times.map { log_at(base - 2.years) }
+        recent = log_at(base - 1.month)
+
+        expect(AiApiLog.purge_old_logs!(batch_size: 1)).to eq(3)
+        expect(AiApiLog.where(id: old.map(&:id))).to be_empty
+        expect(recent.reload).to be_present
+      end
+    end
+
+    it "no longer offers the EU-only five-year purge" do
+      expect(AiApiLog).not_to respond_to(:purge_old_eu_logs!)
+    end
+  end
+
   describe "redact_old_ip_addresses!" do
     it "should replace ip_address on records older than 90 days with [REDACTED]" do
       old_log = AiApiLog.create!(ai_provider: 'claude', request_type: 'board_generation', ip_address: '10.0.0.1')

@@ -112,6 +112,16 @@ describe 'scheduler:dispatch rake task' do
     it 'exits zero when every task succeeds' do
       expect { Rake::Task['scheduler:dispatch'].invoke }.not_to raise_error
     end
+
+    it 'invokes the 12-month AI log purge' do
+      expect(AiApiLog).to receive(:purge_old_logs!).and_return(0)
+      Rake::Task['scheduler:dispatch'].invoke
+    end
+
+    it 'invokes the 12-month location cluster purge' do
+      expect(ClusterLocation).to receive(:purge_unused!).and_return(0)
+      Rake::Task['scheduler:dispatch'].invoke
+    end
   end
 
   context 'when run outside the 6 AM UTC daily window' do
@@ -122,6 +132,12 @@ describe 'scheduler:dispatch rake task' do
 
     it 'does not invoke AiApiLog.redact_old_ip_addresses!' do
       expect(AiApiLog).not_to receive(:redact_old_ip_addresses!)
+      Rake::Task['scheduler:dispatch'].invoke
+    end
+
+    it 'does not invoke the AI log or location cluster purges' do
+      expect(AiApiLog).not_to receive(:purge_old_logs!)
+      expect(ClusterLocation).not_to receive(:purge_unused!)
       Rake::Task['scheduler:dispatch'].invoke
     end
 
