@@ -69,10 +69,7 @@
     <p><%= t('art50_disclosures.v1.retention_vendor_intro') %> <%= @metadata['retention']['vendor_side'] %></p>
     <p><%= t('art50_disclosures.v1.retention_lingolinq_intro') %></p>
     <ul>
-      <li><%= t('art50_disclosures.v1.retention_general', months: @metadata['retention']['lingolinq_general']['window_months']) %></li>
-      <li><%= t('art50_disclosures.v1.retention_children', months: @metadata['retention']['lingolinq_children']['window_months']) %></li>
-      <li><%= t('art50_disclosures.v1.retention_eu', years: @metadata['retention']['lingolinq_eu']['window_years']) %></li>
-      <li><%= t('art50_disclosures.v1.retention_hipaa', years: @metadata['retention']['lingolinq_hipaa_floor']['window_years']) %></li>
+      <li><%= t('art50_disclosures.v1.retention_window', months: @metadata['retention']['lingolinq_window']['window_months']) %></li>
       <li><%= t('art50_disclosures.v1.retention_ip', days: @metadata['retention']['ip_address']['window_days']) %></li>
       <li><%= t('art50_disclosures.v1.retention_account_deletion') %></li>
     </ul>

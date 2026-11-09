@@ -49,19 +49,16 @@ module LingoLinq
   #    table for what those non-runtime tools are, deliberately not named in
   #    this file so a mechanical grep for those names on this file stays
   #    meaningful as a truthfulness gate.
-  # 2. Retention is stated as a TIERED rule, never a flat number: 24 months
-  #    general / 12 rolling months for children's accounts (both decided but
-  #    NOT yet in effect), both overridden UPWARD to up to 5 years for
-  #    EU-jurisdiction records and up to 6 years for healthcare-linked
-  #    accounts. Two earlier bases were RETRACTED 2026-08-30 (#888) and must
-  #    not be reasserted: EU AI Act Article 50 is a transparency rule and
-  #    imposes no record-keeping period, and 45 CFR 164.316(b)(2) governs a
-  #    covered entity's written policies and procedures, not AI request logs,
-  #    so it is not a retention "hard floor". Both windows are under counsel
-  #    review.
+  # 2. Retention is one window for every account: LingoLinq's own AiApiLog record is
+  #    deleted 12 months after it is created (AiApiLog.purge_old_logs!, daily), on a basis
+  #    of business need (debugging, safety review, usage and billing). It replaced a
+  #    tiered rule on 2026-11-08. Two bases were RETRACTED 2026-08-30 (#888) and must not
+  #    be reasserted: EU AI Act Article 50 is a transparency rule and imposes no
+  #    record-keeping period, and 45 CFR 164.316(b)(2) governs a covered entity's written
+  #    policies and procedures, not AI request logs.
   # 3. Vendor-side retention (what Anthropic keeps) is a separate fact, under
   #    a separate key ('vendor_side'), from LingoLinq's own AiApiLog retention
-  #    (the 'lingolinq_*' keys). The two are never merged into one sentence.
+  #    (the 'lingolinq_window' key). The two are never merged into one sentence.
   # 4. The eval-narration entries must state the de-identification that the code
   #    actually performs. lib/eval_narrator.rb#payload_for_prompt drops the
   #    student name (any key casing) and the etiology/diagnosis field before
@@ -158,38 +155,11 @@ module LingoLinq
             'data for a limited period for safety and abuse-prevention purposes. LingoLinq has not yet ' \
             'configured the account for guaranteed zero retention, so we do not claim a zero-data-retention ' \
             'guarantee for this path.',
-          'lingolinq_general' => {
-            'window_months' => 24,
-            'note' => "LingoLinq's own record of an AI request (kept in AiApiLog for auditing) has a decided " \
-              'window of 24 months for accounts outside the EU jurisdiction that are not flagged as belonging ' \
-              'to a child under 13. This window is NOT yet in effect: today these records are removed when the ' \
-              'account is deleted, and not before. The EU and healthcare windows below override this window ' \
-              'upward when they apply, so this is not a flat 24-month rule for every account.'
-          },
-          'lingolinq_children' => {
+          'lingolinq_window' => {
             'window_months' => 12,
-            'rolling' => true,
-            'note' => "LingoLinq's own record of an AI request has a decided window of a rolling 12 months, " \
-              'independent of whether the account stays open or closed, for accounts flagged as belonging to a ' \
-              'child under 13. This window is NOT yet in effect: today these records are removed when the ' \
-              'account is deleted, and not before. The EU and healthcare windows below override this window ' \
-              'upward when they apply.'
-          },
-          'lingolinq_eu' => {
-            'window_years' => 5,
-            'note' => "LingoLinq's own record of an AI request is kept for up to 5 years for accounts in the " \
-              'EU jurisdiction. A purge at 5 years is scheduled and running, but no record is yet old enough ' \
-              'for it to have removed anything. An earlier revision of this entry gave EU AI Act Article 50 ' \
-              'as the basis for this window; that was wrong, because Article 50 is a transparency rule and ' \
-              'imposes no record-keeping period. The basis for this window is under review with counsel.'
-          },
-          'lingolinq_hipaa_floor' => {
-            'window_years' => 6,
-            'note' => "LingoLinq's own record of an AI request is kept for up to 6 years for accounts linked " \
-              'to a healthcare provider. An earlier revision described this as a hard floor required by ' \
-              '45 CFR 164.316(b)(2); that rule requires a covered entity to keep its own written policies and ' \
-              'procedures for six years, and is not a rule about how long AI request records must be kept. ' \
-              'This window is under review with counsel and may get shorter.'
+            'basis' => 'Business need: debugging, safety review, usage and billing.',
+            'note' => "LingoLinq's own record of an AI request (kept in AiApiLog) is deleted 12 " \
+              'months after it is created, for every account, by a daily job.'
           },
           'ip_address' => {
             'window_days' => 90,
