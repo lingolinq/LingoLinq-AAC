@@ -150,4 +150,105 @@ module('Unit | Utility | persistence saved pictures', function(hooks) {
     await persistence.store_url_now(url, 'image', false, true);
     assert.strictEqual(downloads, 1, 'a row with no known saved copy is downloaded again');
   });
+
+  /* Unit 2 (#1221): with no file storage (iPad Safari and the Home Screen app, or after a quota error) a picture is kept
+   * in its database row. The reuse step used to accept a found row only when a FILE copy was known (has_local_copy), so
+   * every sync downloaded and rewrote every picture (1,683 rows, 22 MB, on a repeat sync in WebKit). A row that holds
+   * the picture itself is now reused: if the row exists, its write landed.
+   */
+  var PNG = 'data:image/png;base64,iVBORw0KGgo=';
+  async function request_with_row(target, url, type, row, opts) {
+    var calls = { downloads: 0, writes: 0, direct: 0 };
+    var Xhr = window.XMLHttpRequest, installed = capabilities.installed_app;
+    window.XMLHttpRequest = function() { calls.direct++; throw new Error('no direct request in tests'); };
+    capabilities.installed_app = !!(opts && opts.installed_app);
+    target.ajax = function(path) {
+      if(PROXY.test(path)) { calls.downloads++; }
+      return RSVP.resolve({ content_type: type == 'sound' ? 'audio/mpeg' : (type == 'json' ? 'application/json' : 'image/png'), data: type == 'json' ? 'data:application/json;base64,e30=' : PNG });
+    };
+    target.store = function(store, obj) { calls.writes++; return RSVP.resolve(obj); };
+    target.find = function(store, key) {
+      return (store === 'dataCache' && key === url && row) ? RSVP.resolve(Object.assign({ url: url, type: type, persisted: true }, row)) : RSVP.reject({});
+    };
+    try {
+      calls.result = await persistence.store_url_now(url, type, false, !!(opts && opts.force));
+    } finally {
+      window.XMLHttpRequest = Xhr;
+      capabilities.installed_app = installed;
+    }
+    return calls;
+  }
+
+  test('with no file storage, a picture already in the database is reused, not downloaded and written again', async function(assert) {
+    this.target.set('local_system', { available: false });
+    var res = await request_with_row(this.target, 'https://example.com/pictures/dog.png', 'image', { content_type: 'image/png', data_uri: PNG });
+    assert.strictEqual(res.downloads, 0, 'not downloaded');
+    assert.strictEqual(res.writes, 0, 'not written again');
+    assert.strictEqual(res.result.data_uri, PNG, 'the saved picture is returned');
+  });
+
+  test('with no file storage, a sound already in the database is reused', async function(assert) {
+    this.target.set('local_system', { available: true, allowed: false }); // after a quota error
+    var res = await request_with_row(this.target, 'https://example.com/sounds/bark.mp3', 'sound', { content_type: 'audio/mpeg', data_uri: 'data:audio/mpeg;base64,SUQz' });
+    assert.deepEqual([res.downloads, res.writes], [0, 0]);
+  });
+
+  test('with no file storage, a row without the picture itself is downloaded again', async function(assert) {
+    this.target.set('local_system', { available: false });
+    var res = await request_with_row(this.target, 'https://example.com/pictures/cow.png', 'image', { content_type: 'image/png', local_url: 'file:///pictures/cow.png' });
+    assert.strictEqual(res.downloads, 1);
+  });
+
+  test('with no file storage, a row of the wrong kind is downloaded again', async function(assert) {
+    this.target.set('local_system', { available: false });
+    var res = await request_with_row(this.target, 'https://example.com/pictures/pig.png', 'image', { content_type: 'text/html', data_uri: 'data:text/html;base64,PGgxPg==' });
+    assert.strictEqual(res.downloads, 1);
+  });
+
+  test('with no file storage, a protected picture is downloaded again (it can answer with a fallback)', async function(assert) {
+    this.target.set('local_system', { available: false });
+    var res = await request_with_row(this.target, 'https://app.example.org/api/v1/users/1_1/protected_image/lessonpix/123', 'image', { content_type: 'image/png', data_uri: PNG });
+    assert.strictEqual(res.downloads, 1);
+  });
+
+  test('with no file storage, the Sync button still refreshes a picture from an outside address', async function(assert) {
+    this.target.set('local_system', { available: false });
+    var res = await request_with_row(this.target, 'https://example.com/pictures/hen.png', 'image', { content_type: 'image/png', data_uri: PNG }, { force: true });
+    assert.strictEqual(res.downloads, 1);
+  });
+
+  test('with no file storage, a JSON file is not reused (button sets change)', async function(assert) {
+    this.target.set('local_system', { available: false });
+    var res = await request_with_row(this.target, 'https://example.com/extras/list.json', 'json', { content_type: 'application/json', data_uri: 'data:application/json;base64,e30=' }, { installed_app: true });
+    assert.strictEqual(res.downloads, 1);
+  });
+
+  test('in the installed app WITH file storage, a database row is not enough (the file may be missing)', async function(assert) {
+    var res = await request_with_row(this.target, 'https://example.com/pictures/cat2.png', 'image', { content_type: 'image/png', data_uri: PNG }, { installed_app: true });
+    assert.strictEqual(res.downloads, 1, 'repaired by downloading');
+  });
+
+  test('with no file storage, a symbol from a trusted address is reused without any request', async function(assert) {
+    this.target.set('local_system', { available: false });
+    var res = await request_with_row(this.target, 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/apple.png', 'image', { content_type: 'image/png', data_uri: PNG }, { force: true });
+    assert.deepEqual([res.downloads, res.writes, res.direct], [0, 0, 0]);
+  });
+
+  test('with no file storage, a picture row holding a sound is downloaded again', async function(assert) {
+    this.target.set('local_system', { available: false });
+    var res = await request_with_row(this.target, 'https://example.com/pictures/duck.png', 'image', { content_type: 'audio/mpeg', data_uri: 'data:audio/mpeg;base64,SUQz' });
+    assert.strictEqual(res.downloads, 1);
+  });
+
+  test('with no file storage, an out-of-date row is downloaded again', async function(assert) {
+    this.target.set('local_system', { available: false });
+    var res = await request_with_row(this.target, 'https://example.com/pictures/goat.png', 'image', { content_type: 'image/png', data_uri: PNG, outdated: true });
+    assert.strictEqual(res.downloads, 1);
+  });
+
+  test('signed out (no saved sign-in), a picture already in the database is reused', async function(assert) {
+    this.stashes.set('auth_settings', null); // the store branch then keeps pictures in the database too
+    var res = await request_with_row(this.target, 'https://example.com/pictures/sheep.png', 'image', { content_type: 'image/png', data_uri: PNG });
+    assert.strictEqual(res.downloads, 0);
+  });
 });

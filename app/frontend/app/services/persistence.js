@@ -1555,7 +1555,7 @@ var persistence = Service.extend({
       }
       trusted_not_to_change = trusted_not_to_change || ((type == 'image' || type == 'sound') && is_permanent_upload_url(url)); var check_for_local = !!trusted_not_to_change; // after cors_match: the fetch route is unchanged (utils/permanent_upload.js)
 
-      if(capabilities.installed_app) { check_for_local = true; }
+      var no_files = !(_this.get('local_system.available') && _this.get('local_system.allowed') && _this.stashes && _this.stashes.get && _this.stashes.get('auth_settings')); if(capabilities.installed_app || (no_files && picture_kept_in_database(url, type))) { check_for_local = true; } // no file storage: the row holds the picture (utils/database_picture.js)
       if(check_for_local) {
         // skip the remote request if it's stored locally from a location we
         // know won't ever modify static assets
@@ -1565,7 +1565,7 @@ var persistence = Service.extend({
             if(force_reload && !trusted_not_to_change) {
               return RSVP.reject();
             // if we think it's stored locally but it's not in the cache, it needs to be repaired
-            } else if(_this.has_local_copy(url)) {
+            } else if(_this.has_local_copy(url) || (no_files && usable_database_copy(url, type, data))) {
               return RSVP.resolve(data);
             } else {
               return RSVP.reject();
@@ -4962,3 +4962,4 @@ import { note_failed_write, failed_write_count, end_sync_if_storage_failed } fro
 import offlineSyncSeeds from '../utils/offline_sync_seeds';
 import { queue_eventual_store } from '../utils/eventual_store_queue';
 import { is_permanent_upload_url } from '../utils/permanent_upload';
+import { picture_kept_in_database, usable_database_copy } from '../utils/database_picture';
