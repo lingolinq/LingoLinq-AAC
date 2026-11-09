@@ -1096,3 +1096,127 @@ the new sync test red. Related suites `/persistence|sync|dbman|storage|offline|b
 (the copied test uses `window.setTimeout` and `window.$` instead of the baselined `later` and `$`).
 Scope: file-stored pictures. Pictures stored in the database (iPad) are unit 2; trusting LingoLinq's upload hosts
 on a manual Sync is unit 3.
+
+#### Unit 2 (database-saved pictures): BLOCKED by review, stopped (2026-11-08)
+
+Red tests written (uncommitted): `persistence-saved-pictures-test.js` tests 3-6; 3 and 4 red as expected.
+Adversary review of the proposal: High, CONFIRMED (`services/persistence.js:770-782`): `store()` resolves even when
+the write fails (it only counts the failure, `utils/storage_failures.js`), so recording `url_in_db` in the success
+bookkeeping would mark a picture saved when its database write never landed. Trigger: an iPad runs out of space
+during a sync, the user frees space and taps Sync in the same session; the pictures are skipped at the quick check,
+nothing is written, nothing fails, the sync reports success and the pictures are missing offline until a relaunch.
+Test 6 stubs `store` to reject, which the real `store()` never does, so it passes for the wrong reason.
+Same flaw in unit 1's committed guard test ("a picture whose save failed does not count as saved", c6f8412b6): it
+stubs a rejection the real code never produces. Unit 1's behaviour is right (a file-backed picture counts as saved
+only after its file write succeeded), but that test must be rewritten to fail the real way (write_file rejecting),
+before unit 1 is pushed.
+Medium: database reuse would bypass the trust exclusions; `protected_image` can return a fallback picture with 200
+(users_controller.rb:1165-1173), so reuse must leave out `protected_image` and `api/v1/lang` and require the row's
+content type to match. Low: `has_local_copy` is called with raw URLs but saves are keyed by `normalize_url`.
+
+Next (fresh start recommended, Rule 13): (1) rewrite unit 1's failed-save test against the real failure path;
+(2) unit 2: set `url_in_db` only when the database write actually landed (compare `failed_write_count` before and
+after the store), exclude protected_image / lang, require a matching content type, normalize the key in
+`has_local_copy`; rewrite test 6 to keep the real `store()` and make the storage layer reject; re-review; (3) unit 3
+(trust LingoLinq's upload hosts on a manual Sync); (4) measure with the real Sync button (force true) on the
+emulator, Chrome and WebKit; (5) push, PR and status doc under item 1.
+
+#### Why the picture-check work keeps going wrong (2026-11-08, Traci asked for an honest look)
+
+Done before this: unit 1 test 2 rewritten to fail the real way (write_file rejects; it checks the write was
+attempted and the call rejected); mutant "a failed file write counts as saved" turns it red; folded into unit 1,
+now `810e3c5ea` (local, not pushed). Unit 2: no app code edited.
+
+CoughDrop comparison (pre-migration utils copy at `148fc2e1e`):
+- CoughDrop's persistence was ONE object: `var persistence = EmberObject.extend({...}).create(...)` (:25, :3488),
+  so `persistence.url_cache` and `this.url_cache` were the same map. The 2026-01-20 service migration
+  (`48a055d55`) made it `Service.extend` (the class) with the instance on `window.persistence`, without changing
+  the `persistence.` writes. CONFIRMED. That is where unit 1's bug came from: a regression, not CoughDrop design.
+- CoughDrop trusted its own upload CDN (`008250856`); the rename broke that. A regression (unit 3 restores it).
+- CoughDrop with no file storage: the same quick check (only `url_cache`), `prime_caches` returned early, and
+  `find_url` read the database only when `url_uncache[url]` was set this session (:949). So CoughDrop also
+  re-downloaded database-saved pictures on every sync, and after a relaunch could not find them. CONFIRMED by
+  reading. Unit 2 is NEW behaviour for a mode CoughDrop never supported well, not a restoration.
+- Since the split there are two live ~4,600-line copies (services 36 commits, utils 20 since `148fc2e1e`); the
+  adapter uses the utils copy's DSExtend.
+
+Why it is hard: two live copies and a class/instance name clash (several wrong claims came from "which object
+runs"); store() never rejects, so "saved" cannot be seen; the cache maps carry several meanings each
+(url_uncache true = "in the database" or "save failed") and are written in ~30 places; at least four storage modes
+times force times trust times installed app, and local runs misrepresent each (localhost early return, inline data
+URIs, private bucket, the Trust-device prompt); #1221 holds five separate causes; the line-keyed ESLint baseline
+forces line-neutral edits in a 4,900-line file.
+Recommendation given: finish what restores CoughDrop behaviour (unit 1, unit 3), measure, and treat unit 2
+(iPad without files) as a separate decision.
+
+#### Unit 2 parked; unit 3 proposal: the Sync button reuses saved uploads (2026-11-08, Traci: "proceed the way you think will ultimately work best")
+
+Unit 2 parked (new behaviour, not a CoughDrop restoration; see above). Its red tests were moved out of the repo to
+`/home/tracid/offline-sync-handoff/unit2-red-tests.patch` so nothing red ships.
+
+Facts:
+- Clients see upload addresses rewritten by `Uploader.fronted_url` (`lib/uploader.rb:649-660`) at serialization
+  (`lib/json_api/image.rb:38`, `uploadable.rb:51`, `json_api/button_set.rb:26`, `converters/lingo_linq.rb`):
+  `UPLOADS_S3_CDN/<key>` in production, the bucket URL where no CDN is set. CONFIRMED.
+- The same CDN host serves button-set files (`extras-cache<5>/button_set_cache/<id>/<hash>.json`,
+  `board_downstream_button_set.rb:262, :326, :391`) and extra data (`extras<nonce>/...`, `extra_data.rb:196, :286`).
+  Host-wide trust would freeze them. CONFIRMED.
+- Upload key: `images|sounds/<id digits joined by />/<global_id>-<sha512 hex, 128>` + extension
+  (`uploadable.rb:58-80`; `GoSecure.sha512` is `hexdigest`). Transcoded sounds and videos get a new key
+  `<...sha>v<unix time>.<ext>` (`media_object.rb:87`, `transcoder.rb:52`), never an overwrite. Raster copies
+  `<key>.raster.png` (`uploadable.rb:215`). The SVG sanitising overwrite runs before the address is published
+  (`remote_uploader.rb:20-29`). Protected images use `/api/v1/users/.../protected_image` (`uploadable.rb:21`), a
+  different shape. CONFIRMED.
+- Trust is read in `store_url_now` (`services/persistence.js:1546-1572`): `trusted_not_to_change` decides
+  `check_for_local` and the force rule (`:1564-1566`); it also feeds `cors_match` (`:1551`), which picks the direct
+  XHR route. Reuse still requires `has_local_copy(url)` (`:1568`), the repair path. CONFIRMED.
+- The utils copy has the same block (`utils/persistence.js:~1583-1610`); callers reach the service through the
+  Proxy (`utils/persistence.js:4594`); the utils copy's own store_url_now runs only from inside that module.
+
+Candidates:
+- A (chosen): trust by address shape, any host, images and sounds only: a small util
+  `utils/permanent_upload.js` (`is_permanent_upload_url(url)`), applied AFTER `cors_match` is computed, so the fetch
+  route is unchanged. Frontend only.
+- B (rejected): the server sends `UPLOADS_S3_CDN` and the bucket to the client and the client trusts those hosts.
+  Needs new plumbing that must arrive before an offline launch's sync, and the CDN serves button sets, so it needs
+  the same path rule anyway.
+- C (rejected): hard-code production's CDN host in the list (CoughDrop's 2017 approach). Environment-specific, and
+  the same button-set problem.
+
+Risks: a saved copy that is wrong (bad bytes stored once) is no longer replaced by tapping Sync; the address
+cannot change content, so only a bad download could cause it (open question). iPad (no file storage): these URLs
+now do one dataCache read before downloading (has_local_copy is false there), no reuse until unit 2. An outside
+URL shaped exactly like a LingoLinq upload is trusted (only its own host could change it).
+Tests (red before): saved-pictures tests 3-4 (red: 2 downloads); guards 5 (button-set file refreshes), 6 (outside
+address refreshes), 7 (repair). Helper unit tests for the shapes. Mutations: drop the trust line (3-4 red);
+host-based trust (5 red only if the host is matched: covered by the helper test instead); accept a row without
+has_local_copy (7 red).
+
+#### Unit 3: review, correction, result (2026-11-09)
+
+Adversary review: nothing blocks; four Mediums, two Lows, all acted on.
+- CORRECTION (CONFIRMED, `services/persistence.js:2096-2099`, `:3160`, `:3191`, `:3226`): every sync re-primes
+  `url_cache` before visiting boards, and the board loops skip a picture the quick check knows is saved, before
+  `store_url`. So "every Sync tap re-downloads every uploaded picture" (the handoff, my proposal, and the Risks line
+  above) was wrong: it came from reading the force rule's comment, never measured. What unit 3 actually changes: in a
+  browser, `check_for_local` (`:1556`) was false for untrusted addresses, so the same picture queued from several
+  boards before its first save landed was downloaded and written again for each copy (the 57x pattern, on the web;
+  unit 1 fixes it only for the installed app). Also a forced re-request of such a duplicate.
+- Guards did not catch host-wide trust: added a same-host non-upload picture (sentence preview, overwritten in place,
+  `lib/sentence_pic.rb:59`). Trust moved before `cors_match` would fire real requests: the test now replaces
+  XMLHttpRequest and asserts it is never used. The planned regex matched the shape inside a query, fragment, or a
+  protected_image path: the helper now tests `new URL(url).pathname` against a regex anchored at the path root (at
+  most one bucket segment). Test 3's empty assertion replaced by a write count.
+- Not acted on: the utils copy's mirror line is not exercised by any test (callers reach the service through the
+  Proxy). Pre-existing, not in scope: an upload form for a key stays valid 60 minutes (uploader.rb:7, :735-741), so
+  an uploader could replace the bytes after the SVG check; sounds have no repair path; the search proxy may accept a
+  truncated 200 (search_controller.rb:453-456). PLAUSIBLE / for Scot.
+
+Commit `c079cd53a` (local). Mutants, each killed: no trust (tests 5, 6 red), host-based trust (9), trust on the
+direct-request route (5). Related suites `/persistence|sync|dbman|storage|offline|buttonset|json|permanent upload/i`:
+611 run, 597 pass, 14 skip, 0 fail (unit 1 baseline 603 + 8 new). ESLint gate: no new findings.
+
+Measurement limit: the local database has 0 upload-shaped pictures (22,870 of 42,616 are inline data), the uploads
+bucket is private, and only production has the CDN, so no local run can show unit 3; tests are its evidence. Unit 1
+can be measured on the emulator (first sync: rows written more than once; before = 45 rows / 89 KB). Not run this
+session: it needs a production build served by Traci's running server, packaging, and the local-only proxy patch.
