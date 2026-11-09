@@ -36,7 +36,7 @@
 > since Scot closed it on 2026-09-18. No other cell differs from the predecessor.
 >
 > **Rows changed after that disclosure, 2026-11-06 (#1061, #1060).** The retraction recorded on 2026-08-30 had not reached this draft. Section 1 no longer calls 45 CFR § 164.316(b)(2) an access-log rule. The three `AiApiLog` tier rows no longer rest on a statutory floor or on Article 50 record-keeping, and their tracking pointers name the current data-flow draft. A healthcare-linked `AiApiLog` row was added. The account row now says warnings are not guaranteed and that the shorter path also covers an expired plan. The `PaperTrail` and analytics window cells no longer state an unimplemented window as the retention period, and the `PaperTrail` basis is marked unconfirmed. The `ClusterLocation` window, basis, mechanism and notes cells were corrected, and the HIPAA audit basis was dropped from the `AiApiLog` IP row to match the data-flow draft. The withdrawals are the company's position as recorded in `app/models/ai_api_log.rb`; counsel's confirmation of them (questions 6 and 13) remains open.
-> 
+>
 > **Rows changed 2026-11-08 (#1282).** Four `AiApiLog` tier rows became one row: 12 months for every account, on a basis of business need, enforced by a daily purge; the EU-only purge and its jurisdiction stamp were removed. The `ClusterLocation` row now records a 12-month purge measured from last use. The `PaperTrail` and analytics rows were rewritten to describe what the code does today, with no basis claimed; the analytics row withdraws "aggregates are non-identifiable". No other cell changed.
 >
 > **Predecessor's reason for supersession (2026-09-14).** The Render backup row carried an explicit end condition, "Ends when
