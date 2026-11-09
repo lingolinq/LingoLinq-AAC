@@ -401,7 +401,7 @@ module AiWordPredictor
                     tokens_sent: nil, tokens_received: nil, duration_ms: nil,
                     pii_detected: false, pii_findings: [], success: true, error_message: nil)
       return unless defined?(AiApiLog)
-      # EU AI Act Article 50: resolve the jurisdiction + disclosure-shown call context from
+      # EU AI Act Article 50: resolve the disclosure-shown call context from
       # the in-scope data-subject `user` via the ONE shared helper (ENF-01). The helper owns
       # the guarded reads + scrubbed logged fallback, so it never raises into this wrapper.
       art50_ctx = LingoLinq::Article50CallContext.for(user)
@@ -420,7 +420,6 @@ module AiWordPredictor
         success: success,
         error_message: error_message,
         feature_flag: 'ai_word_prediction',
-        jurisdiction: art50_ctx[:jurisdiction],
         article_50_disclosure_shown: art50_ctx[:article_50_disclosure_shown]
       )
     rescue StandardError => e

@@ -90,10 +90,10 @@ class AiApiLog < ApplicationRecord
     log.error_message = params[:error_message]
     log.ip_address = params[:ip_address]
     log.feature_flag = params[:feature_flag]
-    # EU AI Act Article 50 fields (all optional; default to a safe non-EU/unmarked state
-    # so existing callers are unaffected). jurisdiction gates the 50(1) disclosure only;
-    # ai_content_marked reflects the unconditional 50(2) marking of the output.
-    log.jurisdiction = params[:jurisdiction]
+    # EU AI Act Article 50 fields (all optional; default to an unmarked state so existing
+    # callers are unaffected). ai_content_marked reflects the unconditional 50(2) marking of
+    # the output. The jurisdiction column is no longer written: it existed only for the EU
+    # retention purge, which the single 12-month purge (purge_old_logs!) replaced.
     log.article_50_disclosure_shown = params[:article_50_disclosure_shown] || false
     log.ai_content_marked = params[:ai_content_marked] || false
     log.ai_generated_content_id = params[:ai_generated_content_id]

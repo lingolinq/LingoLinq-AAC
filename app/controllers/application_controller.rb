@@ -424,9 +424,7 @@ class ApplicationController < ActionController::Base
   # said the guard "is inert until the flag is enabled"; that was true of the code and
   # false of the running system, which is the more dangerous direction to be wrong in.
   # Do not enable it here. Gates on EuJurisdiction.disclosure_required?
-  # (true for :eu AND :unknown, fail-safe), never the retention-column jurisdiction
-  # stamp (EuJurisdiction.retention_stamp, a different fail-safe direction -- see that
-  # method's own comment). Reads server-side state only
+  # (true for :eu AND :unknown, fail-safe). Reads server-side state only
   # (@api_user.article_50_disclosure_shown?), never a request field. Returns true (call
   # site should proceed) or false after rendering the 403 itself (via +api_error+,
   # `{error: 'article_50_disclosure_required'}`), mirroring the exists?/allowed?

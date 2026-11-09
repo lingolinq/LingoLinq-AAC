@@ -672,7 +672,7 @@ module AiBoardGenerator
       # unredacted (request_summary is already scrubbed upstream). nil passes through untouched
       # for the API-error paths that log no response body.
       safe_response_summary = response_summary.nil? ? nil : PiiScrubber.redact_for_ai(response_summary)[:payload]
-      # EU AI Act Article 50: resolve the jurisdiction + disclosure-shown call context from
+      # EU AI Act Article 50: resolve the disclosure-shown call context from
       # the in-scope data-subject `user` via the ONE shared helper (ENF-01). The helper owns
       # the guarded reads + scrubbed logged fallback, so it never raises into this wrapper.
       art50_ctx = LingoLinq::Article50CallContext.for(user)
@@ -695,7 +695,6 @@ module AiBoardGenerator
         # and link this audit row to the marked content via its content_id.
         ai_content_marked: ai_content_marked,
         ai_generated_content_id: ai_generated_content_id,
-        jurisdiction: art50_ctx[:jurisdiction],
         article_50_disclosure_shown: art50_ctx[:article_50_disclosure_shown]
       )
     rescue StandardError => e
