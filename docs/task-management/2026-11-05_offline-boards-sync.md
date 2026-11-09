@@ -745,6 +745,157 @@ entry for the same store and key with the newer object instead of appending (bot
 write when the content hash is unchanged (an extra serialization on every write; a second tab can make it skip
 a write it should not).
 
+#### Revised proposal after the review block (2026-11-08, Traci: "fix 1 and 2 for the duplicate writes")
+
+The first proposal was blocked: (a) "the installed app reuses stored json" was false (json rows set
+`url_uncache`), so the `store_url` merge is withdrawn; (b) merging the eventual queue by key would merge
+different boards, since the adapter queues every fetched record with key null (`services/persistence.js:4523-4534`).
+
+Facts:
+- SQLite write = SELECT by ref_id, then INSERT or UPDATE, as two separately queued statements
+  (`utils/dbman.js:479-506`). The Capacitor shim runs statements one at a time but queues each on its own
+  (`utils/capacitor_sqlite_shim.js` executeSql/enqueue), so a second write's SELECT can run between the
+  first's SELECT and INSERT. The table has no unique key on ref_id (`dbman.js:830-831`). CONFIRMED by the
+  red test (two rows).
+- A removal racing an earlier write: SELECT (none), DELETE, INSERT leaves the row. CONFIRMED (red test).
+- Reads take `rows.item(0)` with no ORDER BY (`dbman.js:242-246`); UPDATE touches every row with the ref_id,
+  so duplicates hold the same data after the next write, but both rows take space and whole-table reads
+  return both. CONFIRMED by reading.
+- The shim's `transaction` collects statements only while `fn(tx)` runs; a `tx.executeSql` issued from a
+  result callback is never run. So a SELECT-then-write transaction is not a safe fix. CONFIRMED by reading.
+- Eventual queue entries are `[store, obj, key, true]`, consumed by `next_eventual_store` (shift, then
+  `store.apply`) and scanned by `validate_board` for a board id. Shapes of obj: `{<model>: raw, images?,
+  sounds?}` from the adapter; an image or sound record; `{id}` with key 'selfUserId'. Keys: null, 'self',
+  'selfUserId'. CONFIRMED (`services/persistence.js:539-545, 652-663, 686, 705-735, 4523-4534`).
+- `store()` writes a board's images and sounds as their own records; dropping an older board entry could
+  skip an image only it listed. CONFIRMED (`services/persistence.js:725-735`).
+
+Candidates:
+- Fix 1 A (chosen): a per-row queue in dbman: SQLite store and remove for the same store and ref_id run one
+  after another; different rows still interleave. Works on any bridge. B (rejected): SELECT and write in
+  one transaction (the shim drops the nested write). C (rejected here): UNIQUE index plus INSERT OR REPLACE
+  (needs a device migration that removes existing duplicates). D: serialize every SQLite write (slower, no
+  more correct than A).
+- Fix 2 A (chosen): a save for a waiting entry with the same store, record id (`(obj[store]||obj).id`) and
+  key replaces it in place with the newer object; entries carrying images or sounds, and records with no id
+  and no key, are never merged. Both copies (service and `utils/persistence.js`) via one shared util.
+  B (rejected): keep the first (older data wins). C: move the newer to the end (later write for no gain).
+- Not fixed: duplicate rows already on devices stay until the record is next removed.
+
+#### Review and result (2026-11-08)
+
+Adversary review of the revised proposal: one High and three Mediums, all acted on.
+- High (CONFIRMED): the Ember Data adapter mixes in the UTILS copy's DSExtend (`adapters/application.js:2,48`), so
+  its findRecord queues through the utils module's own `store_eventually`. My summary called the utils copy a
+  fallback; that was wrong. Added a test that drives the utils module-local queue (window.persistence cleared so
+  the Proxy returns its target).
+- Medium (CONFIRMED): removals go through `dbman.remove` (find, then delete only if found), not `remove_internal`.
+  The whole find-plus-delete is now queued under the row id (`store + ' ' + uniqify_key(key)`, the same key a
+  write uses, since `dbman.store` uniqifies the id); the test goes through `dbman.store` and `dbman.remove`.
+  A removal by board key (which resolves the id only after its lookup) is not held; no caller does that today.
+- Medium: a dropped bridge callback would hold the row forever; added a 60 s watchdog (`row_write_watchdog_ms`)
+  and a test. `finished()` is called after success is scheduled.
+- Medium: before/after counts. Local IndexedDB recorder, production build: e2e_offline_modern 15 -> 14 writes
+  (button set now once), e2e_offline_stars 15 writes / 14 distinct. The user record is still written twice: the
+  second write is a direct `persistence.store` from the sync 2.9 s later with different content (12,395 vs 12,366
+  bytes), not a queued duplicate, so it is left.
+- Low: duplicate rows already on devices are not cleaned up (stated in the status doc).
+
+Tests: 11 new (5 SQLite row, 6 queue), red before the fix for 4 of them (the rest guard over-merging). Mutants,
+each killed: utils wiring (test 11), service wiring (6), store queue (1-3), removal queue (3), watchdog (5),
+images guard (9). Related suites `/dbman|persistence|storage|offline|sync/i`: 554 run, 544 pass, 10 skip, 0 fail.
+ESLint gate: no new findings.
+
+Lessons: (1) "fallback copy" claims about utils vs service persistence must be checked against
+`adapters/application.js` and the Proxy's `in` test; class statics on the service fall through to the utils copy.
+(2) a test that drives an internal (`remove_internal`) can pass while the real entry point (`remove`) stays racy;
+drive the public route.
+- Second adversary pass on commit 3924d0c64: ship, four Lows, all acted on. The SQLite catch now reports
+  `error()` instead of re-throwing into the bridge (which swallows it and left the caller waiting; red test
+  added, red with the re-throw). Watchdog raised to 5 minutes: its clock includes time queued behind other
+  statements, and both bridges stall the whole queue on a lost answer, so it is a last resort, not a timeout.
+  Commit title and status doc reworded ("one row per record"; a second save still rewrites the record).
+
+#### Emulator trace attempt, 1.7 MB chunk (2026-11-08)
+
+Setup that works: Android emulator (Android 15 Pixel Tablet image, KVM, headless) with the mobile shell
+(`~/lingolinq_mobile`) packaged from this branch's bundle (served by local Rails, local mode of
+`bin/package_from_lingolinq` via a scratch root), `adb reverse tcp:5000`, WebView driven over raw CDP
+(Playwright's connectOverCDP is refused by Android WebView: "Browser context management is not supported").
+App confirmed on `sqlite_plugin`. Server: offline worktree under `op run` with `REMOTE_EXTRA_DATA=true`.
+Test account `chunktrace1` (made-up email) created through `POST /api/v1/users`; 239 boards provisioned.
+
+Observed (first automatic sync, ~15 min, not finished): 32 boards, 393 dataCache rows (pictures, largest 837
+bytes), 6 button sets, no duplicate rows. The button-set files never arrived: every proxied fetch of a
+`BoardDownstreamButtonSet` file on `lingolinq-dev-uploads` failed ("status 403" x12, "Bad file, 0" x12), and the
+app asked the server to regenerate the same sets repeatedly (82 `POST /buttonsets/1_1/generate`, 164
+`GET /buttonsets/1_1`). So the chunk path could not be traced here. Cause of the 403 not diagnosed (object missing
+or not readable; the record's remote_paths are encrypted at rest; worker upload output is in the foreman
+terminal). The regenerate repetition may itself matter for #1221's slowness (PLAUSIBLE, not checked against
+staging or production).
+
+#### Emulator trace, result (2026-11-08)
+
+Cause of the earlier 403s: the uploads bucket blocks public access (`lib/uploader.rb:694-697`); production reaches
+button-set files through `UPLOADS_S3_CDN` (required in production, `deploy-cloudrun.yml:187`; set on the GitHub
+`production` environment, not found on `staging` or `dev`), and the search proxy fetches the raw, unsigned bucket
+URL (`api/search_controller.rb`, no `signed_internal_url`). A local-only, uncommitted patch made the proxy sign
+bucket URLs, and the patch is reverted. CORRECTION (same day): I first wrote that the traced run never used the
+proxy because the recorder logged 0 proxy fetches. That was wrong: the app's requests go through the native
+HTTP layer, which the page-level recorder does not see. The server log shows the chunks were fetched through the
+proxy, so the successful trace depended on the patch (with it reverted, every chunk fetch 403s again).
+
+Account: seeded `aiden_parker` (1,156 boards). Local caveat: 22,847 local `button_images` hold their picture as
+an inline data URI with no url (seeded with uploads off; `button_image.rb:213-227`), so this account's board
+rows are 0.4-1.9 MB each (`image_urls` full of data URIs). Production pictures carry links; board sizes here are
+not representative.
+
+Traced first sync (app data wiped, SQLite, recorder on every INSERT/UPDATE/DELETE and every store_url):
+succeeded in about 4 minutes; 1,900 writes to 1,782 rows, 71.8 MB; 89 KB of repeats; 0 rows inserted twice;
+0 duplicate ref_ids in board, dataCache or buttonset (fix 1 holds on the device database). 45 rows written more
+than once, all small pictures shared across boards (one 577-byte picture 57 times): `store_url` is asked again
+for each board and nothing merges requests for a URL already stored (3,794 requests, 3,166 distinct).
+
+The chunk: 5 button-set chunk rows, each written once. The largest (button set 1_8006, 3,717 buttons) is a
+4.2 MB row holding the button list twice: `json_payload` 1.73 MB and a base64 `data_uri` of the same list
+2.3 MB. CONFIRMED in code: after decrypting a button-set file the app keeps the parsed list and re-encodes it
+(`services/persistence.js:1647-1660`), then stores both in one dataCache row (`:1696-1703`); readers prefer
+`json_payload` and fall back to `data_uri` (`:1073`, `:1141`, `:1236`). This is most likely the issue's
+"1.7 MB chunk written twice" (PLAUSIBLE: the issue's own measurement method is not recorded). Not fixed here.
+
+#### Store a decrypted button list once (2026-11-08, Traci: "proceed in this pr")
+
+Facts:
+- Re-encode site: after decrypting, `object.json_payload = res` and `object.data_uri = "data:application/json;
+  base64," + btoa(...)` (`services/persistence.js:1655-1659`, `utils/persistence.js:~1694-1698`); both saved in
+  one dataCache row (`services/persistence.js:1696-1703`). CONFIRMED (emulator: 4.2 MB row, 1.73 MB list).
+- Readers return json_payload first: `find_url:1236`, `find_json:1073`, `store_json:1141`. CONFIRMED.
+- json_payload with data_uri null is already a produced state (re-encode failure, `:1660-1662`). CONFIRMED.
+- `prime_caches` registers a no-file dataCache row as url_uncache regardless of data_uri (`:1369-1371`);
+  the installed-app reuse check (`:1556-1575`) does not read data_uri. CONFIRMED.
+- Nothing outside the two persistence files reads a stored json row's data_uri (grep). CONFIRMED.
+- Unencrypted JSON (i18n locale files) never gets json_payload and keeps data_uri. CONFIRMED (guard test).
+
+Candidates: A (chosen) do not re-encode after decrypting (data_uri null), both copies. B (rejected) keep data_uri,
+drop json_payload: every read decodes and parses megabytes. C stripping data_uri at store time: same effect, less
+direct. Rows already on devices keep both fields until rewritten; readers already prefer json_payload.
+Red test: `tests/unit/utils/persistence-json-stored-once-test.js` (red on "no second, encoded copy is saved").
+Adversary review of the proposal: nothing blocks; four Lows. Acted on: stale comments rewritten in both copies.
+Stated, not tested: the utils copy is changed for parity only; the Proxy sends store_json to the service, so
+the utils json path is not reached and no test covers it. Not covered by a test: prime_caches registering a
+json_payload-only row (pinned by reading `:1369-1371`, and by the emulator relaunch below). Old rows saved with
+both fields keep their space until a revision replaces them.
+
+Result: red test green; my own new test first failed in the wider run because it assigned
+`window.lingoLinqExtras.ready` directly (tracked property asserts); it now uses `set()`. Related suites
+`/dbman|persistence|storage|offline|sync|buttonset|i18n|json/i`: 655 run, 640 pass, 15 skip, 0 fail.
+Emulator re-measure (same flow, temporary proxy patch re-applied, then reverted): largest chunk row 4.2 MB ->
+1.90 MB (button set 1_8006), button set 1_5 63.6 KB -> 29.3 KB; every chunk written once; 0 double inserts.
+After a relaunch (prime_caches), find_json reads the 1_8006 row back from the device: 3,717 buttons.
+Side note, not pursued: right after a store in the same session, find_json missed the row ("url not in
+storage") because the service's url_uncache had no entry for it; after a relaunch it is found. Not related to
+data_uri; recorded for whoever looks at in-session reads next.
+
 ## #1229 retry gaps after a failed sync (2026-11-08)
 
 Two units, each red first, then shown red again with the fix removed (restored from a copy). Stayed on

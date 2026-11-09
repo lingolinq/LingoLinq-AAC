@@ -6,6 +6,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 **/
 
 import capabilities from './capabilities';
+import { one_at_a_time } from './sqlite_row_queue';
 
 var stores = {
   board: {key: 'board', key_path: 'id', indexes: ['key', 'tmp_key', 'changed']},
@@ -166,14 +167,28 @@ var dbman = {
   remove: function(store, key, success, error) {
     success = success || capabilities.dbman.success;
     error = error || capabilities.dbman.error;
-    capabilities.dbman.find(store, key, function(res) {
-      var id = capabilities.dbman.uniqify_key(res.id, store, 'id');
-      capabilities.dbman.remove_internal(store, id, function() {
+    var remove_now = function(finished) {
+      capabilities.dbman.find(store, key, function(res) {
+        var id = capabilities.dbman.uniqify_key(res.id, store, 'id');
+        capabilities.dbman.remove_internal(store, id, function() {
+          success({id: key});
+          finished();
+        }, function(err) {
+          error(err);
+          finished();
+        });
+      }, function() {
         success({id: key});
-      }, error);
-    }, function() {
-      success({id: key});
-    });
+        finished();
+      });
+    };
+    if(dbman.db_type == 'sqlite_plugin') {
+      // The lookup and the delete wait for any write of the same row (utils/sqlite_row_queue.js). Callers
+      // remove by row id, which is the row a write uses; a removal by board key is not held.
+      one_at_a_time(store + ' ' + capabilities.dbman.uniqify_key(key, store, 'id'), remove_now, dbman.row_write_watchdog_ms);
+    } else {
+      remove_now(function() { });
+    }
   },
   clear: function(store, success, error) {
     success = success || capabilities.dbman.success;
@@ -371,6 +386,10 @@ var dbman = {
   // not one snapshot: a row written between batches comes back as it is when its batch runs, and
   // an oversized row comes back whole, as it was or as it became (see below).
   read_budget: 4000000,
+  // How long one row's write or removal may go unfinished before later work on that row goes ahead anyway.
+  // The clock includes time queued behind other statements, so it is long enough for a busy first sync;
+  // it is a last resort for a lost callback or an error thrown in a lookup, not a timeout for slow writes.
+  row_write_watchdog_ms: 300000,
   ids_per_batch: 500,
   read_sqlite_rows: function(store_name, where, args, each_batch, finished, failed) {
     var rows_of = function(result_set) {
@@ -480,32 +499,46 @@ var dbman = {
       var store_name = null;
       if(stores[store]) { store_name = store; }
       var ref_id = record.storageId || record.id;
-      dbman.db.executeSql('SELECT * FROM ' + store_name + ' WHERE ref_id=?', [ref_id], function(result_set) {
-        var exists = result_set.rows && result_set.rows.length > 0;
-        var args = [JSON.stringify(record)];
-        var sql = exists ? 'UPDATE ' + store_name + ' SET data = ? ' : 'INSERT INTO ' + store_name + ' (data, ';
-        var keys = ['?', '?'];
-        if(store_name == 'board') {
-          sql = sql + (exists ? ', key_id = ? ' : 'key_id, ');
-          args.push(record.key);
-          keys.push('?');
-        }
-        sql = sql + (exists ? 'WHERE ref_id=?' : 'ref_id) VALUES (' + keys.join(', ') + ')');
-        args.push(ref_id);
-        dbman.db.executeSql(sql, args, function() {
-          done();
-          setTimeout(function() {
-            success(record);
-          }, 0);
+      // The SELECT and the INSERT or UPDATE wait for any other write of this row (utils/sqlite_row_queue.js).
+      one_at_a_time(store + ' ' + ref_id, function(finished) {
+        dbman.db.executeSql('SELECT * FROM ' + store_name + ' WHERE ref_id=?', [ref_id], function(result_set) {
+          try {
+            var exists = result_set.rows && result_set.rows.length > 0;
+            var args = [JSON.stringify(record)];
+            var sql = exists ? 'UPDATE ' + store_name + ' SET data = ? ' : 'INSERT INTO ' + store_name + ' (data, ';
+            var keys = ['?', '?'];
+            if(store_name == 'board') {
+              sql = sql + (exists ? ', key_id = ? ' : 'key_id, ');
+              args.push(record.key);
+              keys.push('?');
+            }
+            sql = sql + (exists ? 'WHERE ref_id=?' : 'ref_id) VALUES (' + keys.join(', ') + ')');
+            args.push(ref_id);
+            dbman.db.executeSql(sql, args, function() {
+              done();
+              setTimeout(function() {
+                success(record);
+              }, 0);
+              finished();
+            }, function(err) {
+              console.log(err);
+              done();
+              error({error: err.message});
+              finished();
+            });
+          } catch(e) {
+            // A record that cannot be turned into JSON: report it, rather than throwing into the bridge, which
+            // drops the error and leaves the caller waiting forever.
+            done();
+            error({error: (e && e.message) || "error storing record in db"});
+            finished();
+          }
         }, function(err) {
-          console.log(err);
           done();
           error({error: err.message});
+          finished();
         });
-      }, function(err) {
-        done();
-        error({error: err.message});
-      });
+      }, dbman.row_write_watchdog_ms);
     } else {
       done();
       error({error: "unrecognized db_type, " + dbman.db_type});

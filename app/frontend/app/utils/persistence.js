@@ -648,7 +648,7 @@ var persistence = EmberObject.extend({
       return persistence.store(store, obj, key);
     }
     persistence.eventual_store = persistence.eventual_store || [];
-    persistence.eventual_store.push([store, obj, key, true]);
+    queue_eventual_store(persistence.eventual_store, store, obj, key); // one waiting save per record
     if(!persistence.eventual_store_timer) {
       persistence.eventual_store_timer = runLater(persistence, persistence.next_eventual_store, sync_test_delay(100));
     }
@@ -1688,17 +1688,17 @@ var persistence = EmberObject.extend({
         if(encryption_settings && (object.content_type || '').match(/json/)) {
           var str = object.data_uri && object.data_uri.match(/,/) && atob(object.data_uri.split(/,/)[1]);
           if(str && str.match(/^aes256-/)) {
-            // if it's encrypted, try decrypting it and generating a
-            // new data-uri before continuing
+            // if it's encrypted, decrypt it and keep only the parsed list
+            // before continuing
             return persistence.decrypt_json(str, encryption_settings).then(function(res) {
               parsed_json_payload = res;
               object.json_payload = res;
-              try {
-                var json_str = JSON.stringify(res);
-                object.data_uri = "data:application/json;base64," + btoa(unescape(encodeURIComponent(json_str)));
-              } catch(e) {
-                object.data_uri = null;
-              }
+              // Saved once (#1221): neither the encrypted original nor a re-encoded
+              // base64 copy of the same list is kept (a 1.73 MB list made a 4.2 MB
+              // row). Every reader returns json_payload first (find_url, find_json,
+              // store_json); JSON that is not encrypted still keeps its data URI.
+              // Rows saved before this change keep both until they are replaced.
+              object.data_uri = null;
               return object;
             });
           } else {
@@ -1731,7 +1731,7 @@ var persistence = EmberObject.extend({
         if(safeGet(getPersistence(), 'local_system.available') && safeGet(getPersistence(), 'local_system.allowed') && safeGet(getStashes(), 'auth_settings')) {
           // Encrypted extra_data JSON (button sets, etc.): IndexedDB dataCache
           // is sufficient. FileSystem writes for large JSON blobs often fail
-          // (quota / Chrome PERSISTENT FS limits); find_json reads data_uri.
+          // (quota / Chrome PERSISTENT FS limits); readers take json_payload, else data_uri.
           if(type == 'json' && (object.data_uri || object.json_payload)) {
             if(!object.persisted) {
               object.persisted = true;
@@ -4635,3 +4635,4 @@ export default persistenceProxy;
 import boardRevocation from './board_revocation';
 import { keep_queued_keys, replay_save_options } from './preference_save';
 import offlineSyncSeeds from './offline_sync_seeds';
+import { queue_eventual_store } from './eventual_store_queue';

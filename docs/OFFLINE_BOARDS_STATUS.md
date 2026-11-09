@@ -66,6 +66,22 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
 - A device that cannot save (out of storage) no longer reports the sync as succeeded with nothing saved. The sync
   now ends as failed with a message ("This device is out of storage..."), and saves those boards on the next sync.
 - The offline sync saves only the boards above (#1221, first half).
+- The installed app (SQLite) keeps one row per record: two saves of the same row, or a save and a removal, now run
+  one after the other instead of overlapping, so they no longer insert the record twice (`utils/sqlite_row_queue.js`).
+  A second save still rewrites the whole record. A record that cannot be saved is now reported as failed instead
+  of leaving the save waiting forever. If a row's work never finishes (a lost answer or an error in a lookup),
+  later work on that row goes ahead after 5 minutes; a bridge that stops answering altogether still stalls every
+  save, as before. A removal by board key, rather than by id, is not held behind a save (no caller does this
+  today) (#1221, second half).
+- A record loaded twice in quick succession is saved once: a waiting save of the same record (same store, id and
+  key) is replaced by the newer copy (`utils/eventual_store_queue.js`). Measured locally: the button set written
+  twice is now written once (15 writes to 14). The signed-in user is still written twice per sync, because the sync
+  saves a fresh copy of it after the queue has written the first; that is a real update (#1221, second half).
+- A decrypted button list is saved once. The "1.7 MB chunk written twice" was one save holding the same list twice:
+  the parsed list (1.73 MB) and a base64 copy of it (2.3 MB) in one 4.2 MB row. Only the parsed list is saved now;
+  every reader already used it first. Measured on the Android emulator (installed app, SQLite): that row is now
+  1.90 MB, each chunk is written once, and after a relaunch the device reads back all 3,717 buttons. Rows saved
+  before this change keep both copies until the button set changes (#1221, second half).
 
 **Retrying a failed sync (#1229)**
 - A device that has never finished a sync stays on the first-sync marker after a failed sync, including when the device could not save. The automatic retry is not pushed out 48 hours. A device that has already synced still waits 48 hours after two failures.
@@ -127,15 +143,16 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
 
 ### Code work still to do (priority order)
 
-1. **#1221, second half: the same data written twice in one sync.** Reviewed and partly diagnosed (see the log):
-   - **Database rows:** in the installed app (SQLite), two saves of the same row can overlap and both insert. That
-     most likely explains 1,579 rows for 1,560 boards. Fix: one save at a time per row in `utils/dbman.js`.
-   - **The save queue:** one load can put the same record in the background save queue twice. Fix: merge waiting
-     entries by record id (not by "store and key", which would merge different boards).
-   - **Button-set chunks:** the 1.7 MB chunk written twice is not diagnosed. It needs one trace on staging or the
-     Android emulator (every chunk request and its caller during a first sync); uploads are off locally, so it
-     cannot run here.
-   - **The before-and-after board count** on a real account also needs that environment.
+1. **#1221, second half: the same data written twice in one sync.** The overlapping SQLite saves and the save
+   queue are fixed (see "What's done"). Left:
+   - **Rows already duplicated on devices** stay until the record is removed; reads take one of the copies and
+     the next save updates both. No cleanup is in this branch.
+   - **Rows saved before the button-list fix** keep both copies until the button set changes (see "What's done").
+   - **The before-and-after board count** on a real account still needs staging or production.
+   - **Button-set files cannot download on staging or dev.** The uploads bucket is private and only production
+     has the CDN that serves these files (`UPLOADS_S3_CDN`); the search proxy fetches the raw bucket link, which
+     is refused, and the app then asks the server to rebuild the same button set repeatedly. Offline sync tested
+     on staging or dev is therefore slower than production and has no button-set files. Not fixed here.
 2. **#1212:** board downloads time out under load (slow server, many requests at once, short client limits).
 3. **#1219:** the board tree request (`/tree`) fails on very large boards (Cloud Run response size cap).
 4. **Picture data repair (operations):** some saved picture addresses fail; a one-time data cleanup.
@@ -218,7 +235,7 @@ Notes:
 | #1212 | Board requests time out under load | Open |
 | #1213 | Modern view never loads from the device | Fixed |
 | #1219 | `/tree` fails on large boards | Open |
-| #1221 | First offline sync too slow | First half done; second half partly diagnosed |
+| #1221 | First offline sync too slow | Board selection done; duplicate writes and the doubled button list fixed; board count on a real account not measured |
 | #1229 | Retry gaps after a failed sync | Fixed on this branch |
 | #1230 | Modern "Sync failed" notice | Open |
 | #1034 | "Pick for home" claims | Open |
