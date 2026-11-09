@@ -1443,3 +1443,14 @@ Risk: a board that fails twice costs the sync about 10 s more of one thread; und
 failing board is tried twice.
 Tests (real sync, queryLog fixtures answering per call): retried once and then synced (red), retried only once then
 reported (red), a refusal not retried (guard).
+Review (adversary): nothing blocks given one condition, acted on: (Medium, CONFIRMED) a retried flag on the queue
+entry would let a board linked from two places (or synced for a supervisee) be retried per entry; the claim is now
+per board for the sync (`sync_progress.retried_lookups`), with a two-parent test. (Low) the first test's no-error check
+passed with no status: it now asserts the status. (Low, PLAUSIBLE, not acted on) a waiting thread is not tied to its
+sync_id (pre-existing for 30 s lookups; the 10 s wait adds a window).
+My own error, fixed: the first insert of the tests landed inside the previous test (one misplaced `});`).
+Finding while testing: in this harness a board that loads is requested twice (a find, then a reload, status
+'re-downloaded'); measured with a fixture that succeeds at once. Whether production does the same for a first sync
+is NOT checked; if it does, it doubles board requests under load and belongs to #1212.
+Result: commit `4442bf0de`. Mutants, each killed: no retry (3 red), cached rejection kept (3 red), refusals retried
+(1 red). Related suites incl. revocation: 669 run, 655 pass, 14 skip, 0 fail. ESLint gate clean.

@@ -174,9 +174,10 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
    (now 20 s, above the adapter's own 15 s limit); when a refresh still fails for a passing reason (timeout, no
    connection, server error, too many requests) and the device has the board, that copy is kept (status 'kept') and
    its folders are still synced, instead of the whole branch going missing. A refusal or a deleted board fails as
-   before. Left: a FIRST sync still loses a board slower than the adapter's 15 s limit for every server request
-   (raising it touches every request in the app, so it needs its own change); Sync Details does not show 'kept'
-   boards yet; server capacity under a full sync is not measured (needs staging and production).
+   before. A board whose lookup fails for a passing reason (also on a first sync) is tried once more about 10 s later
+   in the same sync, at most twice per board. Left: a board slower than the adapter's 15 s request limit on both
+   tries is still lost with its folders; Sync Details does not show 'kept' boards yet; server capacity under a full
+   sync is not measured (needs staging and production); the full-sync verification on iOS and Android.
 3. **#1219:** the board tree request (`/tree`) fails on very large boards (Cloud Run response size cap).
 4. **Picture data repair (operations):** some saved picture addresses fail; a one-time data cleanup.
 5. **#1229:** done. A new device that has never finished a sync keeps retrying after the backoff, and one reconnect can retry a dropped connection. See the task log.
