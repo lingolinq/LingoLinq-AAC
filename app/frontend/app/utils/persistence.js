@@ -1590,7 +1590,7 @@ var persistence = EmberObject.extend({
       if(trusted_not_to_change && url.match(/usercontent/) && url.match(/\/extras\//)) {
         trusted_not_to_change = false;
       }
-      var check_for_local = !!trusted_not_to_change;
+      trusted_not_to_change = trusted_not_to_change || ((type == 'image' || type == 'sound') && is_permanent_upload_url(url)); var check_for_local = !!trusted_not_to_change; // after cors_match: the fetch route is unchanged (utils/permanent_upload.js)
 
       if(capabilities.installed_app) { check_for_local = true; }
       if(check_for_local) {
@@ -4636,3 +4636,4 @@ import boardRevocation from './board_revocation';
 import { keep_queued_keys, replay_save_options } from './preference_save';
 import offlineSyncSeeds from './offline_sync_seeds';
 import { queue_eventual_store } from './eventual_store_queue';
+import { is_permanent_upload_url } from './permanent_upload';

@@ -76,4 +76,78 @@ module('Unit | Utility | persistence saved pictures', function(hooks) {
     assert.strictEqual(outcome, 'rejected', 'the save reports the failure');
     assert.false(!!this.target.store_url_quick_check(url, 'image'), 'not counted as saved');
   });
+
+  /* Unit 3 (#1221): store_url_now looks for a saved copy only for addresses trusted not to change (or in the
+   * installed app), and a forced refresh re-downloads anything untrusted (services/persistence.js:1556-1566). The
+   * sync skips pictures already known to be saved (store_url_quick_check, :3160, :3191, :3226), but the same picture
+   * queued from several boards before its first save lands was downloaded and written again for each copy in a
+   * browser. LingoLinq's own uploads get a permanent address (app/models/concerns/uploadable.rb:58-80), yet the
+   * trusted list still names CoughDrop-era hosts. An upload's address is now trusted by its shape, on any host.
+   * Button-set files on the same host (extras.../) change and still refresh.
+   */
+  var SHA = new Array(129).join('a');
+  var PROXY = /^\/api\/v1\/search\/proxy/;
+  async function save_then_force(target, url, type, row) {
+    var downloads = 0, writes = 0, direct = 0;
+    var write_file = capabilities.storage.write_file, Xhr = window.XMLHttpRequest;
+    capabilities.storage.write_file = function() { writes++; return write_file.apply(this, arguments); };
+    // The trust must not move these addresses onto the direct-request route (cors_match): no network in tests.
+    window.XMLHttpRequest = function() { direct++; throw new Error('no direct request expected'); };
+    target.ajax = function(path) {
+      if(PROXY.test(path)) { downloads++; }
+      return RSVP.resolve({ content_type: type == 'json' ? 'application/json' : (type == 'sound' ? 'audio/mpeg' : 'image/png'), data: 'data:image/png;base64,iVBORw0KGgo=' });
+    };
+    var first = await persistence.store_url_now(url, type);
+    target.find = function(store, key) {
+      return (store === 'dataCache' && key === url) ? RSVP.resolve(Object.assign({ url: url, type: type, persisted: true }, row || first)) : RSVP.reject({});
+    };
+    var second;
+    try { second = await persistence.store_url_now(url, type, false, true); } finally { window.XMLHttpRequest = Xhr; }
+    return { downloads: downloads, writes: writes, direct: direct, first: first, second: second };
+  }
+
+  test('the Sync button reuses a saved uploaded picture instead of downloading it again', async function(assert) {
+    var url = 'https://uploads-cdn.example.com/images/1/2/3/1_123-' + SHA + '.png';
+    var res = await save_then_force(this.target, url, 'image');
+    assert.strictEqual(res.downloads, 1, 'downloaded once, on the first save only');
+    assert.strictEqual(res.writes, 1, 'written once, not rewritten');
+    assert.strictEqual(res.direct, 0, 'no direct request');
+  });
+
+  test('the Sync button reuses a saved uploaded sound, including a transcoded one', async function(assert) {
+    var url = 'https://uploads-cdn.example.com/sounds/4/5/1_45-' + SHA + 'v1699999999.mp3';
+    var res = await save_then_force(this.target, url, 'sound');
+    assert.strictEqual(res.downloads, 1, 'downloaded once');
+  });
+
+  test('the Sync button still refreshes a button-set file on the uploads host', async function(assert) {
+    var url = 'https://uploads-cdn.example.com/extras-cache06123/button_set_cache/1_8006/' + SHA + '.json';
+    var res = await save_then_force(this.target, url, 'json', { content_type: 'application/json', data_uri: 'data:application/json;base64,e30=' });
+    assert.strictEqual(res.downloads, 2, 'downloaded again');
+  });
+
+  test('the Sync button still refreshes a picture from an outside address', async function(assert) {
+    var url = 'https://example.com/pictures/cat.png';
+    var res = await save_then_force(this.target, url, 'image');
+    assert.strictEqual(res.downloads, 2, 'downloaded again');
+  });
+
+  test('the Sync button still refreshes a picture on the uploads host that is not an upload', async function(assert) {
+    // Sentence previews are overwritten in place (lib/sentence_pic.rb): the host alone is not trusted.
+    var url = 'https://uploads-cdn.example.com/sentences/1_5/0123456789abcdef012345678/preview.png';
+    var res = await save_then_force(this.target, url, 'image');
+    assert.strictEqual(res.downloads, 2, 'downloaded again');
+  });
+
+  test('the Sync button repairs an uploaded picture whose saved copy is not known', async function(assert) {
+    var url = 'https://uploads-cdn.example.com/images/7/1_7-' + SHA + '.png';
+    var target = this.target;
+    var downloads = 0;
+    target.ajax = function(path) { if(PROXY.test(path)) { downloads++; } return RSVP.resolve({ content_type: 'image/png', data: 'data:image/png;base64,iVBORw0KGgo=' }); };
+    target.find = function(store, key) {
+      return (store === 'dataCache' && key === url) ? RSVP.resolve({ url: url, type: 'image', persisted: true, local_url: 'file:///pictures/gone.png', local_filename: 'gone.png' }) : RSVP.reject({});
+    };
+    await persistence.store_url_now(url, 'image', false, true);
+    assert.strictEqual(downloads, 1, 'a row with no known saved copy is downloaded again');
+  });
 });

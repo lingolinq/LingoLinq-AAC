@@ -1553,7 +1553,7 @@ var persistence = Service.extend({
       if(trusted_not_to_change && url.match(/usercontent/) && url.match(/\/extras\//)) {
         trusted_not_to_change = false;
       }
-      var check_for_local = !!trusted_not_to_change;
+      trusted_not_to_change = trusted_not_to_change || ((type == 'image' || type == 'sound') && is_permanent_upload_url(url)); var check_for_local = !!trusted_not_to_change; // after cors_match: the fetch route is unchanged (utils/permanent_upload.js)
 
       if(capabilities.installed_app) { check_for_local = true; }
       if(check_for_local) {
@@ -4961,3 +4961,4 @@ import { keep_queued_keys, replay_save_options } from '../utils/preference_save'
 import { note_failed_write, failed_write_count, end_sync_if_storage_failed } from '../utils/storage_failures';
 import offlineSyncSeeds from '../utils/offline_sync_seeds';
 import { queue_eventual_store } from '../utils/eventual_store_queue';
+import { is_permanent_upload_url } from '../utils/permanent_upload';
