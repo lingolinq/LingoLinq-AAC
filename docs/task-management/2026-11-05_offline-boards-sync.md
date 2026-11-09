@@ -1340,3 +1340,17 @@ timeout cannot happen through the proxy (SafeHttp sets no timeout), so that spec
 the message. Why `|| response.code == 200` exists: at header time `success?` is always false (return_code is not yet
 set), so option C would break every download. PLAUSIBLE Low: an HTTPS body delimited only by connection close from a
 server skipping TLS close_notify gets `:recv_error` and is now refused (safe direction).
+
+#### Do button sets load on dev? Checked live (2026-11-09, Traci: "don't guess, find the answer")
+
+- dev and staging: `REMOTE_EXTRA_DATA=1`, bucket `lingolinq-dev-uploads`, no `APP_UPLOADS_S3_CDN`; production has the
+  CDN (GitHub environment variables, read by API). Local default does not set REMOTE_EXTRA_DATA, so local seeded
+  data sends button lists inline and never touches the bucket. CONFIRMED.
+- `GET https://dev.lingolinq.com/api/v1/buttonsets/lingolinq/crisis-vocabulary` (anonymous, public board): no inline
+  buttons, `root_url` = unsigned `lingolinq-dev-uploads` link. That link, fetched directly: HTTP 403 AccessDenied.
+  `develop`'s proxy does not sign bucket links (search_controller.rb:232); develop deploys to nonprod. CONFIRMED.
+- CORRECTION of my chat claim that Find a button breaks on dev: since #692 (2026-07-27) Find a button builds its
+  set on the device from the board tree and avoids the server file (`components/find-button.js:295-345`).
+- Still on the server file, so failing on dev by code (UI not opened for each): the offline sync's button-set step,
+  copy board / board hierarchy, focus words, batch recording, word suggestions, inbox lookups, board intro, board
+  selection tool, board details / actions background loads (`load_button_set` callers).
