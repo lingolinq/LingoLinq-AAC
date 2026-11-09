@@ -77,6 +77,11 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
   key) is replaced by the newer copy (`utils/eventual_store_queue.js`). Measured locally: the button set written
   twice is now written once (15 writes to 14). The signed-in user is still written twice per sync, because the sync
   saves a fresh copy of it after the queue has written the first; that is a real update (#1221, second half).
+- A decrypted button list is saved once. The "1.7 MB chunk written twice" was one save holding the same list twice:
+  the parsed list (1.73 MB) and a base64 copy of it (2.3 MB) in one 4.2 MB row. Only the parsed list is saved now;
+  every reader already used it first. Measured on the Android emulator (installed app, SQLite): that row is now
+  1.90 MB, each chunk is written once, and after a relaunch the device reads back all 3,717 buttons. Rows saved
+  before this change keep both copies until the button set changes (#1221, second half).
 
 **Sign-in and trust**
 - A Home Screen sign-in asks "Trust this Device" or "This is a Shared Device", only where the offline shell is on.
@@ -137,10 +142,12 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
    queue are fixed (see "What's done"). Left:
    - **Rows already duplicated on devices** stay until the record is removed; reads take one of the copies and
      the next save updates both. No cleanup is in this branch.
-   - **Button-set chunks:** the 1.7 MB chunk written twice is not diagnosed. It needs one trace on staging or the
-     Android emulator (every chunk request and its caller during a first sync); uploads are off locally, so it
-     cannot run here.
-   - **The before-and-after board count** on a real account also needs that environment.
+   - **Rows saved before the button-list fix** keep both copies until the button set changes (see "What's done").
+   - **The before-and-after board count** on a real account still needs staging or production.
+   - **Button-set files cannot download on staging or dev.** The uploads bucket is private and only production
+     has the CDN that serves these files (`UPLOADS_S3_CDN`); the search proxy fetches the raw bucket link, which
+     is refused, and the app then asks the server to rebuild the same button set repeatedly. Offline sync tested
+     on staging or dev is therefore slower than production and has no button-set files. Not fixed here.
 2. **#1212:** board downloads time out under load (slow server, many requests at once, short client limits).
 3. **#1219:** the board tree request (`/tree`) fails on very large boards (Cloud Run response size cap).
 4. **Picture data repair (operations):** some saved picture addresses fail; a one-time data cleanup.
@@ -223,7 +230,7 @@ Notes:
 | #1212 | Board requests time out under load | Open |
 | #1213 | Modern view never loads from the device | Fixed |
 | #1219 | `/tree` fails on large boards | Open |
-| #1221 | First offline sync too slow | First half done; second half partly diagnosed |
+| #1221 | First offline sync too slow | Board selection done; duplicate writes and the doubled button list fixed; board count on a real account not measured |
 | #1229 | Retry gaps after a failed sync | Open |
 | #1230 | Modern "Sync failed" notice | Open |
 | #1034 | "Pick for home" claims | Open |
