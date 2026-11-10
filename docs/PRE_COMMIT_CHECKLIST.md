@@ -92,7 +92,9 @@ Always re-run the whole `db:schema:load` step after a merge or any
   and only `bundle-audit` can fail the job. Whether that job blocks a merge depends on
   the branch: it is required on `main` only, not on `develop` or `staging`. Note that
   `bundle-audit check --update` fetches the advisory database at run time, so a release
-  PR to `main` can turn red overnight with no code change.
+  PR to `main` can turn red overnight with no code change. `.bundler-audit.yml` ignores the
+  Rails 7.2.3.2 advisories that have no 7.2.x fix, until the Rails 8.1 upgrade removes it; any
+  advisory not listed there still fails the job.
 
 - `secret-detection` is required on `main`, `develop` and `staging`. Investigate any
   hit; never weaken or bypass its gitleaks scan to merge.
