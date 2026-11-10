@@ -146,6 +146,7 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
 | ~~Device copies are for speaking only; saving actions are refused~~ (replaced 2026-11-09, next row); no swap when the connection returns | Traci | 2026-11-05 |
 | Modern view treats a device copy like Basic view does: no "saved on this device" notice, Edit works offline, other actions are not blocked up front (ones that need the server say so). Accepted risk: an offline edit is sent at the next sync with no check for newer server changes. A real server denial still wins (row 1). NOT BUILT YET: the code still shows the notice and refuses saving actions ("How it works now", item 3) | Traci | 2026-11-09 |
 | Changes the row above: Modern keeps the "Showing the copy saved on this device" notice. Edit works on a device copy. With a connection, Edit first gets the latest board and then opens in the same tap; with none, it opens on the copy. "Use this board" and Translate work offline in Modern only if they work offline in Basic view (checked in the code 2026-11-10, not run: Translate is done by the server, so it cannot; "Use this board" in Basic sets the home board on the device but cannot make the person's own copy). NOT BUILT YET | Traci | 2026-11-10 |
+| The rule for Modern view offline: whatever works offline in Basic view should work offline in Modern view. Gaps found 2026-11-10 (read in the code, not run): Edit, Set as home, "Use this board" (Basic sets the home board; the person's own copy needs the server), Delete and Board details (reachable only from Modern's edit panel). Sharing offline is unverified in Basic and is held. Translate, Rename, Privacy, Like, Copy, Download and Stats need the server in both views. NOT IN THIS PR: about a day of work with review and tests, so it is a follow-up after #1268 merges. Until then Modern device copies stay for speaking only | Traci | 2026-11-10 |
 | Ask "Trust this Device" on Home Screen sign-ins | Scot | 2026-11-05 |
 | Ask it only where the offline shell is on | Scot (suggestion), Traci | 2026-11-07 |
 | Earlier trusted Home Screen iPads: keep Scot's manual workaround for now; code fix is Scot's call (#1285) | Traci | 2026-11-07 |
@@ -164,7 +165,7 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
 - **Decision needed (Traci and Scot):** the app does not open from the device when the page request gets a server
   error page or hangs. Either fall back to the device copy on a server error and after a time limit, or list both
   as known limits. Two browser tests fail on purpose until this is decided.
-- **Decided, not built yet:** Modern view device copies editable offline with no notice (2026-11-09).
+- **Not in this PR (Traci, 2026-11-10):** making Modern view match Basic view offline (Edit, Set as home, "Use this board"). A follow-up; see "Decisions made".
 - **The dual review** (`/review-pr` and `/adversary-review`), because the PR touches sign-in.
 - **A sync with many liked boards, measured** (time, requests, failed saves): a condition from the review of the
   50-board limit.
