@@ -45,6 +45,8 @@ import { assign_home_board_basic, basic_home_button_label, BASIC_HOME_CURSOR } f
  */
 export default AuthenticatedView.extend({
   router: service('router'),
+  // The <=550px section menu starts closed (see `toggleTabMenu` in init).
+  tabMenuOpen: false,
   // The parent does not inject the session service (it has no re-login card), but
   // the classic status card leads with `session.invalid_token` — without this the
   // {{#if}} would silently read undefined and that state could never render.
@@ -59,6 +61,26 @@ export default AuthenticatedView.extend({
     var self = this;
     // Bound once, so <BoardIcon @onAction> gets a stable function while the assign mode is on.
     this.set('_basicAssignFromTile', function(board) { return self._basicAssign(board); });
+    /* THE <=550px SECTION MENU (2026-11-09; classic-view.hbs, the disclosure under the tab strip).
+       Open or closed is `tabMenuOpen`; the list renders only while open. It closes on a choice
+       (`set_index_nav` below), on Escape, which returns focus to the toggle, and when focus leaves
+       it (a click elsewhere, or tabbing out), so it never stays open over the page. */
+    this.toggleTabMenu = function() {
+      self.set('tabMenuOpen', !self.get('tabMenuOpen'));
+    };
+    this.onTabMenuKeydown = function(event) {
+      if (event && event.key === 'Escape' && self.get('tabMenuOpen')) {
+        self.set('tabMenuOpen', false);
+        var toggle = document.getElementById('ch_tab_menu_toggle');
+        if (toggle) { toggle.focus(); }
+      }
+    };
+    this.onTabMenuFocusOut = function(event) {
+      var menu = event && event.currentTarget;
+      var next = event && event.relatedTarget;
+      if (menu && next && menu.contains(next)) { return; }
+      self.set('tabMenuOpen', false);
+    };
     this.ctrlAction = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
       return function() {
@@ -70,13 +92,6 @@ export default AuthenticatedView.extend({
         }
         self.send.apply(self, [actionName].concat(args));
       };
-    };
-    // The <=550px tab dropdown needs the CHANGE EVENT's value, and `ctrlAction` above
-    // strips the event before dispatching -- so this one is wired directly rather than
-    // through it.
-    this.handleTabSelect = function(event) {
-      var v = event && event.target && event.target.value;
-      if(v) { self.send('set_index_nav', v); }
     };
     /* ARRIVING FROM A VIEW SWITCH (2026-09-28): the tab the Modern page maps to
        (utils/basic_landing.js). Taken here, before the first render, and shown at once through
@@ -485,7 +500,7 @@ export default AuthenticatedView.extend({
     // separate override. Restoring the previous state on leaving would mean remembering a
     // second value and would silently undo an expand the user had just asked for.
     //
-    // Catches the <=550px `<select>` too — `handleTabSelect` (:71) sends this same action
+    // Catches the <=550px pill dropdown too: its options send this same action (classic-view.hbs)
     // rather than duplicating the logic.
     toggleBasicHomeAssign: function() {
       this._setBasicAssigning(!this.get('basicAssigningHome'));
@@ -497,6 +512,7 @@ export default AuthenticatedView.extend({
       this._setBasicAssigning(false);
     },
     set_index_nav: function(nav) {
+      this.set('tabMenuOpen', false);
       this._super.apply(this, arguments);
       if(nav == 'boards') {
         this.stashes.persist('classic_rail_collapsed', true);

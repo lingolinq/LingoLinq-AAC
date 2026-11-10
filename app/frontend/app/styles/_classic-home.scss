@@ -1428,35 +1428,23 @@ button.ch-row--sync:focus-visible {
 
 // The <=550px tab dropdown (requested 2026-09-03). Hidden by default and swapped in
 // below; `.ch-tabs` is hidden in the same breakpoint, so exactly one of the two is ever
-// visible. 44px tall to clear the WCAG 2.5.5 target minimum this file holds itself to.
+// visible.
+// SINCE 2026-11-09 IT IS THE APP'S PILL DROPDOWN, not a native <select> (requested: Basic's
+// "select dropdown is not styled with our modern styles"; components/dashboard/classic-view.hbs).
+// `.md-pillnav-dropdown*` styles the trigger and the list, so this class keeps only what is the
+// Basic dashboard's own: when it shows, and its 75% centred width (requested 2026-09-03). The
+// select-only styling that lived here (appearance, a chevron drawn as a background image, height
+// and padding) went with the select.
+// `margin-inline: auto` and not `align-self: center`: the parent (`.ch-panel`) is a flex COLUMN,
+// where `align-items` runs across the inline axis and is already `stretch`.
 .ch-tabselect {
   display: none;
-  // 75%, centred (requested 2026-09-03). Both live on the base rule rather than in the
-  // 550px block because this element is ONLY ever shown there -- a width in the media
-  // query would leave a 100% here that never applies, i.e. two values for one thing.
-  //
-  // `margin-inline: auto` and not `align-self: center`: the select's parent
-  // (`.ch-panel`) is a flex COLUMN, where `align-items` runs across the inline axis and
-  // is already `stretch`. Auto margins centre it without touching that, and keep working
-  // if the parent ever stops being a flex container.
   width: 75%;
   margin-inline: auto;
-  height: 44px;
-  padding: 0 36px 0 14px;
-  border-radius: 12px;
-  border: 1px solid rgba($brand-cool-steel, 0.42);
-  background-color: rgba(255, 255, 255, 0.94);
-  // Chevron drawn as an inline SVG data URI: a <select> cannot host a ::after, and the
-  // native arrow is suppressed by `appearance: none`.
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%231B365D' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 14px center;
-  font-size: 15px;
-  font-weight: 600;
-  color: $la-navy;
-  box-shadow: inset 0 1px 2px rgba($brand-blue-black, 0.05);
-  -webkit-appearance: none;
-  appearance: none;
+  // The anchor for its absolutely-positioned list (`.md-pillnav-dropdown__list`): the shared rule
+  // that makes a pill dropdown `position: relative` skips `--fit`, which the org tabs anchor on
+  // their own wrapper. Without this the open list landed far below, off screen.
+  position: relative;
 }
 
 // TABS OR DROPDOWN BY FIT (2026-10-02): the org strip (templates/organization.hbs) is wrapped in
@@ -4216,7 +4204,9 @@ button.ch-tile--silver:focus-visible {
 // two are mutually exclusive -- never both, never neither.
 @media (max-width: 550px) {
   .ch-tabs { display: none; }
-  .ch-tabselect { display: block; }
+  /* Two classes: the pill dropdown's own base rule (`.md-pillnav-dropdown { display: none }`,
+     app.scss) is emitted after this file, so one class would lose to it on source order. */
+  .md-pillnav-dropdown.ch-tabselect { display: block; }
 
   // The callout collapses to one centred column and wraps, and needs a gap under the icon now
   // that it occupies a row rather than a column.

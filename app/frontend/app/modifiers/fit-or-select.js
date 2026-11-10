@@ -1,7 +1,7 @@
 import { modifier } from 'ember-modifier';
 
 /**
- * Swaps a `.ch-tabs` strip for its `.ch-tabselect` dropdown while the strip does not fit.
+ * Swaps a `.ch-tabs` strip for its dropdown (`.md-pillnav-dropdown--fit`) while the strip does not fit.
  *
  * WHY A MEASUREMENT AND NOT A BREAKPOINT (2026-10-02, requested: "when [the left menu]
  * expands, we need the menu on the right to convert to a dropdown"). Whether the tabs fit

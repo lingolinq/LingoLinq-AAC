@@ -203,3 +203,10 @@ Verdict BLOCK, on two red CI checks this branch caused, both missed locally:
 - Medium, fixed: the speak Home fix has a CI test now: spec/templates/speak_header_home_button_spec.rb (green here, red on develop's template); e2e also asserts the route.
 - Low, fixed: `<main>` landmark restored on System Settings; `.md-btn:disabled` style; stale comments (`''` option, `on_board_or_alt`).
 - Not changed: Preferences Cancel-first order is Traci's request (Edit Profile still puts Save first); a confirm on Cancel is a separate decision. `utils/raw_events.js` `openMyBoards` branch is dead for the speak header but harmless.
+
+## Round 17: Basic dashboard section menu (2026-11-10)
+
+Reported: "on basic view, our select dropdown is not styled with our modern styles" (the <=550px Actions / Communicators / Boards / Updates switcher, components/dashboard/classic-view.hbs). It was a native <select> on purpose (its comment: platform picker, keyboard and screen-reader semantics, for switch-scanning and eye-gaze users); a native select's open list cannot be styled. Traci chose the Modern pill dropdown.
+
+- A <details> version with button options failed template lint `no-nested-interactive` (buttons inside <details>); the section options act rather than navigate (no URL or query param for them), so not LinkTo. Built as a disclosure instead: a toggle <button aria-expanded aria-controls> and a list rendered only while open (nothing hidden stays focusable or scannable), closing on a choice, on Escape (focus back to the toggle) and on focus leaving it. Styled by the shared `.md-pillnav-dropdown*` rules (`.is-open` variant). `.ch-tabselect` is now only the show-below-550px hook (75% centred, and `position: relative` as the list's anchor, which the shared rule skips for `--fit`); its select-only styling and the Focused recolour went with the select. `handleTabSelect` removed.
+- Verified at 500 as lingolinq_admin (Basic): opens with 4 options, choosing Boards switches the section and closes, Escape closes with focus on the toggle, list drops under the toggle. 800px unchanged (strip shown, menu hidden). classic-view tests 29/29; template lint and lint gate clean.
