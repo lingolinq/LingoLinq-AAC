@@ -244,7 +244,7 @@ json['preferences']['skin'] = user.settings['preferences']['skin']
         # as_json's limited_identity+supervisor branch via org_status_for, so it is
         # also present on the /supervisees index the client refetches for 10+
         # communicators. See JsonApi::User.org_status_for.
-        json['supervisees'] = supervisees[0, 10].map{|u| JsonApi::User.as_json(u, limited_identity: true, supervisor: user) }
+        json['supervisees'] = supervisees[0, 10].map{|u| JsonApi::User.as_json(u, limited_identity: true, supervisor: user, viewer: caller) }
         json['supervised_units'] = OrganizationUnit.supervised_units(user).map{|ou|
           {
             'id' => ou.global_id,
@@ -367,12 +367,21 @@ json['preferences']['skin'] = user.settings['preferences']['skin']
         # otherwise the reload overwrites supervisees without it and the card
         # silently empties for exactly the largest caseloads.
         json['org_status'] = org_status_for(user)
+        # edit_permission and modeling_only above label the listed supervisor's link, which
+        # supervision-settings.hbs shows. Goal access is about the person asking: on another
+        # supporter's caseload the list owner is not the caller (#1277), so callers pass
+        # viewer:. Without it the supervisor is the caller, and a nil viewer gets no goals.
+        goal_viewer = args.key?(:viewer) ? args[:viewer] : args[:supervisor]
         # Match Api::GoalsController#create: same scope normalization as ApplicationController#allowed?
-        scopes = PermissionScopesNormalize.for_api(args[:supervisor].permission_scopes || [])
-        json['can_set_goals'] = user.allows?(args[:supervisor], 'set_goals', scopes)
+        scopes = PermissionScopesNormalize.for_api((goal_viewer && goal_viewer.permission_scopes) || [])
+        json['can_set_goals'] = !!goal_viewer && user.allows?(goal_viewer, 'set_goals', scopes)
         json['premium'] = user.any_premium_or_grace_period?
         json['skin'] = user.settings['preferences']['skin']
         json['symbols'] = user.settings['preferences']['preferred_symbols']
+        # create-board-new makes a board for this communicator in their language, which needs
+        # edit access (boards#create). On another supporter's caseload this follows the list
+        # owner's link, but anyone listed here can already read it in preferences.home_board.
+        json['locale'] = (user.settings['preferences']['home_board'] || {})['locale'] || user.settings['preferences']['locale'] if json['edit_permission'] && !args[:organization]
         json['goal'] = user.settings['primary_goal']
         # Total count + a small slice of this user's active goals so the
         # supervisor's caseload card can show a real "GOALS n" count
