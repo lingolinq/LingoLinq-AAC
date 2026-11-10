@@ -514,3 +514,39 @@ issue's order within each section.
   files), 4 supervisee cap of 10 hides removals (M, backend plus frontend). All open.
 - Most items touch deletion, permissions, visibility or sync, so they need /fix-proposal. Quick wins
   without it: sweep 5, 6; rooms 10, 11, 13; boards 5.
+
+## Adversarial review of the infra proposal (adversary agent, at `7016748db`/`813c50d58`) and what was done
+
+- High (filter missed the Resque worker pool): CONFIRMED (`deploy-cloudrun.yml:1246`,
+  `PHASE5-CUTOVER-RUNBOOK.md:987`). Added `cloud_run_worker_pool`.
+- High (most queued-mail failures log nothing): CONFIRMED (`general.rb:32-34`, `lib/worker.rb:8-13`,
+  no Resque logging or Sentry integration). Not fixed here: a job-failure log line is app code on every
+  job. The alert and INFRASTRUCTURE.md say plainly what it does not cover. Proposed to the owner as its
+  own change.
+- Medium (stale alarm blind to a repeatedly failing message; `--check` ignored dimensions): applied.
+  DLQ alarm added, alarm text corrected, `--check` compares dimensions (JMESPath expression tested with
+  the Ruby `jmespath` gem: one dimension and none).
+- Medium (rollout loses the old queue's backlog; IAM move gives one AccessDenied run): applied. IAM
+  lists both queues; rollout drains the old queue first, then switches, then drops the old ARN.
+- Medium (no DLQ runbook): applied (`start-message-move-task`), and maxReceiveCount raised from 5 to 24.
+- Low (SNS delivery failures unwatched): applied (`NumberOfNotificationsFailed` alarm; `--check` verifies
+  the queue policy, filter scope, filter and raw delivery).
+
+Commits: `af79f6580` (queue, DLQ, alarms, IAM, docs), `d998f5602` (GCP log alert). Verification: `bash -n`
+on every script, `--dry-run` output, JSON validated, usage and bad-argument exits. Nothing applied; no
+live `--check` was possible (no `aws`, `gcloud` or `jq` on this machine).
+
+## Open follow-ups (2026-11-09)
+
+1. Owner approval needed (Rule 14): gate `mail_accepted` on a notice that was actually sent; changes the
+   fixture of "counts rejections once a message in the run was accepted".
+2. Owner decision: a PII-free log line for failed Resque jobs (exception class and job class only), so
+   the send-failure alert covers queued mail.
+3. Owner action: `demoschooldistrict.org` is unregistered (no DNS record). Register it or move the demo
+   seeds to a reserved domain.
+4. Rollout step 3: read the SES suppression setting before relying on the reset for bounced users.
+5. Still open from F2: an admin action to clear `email_disabled` (UI), a per-domain cap and a runtime
+   kill switch for the consumer; F9 (a deferred `update_setting` re-disabling after an email change);
+   `aws-sdk-sqs` as a direct Gemfile entry (shared config: propose first).
+6. Move `prod-scheduler-liveness-alert.sh` onto `scripts/gcp/lib/alert-policy.sh` when its `--check`
+   can be re-run live.
