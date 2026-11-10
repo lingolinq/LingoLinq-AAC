@@ -38163,16 +38163,22 @@ body.md-ds-active .app-navbar__beta-feedback-link {
    taller content (e.g. the badges grid) overflows past it, revealing #content's
    grey (#aaa) base below the shell. #content is the actual scroll container and
    its background stays behind the full scroll height, so paint the mesh there;
-   the shell is made transparent below so the two meshes don't seam. */
+   the shell is made transparent below so the two meshes don't seam.
+   SYSTEM SETTINGS TOO (2026-11-09, reported: "the main page bg doesn't extend all the way up to the
+   menu"): an `.md-shell` page in the app shell, so at 900px and below its own mesh began under the
+   rail's dropdown, leaving #content's flat colour above it. */
 #content:has(.md-shell--user),
-#within_ember:has(.md-shell--user) .page-footer {
+#content:has(.md-shell--system-settings),
+#within_ember:has(.md-shell--user) .page-footer,
+#within_ember:has(.md-shell--system-settings) .page-footer {
   @include md-page-wash;
   /* Pin the mesh to the viewport so #content AND the page-footer below it render
      the identical mesh with no seam, covering the whole page (the footer renders
      on every non-board page and is a sibling of #content). */
   background-attachment: fixed !important;
 }
-#content:has(.md-shell--user) {
+#content:has(.md-shell--user),
+#content:has(.md-shell--system-settings) {
   /* fill the viewport when the badge grid is short so the mesh isn't cut off */
   min-height: 100vh !important;
 }
@@ -38273,7 +38279,8 @@ body.ll-view-modern:not(.ll-layout-focused) .md-shell {
    otherwise re-apply the shell's own mesh on top of #content's — creating the
    two-tone "gray band" where the shell ends. With the shell transparent, only
    #content's single fixed mesh shows across the whole page. */
-.md-shell.md-shell--user {
+.md-shell.md-shell--user,
+.md-shell.md-shell--system-settings {
   background: transparent !important;
   /* Let #content drive the page height; the shell's own 100vh would double-count
      against #content's top padding and overflow. */
