@@ -2068,3 +2068,37 @@ helper agent in its own worktree and re-run here: `spec/models/concerns/processa
 examples, 0 failures; with the entry removed the reserved-names example fails (`got: "offline-shell"`). Not done:
 other excluded first segments that are legal names (`wait`, `cable`, `rails`, `jobby`, `assets`, `oauth2`) need a
 check of existing accounts first; whether an account named `offline-shell` already exists was not checked.
+
+#### A board marked 'cached' must be on the device: fixed (2026-11-10)
+
+**Cause (CONFIRMED by reading; reproduced in a test, not on a device):** `board_lookup` answered 'cached' with no
+download for a record with `permissions` whose revision matched `fresh_board_revisions`, or for any such record
+under `allow_any_cached` (`services/persistence.js:2773-2778`). Neither asked whether the device holds the board.
+Modern view pushes the boards of a `/tree` answer into the store without saving them
+(`utils/board_detail_cache.js:185-191`); the batch pre-download that would store missing boards is skipped at 100 or
+more missing boards and gives up silently when a batch request fails (`:2945`, the `ajax(...boards?ids=)` error
+handler). Such a board was then 'cached', its pictures and folders synced, the sync reported as succeeded, and no
+row existed, with no slow server needed.
+**Fix:** the sync notes the device's boards where it already reads them (`find_all('board')` at the start of
+`sync_boards`), each row the batch download stores, and, on the supervisee path where revisions failed and
+`allow_any_cached` is set, by reading the list there too. `known_on_device(sync_progress, record)`
+(`utils/sync_board_fallback.js`) gates both 'cached' branches by global id, id or key. A board not noted goes to the
+existing reload branch ('re-downloaded'), and the adapter stores what it fetches
+(`utils/persistence.js:4391`, `store_eventually`). When the device list was not read (a `board_lookup` outside a
+full sync, as in the older unit tests) the answer is as before. No extra reads on the normal path. The edits were
+placed on existing lines so the line-anchored lint baseline rows below them do not shift (the first attempt added
+lines and the gate reported a shifted `ember/no-runloop` row at 4472).
+**Tests** (`persistence-sync-test.js`, "a board marked cached must be on the device (#1212)", 6): a current board in
+memory but not among the device's boards is downloaded (revision-match branch, and the any-cached branch); it is
+left alone when the device has it under its id or its key, and when the device was not read; and through a whole
+sync with the batch download failing, the home board that was current in memory only is requested once and ends
+'re-downloaded'. Mutations: revision-match branch not gated, 2 fail; any-cached branch not gated, 1 fails; device
+list not noted at sync start, the whole-sync test fails. Sync module with `timingStrict=1`: 103 tests, 102 pass, 1
+existing skip, 0 fail, no late work.
+**Limit of the tests (found by a probe):** in this harness an adapter fetch writes no board row (the device held
+zero board rows after the sync, Crisis Vocabulary included; cause in the harness not diagnosed), so the tests show
+the board is DOWNLOADED rather than trusted, not that the row lands. That the app stores a downloaded board is shown
+by `e2e/offline-launch.spec.js` "a sync saves the home board, starred boards and Crisis Vocabulary" for a normal
+sync; this exact case is to be confirmed in the Android emulator run.
+**Not built as its own review step:** the design came from the adversarial review of the 'kept' proposal (its High
+finding and recommended gate); the built change goes through the next pre-push review.

@@ -2770,10 +2770,10 @@ var persistence = Service.extend({
           if(record.get('permissions') && record.get('image_urls') && safely_cached_boards[id] && !cache_mismatch) {
             board_statuses.push({id: id, key: record.get('key'), status: 'cached'});
             return record;
-          } else if(record.get('permissions') && fresh_board_revisions && fresh_board_revisions[id] && fresh_board_revisions[id] == record.get('current_revision')) {
+          } else if(record.get('permissions') && fresh_board_revisions && fresh_board_revisions[id] && fresh_board_revisions[id] == record.get('current_revision') && known_on_device(_this.get('sync_progress'), record)) {
             board_statuses.push({id: id, key: record.get('key'), status: 'cached'});
             return record;
-          } else if(record.get('permissions') && allow_any_cached) {
+          } else if(record.get('permissions') && allow_any_cached && known_on_device(_this.get('sync_progress'), record)) {
             board_statuses.push({id: id, key: record.get('key'), status: 'cached'});
             return record;
           } else {
@@ -2901,7 +2901,7 @@ var persistence = Service.extend({
         // instead of at request time, and make a batch request
         // for all of their record results at once (this should
         // result in much fewer http requests)
-        return lingoLinqExtras.storage.find_all('board').then(function(list) {
+        return lingoLinqExtras.storage.find_all('board').then(function(list) { note_device_boards(_this.get('sync_progress'), list); // what 'cached' may trust (utils/sync_board_fallback.js)
           var need_fresh_ids = [];
           var missing_ids = {};
           for(var key_or_id in fresh_revisions) {
@@ -2972,7 +2972,7 @@ var persistence = Service.extend({
                       lookups[board_json.id] = RSVP.resolve(board_record);
                       lookups[board_json.key] = lookups[board_json.id]
                       _this_sync_boards.store('board', board_json, board_json.key).then(function(str) {
-                        next_batch();
+                        note_device_boards(_this_sync_boards.get('sync_progress'), [board_json]); next_batch();
                       }, function(err) {
                         next_batch();
                       });
@@ -3002,7 +3002,7 @@ var persistence = Service.extend({
           if(stamps[user.get('id')] && stamps[user.get('id')] >= user.get('sync_stamp')) {
             // If the req errors for a supervisee, and the sync_stamp
             // is up-to-date from the last sync, don't try to reload boards
-            allow_any_cached = true;
+            allow_any_cached = true; return lingoLinqExtras.storage.find_all('board').then(function(list) { note_device_boards(_this.get('sync_progress'), list); return {}; }, function() { return {}; }); // "any cached copy" still means one on the device: read its boards, as the path above does
           }
         }
         return RSVP.resolve({});
@@ -4963,5 +4963,5 @@ import offlineSyncSeeds from '../utils/offline_sync_seeds';
 import { queue_eventual_store } from '../utils/eventual_store_queue';
 import { is_permanent_upload_url } from '../utils/permanent_upload';
 import { picture_kept_in_database, usable_database_copy } from '../utils/database_picture';
-import { BOARD_RELOAD_MS, keep_stored_board, claim_board_retry, BOARD_RETRY_DELAY_MS } from '../utils/sync_board_fallback';
+import { BOARD_RELOAD_MS, keep_stored_board, claim_board_retry, BOARD_RETRY_DELAY_MS, note_device_boards, known_on_device } from '../utils/sync_board_fallback';
 import { usable_copy } from '../utils/board_device_copy';

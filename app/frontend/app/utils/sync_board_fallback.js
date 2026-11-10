@@ -47,6 +47,30 @@ export function keep_stored_board(record, err, board_statuses, id, find_row) {
   });
 }
 
+// Which boards the device database holds, as far as this sync knows. board_lookup answers 'cached' (no download) for a
+// record whose revision is current, and a record can be current in memory with no row stored (the same /tree push as
+// above), so 'cached' also asks this. The sync notes the rows it read at its start (sync_boards, find_all) and each
+// row its batch download stores. A board that is not noted is downloaded, which stores it; a row written some other
+// way in the meantime costs one extra download, nothing more.
+export function note_device_boards(sync_progress, rows) {
+  if(!sync_progress) { return; }
+  sync_progress.device_boards = sync_progress.device_boards || {};
+  (rows || []).forEach(function(row) {
+    var raw = row && row.data && row.data.raw ? row.data.raw : row;
+    if(row && row.data && row.data.id) { sync_progress.device_boards[row.data.id] = true; }
+    if(raw && raw.id) { sync_progress.device_boards[raw.id] = true; }
+    if(raw && raw.key) { sync_progress.device_boards[raw.key] = true; }
+  });
+}
+
+// False only when the sync read the device's boards and this one is not among them. When they were not read (a lookup
+// outside a full sync), there is nothing to judge by and the answer is as it was before.
+export function known_on_device(sync_progress, record) {
+  var known = sync_progress && sync_progress.device_boards;
+  if(!known || !record || !record.get) { return true; }
+  return !!(known[record.get('global_id')] || known[record.get('id')] || known[record.get('key')]);
+}
+
 // A first sync has no stored copy to keep, so a board whose lookup failed was lost with its folders. When the failure
 // is passing, the sync tries the board once more, later in the same sync (services/persistence.js nextBoard). The
 // claim is per board for the whole sync (`sync_progress.retried_lookups`), not per queue entry, so a board linked
