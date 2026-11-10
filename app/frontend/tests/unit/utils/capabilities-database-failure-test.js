@@ -3,11 +3,16 @@ import RSVP from 'rsvp';
 import capabilities from 'frontend/utils/capabilities';
 import stashes from 'frontend/utils/_stashes';
 import { stub, restoreStubs } from 'frontend/tests/helpers/jasmine';
+import { standInGlobals } from 'frontend/tests/helpers/stand-in-globals';
+import EmberObject from '@ember/object';
 
 /* A failed database setup must not leave local reads waiting forever (#1205). dbman.not_ready queues
  * every storage call while capabilities.db is undefined, and only a successful setup drained that
  * queue, so on a failure boards simply never loaded and nothing said why. */
 module('Unit | Utility | capabilities database setup failure', function(hooks) {
+  // This module boots no app, and utils/_stashes forwards to window.stashes: without its own stand-in the stub
+  // below lands on whatever service an earlier test left there, torn down (tests/helpers/leak-check.js).
+  standInGlobals(hooks, { stashes: () => EmberObject.create({}) });
   hooks.beforeEach(function() {
     this.real = {db: capabilities.db, wait: capabilities.db_setup_wait, queue: capabilities.queued_db_actions};
     capabilities.queued_db_actions = [];
