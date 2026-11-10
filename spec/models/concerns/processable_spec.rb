@@ -176,6 +176,7 @@ describe Processable, :type => :model do
       expect(u.generate_user_name("oauth")).to eq("oauth_1")
       expect(u.generate_user_name("about")).to eq("about_1")
       expect(u.generate_user_name("pages")).to eq("pages_1")
+      expect(u.generate_user_name("offline-shell")).to eq("offline-shell_1")
       
     end
 

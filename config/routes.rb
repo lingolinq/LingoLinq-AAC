@@ -13,7 +13,8 @@ LingoLinq::RESERVED_ROUTES ||= [
   'eu_ai_parental_consent',
   'js', 'css', 'scripts', 'script', 'pics', 'images', 'lessons', 'lesson', 
   'find', 'unknown', 'nobody', 'goals', 'notes', 'rooms', 'cough_drop',
-  'mylingolinq', 'inflection', 'inflections', 'saml', 'eval', 'ai_consent'
+  'mylingolinq', 'inflection', 'inflections', 'saml', 'eval', 'ai_consent',
+  'offline-shell'
 ]
 require 'resque/server'
 require 'admin_constraint'
