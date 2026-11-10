@@ -44288,7 +44288,7 @@ a.md-goal-nav-action:hover,
 @media (max-width: 767px) {
   .md-preferences__form .form-group > [class*="col-"] {
     float: left;
-    width: 100% !important;
+    width: 100%;
   }
 }
 .md-preferences__form .input-group {
@@ -48462,7 +48462,8 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
 .md-btn:active { transform: scale(var(--md-tap)); }
 /* DISABLED LOOKS DISABLED (2026-11-09, red-team review: System Settings' Save and Reset, now
    `md-btn`, looked clickable while saving). Bootstrap's `.btn[disabled]` gave the old buttons this;
-   `md-btn` had no disabled state. No lift and no press while disabled, either. */
+   `md-btn` had no disabled state. No lift and no press while disabled, either. The box-shadow
+   `!important` matches the base `.md-btn` rule's own, which this state has to replace. */
 .md-btn:disabled,
 .md-btn[disabled] {
   opacity: 0.6;

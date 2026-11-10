@@ -4,6 +4,7 @@ import { computed, observer, set as emberSet } from '@ember/object';
 import AuthenticatedView from './authenticated-view';
 import modal from '../../utils/modal';
 import i18n from '../../utils/i18n';
+import { basicDashboardSections } from '../../utils/basic_dashboard_sections';
 import { resolveSuperviseeHomeBoardKey } from '../../utils/supervisee_home_board';
 import scrollBelowHeader from '../../utils/scroll_below_header';
 import { pillForRoute } from '../../utils/primary_nav';
@@ -600,21 +601,13 @@ export default AuthenticatedView.extend({
      so anyone who can be sent here must be able to see it. Modeling-only accounts keep their
      earlier exclusion from the strip (the {{#unless}} around it in the template). */
   /* THE <=550px SECTION MENU'S OPTIONS (components/dashboard/section-menu): the tab strip's sections,
-     by the strip's own rules in classic-view.hbs -- Communicators and Updates hidden for a
-     modeling-only user, Communicators also only with a caseload (`showCommunicatorsTab`), and the
-     Updates label carrying the pending count as the strip's badge does. Change them together. */
+     by the strip's own rules (utils/basic_dashboard_sections.js, which states them and is tested). */
   sectionMenuItems: computed('app_state.currentUser.modeling_only', 'showCommunicatorsTab', 'pending_updates.count', function() {
-    var modelingOnly = !!this.get('app_state.currentUser.modeling_only');
-    var items = [{ id: 'main', label: i18n.t('actions', "Actions") }];
-    if (!modelingOnly && this.get('showCommunicatorsTab')) {
-      items.push({ id: 'supervisees', label: i18n.t('communicators', "Communicators") });
-    }
-    items.push({ id: 'boards', label: i18n.t('boards', "Boards") });
-    if (!modelingOnly) {
-      var count = this.get('pending_updates.count');
-      items.push({ id: 'updates', label: count ? i18n.t('classic_tab_updates_n', "Updates (%{n})", { n: count }) : i18n.t('updates', "Updates") });
-    }
-    return items;
+    return basicDashboardSections({
+      modelingOnly: !!this.get('app_state.currentUser.modeling_only'),
+      showCommunicators: !!this.get('showCommunicatorsTab'),
+      pendingUpdates: this.get('pending_updates.count')
+    });
   }),
   showCommunicatorsTab: computed('app_state.currentUser.{supporter_role,supporter_view,modeling_only}',
                                  'app_state.currentUser.known_supervisees.[]',

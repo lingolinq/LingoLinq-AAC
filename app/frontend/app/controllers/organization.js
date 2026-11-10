@@ -323,7 +323,7 @@ export default Controller.extend({
       evals: i18n.t('evals', "Evals"),
       extras: i18n.t('symbols', "Symbols")
     };
-    return labels[this.get('activePeopleSection')] || i18n.t('admin', "Admin");
+    return labels[this.get('activePeopleSection')] || i18n.t('org_sections', "Organization Sections"); // no tab current (Reports, Rooms...): name the menu, do not claim Admin (review 2026-11-10)
   }),
 
   /* THE ORG TABS IN BOTH VIEWS (2026-11-08, requested: "modern view needs the Admin/Managers/

@@ -219,3 +219,15 @@ No Critical/High. Fixed the Mediums:
 - Geometry: three shared pill-dropdown rules reached it once it wore `.md-pillnav-dropdown` — <=640 `margin-top: 32px`, <=460 `width: 52%; margin: 40px auto 0`, and <=375 `display: none !important`, which left 320-375px phones with no section switcher at all. All three now exclude `.ch-tabselect` in `:where()`. Measured 320/360/400/460/500: 75% wide, no top margin, chevron inside, one line; 551 strip shown.
 - Tests: tests/integration/section-menu-test.js (4): open without focus then click outside, Escape + focus, choice + focus, closed-state ARIA. Mutation: removing the outside-click listener and the focus return fails 2 of them. The menu is hidden at the test browser's 1440px, so the test shows it with a <head> style, as classic-rail-dropdown-test.js does.
 - Corrected comments that claimed the options reach the in-app switch scanner / dwell (they do not: the scanner runs only in speak mode; this was untested for OS-level switch access), and stale "<select>" mentions.
+
+## Round 19: senior-dev review of PR #1291 at 8b7ee4006 (2026-11-10)
+
+`REVIEWED=PR lingolinq/LingoLinq-AAC#1291 at 8b7ee400667ea23926b3c7a5fe31164d8295e37c` (preflight `pr` form, exit 0). Verdict: Approve with comments (no Critical/High).
+
+- Medium 1 (house button also changes off Basic): checked. `on_board` is `board.index`, the catch-all `/*key` route (legacy board page, both views, e.g. obf/ keys); Modern's board page is `user.board-detail`, whose header this template skips (`{{#unless this.on_board_detail}}`). So Home also goes home on the legacy page, consistent; noted in the PR.
+- Medium 2 (Basic Home Board label vs link): not an issue; both read `currentUser.preferences.home_board` (classic-rail.js:141, classic-view.js:328).
+- Medium 3 (org headings selectable): not an issue; modern-select.hbs renders `item.heading` as a disabled group label with no click handler.
+- Medium 4, fixed: org-tabs dropdown said "Admin" when no tab is current (Reports, Rooms...); now "Organization Sections" (`org_sections`). New test case.
+- Medium 5, fixed: tests for the section menu's gates (rules moved to utils/basic_dashboard_sections.js), the Emails stale-response guard, and ModernSelect's accessible name. Mutation run: each fails with its bug restored.
+- Medium 6: the Playwright position and speak-Home specs are local only; stated in the PR as must-run-before-merge.
+- Low: dropped the new `width: 100% !important` (measured: still full width without it); kept `.md-btn:disabled` box-shadow `!important` (it replaces the base rule's own `!important`), with a comment. Complex selectors inside `:not()` need Chrome 88+ / Safari 9+; noted. Task-log accounts are local seed accounts (db/seeds.rb, e2e seeds).
