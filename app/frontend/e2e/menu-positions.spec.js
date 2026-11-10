@@ -53,6 +53,13 @@ async function menuBox(page) {
   }, null, { timeout: 30_000, polling: 'raf' }).then((h) => h.jsonValue());
 }
 
+async function bottomOf(page, selector) {
+  const el = page.locator(selector).first();
+  await expect(el).toBeVisible({ timeout: 30_000 });
+  const box = await el.boundingBox();
+  return Math.round(box.y + box.height);
+}
+
 async function topOf(page, selector) {
   const el = page.locator(selector).first();
   await expect(el).toBeVisible({ timeout: 30_000 });
@@ -143,6 +150,17 @@ for (const { layout, userName } of USERS) {
         expect(orgTitle, 'org title below the tabs').toBeGreaterThanOrEqual(org.bottom);
         if (width > 900) {
           expect(orgTitle, 'org title level with the Organizations title').toBe(directoryTitle);
+        } else {
+          // At 900px and below the rail is a dropdown above the content: the title follows it closely
+          // (reported 2026-11-09: "on small screens, the org page header is pushed way down low",
+          // at 112px/152px below it). 60px is the org header's own 20px padding plus the 40px the home
+          // page's header sits below the dropdown.
+          const railBottom = await bottomOf(page, '#acct_rail_nav');
+          expect(orgTitle - railBottom, 'org title close under the menu dropdown').toBeLessThanOrEqual(60);
+          await open(page, '/organizations');
+          const dirTitle = await topOf(page, '.md-shell--org-directory .md-hero__title');
+          expect(dirTitle - await bottomOf(page, '#acct_rail_nav'), 'Organizations title close under the menu dropdown').toBeLessThanOrEqual(60);
+          await open(page, orgPath);
         }
 
         const people = await open(page, `${orgPath}/people?section=managers`);

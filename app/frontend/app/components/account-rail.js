@@ -179,9 +179,10 @@ export default Component.extend({
     var route = this.get('router.currentRouteName') || this.get('app_state.current_route') || '';
     return ORG_ROW_FOR_ROUTE[route] || null;
   }),
-  /* The nav's name: the org menu is named as Basic's is (`classic_org_rail_aria`). */
+  /* The nav's name, also the narrow-screen dropdown's label. The org menu reads "Organization
+     Navigation", title case (requested 2026-11-09), from the existing `org_navigation` key. */
   menuName: computed('orgNav', function() {
-    return this.get('orgNav') ? i18n.t('classic_org_rail_aria', "Organization navigation") : i18n.t('account_menu', "Account menu");
+    return this.get('orgNav') ? i18n.t('org_navigation', "Organization Navigation") : i18n.t('account_menu', "Account menu");
   }),
 
   /* More than 1200px wide: the width at which the rail defaults to expanded (railCollapsed).

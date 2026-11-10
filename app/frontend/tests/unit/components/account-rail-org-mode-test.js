@@ -22,10 +22,12 @@ module('Unit | Component | account-rail org mode', function(hooks) {
   var EDITOR = { id: '1_1', permissions: { view: true, edit: true } };
   var VIEWER = { id: '1_1', permissions: { view: true } };
 
-  test('an org editor gets the org menu, named as Basic\'s', function(assert) {
+  /* Named "Organization Navigation", title case (requested 2026-11-09; was Basic's sentence-case
+     `classic_org_rail_aria`). */
+  test('an org editor gets the org menu, named "Organization Navigation"', function(assert) {
     var c = rail(this, 'organization.index', EDITOR);
     assert.true(c.get('orgNav'));
-    assert.strictEqual(c.get('menuName'), i18n.t('classic_org_rail_aria', "Organization navigation"));
+    assert.strictEqual(c.get('menuName'), i18n.t('org_navigation', "Organization Navigation"));
   });
 
   test('anyone else, and every non-org page, keeps the account rail', function(assert) {
@@ -44,7 +46,7 @@ module('Unit | Component | account-rail org mode', function(hooks) {
 
   test('the narrow-screen trigger names the org row, else the org menu', function(assert) {
     var reports = rail(this, 'organization.reports', EDITOR);
-    var menu = i18n.t('classic_org_rail_aria', "Organization navigation");
+    var menu = i18n.t('org_navigation', "Organization Navigation");
     assert.strictEqual(reports.get('activeLabel'), i18n.t('reports', "Reports"));
     assert.strictEqual(reports.get('menuTriggerLabel'), i18n.t('reports', "Reports") + ', ' + menu);
     var people = rail(this, 'organization.people', EDITOR);
