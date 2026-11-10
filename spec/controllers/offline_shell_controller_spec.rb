@@ -96,14 +96,18 @@ describe OfflineShellController, :type => :controller do
           expect(response.body).to include("var EXCLUDED_FIRST_SEGMENTS = #{OfflineShell::EXCLUDED_FIRST_SEGMENTS.to_json};")
         end
 
-        # Changed 2026-11-05 (approved): the cached page used to answer a navigation that took longer than
-        # four seconds, which gave a slow online launch an old page. It now answers only a failed request.
-        # e2e/offline-worker-lifecycle.spec.js runs the real worker; these only guard the source.
-        it "answers a navigation with the cached page only when the request fails, never after a wait" do
+        # Changed 2026-11-05 (approved): the cached page answered only a failed request, so a slow online
+        # launch never got an old page. Changed back 2026-11-10 (Traci): a hung network or a server error
+        # page must not lock a person out of their boards, so the cached page also answers after
+        # NAVIGATION_TIMEOUT_MS and on a 5xx or 429. e2e/offline-worker-lifecycle.spec.js and
+        # e2e/offline-launch.spec.js run the real worker; this only guards the source.
+        it "answers a navigation with the cached page on a failed request, a server error, or after the time limit" do
           get :service_worker
-          expect(response.body).not_to include('setTimeout')
-          expect(response.body).not_to include('TIMEOUT')
-          expect(response.body).to include('return fetch(request).catch(')
+          expect(OfflineShell::NAVIGATION_TIMEOUT_MS).to eq(4000)
+          expect(response.body).to include("var NAVIGATION_TIMEOUT_MS = 4000;")
+          expect(response.body).to include("}, NAVIGATION_TIMEOUT_MS);")
+          expect(response.body).to include("return response.status >= 500 || response.status === 429;")
+          expect(response.body).not_to match(/serverFailed[^\n]*!response\.ok/)
         end
 
         # Changed 2026-11-05 with review round 2 (approved): the files are carried at install and again at

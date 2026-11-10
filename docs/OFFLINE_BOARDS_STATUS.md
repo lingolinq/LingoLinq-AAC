@@ -51,9 +51,11 @@ memory ahead of time while online, so they open faster.
 Each item below has tests; the PR's "Fix status" table lists the exact spec for each.
 
 **Opening offline**
-- A Home Screen launch with no network opens the app (Scot's shell). On Wi-Fi with no internet it opens when
-  nothing answers the page request; when the network answers with an error page or the request hangs, it does not
-  (tested 2026-11-09; see "Before merge").
+- A Home Screen launch with no network opens the app (Scot's shell). On Wi-Fi with no internet it opens too: the
+  worker answers with the saved page when nothing answers the page request, when the server answers with an error
+  page (5xx, or 429 from the request limiter), and when nothing has answered within 4 seconds (decided 2026-11-10;
+  the 4-second limit is Scot's original design, which review round 2 had removed). A 404 and a redirect still
+  stand. Not covered: a block page that answers 200 with HTML, and a launch at `/` with the API also answering 503.
 - Modern view opens synced boards offline (#1213); Basic view already did, and now also has browser tests.
 - Synced boards owned by someone else (a teacher's board, Crisis Vocabulary) open offline.
 - A board that is not on the device is never a dead end (#1209): the app moves to the home board, or to the
@@ -76,6 +78,8 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
   failed. Before this, with single-board requests failing, a sync on the Android emulator listed 97 boards as fine
   and saved none (#1212).
 - A board that cannot be fetched is reported once per sync, not once for each board that links to it (#1212).
+- Liking says when the limit is reached: the like that reaches 50 says so, and a like past 50 warns that the board
+  is not kept on this device (the first 50 liked boards are). Added 2026-11-10 (#1221).
 - The installed app (SQLite) keeps one row per record: two saves of the same row, or a save and a removal, now run
   one after the other instead of overlapping, so they no longer insert the record twice (`utils/sqlite_row_queue.js`).
   A second save still rewrites the whole record. A record that cannot be saved is now reported as failed instead
@@ -132,9 +136,10 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
 - Unit tests for every change above.
 - Browser tests (Playwright, against Rails with the shell on):
   - `e2e/offline-launch.spec.js`: launches, both views, pictures, not-saved boards, storage full, which boards
-    sync, and three "Wi-Fi with no internet" cases (one passes; two fail on purpose until the decision under
-    "Before merge" is made).
-  - `e2e/offline-worker-lifecycle.spec.js`: worker updates.
+    sync, four "Wi-Fi with no internet" cases (nothing answers, a 503 page, a hang, a 429) and two "real answer
+    stands" cases (a 404, a redirect).
+  - `e2e/offline-worker-lifecycle.spec.js`: the 4-second limit (a page within it is live, a slower one gets the
+    saved copy, a slow page with no saved copy waits) and worker updates.
   - `e2e/offline-kill-switch.spec.js`.
   - `e2e/offline-webkit.spec.js`: Safari's engine, set up as a current iPad.
 
@@ -145,6 +150,8 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
 | A real server denial wins on Modern view, except home and sidebar boards; Speak Mode no longer exempts | Traci | 2026-11-05 |
 | ~~Device copies are for speaking only; saving actions are refused~~ (replaced 2026-11-09, next row); no swap when the connection returns | Traci | 2026-11-05 |
 | Modern view treats a device copy like Basic view does: no "saved on this device" notice, Edit works offline, other actions are not blocked up front (ones that need the server say so). Accepted risk: an offline edit is sent at the next sync with no check for newer server changes. A real server denial still wins (row 1). NOT BUILT YET: the code still shows the notice and refuses saving actions ("How it works now", item 3) | Traci | 2026-11-09 |
+| A hung network or a server error page must not lock a person out: the app shell answers with the saved page on a 5xx or 429 and after 4 seconds with no answer ("never" is 4 seconds, Scot's original limit) | Traci | 2026-11-10 |
+| The liked-boards limit stays at 50, measured on the emulator; a like past 50 tells the person they have reached the limit | Traci | 2026-11-10 |
 | Changes the row above: Modern keeps the "Showing the copy saved on this device" notice. Edit works on a device copy. With a connection, Edit first gets the latest board and then opens in the same tap; with none, it opens on the copy. "Use this board" and Translate work offline in Modern only if they work offline in Basic view (checked in the code 2026-11-10, not run: Translate is done by the server, so it cannot; "Use this board" in Basic sets the home board on the device but cannot make the person's own copy). NOT BUILT YET | Traci | 2026-11-10 |
 | The rule for Modern view offline: whatever works offline in Basic view should work offline in Modern view. Gaps found 2026-11-10 (read in the code, not run): Edit, Set as home, "Use this board" (Basic sets the home board; the person's own copy needs the server), Delete and Board details (reachable only from Modern's edit panel). Sharing offline is unverified in Basic and is held. Translate, Rename, Privacy, Like, Copy, Download and Stats need the server in both views. NOT IN THIS PR: about a day of work with review and tests, so it is its own issue, #1301. Until then Modern device copies stay for speaking only | Traci | 2026-11-10 |
 | Ask "Trust this Device" on Home Screen sign-ins | Scot | 2026-11-05 |
@@ -162,9 +169,9 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
   person with write access looks at the changed data files and adds the `synthetic-data` label. Agents must not.
 - **CI.** `security-scan` fails on `develop` too (known; needs a Rails 8 upgrade). The three #1205 tests that kept
   the Ember check red are fixed (`407ef94ac`).
-- **Decision needed (Traci and Scot):** the app does not open from the device when the page request gets a server
-  error page or hangs. Either fall back to the device copy on a server error and after a time limit, or list both
-  as known limits. Two browser tests fail on purpose until this is decided.
+- **Decided and built 2026-11-10 (Traci):** the app opens from the device on a server error page and after 4
+  seconds with no answer. This reverses a change review round 2 made with Scot's approval; Scot should hear it is
+  back before merge.
 - **Not in this PR (Traci, 2026-11-10):** making Modern view match Basic view offline (Edit, Set as home, "Use this board"). Tracked in #1301; see "Decisions made".
 - **The dual review** (`/review-pr` and `/adversary-review`), because the PR touches sign-in.
 - **A sync with many liked boards, measured** (time, requests, failed saves): a condition from the review of the
@@ -226,6 +233,8 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
    (`utils/direct_fetch.js`). A direct request also has a 45 s limit in both copies of the sync code now, and a web
    page answered in place of a picture (a filtering network) is refused. Button-set files on the CDN still go
    through the proxy. To measure after release: proxy requests per sync on production, before and after.
+   **Measured 2026-11-10 with 50 liked boards** (Android emulator, hardware graphics, local server, the same account
+   with 50 likes added: three small page-sets and 47 single boards, 254 boards in all): the sync finished in 10 min 25 s and saved 352 of 352 boards (the 50 liked boards and their folders, plus the home and sidebar sets), with 3 errors, each a button picture on a dead outside host in three library boards (lingolinq/one, two, three: data, not sync); 101 button-set downloads and 55 button-set rebuild requests for 51 button sets; 289 pictures through the server proxy; 364 single-board requests; the device database grew to 222 MB and a native read took 157 ms after the sync (65 ms after the 102-board run). The app stayed up. Against the same account's 102-board run: 3.4 times the boards, 2.8 times the time.
    **Left:** a
    first sync in the iOS or Android app against staging with a large account, counting proxy requests and
    board errors, compared with the issue's 246-error first sync; the full sync on iOS and Android; production server load under a full
@@ -272,6 +281,14 @@ important languages.
 
 ## Known limits
 
+- **A slow but working server gets the saved page.** A launch where the page has not started answering within 4
+  seconds opens from the device. The app then runs, online, on the version the device holds until the next
+  launch; it has no chart scripts (the stats charts break on that launch) and its environment keys are frozen at
+  cache time. Nothing prompts for the newer version (follow-up). The web service keeps one instance warm, so this
+  is most likely under load, when many devices would get the saved page at once; count the worker's cache answers
+  by reason after release.
+- **The liked-boards count in the like message** is read from the stored list, which a background job updates a
+  moment after each like, so two likes in quick succession can read one short. It is a message, not a gate.
 - **Full storage:** the tests force database writes to fail; nobody has filled a real iPad. Writes made through the
   older Ember Data save path are not counted as failures, and the reason for a failed sync is not kept after a
   restart.

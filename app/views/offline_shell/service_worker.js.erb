@@ -7,11 +7,15 @@
 // - A file in PRECACHE (matched on its path) is answered from the cache. So is the interface language
 //   file (RUNTIME_CACHED_SOURCE), kept the first time it loads online. Nothing else ever is: every
 //   /api/ request and every other file goes to the network as if there were no worker.
-// - A page navigation to an app page goes to the network, however long it takes. Only when the
-//   network fails (no connection) is the answer the cached generic page (SHELL_PATH), which boots the
-//   app from the device. A slow page is never replaced by the cached copy: online, the page and its
-//   files always match the server. Pages Rails answers itself (EXCLUDED_FIRST_SEGMENTS, files, board
-//   icons) never get it.
+// - A page navigation to an app page tries the network first. The answer is the cached generic page
+//   (SHELL_PATH), which boots the app from the device, when the request fails (no connection), when
+//   the server answers with an error (a 5xx, or 429 from the request limiter), or when nothing has
+//   answered within NAVIGATION_TIMEOUT_MS (a hung network; the request carries on and its answer is
+//   dropped). Any other answer stands, a sign-in redirect and a 404 included; with nothing cached, the
+//   network's answer stands in every case. A working server slower than the limit therefore gets the
+//   cached page: the app it boots is the version the device holds, online, until the next launch
+//   (decided 2026-11-10; the limit is the original 2026-11-03 design). Pages Rails answers itself
+//   (EXCLUDED_FIRST_SEGMENTS, files, board icons) never get it.
 // - A new version waits until every page the old one controls has closed, then deletes the old
 //   caches. It carries the interface language file over from them at install (fresh from the network
 //   when it can be fetched, otherwise the old copy), so an update does not lose a device's language.
@@ -23,6 +27,7 @@ var PRECACHE = <%= raw @precache_urls.to_json %>;
 var EXCLUDED_FIRST_SEGMENTS = <%= raw OfflineShell::EXCLUDED_FIRST_SEGMENTS.to_json %>;
 var RUNTIME_CACHED_SOURCE = <%= raw OfflineShell::RUNTIME_CACHED_SOURCE.to_json %>;
 var RUNTIME_CACHED = new RegExp('^(?:' + RUNTIME_CACHED_SOURCE + ')$');
+var NAVIGATION_TIMEOUT_MS = <%= OfflineShell::NAVIGATION_TIMEOUT_MS.to_i %>;
 var GLOBAL_ID = /^\d+_\d+(-\d+_\d+)?$/;
 
 var PRECACHED = {};
@@ -127,15 +132,37 @@ function cachedShell() {
   return caches.open(CACHE_NAME).then(function(cache) { return cache.match(SHELL_PATH); });
 }
 
-// The network's answer, whatever it is and however long it takes; the cached shell only when the
-// request fails without one (offline). With nothing cached, the failure stands.
+// An answer the person cannot use: a server error, or the request limiter. A sign-in redirect (an
+// opaque redirect here, status 0) and a 404 are real answers and stand.
+function serverFailed(response) {
+  return response.status >= 500 || response.status === 429;
+}
+
+// The network's answer, unless it failed, answered with an error, or has not answered within
+// NAVIGATION_TIMEOUT_MS: then the cached shell. With nothing cached, the network's answer stands,
+// however long it takes. Settles exactly once; the dropped request's later outcome is ignored.
 function navigationResponse(request) {
-  return fetch(request).catch(function(error) {
-    return cachedShell().then(function(shell) {
-      if(shell) { return shell; }
-      throw error;
-    }, function() {
-      throw error;
+  var network = fetch(request);
+  return new Promise(function(resolve, reject) {
+    var done = false;
+    var finish = function(response) {
+      if(!done) { done = true; resolve(response); }
+    };
+    var shellOr = function(fallback) {
+      cachedShell().then(function(shell) {
+        if(shell) { finish(shell); } else { fallback(); }
+      }, fallback);
+    };
+    var timer = setTimeout(function() {
+      // No answer yet: the shell now. With nothing cached, keep waiting for the network.
+      shellOr(function() {});
+    }, NAVIGATION_TIMEOUT_MS);
+    network.then(function(response) {
+      clearTimeout(timer);
+      if(serverFailed(response)) { shellOr(function() { finish(response); }); } else { finish(response); }
+    }, function(error) {
+      clearTimeout(timer);
+      shellOr(function() { if(!done) { done = true; reject(error); } });
     });
   });
 }

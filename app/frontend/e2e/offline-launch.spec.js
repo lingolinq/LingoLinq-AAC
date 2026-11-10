@@ -480,9 +480,10 @@ test.describe('offline launch from the offline app shell', () => {
   // device), but the server cannot be reached. The page load itself must come from the worker's copy.
   // Three ways a network can fail: nothing answers, something else answers with an error page (a school
   // filter, a captive portal, a server outage), or the connection hangs.
-  // As run on 2026-11-09: 'nothing answers' passes; the 503 and the hang cases FAIL, because the worker hands
-  // back whatever the network answers and waits without a limit (offline_shell/service_worker.js.erb
-  // navigationResponse). Whether the app should open from the device in those two cases is an open decision.
+  // Decided 2026-11-10 (Traci): all three open the app from the device. The worker answers with the cached
+  // page on a failed request, on a server error (5xx or 429), and when nothing has answered within 4 seconds
+  // (offline_shell/service_worker.js.erb navigationResponse, lib/offline_shell.rb NAVIGATION_TIMEOUT_MS). As
+  // run on 2026-11-10 before that change: 'nothing answers' passed, the 503 and the hang cases failed.
   // The page load is found by its address: the request the worker passes on is not a navigation request to
   // Playwright (route.request().isNavigationRequest() is false for it).
   const NO_INTERNET_CASES = [
@@ -491,6 +492,9 @@ test.describe('offline launch from the offline app shell', () => {
       ? route.fulfill({ status: 503, contentType: 'text/html', body: '<html><body>Service unavailable</body></html>' })
       : route.abort('internetdisconnected')) },
     { name: 'the page request hangs', handle: (route, isPage) => (isPage ? new Promise(() => {}) : route.abort('internetdisconnected')) },
+    { name: 'the page request is rate-limited (429)', handle: (route, isPage) => (isPage
+      ? route.fulfill({ status: 429, contentType: 'text/plain', body: 'Retry later' })
+      : route.abort('internetdisconnected')) },
   ];
   for (const c of NO_INTERNET_CASES) {
     test(`Wi-Fi with no internet (${c.name}): the app opens the synced board from the device`, async () => {
@@ -514,6 +518,45 @@ test.describe('offline launch from the offline app shell', () => {
         expect(await page.evaluate(() => navigator.onLine), 'the device still reports online').toBe(true);
         await expect(page.getByText('all done', { exact: true })).toBeVisible({ timeout: 60_000 });
         await expect(errorPage(page)).toHaveCount(0);
+      } finally {
+        await context.unrouteAll({ behavior: 'ignoreErrors' }).catch(() => {});
+        await context.close();
+      }
+    });
+  }
+
+  // A real answer stands, even with the cached page at hand: a 404 page, and a redirect (the worker sees it as
+  // an opaque redirect, status 0, and must not mistake it for a failure). Everything else is unreachable, as above.
+  const TARGET = '/e2e-redirect-target';
+  const REAL_ANSWER_CASES = [
+    { name: 'a 404 page', handle: (route, isPage) => (isPage
+      ? route.fulfill({ status: 404, contentType: 'text/html', body: '<html><body><h1>e2e not found page</h1></body></html>' })
+      : route.abort('internetdisconnected')),
+      check: async (page, response) => { expect(response.status()).toBe(404); await expect(page.getByText('e2e not found page')).toBeVisible(); } },
+    { name: 'a redirect', handle: (route, isPage, url) => (isPage
+      ? route.fulfill({ status: 302, headers: { location: TARGET } })
+      : (url.pathname === TARGET ? route.fulfill({ status: 200, contentType: 'text/html', body: '<html><body><h1>e2e redirect target</h1></body></html>' }) : route.abort('internetdisconnected'))),
+      check: async (page, response) => { expect(new URL(page.url()).pathname).toBe(TARGET); expect(response.status()).toBe(200); await expect(page.getByText('e2e redirect target')).toBeVisible(); } },
+  ];
+  for (const c of REAL_ANSWER_CASES) {
+    test(`the network's real answer stands (${c.name}): the cached page does not replace it`, async () => {
+      const context = await openProfile('real-answer-shell-' + c.name.replace(/\W+/g, '-'));
+      try {
+        const page = context.pages()[0] || await context.newPage();
+        await prepare(page, USERS.modern);
+        const origin = new URL(page.url()).origin;
+        const boardPath = USERS.modern.path(USERS.modern.board);
+        let pageRequests = 0;
+        await context.route((url) => url.origin === origin, (route) => {
+          const url = new URL(route.request().url());
+          const isPage = url.pathname === boardPath;
+          if (isPage) { pageRequests++; }
+          return c.handle(route, isPage, url);
+        });
+        const response = await page.goto(boardPath, { timeout: 45_000 });
+        expect(pageRequests, 'the page load reached the network handler').toBeGreaterThan(0);
+        expect(response.headers()['x-robots-tag'], 'not the cached page').toBeUndefined();
+        await c.check(page, response);
       } finally {
         await context.unrouteAll({ behavior: 'ignoreErrors' }).catch(() => {});
         await context.close();

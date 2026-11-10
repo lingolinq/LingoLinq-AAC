@@ -356,3 +356,127 @@ Investigator's report by code trace; nothing was run.
 - **`lookupsToSyncSeeds`: dead code.** No caller in `app/`; one unit test
   (`tests/unit/utils/board-prefetch-planner-test.js`, "lookupsToSyncSeeds produces sync queue entries"). Its seeds
   carry no `button_set` mark. Deleting it and that test needs Traci's approval (Rule 0.14); otherwise a comment.
+
+## 9. The app shell answers a launch from the device on a server error and after a time limit (Traci, 2026-11-10)
+
+Traci's decision: a person must not be locked out of communication when the network answers the page request
+with a server error page or never answers. "Never" is to be defined. She chose Scot's original design for the
+limit. This is offline and infra work: `/fix-proposal`, dual review.
+
+**History (CONFIRMED).** Scot's original worker (`2f6c95b17`, 2026-11-03) tried the network first and, after
+`NAVIGATION_TIMEOUT_MS = 4000` (`lib/offline_shell.rb:27` at that commit), answered with the cached page; the
+request carried on and its answer was dropped (`service_worker.js.erb:75-99` at that commit). A 5xx answer was
+passed through unchanged even then. Review round 2 removed the limit (`913cda12a`, 2026-11-05: "a page that took
+over four seconds online got the cached copy, which could be an older version than the server's"); Scot's log
+lists it as "Timeout (4)" among the fixes he approved (`2026-11-03_offline-app-shell.md:310-311`, `:339-340`). So
+the limit was Scot's original design AND its removal was approved by him; this change reverses the removal, and
+Scot should hear about it before merge.
+
+**(a) Where the value is read.** CONFIRMED: every top-level app-page navigation on a trusted device is answered
+by `navigationResponse` (`app/views/offline_shell/service_worker.js.erb:132-141`), called at `:152`. The browser
+paints whatever that function resolves with. Nothing in the Ember app runs before it, so this is the only place a
+page-load fallback can live.
+
+**(b) The shapes the network's answer can take, and what happens today.**
+- Rejects (no connection, DNS failure, connection refused): the cached page if there is one, else the error.
+  CONFIRMED `:133-140`. This is the only case that opens from the device today.
+- Resolves with a 2xx app page: shown. CONFIRMED.
+- Resolves with a 3xx: `fetch` follows it; a sign-in redirect lands on `/login`, shown. CONFIRMED by the
+  `redirect` default; the precache path refuses redirects (`:60-62`) but navigations do not.
+- Resolves with a 4xx (a sign-in page, a denial, a 404): shown. Correct: a real answer.
+- Resolves with a 5xx (Rack::Timeout 500, Cloud Run 503, a proxy's 502): shown as the error page. CONFIRMED
+  `:133` resolves it like any response. This is case 1.
+- Resolves with a 200 that is not the app (a captive portal, a school filter's block page): shown. Not
+  distinguishable without a marker on the live page; out of scope, stays a known limit.
+- Never settles (a hang): the worker waits for the browser's own network timeout, which can be minutes, then the
+  reject branch runs. CONFIRMED by the absence of any timer (`:132-141`; the controller spec pins
+  `not_to include('setTimeout')`, `spec/controllers/offline_shell_controller_spec.rb:102-107`). This is case 2.
+
+**(c) Cross-file claims.**
+- CONFIRMED: the two e2e cases for these shapes exist and fail today:
+  `app/frontend/e2e/offline-launch.spec.js:479-521` ("the page request gets an error page (503)" and "the page
+  request hangs"); "nothing answers" passes.
+- CONFIRMED: two existing tests encode the removed decision and must change (Rule 0.14; Traci's instruction
+  "settle with Scot's original decision" is taken as that approval, named here so she can object):
+  `spec/controllers/offline_shell_controller_spec.rb:102-107` "answers a navigation with the cached page only
+  when the request fails, never after a wait"; `app/frontend/e2e/offline-worker-lifecycle.spec.js:78-97`
+  "online, a slow page load waits for the network instead of answering with the cached copy" (holds the page 6 s).
+- CONFIRMED: the worker's code feeds the cache name (`lib/offline_shell.rb:29-35`, `:139`), so every device
+  installs the new version on its next online launch; no `WORKER_VERSION` bump is needed.
+- CONFIRMED: the cached page is the generic shell with no user and no token (`:155-181` of the controller spec),
+  and the app it boots reads the device for who is signed in and talks to the server normally afterwards, so a
+  shell answered to a slow online launch still works online; it only runs the app version the device has.
+
+**Definition of "never answers".** No response from the network within **4 seconds** of the request
+(`NAVIGATION_TIMEOUT_MS = 4000`, Scot's original value). "Response" means the headers have arrived: a server that
+has started answering is not cut off, however long the body takes.
+
+**Candidate fixes.**
+- **A (recommended): restore Scot's original `navigationResponse` with one addition.** Network first; the cached
+  page answers (i) a rejected request, (ii) a 5xx response, (iii) no response within 4 s. With nothing cached, the
+  network's answer stands in every case. (ii) is the one thing the original did not do. About 25 lines, in the
+  shape of `2f6c95b17:75-99`. The constant returns to `lib/offline_shell.rb` so the spec and the worker share it.
+- **B: 8 seconds instead of 4,** the app's own first-request limit. Fewer false fallbacks on a slow but working
+  server (a Cloud Run cold start can exceed 4 s), a longer wait for a person on a hung network. Traci chose 4.
+- **C: fall back on 5xx only, keep waiting on a hang.** Rejected: leaves case 2, which Traci named.
+- Rejected: marking the live page to detect block pages (needs a layout change and a header; a follow-up).
+
+**Risks.**
+- A working server that takes more than 4 s to start answering a page gets the cached shell: the person is in
+  the app, online, on the app version the device holds, until the next launch. This is the trade-off review round
+  2 removed and Traci is accepting. On production a cold start of the web service may exceed 4 s; the first launch
+  after one would open from the device. To watch after release.
+- The dropped request still completes on the server (as in the original); no double side effects, it is a GET.
+- A 5xx during a deploy (a bad revision) answers the shell to trusted devices instead of the error page, which is
+  the wanted behaviour.
+- A device with no cached page (first launch, or after the kill switch) is unchanged.
+
+**Questions not resolved.** Whether Scot wants 4 s or a different value now that his removal is reversed. Whether
+`Response.ok` on the 5xx branch should also cover a 0-status opaque response (cannot occur same-origin).
+
+**Tests.** Red before the fix: the two e2e cases above (real worker). Spec: replace the "never after a wait"
+example with one that asserts the limit constant is in the worker, the timer, and the 5xx branch (source guard,
+as the others are). Lifecycle e2e: the 6 s slow page now gets the cached copy; the case is rewritten as "online, a
+page that answers within the limit is the live page, a page slower than the limit is the saved copy" (two
+timings, 2 s and 6 s). Mutations that must fail: remove the timer (hang case red); pass 5xx through (503 case red);
+set the limit to 0 (the 2 s live-page case red).
+
+**Review outcome (adversary agent, 2026-11-10; no Critical or High; each finding checked before acting).**
+1. A navigation request is fetched with redirect mode `manual`, so a same-origin 302 comes back as an opaque
+   redirect with status 0 (and app pages do redirect: renamed boards and users, `boards_controller.rb:84-85`,
+   `:118-119`). So the error branch is `status >= 500 || status === 429`, never `!response.ok`, and the fact
+   sheet's "fetch follows it" row above was wrong. Applied; a redirect e2e case added.
+2. A 429 from the request limiter (Rack::Attack, 150 requests per 3 s per IP, shared by several iPads behind one
+   school network) is a plain-text page, the same lockout. Treated like a 5xx. Applied; a 429 e2e case added.
+3. Fact (c) was too strong: a cached page served to a slow ONLINE launch is not the live page. It has no chart
+   scripts (the stats charts break on that launch), `SYMBOL_PROXY_KEY`, `STRIPE_PUBLIC_KEY` and `TRACK_JS_TOKEN`
+   are frozen at cache time, and the old build stays for the whole session (no version check, nothing listens
+   for `controllerchange`). Recorded as known limits; a "newer version available" prompt is a follow-up.
+4. Mutants the first test plan missed: `!response.ok`, `>= 400`, a timer that answers nothing with no cache, a
+   limit of 3 or 5 s. Added: the spec pins `NAVIGATION_TIMEOUT_MS == 4000` and the exact error expression; a
+   lifecycle case with the cached page removed (a slow page then waits); the 2 s live-page case is answered from
+   a body fetched beforehand so Rails' render time is not added; 404 and redirect cases. The 2 s and 8 s
+   timings bracket the 4 s limit from both sides. Not added: a launch at `/` with the API also answering 503
+   (the manifest's start page), noted as not covered.
+5. The cold-start premise was wrong: the web service runs with `--min-instances 1` everywhere
+   (`deploy-cloudrun.yml:976`); slow pages are more likely Puma queueing under classroom load, when many
+   devices would get the cached page at once. To watch after release (count cache answers by reason).
+6. The PR body's "Known limits", the worker header and the test comment are rewritten with the fix.
+7. The two existing tests that encode the removed rule are changed only with Traci's explicit approval
+   (asked 2026-11-10, after the proposal review).
+
+## 10. Liked boards: a like past the limit of 50 says so (Traci, 2026-11-10)
+
+Facts (CONFIRMED): the server lists the first `User::LIKED_BOARD_REFS_LIMIT` (50) liked boards
+(`app/models/user.rb:2467-2473`) and the sync saves the listed ones; the like endpoint answered only
+`{starred, user_id, stars}` (`app/controllers/api/boards_controller.rb:1059-1066`); the user's liked list is
+kept by a queued job (`Board#star` at `app/models/board.rb:206` schedules `User#remember_starred_board!`), so a
+count read in the request is the stored list plus or minus this like; the app showed "kept on this device" for
+every like (`app/frontend/app/models/board.js:982`). Change: the answer adds `liked_boards`, `liked_limit` and
+`kept_offline` (the board's place in the list), and `utils/like_limit.js` picks the message: plain under the
+limit; "you have reached the limit of 50" on the like that reaches it; a warning "not kept on this device" past
+it. 14 exact-shape assertions in `spec/controllers/api/boards_controller_spec.rb` gained the three keys (a
+response-shape change Traci asked for); the second like in the shallow-clone tests counts 1, because the first
+like's list update is still queued there. Tests: the spec's "should say a like past the limit is not kept
+offline"; `tests/unit/models/board-like-offline-test.js` (3 new).
+
