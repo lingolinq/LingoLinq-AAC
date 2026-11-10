@@ -97578,9 +97578,12 @@ body.ll-layout-focused #content .ll-appshell.ll-appshell--org-tabs .md-shell {
    removes moves into the shell's padding just above (10 -> 40), so the title does not move.
    THE ORGANIZATIONS DIRECTORY TOO (2026-11-09, requested: "fix the organizations focused at 900px
    to match the home page menu position"): its pill nav sat 30px under the home page's for the same
-   reason; its shell clearance above took the 30px (50 -> 80). Both arguments of the `:has()` are
-   one class, so the rule's weight is unchanged. */
-body.ll-layout-focused #within_ember #content:has(.ll-appshell--org-tabs, .md-shell--org-directory) {
+   reason; its shell clearance above took the 30px (50 -> 80). MODERN ONLY: Basic's directory carries
+   `.md-shell--org-directory` too (templates/organizations.hbs) but never sits in the app shell, and
+   matching it moved Basic's rail up 10px (red-team review 2026-11-09), so the directory counts only
+   inside `.ll-appshell`. That ancestor is in `:where()`, so each `:has()` argument weighs one class
+   and the rule's weight is unchanged. */
+body.ll-layout-focused #within_ember #content:has(.ll-appshell--org-tabs, :where(.ll-appshell) .md-shell--org-directory) {
   padding-top: var(--topbar-height) !important;
 }
 

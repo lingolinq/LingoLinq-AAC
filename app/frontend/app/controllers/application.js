@@ -2413,12 +2413,22 @@ export default Controller.extend({
   /* THE ORGANISATION THE RAIL SERVES, on an `organization.*` page (2026-11-08); null elsewhere.
      Read from the `organization` controller's model for the same reason `globalChromeUser` reads
      the `user` controller's: the rail is mounted once in the app shell, so no page template can
-     hand it one. The rail decides from this org's permissions whether to show its rows. */
+     hand it one. The rail decides from this org's permissions whether to show its rows.
+     ONLY THE ORG WHOSE PAGE IS SHOWING (red-team review 2026-11-09). `current_route` changes when a
+     transition STARTS and the controller keeps the last org it loaded, so while org B loaded (or
+     after it failed to) the rail and tabs showed org A's. The router's `currentRoute` changes only
+     once a page has rendered, so the org counts only when the `organization` route's `:id` in it
+     matches the model's id. */
   organizationController: controller('organization'),
-  globalChromeOrg: computed('appState.current_route', 'organizationController.model', function() {
+  globalChromeOrg: computed('appState.current_route', 'router.currentRoute', 'organizationController.model.id', function() {
     var route = this.appState.get('current_route') || '';
     if(route.indexOf('organization.') !== 0) { return null; }
-    return this.get('organizationController.model') || null;
+    var model = this.get('organizationController.model');
+    var info = this.get('router.currentRoute');
+    while(info && info.name !== 'organization') { info = info.parent; }
+    var shownId = info && info.params && info.params.id;
+    if(!model || !shownId || String(shownId) !== String(model.id)) { return null; }
+    return model;
   }),
 
   /* THE ORG TABS IN THE NAV SLOT (2026-11-08, requested: the org top menu "positioned in the same

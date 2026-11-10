@@ -8,6 +8,10 @@
 //   1. The Organizations page's menu and an org page's tabs sit at the home page's menu height.
 //   2. The page title starts below the menu (the Organizations page and an org page), and the two
 //      titles start at the same height where the menu is out of the page flow (above 900px).
+//   4. Basic (Focused): the left menu starts at the same height on the Organizations page and an
+//      org page as on the home page. Basic shares page classes with Modern, so a Modern rule can
+//      reach it; the red-team review caught one moving Basic's rail 10px.
+//   5. An org member who cannot edit it (Modern) gets no org tabs and keeps the account menu.
 //   3. Goals, Recordings and Stats keep their content area where it is. These pages have no top
 //      menu (the account rail only), so there is nothing to compare against: the content area's
 //      top is pinned at the values measured identical on develop and this branch on 2026-11-09.
@@ -15,7 +19,7 @@
 //      Stats; this is the check that would have. An INTENDED move updates the number here, with
 //      the reason in the commit.
 //
-// Users: synthetic, from e2e/support/users-org-nav.rb (a made-up org and two managers):
+// Users: synthetic, from e2e/support/users-org-nav.rb (a made-up org, three managers, one supervisor):
 //   DB_USER=... bin/rails runner app/frontend/e2e/support/users-org-nav.rb
 // Run (Ember on 8184 proxying Rails on 5000, or set E2E_BASE_URL):
 //   cd app/frontend && npx playwright test --project=menu-positions
@@ -58,6 +62,26 @@ async function topOf(page, selector) {
 
 // Not `networkidle`: the app keeps polling, so the network is rarely idle. The menu holding still
 // for two frames (menuBox) is the readiness signal instead.
+// The test org's page, from the signed-in user's own org list (works for a non-editor too, who
+// may not have the Organizations page).
+async function orgPathFor(page) {
+  const id = await page.evaluate((name) => {
+    const orgs = window.LingoLinq.appState.get('currentUser.organizations') || [];
+    const org = orgs.find((o) => o.name === name);
+    return org && org.id;
+  }, ORG_NAME);
+  expect(id, 'run e2e/support/users-org-nav.rb first').toBeTruthy();
+  return `/organizations/${id}`;
+}
+
+// The org tabs, and nothing else, in the app shell's menu slot: the home menu there instead would
+// sit at the same height and pass the position checks.
+async function expectOrgTabs(page) {
+  const slotNav = page.locator('.ll-appshell__navbar nav');
+  await expect(slotNav, 'one menu in the slot').toHaveCount(1);
+  await expect(slotNav, 'and it is the org tabs').toHaveClass(/md-pillnav--org-tabs/);
+}
+
 async function open(page, path) {
   await page.goto(path);
   return menuBox(page);
@@ -99,12 +123,7 @@ for (const { layout, userName } of USERS) {
       await signIn(page, userName, 'users-org-nav.rb');
       await expect(page.locator('body'), `${userName} should be saved in ${layout}`)
         .toHaveClass(layout === 'focused' ? /ll-layout-focused/ : /^(?!.*ll-layout-focused)/);
-      if (!orgPath) {
-        await page.goto('/organizations');
-        const link = page.locator('a', { hasText: ORG_NAME }).first();
-        await expect(link, 'run e2e/support/users-org-nav.rb first').toBeVisible({ timeout: 30_000 });
-        orgPath = await link.getAttribute('href');
-      }
+      if (!orgPath) { orgPath = await orgPathFor(page); }
     });
 
     for (const width of WIDTHS) {
@@ -118,7 +137,7 @@ for (const { layout, userName } of USERS) {
         expect(directoryTitle, 'Organizations title below the menu').toBeGreaterThanOrEqual(directory.bottom);
 
         const org = await open(page, orgPath);
-        await expect(page.locator('.ll-appshell__navbar .md-pillnav--org-tabs, .ll-appshell__navbar details.md-pillnav-dropdown').first()).toBeAttached();
+        await expectOrgTabs(page);
         expect(org.top, 'org tabs vs home').toBe(home.top);
         const orgTitle = await topOf(page, '.md-shell--org .md-hero__title');
         expect(orgTitle, 'org title below the tabs').toBeGreaterThanOrEqual(org.bottom);
@@ -127,6 +146,7 @@ for (const { layout, userName } of USERS) {
         }
 
         const people = await open(page, `${orgPath}/people?section=managers`);
+        await expectOrgTabs(page);
         expect(people.top, 'org tabs on a people section vs home').toBe(home.top);
       });
 
@@ -140,3 +160,50 @@ for (const { layout, userName } of USERS) {
     }
   });
 }
+
+// Basic's left menu: the same height on the home page, the Organizations page and an org page.
+test.describe('Basic, focused layout', () => {
+  test.describe.configure({ timeout: 180_000 });
+  const userName = 'e2e_orgnav_basic';
+
+  async function railTop(page, path) {
+    await page.goto(path);
+    return page.waitForFunction(() => {
+      const rail = document.querySelector('aside.ch-rail');
+      if (!rail || rail.getBoundingClientRect().height === 0) { return null; }
+      const now = Math.round(rail.getBoundingClientRect().top);
+      if (window.__railTopLast !== now) { window.__railTopLast = now; return null; }
+      return now;
+    }, null, { timeout: 30_000, polling: 'raf' }).then((h) => h.jsonValue());
+  }
+
+  for (const width of [1440, 900]) {
+    test(`the left menu does not move between pages at ${width}px`, async ({ page }) => {
+      await signIn(page, userName, 'users-org-nav.rb');
+      await expect(page.locator('body')).toHaveClass(/ll-view-basic/);
+      await expect(page.locator('body')).toHaveClass(/ll-layout-focused/);
+      await page.setViewportSize({ width, height: 900 });
+      const orgPath = await orgPathFor(page);
+      const home = await railTop(page, `/${userName}/home`);
+      expect(await railTop(page, '/organizations'), 'Organizations page vs home').toBe(home);
+      expect(await railTop(page, orgPath), 'org page vs home').toBe(home);
+    });
+  }
+});
+
+// Someone in the org who cannot edit it: no org tabs, the account menu, not the org one.
+test.describe('Modern, an org member who cannot edit it', () => {
+  test('gets no org tabs and keeps the account menu', async ({ page }) => {
+    await signIn(page, 'e2e_orgnav_viewer', 'users-org-nav.rb');
+    const orgPath = await orgPathFor(page);
+    await page.goto(orgPath);
+    await expect(page.locator('.md-shell--org .md-hero__title').first()).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator('.md-pillnav--org-tabs'), 'no org tabs').toHaveCount(0);
+    const rail = page.locator('#acct_rail_nav');
+    await expect(rail).toBeVisible();
+    // Trainings is an org-only row (the account menu has its own Reports and Settings rows).
+    await expect(rail.locator(`a[href="${orgPath}/lessons"]`), 'no org rows').toHaveCount(0);
+    await expect(rail, 'named as the account menu').toHaveAttribute('aria-label', 'Account menu');
+    await expect(rail.locator('a[href$="/goals"]'), 'the account rows').toHaveCount(1);
+  });
+});

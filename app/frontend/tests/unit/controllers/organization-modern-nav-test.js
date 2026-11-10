@@ -80,10 +80,20 @@ module('Unit | Controller | organization org tabs in both views', function(hooks
 module('Unit | Controller | application org pages get the Modern rail', function(hooks) {
   setupTest(hooks);
 
-  function appAt(context, routeName, style, orgModel) {
+  /* `shownRoute` is the page the router has actually rendered (`currentRoute`), which can lag
+     `current_route` while a transition is in flight; by default it is `routeName`, on the model's
+     org. `shownOrgId` is that page's org `:id`. */
+  function appAt(context, routeName, style, orgModel, shown) {
     var user = viewer(style, { has_management_responsibility: true, supervised_units: [] });
+    shown = shown || {};
+    var shownRoute = shown.route || routeName;
+    var shownOrgId = shown.orgId || (orgModel && orgModel.id);
+    var currentRoute = { name: shownRoute, params: {}, parent: null };
+    if(shownRoute.indexOf('organization.') === 0) {
+      currentRoute.parent = { name: 'organization', params: { id: shownOrgId }, parent: null };
+    }
     context.owner.unregister('service:router');
-    context.owner.register('service:router', Service.extend({ currentRouteName: routeName, currentURL: '/x' }));
+    context.owner.register('service:router', Service.extend({ currentRouteName: shownRoute, currentURL: '/x', currentRoute: currentRoute }));
     context.owner.unregister('service:app-state');
     context.owner.register('service:app-state', Service.extend({
       current_route: routeName, currentUser: user, sessionUser: user, effective_view_user: user,
@@ -112,6 +122,21 @@ module('Unit | Controller | application org pages get the Modern rail', function
   test('and no org anywhere else, even with one still loaded', function(assert) {
     var org = { id: '1_1', permissions: { edit: true } };
     assert.strictEqual(appAt(this, 'user.stats', 'modern', org).get('globalChromeOrg'), null);
+  });
+
+  /* THE PREVIOUS ORG NEVER SHOWS (red-team review 2026-11-09): `current_route` already names the org
+     page being loaded while the controller still holds the last org, and the page on screen is
+     either the one being left or another org's. */
+  test('no org while another org\'s page is still loading', function(assert) {
+    var orgA = { id: '1_1', permissions: { edit: true } };
+    var app = appAt(this, 'organization.index', 'modern', orgA, { route: 'user.stats' });
+    assert.strictEqual(app.get('globalChromeOrg'), null, 'org A is not shown over the page being left');
+    assert.false(app.get('showOrgNav'), 'and its tabs are not either');
+  });
+
+  test('no org when the page showing is a different org\'s', function(assert) {
+    var orgA = { id: '1_1', permissions: { edit: true } };
+    assert.strictEqual(appAt(this, 'organization.people', 'modern', orgA, { orgId: '1_2' }).get('globalChromeOrg'), null);
   });
 
   test('the pill nav does not come with it for a manager', function(assert) {
