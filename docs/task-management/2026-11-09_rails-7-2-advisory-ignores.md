@@ -12,11 +12,28 @@ the app release (Scot, 2026-11-09).
 directory, and the CI step runs at the root, so `ci.yml` is unchanged. Any advisory not listed
 still fails the scan, including a new one against these same gems.
 
-Checked locally with bundler-audit 0.9.3 against this branch's `Gemfile.lock` and a freshly
-updated advisory DB:
+Checked locally with bundler-audit 0.9.3 against `Gemfile.lock` at `develop` `db5cfcef1` and a
+freshly updated advisory DB:
 - no config: exit 1, the same 18 advisories CI reports;
-- with the config: exit 0, "No vulnerabilities found";
-- with `GHSA-wm3x-v3qw-4jh3` removed from the list: exit 1, only that advisory reported.
+- a draft ignore list of the 18 IDs, in a scratch directory: exit 0. With the High
+  `GHSA-wm3x-v3qw-4jh3` removed from it: exit 1, only that advisory reported;
+- this file, run from the repo root as CI runs it: exit 0, "No vulnerabilities found". With the
+  Critical `GHSA-f3w6-w445-fwh9` removed from it: exit 1, only that advisory reported.
+
+CI on this PR's first head (`2c2e895e8`, run 42770536445): `security-scan` passed, and its log
+shows a fresh `ruby-advisory-db` clone followed by "No vulnerabilities found".
+
+## Deployed check (2026-11-10)
+Read-only requests to `https://app.lingolinq.com`, no authentication:
+- `GET /cable` returns 404, so the deployed app serves no Action Cable endpoint (GHSA-8474).
+- `GET /` and `GET /api/v1/boards?public=true` (with `Accept: application/json`) both return
+  `cache-control: max-age=0, private, must-revalidate` and `vary: Accept`, served by
+  `Google Frontend` with no `age`, `x-cache` or `cf-cache-status` header. A shared cache must not
+  store a `private` response, so the cache-poisoning case (GHSA-r9jg) is not reachable for these
+  responses. It stays listed as not ruled out, because only two responses were sampled.
+- Not checked live: the Active Storage direct-upload route. It accepts only POST, and this check
+  sent no writes to production. The source-level evidence above (no storage service configured)
+  stands.
 
 ## Exposure, per advisory
 Read at `develop` `db5cfcef1`. "Not used" means a `git grep` over `app/` (excluding the Ember
