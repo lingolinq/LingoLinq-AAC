@@ -6304,4 +6304,60 @@ describe User, :type => :model do
       expect(User.find_by(id: u.id).effective_logging_cutoff_for(viewer, nil)).to eq(1)
     end
   end
+
+  # The liked list feeds the offline sync (app/frontend/app/utils/offline_sync_seeds.js): a liked board
+  # that is not in it is never saved on the device. Up to 100 liked boards are kept, the first ones liked.
+  describe "starred_board_refs limit" do
+    def like_boards(user, count)
+      owner = User.create
+      boards = count.times.map { Board.create(user: owner, public: true) }
+      user.settings['starred_board_ids'] = boards.map(&:global_id)
+      user.settings['starred_boards'] = boards.length
+      user.save
+      boards
+    end
+
+    it "lists every liked board past the first 25, in the order they were liked" do
+      u = User.create
+      boards = like_boards(u, 30)
+      refs = u.reload.starred_board_refs.reject { |r| r['suggested'] }
+      expect(refs.map { |r| r['id'] }).to eq(boards.map(&:global_id))
+    end
+
+    it "lists at most the first 100 liked boards, and looks up no more than those" do
+      u = User.create
+      boards = like_boards(u, 101)
+      u.reload
+      looked_up = nil
+      allow(Board).to receive(:find_all_by_global_id).and_wrap_original do |original, ids|
+        looked_up = ids
+        original.call(ids)
+      end
+      refs = u.starred_board_refs.reject { |r| r['suggested'] }
+      expect(looked_up.length).to eq(100)
+      expect(refs.length).to eq(100)
+      expect(refs.map { |r| r['id'] }).to eq(boards[0, 100].map(&:global_id))
+    end
+
+    it "skips a liked board that was deleted, and still lists the ones after it" do
+      u = User.create
+      boards = like_boards(u, 30)
+      gone = boards[4]
+      gone.destroy
+      refs = u.reload.starred_board_refs.reject { |r| r['suggested'] }
+      expect(refs.map { |r| r['id'] }).to eq((boards - [gone]).map(&:global_id))
+    end
+
+    it "lists a liked copy-by-reference board past the first 25 under its own id" do
+      u = User.create
+      boards = like_boards(u, 30)
+      clone_id = "#{boards[29].global_id}-#{u.global_id}"
+      u.settings['starred_board_ids'][29] = clone_id
+      u.save
+      refs = u.reload.starred_board_refs.reject { |r| r['suggested'] }
+      expect(refs.length).to eq(30)
+      expect(refs[29]['id']).to eq(clone_id)
+      expect(refs[29]['key']).to eq("#{u.user_name}/my:#{boards[29].key.sub(/\//, ':')}")
+    end
+  end
 end

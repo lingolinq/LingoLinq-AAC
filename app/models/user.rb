@@ -2462,15 +2462,20 @@ class User < ApplicationRecord
     end
   end
 
+  # How many liked boards are listed, counted from the first one liked. The offline sync saves the listed
+  # boards (app/frontend/app/utils/offline_sync_seeds.js), so a liked board past this is not kept offline.
+  LIKED_BOARD_REFS_LIMIT = 100
+
   def starred_board_refs
     refs = []
     user = self
     brds = {}
-    Board.find_all_by_global_id((user.settings['starred_board_ids'] || [])[0, 25]).each do |b|
+    listed_ids = (user.settings['starred_board_ids'] || [])[0, LIKED_BOARD_REFS_LIMIT]
+    Board.find_all_by_global_id(listed_ids).each do |b|
       brds[b.global_id] = b
       brds[b.global_id(true)] = b
     end
-    (user.settings['starred_board_ids'] || []).each do |id|
+    listed_ids.each do |id|
       brd = brds[id]
       if brd
         id = brd.global_id
