@@ -1,4 +1,4 @@
-# Classifies one message from the SES events queue (lingolinq-ses-events) into what the app
+# Classifies one message from an SES events queue (lingolinq-ses-feedback) into what the app
 # should do about it. Pure parsing: no database, no network. SesEventsWorker does the I/O.
 #
 # Shape, per the AWS SES Developer Guide "Contents of event data that Amazon SES publishes to

@@ -1,6 +1,7 @@
-# Drains the SES events queue (lingolinq-ses-events, fed by the lingolinq-transactional
-# configuration set; scripts/gcp/phase5-ses-config-set-setup.sh) and turns permanent bounces
-# and complaints into UserMailer.bounce_email, which sets email_disabled on matching users.
+# Drains the SES feedback queue (lingolinq-ses-feedback: Bounce and Complaint events from the
+# lingolinq-transactional configuration set's topic; scripts/gcp/ses-feedback-queue-setup.sh)
+# and turns permanent bounces into UserMailer.bounce_email, which sets email_disabled on
+# matching users. Complaints are counted, not acted on.
 #
 # Called hourly from `scheduler:dispatch` (lib/tasks/scheduler.rake), the same way as
 # SupervisorConsentExpirationWorker. No-op when SES_EVENTS_QUEUE_URL is unset, so it is safe

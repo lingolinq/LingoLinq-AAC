@@ -13,16 +13,27 @@
 #   (https://docs.aws.amazon.com/ses/latest/dg/reputationdashboard-cloudwatch-alarm.html).
 #   The metrics are fractions: 0.05 means 5%.
 #
-# THE THREE ALARMS
+# THE FIVE ALARMS
 #   lingolinq-ses-bounce-rate      AWS/SES Reputation.BounceRate    >= 0.02   (2%, under the 5% review level)
 #   lingolinq-ses-complaint-rate   AWS/SES Reputation.ComplaintRate >= 0.0005 (0.05%, half the 0.1% review level)
-#   lingolinq-ses-events-stale     AWS/SQS ApproximateAgeOfOldestMessage on lingolinq-ses-events
-#                                  >= 10800s (3h) for 15 minutes. SesEventsWorker drains the queue
-#                                  hourly from scheduler:dispatch, so an oldest message 3 runs old
-#                                  means the consumer is not running, lacks IAM, has
-#                                  SES_EVENTS_QUEUE_URL unset, or keeps failing on one message.
+#   lingolinq-ses-feedback-stale   AWS/SQS ApproximateAgeOfOldestMessage on lingolinq-ses-feedback
+#                                  (the queue SesEventsWorker reads; scripts/gcp/
+#                                  ses-feedback-queue-setup.sh) >= 10800s (3h) for 15 minutes. The
+#                                  worker drains it hourly from scheduler:dispatch, so an oldest
+#                                  message 3 runs old means the consumer is not running, lacks IAM,
+#                                  or has SES_EVENTS_QUEUE_URL unset. It does NOT catch one message
+#                                  that keeps failing: on a standard queue a message received 3 or
+#                                  more times drops out of this metric (AWS SQS metrics docs). The
+#                                  DLQ alarm covers that case.
+#   lingolinq-ses-feedback-dlq     AWS/SQS ApproximateNumberOfMessagesVisible on
+#                                  lingolinq-ses-feedback-dlq >= 1: an event failed on about a day of
+#                                  runs and was moved aside. Nothing reads the DLQ.
+#   lingolinq-ses-events-sns-failed  AWS/SNS NumberOfNotificationsFailed on topic
+#                                  lingolinq-ses-events >= 1 in 5 minutes: SNS could not deliver an
+#                                  event to a queue (for example a queue policy that refuses it),
+#                                  and SNS does not retry that. Both queues would look healthy.
 #   Missing data: ignore for the reputation metrics (AWS's own console guidance; low volume
-#   produces gaps), notBreaching for the queue age (an idle queue publishes nothing).
+#   produces gaps), notBreaching for the rest (an idle queue or topic publishes nothing).
 #
 # IDEMPOTENT: `put-metric-alarm` creates or replaces by name, `create-topic` returns the
 # existing topic, and the email subscription is created only if that endpoint is not already
@@ -39,17 +50,21 @@
 #   The email subscription stays "PendingConfirmation" until someone clicks the link AWS sends;
 #   no notification is delivered before that. --check reports it.
 #
-# DEPLOY ORDER: run --apply only after SesEventsWorker is live and has drained the backlog, or
-# the stale alarm fires at once on up to 14 days of unread events (see docs/INFRASTRUCTURE.md,
-# "SES events and alarms").
+# DEPLOY ORDER: run --apply only after SesEventsWorker reads lingolinq-ses-feedback (see
+# docs/INFRASTRUCTURE.md, "SES events and alarms"), or the stale alarm fires on events nobody is
+# reading yet.
 set -euo pipefail
 
 REGION="${AWS_REGION:-us-west-2}"
 TOPIC_NAME="lingolinq-ses-alarms"
-QUEUE_NAME="lingolinq-ses-events"
+QUEUE_NAME="lingolinq-ses-feedback"
+DLQ_NAME="lingolinq-ses-feedback-dlq"
+TOPIC_EVENTS="lingolinq-ses-events"
 BOUNCE_ALARM="lingolinq-ses-bounce-rate"
 COMPLAINT_ALARM="lingolinq-ses-complaint-rate"
-STALE_ALARM="lingolinq-ses-events-stale"
+STALE_ALARM="lingolinq-ses-feedback-stale"
+DLQ_ALARM="lingolinq-ses-feedback-dlq"
+SNS_ALARM="lingolinq-ses-events-sns-failed"
 BOUNCE_THRESHOLD="0.02"
 COMPLAINT_THRESHOLD="0.0005"
 STALE_SECONDS="10800"
@@ -84,6 +99,8 @@ alarm_specs() {
 $BOUNCE_ALARM|AWS/SES|Reputation.BounceRate||Maximum|900|1|$BOUNCE_THRESHOLD|ignore|SES bounce rate >= 2%. AWS reviews the account at 5% and may pause sending at 10%. Runbook: docs/INFRASTRUCTURE.md, SES events and alarms.
 $COMPLAINT_ALARM|AWS/SES|Reputation.ComplaintRate||Maximum|900|1|$COMPLAINT_THRESHOLD|ignore|SES complaint rate >= 0.05%. AWS reviews the account at 0.1% and may pause sending at 0.5%. Runbook: docs/INFRASTRUCTURE.md, SES events and alarms.
 $STALE_ALARM|AWS/SQS|ApproximateAgeOfOldestMessage|Name=QueueName,Value=$QUEUE_NAME|Maximum|300|3|$STALE_SECONDS|notBreaching|Oldest SES event on $QUEUE_NAME is over 3h old: SesEventsWorker (hourly, scheduler:dispatch) is not draining it. Runbook: docs/INFRASTRUCTURE.md, SES events and alarms.
+$DLQ_ALARM|AWS/SQS|ApproximateNumberOfMessagesVisible|Name=QueueName,Value=$DLQ_NAME|Maximum|300|1|1|notBreaching|An SES bounce or complaint event failed on about a day of SesEventsWorker runs and is on $DLQ_NAME, which nothing reads. Runbook: docs/INFRASTRUCTURE.md, SES events and alarms (moving messages out of the DLQ).
+$SNS_ALARM|AWS/SNS|NumberOfNotificationsFailed|Name=TopicName,Value=$TOPIC_EVENTS|Sum|300|1|1|notBreaching|SNS could not deliver an SES event from $TOPIC_EVENTS to a queue and does not retry. Check each subscribed queue's policy. Runbook: docs/INFRASTRUCTURE.md, SES events and alarms.
 EOF
 }
 
@@ -92,7 +109,7 @@ if [ "$MODE" != "dry-run" ]; then
 fi
 
 check() {
-  local rc=0 topic_arn name ns metric dim stat period evals threshold missing desc live
+  local rc=0 topic_arn name ns metric dim stat period evals threshold missing desc live live_dim
   topic_arn="$(aws sns list-topics --region "$REGION" \
     --query "Topics[?ends_with(TopicArn, ':${TOPIC_NAME}')].TopicArn | [0]" --output text)"
   if [ -z "$topic_arn" ] || [ "$topic_arn" = "None" ]; then
@@ -116,6 +133,13 @@ check() {
       --query "MetricAlarms[0].[Namespace,MetricName,Threshold,Statistic,join(',',AlarmActions)]" --output text)"
     if [ -z "$live" ] || [ "$live" = "None" ]; then
       echo "FAIL: alarm $name is missing."; rc=1; continue
+    fi
+    # The watched queue or topic: an alarm still on an old queue matches every other field.
+    live_dim="$(aws cloudwatch describe-alarms --alarm-names "$name" --region "$REGION" \
+      --query "join(',', MetricAlarms[0].Dimensions[].join('', ['Name=', Name, ',Value=', Value]))" --output text)"
+    [ "$live_dim" = "None" ] && live_dim=""
+    if [ "$live_dim" != "$dim" ]; then
+      echo "FAIL: alarm $name watches '${live_dim}', expected '${dim}'. Fix: $0 --apply"; rc=1; continue
     fi
     # shellcheck disable=SC2086
     set -- $live

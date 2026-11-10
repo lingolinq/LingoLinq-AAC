@@ -59,7 +59,10 @@
         "sqs:DeleteMessage",
         "sqs:GetQueueAttributes"
       ],
-      "Resource": "arn:aws:sqs:us-west-2:239044785114:lingolinq-ses-events"
+      "Resource": [
+        "arn:aws:sqs:us-west-2:239044785114:lingolinq-ses-events",
+        "arn:aws:sqs:us-west-2:239044785114:lingolinq-ses-feedback"
+      ]
     }
   ]
 }
