@@ -1897,3 +1897,8 @@ grid held at 25, still to do); the view filter, pruning, the past-limit message 
 1549, 0 new. So "union of both sides" above was not exact. Status doc: blockers listed under "Before merge", the
 Wi-Fi line qualified, the two decisions marked not built. Still open from that review: pin the like order in the
 spec; measure users#show with 50 likes; a liked board and its copy-by-reference can produce a duplicate ref.
+
+**2026-11-10, Traci: no hold on the liked-list home grid.** With the limit at 50, the grid for
+`preferences.sync_starred_boards` users shows every listed liked board (up to 50, was 25); the planned 25-tile hold
+and the "Show more" tile are dropped. Earlier entries that plan them are superseded. Follow-up PR keeps: the
+past-limit message, hiding unviewable liked boards, pruning deleted ids.

@@ -126,7 +126,7 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
 | Earlier trusted Home Screen iPads: keep Scot's manual workaround for now; code fix is Scot's call (#1285) | Traci | 2026-11-07 |
 | Offline sync saves home, sidebar, liked boards and Crisis Vocabulary; like a board to keep it offline | Traci | 2026-11-08 |
 | Keep "Like" in both views (Modern's "Set as Favorite" renamed) and add the offline wording | Traci | 2026-11-08 |
-| The first 50 liked boards are kept offline (the server listed only 25, so later likes never synced; first set to 100 on 2026-11-09, then 50). The liked-list home grid is to stay at its first 25 tiles (not built yet; today it would show all listed); a "Show more" tile, a message when a like is past the limit, hiding boards a person can no longer view and clearing deleted ones are a follow-up PR | Traci | 2026-11-10 |
+| The first 50 liked boards are kept offline (the server listed only 25, so later likes never synced; first set to 100 on 2026-11-09, then 50). The liked-list home grid shows every listed liked board, so up to 50 (holding it at 25 with a "Show more" tile was dropped the same day: not needed at a limit of 50); a message when a like is past the limit, hiding boards a person can no longer view and clearing deleted ones are a follow-up PR | Traci | 2026-11-10 |
 
 ## What's left
 
@@ -141,8 +141,7 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
   (#1212, `utils/sync_board_fallback.js:31`; not yet reproduced); the app does not open from the device when the
   page request gets a server error page or hangs (decision needed: Traci and Scot); liked boards may not get their
   button set saved (unconfirmed). Details in the task log.
-- **Decided, not built yet:** Modern view device copies editable offline with no notice (2026-11-09); the
-  liked-list home grid held at its first 25 tiles (2026-11-10).
+- **Decided, not built yet:** Modern view device copies editable offline with no notice (2026-11-09).
 - **Scot's review** of the parts of his PR that changed after he handed it over.
 
 ### Needs a real device (after merge to `develop`, on dev.lingolinq.com)
