@@ -1585,7 +1585,7 @@ var persistence = EmberObject.extend({
                   url.match(/d18vdu4p71yql0.cloudfront.net/) || url.match(/dc5pvf6xvgi7y.cloudfront.net/);
       var uploads_bucket = url.match(/lingolinq[^/]*-uploads\.s3\.amazonaws\.com/) ||
         url.match(/s3\.amazonaws\.com\/lingolinq[^/]*-uploads/);
-      var cors_match = trusted_not_to_change || uploads_bucket ||
+      var cors_match = trusted_not_to_change || uploads_bucket || on_uploads_cdn(url, type) ||
         url.match(/api\/v\d+\/users\/.+\/protected_image/) || url.match(/api\/v\d+\/lang/);
       if(trusted_not_to_change && url.match(/usercontent/) && url.match(/\/extras\//)) {
         trusted_not_to_change = false;
@@ -1618,7 +1618,7 @@ var persistence = EmberObject.extend({
           return new RSVP.Promise(function(xhr_resolve, xhr_reject) {
             var xhr = new XMLHttpRequest();
             xhr.addEventListener('load', function(r) {
-              if(xhr.status == 200) {
+              if(xhr.status == 200 && !is_web_page(xhr.getResponseHeader('Content-Type'))) {
                 contentGrabbers.read_file(xhr.response).then(function(s) {
                   xhr_resolve({
                     url: url,
@@ -4637,3 +4637,4 @@ import { keep_queued_keys, replay_save_options } from './preference_save';
 import offlineSyncSeeds from './offline_sync_seeds';
 import { queue_eventual_store } from './eventual_store_queue';
 import { is_permanent_upload_url } from './permanent_upload';
+import { on_uploads_cdn, is_web_page } from './direct_fetch';

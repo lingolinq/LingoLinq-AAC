@@ -1548,7 +1548,7 @@ var persistence = Service.extend({
                   url.match(/d18vdu4p71yql0.cloudfront.net/) || url.match(/dc5pvf6xvgi7y.cloudfront.net/);
       var uploads_bucket = url.match(/lingolinq[^/]*-uploads\.s3\.amazonaws\.com/) ||
         url.match(/s3\.amazonaws\.com\/lingolinq[^/]*-uploads/);
-      var cors_match = trusted_not_to_change || uploads_bucket ||
+      var cors_match = trusted_not_to_change || uploads_bucket || on_uploads_cdn(url, type) ||
         url.match(/api\/v\d+\/users\/.+\/protected_image/) || url.match(/api\/v\d+\/lang/);
       if(trusted_not_to_change && url.match(/usercontent/) && url.match(/\/extras\//)) {
         trusted_not_to_change = false;
@@ -1581,7 +1581,7 @@ var persistence = Service.extend({
           return new RSVP.Promise(function(xhr_resolve, xhr_reject) {
             var xhr = new XMLHttpRequest();
             xhr.addEventListener('load', function(r) {
-              if(xhr.status == 200) {
+              if(xhr.status == 200 && !is_web_page(xhr.getResponseHeader('Content-Type'))) {
                 contentGrabbers.read_file(xhr.response).then(function(s) {
                   xhr_resolve({
                     url: url,
@@ -1600,7 +1600,7 @@ var persistence = Service.extend({
             xhr.addEventListener('error', function(e) {
               xhr_reject({e:e, cors: true, error: 'URL lookup error'});
             });
-            xhr.addEventListener('abort', function() { xhr_reject({cors: true, error: 'URL lookup aborted'}); });
+            xhr.addEventListener('abort', function() { xhr_reject({cors: true, error: 'URL lookup aborted'}); }); xhr.addEventListener('timeout', function() { xhr_reject({cors: true, error: 'URL lookup timeout'}); });
 //            console.log("trying CORS request for " + url);
             // Adding the query parameter because I suspect that if a URL has already
             // been retrieved by the browser, it's not sending CORS headers on the
@@ -1608,7 +1608,7 @@ var persistence = Service.extend({
             xhr.url = url;
             // TODO: xhr.open('GET', encodeURI(url) + (url.match(/\?/) ? '&' : '?') + "cr=1");
             xhr.open('GET', url + (url.match(/\?/) ? '&' : '?') + "cr=1");
-            xhr.responseType = 'blob';
+            xhr.responseType = 'blob'; xhr.timeout = 45000; // the limit the second copy has (utils/persistence.js)
             xhr.send(null);
           });
         });
@@ -4962,6 +4962,7 @@ import { note_failed_write, failed_write_count, end_sync_if_storage_failed } fro
 import offlineSyncSeeds from '../utils/offline_sync_seeds';
 import { queue_eventual_store } from '../utils/eventual_store_queue';
 import { is_permanent_upload_url } from '../utils/permanent_upload';
+import { on_uploads_cdn, is_web_page } from '../utils/direct_fetch';
 import { picture_kept_in_database, usable_database_copy } from '../utils/database_picture';
 import { BOARD_RELOAD_MS, keep_stored_board, claim_board_retry, BOARD_RETRY_DELAY_MS, note_device_boards, known_on_device } from '../utils/sync_board_fallback';
 import { usable_copy } from '../utils/board_device_copy';

@@ -251,4 +251,137 @@ module('Unit | Utility | persistence saved pictures', function(hooks) {
     var res = await request_with_row(this.target, 'https://example.com/pictures/sheep.png', 'image', { content_type: 'image/png', data_uri: PNG });
     assert.strictEqual(res.downloads, 0);
   });
+
+  /* PRODUCTION PICTURES ARE FETCHED FROM THE CDN, NOT THROUGH THE SERVER (2026-11-10, PR #1268, issue #1212).
+   *
+   * In production an upload's address is on the uploads CDN (lib/uploader.rb fronted_url). store_url_now requests an
+   * address directly only when it is on its list (cors_match), and the CDN was not on it, so every production picture
+   * and sound went through /api/v1/search/proxy: one server request each, sent back as base64 inside JSON. The CDN
+   * answers any origin (access-control-allow-origin: *), so the app now asks it directly and keeps the proxy as the
+   * fallback. The fake XMLHttpRequest below answers the way the real one does (load with 200, or error).
+   */
+  var CDN_PICTURE = 'https://d34sa6lc5jfe66.cloudfront.net/images/1/2/3/1_123_0a1b2c3d4e5f-' + SHA + '.png';
+  // Replaces a method and returns the function that puts the object back exactly as it was (an own copy is
+  // restored, an inherited method gets its own copy deleted).
+  function replace_method(object, name, value) {
+    var own = Object.getOwnPropertyDescriptor(object, name);
+    object[name] = value;
+    return function() { if(own) { Object.defineProperty(object, name, own); } else { delete object[name]; } };
+  }
+  // opts.direct: how the direct request ends: undefined (200 with a picture), 'error', 'timeout', 'missing' (the
+  // CDN answers 403 for a file that is not there) or 'html' (200 with a web page, as a filtering network does).
+  async function fetch_counting_routes(root, url, type, opts) {
+    opts = opts || {};
+    var calls = { direct: [], proxied: 0, time_limits: [] };
+    var Xhr = window.XMLHttpRequest;
+    function FakeXhr() { this.handlers = {}; }
+    FakeXhr.prototype.addEventListener = function(name, fn) { this.handlers[name] = fn; };
+    FakeXhr.prototype.open = function(method, address) { calls.direct.push(address); };
+    FakeXhr.prototype.getResponseHeader = function() { return opts.direct == 'html' ? 'text/html; charset=utf-8' : 'image/png'; };
+    FakeXhr.prototype.send = function() {
+      var xhr = this;
+      calls.time_limits.push(xhr.timeout);
+      RSVP.resolve().then(function() {
+        if(opts.direct == 'error') { xhr.handlers.error({}); return; }
+        if(opts.direct == 'timeout') {
+          // A real request with no time limit never ends; the test ends it as an abort so it can report that.
+          if(xhr.timeout && xhr.handlers.timeout) { xhr.handlers.timeout({}); } else { calls.no_time_limit = true; xhr.handlers.abort({}); }
+          return;
+        }
+        xhr.status = opts.direct == 'missing' ? 403 : 200;
+        xhr.response = new Blob([opts.direct == 'html' ? '<html>blocked</html>' : 'picture'], { type: opts.direct == 'html' ? 'text/html' : 'image/png' });
+        xhr.handlers.load({});
+      });
+    };
+    window.XMLHttpRequest = FakeXhr;
+    var restores = [
+      replace_method(root, 'find', function(store, key) {
+        return (opts.row && store === 'dataCache' && key === url) ? RSVP.resolve(Object.assign({ url: url, type: type, persisted: true }, opts.row)) : RSVP.reject({ error: 'url not in storage' });
+      }),
+      replace_method(root, 'ajax', function(path) {
+        if(PROXY.test(path)) { calls.proxied++; }
+        return RSVP.resolve({ content_type: 'image/png', data: PNG });
+      }),
+      replace_method(root, 'store', function(store, obj) { return RSVP.resolve(obj); })
+    ];
+    try {
+      calls.result = await persistence.store_url_now(url, type, false, !!opts.force);
+    } finally {
+      window.XMLHttpRequest = Xhr;
+      restores.forEach(function(restore) { restore(); });
+    }
+    return calls;
+  }
+  // With no running service on window, the forwarding module returns its own copy (utils/persistence.js Proxy).
+  async function on_utils_copy(run) {
+    var saved = window.persistence;
+    window.persistence = null;
+    try { return await run(persistence); } finally { window.persistence = saved; }
+  }
+
+  test('a picture on the production uploads CDN is requested from the CDN, not through the server', async function(assert) {
+    var res = await fetch_counting_routes(this.target, CDN_PICTURE, 'image');
+    assert.deepEqual(res.direct, [CDN_PICTURE + '?cr=1'], 'one direct request');
+    assert.strictEqual(res.proxied, 0, 'no proxy request');
+    assert.ok(res.result.local_url, 'and the picture is saved');
+  });
+
+  test('a CDN picture whose direct request fails is still fetched through the server', async function(assert) {
+    var res = await fetch_counting_routes(this.target, CDN_PICTURE, 'image', { direct: 'error' });
+    assert.strictEqual(res.direct.length, 1, 'the direct request was tried');
+    assert.strictEqual(res.proxied, 1, 'then the proxy');
+    assert.ok(res.result.local_url, 'and the picture is saved');
+  });
+
+  test('a CDN picture that is not there (403) is asked for through the server', async function(assert) {
+    var res = await fetch_counting_routes(this.target, CDN_PICTURE, 'image', { direct: 'missing' });
+    assert.deepEqual([res.direct.length, res.proxied], [1, 1]);
+  });
+
+  test('a direct request has a time limit, and running out of time falls back to the server', async function(assert) {
+    var res = await fetch_counting_routes(this.target, CDN_PICTURE, 'image', { direct: 'timeout' });
+    assert.deepEqual(res.time_limits, [45000], 'the same limit as the second copy of the sync code');
+    assert.notOk(res.no_time_limit, 'the request ends by its time limit');
+    assert.strictEqual(res.proxied, 1, 'then the proxy');
+  });
+
+  test('a web page answered in place of a picture is not saved as the picture', async function(assert) {
+    var res = await fetch_counting_routes(this.target, CDN_PICTURE, 'image', { direct: 'html' });
+    assert.deepEqual([res.direct.length, res.proxied], [1, 1], 'the direct answer is refused and the server is asked');
+    var copy = await on_utils_copy(function(root) { return fetch_counting_routes(root, CDN_PICTURE, 'image', { direct: 'html' }); });
+    assert.deepEqual([copy.direct.length, copy.proxied], [1, 1], 'in the second copy of the sync code too');
+  });
+
+  test('a picture on some other CDN address still goes through the server', async function(assert) {
+    var res = await fetch_counting_routes(this.target, 'https://d000000example.cloudfront.net/images/1/2/3/1_123_0a1b2c3d4e5f-' + SHA + '.png', 'image');
+    assert.deepEqual([res.direct.length, res.proxied], [0, 1]);
+  });
+
+  test('an address that only mentions the uploads CDN goes through the server', async function(assert) {
+    var res = await fetch_counting_routes(this.target, 'https://example.com/pictures/d34sa6lc5jfe66.cloudfront.net/cat.png', 'image');
+    assert.deepEqual([res.direct.length, res.proxied], [0, 1]);
+    res = await fetch_counting_routes(this.target, 'https://d34sa6lc5jfe66.cloudfront.net.example.com/images/cat.png', 'image');
+    assert.deepEqual([res.direct.length, res.proxied], [0, 1], 'a longer host name that starts the same way');
+  });
+
+  test('a sound on the uploads CDN is requested from the CDN, and a button-set file there still goes through the server', async function(assert) {
+    var sound = await fetch_counting_routes(this.target, 'https://d34sa6lc5jfe66.cloudfront.net/sounds/4/5/1_45_0a1b2c3d4e5f-' + SHA + '.mp3', 'sound');
+    assert.deepEqual([sound.direct.length, sound.proxied], [1, 0], 'sound: direct');
+    var list = await fetch_counting_routes(this.target, 'https://d34sa6lc5jfe66.cloudfront.net/extras-cache06123/button_set_cache/1_8006/' + SHA + '.json', 'json');
+    assert.deepEqual([list.direct.length, list.proxied], [0, 1], 'button-set file: proxy');
+  });
+
+  test('the Sync button still refreshes a CDN file that can change (the host alone is not trusted)', async function(assert) {
+    var url = 'https://d34sa6lc5jfe66.cloudfront.net/sentences/1_5/0123456789abcdef012345678/preview.png';
+    var first = await fetch_counting_routes(this.target, url, 'image');
+    assert.ok(first.result.local_url, 'saved as a file the first time');
+    var second = await fetch_counting_routes(this.target, url, 'image', { row: first.result, force: true });
+    assert.strictEqual(second.direct.length, 1, 'downloaded again');
+  });
+
+  test('the second copy of the sync code (utils/persistence.js) also asks the CDN directly', async function(assert) {
+    var res = await on_utils_copy(function(root) { return fetch_counting_routes(root, CDN_PICTURE, 'image'); });
+    assert.deepEqual(res.direct, [CDN_PICTURE + '?cr=1'], 'one direct request');
+    assert.strictEqual(res.proxied, 0, 'no proxy request');
+  });
 });

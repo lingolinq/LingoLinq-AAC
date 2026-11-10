@@ -139,6 +139,103 @@ Investigator's report, not re-verified except where noted.
 - Expected effect: the `search/proxy` requests for uploaded pictures disappear from production syncs. To measure:
   count proxy log lines per sync before and after.
 
+### 7a. Fact sheet and proposal (second session, 2026-11-10)
+
+Re-verified by reading the code and by requests to production. Learnings consulted: the 2026-11-08 entry "The Ember
+Data adapter runs the UTILS persistence copy" (`learnings-archive/2026-11.md:169`), which is why both copies get a test.
+
+**(a) Where the value is read.**
+- CONFIRMED: `store_url_now` builds `cors_match` at `app/frontend/app/services/persistence.js:1551-1552` and reads it
+  once, at `:1577`, to decide whether to send a direct `XMLHttpRequest` (`:1582-1612`). Any rejection of that request
+  (network error, abort, a status other than 200, a blob that cannot be read) reaches the fallback at `:1617`, which
+  asks the external symbol proxy only when `window.symbol_proxy_key` is set (`:1622`) and then
+  `/api/v1/search/proxy` (`:1634`).
+- CONFIRMED: the second copy is `app/frontend/app/utils/persistence.js:1588-1589`, read at `:1614`, proxy at `:1673`.
+- CONFIRMED: nothing else reads `cors_match` (`git grep cors_match -- app/frontend/app`: these two functions only).
+
+**(b) The shapes the address can hold.**
+- CONFIRMED: production uploads are `https://d34sa6lc5jfe66.cloudfront.net/images/<digits>/<id>_<nonce>-<sha>.png`
+  (the public board `lingolinq/crisis-vocabulary` has 47 such addresses, fetched 2026-11-10). The host matches no
+  pattern at `:1546-1552`, so these go to the proxy. Red tests show it (below).
+- CONFIRMED: button-set and other extra-data JSON files are uploaded to the same bucket as `text/json`
+  (`app/models/concerns/extra_data.rb:102`), so on production they are on the same CDN host. A direct request returns
+  that content type, which the decrypt step needs (`services/persistence.js:1649`).
+- CONFIRMED: staging and dev picture and sound addresses are on the bucket host and already go direct
+  (`uploads_bucket`, `:1549-1550`). The change gives production pictures and sounds the route staging already uses.
+  Corrected after review: this is NOT true of button-set files. With no CDN set, staging returns relative
+  button-set addresses (`app/models/board_downstream_button_set.rb:326`, `:391`), which go through the proxy, so
+  a direct request for a production button-set file has no precedent anywhere.
+- CONFIRMED: the trust decision (`trusted_not_to_change`, `:1546-1548`, `:1556`) is separate from the route. This
+  change does not touch it.
+- Production does not set `SYMBOL_PROXY_KEY` (neither the page nor the globals bundle carries it; reviewer's
+  check), so the fallback there goes straight to `/api/v1/search/proxy`.
+
+**(c) Claims about other systems.**
+- CONFIRMED: the CDN answers `access-control-allow-origin: *` for `Origin: https://app.lingolinq.com`,
+  `capacitor://localhost` and `https://localhost`, with `?cr=1`, and for an `OPTIONS` preflight (curl, 2026-11-10,
+  one public picture). A missing file answers 403 (reviewer's check), so it falls back to the proxy.
+- CONFIRMED: the frontend has no source for the CDN host today. The server reads `UPLOADS_S3_CDN` in
+  `lib/uploader.rb`, `app/models/concerns/extra_data.rb:196`, `app/models/concerns/uploadable.rb:215` and
+  `app/models/board_downstream_button_set.rb:326`, `:391`, and sends it to no page.
+- Corrected after review: there IS a route by which a server setting reaches the mobile apps. `extras:mobile` writes
+  the live `/api/v1/domain_settings` answer into the app (`lib/tasks/extras.rake:730`), and the web page reads the
+  same settings. `globals.js.erb` is not part of the bundle the apps copy (`app/assets/javascripts/application.js:1-5`).
+- CONFIRMED: the offline shell's worker leaves requests to other origins alone
+  (`app/views/offline_shell/service_worker.js.erb:147`), and the CSP is report-only and allows the host
+  (`config/initializers/content_security_policy.rb:71`).
+- REPORTED by the first session, not re-run: the direct blob request works in the installed Android app (the
+  emulator sync fetched the staging-bucket pictures directly).
+- NOT CHECKED: the CDN's behaviour for a button-set file (no production account here); CloudFront's cache policy.
+
+**Candidate fixes.**
+- **B (recommended): name the production CDN host in one small helper** (`app/frontend/app/utils/uploads_cdn.js`,
+  `on_uploads_cdn(url)`, anchored to `https://d34sa6lc5jfe66.cloudfront.net/`), and add it to `cors_match` in both
+  copies, in place on the existing line. Works the same on the web, in the offline shell and in the mobile apps,
+  with no server change. Cost: a production host name in source (the list already names buckets and two old CDN
+  hosts). If the CDN host ever changes, pictures quietly go back through the proxy and still work.
+- **A: the server tells the app the CDN host**, through `/api/v1/domain_settings`. Correct for any deployment and
+  it follows a CDN change (on the web at once, in the apps at their next build). It needs a server change and its
+  spec as well. Not chosen for now because B is smaller; it remains a sound follow-up. Neither A nor B can be
+  switched off in the installed apps without an app release.
+- **C: try any address shaped like an upload directly, on any host.** No host list, but it sends a device's request
+  to hosts the proxy used to hide it from, and adds a failed request before every proxied one on hosts without CORS.
+- Rejected as simplest alternative: adding the host inline to both regex lists (the same idea twice, Rule 0.6).
+
+**Risks.**
+- A direct download skips the proxy's content-type list, size cap and cut-off check
+  (`app/controllers/api/search_controller.rb:438-460`). The same is already true for every staging and dev upload
+  and for symbol-library pictures. The files are LingoLinq's own uploads, whose type and size were limited when
+  they were uploaded.
+- Button-set JSON on production moves to the direct route too (same host). Staging does this today. Not measured
+  on production.
+- The `.eslint-todo` baseline is line-anchored: the edit stays on the existing `cors_match` line and the import
+  goes with the others at the end of each file.
+
+**Review outcome (adversary agent, 2026-11-10; each finding checked in the code before acting).** Ship with
+conditions, all applied:
+1. The service copy's direct request had no time limit (the utils copy has 45 s). Added, with the `timeout`
+   listener, so a stalled CDN connection falls back to the proxy and frees its slot.
+2. A direct answer of status 200 with a web page (a filtering network) was saved as the picture. Now refused in
+   both copies when the type is `text/html`, so the proxy is asked. Narrower than the reviewer's "only image, audio
+   or JSON": a stricter list could refuse files that load directly today.
+3. The fact sheet is corrected above.
+4. Tests added: the host alone is not trusted (Sync still refreshes a changeable CDN file); a longer host name
+   that starts the same way; a 403; a timeout; a web page answer, in both copies.
+My own narrowing after the review: only pictures and sounds take the direct route (`on_uploads_cdn(url, type)`).
+Button-set files on the CDN stay on the proxy until a direct request for one is tried against production.
+
+**Questions not resolved.** Whether `cr=1` is in the CDN cache key (if it is, the app's requests and the page's
+`<img>` requests are cached separately at the edge; correctness is unaffected). Native iOS behaviour on a short
+body.
+
+**Tests** (`tests/unit/utils/persistence-saved-pictures-test.js`, ten; before the fix 7 of the first 9 failed and 2
+are guards): a CDN picture is requested from the CDN and not through the server; a failed direct request, a 403
+and a timeout fall back to the proxy; a web page answer is refused; another CloudFront host and look-alike
+addresses still use the proxy; a sound goes direct and a button-set file does not; the host alone is not
+trusted; the utils copy also goes direct. Mutations that must fail: remove the helper from either copy's `cors_match` (the
+service tests or the utils test); loosen the host pattern to any CloudFront host or drop its anchor (the two
+guards).
+
 ## 8. Three small sync items
 
 Investigator's report by code trace; nothing was run.
