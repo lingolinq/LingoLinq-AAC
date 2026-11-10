@@ -87,11 +87,14 @@ jobs:
           echo "MAGICK_CONFIGURE_PATH=$GITHUB_WORKSPACE/config/imagemagick" >> "$GITHUB_ENV"
 
       # A separate step because a value written to GITHUB_ENV reaches only later steps. The specs skip
-      # when montage is missing (spec/lib/image_magick_runner_spec.rb:78), so without this a broken
-      # install goes back to skipping and CI stays green. The policy checks are the production image's
-      # (Dockerfile:66-70). No pipefail, on purpose: the last check needs convert to be REFUSED, which
-      # is a non-zero exit, so no check is written as a pipe. Each failure names its check and prints what
-      # ImageMagick said (messages only: the text: read goes to null:), so a mismatch is diagnosable.
+      # when montage is missing (the two "ImageMagick not installed" guards in
+      # spec/lib/image_magick_runner_spec.rb), so without this a broken install goes back to skipping
+      # and CI stays green. The policy checks are the production image's (Dockerfile:66-70). No check is
+      # written as a pipe, so a failing command cannot hide behind a later one; the one command that is
+      # MEANT to fail, convert being refused, writes to a file that is then checked. Each failure names
+      # its check and prints what ImageMagick said (messages only: the text: read goes to null:). The
+      # PCL and TEXT checks read the whole loaded policy, so the distribution's own file could satisfy
+      # them; the listing is printed so the log shows which file carries each rule.
       - name: Verify ImageMagick and its policy
         run: |
           fail() { echo "::error::ImageMagick check failed: $1"; cat "$2"; exit 1; }
@@ -101,7 +104,7 @@ jobs:
           convert -version > "$RUNNER_TEMP/im-version.txt"
           head -1 "$RUNNER_TEMP/im-version.txt"
           convert -list policy > "$policy"
-          grep '^Path:' "$policy" || fail 'no policy file is listed' "$policy"
+          echo '::group::ImageMagick policy as loaded'; cat "$policy"; echo '::endgroup::'
           grep -qF "Path: $GITHUB_WORKSPACE/config/imagemagick/policy.xml" "$policy" || fail 'the repo policy file is not loaded' "$policy"
           grep -qi 'pattern: PCL' "$policy" || fail 'the policy was not read through its last coder rule' "$policy"
           convert text:/etc/passwd null: > "$refusal" 2>&1 || true
