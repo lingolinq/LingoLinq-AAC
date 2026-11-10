@@ -1773,3 +1773,22 @@ longer view fails as any refused board does today.
 stably across pages (a board skipped between pages would be missed until the next sync).
 
 **Mutation that must turn the test red:** remove the call to the new function (or return no extra seeds).
+
+**Review outcome (2026-11-09, adversarial review; the two High points re-checked in the code): candidate 1 as
+written is NOT safe to build.** Corrections to the proposal above:
+- Fact (c) was WRONG. The starred list does not return all liked boards: it keeps only boards owned by the user or
+  their supervisees, or public ones (`boards_controller.rb:135-139`). A liked PRIVATE board owned by someone else (a
+  therapist's board shared with the child) is dropped, with no error. The first 25 refs have no such filter.
+- `meta.next_url` for boards carries no `user_id` or `starred` (`lib/json_api/json.rb:57`; `JsonApi::Board` has no
+  `paginate_meta`), and an index call without `user_id` becomes the public catalog (`boards_controller.rb:156`). A
+  pager must re-send the query with `meta.next_offset`, never follow `next_url`.
+- The "Liked tab" citation was wrong: `board-picker.js:383` is a category browse query. The Liked list is
+  `controllers/user/index.js:1402`.
+- Liked shallow clones come back from the list under a different id and key than the refs carry, so de-duplication
+  must compare root ids (reviewer, not re-checked by me).
+- The red test passes for several wrong fixes (no trigger, page 1 only, no de-duplication) and its list fixture is
+  richer than the real summary response. It needs controls before it can carry a fix.
+- Cost was understated: every key-only seed is reloaded on every sync, plus each liked board's folders.
+Reviewer's alternative, now the leading candidate: a sync-only server call that returns the remaining liked refs
+(same id and key forms as the profile refs, no visibility filter beyond the existing `supervise` gate), so the cost
+is paid only when a sync asks. Needs Traci's decision (it is a small server change). Nothing built.
