@@ -2,18 +2,18 @@
 #
 # prod-mail-failure-alert.sh - log-match alert on the production app's handled email sending
 # failures. Closes the #1117 follow-up (an alert on the inactivity sweep's "mail stopped" line)
-# and covers part of the #1145 "SES alarm on send errors" item.
+# and the send-error half of the #1145 "SES alarm" item.
 #
 # WHAT IT MATCHES (prod-mail-failure-alert.json)
-#   textPayload containing "[inactivity sweep] mail stopped" (app/models/concerns/subscription.rb)
-#   or "SES delivery failed" (app/mailers/concerns/general.rb, the one SES error
-#   General.deliver_message swallows), from cloud_run_job, cloud_run_revision or
+#   textPayload containing "[inactivity sweep] mail stopped" (app/models/concerns/subscription.rb),
+#   "SES delivery failed" (app/mailers/concerns/general.rb, the one SES error
+#   General.deliver_message swallows), or "[job failed] ...Mailer . deliver_message" (a queued
+#   mail job that raised; lib/job_failure_log.rb), from cloud_run_job, cloud_run_revision or
 #   cloud_run_worker_pool resources in lingolinq-prod.
 #
 # WHAT IT DOES NOT COVER
-#   Every other error from queued mail raises into its Resque job and is recorded only in
-#   Resque's Redis failed list, with no log line. A log line for job failures is a separate
-#   change; until then this alert is not a full "email is failing" signal.
+#   Mail that SES accepts and later bounces (the SES reputation alarms cover that), and mail
+#   sent inline outside a job whose error is rescued by its caller.
 #
 # ASSUMPTION TO CONFIRM ONCE
 #   The app logs plain text to STDOUT (config/environments/production.rb), which Cloud Logging

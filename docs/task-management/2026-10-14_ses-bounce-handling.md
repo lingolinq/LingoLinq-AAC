@@ -589,3 +589,20 @@ Verdict: Approve with comments (no Critical or High). Done:
 - Low, `--check` claims more than it checks: wording narrowed in `ses-feedback-queue-setup.sh`;
   `ses-reputation-alarms.sh --check` still compares namespace, metric, threshold, statistic, actions and
   dimensions only (noted).
+
+## Owner decisions, 2026-11-09 (second round) and what was done
+
+- `mail_accepted` (approved): a skipped notice no longer releases held SES rejections. The existing
+  example "counts rejections once a message in the run was accepted" now uses an account with an address
+  (owner-approved fixture change); new example "does not take a notice that was not sent as an accepted
+  message" failed first. Falsified: dropping `|| skip_reason` turns it red. Subscription spec 256/0.
+- Job-failure log line (approved): `lib/job_failure_log.rb`, a Resque `on_failure_log` hook extended by
+  `Worker` and `SlowWorker` (Resque runs every `on_failure*` class method from `Job#fail`), logging
+  `[job failed] <class> . <method>[ (<mail type>)] <error class>` and nothing else. Loaded with
+  `require_relative` like `lib/legacy_links.rb`. The GCP alert also matches it for mailers. Specs run
+  the hook through a real `Resque::Job#fail`. Self-inflicted error 2: my new spec first expected hook
+  names as symbols (Resque returns strings). With two errors this session, I stopped after this unit
+  (Rule 13).
+- Found, unrelated and pre-existing: the app does not boot with `RESQUE_WORKER=true` on develop either
+  (`config/environment.rb:33`, `uninitialized constant AppSearcher`), so that setting is unused in
+  production. Not changed here.

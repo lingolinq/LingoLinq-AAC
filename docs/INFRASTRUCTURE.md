@@ -241,12 +241,13 @@ the WIF ref conditions, and the candidate rollout, not branch provenance.
   drops a message received 3 or more times from that metric); the DLQ alarm does. The
   subscription delivers nothing until its confirmation link is clicked.
 - **Send-failure alert (GCP).** `scripts/gcp/prod-mail-failure-alert.{json,sh}`
-  (`--check`, `--apply`): a log-match policy on `[inactivity sweep] mail stopped` and
-  `SES delivery failed` from the scheduler Job, the web service and the worker pool, on the
-  scheduler liveness alert's proven channel. It does not cover other errors from queued
-  mail (password reset, consent and notification mail run as Resque jobs): those raise into
-  the job and land only in Resque's Redis failed list, with no log line. Confirm once that
-  app logs are `textPayload` (the command is in the script header).
+  (`--check`, `--apply`): a log-match policy on `[inactivity sweep] mail stopped`,
+  `SES delivery failed`, and `[job failed] <Mailer> . deliver_message` from the scheduler Job,
+  the web service and the worker pool, on the scheduler liveness alert's proven channel.
+  Every failed Resque job logs `[job failed] <class> . <method> <error class>`
+  (`lib/job_failure_log.rb`, a Resque failure hook on `Worker` and `SlowWorker`; no
+  arguments or error message). Confirm once that app logs are `textPayload` (the command is
+  in the script header).
 - **Moving messages out of the DLQ.** After fixing the cause, an admin principal runs
   `aws sqs start-message-move-task --source-arn arn:aws:sqs:us-west-2:239044785114:lingolinq-ses-feedback-dlq --region us-west-2`
   (no destination: messages go back to the queue they came from), and checks progress with
