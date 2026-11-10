@@ -1955,3 +1955,32 @@ function so its truth table for existing inputs is unchanged.
 **Unresolved:** whether `suggested board` and the fallback `crisis vocabulary` seed should be included (develop
 parity says yes for suggested under the liked-list home; crisis was normally a sidebar board).
 **Mutation:** drop the depth-1 `starred board` case: the unit test and the full-sync test go red.
+
+**Proposal 4 reviewed (proceed with changes) and built (2026-11-10).** Design changed to the reviewer's simpler
+form: every seed from `offline_sync_seeds` carries `button_set: true`, and both sync copies ask
+`offlineSyncSeeds.gets_button_set(next)` in place of the inline condition (`services/persistence.js:3109`,
+`utils/persistence.js:3137`; the conditions were byte-identical). The depth-0 `starred board`, `owned root`,
+`public root` cases had no producer left and are gone. Also: a liked or suggested board that is the home board is
+no longer seeded twice (the home seed has an id, the liked seed only a key, so the sync visited it twice).
+Corrections to the proposal: the utils copy's lookup is at `utils/persistence.js:3139-3146`; develop also gave
+button sets to up to 200 owned and 150 public roots; the cost is per synced user, so supervisees multiply it.
+**Risks, rewritten after review:** `load_button_set` failures cannot fail the board or raise a modal
+(`models/board.js:1395` swallows them), but button-set files go through the same download queue as pictures
+(`services/persistence.js:1466-1512`: 3 slots, 2 on mobile, 1 on Android) and their saves count toward the sync's
+failed-write tally, so on a nearly full device a failed button-set save can mark the sync "out of storage", and
+pictures can queue behind large files. On dev and staging, where the bucket refuses these files, each forced load
+ends in a `generate` POST that schedules a Resque job. This is less than develop did and more than the branch did
+an hour ago.
+**Tests:** unit (`offline-sync-seeds-test.js`): every seed gets a button set; a linked board does not; home that is
+also liked is one seed. Full sync (`persistence-sync-test.js` "button sets for the boards a sync starts from"), run
+for the service copy and the utils copy: the liked board's button set is looked up, the linked board's is not.
+Mutations: utils copy left on the old condition: the utils test fails alone; liked seeds unmarked: the unit test and
+both full-sync tests fail. Whole module with `timingStrict=1`: 93 tests, 92 pass, 1 existing skip, 0 fail, no
+`[queued-fetch]` or `[late-read]`. In the utils harness the sync ends with "unspecified sync error" after the boards
+are done (the existing "revoked boards" utils test ends the same way, checked), so only the service run asserts the
+outcome.
+**NOT done from the review:** a measured e2e sync with about 10 liked boards before and after (duration, generate
+POSTs, failed writes). The local e2e stack serves button sets from the database, not the refusing bucket, and its
+`generate` jobs would go to the Redis the development server shares, so it would not show the staging behaviour.
+To measure with the #1212 app run against staging; if it worsens #1212, move the button-set step after
+`sync_boards` resolves.

@@ -5219,17 +5219,6 @@ describe("persistence-sync", function() {
   // to window.persistence). The 'utils' case hides the service's sync() so the utils copy's
   // sync and sync_boards run, keeping the hooks there covered too (state stays on the service).
   describe("revoked boards", function() {
-    function utilsSyncWindow(service) {
-      return new Proxy(service, {
-        has: function(target, prop) { return prop === 'sync' ? false : (prop in target); },
-        get: function(target, prop) {
-          if(prop === 'sync') { return undefined; }
-          var val = target[prop];
-          return typeof val === 'function' ? val.bind(target) : val;
-        }
-      });
-    }
-
     var denied_body = {error: 'Not authorized', unauthorized: true, permission: 'view', status: 400};
 
     function revokedBoards() {
@@ -6346,6 +6335,86 @@ describe("persistence-sync", function() {
       });
     });
   });
+
+  // A liked board is one the sync starts from, so it gets its button set checked like the home board
+  // (utils/offline_sync_seeds.js gets_button_set). A board it links to does not get its own.
+  describe("button sets for the boards a sync starts from", function() {
+    ['service', 'utils'].forEach(function(impl) { it(impl + " sync: checks the button set of a liked board, and not of a board it links to", function() {
+      db_wait(function() {
+        cancelSyncTailWork();
+        unloadSyncStoreRecords();
+        resetSyncTestCaches();
+        var tailDone = false;
+        enableRealSyncBoards(stubOnPersistence, function() { tailDone = true; });
+        persistence.set('sync_log', null);
+        persistence.set('sync_progress', null);
+        persistence.set('sync_status', null);
+        stubStoreUrl(function(url) { return RSVP.resolve({url: url}); });
+        stub(modal, 'error', function() { });
+        stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+        var target = persistenceTarget() || persistence;
+        var priorFind = target.find;
+        var buttonSetChecks = [];
+        stubOnPersistence('find', function(store, key) {
+          if(store === 'buttonset') {
+            buttonSetChecks.push(key);
+            return RSVP.resolve({full_set_revision: 'current', buttons: []});
+          }
+          return priorFind.apply(target, arguments);
+        });
+        var grid = {rows: 1, columns: 1, order: [['1']]};
+        var liked = {id: '1_501', key: 'fred/liked', full_set_revision: 'current', permissions: {}, current_revision: 'current', image_urls: {},
+          image_url: 'http://example.com/board.png', buttons: [{id: '1', label: 'more', load_board: {id: '1_502', key: 'fred/linked'}}], grid: grid};
+        var linked = {id: '1_502', key: 'fred/linked', full_set_revision: 'current', permissions: {}, current_revision: 'current', image_urls: {},
+          image_url: 'http://example.com/board.png', buttons: [], grid: {rows: 1, columns: 1, order: [[null]]}};
+        queryLog.defineFixture({
+          method: 'GET',
+          type: 'user',
+          response: RSVP.resolve({user: {
+            id: '1340', user_name: 'fred', avatar_url: 'http://example.com/pic.png', preferences: {},
+            stats: {starred_boards: 1, starred_board_refs: [{id: liked.id, key: liked.key, image_url: liked.image_url}]}
+          }}),
+          id: '1340'
+        });
+        queryLog.defineFixture({ method: 'GET', type: 'board', response: RSVP.resolve({board: liked}), id: liked.key });
+        queryLog.defineFixture({ method: 'GET', type: 'board', response: RSVP.resolve({board: linked}), id: linked.id });
+        cacheStoredUrl('http://example.com/pic.png');
+        cacheStoredUrl('http://example.com/board.png');
+        defineCrisisVocabularyFixture();
+
+        var result = null;
+        var service = window.persistence;
+        var ranUtils = false;
+        if(impl === 'utils') {
+          // As in "revoked boards": hide the service's sync and put the utils traversal back.
+          window.persistence = utilsSyncWindow(service);
+          var utilsSyncBoards = Object.getPrototypeOf(persistence).sync_boards;
+          stub(persistence, 'sync_boards', function() {
+            ranUtils = true;
+            return utilsSyncBoards.apply(this, arguments).then(function(res) { tailDone = true; return res; });
+          });
+        }
+        var finish = function(res) { window.persistence = service; result = res || 'done'; };
+        persistence.sync(1340).then(finish, finish);
+        waitsFor(function() { return waitForSyncDoneAndSettled(result) && tailDone; });
+        runs(function() {
+          expect(ranUtils).toEqual(impl === 'utils');
+          expect(logById(queryLog, linked.id)).toNotEqual(undefined);
+          // The sync names a board by the id or key it was looked up with: a liked board is seeded by its key.
+          var checked = function(board) { return buttonSetChecks.indexOf(board.id) !== -1 || buttonSetChecks.indexOf(board.key) !== -1; };
+          expect(checked(liked)).toEqual(true);
+          expect(checked(linked)).toEqual(false);
+          // In this harness the utils copy's sync ends with "unspecified sync error" after the boards are done
+          // (the "revoked boards" utils test ends the same way), so only the service run checks the outcome.
+          var log = (persistenceTarget() || persistence).get('sync_log') || [];
+          if(impl === 'service') { expect((log[log.length - 1] || {}).issues).toEqual(false); }
+          cancelSyncTailWork();
+          persistence.set('sync_progress', null);
+          LingoLinq.sync_testing_real_boards = false;
+        });
+      });
+    }); });
+  });
 });
 // Every sync also starts from Crisis Vocabulary (#1221, utils/offline_sync_seeds.js), so the tests that run a
 // real sync answer it. Placed last so the ESLint baseline rows above do not move; function declarations are hoisted.
@@ -6355,6 +6424,17 @@ function crisisVocabularyBoard() {
 }
 function isCrisisVocabularyRequest(url) {
   return !!url && /\/api\/v1\/boards\/(lingolinq\/crisis-vocabulary|1_900)(\?|$)/.test(url);
+}
+// Hides the service's sync() so persistence.sync runs the utils/persistence.js copy (state stays on the service).
+function utilsSyncWindow(service) {
+  return new Proxy(service, {
+    has: function(target, prop) { return prop === 'sync' ? false : (prop in target); },
+    get: function(target, prop) {
+      if(prop === 'sync') { return undefined; }
+      var val = target[prop];
+      return typeof val === 'function' ? val.bind(target) : val;
+    }
+  });
 }
 function defineCrisisVocabularyFixture() {
   queryLog.defineFixture({ method: 'GET', type: 'board', response: RSVP.resolve({board: crisisVocabularyBoard()}), id: 'lingolinq/crisis-vocabulary' });
