@@ -25,7 +25,7 @@ const CHROME_ROUTES = [
      each page's own markup, so a page needs no `md-shell` of its own to receive it — `search`
      has none. None of the three maps to a pill (utils/primary_nav.js), so `globalNavActive`
      stays null and they get the rail WITHOUT a second nav, exactly as board-picker does. */
-  'create-board-new', 'search', 'offline_boards'
+  'create-board-new', 'search', 'offline_boards', /* System Settings' pages (2026-11-09, requested: "add the menus like the other app pages"): the rail, no pill, as Goals has */ 'system-settings.index', 'system-settings.emails', 'system-settings.email-edit', 'system-settings.app-defaults', 'system-settings.features'
 ];
 import { isTesting } from '@ember/debug';
 import EmberObject from '@ember/object';

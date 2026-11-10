@@ -1,13 +1,15 @@
-<div class="la-wrapper la-wrapper--pricing la-wrapper--support la-system-settings">
-  <div class="app-shell">
-    <main class="la-main">
-      {{!-- Basic only: the rail beside every settings page, as on Organizations. A direct
-           child of `.la-main` so _classic-home.scss can turn this one page's main into a row;
-           Modern renders exactly as before. --}}
+{{!-- AN APP PAGE, BUILT AS THE OTHERS ARE (2026-11-09, requested: "modern -> add the menus like the
+     other app pages"). It was the public site's marketing page (`la-wrapper` / `la-main`, a fixed
+     full-screen layer), which in Modern covered the app shell's rail and set its own spacing. Now
+     `.md-shell` > `.md-workspace`, the structure of templates/organizations.hbs: Modern's app shell
+     wraps it with the rail (controllers/application.js CHROME_ROUTES), and in Basic its own rail is a
+     direct child of `.md-shell`, turned into a row by the rule Organizations and the board picker use
+     (_classic-home.scss). --}}
+<div class="md-shell md-shell--system-settings la-system-settings">
       {{#if this.isBasicView}}
         <Dashboard::ClassicRail @menuLabel={{t "System Settings" key="system_settings_title"}} />
       {{/if}}
-      <div class="md-workspace md-workspace--support">
+      <div class="md-workspace">
         {{!-- THE APP'S PAGE HEADER, NOT THE MARKETING HERO (2026-11-09, requested: "the header and
              subheader styles don't match the other pages", and "it starts too far down"). It was
              `la-section` / `la-hero-title` / `la-pricing-hero-subtitle` from the public pricing and
@@ -53,6 +55,4 @@
           </div>
         </section>
       </div>
-    </main>
-  </div>
 </div>

@@ -44324,7 +44324,8 @@ a.md-goal-nav-action:hover,
   font-weight: 700;
   color: $brand-slate-blue;
 }
-.md-preferences__form .form-control {
+.md-preferences__form .form-control,
+.la-system-settings__body .form-control {
   font-size: 14px;
   padding: 8px 14px;
   border: 1.5px solid rgba($brand-blue-black, 0.12);
@@ -44332,7 +44333,8 @@ a.md-goal-nav-action:hover,
   color: var(--md-ink);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.md-preferences__form .form-control:focus-visible {
+.md-preferences__form .form-control:focus-visible,
+.la-system-settings__body .form-control:focus-visible {
   border-color: var(--md-teal);
   box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.12);
   outline: none;
@@ -44360,7 +44362,10 @@ a.md-goal-nav-action:hover,
   color: var(--md-muted);
 }
 /* Modern checkboxes */
-.md-preferences__form input[type="checkbox"] {
+/* System Settings' feature checkboxes share these (2026-11-09, requested: "the features page
+   checkmarks are the old bootstrap styles/colors"). */
+.md-preferences__form input[type="checkbox"],
+.la-system-settings__body input[type="checkbox"] {
   -webkit-appearance: none !important;
   -moz-appearance: none !important;
   appearance: none !important;
@@ -44381,11 +44386,13 @@ a.md-goal-nav-action:hover,
   margin: 0 8px 0 0 !important;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
-.md-preferences__form input[type="checkbox"]:checked {
+.md-preferences__form input[type="checkbox"]:checked,
+.la-system-settings__body input[type="checkbox"]:checked {
   background: #fff !important;
   border-color: rgba($brand-blue-black, 0.4) !important;
 }
-.md-preferences__form input[type="checkbox"]:checked::after {
+.md-preferences__form input[type="checkbox"]:checked::after,
+.la-system-settings__body input[type="checkbox"]:checked::after {
   content: '';
   position: absolute;
   top: 2px;
@@ -44396,7 +44403,8 @@ a.md-goal-nav-action:hover,
   border-width: 0 2px 2px 0 !important;
   transform: rotate(45deg);
 }
-.md-preferences__form input[type="checkbox"]:hover {
+.md-preferences__form input[type="checkbox"]:hover,
+.la-system-settings__body input[type="checkbox"]:hover {
   border-color: rgba($brand-blue-black, 0.4) !important;
 }
 .md-preferences__form .big_checkbox {
@@ -44499,8 +44507,10 @@ a.md-goal-nav-action:hover,
     position: static;
   }
 }
-/* Modern select dropdowns in preferences */
-.md-preferences__form select.form-control {
+/* Modern select dropdowns in preferences, and System Settings' (2026-11-09, requested: its "category
+   dropdowns and select lists" in the modern style) */
+.md-preferences__form select.form-control,
+.la-system-settings__body select.form-control {
   padding: 6px 32px 6px 14px;
   height: auto;
   line-height: 1.4;
@@ -95182,8 +95192,11 @@ body.md-tour--centered-step .shepherd-modal-overlay-container.shepherd-modal-is-
   gap: 24px;
   padding: 0 32px 40px;
 }
+/* TEXT AT 14px (2026-11-09, requested: "make the table text font size 14px"). These were `rem`,
+   and 1rem is 10px in this app, so the page read at 10px; 14px is the project floor for small
+   text, 16px for the feature names that lead each row. */
 .la-system-settings__body {
-  font-size: 1rem;
+  font-size: 14px;
   line-height: 1.55;
   color: var(--md-ink, $brand-blue-black);
 }
@@ -95223,18 +95236,18 @@ body.md-tour--centered-step .shepherd-modal-overlay-container.shepherd-modal-is-
   width: 100%;
 }
 .la-system-settings__label-text {
-  font-size: 1rem;
+  font-size: 14px;
   font-weight: 600;
   color: var(--md-muted, $la-navy);
 }
 .la-system-settings__table {
-  font-size: 1rem;
+  font-size: 14px;
 }
 .la-system-settings__link {
   font-weight: 600;
 }
 .la-system-settings__textarea {
-  font-size: 1rem;
+  font-size: 14px;
   line-height: 1.5;
   font-family: inherit;
   margin-bottom: 16px;
@@ -95263,7 +95276,7 @@ body.md-tour--centered-step .shepherd-modal-overlay-container.shepherd-modal-is-
 }
 
 .la-system-settings__hint {
-  font-size: 1rem;
+  font-size: 14px;
   color: var(--md-muted, $la-navy);
   margin-bottom: 16px;
 }
@@ -95281,17 +95294,22 @@ body.md-tour--centered-step .shepherd-modal-overlay-container.shepherd-modal-is-
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 12px;
-  font-size: 1.05rem;
+  font-size: 16px;
   font-weight: 600;
   margin-bottom: 4px;
 }
+/* An env-locked feature cannot be toggled here: say so in the box itself. */
+.la-system-settings__feature-label input[type="checkbox"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .la-system-settings__feature-key {
-  font-size: 0.95rem;
+  font-size: 14px;
   font-weight: 400;
   color: var(--md-muted, $la-navy);
 }
 .la-system-settings__feature-desc {
-  font-size: 1rem;
+  font-size: 14px;
   margin: 4px 0 8px;
   color: var(--md-muted, $la-navy);
 }
@@ -95303,25 +95321,25 @@ body.md-tour--centered-step .shepherd-modal-overlay-container.shepherd-modal-is-
 }
 .la-system-settings__preview-text {
   white-space: pre-wrap;
-  font-size: 1rem;
+  font-size: 14px;
   max-height: 320px;
   overflow: auto;
 }
 .la-system-settings__vars code {
-  font-size: 1rem;
+  font-size: 14px;
 }
 .la-system-settings__vars-heading {
-  font-size: 1.15rem;
+  font-size: 18px;
   margin: 1.25rem 0 0.5rem;
 }
 .la-system-settings__vars-detail {
   margin: 0 0 1rem;
   dt {
-    font-size: 1rem;
+    font-size: 14px;
     margin-top: 0.75rem;
   }
   dd {
-    font-size: 1.05rem;
+    font-size: 14px;
     margin: 0.25rem 0 0 0;
   }
 }
