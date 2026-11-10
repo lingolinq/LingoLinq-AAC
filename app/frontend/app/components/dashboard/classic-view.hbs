@@ -186,7 +186,10 @@
           </button>
         </li>
 
-        {{!-- Home board: open it, wait on the copy, or go pick one. --}}
+        {{!-- Home board: open it, wait on the copy, or go pick one. The second line is the board's
+             NAME, not its key (requested 2026-11-09), from the unit both rails use
+             (components/home-board-name.js); the key's slug while it loads or offline. This home
+             page's copy of the row and classic-rail.hbs's must change together. --}}
         <li class="ch-rail__item">
           {{#if this.homeBoardKey}}
             <LinkTo @route="board" @model={{this.homeBoardKey}} class="ch-row ch-row--board">
@@ -196,7 +199,7 @@
               <span class="ch-row__short" aria-hidden="true">{{t "Board" key="classic_short_board"}}</span>
               <span class="ch-row__body">
                 <span class="ch-row__title">{{t "Home Board" key="home_board"}}</span>
-                <span class="ch-row__sub">{{this.homeBoardKey}}</span>
+                <span class="ch-row__sub"><HomeBoardName @user={{this.appState.currentUser}} /></span>
               </span>
               <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
             </LinkTo>

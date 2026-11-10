@@ -128,49 +128,6 @@ export default Component.extend({
   router: service('router'),
   app_state: service('app-state'),
   stashes: service('stashes'),
-  store: service('store'),
-
-  /* THE HOME BOARD ROW'S NAME (2026-11-08, requested: "the home board needs to show the board name,
-     not the board id"). `preferences.home_board` holds only id, key, locale and level, so the name
-     comes from the board record, read the way the dashboard reads it
-     (components/dashboard/authenticated-view.js `_findSpeakBoard`): peeked from the store by id,
-     else by key, and fetched once by key when it is not loaded. Until then, and offline, the row
-     keeps the key's slug (the template's fallback), so it is never blank. */
-  _homeBoardTick: 0,
-  _findHomeBoard: function() {
-    var target = this.get('user.preferences.home_board');
-    var store = this.get('store');
-    if(!store || !target || !target.key) { return null; }
-    var rec = null;
-    try { rec = target.id ? store.peekRecord('board', target.id) : null; } catch(e) { rec = null; }
-    if(!rec && store.peekAll) {
-      rec = store.peekAll('board').find(function(b) { return b.get('key') === target.key; }) || null;
-    }
-    return rec;
-  },
-  /* The record is its own property and the name is read through it, so renaming the board while
-     the rail is up reaches the row (review 2026-11-09); the lookup reruns on a fetch arriving
-     (`_homeBoardTick`) or a new home board. */
-  homeBoardRecord: computed('_homeBoardTick', 'user.preferences.home_board.{id,key}', function() {
-    return this._findHomeBoard();
-  }),
-  homeBoardName: computed('homeBoardRecord.name', 'user.preferences.home_board.name', function() {
-    var rec = this.get('homeBoardRecord');
-    return (rec && rec.get('name')) || this.get('user.preferences.home_board.name') || null;
-  }),
-  didReceiveAttrs() {
-    this._super(...arguments);
-    var _this = this;
-    var key = this.get('user.preferences.home_board.key');
-    var store = this.get('store');
-    if(!key || this._findHomeBoard() || !store || !store.findRecord) { return; }
-    this._homeBoardRequested = this._homeBoardRequested || {};
-    if(this._homeBoardRequested[key]) { return; }
-    this._homeBoardRequested[key] = true;
-    store.findRecord('board', key).then(function() {
-      if(!_this.isDestroyed && !_this.isDestroying) { _this.incrementProperty('_homeBoardTick'); }
-    }, function() { /* offline or gone: the row keeps the slug */ });
-  },
 
   /* ON THE HOME PAGE ITSELF, under either of its route names -- not the wider Home section that
      `activeRow` lights for the pill nav's destinations. Same route reads as `activeRow`. */
