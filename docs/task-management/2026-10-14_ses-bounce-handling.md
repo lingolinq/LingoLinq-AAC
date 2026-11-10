@@ -430,3 +430,87 @@ Each finding re-checked before acting.
 - Low (bounced users now reach `generate_password_reset`'s bare save, lost-update race with an email
   change): PLAUSIBLE, same race every enabled user already has. Accepted, noted.
 - Low (`email_disabled_at` churn): applied, written only on the absent-to-true transition.
+
+## A and B landed
+
+- A: `6997ac4b1`. Falsified: M1 bypass every disabled user (2/2 red), M2 block every disabled user
+  (2/2), M3 overwrite an existing reason (2 red), M4 clear only the flag (1), M5 seeder skips any
+  disabled row (1), M6 seeder writes no reason (2). Touched files: 985 examples, 0 failures.
+- B: `7016748db`. Falsified: B1 no audit (3 red), B2 audit always (2), B3 decide from the batch copy
+  (1), B4 wrong step (1), B5 predicate ignores email_disabled (2). Every spec file that reaches the
+  mail gate: 1473 examples, 0 failures.
+- Trace to the read: `forgot_password` decides at `users_controller.rb:905` before
+  `generate_password_reset`; the sweep's `skip_reason` is read from the locked row and the audit sits on
+  the only path where delivery raised nothing (the rescue branches `next` or `break` first).
+- Not done, needs owner approval (Rule 14): gating `mail_accepted` on an actually-sent notice. The
+  existing example "counts rejections once a message in the run was accepted"
+  (`subscription_spec.rb`, `describe "every message rejected"`) uses a no-address account as its
+  accepted message, so that fix would change an existing test's fixture.
+
+## Infra proposal (C send errors, D the #1117 alert, E filtered queue and DLQ)
+
+Facts
+- CONFIRMED app send-failure log lines: `[inactivity sweep] mail stopped for this run: ...`
+  (`subscription.rb`, the `mail_stopped` branch) and `Mailer <Class>.<method> SES delivery failed`
+  (`mailers/concerns/general.rb:33`, the only error `deliver_message` swallows). Other delivery errors
+  raise into the Resque job.
+- ASSUMED, supported: Rails logs reach Cloud Logging as `textPayload` (plain `ActiveSupport::Logger`
+  to STDOUT, `production.rb:116-119`; `dedupe-utility-boards-dryrun.sh:151` reads the job's
+  `textPayload`). Not checkable here (no gcloud); the new script's `--check` cannot prove it either, so
+  the doc says to confirm with one `gcloud logging read` before relying on it.
+- CONFIRMED the proven GCP channel and policy-as-JSON pattern: `prod-scheduler-liveness-alert.{json,sh}`.
+- CONFIRMED the events queue is subscribed without raw delivery and without a filter
+  (`phase5-ses-config-set-setup.sh` step 5), carries SEND and DELIVERY for every mail, and the worker
+  deletes all of them (F3), capping throughput at about 500 mails/hour (F4).
+- CONFIRMED the worker re-receives a failed message on the next hourly run (visibility 300s) and
+  raises `HandlingFailed`; there is no DLQ (F5).
+
+C/D. One GCP log-match alert policy, `PROD email sending failed`, committed as JSON with a
+`--check`/`--apply` script in the liveness script's shape: condition `conditionMatchedLog` on
+Cloud Run (`cloud_run_job` or `cloud_run_revision`) `textPayload` containing either line above;
+`notificationRateLimit` 1h, `autoClose` 7d, the same channel and `DELIVERY_PROVEN_AT` check. No label
+extractors, so no log text is copied into the notification. Covers the #1117 follow-up and the
+"send errors" half of the #1145 alarm item. Alternatives: an AWS/SES `Send` volume absence alarm
+(rejected: prod has no regular volume yet, it would fire daily); a Reject-count alarm (rejected: Reject
+is virus-scan rejection only, not an outage signal). The shared helpers (exact-name policy lookup,
+semantic diff, channel check) go in `scripts/gcp/lib/alert-policy.sh`; the liveness script is NOT
+moved onto it here (a proven control, not re-provable without gcloud), noted as a follow-up.
+
+E. `scripts/gcp/ses-feedback-queue-setup.sh` (`--dry-run`/`--apply`/`--check`), idempotent like
+phase5: DLQ `lingolinq-ses-feedback-dlq` (14 days, SSE-SQS); queue `lingolinq-ses-feedback` (14 days,
+SSE-SQS, `RedrivePolicy` maxReceiveCount 5 = five hourly runs); queue policy for the existing topic;
+subscription to `lingolinq-ses-events` with `FilterPolicy {"eventType":["Bounce","Complaint"]}`,
+`FilterPolicyScope=MessageBody`, raw delivery off (the worker's `SesEvent.unwrap` handles the
+envelope). The worker reads the new queue (env var value only, no code change); the original queue
+is left unread, so it is again the LL-42a24ee911 per-message record. IAM mirror resource moves to the
+new queue ARN. `ses-reputation-alarms.sh`: the stale alarm moves to the new queue, plus
+`lingolinq-ses-feedback-dlq-visible` (ApproximateNumberOfMessagesVisible >= 1 on the DLQ). Docs and
+rollout order updated. Alternative: add the filter to the existing subscription (rejected: ends the
+diagnostic record F3 is about).
+
+Verification possible here: `bash -n`, `--dry-run` output, `jq` validation of the policy JSON. Not
+possible: any live apply or check.
+
+## #1145 triage for the follow-up branch (develop `084552a6b`, three read-only subagents, 2026-11-09)
+
+Subagent findings, CONFIRMED by them with `file:line`; not yet re-verified by me. Numbers follow the
+issue's order within each section.
+
+- Inactivity sweep: 1 activity clock moved by non-use writes (L, migration), 2 lock released before
+  flush (M), 3 transient timeout resends mail (M), 4 stale `inactivity_deletion` record after password
+  sign-in (PARTLY: harm not reproduced; S), 5 stale spec comment (S), 6 long comment line (S). All open.
+- Rooms and supervision: 7 legacy link stamped `origin='room'` (M; the issue's suggested fix cannot
+  work as written), 8 concurrent last-two unlinks keep supporter role (S-M), 9 cycle unlink deadlock (M),
+  10 `room_member_removal` rows for every room (S), 11 `remove_as_member` NoMethodError on a destroyed
+  org (S), 12 `lookup_key` in audit: ALREADY FIXED by #1162 (`6b8d3abca`; old rows remain, owner
+  decision per the issue comment), 13 deleted district's lessons served until cleanup finishes (PARTLY, S).
+- Board access and caching: 1 chain walk uncapped (M), 2 author stamp moved with no deep share (S),
+  3 whole row loaded (S), 4 truncated-home sharees not expired (M), 5 pending deep sharee spec missing
+  (S), 6 depth-5 re-track limitation (L), 7 org home-board keys race (M). All open.
+- Uploads: 8 first-run thumbnail delete keeps no retry row (S), 9 daily full sweep for 3 months (M),
+  10 purge keyed on `created_at` (S-M). All open.
+- Frontend offline revocation: 1 snapshot mark not cleared (S-M), 2 and 3 import and call placement
+  (S; need a human-approved `.eslint-todo` re-baseline; two more bottom imports in the persistence
+  files), 4 supervisee cap of 10 hides removals (M, backend plus frontend). All open.
+- Most items touch deletion, permissions, visibility or sync, so they need /fix-proposal. Quick wins
+  without it: sweep 5, 6; rooms 10, 11, 13; boards 5.
