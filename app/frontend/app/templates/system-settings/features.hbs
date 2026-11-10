@@ -3,7 +3,7 @@
 {{else}}
   <p class="la-system-settings__hint">{{this.scopeHint}}</p>
   {{#if this.inheritedLabel}}
-    <p class="la-system-settings__scope-badge"><span class="label label-info">{{this.inheritedLabel}}</span></p>
+    <p class="la-system-settings__scope-badge"><span class="md-status-tag md-status-tag--info">{{this.inheritedLabel}}</span></p>
   {{/if}}
 
   <div class="la-system-settings__toolbar">
@@ -34,10 +34,10 @@
           </label>
           <p class="la-system-settings__feature-desc">{{feature.description}}</p>
           {{#if feature.env_locked}}
-            <span class="label label-warning">{{t "Controlled by environment variable" key="system_settings_env_locked"}}</span>
+            <span class="md-status-tag md-status-tag--warning">{{t "Controlled by environment variable" key="system_settings_env_locked"}}</span>
           {{/if}}
           {{#if feature.ai_feature}}
-            <span class="label label-default">{{t "AI feature" key="system_settings_ai_feature"}}</span>
+            <span class="md-status-tag">{{t "AI feature" key="system_settings_ai_feature"}}</span>
           {{/if}}
         </li>
       {{/each}}

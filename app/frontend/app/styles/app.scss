@@ -95146,7 +95146,42 @@ body.md-tour--centered-step .shepherd-modal-overlay-container.shepherd-modal-is-
   -webkit-backdrop-filter: blur(10px) saturate(1.05);
 }
 
+/* STATUS TAG (2026-11-09, requested: "the status badges need modern style updates"). A read-only
+   label, not a button, after the informational-tag note further up this file: a small rounded
+   rectangle (a full pill reads as pressable), a soft tint with no shadow or border, and the 14px
+   text floor. Neutral by default; `--info` for a state someone set (Customized, inherited scope),
+   `--warning` for one they cannot change here (env-locked). First used by System Settings'
+   Emails and Features tables in place of Bootstrap's solid `.label`. */
+.md-status-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  color: #46505F;
+  background: rgba($la-navy, 0.07);
+}
+.md-status-tag--info {
+  color: #1f5b8a;
+  background: rgba($brand-dusty-denim, 0.12);
+}
+.md-status-tag--warning {
+  color: #7a4f00;
+  background: rgba(#E9A23B, 0.18);
+}
+
 /* System settings (emails + features) */
+/* The page's section, in place of the marketing `.la-section` (2026-11-09): the app's header
+   (`md-hero`) and the card, stacked, without the marketing padding that pushed them down. */
+.la-system-settings__section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 0 32px 40px;
+}
 .la-system-settings__body {
   font-size: 1rem;
   line-height: 1.55;

@@ -152,3 +152,11 @@ Reported: "in the basic view, when you're in speak mode and press the home butto
 - Decision (Traci): Home only; no My Boards in Basic's speak header (it stays in the account menu outside speak mode). The communicator board tour already promises "Home always brings you back to your main board".
 - Fix: that branch now runs `home`, with the plain button's dimming and lock marks and the eval button's house icon. Same 23 lines, so the 38 line-anchored .lint-todo rows below it stay aligned (template lint clean). `openMyBoards` stays: Modern's board-detail and raw_events still use it.
 - Test: e2e/basic-speak-home.spec.js with a synthetic Basic communicator (e2e/support/users-basic-speak.rb: home board with a folder). Red before the fix (board null after Home, both cases), green after.
+
+## Round 11: System Settings styling (2026-11-09)
+
+Reported (Basic, screenshot): "the system settings page needs our modern style updates -> it starts too far down on the page and the header and subheader styles don't match the other pages and the status badges need modern style updates".
+
+- Cause: the page used the public pricing/support page's marketing hero: `la-section` (32px padding plus a 57.6px margin) around `la-hero-title` (Maitree 35px) and `la-pricing-hero-subtitle` (Lexend 24px, two lines), so the title sat at 197 and the form card at 384 (1440 wide, Basic). Status tags were Bootstrap's solid `.label` (grey "Default").
+- Fix: the header is the app's `md-hero` (as templates/organizations.hbs); the section takes its own spacing (`.la-system-settings__section`) instead of `la-section`. New `.md-status-tag` (neutral, `--info`, `--warning`) after the informational-tag note in app.scss replaces the five `.label`s in emails.hbs and features.hbs. After: title at 135, card at 257, Maitree 32 / 20px subtitle like the other pages; both views checked (admin's saved view restored to Basic).
+- Not changed: in Modern this page still has no app shell (no rail or pill nav); the table's small text is pre-existing.

@@ -8,11 +8,18 @@
         <Dashboard::ClassicRail @menuLabel={{t "System Settings" key="system_settings_title"}} />
       {{/if}}
       <div class="md-workspace md-workspace--support">
-        <section class="la-section la-system-settings__section" aria-labelledby="system-settings-heading">
-          <div class="la-section-header la-system-settings__header">
-            <h1 id="system-settings-heading" class="la-hero-title">{{t "System Settings" key="system_settings_title"}}</h1>
-            <p class="la-pricing-hero-subtitle">{{t "Manage system emails and feature flags for your organization." key="system_settings_intro"}}</p>
-          </div>
+        {{!-- THE APP'S PAGE HEADER, NOT THE MARKETING HERO (2026-11-09, requested: "the header and
+             subheader styles don't match the other pages", and "it starts too far down"). It was
+             `la-section` / `la-hero-title` / `la-pricing-hero-subtitle` from the public pricing and
+             support pages: a 35px title, a 24px two-line subtitle and the marketing section's
+             padding, which put the form a third of the way down the page. `md-hero` is the header
+             every app page uses (templates/organizations.hbs); the section's spacing is its own
+             (app.scss `.la-system-settings__section`). --}}
+        <section class="la-system-settings__section" aria-labelledby="system-settings-heading">
+          <header class="md-hero md-hero--dashboard la-system-settings__header">
+            <h1 id="system-settings-heading" class="md-hero__title">{{t "System Settings" key="system_settings_title"}}</h1>
+            <p class="md-hero__sub">{{t "Manage system emails and feature flags for your organization." key="system_settings_intro"}}</p>
+          </header>
 
           <div class="la-support-content-wrapper">
             <article class="la-about-glass-card la-support-page-card la-system-settings__card">
