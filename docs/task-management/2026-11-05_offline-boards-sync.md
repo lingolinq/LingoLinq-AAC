@@ -1902,3 +1902,23 @@ spec; measure users#show with 50 likes; a liked board and its copy-by-reference 
 `preferences.sync_starred_boards` users shows every listed liked board (up to 50, was 25); the planned 25-tile hold
 and the "Show more" tile are dropped. Earlier entries that plan them are superseded. Follow-up PR keeps: the
 past-limit message, hiding unviewable liked boards, pruning deleted ids.
+
+#### Three checks from the pre-push review (2026-11-10)
+
+1. **Liked boards do not get their button set saved by the sync: CONFIRMED, a regression from develop.** The sync
+   checks and loads a button set only for the home board (depth 0), sidebar boards (depth 1) and 'starred board',
+   'owned root', 'public root' at depth 0 (`services/persistence.js:3109`). This branch seeds liked boards at depth 1
+   (`utils/offline_sync_seeds.js:43`), so the rule never matches them; the same holds for the 'crisis vocabulary'
+   seed when it is not a sidebar board. On develop (feafba6c7) liked boards were seeded at depth 0 through
+   `lookupsToSyncSeeds(phased.phase2, 'starred board', 0)` whenever `background_board_prefetch` was on
+   (`services/persistence.js:3074-3083` there; the flag is in ENABLED, `lib/feature_flags.rb:150`). Run against the
+   e2e stack (user `e2e_offline_stars`, production build, sync started by hand): button-set requests during the sync
+   went to Crisis Vocabulary (a sidebar board) only, none for the liked board (the probe recorded from after
+   sign-in). Effect: features that read the stored button set (Find a Button, word suggestions) have no data for a
+   liked board offline unless something else loaded it. NOT fixed; needs a fix proposal (sync scope).
+2. **Spec order pinned.** "starred_board_refs limit" example 1 now likes the boards newest first. Mutation (walk the
+   listed ids in creation order): that example fails, the other three pass. Restored; 4 examples, 0 failures.
+3. **Profile cost, local only** (private e2e database, development mode, 50 synthetic private boards of 60 text
+   buttons, median of 7): 25 likes: `starred_board_refs` 15.7 ms, whole profile JSON 20.8 ms, refs 3.1 kB; 50 likes:
+   28.5 ms, 35.9 ms, 6.1 kB. About 0.5 ms a liked board, linear. Not staging or production, and real boards with
+   pictures and larger settings will cost more per board.

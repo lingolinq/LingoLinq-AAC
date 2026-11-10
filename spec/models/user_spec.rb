@@ -6319,7 +6319,10 @@ describe User, :type => :model do
 
     it "lists every liked board past the first 25, in the order they were liked" do
       u = User.create
-      boards = like_boards(u, 30)
+      # Liked newest board first, so the liked order is not the order the boards were created in.
+      boards = like_boards(u, 30).reverse
+      u.settings['starred_board_ids'] = boards.map(&:global_id)
+      u.save
       refs = u.reload.starred_board_refs.reject { |r| r['suggested'] }
       expect(refs.map { |r| r['id'] }).to eq(boards.map(&:global_id))
     end
