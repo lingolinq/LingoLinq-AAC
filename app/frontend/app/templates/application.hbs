@@ -42,27 +42,27 @@
               </svg>
             </button>
           {{else if this.on_board_or_alt}}
-            {{!-- My Boards button — used to open the modal-based
-                 picker (replaced 2026-05-23). Now invokes
-                 `openMyBoards` which stashes the current board so the
-                 boards page can offer a "Back to <board>" chip, then
-                 transitions to /u/:user_name/boards. Single source of
-                 truth: the boards-page route handles the entire UX
-                 (folders, tabs, filter, grid) — no parallel modal
-                 markup or state machine. --}}
-            <button class='btn btn-default access' id="home_button" type="button" {{on "click" (this.ctrlAction "openMyBoards")}} style='position: relative;' aria-label={{t "My Boards" key="my_boards"}}>
-              {{!-- House icon (requested), the same glyph the create-board-new board preview
-                   uses on its own home button (components/create-board-new.hbs). The two
-                   `d` paths are identical to it and to the eval-mode button directly above;
-                   the stroke weight and 22px box match THAT button rather than the preview's
-                   33px/1.25, so the two home controls in this same header are consistent.
-                   `fill: none` + `stroke: currentColor` replaces the grid icon's solid fill.
-                   `pointer-events: none` is kept: without it the SVG swallows the click
-                   meant for the button. --}}
+            {{!-- HOME, NOT MY BOARDS (2026-11-09, reported: "in the basic view, when you're in speak
+                 mode and press the home button, instead of going to your home board, it exits and
+                 goes to the site home page"). From 2026-05-23 this house button ran `openMyBoards`,
+                 which left speak mode for the boards page (it had replaced a board-picker modal).
+                 Traci chose Home only: My Boards stays in the account menu outside speak mode.
+                 It is the plain Home button below in everything but the icon: the same `home`
+                 action, the same dimming when already home, the same lock marks. The house is the
+                 eval-mode button's above (same paths, stroke weight and 22px box); the SVG keeps
+                 `pointer-events: none`, without which it swallows the click meant for the button.
+                 Kept to the line count it replaced: line-anchored .lint-todo rows follow it. --}}
+            <button class={{if this.on_home "btn btn-default access dim" "btn btn-default access"}} id="home_button" type="button" {{on "click" (this.ctrlAction "home")}} style='position: relative;'>
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="22" height="22" aria-hidden="true" style="pointer-events: none; display: block;">
                 <path d="M3 12 12 3l9 9"/>
                 <path d="M5 10v10a1 1 0 0 0 1 1h3v-6h6v6h3a1 1 0 0 0 1-1V10"/>
               </svg>
+              {{#if this.stashes.temporary_root_board_state}}
+                <span class="glyphicon glyphicon-lock" style="float: left; width: 0; height: 0; color: #aaa; margin-top: 15px; margin-left: -5px;" title={{t "Home or Board Lock Set" key="home_or_board_lock_set"}}></span>
+              {{else if this.stashes.sticky_board}}
+                <span class="glyphicon glyphicon-lock" style="float: left; width: 0; height: 0; color: #aaa; margin-top: 15px; margin-left: -5px;" title={{t "Board Lock Set" key="board_lock_set"}}></span>
+              {{/if}}
+              <span class="sr-only">{{t "Home" key="home"}}</span>
             </button>
           {{else}}
             <button class={{if this.on_home "btn btn-default access dim" "btn btn-default access"}} id="home_button" type="button" {{on "click" (this.ctrlAction "home")}} style='position: relative;'>

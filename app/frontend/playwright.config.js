@@ -92,5 +92,12 @@ module.exports = defineConfig({
       testMatch: /menu-positions\.spec\.js/,
       use: { ...devices['Desktop Chrome'] },
     },
+    // Basic speak mode's Home button goes to the home board (2026-11-09). Signs in as its own
+    // synthetic user (e2e/support/users-basic-speak.rb), so it needs no setup project.
+    {
+      name: 'basic-speak-home',
+      testMatch: /basic-speak-home\.spec\.js/,
+      use: { ...devices['Desktop Chrome'] },
+    },
   ],
 });
