@@ -184,3 +184,11 @@ Requested: "the select dropdown list is still the old bootstrap - update it to o
 Reported (Modern, narrow): "the main page bg doesn't extend all the way up to the menu so the page backgrounds look broken". At 860 the page's `.md-shell` painted the mesh from y=174 (below the rail's dropdown) while `#content` stayed flat `var(--md-bg)` above it. Goals avoids this with `#content:has(.md-shell--user)` (mesh on #content, fixed) plus `.md-shell.md-shell--user` transparent; `.md-shell--system-settings` joins both selector lists. After: #content carries the mesh, shell transparent, no seam.
 
 Also checked (read-only, local DB): `lingolinq_admin` and `marcus_williams_slp` are two accounts with the same display name "Marcus Williams". `lingolinq_admin` manages the LingoLinq Admin Organization (`admin: true`), so its Organizations pages are expected; `marcus_williams_slp` is the SLP (org and room supervisor links, no manager link).
+
+## Round 15: Preferences settings full width on small screens (2026-11-09)
+
+Reported: "on smaller screens, the voice dropdown disappears, and the voice volume and secondary voice content should stretch to fill the full width of the card", then "all settings items share the same problem".
+
+- Measured as marcus_williams_slp at 700: card 32-668, Voice select at x=662 and volume picker at 701 (outside the card); the content column 374px of 636.
+- Two causes, one rule block (app.scss `.md-preferences__form`): `.col-sm-5, .col-sm-6 { width: 60% !important }` and `.col-sm-2/3:not(.control-label) { width: auto; min-width: 200px }` applied at every width; and content columns without `col-xs-12` do not float under 768px, so a flex row inside them (BFC) was squeezed to zero width beside the label's full-width float and overflowed right.
+- Fix: the two width rules apply at min-width 768px only; below 768px every direct `col-*` child of a settings `.form-group` floats at 100%. One rule for every card (a first pass added `col-xs-12` to the Voice card's columns; reverted in favour of this). After: 1440/900/768 identical to before; at 767/700/500/375 the voice column spans the card (e.g. 624 of 636 at 700), select and volume inside it; Sidebar and Shortcuts full width.

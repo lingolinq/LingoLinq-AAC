@@ -44266,14 +44266,30 @@ a.md-goal-nav-action:hover,
 .md-pref-box > .form-group:nth-of-type(1) {
   margin-top: 14px !important;
 }
-.md-preferences__form .col-sm-5,
-.md-preferences__form .col-sm-6 {
-  width: 60% !important;
+/* THE SETTING COLUMNS' DESKTOP WIDTHS, AT 768px AND UP ONLY (2026-11-09, reported: "all settings
+   items share the same problem, they are not stretching to fill the full width of their cards").
+   These held at every width, so below 768px, where each label sits on its own line above its
+   setting, the setting stayed at 60% (or its content width) of the card; and a content column with
+   no `col-xs-12` did not float, so a flex row inside it (the Voice select, the volume picker) was
+   squeezed to zero width beside the label's full-width float and pushed out of the card. */
+@media (min-width: 768px) {
+  .md-preferences__form .col-sm-5,
+  .md-preferences__form .col-sm-6 {
+    width: 60% !important;
+  }
+  .md-preferences__form .form-group > .col-sm-2:not(.control-label),
+  .md-preferences__form .form-group > .col-sm-3:not(.control-label) {
+    width: auto !important;
+    min-width: 200px;
+  }
 }
-.md-preferences__form .form-group > .col-sm-2:not(.control-label),
-.md-preferences__form .form-group > .col-sm-3:not(.control-label) {
-  width: auto !important;
-  min-width: 200px;
+/* ...AND BELOW 768px EVERY COLUMN OF A SETTING ROW IS FULL WIDTH, under its label, whatever its
+   `col-*` classes: one rule for every card, rather than `col-xs-12` added row by row. */
+@media (max-width: 767px) {
+  .md-preferences__form .form-group > [class*="col-"] {
+    float: left;
+    width: 100% !important;
+  }
 }
 .md-preferences__form .input-group {
   min-width: 160px;
