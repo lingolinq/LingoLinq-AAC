@@ -84,6 +84,55 @@ Paths are under `app/frontend/` unless they start with `app/`, `lib/` or `spec/`
   `app/utils/board_device_copy.js:41-45`), with a "not saved yet" message otherwise.
 - Use new i18n keys so the 12 other locales do not keep the old claim.
 
+### 4a. #1034 built (2026-11-10, Traci: "fix the message to reflect what happens and do what else is necessary")
+
+**Part 1, the message. Facts (CONFIRMED by reading):**
+- The claim is read at one place: `_finishPickForHome` ended with
+  `preload_board_images(homeBoard).then(finish, finish_without_images)` (`app/components/board-preview-overlay.js`).
+  `preload_board_images` always resolves (`app/utils/board_preview_warmer.js:92-112`: every branch calls
+  `resolve`, including the 6 s safety timer and the `catch`), so `finish_without_images` could never run and the
+  "saved for offline use" message showed whatever happened.
+- Nothing in that step writes to the device: it creates `Image` objects only. On this branch a board is on the
+  device once a sync has saved it, and the home board is one of the boards a sync starts from
+  (`app/utils/offline_sync_seeds.js`).
+- This path started no sync of its own. Five other home-board flows do, under the same condition (online and
+  `auto_sync`), for example `app/controllers/board-picker.js:194-196` and `app/components/trial-bar.js:113-116`.
+- The same claim is in the Set as Home description, in two templates (`app/components/board-actions.hbs:184`,
+  `app/templates/user/board-detail.hbs:1035`).
+**Change:** one message, `home_board_set_message()`: "This is now your home board. It will be kept on this device
+for offline use after the next sync."; `sync_after_home_change(persistence)` starts that sync when one can run
+(both in `app/utils/home_board.js`); the dead second handler is removed; the Set as Home description reads "Make
+this the board you start on. It is kept on this device after the next sync." New translation keys, so other
+languages do not keep the old claim under the old key. The five existing copies of the sync condition are left as
+they are (moving them to the helper is a refactor for its own change).
+
+**Part 2, "Ready to communicate" with no home board: already gone from the code. Facts (CONFIRMED by reading):**
+- The words "Ready to communicate" are no longer on the Home page's Speak Mode card; it reads "Speak Mode" and
+  "Open Board" (`app/components/dashboard/authenticated-view.hbs:407-410`).
+- The flow in the issue (the home tour's "start speaking / pick a board for me" hand-off,
+  `_startSpeakingHandoff` in `app/components/guided-tour.js:888`) has NO caller any more
+  (`git grep _startSpeakingHandoff -- app/frontend`: its definition and two comments). It polled the starter
+  board's `/tree` up to 15 times, each a request the ajax layer repeated twice on a timeout
+  (`app/utils/extras.js:186-190`, `:361-364`), and it never saved a home board: that is the 22-request storm and
+  the "no home board selected" in the issue, recorded on 2026-09-20.
+- The tour redesign of 2026-10-12 replaced it with `start_talking_now` (`app/utils/tours/start_talking.js`, called
+  at `guided-tour.js:1525`): the person's own copy of Vocal Flair 60 is copied or reused AND saved as their home
+  board (`copy_or_reuse_as_home` -> `saveHomeBoard`, confirmed against what the server stored), then Speak Mode
+  opens; a failure shows a message and opens the board picker. The board picker's own "pick for me" button copies
+  Vocal Flair 84 and saves it as the home board (`app/utils/assign-vocal-flair-home.js`).
+- **My mistake, corrected before anything was committed:** I first put a time limit and a single-request option
+  into `_startSpeakingHandoff` and wrote three tests for it, without checking that anything calls it. Nothing does.
+  The edit and its test file were removed. Rule 0.12(a): find where the value is READ, and here that includes
+  "is this function called at all".
+- Removed with Traci's OK (2026-11-10): `_startSpeakingHandoff`, its comment block and the board-cache import only
+  it used. Checked first that nothing calls it: no mention in any tracked file but its definition and one comment;
+  no computed-name call in the component; the welcome buttons dispatch by fixed labels to `_welcomeAction`; one
+  occurrence (the definition) in the compiled production bundle. The file's lint baseline rows were re-anchored by
+  hand (approved): 12 moved by 1 line, 6 by 101, 1 dropped with the function; 18 findings, 18 rows, none new.
+  `_speakHandoffActive` stays: the live flow sets it.
+
+**Tests:** `tests/unit/utils/home-board-message-test.js` (5).
+
 ## 5. Item 9, the four smaller items
 
 | Item | Real at HEAD? | Fix size | Notes |

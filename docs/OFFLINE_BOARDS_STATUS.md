@@ -231,7 +231,10 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
    board errors, compared with the issue's 246-error first sync; the full sync on iOS and Android; production server load under a full
    sync; a board slower than the adapter's 15 s limit on both tries is still lost with its folders (parked until the
    app and production measurements). Parked: Sync Details showing 'kept' boards.
-3. **#1034:** "Pick for home" says "saved for offline use" and "Ready to communicate" when neither is true.
+3. **#1034:** done (2026-11-10). "Pick this Board" now says "This is now your home board. It will be kept on this
+   device for offline use after the next sync." and starts that sync; the Set as Home description no longer says
+   "available offline". The "Ready to communicate" case in the issue came from an onboarding step the tour redesign
+   of 2026-10-12 had already replaced (the replacement saves a home board); its unused code is removed.
 4. **Picture data repair (operations):** some saved picture addresses fail; a one-time data cleanup.
 5. **#1229:** done. A new device that has never finished a sync keeps retrying after the backoff, and one reconnect can retry a dropped connection. See the task log.
 6. **#1230:** Modern view's "Sync failed" notice can show the wrong state.
@@ -318,7 +321,7 @@ Notes:
 | #1221 | First offline sync too slow | Code work done (board selection, duplicate writes, doubled button list, pictures written again); verification on production and real devices is item 10 |
 | #1229 | Retry gaps after a failed sync | Fixed on this branch |
 | #1230 | Modern "Sync failed" notice | Open |
-| #1034 | "Pick for home" claims | Open |
+| #1034 | "Pick for home" claims | Fixed on this branch |
 | #1234 | Translations for the 12 locales | Open (steps above) |
 | #1285 | Earlier trusted Home Screen iPads | Waiting on Scot |
 | #1301 | Modern view offline: match Basic view | Open; not part of this PR |
