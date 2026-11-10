@@ -10,8 +10,13 @@ describe ImageMagickRunner do
   let(:unobservable) do
     'an unescaped " @x.txt" was not refused, so this example cannot observe a file read here: ' \
       'ImageMagick did not skip the whitespace, did not enter the read branch, loaded no ' \
-      'path @* policy, or reports the refusal from another function'
+      'path @* policy, or words the refusal differently'
   end
+  # What a refused read of x.txt looks like. ImageMagick 6 reports it from
+  # property.c/InterpretImageProperties and 7.1.2 from string.c/FileToString, so the function
+  # name is not a usable marker; both say: not allowed by the security policy, then the quoted
+  # path. The quote character differs between messages, hence the dot.
+  let(:file_read_refused) { /security policy .@x\.txt/ }
 
   describe "run" do
     it "does not pass arguments through a shell" do
@@ -96,13 +101,13 @@ describe ImageMagickRunner do
         control, _status = Open3.capture2e(repo_policy, 'montage', '-label', ' @x.txt', input,
                                            '-tile', '1x1', '-pointsize', '16', '-geometry', '40x40+3+10',
                                            File.join(dir, 'o.png'), :chdir => dir)
-        expect(control).to include('InterpretImageProperties'), unobservable
+        expect(control).to match(file_read_refused), unobservable
         reached = (1..127).select do |byte|
           label = ImageMagickRunner.escape_label(byte.chr + '@x.txt')
           out, _s = Open3.capture2e(repo_policy, 'montage', '-label', label, input, '-tile', '1x1',
                                     '-pointsize', '16', '-geometry', '40x40+3+10',
                                     File.join(dir, 'o.png'), :chdir => dir)
-          out.include?('InterpretImageProperties')
+          out.match?(file_read_refused)
         end
         expect(reached).to eq([]), "bytes #{reached.inspect} still reach the file-read branch"
       end
@@ -194,7 +199,7 @@ describe ImageMagickRunner do
       # Asks ImageMagick rather than encoding my own idea of which bytes count as space.
       # Oracle: the repo policy (config/imagemagick/policy.xml, path rights=none pattern=@*),
       # pinned through repo_policy so every host runs under it, turns a REACHED file read into
-      # an InterpretImageProperties error, so its absence means the read branch was never
+      # refusal (file_read_refused), so its absence means the read branch was never
       # entered. The positive control proves the oracle works on this host's ImageMagick.
       skip('ImageMagick not installed') unless system('montage', '-version', :out => File::NULL, :err => File::NULL)
       Dir.mktmpdir do |dir|
@@ -207,13 +212,13 @@ describe ImageMagickRunner do
         control, _status = Open3.capture2e(repo_policy, 'montage', '-label', ' @x.txt', input,
                                            '-tile', '1x1', '-pointsize', '16', '-geometry', '40x40+3+10',
                                            File.join(dir, 'o.png'), :chdir => dir)
-        expect(control).to include('InterpretImageProperties'), unobservable
+        expect(control).to match(file_read_refused), unobservable
         [' ', "\t", "\n"].each do |prefix|
           out, _status = Open3.capture2e(repo_policy, 'montage', '-label',
             ImageMagickRunner.escape_label("#{prefix}@x.txt"), input, '-tile', '1x1',
             '-pointsize', '16', '-geometry', '40x40+3+10', File.join(dir, 'o.png'),
             :chdir => dir)
-          expect(out).not_to include('InterpretImageProperties'),
+          expect(out).not_to match(file_read_refused),
             "prefix #{prefix.inspect} reached ImageMagick's file-read branch"
         end
       end
