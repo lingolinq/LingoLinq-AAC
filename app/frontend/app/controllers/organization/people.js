@@ -196,11 +196,6 @@ export default Controller.extend({
   },
 
   actions: {
-    pick: function(view) {
-      /* Writes the QUERY PARAM, so an in-page tab click and a link from the org strip land in the
-         same place and the URL always names the section on screen. */
-      this.set('section', view);
-    },
     new_user: function(attr) {
       var _this = this;
 
