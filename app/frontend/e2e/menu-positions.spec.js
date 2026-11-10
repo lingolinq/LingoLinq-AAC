@@ -60,6 +60,17 @@ async function bottomOf(page, selector) {
   return Math.round(box.y + box.height);
 }
 
+// At 900px and below the rail is a dropdown in the flow above the content, and the page's first
+// element follows it closely: no higher than its bottom edge, no more than 60px under it (the org
+// header's own 20px padding plus the 40px the home page's header sits under the dropdown).
+// Reported 2026-11-09: "on small screens, the org page header is pushed way down low" (112-216px).
+async function expectCloseUnderRail(page, selector, label) {
+  const railBottom = await bottomOf(page, '#acct_rail_nav');
+  const gap = (await topOf(page, selector)) - railBottom;
+  expect(gap, `${label}: not under the menu dropdown`).toBeGreaterThanOrEqual(0);
+  expect(gap, `${label}: close under the menu dropdown`).toBeLessThanOrEqual(60);
+}
+
 async function topOf(page, selector) {
   const el = page.locator(selector).first();
   await expect(el).toBeVisible({ timeout: 30_000 });
@@ -151,16 +162,11 @@ for (const { layout, userName } of USERS) {
         if (width > 900) {
           expect(orgTitle, 'org title level with the Organizations title').toBe(directoryTitle);
         } else {
-          // At 900px and below the rail is a dropdown above the content: the title follows it closely
-          // (reported 2026-11-09: "on small screens, the org page header is pushed way down low",
-          // at 112px/152px below it). 60px is the org header's own 20px padding plus the 40px the home
-          // page's header sits below the dropdown.
-          const railBottom = await bottomOf(page, '#acct_rail_nav');
-          expect(orgTitle - railBottom, 'org title close under the menu dropdown').toBeLessThanOrEqual(60);
+          await expectCloseUnderRail(page, '.md-shell--org .md-hero__title', 'org title');
+          await open(page, `${orgPath}/rooms`);
+          await expectCloseUnderRail(page, '.md-shell--org .md-workspace :is(.md-compact-head--rooms, .md-hero__title, h1, h2)', 'Rooms page heading');
           await open(page, '/organizations');
-          const dirTitle = await topOf(page, '.md-shell--org-directory .md-hero__title');
-          expect(dirTitle - await bottomOf(page, '#acct_rail_nav'), 'Organizations title close under the menu dropdown').toBeLessThanOrEqual(60);
-          await open(page, orgPath);
+          await expectCloseUnderRail(page, '.md-shell--org-directory .md-hero__title', 'Organizations title');
         }
 
         const people = await open(page, `${orgPath}/people?section=managers`);
@@ -224,4 +230,19 @@ test.describe('Modern, an org member who cannot edit it', () => {
     await expect(rail, 'named as the account menu').toHaveAttribute('aria-label', 'Account menu');
     await expect(rail.locator('a[href$="/goals"]'), 'the account rows').toHaveCount(1);
   });
+
+  for (const width of [900, 640]) {
+    test(`the org page header is close under the menu dropdown at ${width}px`, async ({ page }) => {
+      await signIn(page, 'e2e_orgnav_viewer', 'users-org-nav.rb');
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(await orgPathFor(page));
+      // A non-editor's first element is the "< Home | section" back strip (organization.hbs
+      // `showBackStrip`), with the title under it; the strip is what follows the dropdown.
+      await expectCloseUnderRail(page, '.md-shell--org nav.md-pillnav', 'back strip');
+      const strip = page.locator('.md-shell--org nav.md-pillnav').first();
+      const stripBox = await strip.boundingBox();
+      expect(await topOf(page, '.md-shell--org .md-hero__title'), 'title below the back strip')
+        .toBeGreaterThanOrEqual(Math.round(stripBox.y + stripBox.height));
+    });
+  }
 });

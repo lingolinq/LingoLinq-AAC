@@ -109,8 +109,8 @@ export default Controller.extend({
    * (`board_view_style`, `effective_view_user`, `utils/view_style`), and a `?view=` on an org
    * page would read as that.
    *
-   * ONE SOURCE, NOT TWO. `pick` now writes this param rather than a second property, so the
-   * in-page tabs and the parent strip cannot disagree about which section is open -- and
+   * ONE SOURCE, NOT TWO. Only the org tabs' links set this param (the in-page pills and their `pick`
+   * action went in 2026-11, replaced by the tabs), so nothing can disagree about the section -- and
    * `refresh_lists` no longer nulls it, which would have discarded the param on arrival and sent
    * every link to Managers. */
   queryParams: ['section'],

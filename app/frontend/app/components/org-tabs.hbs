@@ -7,9 +7,12 @@
      Every value comes from controllers/organization.js: @orgId (model.id), @adminActive
      (adminTabActive), @activeSection (activePeopleSection), @label (orgTabLabel), @navClass and
      @tabClass (orgTabsNavClass / orgTabClass, the base classes swapped by view), @dropdownClass
-     (orgTabsDropdownClass). --}}
+     (orgTabsDropdownClass).
+     NAMED "Organization Sections" for screen readers (requested 2026-11-09): the org rail beside it
+     is the "Organization Navigation" landmark, and two navigation landmarks must not share a name.
+     Screen-reader name only; the visible labels are the tabs' own. --}}
 <div class="ch-tabs-fit" {{fit-or-select}}>
-<nav class={{@navClass}} aria-label={{t "Organization Navigation" key="org_navigation"}}>
+<nav class={{@navClass}} aria-label={{t "Organization Sections" key="org_sections"}}>
   <LinkTo @route="organization.index" @model={{@orgId}} class="{{@tabClass}} {{if @adminActive "is-active"}}" aria-current={{if @adminActive "page"}}>
     <span class="ch-tab__label">{{t "Admin" key="admin"}}</span>
   </LinkTo>
@@ -34,7 +37,7 @@
     <span class="md-pillnav-dropdown__label">{{@label}}</span>
     <svg class="md-pillnav-dropdown__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
   </summary>
-  <ul class="md-pillnav-dropdown__list" aria-label={{t "Organization Navigation" key="org_navigation"}}>
+  <ul class="md-pillnav-dropdown__list" aria-label={{t "Organization Sections" key="org_sections"}}>
     <li><LinkTo @route="organization.index" @model={{@orgId}} class="md-pillnav-dropdown__option {{if @adminActive "is-active"}}" aria-current={{if @adminActive "page"}}>{{t "Admin" key="admin"}}</LinkTo></li>
     <li><LinkTo @route="organization.people" @model={{@orgId}} @query={{hash section="managers"}} class="md-pillnav-dropdown__option {{if (is_equal @activeSection "managers") "is-active"}}" aria-current={{if (is_equal @activeSection "managers") "page"}}>{{t "Managers" key="managers"}}</LinkTo></li>
     <li><LinkTo @route="organization.people" @model={{@orgId}} @query={{hash section="supervisors"}} class="md-pillnav-dropdown__option {{if (is_equal @activeSection "supervisors") "is-active"}}" aria-current={{if (is_equal @activeSection "supervisors") "page"}}>{{t "Supervisors" key="supervisors"}}</LinkTo></li>

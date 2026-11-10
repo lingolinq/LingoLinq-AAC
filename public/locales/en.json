@@ -8657,6 +8657,7 @@
   "telemetry_heatmap_source_explainer": "Activation totals merge organization-wide communication logs (touch locations from logged sessions—the same underlying data as communicator stats) plus optional aggregated product telemetry. Match the date window to communicator reports.",
   "no_telemetry_recorded": "No telemetry has been recorded yet.",
   "org_navigation": "Organization Navigation",
+  "org_sections": "Organization Sections",
   "accessible_orgs": "Available Organizations",
   "organization": "Organization",
   "user_count": "0 users || 1 user || %{n} users",

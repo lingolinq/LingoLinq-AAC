@@ -5940,8 +5940,18 @@ body.ll-layout-focused .md-grid .md-card.md-card--rooms .md-card__sub::before {
 // button), which centres its title at y184, and this label has no such button. Inside the app
 // shell only: without it (a manager's org page) the page has its own pill nav above the label
 // and none of this spacing applies.
+// SINCE 2026-11-08 a manager's org page IS in the app shell, under the org tabs. Above 900px the
+// 78px holds there too. At 900px and below the tabs and the rail's dropdown sit in the flow above
+// the label, so 78px left it 98px under the dropdown (red-team review 2026-11-09); 20px puts it 40px
+// under, where the home page's header sits. The rooms-only supervisor's list (pill nav, no tabs)
+// keeps its 78px.
 body.ll-view-modern.ll-layout-focused .ll-appshell__content .md-compact-head--rooms {
   margin: 78px 25px 28px;
+}
+@media (max-width: 900px) {
+  body.ll-view-modern.ll-layout-focused .ll-appshell--org-tabs .ll-appshell__content .md-compact-head--rooms {
+    margin-top: 20px;
+  }
 }
 
 // NO GAP ABOVE THE ORGANISATION SWITCHER, with or without Compressed View (requested 2026-09-30):

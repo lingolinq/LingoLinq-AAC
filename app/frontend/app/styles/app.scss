@@ -57636,9 +57636,12 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
    superseded generic block (hardcoded order on only 5 cards, which fought the dynamic
    `--ord-*` order and left the action cards unsequenced) was removed so the two
    layouts each have a single authoritative small-screen rule. */
-/* Extra breathing room above the nav-pill menu on small screens. */
+/* Extra breathing room above the nav-pill menu on small screens.
+   Not the "< Home | section" back strip on a Modern org page (2026-11-09, red-team review of the
+   small-screen fix): there the rail's dropdown already sits right above it, and the 48px left it
+   68px under the dropdown. Excluded in `:where()`, so the rule's weight is unchanged elsewhere. */
 @media (max-width: 640px) {
-  .md-workspace > .md-pillnav {
+  .md-workspace > .md-pillnav:where(:not(.ll-appshell .md-shell--org .md-pillnav)) {
     margin-top: 48px !important;
   }
 }
@@ -97444,9 +97447,12 @@ body:not(.ll-layout-focused) #content:has(.ll-appshell):not(:has(.md-main--updat
    NOT THE ORG PAGES UNDER THE ORG TABS OR THE ORGANIZATIONS DIRECTORY (2026-11-09, reported: "on
    small screens, the org page header is pushed way down low"): their 900px-and-below clearance is
    set beside their own rules further down. Excluded in `:where()`, so this rule's weight is
-   unchanged for every page it still covers. */
+   unchanged for every page it still covers. Nor an org page with no top menu at all (an org member
+   who cannot edit it: `ll-appshell--no-nav`; red-team review 2026-11-09), for the same reason. The
+   rooms-only supervisor's Rooms list keeps it: that page has the pill nav, and its label spacing
+   (_focused-view.scss `.md-compact-head--rooms`) was measured with it. */
 @media (max-width: 900px) {
-  body:not(.ll-layout-focused) #content:has(.ll-appshell):not(:has(.md-main--updates-arrival)) .ll-appshell:where(:not(.ll-appshell--org-tabs)) .md-shell:where(:not(.md-shell--org-directory)) {
+  body:not(.ll-layout-focused) #content:has(.ll-appshell):not(:has(.md-main--updates-arrival)) .ll-appshell:where(:not(.ll-appshell--org-tabs)) .md-shell:where(:not(.md-shell--org-directory, .ll-appshell--no-nav .md-shell--org)) {
     padding-top: 52px !important;
   }
   body:not(.ll-layout-focused) #content.boards-page .ll-appshell .md-shell {
@@ -97563,16 +97569,22 @@ body.ll-layout-focused #within_ember #content:has(.ll-appshell--org-tabs, :where
    workspace padding (`.md-workspace` in the <=900px block) and Gentle's shared 52px shell push
    (excluded from these pages above) only stacked empty space: the title sat 112px (Gentle) and 152px
    (Focused) under the dropdown, against 20px on the home page. Same selectors as the rules above, so
-   these win on source order alone. */
+   these win on source order alone.
+   ALSO AN ORG PAGE WITH NO TOP MENU (red-team review 2026-11-09): an org member who cannot edit the
+   org gets the app shell but no tabs (`ll-appshell--no-nav`), and kept Gentle's 52px push and
+   Focused's 52px workspace padding, 166-216px under the dropdown. */
 @media (max-width: 900px) {
   body:not(.ll-layout-focused) #content .ll-appshell .md-shell.md-shell--org-directory,
   body.ll-layout-focused #content .ll-appshell .md-shell.md-shell--org-directory,
   body:not(.ll-layout-focused) #content .ll-appshell.ll-appshell--org-tabs .md-shell,
-  body.ll-layout-focused #content .ll-appshell.ll-appshell--org-tabs .md-shell {
+  body.ll-layout-focused #content .ll-appshell.ll-appshell--org-tabs .md-shell,
+  body:not(.ll-layout-focused) #content .ll-appshell.ll-appshell--no-nav .md-shell.md-shell--org,
+  body.ll-layout-focused #content .ll-appshell.ll-appshell--no-nav .md-shell.md-shell--org {
     padding-top: 0 !important;
   }
   body.ll-layout-focused #content .ll-appshell .md-shell.md-shell--org-directory .md-workspace,
-  body.ll-layout-focused #content .ll-appshell.ll-appshell--org-tabs .md-shell .md-workspace {
+  body.ll-layout-focused #content .ll-appshell.ll-appshell--org-tabs .md-shell .md-workspace,
+  body.ll-layout-focused #content .ll-appshell.ll-appshell--no-nav .md-shell.md-shell--org .md-workspace {
     padding-top: 0 !important;
   }
 }
