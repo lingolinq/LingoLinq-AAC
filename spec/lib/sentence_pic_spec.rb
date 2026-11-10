@@ -50,7 +50,7 @@ describe SentencePic do
       allow(OBF::Utils).to receive(:save_image).and_return('in.png')
       allow(OBF::Utils).to receive(:temp_path) {|name| File.join(dir, name) }
       allow(Uploader).to receive(:remote_upload).and_return({url: 'http://www.example.com/x.png'})
-      # ImageMagick may be absent (CI installs none); the runner returns nil rather than
+      # ImageMagick may be absent (a machine without it installed); the runner returns nil rather than
       # raising, so no guard is needed. These examples assert only that no marker file
       # appeared, and shell substitution fires during parsing, before the binary is looked up.
       Dir.chdir(dir) { SentencePic.generate(u) }

@@ -80,6 +80,14 @@ describe ImageMagickRunner do
         input = File.join(dir, 'in.png')
         system('convert', '-size', '40x40', 'xc:skyblue', input)
         File.write(File.join(dir, 'x.txt'), 'SECRET')
+        expect(File.exist?(input)).to eq(true), 'convert did not create the input image'
+        # Positive control: unescaped, the same label must trip the policy, or the absence of
+        # the error below proves nothing.
+        control, _status = Open3.capture2e('montage', '-label', '@x.txt', input, '-tile', '1x1',
+                                           '-pointsize', '16', '-geometry', '40x40+3+10',
+                                           File.join(dir, 'o.png'), :chdir => dir)
+        expect(control).to include('InterpretImageProperties'),
+          'an unescaped @x.txt did not reach the file-read branch, so this example cannot observe one'
         reached = (1..127).select do |byte|
           label = ImageMagickRunner.escape_label(byte.chr + '@x.txt')
           out, _s = Open3.capture2e('montage', '-label', label, input, '-tile', '1x1',
@@ -184,6 +192,14 @@ describe ImageMagickRunner do
         input = File.join(dir, 'in.png')
         system('convert', '-size', '40x40', 'xc:skyblue', input)
         File.write(File.join(dir, 'x.txt'), 'SECRET')
+        expect(File.exist?(input)).to eq(true), 'convert did not create the input image'
+        # Positive control: unescaped, the same label must trip the policy, or the absence of
+        # the error below proves nothing.
+        control, _status = Open3.capture2e('montage', '-label', '@x.txt', input, '-tile', '1x1',
+                                           '-pointsize', '16', '-geometry', '40x40+3+10',
+                                           File.join(dir, 'o.png'), :chdir => dir)
+        expect(control).to include('InterpretImageProperties'),
+          'an unescaped @x.txt did not reach the file-read branch, so this example cannot observe one'
         [' ', "\t", "\n"].each do |prefix|
           out, _status = Open3.capture2e('montage', '-label',
             ImageMagickRunner.escape_label("#{prefix}@x.txt"), input, '-tile', '1x1',

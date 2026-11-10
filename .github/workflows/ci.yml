@@ -76,13 +76,30 @@ jobs:
           bundler-cache: true
 
       # The runner image has no ImageMagick, so specs that need the real binary skipped here. Production
-      # installs it from the distribution and adds config/imagemagick/policy.xml (Dockerfile); do the same.
+      # installs the distribution's package and adds config/imagemagick/policy.xml on top of the
+      # distribution's own policy (Dockerfile:57); this does the same on the runner. It is not production's
+      # build: the runner gets whatever ubuntu-latest packages (ImageMagick 7.1.2-18 on ubuntu-26.04 when
+      # this was added). If this step or the next fails, fix the install; do not skip or soften it.
       - name: Install ImageMagick
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq imagemagick
+          sudo apt-get update -qq -o Acquire::Retries=3
+          sudo apt-get install -y -qq -o Acquire::Retries=3 imagemagick
           echo "MAGICK_CONFIGURE_PATH=$GITHUB_WORKSPACE/config/imagemagick" >> "$GITHUB_ENV"
-          convert -version | head -1
+
+      # A separate step because a value written to GITHUB_ENV reaches only later steps. The specs skip
+      # when montage is missing (spec/lib/image_magick_runner_spec.rb:78), so without this a broken
+      # install goes back to skipping and CI stays green. The policy checks are the production image's
+      # (Dockerfile:66-70). No pipefail, on purpose: the last check needs convert to be REFUSED, which
+      # is a non-zero exit, so no check that must succeed is written as a pipe.
+      - name: Verify ImageMagick and its policy
+        run: |
+          for bin in montage convert identify; do "$bin" -version > /dev/null; done
+          convert -version > "$RUNNER_TEMP/im-version.txt"
+          head -1 "$RUNNER_TEMP/im-version.txt"
+          convert -list policy > "$RUNNER_TEMP/im-policy.txt"
+          grep -qF "Path: $MAGICK_CONFIGURE_PATH/policy.xml" "$RUNNER_TEMP/im-policy.txt"
+          grep -qi 'pattern: PCL' "$RUNNER_TEMP/im-policy.txt"
+          convert text:/etc/passwd null: 2>&1 | grep -q 'security policy .TEXT'
 
       - name: Setup assets (vendor.css, frontend.css symlinks)
         run: bundle exec rails extras:assert_js
