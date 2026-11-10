@@ -480,61 +480,13 @@
 
     {{!-- Same four destinations as the tab strip above, for <=550px, where four tabs no longer fit on
          one row. Both are in the DOM at every width and _classic-home.scss swaps which one is shown
-         (`.ch-tabselect`).
-
-         THE APP'S PILL DROPDOWN, NOT A NATIVE <select> (2026-11-09, requested: "on basic view, our
-         select dropdown is not styled with our modern styles"; a native select's open list cannot
-         be styled). The one Modern's collapsed menu and the Basic org tabs use: a <details> menu,
-         which keeps what the native select was chosen for -- the toggle, keyboard operation and
-         the expanded state reach assistive tech from the element itself, and every option is an
-         ordinary <button>, which the switch scanner and eye-gaze dwell already reach.
-         A DISCLOSURE (a toggle button and the list it shows), not a <details>: these options act
-         rather than navigate, so they are buttons, and buttons inside a <details> fail
-         `no-nested-interactive`. The list renders only while open, so a closed menu leaves nothing
-         focusable or scannable behind; it closes on a choice, on Escape (focus back to the toggle) and
-         when focus leaves it (classic-view.js `tabMenuOpen`). The current section is the toggle's
-         label, and lit and announced (`aria-current`) in the list. The `{{#unless}}` / `{{#if}}` gates
-         are copied verbatim from the strip so the two never offer different options. --}}
-    <div class="ch-tabselect md-pillnav-dropdown md-pillnav-dropdown--fit {{if this.tabMenuOpen "is-open"}}" {{on "focusout" this.onTabMenuFocusOut}} {{on "keydown" this.onTabMenuKeydown}}>
-      <button type="button" class="md-pillnav-dropdown__trigger" id="ch_tab_menu_toggle" aria-haspopup="true" aria-expanded={{if this.tabMenuOpen "true" "false"}} aria-controls="ch_tab_menu" {{on "click" this.toggleTabMenu}}>
-        <span class="md-pillnav-dropdown__label">
-          {{~#if (is-equal this.currentTab "supervisees")~}}
-            {{t "Communicators" key="communicators"}}
-          {{~else if (is-equal this.currentTab "boards")~}}
-            {{t "Boards" key="boards"}}
-          {{~else if (is-equal this.currentTab "updates")~}}
-            {{~#if this.pending_updates.count~}}
-              {{t "Updates (%{n})" key="classic_tab_updates_n" n=this.pending_updates.count}}
-            {{~else~}}
-              {{t "Updates" key="updates"}}
-            {{~/if~}}
-          {{~else~}}
-            {{t "Actions" key="actions"}}
-          {{~/if~}}
-        </span>
-        <svg class="md-pillnav-dropdown__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-      </button>
-      {{#if this.tabMenuOpen}}
-      <ul class="md-pillnav-dropdown__list" id="ch_tab_menu" aria-label={{t "Dashboard sections" key="classic_dashboard_sections"}}>
-        <li><button type="button" class="md-pillnav-dropdown__option {{if (is-equal this.currentTab "main") "is-active"}}" aria-current={{if (is-equal this.currentTab "main") "page"}} {{on "click" (this.ctrlAction "set_index_nav" "main")}}>{{t "Actions" key="actions"}}</button></li>
-        {{#unless this.app_state.currentUser.modeling_only}}
-          {{#if this.showCommunicatorsTab}}
-            <li><button type="button" class="md-pillnav-dropdown__option {{if (is-equal this.currentTab "supervisees") "is-active"}}" aria-current={{if (is-equal this.currentTab "supervisees") "page"}} {{on "click" (this.ctrlAction "set_index_nav" "supervisees")}}>{{t "Communicators" key="communicators"}}</button></li>
-          {{/if}}
-        {{/unless}}
-        <li><button type="button" class="md-pillnav-dropdown__option {{if (is-equal this.currentTab "boards") "is-active"}}" aria-current={{if (is-equal this.currentTab "boards") "page"}} {{on "click" (this.ctrlAction "set_index_nav" "boards")}}>{{t "Boards" key="boards"}}</button></li>
-        {{#unless this.app_state.currentUser.modeling_only}}
-          <li><button type="button" class="md-pillnav-dropdown__option {{if (is-equal this.currentTab "updates") "is-active"}}" aria-current={{if (is-equal this.currentTab "updates") "page"}} {{on "click" (this.ctrlAction "set_index_nav" "updates")}}>
-            {{~#if this.pending_updates.count~}}
-            {{t "Updates (%{n})" key="classic_tab_updates_n" n=this.pending_updates.count}}
-          {{~else~}}
-            {{t "Updates" key="updates"}}
-          {{~/if~}}
-          </button></li>
-        {{/unless}}
-      </ul>
-      {{/if}}
-    </div>
+         (`.ch-tabselect`). Was a native <select>; since 2026-11-09 the app's pill-dropdown style
+         (requested: Basic's "select dropdown is not styled with our modern styles"; an open native
+         list cannot be styled), as components/dashboard/section-menu, which also owns how it opens,
+         closes and returns focus. Its options are `sectionMenuItems` (classic-view.js), built from
+         the same rules as the strip's `{{#unless}}` / `{{#if}}` gates above, so the two offer the same
+         sections. --}}
+    <Dashboard::SectionMenu @items={{this.sectionMenuItems}} @currentTab={{this.currentTab}} @onSelect={{this.selectSection}} @menuLabel={{t "Dashboard sections" key="classic_dashboard_sections"}} />
 
     {{!-- ── COMMUNICATORS ── People I Supervise --}}
     {{#if this.index_nav.supervisees}}

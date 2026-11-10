@@ -45,8 +45,6 @@ import { assign_home_board_basic, basic_home_button_label, BASIC_HOME_CURSOR } f
  */
 export default AuthenticatedView.extend({
   router: service('router'),
-  // The <=550px section menu starts closed (see `toggleTabMenu` in init).
-  tabMenuOpen: false,
   // The parent does not inject the session service (it has no re-login card), but
   // the classic status card leads with `session.invalid_token` — without this the
   // {{#if}} would silently read undefined and that state could never render.
@@ -61,25 +59,10 @@ export default AuthenticatedView.extend({
     var self = this;
     // Bound once, so <BoardIcon @onAction> gets a stable function while the assign mode is on.
     this.set('_basicAssignFromTile', function(board) { return self._basicAssign(board); });
-    /* THE <=550px SECTION MENU (2026-11-09; classic-view.hbs, the disclosure under the tab strip).
-       Open or closed is `tabMenuOpen`; the list renders only while open. It closes on a choice
-       (`set_index_nav` below), on Escape, which returns focus to the toggle, and when focus leaves
-       it (a click elsewhere, or tabbing out), so it never stays open over the page. */
-    this.toggleTabMenu = function() {
-      self.set('tabMenuOpen', !self.get('tabMenuOpen'));
-    };
-    this.onTabMenuKeydown = function(event) {
-      if (event && event.key === 'Escape' && self.get('tabMenuOpen')) {
-        self.set('tabMenuOpen', false);
-        var toggle = document.getElementById('ch_tab_menu_toggle');
-        if (toggle) { toggle.focus(); }
-      }
-    };
-    this.onTabMenuFocusOut = function(event) {
-      var menu = event && event.currentTarget;
-      var next = event && event.relatedTarget;
-      if (menu && next && menu.contains(next)) { return; }
-      self.set('tabMenuOpen', false);
+    /* The <=550px section menu's choice (components/dashboard/section-menu): the same action the tab
+       strip sends. */
+    this.selectSection = function(id) {
+      self.send('set_index_nav', id);
     };
     this.ctrlAction = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
@@ -231,7 +214,7 @@ export default AuthenticatedView.extend({
     return this.appState.get('currentUser');
   }),
 
-  // The active tab as a plain string, for the <=550px <select>. `index_nav` is a hash
+  // The active tab as a plain string, for the <=550px section menu. `index_nav` is a hash
   // ({main: true}, {boards: true}, ...) and can also hold values the tab strip has no
   // button for -- 'supervisors' (authenticated-view.js:883, :1711) and 'logging' (:1718).
   // Falling through to 'main' for those mirrors the strip exactly, whose Actions button
@@ -512,7 +495,6 @@ export default AuthenticatedView.extend({
       this._setBasicAssigning(false);
     },
     set_index_nav: function(nav) {
-      this.set('tabMenuOpen', false);
       this._super.apply(this, arguments);
       if(nav == 'boards') {
         this.stashes.persist('classic_rail_collapsed', true);
@@ -617,6 +599,23 @@ export default AuthenticatedView.extend({
      open communicators section with a drawn tab"): Basic's landing for the Caseload is this tab,
      so anyone who can be sent here must be able to see it. Modeling-only accounts keep their
      earlier exclusion from the strip (the {{#unless}} around it in the template). */
+  /* THE <=550px SECTION MENU'S OPTIONS (components/dashboard/section-menu): the tab strip's sections,
+     by the strip's own rules in classic-view.hbs -- Communicators and Updates hidden for a
+     modeling-only user, Communicators also only with a caseload (`showCommunicatorsTab`), and the
+     Updates label carrying the pending count as the strip's badge does. Change them together. */
+  sectionMenuItems: computed('app_state.currentUser.modeling_only', 'showCommunicatorsTab', 'pending_updates.count', function() {
+    var modelingOnly = !!this.get('app_state.currentUser.modeling_only');
+    var items = [{ id: 'main', label: i18n.t('actions', "Actions") }];
+    if (!modelingOnly && this.get('showCommunicatorsTab')) {
+      items.push({ id: 'supervisees', label: i18n.t('communicators', "Communicators") });
+    }
+    items.push({ id: 'boards', label: i18n.t('boards', "Boards") });
+    if (!modelingOnly) {
+      var count = this.get('pending_updates.count');
+      items.push({ id: 'updates', label: count ? i18n.t('classic_tab_updates_n', "Updates (%{n})", { n: count }) : i18n.t('updates', "Updates") });
+    }
+    return items;
+  }),
   showCommunicatorsTab: computed('app_state.currentUser.{supporter_role,supporter_view,modeling_only}',
                                  'app_state.currentUser.known_supervisees.[]',
                                  'app_state.currentUser.supervisees.[]', function() {

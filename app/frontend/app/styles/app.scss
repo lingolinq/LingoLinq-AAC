@@ -46585,7 +46585,8 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
   .md-pillnav {
     margin-top: 24px !important;
   }
-  .md-pillnav-dropdown {
+  /* Not the Basic dashboard's section menu (`.ch-tabselect`, 2026-11-10): its spacing is its own. */
+  .md-pillnav-dropdown:where(:not(.ch-tabselect)) {
     margin-top: 32px !important;
   }
   .md-card--getting-started .md-card__head--getting-started {
@@ -57505,7 +57506,10 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
     padding: 6px 8px !important;
 
   }
-  .md-pillnav-dropdown {
+  /* Not the Basic dashboard's section menu (`.ch-tabselect`, 2026-11-10): at <=550px it is the only
+     way between that page's sections (the tab strip is hidden there), so hiding it here left a
+     375px-wide phone with neither. Excluded in `:where()`, so the rule weighs what it did. */
+  .md-pillnav-dropdown:where(:not(.ch-tabselect)) {
     display: none !important;
   }
 }
@@ -57545,8 +57549,11 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
      `--user` rule below on specificity), `--org-menu` covers org managers at <=550,
      and `--user` is what an ORG manager actually lands on at <=460 (equal specificity
      to --org-menu, later in source). Leaving any at 40% gives one user type a
-     narrower pill than the others for no reason. */
-  .md-pillnav-dropdown:not(.md-pillnav-dropdown--org-menu) {
+     narrower pill than the others for no reason.
+     NOT THE BASIC DASHBOARD'S SECTION MENU (`.ch-tabselect`, 2026-11-10, red-team review): it wears
+     this class for its look, but keeps its own 75%-wide, flush placement (_classic-home.scss).
+     Excluded in `:where()`, so this rule weighs what it did for every dropdown it still covers. */
+  .md-pillnav-dropdown:not(.md-pillnav-dropdown--org-menu):where(:not(.ch-tabselect)) {
     display: block !important;
     width: 52% !important;
     /* 40px, i.e. the original 20px + 2rem (2026-08-16, requested). 1rem is 10px in this

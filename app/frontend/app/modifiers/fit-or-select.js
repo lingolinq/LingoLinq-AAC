@@ -19,7 +19,7 @@ import { modifier } from 'ember-modifier';
  * At <=550px the strip is `display: none` (_classic-home.scss, the home tabs' rule), measures 0,
  * and is never marked; the dropdown shows there through that same rule.
  *
- * Usage: <div {{fit-or-select}}><nav class="ch-tabs">…</nav><select class="ch-tabselect">…</select></div>
+ * Usage: <div {{fit-or-select}}><nav class="ch-tabs">…</nav><details class="md-pillnav-dropdown md-pillnav-dropdown--fit">…</details></div>
  *
  * THE STRIP IS `.ch-tabs` (Basic) OR `.md-pillnav` (Modern) since 2026-11-08, when the org tabs
  * (templates/organization.hbs) started rendering in Modern with Modern's base classes.
