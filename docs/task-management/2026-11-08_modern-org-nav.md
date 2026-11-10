@@ -25,7 +25,9 @@ the organization page."
   (`orgTabsNavClass`/`orgTabClass`, as `UserPillNav` does). `showOrgTabs` (editors; in Modern only
   where the app shell drew no pill nav) and `showBackStrip` (Modern non-editors).
 - `{{fit-or-select}}` and its CSS accept `.md-pillnav` as the strip as well as `.ch-tabs`.
-- `.md-pillnav--org-tabs { width: fit-content }` so the bar hugs its pills inside `.ch-tabs-fit`.
+- Round 1 added `.md-pillnav--org-tabs { width: fit-content }` so the bar hugged its pills inside
+  `.ch-tabs-fit`; round 2 removed it again when the tabs moved into `.ll-appshell__navbar`, whose
+  own `.md-pillnav` rule already sets `width: fit-content`. It is not in the final diff.
 - People page: Modern's in-page section pills removed (the org strip now carries them in Modern,
   as it already did in Basic).
 
@@ -94,3 +96,13 @@ Reported: "the md-pill-nav for the org tabs is still positioned down from where 
 - Fix (app.scss, beside the org-tabs clearance rules): Focused `#content:has(.ll-appshell--org-tabs)` takes `var(--topbar-height)`, and the Focused org-tabs shell padding goes 10 -> 40 so the title stays where it was.
 - After: org tabs at 86 (or the dropdown at 126) in both layouts at every width, same as the home page. Titles unchanged (156 desktop; 342 at Focused 900; 376 at Focused 640 and 375).
 - Not changed: the Organizations directory pill nav is still 30px lower than home in Focused at 900px and below (same cause, pre-existing, not asked).
+
+## Round 4: pre-PR review (2026-11-09)
+
+Rebased on develop (084552a6b); one conflict, both sides appending to `learnings-archive/2026-11.md`, kept both. One `/review-pr` pass (normal-PR tier after #1289), run on the preflight's `DIFF_FILE` (`REVIEWED=range origin/develop (084552a6b...) ... HEAD (c43adf870...)`).
+
+- **High, confirmed and fixed.** The Gentle zeroing rule's added `:not()` exclusions made it two classes heavier, so page rules that give clearance back on top of it lost. Measured against develop (8187) with the manager account, 9 pages x 4 widths per layout: Goals and Recordings shell padding 30px -> 0 at 1440/1024, Stats 52px -> 0 at 900/640. Fix: exclusions in `:where()` (no weight), also on the two `_focused-view.scss` org rules. After: all 36 rows identical to develop in Gentle and in Focused; org tabs and titles unchanged at every width.
+- **Medium, fixed.** `homeBoardName` cached the name beside the record, so a rename while the rail was up did not reach the row. Now `homeBoardRecord` plus a name read through it. Red test first (rename), plus two tests on the fetch (once per key; a failure leaves the slug and is not retried); both mutation-checked red (guard removed, arrival tick removed).
+- **Medium, checked and not changed.** People-page pills for non-editors: the page body is gated on `permissions.edit` (people.hbs:1), and `showSectionPillNav` is false only on a route mapped to a primary pill (the Rooms list), so editors always get the tabs there. `showOrgNav` in Basic: read only inside `{{#if this.showGlobalChrome}}` (application.hbs:1607), which Basic never passes.
+- **Low, fixed.** Stale comments on the org-tabs clearance rules; the task log and learnings claimed a `width: fit-content` rule that round 2 removed.
+- **Not done.** Template rendering tests for the rail rows and `OrgTabs`; full board fetch for a name (the home board is normally already in the store); distinct landmark names for the rail and the tabs (Basic has the same pair).

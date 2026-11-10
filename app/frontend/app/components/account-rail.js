@@ -148,8 +148,14 @@ export default Component.extend({
     }
     return rec;
   },
-  homeBoardName: computed('_homeBoardTick', 'user.preferences.home_board.{id,key,name}', function() {
-    var rec = this._findHomeBoard();
+  /* The record is its own property and the name is read through it, so renaming the board while
+     the rail is up reaches the row (review 2026-11-09); the lookup reruns on a fetch arriving
+     (`_homeBoardTick`) or a new home board. */
+  homeBoardRecord: computed('_homeBoardTick', 'user.preferences.home_board.{id,key}', function() {
+    return this._findHomeBoard();
+  }),
+  homeBoardName: computed('homeBoardRecord.name', 'user.preferences.home_board.name', function() {
+    var rec = this.get('homeBoardRecord');
     return (rec && rec.get('name')) || this.get('user.preferences.home_board.name') || null;
   }),
   didReceiveAttrs() {

@@ -97429,8 +97429,13 @@ body:not(.ll-layout-focused) #within_ember #content:has(.ll-appshell) {
    its own clearance (`.md-shell--org-directory` below). This rule's `:has()` qualifiers made it
    one class heavier than that one, so it zeroed the directory too and the title sat under the nav.
    Nor an org page under the org tabs (`ll-appshell--org-tabs`, same reason; see beside the
-   directory rule). */
-body:not(.ll-layout-focused) #content:has(.ll-appshell):not(:has(.md-main--updates-arrival)) .ll-appshell:not(.ll-appshell--org-tabs) .md-shell:not(.md-shell--org-directory) {
+   directory rule).
+   BOTH EXCLUSIONS ARE IN `:where()`, WHICH ADDS NO WEIGHT. As plain `:not()`s they made this rule
+   two classes heavier, and the page rules that give clearance back on top of it (Goals and
+   Recordings 30px, Stats 52px at 900px and below) then lost to it: measured 2026-11-09 against
+   develop, those pages' content rose 30px and 52px. With `:where()` the rule skips the two shells
+   and keeps the weight those rules were written against. */
+body:not(.ll-layout-focused) #content:has(.ll-appshell):not(:has(.md-main--updates-arrival)) .ll-appshell:where(:not(.ll-appshell--org-tabs)) .md-shell:where(:not(.md-shell--org-directory)) {
   padding-top: 0 !important;
 }
 /* ...AND 52px OF IT BACK AT 1024 AND BELOW (requested 2026-09-21: "the main page content
@@ -97550,8 +97555,9 @@ body.ll-layout-focused #content .ll-appshell .md-shell.md-shell--org-directory {
    the home pill nav), so, like this directory, their first element (the switcher or the title)
    needs clearance under it. Same target as above: the title at 156 at desktop widths.
    Measured without it: Gentle `#content` 26 + shell 0 + workspace 40/40 + hero 20 -> title at 126,
-   under the tabs (86-128). Focused keeps its usual `#content` 46 for these pages (_focused-view.scss,
-   the org rules there skip them), so it needs 20px less. The values are that arithmetic: 30 and 10.
+   under the tabs (86-128). Focused first kept its usual `#content` 46 for these pages and so took
+   10 here; since the rule just below gives these pages the home page's `#content` (30px less), the
+   30px moved into this value: 40. Gentle stays 30.
    At 900px and below the shared Gentle 52px rule outweighs this one, as it does the directory's. */
 body:not(.ll-layout-focused) #content .ll-appshell.ll-appshell--org-tabs .md-shell {
   padding-top: 30px !important;
@@ -97560,7 +97566,9 @@ body.ll-layout-focused #content .ll-appshell.ll-appshell--org-tabs .md-shell {
   padding-top: 40px !important;
 }
 /* FOCUSED: THE TABS AT THE HOME PILL NAV'S HEIGHT AT 900px AND BELOW TOO (reported 2026-11-08:
-   "still positioned down from where it should be"). There the nav slot is in the flow, so
+   "still positioned down from where it should be"). The rule applies at every width; above 900px
+   the nav slot is out of the flow, so only the title would move, and the shell's +30 above keeps
+   it still. At 900px and below the nav slot is in the flow, so
    `#content`'s top padding places it: the home page takes `var(--topbar-height)` (the Focused home
    rule, `#content.index.with_user:has(.md-shell--layout-focused)`), every other page the base
    `+ 3rem`, which put the tabs 30px under the home pill nav. The same value here; the 30px it
