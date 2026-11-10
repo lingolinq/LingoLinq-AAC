@@ -51,7 +51,9 @@ memory ahead of time while online, so they open faster.
 Each item below has tests; the PR's "Fix status" table lists the exact spec for each.
 
 **Opening offline**
-- A Home Screen launch with no network opens the app (Scot's shell), including on Wi-Fi with no internet.
+- A Home Screen launch with no network opens the app (Scot's shell). On Wi-Fi with no internet it opens when
+  nothing answers the page request; when the network answers with an error page or the request hangs, it does not
+  (tested 2026-11-09; see "Before merge").
 - Modern view opens synced boards offline (#1213); Basic view already did, and now also has browser tests.
 - Synced boards owned by someone else (a teacher's board, Crisis Vocabulary) open offline.
 - A board that is not on the device is never a dead end (#1209): the app moves to the home board, or to the
@@ -118,13 +120,13 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
 |---|---|---|
 | A real server denial wins on Modern view, except home and sidebar boards; Speak Mode no longer exempts | Traci | 2026-11-05 |
 | ~~Device copies are for speaking only; saving actions are refused~~ (replaced 2026-11-09, next row); no swap when the connection returns | Traci | 2026-11-05 |
-| Modern view treats a device copy like Basic view does: no "saved on this device" notice, Edit works offline, other actions are not blocked up front (ones that need the server say so). Accepted risk: an offline edit is sent at the next sync with no check for newer server changes. A real server denial still wins (row 1) | Traci | 2026-11-09 |
+| Modern view treats a device copy like Basic view does: no "saved on this device" notice, Edit works offline, other actions are not blocked up front (ones that need the server say so). Accepted risk: an offline edit is sent at the next sync with no check for newer server changes. A real server denial still wins (row 1). NOT BUILT YET: the code still shows the notice and refuses saving actions ("How it works now", item 3) | Traci | 2026-11-09 |
 | Ask "Trust this Device" on Home Screen sign-ins | Scot | 2026-11-05 |
 | Ask it only where the offline shell is on | Scot (suggestion), Traci | 2026-11-07 |
 | Earlier trusted Home Screen iPads: keep Scot's manual workaround for now; code fix is Scot's call (#1285) | Traci | 2026-11-07 |
 | Offline sync saves home, sidebar, liked boards and Crisis Vocabulary; like a board to keep it offline | Traci | 2026-11-08 |
 | Keep "Like" in both views (Modern's "Set as Favorite" renamed) and add the offline wording | Traci | 2026-11-08 |
-| The first 50 liked boards are kept offline (the server listed only 25, so later likes never synced; first set to 100 on 2026-11-09, then 50). The liked-list home grid stays at its first 25 tiles; a "Show more" tile, a message when a like is past the limit, hiding boards a person can no longer view and clearing deleted ones are a follow-up PR | Traci | 2026-11-10 |
+| The first 50 liked boards are kept offline (the server listed only 25, so later likes never synced; first set to 100 on 2026-11-09, then 50). The liked-list home grid is to stay at its first 25 tiles (not built yet; today it would show all listed); a "Show more" tile, a message when a like is past the limit, hiding boards a person can no longer view and clearing deleted ones are a follow-up PR | Traci | 2026-11-10 |
 
 ## What's left
 
@@ -132,8 +134,15 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
 
 - **`synthetic-data` label on PR #1268.** The `data-bearing-paths` check needs a person with write access to look
   at the changed test seed (`app/frontend/e2e/support/offline-launch.rb`) and add the label. Agents must not.
-- **CI.** `security-scan` fails on `develop` too (known; needs a Rails 8 upgrade). Everything else should be green
-  on the latest push; check before merging.
+- **CI.** `security-scan` fails on `develop` too (known; needs a Rails 8 upgrade). The required Ember check is
+  red: 3 tests in `tests/unit/utils/capabilities-database-failure-test.js` (#1205) fail the leak check (last full CI
+  run, 2026-11-08). To fix before merging.
+- **Found by the whole-branch review (2026-11-09), open:** a board marked 'kept' may have no copy on the device
+  (#1212, `utils/sync_board_fallback.js:31`; not yet reproduced); the app does not open from the device when the
+  page request gets a server error page or hangs (decision needed: Traci and Scot); liked boards may not get their
+  button set saved (unconfirmed). Details in the task log.
+- **Decided, not built yet:** Modern view device copies editable offline with no notice (2026-11-09); the
+  liked-list home grid held at its first 25 tiles (2026-11-10).
 - **Scot's review** of the parts of his PR that changed after he handed it over.
 
 ### Needs a real device (after merge to `develop`, on dev.lingolinq.com)

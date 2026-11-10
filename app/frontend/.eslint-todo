@@ -677,12 +677,8 @@ app/routes/user.js|ember/no-runloop|37|22|2|5addc2170315
 app/routes/user/board-alt.js|ember/no-runloop|52|15|2|5addc2170315
 app/routes/user/board-alt.js|ember/no-runloop|75|11|2|5addc2170315
 app/routes/user/board-alt.js|ember/no-runloop|89|13|2|5addc2170315
-app/routes/user/board-alt/index.js|ember/no-runloop|136|7|2|5addc2170315
-app/routes/user/board-alt/index.js|ember/require-computed-property-dependencies|178|18|1|7342f52fef46
-app/routes/user/board-alt/index.js|no-useless-catch|121|9|1|9dd89265ed20
 app/routes/user/board-detail.js|ember/no-runloop|108|5|2|5addc2170315
 app/routes/user/board-detail.js|ember/no-runloop|457|7|2|5addc2170315
-app/routes/user/board-detail.js|ember/no-runloop|587|5|2|5addc2170315
 app/routes/user/board-alt/index.js|ember/no-runloop|127|7|2|5addc2170315
 app/routes/user/board-alt/index.js|ember/require-computed-property-dependencies|169|18|1|7342f52fef46
 app/routes/user/board-alt/index.js|no-useless-catch|112|9|1|9dd89265ed20

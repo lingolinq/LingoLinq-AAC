@@ -1879,8 +1879,8 @@ before building:
    the `shallow_clones` flag.
 5. Cap the scan (about 300 ids), build the map across batches, remove duplicate refs (plain and clone of one board).
 6. One ordered function (stored id, board) shared with the like-time `kept_offline` answer.
-State: unit 1 (dbf02dbc3) is committed. The three red specs for proposal 3 are uncommitted in
-`spec/models/user_spec.rb` and saved as `/home/tracid/offline-sync-handoff/liked-list-view-filter-RED-SPECS.patch`;
+State: unit 1 (dbf02dbc3) is committed. The three red specs for proposal 3 were removed from the
+working tree (follow-up PR) and are saved as `/home/tracid/offline-sync-handoff/liked-list-view-filter-RED-SPECS.patch`;
 the no-internet e2e cases as `no-internet-e2e-cases.patch` there. Local test DBs: `lingolinq-test-claude` (RSpec,
 `DATABASE_URL=postgres:///lingolinq-test-claude` with `bundle exec dotenv -f /home/tracid/LingoLinq-AAC/.env`),
 `lingolinq-e2e-claude` (e2e; Rails on 5077; build with `ember build --environment production`, never the plain
@@ -1890,3 +1890,10 @@ development build, which starts Mirage).
 spec's limit example is now 51 liked, 50 listed and looked up. Green at 50, all four red with 25 put back. Earlier
 entries that say 100 describe the first choice. Traci chose option 2: only the cap ships in this PR (with the home
 grid held at 25, still to do); the view filter, pruning, the past-limit message and "Show more" go to a follow-up PR.
+
+**Pre-push review (2026-11-10): OK to push.** Acted on: the `.eslint-todo` merge resolution had kept 4 stale rows
+(the branch side's old line numbers for `routes/user/board-alt/index.js` 121, 136, 178 and `routes/user/board-detail.js`
+587, which develop had moved); removed, so those two files now carry develop's rows; gate: findings 1549, baseline
+1549, 0 new. So "union of both sides" above was not exact. Status doc: blockers listed under "Before merge", the
+Wi-Fi line qualified, the two decisions marked not built. Still open from that review: pin the like order in the
+spec; measure users#show with 50 likes; a liked board and its copy-by-reference can produce a duplicate ref.
