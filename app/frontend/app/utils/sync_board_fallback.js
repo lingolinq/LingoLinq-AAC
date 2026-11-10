@@ -63,11 +63,20 @@ export function note_device_boards(sync_progress, rows) {
   });
 }
 
-// False only when the sync read the device's boards and this one is not among them. When they were not read (a lookup
-// outside a full sync), there is nothing to judge by and the answer is as it was before.
+// False only when the sync read the device's boards, this one is not among them, and its record was not fetched by the
+// adapter. The adapter stamps a record it fetched from the server (`retrieved`, models/base.js) and stores what it
+// fetches (utils/persistence.js findRecord, store_eventually), so such a board is on the device, or about to be,
+// though the list read at the sync's start does not have it. A record pushed from a /tree answer carries no stamp.
+// When the device's boards were not read (a lookup outside a full sync), there is nothing to judge by and the answer
+// is as it was before.
+//
+// Measured in the installed Android app (2026-11-10, task log): with single-board requests failing, the sync without
+// this check listed 97 boards as 'cached' with no error while the device held none; with it, each is reported as
+// failed. With a healthy server the check costs no extra request: the reload joins the fetch already under way.
 export function known_on_device(sync_progress, record) {
   var known = sync_progress && sync_progress.device_boards;
   if(!known || !record || !record.get) { return true; }
+  if(record.get('retrieved')) { return true; }
   return !!(known[record.get('global_id')] || known[record.get('id')] || known[record.get('key')]);
 }
 

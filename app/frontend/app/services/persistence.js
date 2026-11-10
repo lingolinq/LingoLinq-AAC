@@ -3002,7 +3002,7 @@ var persistence = Service.extend({
           if(stamps[user.get('id')] && stamps[user.get('id')] >= user.get('sync_stamp')) {
             // If the req errors for a supervisee, and the sync_stamp
             // is up-to-date from the last sync, don't try to reload boards
-            allow_any_cached = true; return lingoLinqExtras.storage.find_all('board').then(function(list) { note_device_boards(_this.get('sync_progress'), list); return {}; }, function() { return {}; }); // "any cached copy" still means one on the device: read its boards, as the path above does
+            allow_any_cached = true; if(_this.get('sync_progress.device_boards')) { return RSVP.resolve({}); } return lingoLinqExtras.storage.find_all('board').then(function(list) { note_device_boards(_this.get('sync_progress'), list); return {}; }, function() { return {}; }); // "any cached copy" still means one on the device: read its boards unless this sync already has (the list is the whole table, not one user's)
           }
         }
         return RSVP.resolve({});

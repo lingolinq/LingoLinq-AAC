@@ -2185,3 +2185,45 @@ compared the cased string (`app/models/concerns/processable.rb:148`), so "Admin"
 check now compares the lowercased suggestion. Spec red before (`got: "Admin"`), green after; processable_spec 31
 examples, 0 failures. My first version of the spec called the default (lowercasing) path and passed without the
 fix; corrected to the sign-up path before the fix was applied.
+
+#### The 'cached' defect reproduced in the installed app, and the fix confirmed (2026-11-10)
+
+**Method.** Android emulator (hardware OpenGL, setup above), installed app, aiden_parker, first sync, app data
+cleared. A local pass-through proxy between the emulator and Rails
+(`/home/tracid/offline-sync-handoff/scripts/board-fail-proxy.js`, `adb reverse tcp:5000 tcp:5099`) answered every
+GET for ONE board (`/api/v1/boards/<id-or-key>`) with 503 and passed everything else, Modern view's `/tree`
+prefetch included, so boards reached memory and could not be fetched one by one. Driver `emu-fail-boards.js`
+(same folder) ignores a sync attempt that ended before reaching any board, then counts the boards the sync
+reported WITHOUT an error that have no row on the device. Blocking through the WebView debugger (CDP `Fetch`) does
+not work: it paused 0 requests, the app's traffic goes through Capacitor's native HTTP.
+
+| | Check off (`known_on_device` forced true) | Check on (the fix, with the `retrieved` correction) |
+|---|---|---|
+| Sync | "Finished ... with 5 error(s)", 203 s | "Finished ... with 5 error(s)", 14 s |
+| Boards in the log | 102: 97 'cached' with no error, 5 with errors | 6 rows: 5 boards, each with an error |
+| Board rows on the device | 0 | 0 |
+| Reported without an error and not on the device | **97** | **0 boards** (one extra error-less row is the home board's first attempt; its other row carries the error: the known double row for a retried board) |
+
+**Reading (CONFIRMED on the emulator):** when single-board requests fail and the boards are in memory from Modern
+view's prefetch, the sync without the check lists them as 'cached' although none is stored, and goes on into their
+trees for 200 s. With the check each is reported as failed and the sync stops. With a healthy server the check
+changes neither the rows saved nor the number of requests (runs 1 to 3 above). In both failing runs the headline
+is the same "finished with 5 errors": the gain is the per-board record, and, when only SOME boards fail and all of
+them are in memory, a sync that no longer says "succeeded". That partial case was not run.
+**Final shape of the fix** (uncommitted correction now committed with this entry): `known_on_device` also accepts a
+record the adapter fetched (`retrieved`); the `local_result` half was removed (not a declared attribute, pre-push
+review); the supervisee failure path skips its board-table read when this sync already noted the device's boards
+(Traci's request; no test pins the skip, the outcome is the same either way). The comments that carried my wrong
+"three requests per board" figure were rewritten.
+**Tests:** "a board marked cached must be on the device (#1212)", 8: the five lookups, the adapter-stamp case, and
+two whole syncs on the REAL local database (`primeLocalSyncStorage`): a board current in memory only is requested
+once, ends 're-downloaded' and its row is on the device afterwards; a board current in memory and already on the
+device is not requested and stays 'cached'. Mutations: device list read but nothing recorded, the already-on-device
+sync test fails; adapter stamp ignored, its test fails; revision branch not gated, two fail. Sync module with
+`timingStrict=1`: 105 tests, 104 pass, 1 existing skip, 0 fail, no late work. Lint gate: 0 new.
+**Mistakes in this stretch, for the record:** the first experiment driver was mangled by an unquoted heredoc; the
+second attempt's CDP blocking saw no traffic and measured an early sync attempt; the emulator crashed once
+("D3D12: Removing Device", restarted); one cleanup command killed its own shell with `pgrep -f` on a pattern in
+its own command line (the rule file warns of exactly this), so it was redone step by step with the pid from `ss`.
+**Still not done on the emulator:** the offline-open check (boards open with the connection cut), the liked-boards
+check past 25, and the same runs against staging.

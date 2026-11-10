@@ -6392,9 +6392,9 @@ describe("persistence-sync", function() {
   // device: Modern view pushes the boards of a /tree answer into the store without saving them. Once the sync has
   // read the device's board list, a board that is not in it is downloaded, which also saves it.
   describe("a board marked cached must be on the device (#1212)", function() {
-    function lookupCurrent(deviceBoards, allowAnyCached) {
+    function lookupCurrent(deviceBoards, allowAnyCached, extra) {
       persistence.set('sync_progress', deviceBoards === undefined ? {} : { device_boards: deviceBoards });
-      var rec = EmberObject.create({ id: '1_1213', key: 'example/current', fresh: false, current_revision: 'r1', permissions: { view: true }, image_urls: {} });
+      var rec = EmberObject.create(Object.assign({ id: '1_1213', key: 'example/current', fresh: false, current_revision: 'r1', permissions: { view: true }, image_urls: {} }, extra || {}));
       stub(rec, 'reload', function() { rec.reloaded = true; return RSVP.resolve(rec); });
       stub(LingoLinq.store, 'peekRecord', function() { return null; });
       stub(LingoLinq.store, 'findRecord', function(type, id) { if(type == 'board' && id == '1_1213') { return RSVP.resolve(rec); } });
@@ -6430,6 +6430,18 @@ describe("persistence-sync", function() {
       });
     });
 
+    // The adapter stamps what it fetched from the server (`retrieved`) and stores what it fetches, so such a board
+    // is on the device though the list read at the sync's start does not have it.
+    it("leaves a current board alone when the adapter fetched it, though it was not on the device when the sync started", function() {
+      var res = lookupCurrent({}, false, { retrieved: 1 });
+      waitsFor(function() { return res.done; });
+      runs(function() {
+        expect(res.rec.reloaded).toEqual(undefined);
+        expect(onlyStatus()).toEqual(['cached']);
+        persistence.set('sync_progress', null);
+      });
+    });
+
     it("downloads a board not on the device also when any cached copy would do (a supervisee whose revisions failed)", function() {
       var res = lookupCurrent({}, true);
       waitsFor(function() { return res.done; });
@@ -6440,50 +6452,81 @@ describe("persistence-sync", function() {
       });
     });
 
-    // Through a whole sync: the home board is current in memory (as after Modern view pushed it) and the device has
-    // no row for it; the batch download fails, as it can under load. The sync must ask the server for the board
-    // rather than trust the copy in memory. (The download is what saves it, in the adapter; this harness writes no
-    // rows from adapter fetches, so the saved row is checked by e2e/offline-launch.spec.js, not here.)
-    it("a sync downloads a board that was current in memory only", function() {
-      db_wait(function() {
-        var tailDone = false;
-        primeBoardRevisionsSyncHarness(function() { tailDone = true; });
-        var board = {id: '1_145', key: 'fred/home', full_set_revision: 'current', permissions: {}, current_revision: 'current', image_urls: {},
-          image_url: 'http://example.com/board.png', buttons: [], grid: {rows: 1, columns: 1, order: [[null]]}};
-        stubStoreUrl(function(url) { return RSVP.resolve({url: url}); });
-        chainPersistenceAjax(function(url) {
-          if(url == '/api/v1/users/1340/board_revisions') { return RSVP.resolve({revisions: {'1_145': 'current', 'fred/home': 'current'}, revoked_ids: []}); }
-        });
-        stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
-        refreshBoardsInStore([board]); // in memory, not fresh, and nothing stored on the device
+    // Through a whole sync, with the real local database (primeLocalSyncStorage; the default harness answers an empty
+    // board list and drops board writes). The home board is current in memory, as after Modern view pushed it, and
+    // the batch download fails, as it can under load.
+    function syncWithHomeInMemory(storedFirst) {
+      var state = { tailDone: false, done: false, boardRequests: 0 };
+      primeBoardRevisionsSyncHarness(function() { state.tailDone = true; });
+      primeLocalSyncStorage([]);
+      var board = {id: '1_145', key: 'fred/home', full_set_revision: 'current', permissions: {}, current_revision: 'current', image_urls: {},
+        image_url: 'http://example.com/board.png', buttons: [], grid: {rows: 1, columns: 1, order: [[null]]}};
+      stubStoreUrl(function(url) { return RSVP.resolve({url: url}); });
+      chainPersistenceAjax(function(url) {
+        if(url == '/api/v1/users/1340/board_revisions') { return RSVP.resolve({revisions: {'1_145': 'current', 'fred/home': 'current'}, revoked_ids: []}); }
+      });
+      stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+      var ready = storedFirst ? persistence.store('board', board, board.id) : RSVP.resolve();
+      ready.then(function() {
+        refreshBoardsInStore([board]); // in memory, with no stamp from the adapter
         LingoLinq.all_wait = true;
         queryLog.real_lookup = true;
-        var boardRequests = 0;
         stub(window.$, 'realAjax', function(options) {
           if(isCrisisVocabularyRequest(options.url)) { return RSVP.resolve({board: crisisVocabularyBoard()}); }
           if(options.url === '/api/v1/users/1340') {
             return RSVP.resolve({user: {id: '1340', user_name: 'fred', avatar_url: 'http://example.com/pic.png', preferences: {home_board: {id: '1_145'}}}});
           } else if(options.url == '/api/v1/boards/1_145') {
-            boardRequests++;
+            state.boardRequests++;
             return RSVP.resolve({board: board});
           } else if(options.url && options.url.match(/\/api\/v1\/buttonsets\//)) {
             return RSVP.resolve({ buttonset: { buttons: [], full_set_revision: 'current' } });
           }
           return RSVP.reject({});
         });
-        var done = false;
-        var finish = function() { done = true; };
+        var finish = function() { state.done = true; };
         persistence.sync(1340).then(finish, finish);
-        waitsFor(function() { return waitForSyncDoneAndSettled(done) && tailDone; });
+      });
+      return state;
+    }
+    function homeStatus() {
+      var log = (persistenceTarget() || persistence).get('sync_log') || [];
+      return (((log[log.length - 1] || {}).statuses || []).find(function(s) { return s.id == '1_145'; }) || {}).status;
+    }
+    function homeRowOnDevice() {
+      var repo = (capabilities.dbman && capabilities.dbman.repo && capabilities.dbman.repo.board) || [];
+      return repo.some(function(r) { return String(r.id).indexOf('1_145') !== -1; });
+    }
+    function endWholeSync() {
+      cancelSyncTailWork();
+      persistence.set('sync_progress', null);
+      LingoLinq.sync_testing_real_boards = false;
+      boardRevocation.reset_for_tests();
+      ensureBoardAbsentFromLocalDb('1_145');
+    }
+
+    it("a sync downloads and saves a board that was current in memory only", function() {
+      db_wait(function() {
+        ensureBoardAbsentFromLocalDb('1_145');
+        var state = syncWithHomeInMemory(false);
+        waitsFor(function() { return waitForSyncDoneAndSettled(state.done) && state.tailDone; });
         runs(function() {
-          var log = (persistenceTarget() || persistence).get('sync_log') || [];
-          var status = (((log[log.length - 1] || {}).statuses || []).find(function(s) { return s.id == '1_145'; }) || {}).status;
-          expect(boardRequests).toEqual(1);
-          expect(status).toEqual('re-downloaded');
-          cancelSyncTailWork();
-          persistence.set('sync_progress', null);
-          LingoLinq.sync_testing_real_boards = false;
-          boardRevocation.reset_for_tests();
+          expect(state.boardRequests).toEqual(1);
+          expect(homeStatus()).toEqual('re-downloaded');
+          expect(homeRowOnDevice()).toEqual(true);
+          endWholeSync();
+        });
+      });
+    });
+
+    it("a sync leaves alone a board that is current in memory and already on the device", function() {
+      db_wait(function() {
+        var state = syncWithHomeInMemory(true);
+        waitsFor(function() { return waitForSyncDoneAndSettled(state.done) && state.tailDone; });
+        runs(function() {
+          expect(state.boardRequests).toEqual(0);
+          expect(homeStatus()).toEqual('cached');
+          expect(homeRowOnDevice()).toEqual(true);
+          endWholeSync();
         });
       });
     });
