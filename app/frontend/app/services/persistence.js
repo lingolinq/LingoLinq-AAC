@@ -2779,7 +2779,7 @@ var persistence = Service.extend({
           } else {
             board_statuses.push({id: id, key: record.get('key'), status: 're-downloaded'});
             record.set('button_set_needs_reload', true);
-            return _this.time_promise(record.reload(), "reload board", BOARD_RELOAD_MS).then(null, function(err) { return keep_stored_board(record, err, board_statuses, id); }); // #1212 (utils/sync_board_fallback.js)
+            return _this.time_promise(record.reload(), "reload board", BOARD_RELOAD_MS).then(null, function(err) { return keep_stored_board(record, err, board_statuses, id, function(rec) { return _this.find('board', rec.get('global_id') || rec.get('id')).then(function(row) { return usable_copy(row) ? row : RSVP.reject({error: 'no usable copy'}); }); }); }); // #1212 (utils/sync_board_fallback.js): by global id, a key lookup scans every board row
           }
         } else {
           board_statuses.push({id: id, key: record.get('key'), status: 'downloaded'});
@@ -4964,3 +4964,4 @@ import { queue_eventual_store } from '../utils/eventual_store_queue';
 import { is_permanent_upload_url } from '../utils/permanent_upload';
 import { picture_kept_in_database, usable_database_copy } from '../utils/database_picture';
 import { BOARD_RELOAD_MS, keep_stored_board, claim_board_retry, BOARD_RETRY_DELAY_MS } from '../utils/sync_board_fallback';
+import { usable_copy } from '../utils/board_device_copy';

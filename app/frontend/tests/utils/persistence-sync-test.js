@@ -6156,11 +6156,26 @@ describe("persistence-sync", function() {
       });
       return rec;
     }
-    function lookupFailing(complete, err) {
+    // onDevice false: the record is in memory only (as when Modern view pushed it from a /tree answer,
+    // utils/board_detail_cache.js), with no row in the device database.
+    // onDevice: what the device database answers for board 1_1212. Default: a row that can be opened offline.
+    // false: no row (the record is in memory only, as when Modern view pushed it from a /tree answer,
+    // utils/board_detail_cache.js). An object: that row.
+    function lookupFailing(complete, err, onDevice) {
       persistence.set('sync_progress', {});
       var rec = storedBoard(complete);
       stub(rec, 'reload', function() { return RSVP.reject(err); });
-      var res = { done: false, rec: rec };
+      var target = persistenceTarget() || persistence;
+      var priorFind = target.find;
+      var res = { done: false, rec: rec, device_reads: [] };
+      stubOnPersistence('find', function(store, key) {
+        if(store === 'board') {
+          res.device_reads.push(key);
+          if(onDevice === false || key !== '1_1212') { return RSVP.reject({error: 'no record found'}); }
+          return RSVP.resolve(onDevice || {id: '1_1212', key: 'example/slow', buttons: []});
+        }
+        return priorFind.apply(target, arguments);
+      });
       persistence.board_lookup('1_1212', {}).then(function(b) { res.board = b; res.done = true; }, function(e) { res.error = e; res.done = true; });
       return res;
     }
@@ -6212,8 +6227,45 @@ describe("persistence-sync", function() {
       });
     });
 
+    it("should not keep a board that is only in memory, with no copy on the device", function() {
+      var err = { error: 'timeout' };
+      var res = lookupFailing(true, err, false);
+      waitsFor(function() { return res.done; });
+      runs(function() {
+        expect(res.board).toEqual(undefined);
+        expect(res.error).toEqual(err); // the original failure, so the sync's one retry still applies
+        expect(lastStatus()).toEqual('re-downloaded');
+        persistence.set('sync_progress', null);
+      });
+    });
+
+    it("should not keep a board whose device copy cannot be opened (no buttons)", function() {
+      var err = { error: 'timeout' };
+      var res = lookupFailing(true, err, {id: '1_1212', key: 'example/slow'});
+      waitsFor(function() { return res.done; });
+      runs(function() {
+        expect(res.board).toEqual(undefined);
+        expect(res.error).toEqual(err);
+        expect(lastStatus()).toEqual('re-downloaded');
+        persistence.set('sync_progress', null);
+      });
+    });
+
+    it("should read the device copy by the board's id, also when the record is named by its key", function() {
+      var res = lookupFailing(true, { error: 'timeout' });
+      res.rec.set('id', 'example/slow'); // a board looked up by key (serializers/application.js)
+      res.rec.set('global_id', '1_1212');
+      waitsFor(function() { return res.done; });
+      runs(function() {
+        expect(res.device_reads).toEqual(['1_1212']);
+        expect(res.board).toEqual(res.rec);
+        expect(lastStatus()).toEqual('kept');
+        persistence.set('sync_progress', null);
+      });
+    });
+
     it("should still fail a board with no complete copy on the device (a first sync)", function() {
-      var res = lookupFailing(false, { error: 'timeout' });
+      var res = lookupFailing(false, { error: 'timeout' }, false);
       waitsFor(function() { return res.done; });
       runs(function() {
         expect(res.board).toEqual(undefined);

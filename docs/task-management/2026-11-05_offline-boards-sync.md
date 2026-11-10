@@ -2017,3 +2017,34 @@ excluded, 1 fails; any device type, 1 fails. Device, session controller, users c
 1,051 examples, 0 failures.
 **Before merge:** an authentication change needs the dual review on the PR (`/review-pr` after the PII preflight,
 then `/adversary-review`).
+
+#### A 'kept' board must be on the device: fixed; 'cached' branches still open (2026-11-10)
+
+**Cause (CONFIRMED):** `keep_stored_board` (`utils/sync_board_fallback.js`), called only from `board_lookup`
+(`services/persistence.js:2782`), kept a board whose reload failed for a passing reason when the IN-MEMORY record had
+`permissions` and `image_urls`. A record pushed from a `/tree` answer (`utils/board_detail_cache.js:185-191`) has
+both and no device row, so the sync could report success for a board that would not open offline after a restart.
+**Fix:** before keeping, `board_lookup` reads the device row by the board's global id
+(`rec.get('global_id') || rec.get('id')`: a record looked up by key is named by its key, and a key lookup scans every
+board row on IndexedDB) and keeps only when `usable_copy(row)` holds, the test the offline open uses
+(`utils/board_device_copy.js:18-20`). With no usable row the ORIGINAL error is returned, so the one retry still
+runs; the status stays 're-downloaded' and gets the "failed retrieval" error if the retry fails too.
+**Adversarial review of the proposal: proceed with changes; applied** (global id, `usable_copy`, exact status in the
+test, the first-sync test given no device row). Its checks that hold: `find` reads only the device database (no
+false positives); `known_missing` is cleared on every board store; a miss while a save is still queued refuses the
+keep and the retry runs 10 s later; with no working database the read rejects, which is right.
+**Tests** (`tests/utils/persistence-sync-test.js`, "board reloads under a slow server (#1212)", 18): new: not kept
+when only in memory; not kept when the row has no buttons; the row is read by the global id when the record is named
+by its key. The shared helper now states what the device answers (a usable row by default), so the five existing
+"keep the device's complete copy" tests still describe a board that IS on the device; no assertion changed.
+Mutations: device never asked, 3 fail; read by the record's id, 1 fails; any row counts, 1 fails; reject with the
+read's error, 2 fail. Sync module with `timingStrict=1`: 96 tests, 95 pass, 1 existing skip, 0 fail.
+**NOT done:** the real-database test the proposal mentioned (it would be the only one running the real `find`).
+**STILL OPEN, rated High by the review (path read, not reproduced):** the 'cached' branches in `board_lookup`
+(`services/persistence.js:2773-2778`: revision matches `fresh_board_revisions`; `allow_any_cached`) accept an
+in-memory record with no device check and no failed reload. Modern view pushes up to 500 `/tree` boards into the
+store; when the batch pre-download is skipped (100 or more missing boards, `:2945`) or a batch fails, those boards
+are marked 'cached' and never written. Proposed: gate both branches on the board ids the sync already read with
+`find_all('board')` (`:2904`), no extra reads. Item 2 (#1212) is not closed until this lands. After a refused keep
+and a failed retry the board's folders are skipped again, which is acceptable because the parent could not open
+offline anyway.

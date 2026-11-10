@@ -24,18 +24,27 @@ export function passing_failure(err) {
   return xhr.status === 0 || xhr.status === 429 || (xhr.status >= 500 && xhr.status < 600);
 }
 
-// When the refresh failed for a passing reason and the device holds a complete copy (permissions and image_urls, the
-// test the sync's cached paths use), keep that copy so the sync goes on into its folders, and record it as 'kept'
-// rather than 're-downloaded'. Otherwise fail as before.
-export function keep_stored_board(record, err, board_statuses, id) {
-  if(passing_failure(err) && record && record.get && record.get('permissions') && record.get('image_urls')) {
+// When the refresh failed for a passing reason and the device holds a copy of the board, keep that copy so the sync
+// goes on into its folders, and record it as 'kept' rather than 're-downloaded'. Otherwise fail as before, with the
+// original error, so the one retry below still applies.
+//
+// "The device holds a copy" is asked of the device, not of the record: a record can be complete in memory with no row
+// stored (Modern view pushes the boards of a /tree answer into the store without saving them,
+// utils/board_detail_cache.js), and such a board would not open offline after a restart. `find_row(record)` resolves
+// when the device has a copy that can be opened and rejects when it does not (services/persistence.js board_lookup).
+export function keep_stored_board(record, err, board_statuses, id, find_row) {
+  if(!(passing_failure(err) && record && record.get && record.get('permissions') && record.get('image_urls') && find_row)) {
+    return RSVP.reject(err);
+  }
+  return find_row(record).then(function() {
     record.set('button_set_needs_reload', false); // no second request to a server that just failed
     for(var idx = (board_statuses || []).length - 1; idx >= 0; idx--) {
       if(board_statuses[idx].id == id) { board_statuses[idx].status = 'kept'; break; }
     }
-    return RSVP.resolve(record);
-  }
-  return RSVP.reject(err);
+    return record;
+  }, function() {
+    return RSVP.reject(err);
+  });
 }
 
 // A first sync has no stored copy to keep, so a board whose lookup failed was lost with its folders. When the failure
