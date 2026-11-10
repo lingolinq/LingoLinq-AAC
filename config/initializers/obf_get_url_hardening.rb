@@ -1,14 +1,9 @@
 require 'base64'
 require 'obf'
 
-# Every fetch the obf gem makes goes through OBF::Utils.get_url (obf-0.9.9.3/lib/obf/utils.rb:3-46). The gem
-# checks a url with its own sanitize_url (utils.rb:60-67), which lets private and link-local addresses
-# through, then fetches with followlocation, so no redirect hop is checked. Board export reaches it with
-# stored image and sound urls (lib/obf_lingolinq_patch.rb, the gem's pdf.rb). This sends every fetch
-# through SafeHttp, which checks each resolved address and each redirect hop.
-#
-# image_base64 and sound_base64 read a server file for any value without "://" (utils.rb:147-151, :262-266);
-# here they accept only a data: uri or an http(s) url.
+# Every fetch the obf gem makes goes through OBF::Utils.get_url. This replaces it, and the media helpers
+# built on it, so each fetch goes through SafeHttp, which checks each resolved address and each redirect
+# hop. image_base64 and sound_base64 accept only a data: uri or an http(s) url.
 module OBFGetUrlHardening
   FETCH_TIMEOUT = 10
   FETCH_CONNECT_TIMEOUT = 5

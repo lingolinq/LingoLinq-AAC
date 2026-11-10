@@ -32,9 +32,10 @@ from them: sounds needed the same treatment as images; a refused sound must not 
 raster probe needed `SafeHttp`; the spec needed redirect, DNS and stubbed-internal cases; `data:` uris
 keep their `extension`; a response with no content type returns nil instead of raising.
 
+Before push, a further local adversarial review of this branch, of the ImageMagick branch and of both
+merged found no Critical or High issue; the related specs pass on the merge (642 examples, 0 failures).
+Noted: the raster-variant probe now follows checked redirects, so a variant that redirects counts as found.
+
 ## Not in this change
 
-- Fetched SVG content is rasterised by `convert` without the `SvgSanitizer` pass uploads get; tracked
-  separately.
-- Uploads-bucket images are fetched unsigned by `get_url`, as before.
 - The hydra path follows a redirect synchronously inside the callback; slower for redirecting images only.
