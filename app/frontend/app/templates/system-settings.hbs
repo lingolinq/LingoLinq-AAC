@@ -17,6 +17,9 @@
              padding, which put the form a third of the way down the page. `md-hero` is the header
              every app page uses (templates/organizations.hbs); the section's spacing is its own
              (app.scss `.la-system-settings__section`). --}}
+        {{!-- The page's `<main>` landmark (red-team review 2026-11-09: it went with the marketing
+             `la-main`), as templates/organizations.hbs keeps its `md-main`. --}}
+        <main class="la-system-settings__main">
         <section class="la-system-settings__section" aria-labelledby="system-settings-heading">
           <header class="md-hero md-hero--dashboard la-system-settings__header">
             <h1 id="system-settings-heading" class="md-hero__title">{{t "System Settings" key="system_settings_title"}}</h1>
@@ -33,7 +36,7 @@
                        become heading rows (controllers/system-settings.js `scopeSelectContent`). --}}
                   <div class="la-system-settings__org-label">
                     <span class="la-system-settings__label-text" id="system_settings_org_label">{{t "Organization" key="system_settings_org_label"}}</span>
-                    <ModernSelect @class="la-system-settings__org-select" @selectId="system_settings_org" @ariaLabel={{t "Organization" key="system_settings_org_label"}} @content={{this.scopeSelectContent}} @selection={{this.org_id}} @action={{mut this.org_id}} @placeholder={{t "Choose an organization" key="system_settings_choose_org"}} />
+                    <ModernSelect @class="la-system-settings__org-select" @selectId="system_settings_org" @ariaLabel={{t "Organization" key="system_settings_org_label"}} @content={{this.scopeSelectContent}} @selection={{this.org_id}} @action={{this.chooseOrg}} @searchable={{true}} @searchPlaceholder={{t "Search organizations" key="system_settings_search_orgs"}} @placeholder={{t "Choose an organization" key="system_settings_choose_org"}} />
                   </div>
                 </div>
 
@@ -50,5 +53,6 @@
             </article>
           </div>
         </section>
+        </main>
       </div>
 </div>

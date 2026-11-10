@@ -81,7 +81,7 @@ GOALS_ROUTES.split(' ').forEach(function(route) { ROW_FOR_ROUTE[route] = 'goals'
 LOGS_ROUTES.split(' ').forEach(function(route) { ROW_FOR_ROUTE[route] = 'logs'; });
 
 /* ORG MODE'S ROWS (2026-11-08): route name -> org row, and each row's label for the <=900px
-   dropdown trigger. The keys and strings the rows use (components/account-rail-org-rows.hbs). */
+   dropdown trigger. The keys and strings the rows use (components/org-rail-rows.hbs). */
 const ORG_ROW_FOR_ROUTE = {
   'organization.extras': 'admin_actions',
   'organization.reports': 'reports',
@@ -163,7 +163,7 @@ export default Component.extend({
   /* ORG MODE (2026-11-08, requested: Modern org pages need "their own side menu", as Basic's have).
      The app shell passes `@org` on `organization.*` pages (controllers/application.js
      `globalChromeOrg`). For an org EDITOR the account rows give way to the org's own rows
-     (components/account-rail-org-rows.hbs), the Modern twin of Basic's org rail
+     (components/org-rail-rows.hbs), the Modern twin of Basic's org rail
      (dashboard/classic-rail.js `orgNav`, same `permissions.edit` gate). Anyone else on an org page
      keeps the account rail they have everywhere: Basic's mix of home rows for them has no Modern
      counterpart to mirror, and the account rail already carries the way home. */

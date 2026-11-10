@@ -57,6 +57,13 @@ export default Controller.extend({
         self.send(actionName, boundArg, value);
       };
     };
+    /* The Organization <ModernSelect>'s `@action` (2026-11-09): a real function, as the component
+       calls `@action(id)` when one is chosen. `{{mut}}` there was never called (a classic component
+       receives it as a value), so choosing only reached `org_id` through the two-way `selection`;
+       this routes it through `setOrgId`, the one place that sets the scope. */
+    this.chooseOrg = function(id) {
+      self.send('setOrgId', id);
+    };
     // The org list loads from routes/system-settings.js `setupController`, on every visit, for the
     // user the route has just loaded (2026-11-09; here, at creation, the user was not loaded yet on
     // a direct visit or a refresh, and the list stayed empty).

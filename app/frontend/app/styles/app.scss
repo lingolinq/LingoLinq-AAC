@@ -48459,6 +48459,16 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
   box-shadow: 0 4px 14px rgba($la-navy, 0.10) !important;
 }
 .md-btn:active { transform: scale(var(--md-tap)); }
+/* DISABLED LOOKS DISABLED (2026-11-09, red-team review: System Settings' Save and Reset, now
+   `md-btn`, looked clickable while saving). Bootstrap's `.btn[disabled]` gave the old buttons this;
+   `md-btn` had no disabled state. No lift and no press while disabled, either. */
+.md-btn:disabled,
+.md-btn[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none !important;
+  transform: none;
+}
 
 .md-btn--primary {
   background: rgba($brand-dusty-denim, 0.3) !important;

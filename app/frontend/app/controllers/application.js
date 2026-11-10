@@ -214,7 +214,7 @@ export default Controller.extend({
   on_board: computed('appState.current_route', 'appState.currentBoardState.id', function() {
     return this.appState.get('current_route') === 'board.index' && !!this.appState.get('currentBoardState.id');
   }),
-  /** True when on either the board or board-alt page — used to show the board picker instead of the home button. */
+  /** True on the board or board-alt page: picks the speak header's house icon (which runs `home` since 2026-11-09; it ran My Boards). */
   on_board_or_alt: computed('on_board', 'on_board_alt', function() {
     return this.get('on_board') || this.get('on_board_alt');
   }),

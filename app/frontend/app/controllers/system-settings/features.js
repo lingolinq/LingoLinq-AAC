@@ -141,7 +141,7 @@ export default Controller.extend({
     this.set('loading', true);
     this.set('loadError', false);
     this.set('pendingToggles', {});
-    this.persistence.ajax('/api/v1/system_features?org_id=' + encodeURIComponent(orgId), {type: 'GET'}).then(function(res) {
+    this.persistence.ajax('/api/v1/system_features?org_id=' + encodeURIComponent(orgId), {type: 'GET'}).then(function(res) { if (orgId !== _this.getOrgId()) { return; } // a later scope's load supersedes this one (2026-11-09)
       _this.set('loading', false);
       _this.set('features', res.features || []);
       _this.set('categories', res.categories || []);
@@ -153,7 +153,7 @@ export default Controller.extend({
         pending[f.key] = !!f.enabled;
       });
       _this.set('pendingToggles', pending);
-    }, function() {
+    }, function() { if (orgId !== _this.getOrgId()) { return; } // a later scope's load supersedes this one (2026-11-09)
       _this.set('loading', false);
       _this.set('loadError', true);
     });
@@ -235,5 +235,12 @@ export default Controller.extend({
      Added at the end of the file so the line-anchored .eslint-todo rows above stay aligned. */
   featureGroups: computed('filteredFeatures.[]', function() {
     return groupFeatures(this.get('filteredFeatures'));
+  }),
+
+  /* The Category <ModernSelect>'s `@action`: a real function, as the component calls `@action(id)`
+     (`{{mut}}` there is never called on a classic component). */
+  chooseCategory: computed(function() {
+    var _this = this;
+    return function(id) { _this.set('categoryFilter', id); };
   })
 });

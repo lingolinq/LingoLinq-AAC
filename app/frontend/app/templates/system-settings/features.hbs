@@ -12,10 +12,10 @@
       <input type="search" value={{this.searchQuery}} class="form-control la-system-settings__search-input" autocomplete="off" placeholder={{t "Feature name…" key="system_settings_features_search_placeholder"}} {{on "input" (set-field this "searchQuery")}} />
     </label>
     {{!-- <ModernSelect>, not a native <select>, so the open list takes the app's styles too
-         (requested 2026-11-09). "All categories" is the '' option, which it shows as the placeholder. --}}
+         (requested 2026-11-09). "All categories" is the `'all'` option (the filter reads it as no filter). --}}
     <div class="la-system-settings__filter">
       <span class="la-system-settings__label-text">{{t "Category" key="system_settings_category_label"}}</span>
-      <ModernSelect @class="la-system-settings__filter-select" @selectId="system_settings_feature_category" @ariaLabel={{t "Category" key="system_settings_category_label"}} @content={{this.categoryOptions}} @selection={{this.categoryFilter}} @action={{mut this.categoryFilter}} @placeholder={{t "All categories" key="system_settings_filter_all_categories"}} />
+      <ModernSelect @class="la-system-settings__filter-select" @selectId="system_settings_feature_category" @ariaLabel={{t "Category" key="system_settings_category_label"}} @content={{this.categoryOptions}} @selection={{this.categoryFilter}} @action={{this.chooseCategory}} @placeholder={{t "All categories" key="system_settings_filter_all_categories"}} />
     </div>
   </div>
 

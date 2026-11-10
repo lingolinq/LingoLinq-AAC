@@ -4,7 +4,7 @@ import i18n from 'frontend/utils/i18n';
 import { setupTest } from '../../helpers';
 
 /* THE MODERN RAIL'S ORG MODE (2026-11-08, requested: Modern org pages need "their own side menu").
- * Given an org it can edit, the rail swaps its account rows for the org's (account-rail-org-rows.hbs)
+ * Given an org it can edit, the rail swaps its account rows for the org's (org-rail-rows.hbs)
  * and names itself as Basic's org rail does. Given an org it cannot edit, or none, it is the
  * account rail exactly as before. */
 module('Unit | Component | account-rail org mode', function(hooks) {

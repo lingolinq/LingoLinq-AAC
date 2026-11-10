@@ -32,7 +32,7 @@
   {{!-- ORG MODE (2026-11-08): on an org page an org editor gets the org's own rows in place of the
        account rows below; see `orgNav` in account-rail.js. Home Page above stays in both. --}}
   {{#if this.orgNav}}
-  <AccountRailOrgRows @org={{this.org}} @activeRow={{this.orgRow}} @canManageOrgs={{this.app_state.currentUser.has_management_responsibility}} />
+  <OrgRailRows @org={{this.org}} @activeRow={{this.orgRow}} @canManageOrgs={{this.app_state.currentUser.has_management_responsibility}} />
   {{else}}
   {{!-- WHICH ROW IS LIT is <LinkTo>'s own job, via `@activeClass` -- it already knows which
      route is current and recomputes on every transition. This row used to carry a literal

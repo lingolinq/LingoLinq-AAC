@@ -62,6 +62,8 @@ test.describe('Basic speak mode, Home', () => {
     await pressHome(page);
     await expect.poll(async () => (await where(page)).board, { timeout: 30_000 }).toBe(HOME);
     expect((await where(page)).speak, 'still in speak mode').toBe(true);
+    // Basic's own board page, not Modern's board-detail (red-team review 2026-11-09).
+    expect((await where(page)).route, 'still on Basic\'s board page').toBe('user.board-alt.index');
   });
 
   test('on the home board, Home stays there in speak mode', async ({ page }) => {
