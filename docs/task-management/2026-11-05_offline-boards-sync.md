@@ -1689,3 +1689,36 @@ the cause of the iOS staging failure, which commit 10b6e838d stated (the PR desc
   run against staging counts proxy requests. The local origins are useful (measured above).
 Next discriminating check: the iOS or Android app against staging with a large account, counting proxy requests and
 board errors, compared with the issue's 246-error first sync (its runs A, B and A2 were repeat syncs).
+
+#### Whole-branch review and merge with develop (2026-11-09, late evening)
+
+Five read-only adversarial reviewers (sync core, offline board views, offline shell, sign-in and server, test
+quality), each finding re-checked before being reported. CONFIRMED blockers:
+1. CI: `ember-shard-main` fails 3 tests in `tests/unit/utils/capabilities-database-failure-test.js` (last CI run,
+   cb56c1b71; leak check, `stub(stashes, ...)` without `standInGlobals`). CI had not run since 2026-11-08 because the
+   PR conflicted with develop.
+2. Liked boards past the 25th never sync: `User#starred_board_refs` resolves `starred_board_ids[0, 25]`
+   (app/models/user.rb:2469) and the seeds read only that list (utils/offline_sync_seeds.js:36-43).
+3. "Wi-Fi with no internet opens the app" is claimed fixed, but its e2e blocks only `/api/v1/**`
+   (e2e/offline-launch.spec.js:467), so the page loads live and the shell is never exercised.
+HIGH, code path confirmed, not reproduced: `keep_stored_board` (utils/sync_board_fallback.js:31) checks only the
+in-memory record; `/tree` boards are pushed to memory without a device row (utils/board_detail_cache.js:185-191).
+Open decision (Traci): are device copies read-only in Basic view too (routes/user/board-alt.js has no flag)?
+Also CONFIRMED: utils/persistence.js:2787 still has the 5 s reload with no #1212 keep or retry.
+RSpec for the branch's specs: 187 examples, 0 failures (run by Traci through op).
+
+Merged origin/develop (cc940f489): `.eslint-todo` resolved as the union of both sides (gate: 0 new); the
+learnings archive kept both sides' entries. Not pushed.
+
+25-like fix: Traci chose (c), the sync pages `/api/v1/boards?user_id=..&starred=true`
+(boards_controller.rb:140, `model` permission, MAX_PAGE 50) only when `stats.starred_boards` exceeds the
+non-suggested refs. Option (b) was dropped: `starred_board_ids` holds ids, not keys, so a key list costs a board
+lookup like (a). Red test written, NOT yet run: persistence-sync-test.js "more than 25 liked boards".
+
+No-internet e2e: three cases written in offline-launch.spec.js (nothing answers, a 503 page, a hung page load),
+NOT yet run successfully. Run 1 failed in setup for every test, the Classic control included: my `npx ember build`
+(development) leaves Mirage on, so no request reached Rails (MirageError in the page). A Mirage-free build comes
+from `ember serve --proxy`; my attempt on port 8186 failed ("port in use"). Stopped under Rule 13 (two
+self-inflicted setup errors). Private e2e DB `lingolinq-e2e-claude` (fresh, seeded) and Rails on 5077 are running.
+Next: build dist with ember serve --proxy http://localhost:5077 (a free port, and a free live-reload port), copy with
+extras:assert_js, run the control first, then the three cases; then run the red sync test.
