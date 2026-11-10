@@ -1862,3 +1862,26 @@ column select first; whether pruning should also run when a board is deleted (it
 `starred_user_ids`).
 **Mutations:** drop the view filter (spec 1 red); count hidden boards toward the limit (spec 2 red); drop the
 prune (spec 3 red).
+
+**Review of proposal 3 (2026-11-10): proceed with changes; NOT built yet.** `allows?(liker, 'view')` is correct for
+every liked-id shape (public, own, shared private, supervisee's, own clone); the only gap is cache lag. Demanded
+before building:
+1. Prune and refs map must match an id by `global_id`, `global_id(true)` OR `shallow_id` of a returned row: a liked
+   EDITED clone resolves to a replacement row with a different id (`global_id.rb:123-128`), so "lookup did not return
+   this id" would erase a live like. (Refs already drop edited clones today.)
+2. The three red specs pass with a wrong filter (`public || own`). Add: a private board shared with the liker stays
+   listed; own private stays; a supervisee's private board stays for the supervisor's own list; a stranger's clone is
+   hidden; a supervisor caller does not see a board only the caller can view.
+3. Correction to my proposal: the sync does NOT already drop revoked liked boards; board_revisions includes liked
+   boards only with `sync_starred_boards` (`users_controller.rb:769-771`). Track that as its own unit.
+4. Cost: `allows?` runs every rule and loads `board.user`; use the tiered form (public and not a clone, or own and
+   not a clone: listed; otherwise `allows?`), a light select, `:user` preloaded; gate `boards_controller.rb:108` on
+   the `shallow_clones` flag.
+5. Cap the scan (about 300 ids), build the map across batches, remove duplicate refs (plain and clone of one board).
+6. One ordered function (stored id, board) shared with the like-time `kept_offline` answer.
+State: unit 1 (dbf02dbc3) is committed. The three red specs for proposal 3 are uncommitted in
+`spec/models/user_spec.rb` and saved as `/home/tracid/offline-sync-handoff/liked-list-view-filter-RED-SPECS.patch`;
+the no-internet e2e cases as `no-internet-e2e-cases.patch` there. Local test DBs: `lingolinq-test-claude` (RSpec,
+`DATABASE_URL=postgres:///lingolinq-test-claude` with `bundle exec dotenv -f /home/tracid/LingoLinq-AAC/.env`),
+`lingolinq-e2e-claude` (e2e; Rails on 5077; build with `ember build --environment production`, never the plain
+development build, which starts Mirage).
