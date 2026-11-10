@@ -1574,3 +1574,74 @@ the RequestManager / CacheHandler path in `ember-data/store` and `@ember-data/re
 copy `request.data`; `getPendingFetch` returning an earlier pending fetch). Wrap `LingoLinq.store.request` alone
 first (it exists eagerly), log `req.data.options`, then go one step down. If adapterOptions cannot reach the adapter,
 the alternative is a flag the adapter reads by board id (e.g. a set of ids the sync is fetching), reviewed first.
+
+#### #1212 plan: step back to the whole picture (2026-11-09, second session)
+
+Why step back: four units on #1212 have all tuned CLIENT TIME LIMITS (reload 5 s -> 20 s, keep stored copy, retry
+once, adapter 15 s -> 55 s). None was measured against the failure the issue reports, and the issue's own evidence
+points elsewhere:
+- Issue run B (mobile parallelism, which iPads now get, #1201): 0 app request timeouts, max request 19.3 s, p99 6.2 s.
+  Run A (desktop parallelism): p90 30.7 s, max 92 s, 469 requests over 8 s. Same server, same account. The slowness is
+  LOAD the sync itself puts on the server, not a fixed property of the server.
+- A first sync can fetch boards in batches of 25 (`/api/v1/users/:id/boards?ids=`, `services/persistence.js:2945-2980`)
+  but only when fewer than 100 boards need fetching (`:2945`). A 306- or 1,156-board first sync skips the batch
+  entirely and sends one request per board, 6 or 10 at a time (`:3400`). CONFIRMED by reading; effect NOT measured.
+- In that batch loop `next_batch()` is called once per stored board (inside `list.forEach`), so one batch of 25
+  could start up to 25 next batches at once. PLAUSIBLE defect, NOT checked.
+- The client's 8 s first try (`utils/extras.js:186-190`) gives up on the request but the server keeps working on it,
+  and the retry sends it again: under load one slow board becomes 2-3 server requests. HYPOTHESIS, to measure in
+  the server log.
+
+Phase 1: measure the real failure before changing anything (local, this machine)
+1. Server-side delay that grows with load instead of a fixed 18 s sleep: LOCAL-ONLY patch in boards#show that
+   sleeps in proportion to requests in flight (a counter), so more parallel requests make each slower, as staging
+   showed. Save the file first, never commit.
+2. One timeline per run: in the app, log per board request start, each network try, which limit fired (extras
+   8/20 s, adapter 15 s, reload 20 s, lookup 30 s) and the final status; on the server, count GETs per board id.
+3. Runs, first sync of aiden_parker (1,156 boards): Android emulator and WebKit (iPad), at `7608092f9` (before
+   #1212 work) and at the PR head `1ffea002b`. Record boards lost, boards synced, server requests per board, time.
+Exit: we know, per lost board, which limit cut it and how many server requests the sync really sent.
+
+Phase 2: pick the fix from the data, smallest first
+- If the head already loses 0 boards: no more client limit work; finish with the acceptance runs.
+- If requests per board are well above 1 (duplicates): reduce duplicate load first (extras retry vs server).
+- If the request count is the driver: use the existing batch endpoint for first syncs of any size (remove the
+  < 100 cap, fix the batch loop), so ~1,156 requests become ~47. Server already supports it; check its own limits
+  (`users_controller` boards?ids=) and permissions per board.
+- Only if a board is still lost to the adapter's 15 s cut: finish the adapterOptions trace (one step at a time
+  from `store.request`), or have the adapter read a "sync is fetching this board" set.
+Each chosen fix: fact sheet, red test, adversary review of the proposal, then code, then mutants (/fix-proposal).
+
+Phase 3: verify against the issue's acceptance criteria
+- Repeat Phase 1 runs on the fix: 0 boards lost under load on Android and WebKit.
+- Staging and production capacity runs, native iOS: cannot be done here (Scot / a Mac); say so in the PR.
+Parked (not needed for boards to sync): Sync Details "kept" label, retried-board double count, N of M (#1212 step 4).
+
+#### #1212 Phase 1, first measurement: the load is pictures through the proxy, on dev and staging only (2026-11-09)
+
+Run: WebKit (iPad), fresh profile, first sync of aiden_parker, the build the local server was serving (before any
+#1212 change: "reload board" 5 s, no keep/retry code), no added server delay. Driver
+`/home/tracid/offline-sync-handoff/scripts/web-first-sync-timeline.js`, data `before-noload-webkit.json` there.
+Result: succeeded, no errors, 209 s, 102 boards (1 request each, batch download not used). API requests during the
+sync: 102 board, 8 button-set, 1,567 other, of which 1,391 are `/api/v1/search/proxy?url=<lingolinq-dev-uploads S3>`
+(8 of them 400). Pictures outnumber board requests about 14 to 1 and each holds a server thread for an S3 fetch.
+Why the proxy (CONFIRMED): `store_url_now` tries a direct CORS request for upload-bucket URLs first
+(`services/persistence.js:1548-1551, 1574-1612`) and falls back to the server proxy (`:1615-1644`).
+`lingolinq-dev-uploads` sends no `Access-Control-Allow-Origin` (GET 200 without it; preflight 403, curl with
+`Origin: http://localhost:5000`), so in a browser or web view every picture goes through the server. Production's
+upload CDN `d34sa6lc5jfe66.cloudfront.net` answers `access-control-allow-origin: *` for origins
+`https://app.lingolinq.com`, `capacitor://localhost`, `https://localhost` (curl, one public production picture), so in
+production pictures do NOT go through the server.
+Consequence: the issue was measured on staging, which shares the dev bucket. Its request counts (1,997 to 3,946 for
+306 boards, about 6 to 13 per board) fit picture proxy traffic dominating, and its slow board requests fit boards
+queueing behind it. Production may not have this load at all. NOT yet measured: board latency on a capacity-limited
+server with and without the proxy traffic; production first-sync behaviour.
+
+CORRECTION (same day, CONFIRMED by curl with each Origin): `lingolinq-dev-uploads` DOES have a CORS rule, pinned to
+app hostnames (docs/INFRASTRUCTURE.md, AWS section). It answers `Access-Control-Allow-Origin` for
+`https://staging.lingolinq.com` and `https://dev.lingolinq.com`, and NOT for `capacitor://localhost` (iOS app),
+`https://localhost` (Android app), `http://localhost:5000` (local) or `https://app.lingolinq.com`. So on the staging
+and dev WEB sites pictures load directly; the proxy load hits the NATIVE apps pointed at dev or staging (and local
+dev). #1212 was measured in the iOS app against staging, so it is that case. My first test used only the local origin
+and wrongly concluded the bucket had no CORS rule. The ask is to ADD the two app origins to the existing rule
+(put-bucket-cors replaces the whole configuration, so read it first), not to replace it with `*`.

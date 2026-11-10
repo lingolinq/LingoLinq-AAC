@@ -178,11 +178,11 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
    in the same sync, at most twice per board. Left: a board slower than the adapter's 15 s request limit on both
    tries is still lost with its folders; Sync Details does not show 'kept' boards yet; server capacity under a full
    sync is not measured (needs staging and production); the full-sync verification on iOS and Android.
-3. **#1219:** the board tree request (`/tree`) fails on very large boards (Cloud Run response size cap).
+3. **#1034:** "Pick for home" says "saved for offline use" and "Ready to communicate" when neither is true.
 4. **Picture data repair (operations):** some saved picture addresses fail; a one-time data cleanup.
 5. **#1229:** done. A new device that has never finished a sync keeps retrying after the backoff, and one reconnect can retry a dropped connection. See the task log.
 6. **#1230:** Modern view's "Sync failed" notice can show the wrong state.
-7. **#1034:** "Pick for home" says "saved for offline use" and "Ready to communicate" when neither is true.
+7. **#1219:** the board tree request (`/tree`) fails on very large boards (Cloud Run response size cap).
 8. **A "N of M boards saved" count** during sync.
 9. **Smaller items:**
    - #1206: the iOS SQLite shim passes a schema row through as data.
