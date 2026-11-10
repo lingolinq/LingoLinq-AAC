@@ -2,7 +2,8 @@
 // worker install and the boards sync, goes offline, and opens a board URL cold in each board view.
 //
 // Runs against RAILS with the shell on, not `ember serve`:
-//   1. cd app/frontend && npx ember build && cd ../.. && bin/rails extras:assert_js
+//   1. cd app/frontend && npx ember build --environment production && cd ../.. && bin/rails extras:assert_js
+//      (a plain development build starts Mirage, the fake API, and no request reaches Rails)
 //   2. Seed a private local lingolinq-e2e* database with e2e/support/offline-launch.rb (its header has
 //      the command), then serve it with the same blank upload settings, so nothing reaches the bucket:
 //      AWS_KEY= AWS_SECRET= UPLOADS_S3_BUCKET= STATIC_S3_BUCKET= OFFLINE_APP_SHELL=on \
@@ -474,6 +475,51 @@ test.describe('offline launch from the offline app shell', () => {
       await context.close();
     }
   });
+
+  // Wi-Fi with no internet: the device reports online (navigator.onLine stays true, as on a real
+  // device), but the server cannot be reached. The page load itself must come from the worker's copy.
+  // Three ways a network can fail: nothing answers, something else answers with an error page (a school
+  // filter, a captive portal, a server outage), or the connection hangs.
+  // As run on 2026-11-09: 'nothing answers' passes; the 503 and the hang cases FAIL, because the worker hands
+  // back whatever the network answers and waits without a limit (offline_shell/service_worker.js.erb
+  // navigationResponse). Whether the app should open from the device in those two cases is an open decision.
+  // The page load is found by its address: the request the worker passes on is not a navigation request to
+  // Playwright (route.request().isNavigationRequest() is false for it).
+  const NO_INTERNET_CASES = [
+    { name: 'nothing answers', handle: (route) => route.abort('internetdisconnected') },
+    { name: 'the page request gets an error page (503)', handle: (route, isPage) => (isPage
+      ? route.fulfill({ status: 503, contentType: 'text/html', body: '<html><body>Service unavailable</body></html>' })
+      : route.abort('internetdisconnected')) },
+    { name: 'the page request hangs', handle: (route, isPage) => (isPage ? new Promise(() => {}) : route.abort('internetdisconnected')) },
+  ];
+  for (const c of NO_INTERNET_CASES) {
+    test(`Wi-Fi with no internet (${c.name}): the app opens the synced board from the device`, async () => {
+      const context = await openProfile('no-internet-shell-' + c.name.replace(/\W+/g, '-'));
+      try {
+        const page = context.pages()[0] || await context.newPage();
+        await prepare(page, USERS.modern);
+        const origin = new URL(page.url()).origin;
+        const boardPath = USERS.modern.path(USERS.modern.board);
+        let pageRequests = 0;
+        await context.route((url) => url.origin === origin, (route) => {
+          const isPage = new URL(route.request().url()).pathname === boardPath;
+          if (isPage) { pageRequests++; }
+          return c.handle(route, isPage);
+        });
+        const response = await page.goto(boardPath, { timeout: 45_000 }).catch((e) => e);
+        expect(pageRequests, 'the page load reached the network handler').toBeGreaterThan(0);
+        expect(response instanceof Error ? response.message.split('\n')[0] : 'loaded', 'the page load finished').toBe('loaded');
+        expect(response.fromServiceWorker(), 'answered by the worker').toBe(true);
+        expect(response.headers()['x-robots-tag'], 'the cached shell, not a live page').toBe('noindex');
+        expect(await page.evaluate(() => navigator.onLine), 'the device still reports online').toBe(true);
+        await expect(page.getByText('all done', { exact: true })).toBeVisible({ timeout: 60_000 });
+        await expect(errorPage(page)).toHaveCount(0);
+      } finally {
+        await context.unrouteAll({ behavior: 'ignoreErrors' }).catch(() => {});
+        await context.close();
+      }
+    });
+  }
 
   // Online, through the real router: what the board page does with each kind of server failure. The
   // folder, not the home board, because a home board keeps its copy after a denial.
