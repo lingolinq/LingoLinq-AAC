@@ -18,11 +18,6 @@ module OfflineShell
   SHELL_PATH = '/offline-shell'
   MANIFEST_PATH = '/manifest.webmanifest'
   WORKER_PATH = '/sw.js'
-  # How long a page navigation waits for the network before the cached page answers (the worker's
-  # navigationResponse). A working server slower than this gets the cached page, which boots the app
-  # version the device holds. The original 2026-11-03 value, put back on 2026-11-10 (Traci): a hung
-  # network must not lock a person out of their boards.
-  NAVIGATION_TIMEOUT_MS = 4000
 
   # Bump to make every device install the worker again. Edits to the worker's code, the page it caches
   # and the locale files already do that on their own (SOURCE_TEMPLATES, source_files).

@@ -51,11 +51,12 @@ memory ahead of time while online, so they open faster.
 Each item below has tests; the PR's "Fix status" table lists the exact spec for each.
 
 **Opening offline**
-- A Home Screen launch with no network opens the app (Scot's shell). On Wi-Fi with no internet it opens too: the
-  worker answers with the saved page when nothing answers the page request, when the server answers with an error
-  page (5xx, or 429 from the request limiter), and when nothing has answered within 4 seconds (decided 2026-11-10;
-  the 4-second limit is Scot's original design, which review round 2 had removed). A 404 and a redirect still
-  stand. Not covered: a block page that answers 200 with HTML, and a launch at `/` with the API also answering 503.
+- A Home Screen launch with no network opens the app (Scot's shell). On Wi-Fi with no internet it opens when
+  nothing answers the page request, and (added 2026-11-10) when the server answers with an error page (5xx, or
+  429 from the request limiter). A request that hangs still waits for the network, as review round 2 approved on
+  2026-11-05 (a time limit cannot tell a hung network from a slow working server, and the saved page is an old
+  copy of the app); the browser's own timeout ends the wait. A 404 and a redirect stand. Not covered: a block
+  page that answers 200 with HTML, and a launch at `/` with the API also answering 503.
 - Modern view opens synced boards offline (#1213); Basic view already did, and now also has browser tests.
 - Synced boards owned by someone else (a teacher's board, Crisis Vocabulary) open offline.
 - A board that is not on the device is never a dead end (#1209): the app moves to the home board, or to the
@@ -136,10 +137,9 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
 - Unit tests for every change above.
 - Browser tests (Playwright, against Rails with the shell on):
   - `e2e/offline-launch.spec.js`: launches, both views, pictures, not-saved boards, storage full, which boards
-    sync, four "Wi-Fi with no internet" cases (nothing answers, a 503 page, a hang, a 429) and two "real answer
-    stands" cases (a 404, a redirect).
-  - `e2e/offline-worker-lifecycle.spec.js`: the 4-second limit (a page within it is live, a slower one gets the
-    saved copy, a slow page with no saved copy waits) and worker updates.
+    sync, three "Wi-Fi with no internet" cases that open from the device (nothing answers, a 503 page, a 429),
+    one that pins the known limit (a hang waits), and two "real answer stands" cases (a 404, a redirect).
+  - `e2e/offline-worker-lifecycle.spec.js`: a slow page online waits for the network, and worker updates.
   - `e2e/offline-kill-switch.spec.js`.
   - `e2e/offline-webkit.spec.js`: Safari's engine, set up as a current iPad.
 
@@ -150,7 +150,7 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
 | A real server denial wins on Modern view, except home and sidebar boards; Speak Mode no longer exempts | Traci | 2026-11-05 |
 | ~~Device copies are for speaking only; saving actions are refused~~ (replaced 2026-11-09, next row); no swap when the connection returns | Traci | 2026-11-05 |
 | Modern view treats a device copy like Basic view does: no "saved on this device" notice, Edit works offline, other actions are not blocked up front (ones that need the server say so). Accepted risk: an offline edit is sent at the next sync with no check for newer server changes. A real server denial still wins (row 1). NOT BUILT YET: the code still shows the notice and refuses saving actions ("How it works now", item 3) | Traci | 2026-11-09 |
-| A hung network or a server error page must not lock a person out: the app shell answers with the saved page on a 5xx or 429 and after 4 seconds with no answer ("never" is 4 seconds, Scot's original limit) | Traci | 2026-11-10 |
+| A server error page must not lock a person out: the app shell answers with the saved page on a 5xx or 429. A hang keeps waiting for the network, as Scot approved in review round 2 (a 4-second limit was built and withdrawn the same day, so as not to regress that) | Traci | 2026-11-10 |
 | The liked-boards limit stays at 50, measured on the emulator; a like past 50 tells the person they have reached the limit | Traci | 2026-11-10 |
 | Changes the row above: Modern keeps the "Showing the copy saved on this device" notice. Edit works on a device copy. With a connection, Edit first gets the latest board and then opens in the same tap; with none, it opens on the copy. "Use this board" and Translate work offline in Modern only if they work offline in Basic view (checked in the code 2026-11-10, not run: Translate is done by the server, so it cannot; "Use this board" in Basic sets the home board on the device but cannot make the person's own copy). NOT BUILT YET | Traci | 2026-11-10 |
 | The rule for Modern view offline: whatever works offline in Basic view should work offline in Modern view. Gaps found 2026-11-10 (read in the code, not run): Edit, Set as home, "Use this board" (Basic sets the home board; the person's own copy needs the server), Delete and Board details (reachable only from Modern's edit panel). Sharing offline is unverified in Basic and is held. Translate, Rename, Privacy, Like, Copy, Download and Stats need the server in both views. NOT IN THIS PR: about a day of work with review and tests, so it is its own issue, #1301. Until then Modern device copies stay for speaking only | Traci | 2026-11-10 |
@@ -169,9 +169,9 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
   person with write access looks at the changed data files and adds the `synthetic-data` label. Agents must not.
 - **CI.** `security-scan` fails on `develop` too (known; needs a Rails 8 upgrade). The three #1205 tests that kept
   the Ember check red are fixed (`407ef94ac`).
-- **Decided and built 2026-11-10 (Traci):** the app opens from the device on a server error page and after 4
-  seconds with no answer. This reverses a change review round 2 made with Scot's approval; Scot should hear it is
-  back before merge.
+- **Decided and built 2026-11-10 (Traci):** the app opens from the device on a server error page (5xx or 429).
+  A hang still waits for the network: Traci kept what review round 2 approved rather than regress it (a 4-second
+  limit was built and withdrawn the same day; Scot was told on the PR).
 - **Not in this PR (Traci, 2026-11-10):** making Modern view match Basic view offline (Edit, Set as home, "Use this board"). Tracked in #1301; see "Decisions made".
 - **The dual review** (`/review-pr` and `/adversary-review`), because the PR touches sign-in.
 - **A sync with many liked boards, measured** (time, requests, failed saves): a condition from the review of the
@@ -281,12 +281,11 @@ important languages.
 
 ## Known limits
 
-- **A slow but working server gets the saved page.** A launch where the page has not started answering within 4
-  seconds opens from the device. The app then runs, online, on the version the device holds until the next
-  launch; it has no chart scripts (the stats charts break on that launch) and its environment keys are frozen at
-  cache time. Nothing prompts for the newer version (follow-up). The web service keeps one instance warm, so this
-  is most likely under load, when many devices would get the saved page at once; count the worker's cache answers
-  by reason after release.
+- **A page request that hangs waits for the network.** The app shell answers with the saved page only when the
+  request fails or the server answers with an error; a connection that neither answers nor fails waits for the
+  browser's own timeout (minutes on some devices). Kept on purpose: a time limit cannot tell a hung network from a
+  slow working server, and the saved page is the device's old copy of the app (no chart scripts, environment keys
+  frozen at cache time).
 - **The liked-boards count in the like message** is read from the stored list, which a background job updates a
   moment after each like, so two likes in quick succession can read one short. It is a message, not a gate.
 - **Full storage:** the tests force database writes to fail; nobody has filled a real iPad. Writes made through the

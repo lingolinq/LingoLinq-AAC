@@ -75,61 +75,26 @@ function addMissingFile(source) {
   return source.replace('var PRECACHE = [', 'var PRECACHE = ["/e2e-offline-shell-missing-file.png",');
 }
 
-// The worker waits NAVIGATION_TIMEOUT_MS (4 s, lib/offline_shell.rb) for the network, then answers with the
-// cached copy (decided 2026-11-10; before that, from 2026-11-05, it waited however long the page took). The
-// page is answered from a body fetched beforehand, so the delay under test is the only delay: Rails rendering
-// time in development is not added to it.
-async function pageBody(page) {
-  const response = await page.request.get(PAGE);
-  expect(response.status()).toBe(200);
-  return response.text();
-}
-async function answerPageAfter(context, body, delayMs) {
-  let delayed = 0;
-  await context.route((url) => url.pathname === PAGE, async (route) => {
-    delayed += 1;
-    await new Promise((resolve) => setTimeout(resolve, delayMs));
-    await route.fulfill({ status: 200, contentType: 'text/html', body });
-  });
-  return () => delayed;
-}
-
-test('online, a page that answers within the limit is the live page', async () => {
+test('online, a slow page load waits for the network instead of answering with the cached copy', async () => {
   const context = await open();
   try {
     const page = context.pages()[0] || await context.newPage();
     await prepare(page);
-    const body = await pageBody(page);
-    const delayed = await answerPageAfter(context, body, 2_000);
+    // Only the worker's own request for the page is held back (the page's navigation goes to the worker).
+    let delayed = 0;
+    await context.route((url) => url.pathname === PAGE, async (route) => {
+      delayed += 1;
+      await new Promise((resolve) => setTimeout(resolve, 6_000));
+      await route.continue();
+    });
     const started = Date.now();
     const response = await page.goto(PAGE);
     const elapsed = Date.now() - started;
-    expect(delayed(), 'the worker\'s request for the page was the one held back').toBeGreaterThan(0);
+    expect(delayed, 'the worker\'s request for the page was the one held back').toBeGreaterThan(0);
     expect(response.fromServiceWorker(), 'answered by the worker').toBe(true);
     // Only the cached generic page carries this header (OfflineShellController#shell).
     expect(response.headers()['x-robots-tag'], 'the live page, not the cached copy').toBeUndefined();
-    expect(elapsed, 'it waited for the network').toBeGreaterThan(1_500);
-    await context.unroute((url) => url.pathname === PAGE);
-  } finally {
-    await context.close();
-  }
-});
-
-test('online, a page slower than the limit gets the cached copy after 4 seconds', async () => {
-  const context = await open();
-  try {
-    const page = context.pages()[0] || await context.newPage();
-    await prepare(page);
-    const body = await pageBody(page);
-    const delayed = await answerPageAfter(context, body, 8_000);
-    const started = Date.now();
-    const response = await page.goto(PAGE);
-    const elapsed = Date.now() - started;
-    expect(delayed(), 'the worker\'s request for the page was the one held back').toBeGreaterThan(0);
-    expect(response.fromServiceWorker(), 'answered by the worker').toBe(true);
-    expect(response.headers()['x-robots-tag'], 'the cached copy').toBe('noindex');
-    expect(elapsed, 'after the limit').toBeGreaterThan(3_500);
-    expect(elapsed, 'and not after the page').toBeLessThan(7_500);
+    expect(elapsed, 'it waited for the network').toBeGreaterThan(5_500);
     await context.unroute((url) => url.pathname === PAGE);
   } finally {
     await context.close();
@@ -225,36 +190,6 @@ test('an update waits until the old worker\'s pages close, then replaces its cop
     expect(await page.evaluate((f) => caches.match(f).then((r) => !!r), LANGUAGE_FILE), 'the language file survived the update').toBe(true);
     expect(await page.evaluate((f) => caches.match(f).then((r) => !!r), SECOND_LANGUAGE_FILE),
       'the language file cached while the update waited survived it too').toBe(true);
-  } finally {
-    await context.close();
-  }
-});
-
-// Last, because it takes the cached page away for a moment: with nothing cached, a slow page waits for the
-// network as before (the worker never answers with nothing).
-test('online with no cached copy, a slow page still waits for the network', async () => {
-  const context = await open();
-  try {
-    const page = context.pages()[0] || await context.newPage();
-    await prepare(page);
-    const body = await pageBody(page);
-    const cacheName = await page.evaluate(() => caches.keys().then((keys) => keys.find((k) => k.indexOf('ll-offline-shell-') === 0)));
-    expect(cacheName, 'the installed copy').toBeTruthy();
-    expect(await page.evaluate((name) => caches.open(name).then((c) => c.delete('/offline-shell')), cacheName), 'the cached page removed').toBe(true);
-    try {
-      const delayed = await answerPageAfter(context, body, 6_000);
-      const started = Date.now();
-      const response = await page.goto(PAGE);
-      const elapsed = Date.now() - started;
-      expect(delayed()).toBeGreaterThan(0);
-      expect(response.fromServiceWorker(), 'answered by the worker').toBe(true);
-      expect(response.headers()['x-robots-tag'], 'the live page').toBeUndefined();
-      expect(elapsed, 'it waited for the network').toBeGreaterThan(5_500);
-      await context.unroute((url) => url.pathname === PAGE);
-    } finally {
-      // Put the cached page back for the next run of this file.
-      await page.evaluate((name) => caches.open(name).then((c) => c.add('/offline-shell')), cacheName);
-    }
   } finally {
     await context.close();
   }

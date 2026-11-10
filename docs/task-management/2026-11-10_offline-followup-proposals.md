@@ -480,3 +480,10 @@ response-shape change Traci asked for); the second like in the shallow-clone tes
 like's list update is still queued there. Tests: the spec's "should say a like past the limit is not kept
 offline"; `tests/unit/models/board-like-offline-test.js` (3 new).
 
+**Withdrawn the same day (Traci, 2026-11-10): the 4-second limit.** Asked whether Scot wanted it, the answer
+was that he designed it (2026-11-03) and then approved its removal (2026-11-05). Traci chose not to regress what
+he approved. Commit `efd023286` (the limit plus the error branch) was pushed; the follow-up commit removes the
+limit and keeps the error branch (5xx or 429 answers the saved page), restores the "never after a wait" spec with
+the error branch added, restores the lifecycle "slow page waits" case, and turns the hang e2e case into one that
+pins the known limit (no answer and no cached page within 10 s). Scot's PR comment got a follow-up saying so.
+

@@ -480,10 +480,11 @@ test.describe('offline launch from the offline app shell', () => {
   // device), but the server cannot be reached. The page load itself must come from the worker's copy.
   // Three ways a network can fail: nothing answers, something else answers with an error page (a school
   // filter, a captive portal, a server outage), or the connection hangs.
-  // Decided 2026-11-10 (Traci): all three open the app from the device. The worker answers with the cached
-  // page on a failed request, on a server error (5xx or 429), and when nothing has answered within 4 seconds
-  // (offline_shell/service_worker.js.erb navigationResponse, lib/offline_shell.rb NAVIGATION_TIMEOUT_MS). As
-  // run on 2026-11-10 before that change: 'nothing answers' passed, the 503 and the hang cases failed.
+  // Decided 2026-11-10 (Traci): the worker answers with the cached page on a failed request and on a server
+  // error (5xx, or 429 from the request limiter), offline_shell/service_worker.js.erb navigationResponse. A
+  // request that hangs still waits for the network, as review round 2 approved (2026-11-05): a time limit
+  // cannot tell a hung network from a slow working server, and the cached page is an old copy of the app. So
+  // the hang case below checks that limit holds: nothing answers within 10 seconds, and nothing is served.
   // The page load is found by its address: the request the worker passes on is not a navigation request to
   // Playwright (route.request().isNavigationRequest() is false for it).
   const NO_INTERNET_CASES = [
@@ -491,7 +492,6 @@ test.describe('offline launch from the offline app shell', () => {
     { name: 'the page request gets an error page (503)', handle: (route, isPage) => (isPage
       ? route.fulfill({ status: 503, contentType: 'text/html', body: '<html><body>Service unavailable</body></html>' })
       : route.abort('internetdisconnected')) },
-    { name: 'the page request hangs', handle: (route, isPage) => (isPage ? new Promise(() => {}) : route.abort('internetdisconnected')) },
     { name: 'the page request is rate-limited (429)', handle: (route, isPage) => (isPage
       ? route.fulfill({ status: 429, contentType: 'text/plain', body: 'Retry later' })
       : route.abort('internetdisconnected')) },
@@ -524,6 +524,28 @@ test.describe('offline launch from the offline app shell', () => {
       }
     });
   }
+
+  test('Wi-Fi with no internet (the page request hangs): the app waits for the network, a known limit', async () => {
+    const context = await openProfile('no-internet-shell-the-page-request-hangs');
+    try {
+      const page = context.pages()[0] || await context.newPage();
+      await prepare(page, USERS.modern);
+      const origin = new URL(page.url()).origin;
+      const boardPath = USERS.modern.path(USERS.modern.board);
+      let pageRequests = 0;
+      await context.route((url) => url.origin === origin, (route) => {
+        const isPage = new URL(route.request().url()).pathname === boardPath;
+        if (isPage) { pageRequests++; return new Promise(() => {}); }
+        return route.abort('internetdisconnected');
+      });
+      const outcome = await page.goto(boardPath, { timeout: 10_000 }).then(() => 'loaded', (e) => e.message.split('\n')[0]);
+      expect(pageRequests, 'the page load reached the network handler').toBeGreaterThan(0);
+      expect(outcome, 'still waiting after 10 seconds: no cached page, no error page').toMatch(/Timeout 10000ms exceeded/);
+    } finally {
+      await context.unrouteAll({ behavior: 'ignoreErrors' }).catch(() => {});
+      await context.close();
+    }
+  });
 
   // A real answer stands, even with the cached page at hand: a 404 page, and a redirect (the worker sees it as
   // an opaque redirect, status 0, and must not mistake it for a failure). Everything else is unreachable, as above.
