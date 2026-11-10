@@ -1922,3 +1922,36 @@ past-limit message, hiding unviewable liked boards, pruning deleted ids.
    buttons, median of 7): 25 likes: `starred_board_refs` 15.7 ms, whole profile JSON 20.8 ms, refs 3.1 kB; 50 likes:
    28.5 ms, 35.9 ms, 6.1 kB. About 0.5 ms a liked board, linear. Not staging or production, and real boards with
    pictures and larger settings will cost more per board.
+
+#### Fix proposal 4: liked boards get their button set again (2026-11-10, for review)
+
+**Fact sheet**
+- READ, CONFIRMED: the sync decides per visited board with one inline condition on `next.depth` and
+  `next.visit_source` (`services/persistence.js:3109`, `utils/persistence.js:3137`); when true it looks up the stored
+  button set and calls `board.load_button_set` if it is missing or stale (`:3111-3118`).
+- SHAPES, CONFIRMED: seeds come only from `utils/offline_sync_seeds.js`: `home board` (depth 0), `sidebar board`
+  (1), `starred board` (1), `suggested board` (1, only with `sync_starred_boards` or style options), `crisis
+  vocabulary` (1, only when no sidebar copy). Linked boards get depth + 1 and the parent's key as `visit_source`
+  (`services/persistence.js:3251`). `lookupsToSyncSeeds` (the source of depth-0 `starred board`, `owned root`,
+  `public root`) has no caller left in `app/` (grep).
+- CROSS-FILE, CONFIRMED: on develop liked (and, with the liked-list home, suggested) boards were seeded at depth 0 as
+  `starred board` when `background_board_prefetch` was on (feafba6c7 `services/persistence.js:3074-3083`; flag in
+  ENABLED, `lib/feature_flags.rb:150`), so they matched the condition.
+**Red tests (run, red):** `tests/unit/utils/offline-sync-seeds-test.js`: every seed the helper produces gets a button
+set; a linked board does not (function missing today). `tests/utils/persistence-sync-test.js` "button sets for the
+boards a sync starts from": a full sync with one liked board that links to another; the liked board's button set
+must be looked up, the linked board's not (today the liked lookup never happens; 1 of 3 checks fails).
+**Candidates**
+1. (proposed) One exported function `gets_button_set(next)` in `utils/offline_sync_seeds.js`, beside the seeds it
+   describes: true for the old cases (unchanged) plus depth-1 `starred board`, `suggested board` and `crisis
+   vocabulary`. Both sync copies call it in place of the inline condition (same line, no baseline shift).
+2. Seed liked boards at depth 0 again: also changes how deep their trees go against the depth limit of 20 and any
+   other depth-0 rule; wider than needed.
+3. Patch the inline condition in both copies: the same idea stated twice (Rule 0.6).
+**Risks:** one button-set lookup, and a download when missing or stale, per liked board per sync (up to 50), as
+develop did; `load_button_set` failures are not awaited by the sync today and stay that way (a failed download is
+silent, as for the home board). The dead depth-0 `starred board`, `owned root`, `public root` cases are kept in the
+function so its truth table for existing inputs is unchanged.
+**Unresolved:** whether `suggested board` and the fallback `crisis vocabulary` seed should be included (develop
+parity says yes for suggested under the liked-list home; crisis was normally a sidebar board).
+**Mutation:** drop the depth-1 `starred board` case: the unit test and the full-sync test go red.
