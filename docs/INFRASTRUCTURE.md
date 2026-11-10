@@ -272,10 +272,14 @@ the WIF ref conditions, and the candidate rollout, not branch provenance.
    `aws iam create-policy-version --policy-arn arn:aws:iam::239044785114:policy/lingolinq-cloudrun-s3-ses --policy-document file://lingolinq-cloudrun-s3-ses-policy.json --set-as-default`.
    A managed policy keeps at most five versions; delete the oldest non-default one first if
    needed.
-3. Read the SES account's suppression setting:
-   `aws sesv2 get-account --region us-west-2 --query SuppressionAttributes`. If `BOUNCE` is
-   listed, SES drops mail to a suppressed address without sending it, so the reset that a
-   bounce-disabled user asks for will not arrive. Take that to the owner before relying on it.
+3. **Gate:** read the SES account's suppression setting:
+   `aws sesv2 get-account --region us-west-2 --query SuppressionAttributes`. Do not go on
+   until the owner has seen the answer. If `BOUNCE` is listed, SES drops mail to a suppressed
+   address without sending it (and without counting it against reputation), so the reset a
+   bounce-disabled user asks for will not arrive. If `BOUNCE` is NOT listed, every reset to a
+   bounced address is a new hard bounce that counts toward `Reputation.BounceRate`; resets
+   are capped at 6 per account per window (`Passwords#generate_password_reset`), but the
+   owner decides whether that is acceptable before the code ships.
 4. Merge and release the code to `main`. With the variable unset, the scheduler logs
    `process_ses_events ... skipped`.
 5. Drain the old queue's backlog once: set `APP_SES_EVENTS_QUEUE_URL` in the `production`

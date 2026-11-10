@@ -55,6 +55,20 @@ describe UserMailer, :type => :mailer do
       PaperTrail.request.whodunnit = nil
     end
 
+    # SesEventsWorker deletes the event only when this returns; a write that did not land must
+    # leave it on the queue for the next run.
+    it "should raise when turning email off could not be saved" do
+      User.create(:settings => {'email' => 'bob.miller@example.com'})
+      allow_any_instance_of(User).to receive(:update_setting).and_return(false)
+      expect { UserMailer.bounce_email("bob.miller@example.com") }.to raise_error(UserMailer::BounceNotSaved)
+    end
+
+    it "should not raise when the write was deferred to a job" do
+      User.create(:settings => {'email' => 'bob.miller@example.com'})
+      allow_any_instance_of(User).to receive(:update_setting).and_return('pending')
+      expect { UserMailer.bounce_email("bob.miller@example.com") }.not_to raise_error
+    end
+
     it "should leave an address disabled for another reason as it is" do
       u = User.create(:settings => {'email' => 'bob.miller@example.com', 'email_disabled' => true})
       UserMailer.bounce_email("bob.miller@example.com")

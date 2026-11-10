@@ -241,7 +241,7 @@ module DemoDistrict
     def self.disable_email!(user)
       return :skipped unless DemoDistrict.demo_email?(user)
       return :skipped if user.settings['email_disabled'] == true && user.settings['email_disabled_reason'] == 'demo' && user.settings['password_resets'].blank?
-      case user.update_setting({ 'email_disabled' => true, 'email_disabled_reason' => 'demo', 'password_resets' => [] })
+      case user.update_setting({ 'email_disabled' => true, 'email_disabled_reason' => 'demo', 'email_disabled_at' => nil, 'password_resets' => [] })
       when true then :disabled
       when 'pending' then :pending
       else :failed

@@ -10,10 +10,9 @@
 #
 # Decisions (docs/task-management/2026-10-14_ses-bounce-handling.md):
 # - Permanent bounce, every subtype including OnAccountSuppressionList: disable.
-# - Complaint: counted, NOT acted on. Disabling on a complaint would also block self-serve
-#   password reset (Api::UsersController#forgot_password skips email_disabled users) for every
-#   account sharing that address, and anyone can register an account with someone else's
-#   address. That is an account-recovery policy call for the owner. If the SES account-level
+# - Complaint: counted, NOT acted on (owner decision, 2026-11-09). Disabling on a complaint
+#   would cut mail to every account sharing that address, and anyone can register an account
+#   with someone else's address. If the SES account-level
 #   suppression list covers complaints, the next send to that address comes back as an
 #   OnAccountSuppressionList bounce and is handled as a permanent bounce.
 # - Transient and Undetermined bounces, Send, Delivery, DeliveryDelay, Reject and anything

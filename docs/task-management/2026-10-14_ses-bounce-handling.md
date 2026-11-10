@@ -421,7 +421,8 @@ Each finding re-checked before acting.
   CONFIRMED (`user.rb:2223-2232` copies only written keys; NullMail delivers nil, actionmailer
   `base.rb:653,658-669`). Changed: the skip reason is read from the fresh locked row through one shared
   predicate, `Notifiable#mail_skip_reason` (same address check and `channels_for` that `mail_message`
-  uses); an unsent notice is audited with its reason and does not set `mail_accepted`. Decided from the
+  uses); an unsent notice is audited with its reason. (Not done: gating `mail_accepted` on a sent notice
+  needs owner approval, see "A and B landed".) Decided from the
   predicate, not `deliver_message`'s return value, because existing specs stub `deliver_message` with
   blocks that return nil. Blank-address accounts are recorded too (`no_address`): same fact, at most 3
   rows per account per cycle. Remaining gap: an `InvalidParameterValue` swallowed by `deliver_message`
@@ -550,3 +551,18 @@ live `--check` was possible (no `aws`, `gcloud` or `jq` on this machine).
    `aws-sdk-sqs` as a direct Gemfile entry (shared config: propose first).
 6. Move `prod-scheduler-liveness-alert.sh` onto `scripts/gcp/lib/alert-policy.sh` when its `--check`
    can be re-run live.
+
+## Senior-dev review (/review-pr, fresh agent on the preflight DIFF_FILE)
+
+REVIEWED=range 084552a6bcd2c59c1386f93b0637b6251674eede (084552a6bcd2c59c1386f93b0637b6251674eede) ... HEAD (643c86deb2e10b97fe118cd694c48dd860cbe30d) in /home/tracid/LingoLinq-AAC-ses
+Verdict: Approve with comments (no Critical or High). Done:
+- Medium, email change cleared the flag for every reason (a demo login could become resettable): the
+  clear now runs only for reason 'bounce'; red-first spec in `user_spec.rb`.
+- Medium, `bounce_email` ignored a failed `update_setting`, so the worker deleted an unapplied bounce:
+  raises `UserMailer::BounceNotSaved` (a deferred 'pending' write counts as done); red-first specs.
+- Medium, resets to dead mailboxes can cost reputation if BOUNCE is not suppressed: rollout step 3 is now
+  a gate with the owner (resets are capped at 6 per account per window, `passwords.rb:22`).
+- Medium, this log contradicted the code on `mail_accepted`: corrected.
+- Low: stale comments in `ses_event.rb` and `user_spec.rb`; seeder drops a bounce's `email_disabled_at`;
+  `--email` with no value now exits 2 with a message. Not done: the JMESPath email filter (operator input),
+  SNS signature verification (queue policy limits SendMessage to the topic), scheduler spec depth.

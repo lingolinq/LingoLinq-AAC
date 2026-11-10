@@ -76,7 +76,7 @@ EMAIL="${ALARM_EMAIL:-}"
 while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run|--apply|--check) MODE="${1#--}"; shift ;;
-    --email) EMAIL="${2:-}"; shift 2 ;;
+    --email) [ $# -ge 2 ] || { echo "--email needs an address" >&2; exit 2; }; EMAIL="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "unknown argument: $1" >&2; usage; exit 2 ;;
   esac

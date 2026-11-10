@@ -10,12 +10,18 @@ class UserMailer < ActionMailer::Base
   # (Api::UsersController#forgot_password). An account already off is left as it is: a repeat
   # bounce would only add a version, and an account turned off for another reason (a shared
   # demo login, DemoDistrict::Seeder.disable_email!) must not become resettable.
+  # Raises BounceNotSaved when a write did not land, so SesEventsWorker leaves the event on the
+  # queue; a re-run skips the accounts already turned off. A write deferred to a job ('pending',
+  # Processable#update_setting) still lands and counts as done.
+  class BounceNotSaved < StandardError; end
+
   def self.bounce_email(email)
     hash = User.generate_email_hash(email)
     users = User.where(:email_hash => hash)
     users.each do |user|
       next if user.settings['email_disabled']
-      user.update_setting({'email_disabled' => true, 'email_disabled_reason' => 'bounce', 'email_disabled_at' => Time.now.utc.iso8601})
+      res = user.update_setting({'email_disabled' => true, 'email_disabled_reason' => 'bounce', 'email_disabled_at' => Time.now.utc.iso8601})
+      raise BounceNotSaved, "email_disabled not saved" unless res == true || res == 'pending'
     end
   end
 

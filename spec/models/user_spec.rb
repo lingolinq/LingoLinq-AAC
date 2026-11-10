@@ -2546,9 +2546,9 @@ describe User, :type => :model do
     end
   end
 
-  # UserMailer.bounce_email sets email_disabled when SES reports a permanent bounce or a
-  # complaint. Changing to a different address must clear it, or a user who fixes a typo
-  # stays without mail (and without password reset, users_controller#forgot_password) forever.
+  # UserMailer.bounce_email sets email_disabled when SES reports a permanent bounce. Changing to
+  # a different address must clear it, or a user who fixes a typo stays without mail forever.
+  # Email turned off for another reason (a shared demo login) stays off.
   describe "email_disabled on email change" do
     it "clears email_disabled when the email changes to a different address" do
       u = User.process_new(:email => 'bob@example.com')
@@ -2556,6 +2556,16 @@ describe User, :type => :model do
       expect(u.reload.settings['email_disabled']).to eq(true)
       u.process({'email' => 'fred@example.com'})
       expect(u.reload.settings['email_disabled']).to eq(nil)
+    end
+
+    it "keeps email turned off for another reason, such as a shared demo login, when the email changes" do
+      u = User.process_new(:email => 'kid@demoschooldistrict.org')
+      u.update_setting({'email_disabled' => true, 'email_disabled_reason' => 'demo'})
+      u.reload
+      u.process({'email' => 'someone@example.com'})
+      u.reload
+      expect(u.settings['email_disabled']).to eq(true)
+      expect(u.settings['email_disabled_reason']).to eq('demo')
     end
 
     it "clears why and when email was disabled along with the flag" do
