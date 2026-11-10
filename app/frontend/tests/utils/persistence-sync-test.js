@@ -6292,7 +6292,7 @@ describe("persistence-sync", function() {
       }})});
       queryLog.defineFixture({ method: 'GET', type: 'board', id: '145', response: RSVP.resolve({board: {
         id: '145', image_url: 'http://example.com/board.png',
-        buttons: twoParents ? [{id: '1', load_board: {id: '160'}}, {id: '2', load_board: {id: '167'}}] : [{id: '1', load_board: {id: '167'}}],
+        buttons: twoParents ? (twoParents === 'failing board first' ? [{id: '1', load_board: {id: '167', key: 'fred/slow'}}, {id: '2', load_board: {id: '160', key: 'fred/other'}}] : [{id: '1', load_board: {id: '160'}}, {id: '2', load_board: {id: '167'}}]) : [{id: '1', load_board: {id: '167'}}],
         grid: twoParents ? {rows: 1, columns: 2, order: [['1', '2']]} : {rows: 1, columns: 1, order: [['1']]}
       }})});
       if(twoParents) {
@@ -6372,6 +6372,28 @@ describe("persistence-sync", function() {
       });
     });
 
+    // The failing board is reached first, and a board synced after it links to it too. It was reported once
+    // already, so it is not queued again: one error row for it, not one per board that links to it. The home
+    // board's links carry keys, as real links do: the sync takes two links with no key for the same board.
+    it("should report a board that could not be fetched once, though a later board links to it too", function() {
+      db_wait(function() {
+        var response = answers([{ reject: { error: 'timeout' } }]);
+        var state = syncWithBoard167(response, 'failing board first');
+        waitsFor(function() { return waitForSyncDoneAndSettled(state.result) && state.tailDone; });
+        runs(function() {
+          var log = persistence.get('sync_log') || [];
+          var rows = ((log[0] && log[0].statuses) || []).filter(function(s) { return s.id == '167'; });
+          expect(response.calls).toEqual(2);
+          expect(rows.length).toEqual(1);
+          expect(rows[0] && rows[0].error).toEqual('board fred/slow failed retrieval for syncing, linked from 145');
+          expect(logById(queryLog, '160')).toNotEqual(undefined);
+          cancelSyncTailWork();
+          persistence.set('sync_progress', null);
+          LingoLinq.sync_testing_real_boards = false;
+        });
+      });
+    });
+
     it("should not try a board again when the server refused it", function() {
       db_wait(function() {
         var response = answers([{ reject: { error: 'Not authorized' } }, { resolve: board167 }]);
@@ -6393,7 +6415,7 @@ describe("persistence-sync", function() {
   // read the device's board list, a board that is not in it is downloaded, which also saves it.
   describe("a board marked cached must be on the device (#1212)", function() {
     function lookupCurrent(deviceBoards, allowAnyCached, extra) {
-      persistence.set('sync_progress', deviceBoards === undefined ? {} : { device_boards: deviceBoards });
+      persistence.set('sync_progress', deviceBoards === undefined ? {} : { device_boards: deviceBoards, device_boards_read_at: 1000 });
       var rec = EmberObject.create(Object.assign({ id: '1_1213', key: 'example/current', fresh: false, current_revision: 'r1', permissions: { view: true }, image_urls: {} }, extra || {}));
       stub(rec, 'reload', function() { rec.reloaded = true; return RSVP.resolve(rec); });
       stub(LingoLinq.store, 'peekRecord', function() { return null; });
@@ -6430,14 +6452,26 @@ describe("persistence-sync", function() {
       });
     });
 
-    // The adapter stamps what it fetched from the server (`retrieved`) and stores what it fetches, so such a board
-    // is on the device though the list read at the sync's start does not have it.
-    it("leaves a current board alone when the adapter fetched it, though it was not on the device when the sync started", function() {
-      var res = lookupCurrent({}, false, { retrieved: 1 });
+    // The adapter stamps what it fetched from the server (`retrieved`) and stores what it fetches, so a board
+    // fetched AFTER the sync read the device's boards is on the device though that list does not have it.
+    it("leaves a current board alone when the adapter fetched it after the sync read the device's boards", function() {
+      var res = lookupCurrent({}, false, { retrieved: 2000 });
       waitsFor(function() { return res.done; });
       runs(function() {
         expect(res.rec.reloaded).toEqual(undefined);
         expect(onlyStatus()).toEqual(['cached']);
+        persistence.set('sync_progress', null);
+      });
+    });
+
+    // A stamp from before the list was read proves nothing: had that fetch been saved, the row would be in the
+    // list. (Its save can fail, on a full device, and the stamp stays on the record for the session.)
+    it("downloads a current board whose record was fetched before the sync read the device's boards, and is not among them", function() {
+      var res = lookupCurrent({}, false, { retrieved: 500 });
+      waitsFor(function() { return res.done; });
+      runs(function() {
+        expect(res.rec.reloaded).toEqual(true);
+        expect(onlyStatus()).toEqual(['re-downloaded']);
         persistence.set('sync_progress', null);
       });
     });
@@ -6452,8 +6486,8 @@ describe("persistence-sync", function() {
       });
     });
 
-    // Through a whole sync, with the real local database (primeLocalSyncStorage; the default harness answers an empty
-    // board list and drops board writes). The home board is current in memory, as after Modern view pushed it, and
+    // Through a whole sync, with board rows kept in the harness's in-memory database (primeLocalSyncStorage; the
+    // default harness answers an empty board list and drops board writes). The home board is current in memory, as after Modern view pushed it, and
     // the batch download fails, as it can under load.
     function syncWithHomeInMemory(storedFirst) {
       var state = { tailDone: false, done: false, boardRequests: 0 };
@@ -6469,6 +6503,7 @@ describe("persistence-sync", function() {
       var ready = storedFirst ? persistence.store('board', board, board.id) : RSVP.resolve();
       ready.then(function() {
         refreshBoardsInStore([board]); // in memory, with no stamp from the adapter
+        persistence.force_reload = null; // set by an earlier test's last reload; it would send this board's fetch past its row
         LingoLinq.all_wait = true;
         queryLog.real_lookup = true;
         stub(window.$, 'realAjax', function(options) {

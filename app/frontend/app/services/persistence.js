@@ -3059,7 +3059,7 @@ var persistence = Service.extend({
         // other boards, the starter copies made at sign-up, or public boards: to have a board on the device, star it.
         var to_visit_boards = offlineSyncSeeds.seeds(user);
         var safely_cached_boards = {};
-        var checked_linked_boards = {};
+        var checked_linked_boards = {}; var unreachable_boards = {}; // boards this sync could not get: reported once, not queued again by a board that links to them (#1212)
 
         var visited_boards = [];
         if(!_sync.get('sync_progress.progress_for')) {
@@ -3247,7 +3247,7 @@ var persistence = Service.extend({
                   return;
                 }
 
-                if(!already_visited && !already_going_to_visit) {
+                if(!already_visited && !already_going_to_visit && !unreachable_boards[board.id] && !unreachable_boards[board.key]) {
                   to_visit_boards.push({id: board.id, key: board.key, depth: next.depth + 1, link_disabled: board.link_disabled, visit_source: (emberGet(prior_board, 'key') || emberGet(prior_board, 'id'))});
                 }
                 var force_cache_check = true;
@@ -3361,7 +3361,7 @@ var persistence = Service.extend({
                   nextBoard(defer);
                 }, 75);
               });
-            }, function(err) { if(claim_board_retry(_sync.get('sync_progress'), id, err)) { schedule_sync_board_step(function() { to_visit_boards.unshift(next); nextBoard(defer); }, BOARD_RETRY_DELAY_MS); return; } // #1212: once more, later (utils/sync_board_fallback.js)
+            }, function(err) { if(claim_board_retry(_sync.get('sync_progress'), id, err)) { unreachable_boards[id] = true; if(key) { unreachable_boards[key] = true; } schedule_sync_board_step(function() { to_visit_boards.unshift(next); nextBoard(defer); }, BOARD_RETRY_DELAY_MS); return; } // #1212: once more, later (utils/sync_board_fallback.js)
               var board_unauthorized = (err && err.error == "Not authorized");
               if(next.link_disabled && board_unauthorized) {
                 // TODO: if a link is disabled, can we get away with ignoring an unauthorized board?
@@ -3370,7 +3370,7 @@ var persistence = Service.extend({
                   nextBoard(defer);
                 }, 75);
               } else {
-                // TODO: if a board has been deleted
+                unreachable_boards[id] = true; if(key) { unreachable_boards[key] = true; } // TODO: if a board has been deleted
                 if(err.error && err.error.error) {
                   err = err.error;
                 }

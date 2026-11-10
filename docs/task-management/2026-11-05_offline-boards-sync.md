@@ -2079,6 +2079,9 @@ Modern view pushes the boards of a `/tree` answer into the store without saving 
 more missing boards and gives up silently when a batch request fails (`:2945`, the `ajax(...boards?ids=)` error
 handler). Such a board was then 'cached', its pictures and folders synced, the sync reported as succeeded, and no
 row existed, with no slow server needed.
+[CORRECTED 2026-11-10 by the emulator runs below: with a HEALTHY server this did not happen (check off: 101 'cached',
+102 rows on the device), because Ember Data fetches each in-memory board in the background and the adapter stores
+it. The defect needs the single-board requests to FAIL; see "The 'cached' defect reproduced in the installed app".]
 **Fix:** the sync notes the device's boards where it already reads them (`find_all('board')` at the start of
 `sync_boards`), each row the batch download stores, and, on the supervisee path where revisions failed and
 `allow_any_cached` is set, by reading the list there too. `known_on_device(sync_progress, record)`
@@ -2216,7 +2219,8 @@ review); the supervisee failure path skips its board-table read when this sync a
 (Traci's request; no test pins the skip, the outcome is the same either way). The comments that carried my wrong
 "three requests per board" figure were rewritten.
 **Tests:** "a board marked cached must be on the device (#1212)", 8: the five lookups, the adapter-stamp case, and
-two whole syncs on the REAL local database (`primeLocalSyncStorage`): a board current in memory only is requested
+two whole syncs with board rows kept in the harness's in-memory database (`primeLocalSyncStorage`, `fake_dbman`;
+not a real IndexedDB or SQLite): a board current in memory only is requested
 once, ends 're-downloaded' and its row is on the device afterwards; a board current in memory and already on the
 device is not requested and stays 'cached'. Mutations: device list read but nothing recorded, the already-on-device
 sync test fails; adapter stamp ignored, its test fails; revision branch not gated, two fail. Sync module with
@@ -2227,3 +2231,39 @@ second attempt's CDP blocking saw no traffic and measured an early sync attempt;
 its own command line (the rule file warns of exactly this), so it was redone step by step with the pid from `ss`.
 **Still not done on the emulator:** the offline-open check (boards open with the connection cut), the liked-boards
 check past 25, and the same runs against staging.
+
+#### Offline-open check on the emulator; retry gap; review of 9db67cb75..a520e6bcb (2026-11-10)
+
+**Boards open offline in the installed app (CONFIRMED on the Android emulator).** Driver
+`/home/tracid/offline-sync-handoff/scripts/emu-offline-open.js`, build with the 'cached' fix. First sync succeeded
+(102 boards). Then airplane mode on, `adb reverse` removed (the server gives no answer, `navigator.onLine` false),
+app force-stopped and started cold: it opened on the home board (`#/aiden_parker/board-detail/vocal-flair-84`, 84
+buttons with their labels, the device-copy notice, no error page); `persistence.find('board', key)` returned a usable
+copy for all 102 boards the sync reported; three other boards opened by address (`lingolinq/yesno`, owned by the
+library account, and two folders). Not checked: pictures and sounds offline, Basic view, tapping a folder (the
+boards were opened by address).
+
+**Retry gap (#1212): fixed.** A board whose lookup failed was in neither `visited_boards` nor `to_visit_boards`, so a
+board synced later that links to it queued it again (`services/persistence.js:3238-3252`) and it got a second error
+row. The sync now keeps `unreachable_boards` for its run: marked where the one retry is claimed and where the error
+is recorded, not in the branch that skips a board only because THIS link is disabled (an enabled link elsewhere must
+still be tried and reported). Test "should report a board that could not be fetched once, though a later board links
+to it too": two requests, one row. With the condition removed it fails alone. Found while writing it: the sync
+takes two links with NO key for the same board (`b.key == board.key` with both undefined, `:3242`), so the older
+"linked from two places" fixture, whose links have ids only, never queued its second link from the home board. Real
+links carry keys; not changed here.
+
+**Pre-push review of 9db67cb75..a520e6bcb: OK to push; nothing Critical or High.** Confirmed from Ember Data 5.3's
+source that a loaded record gets a background fetch and that `reload()` joins it, so the 'cached' check adds no
+request (the cost on a healthy sync was about 25 s of wall time, 207 to 232 s, no extra requests). No finding on
+the reserved-names fix (board keys are lowercased earlier and unchanged; existing users untouched). Acted on:
+- MEDIUM: `retrieved` means fetched, not stored: the stamp is set before the save, the utils `store` resolves on a
+  failed write, and the stamp stays for the session, so a later sync in the same session could answer 'cached' with
+  no row (the "out of storage, free space, sync again" flow). `known_on_device` now trusts the stamp only when it is
+  not older than this sync's reading of the device's boards (`sync_progress.device_boards_read_at`). Test: a record
+  stamped before the reading, with no row, is downloaded; with any stamp trusted that test fails alone.
+- LOW: the already-on-device whole-sync test depended on `persistence.force_reload` left by an earlier test; it
+  resets it. Wrong or loose statements corrected where they stood (this log, the test comment, the helper comment).
+Not done: a whole-sync test for the supervisee failure path (root and supervisee revisions both failing); staff-only
+`rename_to` has no reserved-name check (`app/models/concerns/renaming.rb:20-32`, older than this branch).
+Sync module with `timingStrict=1` after all of this: 107 tests, 106 pass, 1 existing skip, 0 fail, no late work.

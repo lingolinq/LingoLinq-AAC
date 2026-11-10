@@ -54,7 +54,7 @@ export function keep_stored_board(record, err, board_statuses, id, find_row) {
 // way in the meantime costs one extra download, nothing more.
 export function note_device_boards(sync_progress, rows) {
   if(!sync_progress) { return; }
-  sync_progress.device_boards = sync_progress.device_boards || {};
+  if(!sync_progress.device_boards) { sync_progress.device_boards = {}; sync_progress.device_boards_read_at = (new Date()).getTime(); }
   (rows || []).forEach(function(row) {
     var raw = row && row.data && row.data.raw ? row.data.raw : row;
     if(row && row.data && row.data.id) { sync_progress.device_boards[row.data.id] = true; }
@@ -64,19 +64,22 @@ export function note_device_boards(sync_progress, rows) {
 }
 
 // False only when the sync read the device's boards, this one is not among them, and its record was not fetched by the
-// adapter. The adapter stamps a record it fetched from the server (`retrieved`, models/base.js) and stores what it
-// fetches (utils/persistence.js findRecord, store_eventually), so such a board is on the device, or about to be,
-// though the list read at the sync's start does not have it. A record pushed from a /tree answer carries no stamp.
-// When the device's boards were not read (a lookup outside a full sync), there is nothing to judge by and the answer
-// is as it was before.
+// adapter since then. The adapter stamps a record it fetched from the server (`retrieved`, models/base.js) and stores
+// what it fetches (utils/persistence.js findRecord, store_eventually), so a board fetched after the list was read is
+// being stored though the list does not have it. A stamp from before the list was read proves nothing (had that
+// save landed, the row would be listed; a save can fail on a full device and the stamp stays for the session). A
+// record pushed from a /tree answer carries no stamp. When the device's boards were not read (a lookup outside a
+// full sync), there is nothing to judge by and the answer is as it was before.
 //
 // Measured in the installed Android app (2026-11-10, task log): with single-board requests failing, the sync without
-// this check listed 97 boards as 'cached' with no error while the device held none; with it, each is reported as
-// failed. With a healthy server the check costs no extra request: the reload joins the fetch already under way.
+// this check listed 97 boards as 'cached' with no error while the device held none; with it, the five boards it
+// reached were reported as failed and it went no further. With a healthy server the check costs no extra request:
+// the reload joins the fetch already under way.
 export function known_on_device(sync_progress, record) {
   var known = sync_progress && sync_progress.device_boards;
   if(!known || !record || !record.get) { return true; }
-  if(record.get('retrieved')) { return true; }
+  var fetched_at = record.get('retrieved');
+  if(fetched_at && fetched_at >= (sync_progress.device_boards_read_at || 0)) { return true; }
   return !!(known[record.get('global_id')] || known[record.get('id')] || known[record.get('key')]);
 }
 
