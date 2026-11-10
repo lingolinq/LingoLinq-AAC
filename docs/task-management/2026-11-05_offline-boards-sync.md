@@ -1821,3 +1821,44 @@ that grid at 25); longer syncs for those accounts (each liked board is reloaded 
 be kept offline until another is unliked. Unresolved: the most reliable source for that count at like time
 (`stats.starred_boards` on the signed-in user may be stale; the star response returns only `starred`, `stars`,
 `user_id`).
+
+#### Liked list: unit 1 landed; proposal 3, hide boards the person cannot view and stop dead likes using slots (2026-11-10)
+
+**Unit 1 landed (dbf02dbc3):** `LIKED_BOARD_REFS_LIMIT = 100` bounds the lookup and the list (`user.rb:2467-2476`).
+Spec "starred_board_refs limit" red before, green after, red again with 25. Regression run of user, json_api user,
+boards and users controller specs: 1,174 examples, 11 failures, all `WebMock::NetConnectNotAllowedError` in
+boards_controller create/update; the same 11 count and error with the change removed (my local env carries upload
+settings; not from this change). Review of proposal 2: proceed with changes; its other points are tracked below.
+Decisions (Traci): home grid stays at the first 25 with a "Show more" tile opening all (up to 100); deleted liked
+boards are cleared so they stop using slots; a liked board the person can no longer view is not listed.
+
+**Proposal 3 (for review). Fact sheet**
+- READ, CONFIRMED: `starred_board_refs` lists a ref for every resolved liked id with no view check
+  (`user.rb:2477-2488`); the profile JSON sends the list to any caller with `supervise` (`json_api/user.rb:512-515`).
+- SHAPES, CONFIRMED: a liked id can be a plain board, a shallow clone id (`<board>-<user>`), a deleted board (id
+  stays: `remember_starred_board!` returns early when the board is gone, `user.rb:2450-2451`), or a board made
+  private or unshared after the like (unstar needs `view`, so the person cannot remove it;
+  reviewer: `boards_controller.rb:1061-1062`, not re-checked).
+- CROSS-FILE, CONFIRMED: `Board#allows?(user, 'view')` covers public, cached shared lists, owner grants and
+  shallow clones (`board.rb:85-99`); the board_revisions sync call uses the stricter `BoardRevisionsAccess`
+  because that cache can lag an unshare by minutes to hours (`app/services/board_revisions_access.rb:3-9`), at the
+  cost of computing shared-board sets for the user's whole supervision chain.
+**Red specs (run, red):** a liked board made private is still listed; with 102 liked, one deleted and one private,
+99 are listed instead of 100; a deleted id stays in `starred_board_ids` after the next like.
+**Candidates**
+1. (proposed) List only boards that exist and that the liker can view by `allows?(liker, 'view')`, taking liked ids
+   in order, a batch of 100 at a time, until 100 are listed or the ids run out; and prune ids with no board inside
+   `remember_starred_board!` (which already rewrites the list and count). Cheap, the app's standard check; can lag
+   an unshare like every other `allows?` reader. The sync already drops revoked boards through board_revisions.
+2. Same, but decide another owner's private board with `BoardRevisionsAccess`: current, but adds the supervision
+   chain's shared-set work to every profile load of anyone who liked such a board.
+3. Prune unviewable ids from the stored list too: rejected, a board shared again would silently lose its like.
+**Risks:** the view check runs for the LIKER, not the caller (a supervisor sees what the supervisee may see: same
+as today for listed boards). Permission-cache cost per liked board on a hot path (users#show, update, create).
+Extra batches only when many of the first 100 are hidden or deleted. The count `stats.starred_boards` stays the
+stored length, so it can exceed the listed number while unviewable likes exist.
+**Unresolved:** whether `allows?` on up to 100 boards is acceptable on every profile load, or needs the light
+column select first; whether pruning should also run when a board is deleted (its likers are in
+`starred_user_ids`).
+**Mutations:** drop the view filter (spec 1 red); count hidden boards toward the limit (spec 2 red); drop the
+prune (spec 3 red).
