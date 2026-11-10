@@ -88,9 +88,9 @@
   {{/if}}
 
   <div class="la-system-settings__actions">
-    <button type="button" class="btn btn-primary" disabled={{this.saving}} {{on "click" (this.ctrlAction "saveTemplate")}}>{{t "Save" key="save"}}</button>
-    <button type="button" class="btn btn-default" disabled={{this.previewing}} {{on "click" (this.ctrlAction "previewTemplate")}}>{{t "Preview" key="system_settings_preview"}}</button>
-    <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "resetTemplate")}}>{{t "Reset to default" key="system_settings_reset_default"}}</button>
+    <button type="button" class="md-btn md-btn--primary" disabled={{this.saving}} {{on "click" (this.ctrlAction "saveTemplate")}}>{{t "Save" key="save"}}</button>
+    <button type="button" class="md-btn md-btn--ghost" disabled={{this.previewing}} {{on "click" (this.ctrlAction "previewTemplate")}}>{{t "Preview" key="system_settings_preview"}}</button>
+    <button type="button" class="md-btn md-btn--ghost" {{on "click" (this.ctrlAction "resetTemplate")}}>{{t "Reset to default" key="system_settings_reset_default"}}</button>
   </div>
 
   {{#if this.previewSubject}}
