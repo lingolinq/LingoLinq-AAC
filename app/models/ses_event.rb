@@ -33,7 +33,7 @@ class SesEvent
     raise Malformed, 'no event type' unless type.is_a?(String) && !type.empty?
 
     case type
-    when 'Bounce' then classify_bounce(event['bounce'])
+    when 'Bounce' then classify_bounce(event['bounce'], (event['mail'] || {})['destination'])
     when 'Complaint' then classify_complaint(event['complaint'])
     else Result.new(action: :ignore, label: KNOWN_TYPES.include?(type) ? type : 'Other', addresses: [])
     end
@@ -56,10 +56,20 @@ class SesEvent
   end
   private_class_method :unwrap
 
-  def self.classify_bounce(bounce)
+  # bouncedRecipients may be a DSN's Final-Recipient, which the bouncing server writes (AWS SES
+  # Developer Guide, bounce object), so a permanent bounce disables only addresses the mail was
+  # sent to (mail.destination, which SES itself fills in). Without a destination list (not seen
+  # in SES configuration-set events) the recipients are taken as given.
+  def self.classify_bounce(bounce, destination = nil)
     raise Malformed, 'bounce without a bounce object' unless bounce.is_a?(Hash)
     if bounce['bounceType'] == 'Permanent'
-      Result.new(action: :disable, label: 'Bounce:Permanent', addresses: addresses(bounce['bouncedRecipients']))
+      bounced = addresses(bounce['bouncedRecipients'])
+      if destination.is_a?(Array)
+        sent_to = addresses(destination.map { |d| {'emailAddress' => d} }).map(&:downcase)
+        bounced = bounced.select { |a| sent_to.include?(a.downcase) }
+        return Result.new(action: :ignore, label: 'Bounce:Mismatch', addresses: []) if bounced.empty?
+      end
+      Result.new(action: :disable, label: 'Bounce:Permanent', addresses: bounced)
     else
       label = bounce['bounceType'] == 'Transient' ? 'Bounce:Transient' : 'Bounce:Other'
       Result.new(action: :ignore, label: label, addresses: [])

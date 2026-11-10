@@ -566,3 +566,26 @@ Verdict: Approve with comments (no Critical or High). Done:
 - Low: stale comments in `ses_event.rb` and `user_spec.rb`; seeder drops a bounce's `email_disabled_at`;
   `--email` with no value now exits 2 with a message. Not done: the JMESPath email filter (operator input),
   SNS signature verification (queue policy limits SendMessage to the topic), scheduler spec depth.
+
+## Adversary review of the final branch (/adversary-review, at `dc6e95640`)
+
+- High (forged bounce from any principal in the account allowed to publish to the topic; the consumer
+  trusts any well-formed event): PLAUSIBLE, live policy not readable here. Applied the counter-measure,
+  which makes the question moot: `ses-feedback-queue-setup.sh` merges a topic-policy Deny on
+  `SNS:Publish` unless `aws:SourceArn` is the configuration set, and `--check` asserts it. Rollout step 1
+  now confirms SES events still arrive after it.
+- Medium (a bounce write moved `updated_at`, the sweep's activity clock, so the sweep's own bounced
+  warning pushed deletion back 12 months or cancelled a schedule): CONFIRMED red first (`updated_at`
+  moved 13 months). `bounce_email` writes through `User.update_settings_locked(touch: false)` and reads
+  the row back to confirm the flag landed (it raises `BounceNotSaved` otherwise). This also removes the
+  deferred 'pending' path, so the write is always versioned under the worker's whodunnit (the Low).
+  Self-inflicted error 1: I first detected a failed save with `changed?`, which the in-place settings
+  mutation does not reliably show; the spec caught it and the read-back replaced it.
+- Medium (bounced recipients not checked against the mail's recipients; a DSN's Final-Recipient is
+  written by the bouncing server): applied. Addresses not in `mail.destination` are dropped; none left
+  -> ignored as `Bounce:Mismatch`. Red-first specs in `ses_event_spec.rb`.
+- Low, subtypes from SES heuristics (`EmailValidationSuppressed`) also disable: not changed (the brief
+  disables every Permanent subtype); follow-up if SES auto-validation is ever turned on.
+- Low, `--check` claims more than it checks: wording narrowed in `ses-feedback-queue-setup.sh`;
+  `ses-reputation-alarms.sh --check` still compares namespace, metric, threshold, statistic, actions and
+  dimensions only (noted).

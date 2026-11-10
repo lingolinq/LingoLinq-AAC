@@ -58,15 +58,22 @@ describe UserMailer, :type => :mailer do
     # SesEventsWorker deletes the event only when this returns; a write that did not land must
     # leave it on the queue for the next run.
     it "should raise when turning email off could not be saved" do
-      User.create(:settings => {'email' => 'bob.miller@example.com'})
-      allow_any_instance_of(User).to receive(:update_setting).and_return(false)
+      u = User.create(:settings => {'email' => 'bob.miller@example.com'})
+      allow_any_instance_of(User).to receive(:save).and_return(false)
       expect { UserMailer.bounce_email("bob.miller@example.com") }.to raise_error(UserMailer::BounceNotSaved)
+      expect(User.find(u.id).settings['email_disabled']).to eq(nil)
     end
 
-    it "should not raise when the write was deferred to a job" do
-      User.create(:settings => {'email' => 'bob.miller@example.com'})
-      allow_any_instance_of(User).to receive(:update_setting).and_return('pending')
-      expect { UserMailer.bounce_email("bob.miller@example.com") }.not_to raise_error
+    # updated_at is the inactivity sweep's activity clock (Subscription): a bounce of the sweep's
+    # own warning must not count as use and push the account back 12 months.
+    it "should not move the account's activity time" do
+      u = User.create(:settings => {'email' => 'bob.miller@example.com'})
+      User.where(id: u.id).update_all(updated_at: 13.months.ago)
+      before = User.find(u.id).updated_at
+      UserMailer.bounce_email("bob.miller@example.com")
+      stored = User.find(u.id)
+      expect(stored.settings['email_disabled']).to eq(true)
+      expect(stored.updated_at.utc.iso8601(6)).to eq(before.utc.iso8601(6))
     end
 
     it "should leave an address disabled for another reason as it is" do

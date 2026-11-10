@@ -208,7 +208,10 @@ the WIF ref conditions, and the candidate rollout, not branch provenance.
   `OnAccountSuppressionList`) call `UserMailer.bounce_email`, which turns email off for
   every user with that address and records `email_disabled_reason: 'bounce'` and
   `email_disabled_at` (only when the flag goes from off to on; PaperTrail whodunnit
-  `system:ses-events`). An account already off for another reason is left alone.
+  `system:ses-events`), on a locked row without moving `updated_at`, which is the inactivity
+  sweep's activity clock. An account already off for another reason is left alone. Only
+  addresses in the event's `mail.destination` are acted on: `bouncedRecipients` can come
+  from the bouncing server's own report.
   Complaints are counted but not acted on (owner decision, 2026-11-09). Transient bounces
   are deleted without action. Malformed messages are counted and deleted. A message whose
   handling raised stays on the queue for the next run, and the task then fails so the
@@ -265,7 +268,12 @@ the WIF ref conditions, and the candidate rollout, not branch provenance.
 
 1. `scripts/gcp/ses-feedback-queue-setup.sh --dry-run`, then `--apply`, then `--check`
    (admin principal). From here the new queue collects bounces and complaints; the old
-   queue keeps everything.
+   queue keeps everything. The same run adds a topic-policy Deny so only the
+   `lingolinq-transactional` configuration set can publish to `lingolinq-ses-events` (the
+   consumer acts on whatever arrives, so any other publisher could forge a bounce). Confirm
+   SES events still arrive after it: send one mail from the app and check that
+   `ApproximateNumberOfMessages` on `lingolinq-ses-events` goes up. If it does not, remove the
+   `DenyPublishExceptSesConfigSet` statement and stop.
 2. Apply the IAM policy (both queues) as a new default version of `lingolinq-cloudrun-s3-ses`
    (admin principal with MFA; see `scripts/gcp/iam/README.md`). Diff the live default
    version against the repo file first, then

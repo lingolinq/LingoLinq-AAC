@@ -29,6 +29,25 @@ describe SesEvent do
     expect(r.label).to eq('Bounce:Permanent')
   end
 
+  # bouncedRecipients can come from a DSN's Final-Recipient field, which the bouncing server
+  # writes; only addresses the mail was actually sent to may be disabled.
+  it 'drops a bounced address the mail was not sent to' do
+    event = bounce('Permanent', 'General', ['victim@example.com', 'Real@Example.com'])
+    event['mail']['destination'] = ['Someone <real@example.com>']
+    r = SesEvent.classify(sns_body(event))
+    expect(r.action).to eq(:disable)
+    expect(r.addresses).to eq(['Real@Example.com'])
+  end
+
+  it 'ignores a permanent bounce when none of its addresses was a recipient' do
+    event = bounce('Permanent', 'General', ['victim@example.com'])
+    event['mail']['destination'] = ['real@example.com']
+    r = SesEvent.classify(sns_body(event))
+    expect(r.action).to eq(:ignore)
+    expect(r.addresses).to eq([])
+    expect(r.label).to eq('Bounce:Mismatch')
+  end
+
   it 'disables an address SES reports as on the account suppression list' do
     r = SesEvent.classify(sns_body(bounce('Permanent', 'OnAccountSuppressionList', ['a@example.com'])))
     expect(r.action).to eq(:disable)

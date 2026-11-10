@@ -25,17 +25,29 @@
 #                               FilterPolicy {"eventType":["Bounce","Complaint"]} (the
 #                               configuration set's event JSON names its type in eventType),
 #                               RawMessageDelivery false (SesEvent.unwrap reads the envelope).
+#   Topic policy statement      DenyPublishExceptSesConfigSet on lingolinq-ses-events: denies
+#                               SNS:Publish to every principal whose request is not from the
+#                               lingolinq-transactional configuration set (aws:SourceArn). The
+#                               consumer disables email on whatever arrives, so without this any
+#                               credential in the account allowed to publish (an IAM user's own
+#                               policy is enough) could forge a bounce for a real address. It also
+#                               blocks hand-published test events; test with the SES mailbox
+#                               simulator instead.
 #   A subscription receives only events published after it exists: it does not copy the
 #   original queue's backlog. See docs/INFRASTRUCTURE.md, "SES events and alarms", for the
 #   rollout order that drains the backlog first and for moving messages out of the DLQ.
 #
 # USAGE (AWS credentials for account 239044785114 with sqs:CreateQueue, sqs:GetQueueUrl,
 # sqs:GetQueueAttributes, sqs:SetQueueAttributes, sns:Subscribe, sns:ListSubscriptionsByTopic,
-# sns:GetSubscriptionAttributes, sns:SetSubscriptionAttributes; NOT the app's
+# sns:GetSubscriptionAttributes, sns:SetSubscriptionAttributes, sns:GetTopicAttributes,
+# sns:SetTopicAttributes; NOT the app's
 # lingolinq-cloudrun-prod user):
 #   scripts/gcp/ses-feedback-queue-setup.sh --dry-run   # prints the writes, reads nothing
 #   scripts/gcp/ses-feedback-queue-setup.sh --apply     # WRITES to AWS
-#   scripts/gcp/ses-feedback-queue-setup.sh --check     # read-only; exit 1 on any mismatch
+#   scripts/gcp/ses-feedback-queue-setup.sh --check     # read-only; exit 1 when a queue, the
+#                                                       # redrive, either policy statement or the
+#                                                       # subscription filter differs (retention and
+#                                                       # encryption are set at creation, not checked)
 set -euo pipefail
 
 REGION="${AWS_REGION:-us-west-2}"
@@ -45,6 +57,8 @@ DLQ_NAME="lingolinq-ses-feedback-dlq"
 MAX_RECEIVE_COUNT="24"
 RETENTION="1209600"
 POLICY_SID="AllowSESFeedbackSNSPublish"
+CONFIG_SET="lingolinq-transactional"
+DENY_SID="DenyPublishExceptSesConfigSet"
 FILTER_POLICY='{"eventType":["Bounce","Complaint"]}'
 
 usage() { awk 'NR == 1 { next } /^#/ { sub(/^# ?/, ""); print; next } { exit }' "${BASH_SOURCE[0]}"; }
@@ -65,6 +79,7 @@ if [ "$MODE" = "dry-run" ]; then
   TOPIC_ARN="arn:aws:sns:${REGION}:${ACCOUNT_ID}:${TOPIC_NAME}"
   echo "DRY-RUN: aws sqs create-queue --queue-name $DLQ_NAME --attributes MessageRetentionPeriod=$RETENTION,SqsManagedSseEnabled=true"
   echo "DRY-RUN: aws sqs create-queue --queue-name $QUEUE_NAME --attributes MessageRetentionPeriod=$RETENTION,SqsManagedSseEnabled=true,RedrivePolicy={\"deadLetterTargetArn\":\"$DLQ_ARN\",\"maxReceiveCount\":\"$MAX_RECEIVE_COUNT\"}"
+  echo "DRY-RUN: merge topic policy statement $DENY_SID (Deny SNS:Publish on $TOPIC_ARN unless aws:SourceArn is arn:aws:ses:${REGION}:${ACCOUNT_ID}:configuration-set/${CONFIG_SET})"
   echo "DRY-RUN: merge queue policy statement $POLICY_SID (sns.amazonaws.com sqs:SendMessage on $QUEUE_ARN, aws:SourceArn $TOPIC_ARN)"
   echo "DRY-RUN: aws sns subscribe --topic-arn $TOPIC_ARN --protocol sqs --notification-endpoint $QUEUE_ARN --attributes FilterPolicyScope=MessageBody,FilterPolicy=$FILTER_POLICY,RawMessageDelivery=false"
   exit 0
@@ -77,6 +92,10 @@ ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
 TOPIC_ARN="arn:aws:sns:${REGION}:${ACCOUNT_ID}:${TOPIC_NAME}"
 DLQ_ARN="arn:aws:sqs:${REGION}:${ACCOUNT_ID}:${DLQ_NAME}"
 QUEUE_ARN="arn:aws:sqs:${REGION}:${ACCOUNT_ID}:${QUEUE_NAME}"
+SES_SOURCE_ARN="arn:aws:ses:${REGION}:${ACCOUNT_ID}:configuration-set/${CONFIG_SET}"
+DENY_STATEMENT="$(jq -cn --arg t "$TOPIC_ARN" --arg src "$SES_SOURCE_ARN" --arg sid "$DENY_SID" '{
+  Sid: $sid, Effect: "Deny", Principal: "*", Action: "SNS:Publish", Resource: $t,
+  Condition: {StringNotEquals: {"aws:SourceArn": $src}}}')"
 REDRIVE="$(jq -cn --arg arn "$DLQ_ARN" --arg n "$MAX_RECEIVE_COUNT" '{deadLetterTargetArn: $arn, maxReceiveCount: $n}')"
 STATEMENT="$(jq -cn --arg q "$QUEUE_ARN" --arg t "$TOPIC_ARN" --arg sid "$POLICY_SID" '{
   Sid: $sid, Effect: "Allow", Principal: {Service: "sns.amazonaws.com"},
@@ -97,6 +116,10 @@ queue_url() {
 queue_attr() {
   aws sqs get-queue-attributes --queue-url "$1" --attribute-names "$2" --region "$REGION" \
     --query "Attributes.$2" --output text
+}
+
+topic_policy() {
+  aws sns get-topic-attributes --topic-arn "$TOPIC_ARN" --region "$REGION" --query Attributes.Policy --output text
 }
 
 subscription_arn() {
@@ -123,6 +146,11 @@ check() {
     echo "OK: the queue policy lets $TOPIC_NAME publish."
   else
     echo "FAIL: the queue policy lacks $POLICY_SID as defined here; SNS deliveries would be refused."; rc=1
+  fi
+  if jq -e --argjson stmt "$DENY_STATEMENT" '.Statement[]? | select(. == $stmt)' <<<"$(topic_policy)" >/dev/null 2>&1; then
+    echo "OK: only the $CONFIG_SET configuration set may publish to $TOPIC_NAME."
+  else
+    echo "FAIL: the topic policy lacks $DENY_SID as defined here; other principals in the account may publish forged events."; rc=1
   fi
   sub="$(subscription_arn)"
   if [ -z "$sub" ] || [ "$sub" = "None" ]; then
@@ -176,6 +204,18 @@ apply() {
       '.Statement = ([.Statement[]? | select(.Sid != $sid)] + [$stmt])' <<<"$base")"
     aws sqs set-queue-attributes --queue-url "$url" --region "$REGION" \
       --attributes "$(jq -cn --arg p "$updated" '{Policy: $p}')"
+  fi
+
+  # Merged into the topic's policy, so phase5's AllowSESPublish and any other statement survive.
+  base="$(topic_policy)"
+  if jq -e --argjson stmt "$DENY_STATEMENT" '.Statement[]? | select(. == $stmt)' <<<"$base" >/dev/null 2>&1; then
+    echo "Topic policy already limits publishing to $CONFIG_SET."
+  else
+    echo "Setting topic policy statement $DENY_SID..."
+    updated="$(jq -c --argjson stmt "$DENY_STATEMENT" --arg sid "$DENY_SID" \
+      '.Statement = ([.Statement[]? | select(.Sid != $sid)] + [$stmt])' <<<"$base")"
+    aws sns set-topic-attributes --topic-arn "$TOPIC_ARN" --region "$REGION" \
+      --attribute-name Policy --attribute-value "$updated"
   fi
 
   sub="$(subscription_arn)"
