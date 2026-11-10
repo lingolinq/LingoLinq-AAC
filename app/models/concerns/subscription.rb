@@ -1421,7 +1421,9 @@ module Subscription
             AuditEvent.log_command('system', {'type' => 'inactivity_notice_not_sent', 'user_id' => user.global_id,
               'step' => (attempts > 2 ? 'account_deleted' : 'deletion_warning'), 'reason' => skip_reason})
           end
-          unless mail_accepted
+          # Only a notice that reached SES shows SES is accepting mail; a skipped one releases
+          # no held rejections.
+          unless mail_accepted || skip_reason
             mail_accepted = true
             release_held.call
           end

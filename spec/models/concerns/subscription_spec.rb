@@ -2903,7 +2903,9 @@ describe Subscription, :type => :model do
           end
 
           it "counts rejections once a message in the run was accepted" do
-            accepted = inactive_account_to_warn
+            # an address, so its notice is actually sent (one with none is skipped, see below)
+            accepted = User.create(settings: {'email' => 'accepted@example.com'})
+            User.where(id: accepted.id).update_all(updated_at: 13.months.ago)
             accounts = 3.times.map { inactive_account_to_warn }
             rejecting_all(accounts, [accepted.global_id])
 
@@ -2911,6 +2913,19 @@ describe Subscription, :type => :model do
 
             expect(User.find(accepted.id).settings['subscription']['last_deletion_attempts']).to eq(1)
             accounts.each { |a| expect(User.find(a.id).settings['subscription']['inactivity_mail_failures']['count']).to eq(1) }
+          end
+
+          # A notice the mailer skips (no address, email turned off) never reached SES, so it says
+          # nothing about whether SES accepts mail.
+          it "does not take a notice that was not sent as an accepted message" do
+            skipped = inactive_account_to_warn
+            accounts = 3.times.map { inactive_account_to_warn }
+            rejecting_all(accounts, [skipped.global_id])
+
+            User.check_for_subscription_updates
+
+            accounts.each { |a| expect((User.find(a.id).settings['subscription'] || {})['inactivity_mail_failures']).to eq(nil) }
+            expect(Rails.logger).to have_received(:error).with(/mail stopped for this run: setup error .*3 messages rejected and none accepted/).once
           end
         end
 
