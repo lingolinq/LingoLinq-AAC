@@ -20,7 +20,8 @@ module LingoLinq
   # This helper OWNS the `require_relative`s for lib deps. lib/ Zeitwerk autoload is
   # DISABLED on the Resque-worker path (config/application.rb:47, RESQUE_WORKER=true), so
   # a worker resolving these constants via autoload would NameError. Article50Disclosures
-  # is used below. EuJurisdiction is no longer used here, but this require is still the
+  # is needed by User#article_50_disclosure_shown? (its default version argument), which
+  # this helper calls. EuJurisdiction is no longer used here, but this require is still the
   # only one that loads it on the worker path, and JsonApi::User (lib/json_api/user.rb:569)
   # calls it; it stays until that dependency has its own require.
   #
@@ -37,8 +38,8 @@ module LingoLinq
     end
 
     # The B3 disclosure-shown read. Degrades to false on any error and logs one scrubbed
-    # warning (exception CLASS only, never the message or the user). The `user &&` guard is load-bearing: log_ai_call
-    # runs on API-error paths where `user` can be nil.
+    # warning (exception CLASS only, never the message or the user). The `user &&` guard
+    # is load-bearing: log_ai_call runs on API-error paths where `user` can be nil.
     def self.resolve_disclosure_shown(user)
       !!(user && user.article_50_disclosure_shown?)
     rescue StandardError => e

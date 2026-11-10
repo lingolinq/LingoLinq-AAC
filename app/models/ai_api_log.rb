@@ -251,8 +251,8 @@ class AiApiLog < ApplicationRecord
       ids = where('created_at < ?', cutoff).limit(batch_size).pluck(:id)
       break if ids.empty?
       batch = where(id: ids).delete_all
-      # Nothing deleted means every plucked row was refreshed or removed meanwhile; stop
-      # rather than re-plucking forever. Anything left is picked up by tomorrow's run.
+      # Nothing deleted means every plucked row was removed meanwhile (created_at never
+      # moves); stop rather than re-plucking forever.
       break if batch.zero?
       deleted += batch
     end

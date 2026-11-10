@@ -264,14 +264,18 @@ include Replicate
   # Deletes clusters not used for RETENTION_MONTHS. Measured on updated_at, not created_at:
   # when a session joins a cluster, the scheduled generate_stats(true) adds it to the
   # cluster's counters and saves, which moves updated_at. A cluster a user keeps returning
-  # to is never deleted. Sessions keep their geo_cluster_id / ip_cluster_id; every reader
-  # treats a missing cluster as no location (api/logs_controller.rb, lib/stats.rb,
-  # lib/exporter.rb, lib/json_api/log.rb). This does not remove the IP address or
-  # coordinates stored on the sessions themselves.
+  # to is never deleted. Sessions keep their geo_cluster_id / ip_cluster_id. Readers show
+  # no location for a missing cluster (api/logs_controller.rb, lib/exporter.rb,
+  # lib/json_api/log.rb); a stats request filtered by that location raises StatsError
+  # "cluster not found" (lib/stats.rb), which the stats endpoints handle. This does not
+  # remove the IP address or coordinates stored on the sessions themselves, nor the
+  # copies in WeeklyStatsSummary `locations` (Stats.location_use_for_sessions).
   #
   # Batched like Flusher.delete_by_id_in_slices. The DELETE repeats the updated_at test so
-  # a cluster used between the pluck and the delete is kept. delete_all: no dependents and
-  # no paper_trail on this model.
+  # a cluster whose stats job ran between the pluck and the delete is kept. A join alone
+  # does not move updated_at; only the queued generate_stats(true) does, so a cluster
+  # rejoined while its job is still queued at purge time can still be deleted.
+  # delete_all: no dependents and no paper_trail on this model.
   #
   # Returns the number of records deleted.
   RETENTION_MONTHS = 12
@@ -285,7 +289,7 @@ include Replicate
       break if ids.empty?
       batch = where(id: ids).where('updated_at < ?', cutoff).delete_all
       # Nothing deleted means every plucked row was refreshed or removed meanwhile; stop
-      # rather than re-plucking forever. Anything left is picked up by tomorrow's run.
+      # rather than re-plucking forever. Anything left is picked up by the next run.
       break if batch.zero?
       deleted += batch
     end
