@@ -1,6 +1,7 @@
 require 'tempfile'
 require 'base64'
 require 'mime/types'
+require Rails.root.join('lib/image_magick_runner').to_s
 
 # Hardens OBF::Utils.save_image against two failure modes observed in staging
 # 2026-04-20..22 on full-board-set PDF prints (Vocal Flair 60, etc.):
@@ -22,6 +23,9 @@ require 'mime/types'
 #
 # Together these turn the observed 501s worker timeout into a job that
 # completes in normal time with any genuinely-missing symbols skipped.
+#
+# convert runs through ImageMagickRunner, which confines it to the files it is
+# given: the image is the user's, and can name other files for ImageMagick to draw.
 module OBFSaveImageHardening
   MIN_IMAGE_BYTES = 100
   # Bounds one fetch. SafeHttp supplies no timeout of its own.
@@ -137,12 +141,12 @@ module OBFSaveImageHardening
         OBF::Utils.log "    #{args.join(' ')}"
         image['local_path'] = "#{file.path}.jpg"
         if image['threadable']
-          pid = Process.spawn(*args)
+          pid = ImageMagickRunner.spawn(*args)
           thr = Process.detach(pid)
           OBF::Utils.log '    scheduled image'
           return { thread: thr, image: image, type: 'svg', pid: pid, tempfile: file }
         else
-          system(*args)
+          ImageMagickRunner.run(*args)
           OBF::Utils.log "    finished image #{File.exist?(image['local_path']) && File.size(image['local_path'])}"
         end
       else
@@ -153,12 +157,12 @@ module OBFSaveImageHardening
         OBF::Utils.log "    #{args.join(' ')}"
         image['local_path'] = "#{path}.jpg"
         if image['threadable']
-          pid = Process.spawn(*args)
+          pid = ImageMagickRunner.spawn(*args)
           thr = Process.detach(pid)
           OBF::Utils.log '    scheduled image'
           return { thread: thr, image: image, type: 'not_svg', pid: pid, tempfile: file }
         else
-          system(*args)
+          ImageMagickRunner.run(*args)
           OBF::Utils.log "    finished image #{File.exist?(image['local_path']) && File.size(image['local_path'])}"
         end
       end
