@@ -169,15 +169,25 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
      that use the file are affected on dev (copy-and-translate, the copy dialog's sub-board picker, focus words,
      batch recording, word suggestions). Not part of this PR.
    - The measurements that need production or a real device are item 10.
-2. **#1212:** board downloads time out under load (slow server, many requests at once, short client limits).
-   Partly done (2026-11-09): iPads use mobile parallelism (#1201); a board refresh is no longer cut off after 5 s
-   (now 20 s, above the adapter's own 15 s limit); when a refresh still fails for a passing reason (timeout, no
-   connection, server error, too many requests) and the device has the board, that copy is kept (status 'kept') and
-   its folders are still synced, instead of the whole branch going missing. A refusal or a deleted board fails as
-   before. A board whose lookup fails for a passing reason (also on a first sync) is tried once more about 10 s later
-   in the same sync, at most twice per board. Left: a board slower than the adapter's 15 s request limit on both
-   tries is still lost with its folders; Sync Details does not show 'kept' boards yet; server capacity under a full
-   sync is not measured (needs staging and production); the full-sync verification on iOS and Android.
+2. **#1212:** board downloads timed out on staging during full syncs in the iOS app.
+   **Client side done (2026-11-09, not yet measured):** iPads use mobile parallelism (#1201); a board refresh is cut
+   off after 20 s instead of 5 s; when a refresh fails for a passing reason (timeout, no connection, server error, too
+   many requests) and the device has the board, that copy is kept and its folders still sync; a board whose lookup
+   fails for a passing reason is tried once more about 10 s later, at most twice per board.
+   **Pictures in a browser (measured locally):** dev-bucket pictures went through the server's picture proxy because
+   the bucket (`lingolinq-dev-uploads`) refused the local origin. Scot added the local and app origins on 2026-11-09.
+   Local first sync in WebKit as an iPad (one test account, 102 boards, same build before and after, a build from
+   before the client changes above): pictures through the proxy 1,383 before, 3 after (uploaded pictures 1,380 before, 0 after); sync time 209 s
+   before, 88 s after; no board errors either time.
+   **Cause on staging: not established.** The iOS and Android apps download through Capacitor's native HTTP
+   (`CapacitorHttp` on in the mobile shell), which the bucket's CORS rule does not affect, so the rule probably
+   changes nothing in the apps (read in the code, not tested on a device). Production picture links use the CDN host
+   `d34sa6lc5jfe66.cloudfront.net`, which the app does not try directly (`services/persistence.js:1546-1552`), so in
+   production every uploaded picture goes through the server proxy on every platform (not measured).
+   **Left:** a first sync in the iOS or Android app against staging with a large account, counting proxy requests and
+   board errors, compared with the issue's 246-error first sync; the full sync on iOS and Android; production server load under a full
+   sync; a board slower than the adapter's 15 s limit on both tries is still lost with its folders (parked until the
+   app and production measurements). Parked: Sync Details showing 'kept' boards.
 3. **#1034:** "Pick for home" says "saved for offline use" and "Ready to communicate" when neither is true.
 4. **Picture data repair (operations):** some saved picture addresses fail; a one-time data cleanup.
 5. **#1229:** done. A new device that has never finished a sync keeps retrying after the backoff, and one reconnect can retry a dropped connection. See the task log.
@@ -259,7 +269,7 @@ Notes:
 | #1205 | Failed database setup hangs storage | Fixed in unit tests; device check pending |
 | #1206 | iOS SQLite shim row | Open |
 | #1209 | Not-saved board is a dead end | Fixed |
-| #1212 | Board requests time out under load | Open |
+| #1212 | Board requests time out under load | Client side done; cause on staging not established |
 | #1213 | Modern view never loads from the device | Fixed |
 | #1219 | `/tree` fails on large boards | Open |
 | #1221 | First offline sync too slow | Code work done (board selection, duplicate writes, doubled button list, pictures written again); verification on production and real devices is item 10 |

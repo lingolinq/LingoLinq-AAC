@@ -1645,3 +1645,47 @@ and dev WEB sites pictures load directly; the proxy load hits the NATIVE apps po
 dev). #1212 was measured in the iOS app against staging, so it is that case. My first test used only the local origin
 and wrongly concluded the bucket had no CORS rule. The ask is to ADD the two app origins to the existing rule
 (put-bucket-cors replaces the whole configuration, so read it first), not to replace it with `*`.
+
+#### #1212 after Scot's CORS change: local first sync measured again (2026-11-09, evening)
+
+Scot added `capacitor://localhost`, `https://localhost`, `http://localhost:5000` and `http://localhost:8184` to the
+`lingolinq-dev-uploads` CORS rule (CONFIRMED by curl, GET and preflight, each origin). Same run as the before
+measurement: WebKit (iPad), fresh profile, aiden_parker, local server from this worktree, same bundle
+(`application.debug-703db34d...`), driver `web-first-sync-timeline.js`, data `after-cors-webkit.json` in
+`/home/tracid/offline-sync-handoff/scripts/`.
+
+| | Before | After |
+|---|---|---|
+| `/api/v1/search/proxy` requests | 1,391 | 11 |
+| of which pictures | 1,383 (1,380 from the bucket) | 3 (avatar, board icon, one flaticon.com picture; none from the bucket) |
+| of which button-set `.json` files (400) | 8 | 8 (same 4 files twice; unchanged, not pictures) |
+| Board requests / errors | 102 / 0 | 102 / 0 |
+| Sync result, time | succeeded, 209 s | succeeded, 88 s |
+| All `/api/v1/` requests | 1,677 | 275 |
+
+Not checked: the driver records only `/api/v1/` requests, so direct S3 downloads and the saved picture count were not
+counted. Button-set request p50 rose from 0.6 s to 5.3 s (cause not looked at; server had just restarted). Local is
+not staging: this shows the mechanism, not staging capacity.
+
+Staging run not done. `lingolinq` (signs in; home board set 77 boards) is no fit: on 6 sampled boards every
+picture entry is empty or an inline data URI, none from the bucket. The demo password (`SEED_DEMO_PASSWORD`) is not
+in 1Password, nonprod Secret Manager (only `SEED_ADMIN_PASSWORD`, `SEED_LINGOLINQ_PASSWORD`) or the
+`lingolinq-migrate-staging` job YAML; only Scot has it. The e2e sign-in helper refuses non-localhost hosts
+(`e2e/support/local-session.js:7-12`). A browser run on staging would not discriminate anyway: the staging website
+was already allowed before Scot's change, and the before run already had 0 board errors.
+
+CORRECTION (2026-11-09, adversarial review, CONFIRMED in the code, not on a device): bucket CORS is NOT shown to be
+the cause of the iOS staging failure, which commit 10b6e838d stated (the PR description never did).
+- The mobile shell enables `CapacitorHttp` (`lingolinq_mobile/capacitor.config.json:17-19`). Capacitor's
+  `lingolinq_mobile/node_modules/@capacitor/ios/Capacitor/Capacitor/assets/native-bridge.js:588-600` (Capacitor 8.5.3) rewrites every absolute GET XHR into a native request, which has no browser CORS check.
+  So in the apps the direct picture fetch in `store_url_now` should not have been blocked before the change either.
+  The local runs above are the browser case only. Whether the app's blob XHR through the interceptor works was not
+  checked.
+- Production picture links use `d34sa6lc5jfe66.cloudfront.net` (`.github/workflows/deploy-cloudrun.yml:1374`), which
+  `cors_match` does not include (`services/persistence.js:1546-1552`), so production uploaded pictures go through
+  `/api/v1/search/proxy` on every platform. The earlier "production does not have this load" was wrong.
+- Both runs used the 11:34 bundle, from before the #1212 client changes (f2d463670), so those changes are unmeasured.
+- The app origins Scot added (`capacitor://localhost`, `https://localhost`) are probably unneeded; decide after an app
+  run against staging counts proxy requests. The local origins are useful (measured above).
+Next discriminating check: the iOS or Android app against staging with a large account, counting proxy requests and
+board errors, compared with the issue's 246-error first sync (its runs A, B and A2 were repeat syncs).
