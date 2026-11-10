@@ -1,6 +1,6 @@
 # Offline boards: status and what's left
 
-Last updated: 2026-11-08. Branch: `feat/scot-offline-app-shell-7a29ac97` (PR #1268, draft, targets `develop`).
+Last updated: 2026-11-10. Branch: `feat/scot-offline-app-shell-7a29ac97` (PR #1268, draft, targets `develop`).
 Detailed working log, with every review, decision and test run: `docs/task-management/2026-11-05_offline-boards-sync.md`.
 Scot's own log for the offline app shell: `docs/task-management/2026-11-03_offline-app-shell.md`.
 
@@ -68,6 +68,14 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
 - A device that cannot save (out of storage) no longer reports the sync as succeeded with nothing saved. The sync
   now ends as failed with a message ("This device is out of storage..."), and saves those boards on the next sync.
 - The offline sync saves only the boards above (#1221, first half).
+- Liked boards past the 25th are saved: the server now lists the first 50 liked boards, where it listed 25, so
+  later likes never reached the sync. A liked board gets its button set saved again (lost in a merge from
+  `develop`), and a home board that is also liked is handled once (#1221).
+- A board the sync reports as 'kept' (its refresh failed, the device copy stays) or 'cached' (unchanged, not
+  downloaded again) must really be on the device, in a form that opens. Otherwise it is downloaded, or reported as
+  failed. Before this, with single-board requests failing, a sync on the Android emulator listed 97 boards as fine
+  and saved none (#1212).
+- A board that cannot be fetched is reported once per sync, not once for each board that links to it (#1212).
 - The installed app (SQLite) keeps one row per record: two saves of the same row, or a save and a removal, now run
   one after the other instead of overlapping, so they no longer insert the record twice (`utils/sqlite_row_queue.js`).
   A second save still rewrites the whole record. A record that cannot be saved is now reported as failed instead
@@ -88,8 +96,10 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
   leftover of the move to an Ember service), so the "already saved?" check never saw them. Measured on the Android
   emulator, first sync: 42 records written more than once (one picture 48 times) before, none after (#1221).
 - Pictures and sounds uploaded to LingoLinq have permanent addresses and are no longer downloaded again when a
-  copy is already saved (by address shape, so it works on the production CDN and the bucket alike). Button-set
-  files on the same server still refresh. Not measurable locally (no uploaded pictures in the local data) (#1221).
+  copy is already saved (by address shape, on any host). Button-set files on the same server still refresh. Not
+  measurable locally (no uploaded pictures in the local data). Found 2026-11-10: the address check does not
+  match current uploads, whose ids carry an extra part, so today this applies to older uploads only (#1221; see
+  item 2 under "Code work still to do").
 - With no file storage (iPad), a picture already saved in the database is reused instead of downloaded and written
   again on every sync. The picture proxy now refuses a download cut off part way, so a broken copy is not saved
   (`spec/controllers/api/search_controller_spec.rb`). Measured in WebKit, second sync: 1,692 writes (22.1 MB, 237 s) before, 7 writes (0.54 MB, 13 s) after, all 1,651 pictures still saved; first sync 56 records written more than once before, 2 after (#1221).
@@ -104,12 +114,25 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
 - A new device never borrows another device's trust choice.
 - Shared devices get no offline shell and do not open offline.
 - iPads are recognised as mobile devices (#1201, partly).
+- A device trusted after sign-in on the Home Screen is no longer signed out by its organization's idle timeout.
+- `offline-shell` is a reserved name, and a reserved name cannot be taken as a user name by changing its letter
+  case.
+
+**Checked on a device (2026-11-10)**
+- Android emulator with hardware graphics, the installed app (SQLite), a local server, one test account with 102
+  boards.
+- A first sync finished with 0 errors and saved all 102 boards (207 to 276 s).
+- In airplane mode with the server unreachable, a cold start opened the home board from the device, and all 102
+  boards had a copy that opens.
+- Not checked on any device: iPad or iOS, staging, production, pictures and sounds offline, Basic view offline,
+  opening a folder by tapping it, and a liked board past the 25th through a real sync.
 
 **Tests added for this work**
 - Unit tests for every change above.
 - Browser tests (Playwright, against Rails with the shell on):
   - `e2e/offline-launch.spec.js`: launches, both views, pictures, not-saved boards, storage full, which boards
-    sync.
+    sync, and three "Wi-Fi with no internet" cases (one passes; two fail on purpose until the decision under
+    "Before merge" is made).
   - `e2e/offline-worker-lifecycle.spec.js`: worker updates.
   - `e2e/offline-kill-switch.spec.js`.
   - `e2e/offline-webkit.spec.js`: Safari's engine, set up as a current iPad.
@@ -132,16 +155,17 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
 
 ### Before merge (needs a person)
 
-- **`synthetic-data` label on PR #1268.** The `data-bearing-paths` check needs a person with write access to look
-  at the changed test seed (`app/frontend/e2e/support/offline-launch.rb`) and add the label. Agents must not.
-- **CI.** `security-scan` fails on `develop` too (known; needs a Rails 8 upgrade). The required Ember check is
-  red: 3 tests in `tests/unit/utils/capabilities-database-failure-test.js` (#1205) fail the leak check (last full CI
-  run, 2026-11-08). To fix before merging.
-- **Found by the whole-branch review (2026-11-09), open:** a board marked 'kept' may have no copy on the device
-  (#1212, `utils/sync_board_fallback.js:31`; not yet reproduced); the app does not open from the device when the
-  page request gets a server error page or hangs (decision needed: Traci and Scot); liked boards may not get their
-  button set saved (unconfirmed). Details in the task log.
+- **`data-bearing-paths` check.** It passes on `980a92772` (checked 2026-11-10). If it fails after a later push, a
+  person with write access looks at the changed data files and adds the `synthetic-data` label. Agents must not.
+- **CI.** `security-scan` fails on `develop` too (known; needs a Rails 8 upgrade). The three #1205 tests that kept
+  the Ember check red are fixed (`407ef94ac`).
+- **Decision needed (Traci and Scot):** the app does not open from the device when the page request gets a server
+  error page or hangs. Either fall back to the device copy on a server error and after a time limit, or list both
+  as known limits. Two browser tests fail on purpose until this is decided.
 - **Decided, not built yet:** Modern view device copies editable offline with no notice (2026-11-09).
+- **The dual review** (`/review-pr` and `/adversary-review`), because the PR touches sign-in.
+- **A sync with many liked boards, measured** (time, requests, failed saves): a condition from the review of the
+  50-board limit.
 - **Scot's review** of the parts of his PR that changed after he handed it over.
 
 ### Needs a real device (after merge to `develop`, on dev.lingolinq.com)
@@ -180,10 +204,11 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
      batch recording, word suggestions). Not part of this PR.
    - The measurements that need production or a real device are item 10.
 2. **#1212:** board downloads timed out on staging during full syncs in the iOS app.
-   **Client side done (2026-11-09, not yet measured):** iPads use mobile parallelism (#1201); a board refresh is cut
-   off after 20 s instead of 5 s; when a refresh fails for a passing reason (timeout, no connection, server error, too
-   many requests) and the device has the board, that copy is kept and its folders still sync; a board whose lookup
-   fails for a passing reason is tried once more about 10 s later, at most twice per board.
+   **Client side done (measured on the Android emulator only, 2026-11-10):** iPads use mobile parallelism (#1201,
+   the wiring has no test yet); a board refresh is cut off after 20 s instead of 5 s; when a refresh fails for a
+   passing reason (timeout, no connection, server error, too many requests) and the device has a copy that opens,
+   that copy is kept and its folders still sync; a board whose lookup fails for a passing reason is tried once more
+   about 10 s later, at most twice per board, and a board that cannot be fetched is reported once.
    **Pictures in a browser (measured locally):** dev-bucket pictures went through the server's picture proxy because
    the bucket (`lingolinq-dev-uploads`) refused the local origin. Scot added the local and app origins on 2026-11-09.
    Local first sync in WebKit as an iPad (one test account, 102 boards, same build before and after, a build from
@@ -191,10 +216,16 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
    before, 88 s after; no board errors either time.
    **Cause on staging: not established.** The iOS and Android apps download through Capacitor's native HTTP
    (`CapacitorHttp` on in the mobile shell), which the bucket's CORS rule does not affect, so the rule probably
-   changes nothing in the apps (read in the code, not tested on a device). Production picture links use the CDN host
-   `d34sa6lc5jfe66.cloudfront.net`, which the app does not try directly (`services/persistence.js:1546-1552`), so in
-   production every uploaded picture goes through the server proxy on every platform (not measured).
-   **Left:** a first sync in the iOS or Android app against staging with a large account, counting proxy requests and
+   changes nothing in the apps (read in the code, not tested on a device).
+   **Production pictures (fixed 2026-11-10, not measured on production):** production picture and sound links use
+   the CDN host `d34sa6lc5jfe66.cloudfront.net`, which the app did not try directly, so every uploaded picture went
+   through the server proxy on every platform. The app now asks the CDN directly and falls back to the proxy
+   (`utils/direct_fetch.js`). A direct request also has a 45 s limit in both copies of the sync code now, and a web
+   page answered in place of a picture (a filtering network) is refused. Button-set files on the CDN still go
+   through the proxy. To measure after release: proxy requests per sync on production, before and after.
+   **Left:** an uploaded picture's "do not download again" rule does not apply to current uploads (their ids carry
+   an extra part the address check does not expect; `utils/permanent_upload.js`), so Sync downloads them again; a
+   first sync in the iOS or Android app against staging with a large account, counting proxy requests and
    board errors, compared with the issue's 246-error first sync; the full sync on iOS and Android; production server load under a full
    sync; a board slower than the adapter's 15 s limit on both tries is still lost with its folders (parked until the
    app and production measurements). Parked: Sync Details showing 'kept' boards.
@@ -279,7 +310,7 @@ Notes:
 | #1205 | Failed database setup hangs storage | Fixed in unit tests; device check pending |
 | #1206 | iOS SQLite shim row | Open |
 | #1209 | Not-saved board is a dead end | Fixed |
-| #1212 | Board requests time out under load | Client side done; cause on staging not established |
+| #1212 | Board requests time out under load | Client side done, including production pictures from the CDN; cause on staging not established; not measured on staging or production |
 | #1213 | Modern view never loads from the device | Fixed |
 | #1219 | `/tree` fails on large boards | Open |
 | #1221 | First offline sync too slow | Code work done (board selection, duplicate writes, doubled button list, pictures written again); verification on production and real devices is item 10 |
