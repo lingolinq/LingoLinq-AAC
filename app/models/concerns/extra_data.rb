@@ -304,10 +304,19 @@ module ExtraData
         obj.data.delete('extra_data_public')
         obj.save
       end
-      Uploader.remote_remove(private_path)
-      # Uploader.invalidate_cdn(public_path)
-      Uploader.remote_remove(public_path)
-      # remove them both
+      # remove them both. The pointers are already cleared above, so a delete deferred for missing
+      # credentials (Uploader.remote_remove records a retry, then raises) must not skip the other
+      # path; the job still fails once both are attempted.
+      deferred = nil
+      [private_path, public_path].each do |path|
+        # Uploader.invalidate_cdn(path)
+        begin
+          Uploader.remote_remove(path)
+        rescue Uploader::RemoteCredentialsMissing => e
+          deferred = e
+        end
+      end
+      raise deferred if deferred
     end
   end
 end

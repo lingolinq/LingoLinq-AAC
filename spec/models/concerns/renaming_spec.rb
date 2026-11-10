@@ -328,7 +328,7 @@ describe Renaming, :type => :model do
       Worker.process_queues
       expect(b.reload.downstream_board_ids.sort).to eq([])
       expect(b2.reload.downstream_board_ids.sort).to eq([b.global_id])
-      expect(b3.reload.downstream_board_ids.sort).to eq([b.global_id, b2.global_id])
+      expect(b3.reload.downstream_board_ids).to match_array([b.global_id, b2.global_id])
       old_key = b.key
       new_key = "#{u.user_name}/bambam"
       b.rename_to(new_key)

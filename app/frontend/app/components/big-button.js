@@ -95,7 +95,7 @@ export default Component.extend({
       this.set('flipped', false);
       const _this = this;
       const snap = function() {
-        _this.snapScroll();
+        if(_this.isDestroyed || _this.isDestroying) { return; } _this.snapScroll();
       };
       this.set('snap', snap);
       runLater(snap);

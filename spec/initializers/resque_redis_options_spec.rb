@@ -129,7 +129,9 @@ describe RedisInit do
     around(:each) do |example|
       # Scrub every RENDER* key present plus the ones the examples set, so a tier gated on any
       # Render platform variable is deterministic here.
-      keys = (%w[CACHE_TOKEN K_REVISION RENDER RENDER_GIT_COMMIT RENDER_SERVICE_ID] +
+      keys = (%w[CACHE_TOKEN K_REVISION RENDER RENDER_GIT_COMMIT RENDER_SERVICE_ID
+                 K_SERVICE CLOUD_RUN_JOB CLOUD_RUN_WORKER_POOL CLOUD_RUN_REVISION
+                 RAILS_ENV RACK_ENV] +
               ENV.keys.grep(/\ARENDER/)).uniq
       saved = ENV.values_at(*keys)
       keys.each { |k| ENV.delete(k) }
@@ -183,6 +185,60 @@ describe RedisInit do
     it 'is deterministic: repeated calls return the same value' do
       ENV['CACHE_TOKEN'] = 'explicit-secret'
       expect(RedisInit.resolved_cache_token).to eq(RedisInit.resolved_cache_token)
+    end
+
+    # GitHub #423. Every Cloud Run surface the deploy workflow manages mounts CACHE_TOKEN
+    # (BOOT_SECRETS), so one without it is misconfigured. It must refuse to boot rather than
+    # quietly use its own K_REVISION (a web/worker split) or the shared static token. Each shape
+    # below is what Cloud Run itself injects, so a guard placed after the K_REVISION tier fails
+    # the service case.
+    context 'on Cloud Run' do
+      it 'refuses to boot a service (K_SERVICE and K_REVISION) without CACHE_TOKEN' do
+        ENV['K_SERVICE'] = 'lingolinq-web'
+        ENV['K_REVISION'] = 'lingolinq-web-00031-abc'
+        expect { RedisInit.resolved_cache_token }.to raise_error(RuntimeError, /CACHE_TOKEN/)
+      end
+
+      it 'refuses to boot a Job (CLOUD_RUN_JOB) without CACHE_TOKEN' do
+        ENV['CLOUD_RUN_JOB'] = 'lingolinq-migrate'
+        expect { RedisInit.resolved_cache_token }.to raise_error(RuntimeError, /CACHE_TOKEN/)
+      end
+
+      it 'refuses to boot a worker pool (CLOUD_RUN_WORKER_POOL) without CACHE_TOKEN' do
+        ENV['CLOUD_RUN_WORKER_POOL'] = 'lingolinq-worker'
+        ENV['CLOUD_RUN_REVISION'] = 'lingolinq-worker-00012-xyz'
+        expect { RedisInit.resolved_cache_token }.to raise_error(RuntimeError, /CACHE_TOKEN/)
+      end
+
+      it 'treats a blank CACHE_TOKEN as missing' do
+        ENV['K_SERVICE'] = 'lingolinq-web'
+        ENV['K_REVISION'] = 'lingolinq-web-00031-abc'
+        ENV['CACHE_TOKEN'] = '  '
+        expect { RedisInit.resolved_cache_token }.to raise_error(RuntimeError, /CACHE_TOKEN/)
+      end
+
+      it 'uses CACHE_TOKEN when it is set' do
+        ENV['K_SERVICE'] = 'lingolinq-web'
+        ENV['K_REVISION'] = 'lingolinq-web-00031-abc'
+        ENV['CACHE_TOKEN'] = 'explicit-secret'
+        expect(RedisInit.resolved_cache_token).to eq('explicit-secret')
+      end
+
+      it 'does not echo environment values in the error' do
+        ENV['CLOUD_RUN_JOB'] = 'lingolinq-migrate'
+        ENV['K_REVISION'] = 'not-a-secret-but-must-not-leak'
+        expect { RedisInit.resolved_cache_token }.to raise_error { |e| expect(e.message).not_to include('not-a-secret-but-must-not-leak') }
+      end
+    end
+
+    it 'does not refuse to boot in production off Cloud Run (the Docker image build)' do
+      # The Dockerfile runs assets:precompile with RAILS_ENV=production and no CACHE_TOKEN, so
+      # the guard must stay keyed on Cloud Run's own variables, never on the Rails environment
+      # (neither Rails.env nor the RAILS_ENV / RACK_ENV variables the Dockerfile sets).
+      allow(Rails).to receive(:env).and_return(ActiveSupport::EnvironmentInquirer.new('production'))
+      ENV['RAILS_ENV'] = 'production'
+      ENV['RACK_ENV'] = 'production'
+      expect(RedisInit.resolved_cache_token).to eq('abc')
     end
   end
 

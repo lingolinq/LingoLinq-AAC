@@ -4,7 +4,7 @@
 **Purpose:** get everyone caught up on what the Native Apps project is, why it matters, what
 has already been decided, what the risks are, and what happens next.
 **Status:** Phase 1 (the decision gate) decisions are locked. Ready to start the work.
-**Last updated:** 2026-06-30
+**Last updated:** 2026-10-23 (Capacitor version only; the rest of this overview is as of 2026-06-30)
 
 > New to the jargon? Jump to the [Glossary](#glossary) at the bottom first. Words like
 > Capacitor, Cordova, D-U-N-S, MSIX, and IAP are all explained there in plain language.
@@ -60,9 +60,14 @@ Three core strategy decisions (already confirmed):
 - **Reuse, do not rewrite.** We keep the existing app and wrap it in a modern native shell.
   We are **not** rebuilding LingoLinq in Swift/Kotlin/WinUI. That would cost many months and
   add no user value.
-- **Mobile moves from Cordova to Capacitor 7.** Capacitor is the modern, maintained successor
-  to Cordova and reuses our existing web build. (Capacitor 7 specifically, because it is
-  compatible with the Node 22 version our app is pinned to.)
+- **Mobile moves from Cordova to Capacitor 8.** Capacitor is the modern, maintained successor
+  to Cordova and reuses our existing web build. (Capacitor 8 specifically, because Google Play
+  requires new apps and app updates to target Android 16, API level 36, from August 31, 2026
+  ([Play target API requirement](https://support.google.com/googleplay/android-developer/answer/11926878)),
+  and each Capacitor version supports exactly one Android target: Capacitor 7 targets 35 and
+  Capacitor 8 targets 36 ([Capacitor target SDK](https://capacitorjs.com/docs/android/setting-target-sdk)).
+  Capacitor 8 needs Node 22, which our app already uses. The shell started on Capacitor 7; the
+  move to 8 began in October 2026.)
 - **Desktop stays on Electron.** Capacitor has no desktop path, and Electron is already in our
   codebase. We refresh it for Windows.
 
@@ -128,7 +133,7 @@ So we begin that on day one.
 
 ### Phase 2: Capacitor Migration + iOS
 
-Move the app from Cordova to Capacitor 7, get every needed native feature working again, and
+Move the app from Cordova to Capacitor 8, get every needed native feature working again, and
 submit to the App Store with all 2026 compliance pieces in place (privacy manifest, nutrition
 label, account deletion, age rating). This is the de-risking phase: iOS is the strictest
 reviewer, so we absorb that first.
@@ -199,7 +204,7 @@ run in parallel with Android once Phase 1 is done, since it shares no mobile cod
 
 ### Then (Phase 2 onward)
 
-- Begin the Capacitor 7 migration and iOS submission once the Apple account and store
+- Begin the Capacitor 8 migration and iOS submission once the Apple account and store
   identity are in place.
 - Azure code-signing identity verification should start before Phase 4 (it has its own lead
   time).
@@ -244,7 +249,7 @@ Plain-language definitions for the non-developers (and a refresher for everyone)
 - **Cordova:** the old, no-longer-maintained tool that used to package LingoLinq as a mobile
   app. We are moving off it.
 - **Capacitor:** the modern, maintained replacement for Cordova. It wraps our existing web app
-  into a native mobile app. We are using Capacitor 7.
+  into a native mobile app. We are using Capacitor 8.
 - **Electron:** the tool that packages our app for desktop (Windows). We are keeping it.
 - **D-U-N-S Number:** a free, unique business-identity number from Dun and Bradstreet. Apple
   requires it to register a company developer account. It can take about a week, so we start

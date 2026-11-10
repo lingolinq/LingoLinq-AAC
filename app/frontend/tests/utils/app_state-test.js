@@ -42,9 +42,9 @@ function primeSpeakModeUser(attrs) {
     delete attrs.preferences;
   }
   var user = LingoLinq.store.createRecord('user', Object.assign({}, base, attrs || {}));
-  if (typeof user.reload !== 'function') {
-    user.reload = function() { return RSVP.resolve(user); };
-  }
+  // A store record always has reload, so stub it outright: in speak mode the check_inbox observer
+  // (app/services/app-state.js:3706-3734) reloads the user, a real fetch the test never waited for.
+  stub(user, 'reload', function() { return RSVP.resolve(user); });
   app_state.set('sessionUser', user);
   app_state.set('currentUser', user);
   return user;
@@ -90,9 +90,9 @@ function primeSessionUser(attrs) {
     delete attrs.preferences;
   }
   var user = LingoLinq.store.createRecord('user', Object.assign({}, base, attrs || {}));
-  if (typeof user.reload !== 'function') {
-    user.reload = function() { return RSVP.resolve(user); };
-  }
+  // Same as primeSpeakModeUser: a store record always has reload, so the old `typeof` guard never
+  // installed this stub; stub it outright so no test here reloads the user through the real store.
+  stub(user, 'reload', function() { return RSVP.resolve(user); });
   app_state.set('sessionUser', user);
   app_state.set('currentUser', user);
   return user;
@@ -421,7 +421,7 @@ describe('app_state', function() {
       app_state.set('currentUser', EmberObject.create({preferences: {speak_on_speak_mode: true}}));
       app_state.set('currentBoardState', {key: 'trade', id: '1_1'});
       setTimeout(function() { done = true; }, 500);
-      waitsFor(function() { return called; });
+      waitsFor(function() { return called && done; }); // and its own 500 ms timer, so it does not fire in a later test
       runs();
     });
   });
@@ -695,6 +695,37 @@ describe('app_state', function() {
       app_state.set('currentBoardState', {key: 'scarf', id: '1_1'});
       app_state.toggle_speak_mode();
       expect(mode).toEqual('speak');
+    });
+
+    describe('home board language', function() {
+      function enter_speak_mode(board_state) {
+        stub(app_state, 'toggle_mode', function() { });
+        stub(app_state, 'home_in_speak_mode', function() { });
+        primeSpeakModeUser({ preferences: { home_board: { key: 'me/home', id: '1_2', locale: 'en' } } });
+        stashes.set('current_mode', 'default');
+        app_state.set('currentBoardState', board_state);
+        app_state.set('label_locale', 'es');
+        app_state.set('vocalization_locale', 'es');
+        try {
+          app_state.toggle_speak_mode();
+        } finally {
+          app_state.set('label_locale', null);
+          app_state.set('vocalization_locale', null);
+        }
+        return app_state.get('currentUser.preferences.home_board.locale');
+      }
+
+      it("should not change when entering from another board", function() {
+        expect(enter_speak_mode({key: 'me/spanish', id: '1_9'})).toEqual('en');
+      });
+
+      it("should follow the session language when entering from the home board", function() {
+        expect(enter_speak_mode({key: 'me/home', id: '1_2'})).toEqual('es');
+      });
+
+      it("should not change when entering with no board on screen", function() {
+        expect(enter_speak_mode(null)).toEqual('en');
+      });
     });
 
     it("should launch the current board in speak mode if currently on the user's home board", function() {
@@ -1006,6 +1037,30 @@ describe('app_state', function() {
       expect(stashes.get('root_board_state')).toEqual({key: 'salt', id: '1_2'});
     });
 
+    it("should keep the home board language when entering speak mode on another board", function() {
+      primeSpeakModeUser({ preferences: { home_board: { key: 'me/home', id: '1_2', locale: 'en' } } });
+      app_state.set('currentBoardState', {key: 'me/spanish', id: '1_9'});
+      stashes.set('current_mode', 'default');
+      app_state.toggle_mode('speak', {override_state: {key: 'me/spanish', id: '1_9', locale: 'es'}});
+      expect(app_state.get('currentUser.preferences.home_board.locale')).toEqual('en');
+    });
+
+    it("should update the home board language when entering speak mode on the home board in another language", function() {
+      primeSpeakModeUser({ preferences: { home_board: { key: 'me/home', id: '1_2', locale: 'en' } } });
+      app_state.set('currentBoardState', {key: 'me/home', id: '1_2'});
+      stashes.set('current_mode', 'default');
+      app_state.toggle_mode('speak', {override_state: {key: 'me/home', id: '1_2', locale: 'es'}});
+      expect(app_state.get('currentUser.preferences.home_board.locale')).toEqual('es');
+    });
+
+    it("should not blank the home board language when the speak mode state has no language", function() {
+      primeSpeakModeUser({ preferences: { home_board: { key: 'me/home', id: '1_2', locale: 'en' } } });
+      app_state.set('currentBoardState', {key: 'me/home', id: '1_2'});
+      stashes.set('current_mode', 'default');
+      app_state.toggle_mode('speak', {override_state: {key: 'me/home', id: '1_2'}});
+      expect(app_state.get('currentUser.preferences.home_board.locale')).toEqual('en');
+    });
+
     it("should return to the stashed last_mode when leaving edit mode", function() {
       stashes.set('last_mode', 'bacon');
       stashes.set('current_mode', 'edit');
@@ -1194,6 +1249,28 @@ describe('app_state', function() {
 //   });
 
   describe('home_in_speak_mode', function() {
+    describe('session language', function() {
+      function go_home(override) {
+        primeSpeakModeUser({ preferences: { home_board: { key: 'me/home', id: '1_2', locale: 'es' } } });
+        stub(app_state, 'toggle_mode', function() { });
+        stubBoardTransition();
+        stashes.persist('override_label_locale', override);
+        stashes.persist('override_vocalization_locale', override);
+        try {
+          app_state.home_in_speak_mode();
+          return [stashes.get('label_locale'), stashes.get('vocalization_locale')];
+        } finally {
+          ['label_locale', 'vocalization_locale', 'override_label_locale', 'override_vocalization_locale'].forEach(function(key) {
+            stashes.persist(key, null);
+          });
+        }
+      }
+
+      it("should use the home board language with Switch Languages off", function() {
+        expect(go_home(null)).toEqual(['es', 'es']);
+      });
+    });
+
     it("should call toggle_mode", function() {
       var found_mode = null;
       var found_options = null;
@@ -3109,7 +3186,7 @@ describe('app_state', function() {
       later(function() {
         waited = true;
       }, 500);
-      waitsFor(function() { return waited; });
+      waitsFor(function() { return waited && app_state.get('loading_overlay_message') == null; }); // and the overlay's own ~700 ms hide
       runs(function() {
         expect(noticed).toEqual(true);
         expect(app_state.get('speak_mode')).toEqual(false);
@@ -3122,6 +3199,86 @@ describe('app_state', function() {
   describe('load_user_badge', function() {
     xit('should have valid specs', function() {
       expect('test').toEqual('todo');
+    });
+  });
+
+  describe("teardown", function() {
+    // jump_to_board polls for the new board (runLater, every 200 ms) and holds the module-level
+    // buttonTracker.transitioning flag; neither may outlive the app-state that started them.
+    // The shared state these cases change is put back here, so a failed wait cannot leave it behind.
+    var savedScannerAppState, savedScanning, savedTransitioning;
+    beforeEach(function() {
+      savedScannerAppState = scanner.get('appState');
+      savedScanning = scanner.scanning;
+      savedTransitioning = teardownButtonTracker.transitioning;
+    });
+    afterEach(function() {
+      scanner.set('appState', savedScannerAppState);
+      scanner.scanning = savedScanning;
+      teardownButtonTracker.transitioning = savedTransitioning;
+    });
+
+    // Positive control for the next case: the reads it counts do happen while the service is alive.
+    it("polls for a board change while the service is alive", function() {
+      var svc = LingoLinq.appState;
+      // No router answers here, so the board-load overlay would paint after 200 ms and stay; it is not
+      // what this case checks.
+      stub(svc, '_debounceBoardLoadOverlay', function() {});
+      app_state.set('currentBoardState', {key: 'kick', id: '1_2'});
+      var reads = 0;
+      var realGet = svc.get;
+      svc.get = function(key) {
+        if (key === 'currentBoardState.key') { reads++; }
+        return realGet.apply(this, arguments);
+      };
+      app_state.jump_to_board({key: 'yodel', id: '1_1'});
+      waitsFor(function() { return reads > 0; });
+      runs(function() {
+        svc.get = realGet;
+        app_state.set('currentBoardState', {key: 'yodel', id: '1_1'}); // the poll finds it and stops
+        expect(reads > 0).toEqual(true);
+      });
+    });
+
+    it("stops polling for a board change once the service is destroyed", function() {
+      var svc = LingoLinq.appState;
+      app_state.set('currentBoardState', {key: 'kick', id: '1_2'});
+      app_state.jump_to_board({key: 'yodel', id: '1_1'});
+      var reads = 0;
+      var realGet = svc.get;
+      svc.get = function(key) {
+        if (key === 'currentBoardState.key') { reads++; }
+        return realGet.apply(this, arguments);
+      };
+      svc.destroy();
+      var waited = false;
+      setTimeout(function() { waited = true; }, 450);
+      waitsFor(function() { return waited; });
+      runs(function() {
+        expect(reads).toEqual(0);
+      });
+    });
+
+    it("detaches the scanner it drives when destroyed", function() {
+      var svc = LingoLinq.appState;
+      scanner.set('appState', svc);
+      scanner.scanning = true;
+      svc.destroy();
+      waitsFor(function() { return svc.isDestroyed; });
+      runs(function() {
+        expect(scanner.get('appState')).toEqual(null);
+        expect(scanner.scanning).toEqual(false);
+      });
+    });
+
+    it("ends the board transition it started when destroyed", function() {
+      var svc = LingoLinq.appState;
+      teardownButtonTracker.transitioning = true;
+      svc.destroy();
+      waitsFor(function() { return svc.isDestroyed; });
+      runs(function() {
+        expect(teardownButtonTracker.transitioning).toEqual(false);
+      });
     });
   });
 
@@ -3179,3 +3336,5 @@ describe('app_state', function() {
     });
   });
 });
+// Kept below the baselined lint rows so they do not shift (see .eslint-todo).
+import teardownButtonTracker from '../../utils/raw_events';

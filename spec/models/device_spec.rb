@@ -248,14 +248,17 @@ describe Device, :type => :model do
   
   describe "clean_old_keys" do
     it "should remove old tokens" do
+      # One clock read for fred's stamp: reading 1.second.ago again for the expectation failed when a
+      # second boundary fell between the two reads.
+      fred_last = 1.second.ago.to_i
       d = Device.new
       d.settings = {}
       d.settings['keys'] = [
         {'value' => 'bob', 'last_timestamp' => 30.days.ago.to_i}, 
-        {'value' => 'fred', 'last_timestamp' => 1.second.ago.to_i}
+        {'value' => 'fred', 'last_timestamp' => fred_last}
       ]
       d.clean_old_keys
-      expect(d.settings['keys']).to eq([{'value' => 'fred', 'last_timestamp' => 1.second.ago.to_i}])
+      expect(d.settings['keys']).to eq([{'value' => 'fred', 'last_timestamp' => fred_last}])
     end
     
     it "should remove tokens based on their timeouts" do

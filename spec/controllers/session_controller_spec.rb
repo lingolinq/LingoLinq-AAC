@@ -2666,6 +2666,17 @@ describe SessionController, :type => :controller do
   end
 
   describe "token_wait" do
+    # The examples below count Redis reads exactly. A request on a host that is
+    # not known also reads the custom-domain list (json.rb trusted_origin), so
+    # make the request's host the configured one.
+    around(:each) do |example|
+      prior = ENV['DEFAULT_HOST']
+      ENV['DEFAULT_HOST'] = 'test.host'
+      example.run
+    ensure
+      ENV['DEFAULT_HOST'] = prior
+    end
+
     it "should require popout_id" do
       post 'token_wait'
       assert_error('popout_id required')
@@ -2936,6 +2947,12 @@ describe SessionController, :type => :controller do
       json = assert_success_json
       expect(json['token']).not_to eq(nil)
       expect(new_user.reload.google_linked?).to eq(true)
+    end
+
+    it "rejects google_link_complete for a link nonce that was never stored or has expired" do
+      expect(GoogleOAuth).not_to receive(:clear_link)
+      post :google_link_complete, params: { nonce: 'spec-expired-nonce', user_name: 'nobody', password: 'secret123' }
+      assert_error('session_expired', 400)
     end
 
     it "links manual_link accounts by username and password" do

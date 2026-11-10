@@ -115,7 +115,12 @@ git push origin origin/develop:refs/heads/release/develop-into-staging-YYYY-MM-D
 ```
 
 - Open a PR from that `release/develop-into-staging-*` branch to `staging`. Do **not** open the PR from live `develop`.
-- **Scot must approve** the PR to staging.
+- **Approval from any one senior dev** is required: Traci is primary, Scot is
+  secondary, and Melissa is backup when Traci is unavailable. Normally the
+  senior dev who opened the PR talks it over with another one first, but when
+  it is necessary they may merge it themselves without another review, once
+  the required checks pass. An agent merges a staging PR only when the senior
+  dev explicitly asked for that merge.
 - Use a **merge commit** (not squash) so the history stays in sync.
 - Delete the freeze branch after merge.
 - `staging` auto-deploys to lingolinq-staging.
@@ -125,16 +130,46 @@ git push origin origin/develop:refs/heads/release/develop-into-staging-YYYY-MM-D
 After staging has been validated:
 
 - A team member opens a PR from `staging` to `main`.
-- **Scot must approve** the PR to production.
+- **Two people must agree:** Scot and a senior dev (Melissa or Traci). One
+  person never counts as both, and self-approval never counts.
+- When Melissa or Traci opens the release PR, Scot approves it. When it is
+  opened under Scot's account, Traci approves it, and Scot records his
+  agreement by merging it himself after her approval, on the head she approved.
+  For a release opened under Scot's account, if Traci is unavailable, the
+  release waits for her, unless it is an emergency (see "Emergencies" below).
+- Agreement needs explicit human intent on the PR itself: opening it by hand,
+  an approving GitHub review on the head being merged, or, for Scot, merging
+  it. A release PR that an agent opens does not count as the opener's
+  agreement. An agent approving or merging under a dev's account counts only
+  when that dev explicitly asked for that specific action. Anything an agent
+  does on its own initiative does not count, auto-merge never counts, and a
+  chat message on its own is not agreement. Do not turn on auto-merge for a
+  release PR; if it is on, turn it off before anyone approves.
+- Opening covers the commits the PR held when it was opened. If the head
+  changes after anyone has agreed, each earlier agreement is given again on the
+  new head. GitHub does not let a PR's author approve it, so when an agent
+  opened the PR, or the head changed after the opener agreed, the opener either
+  closes it and opens a new release PR by hand, or the other of Melissa and
+  Traci approves instead. When Scot opened it, his merge on the new head is his
+  agreement.
 - Use a **merge commit** (not squash).
 - `main` auto-deploys to lingolinq-prod.
+
+**Emergencies.** If production is down or people can't get to their boards,
+fix it and merge it right away. Scot calls it, or Traci or Melissa if he's
+away. Let the others know what's going on, but don't wait for the usual
+approvals. If nobody else can approve, an admin lowers `main`'s review
+requirement for the merge and puts it back afterwards. Note in the PR what
+happened.
 
 ### 7. Hotfixes
 
 For urgent production issues:
 
 1. Branch from `main`: `hotfix/yourname-description` or `yourname/hotfix/description`
-2. Open a PR directly against `main`. **Scot must approve.**
+2. Open a PR directly against `main`. **Approval from any one senior dev**
+   (Traci, Scot or Melissa) is required. In an emergency, see "Emergencies"
+   in section 6.
 3. After merging to `main`, immediately cherry-pick or merge back to `develop`
    so the fix is not lost. Note: The `staging` branch will receive this fix during the next promotion from `develop`.
 
@@ -143,9 +178,9 @@ For urgent production issues:
 | Target Branch | Who Can Approve | Merge Strategy |
 |---|---|---|
 | `develop` | Any team member | Squash merge |
-| `staging` | Melissa (Scot backup) | Merge commit |
-| `main` | Melissa + Scot agree | Merge commit |
-| `main` (hotfix) | Scot or Melissa | Merge commit |
+| `staging` | Any one senior dev: Traci (primary), Scot (secondary), Melissa (backup); a senior dev who opened it may merge it alone when necessary, once required checks pass | Merge commit |
+| `main` | Scot + Melissa or Traci (Traci when Scot opens); emergencies: section 6 | Merge commit |
+| `main` (hotfix) | Any one senior dev: Traci, Scot or Melissa; emergencies: section 6 | Merge commit |
 
 ## Branch Protection Rules
 
@@ -157,29 +192,32 @@ everyone, including admins:
 - **`develop`**: Requires PR, no direct pushes
 
 The approval summary above is team policy, and everyone is expected to follow it
-even where GitHub would allow the merge without it.
+even where GitHub would allow the merge without it. Emergencies (section 6)
+are the one exception.
 
-## Dual-Reviewer Policy (Phase 1)
+## Review Policy
 
-In addition to core team review, certain PRs require a
-**dual-reviewer pass** before merge: one senior-dev review and one adversary
-(red-team) review.
+The canonical rule is `CLAUDE.md`, "Before a PR"; if this section and that one
+differ, `CLAUDE.md` wins.
 
-### When it is mandatory (Phase 1 scope)
+### One review for a normal PR
 
-A PR MUST receive the dual-reviewer pass before merge if it touches any of:
+A normal team PR gets one review: the Codex GitHub connector's automatic review
+counts, or one senior-dev pass (`/review-pr`). A PR from an outside contributor
+(a fork) also needs a human review from the core team.
 
-- Security (authn/authz, access control, secrets, encryption, `secure_serialize`)
-- AI generation (any call to an external LLM; confirm it goes through `PiiScrubber`)
-- User-data flows (anything reading or writing student / patient / guardian data)
-- Feature flags (`lib/feature_flags.rb`)
-- Mailers
-- The performance-sensitive paths: `#tree`, `#bulk`, `global_id`, `board`,
-  `board_content`, or `SlowWorker`
+### When dual review is mandatory
 
-Backend-only changes with a genuinely internal surface area may skip the
-feature-flag requirement but still need the dual-reviewer pass if they fall in
-any category above.
+A PR MUST receive the dual-reviewer pass (one senior-dev review and one
+adversary, red-team, review) before merge if it touches any of:
+
+- Authentication or sessions
+- Consent or account ownership
+- Access to another user's or organization's data
+- Billing
+- AI model routing or the AI client
+- Infra or deploy config
+- The `data-bearing-paths` gate
 
 ### The two passes
 
@@ -192,16 +230,11 @@ any category above.
 
 ### Gating
 
-- **Critical** or **High** finding from either pass: blocks merge. Fix it in the
+- **Critical** or **High** finding from any review: blocks merge. Fix it in the
   PR, or get explicit sign-off to defer with a tracked follow-up issue.
 - **Medium**: surface to the approver for triage.
 - **Low**: log and continue.
-
-### Phase 2
-
-After the team has run Phase 1 on roughly five PRs without friction, the
-dual-reviewer pass expands to all PRs. Until then, it applies only to the scope
-above.
+- **Rounds**: at most two review rounds on any PR; a third needs Scot's OK.
 
 ## Commit Messages
 

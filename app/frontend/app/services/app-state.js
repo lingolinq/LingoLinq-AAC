@@ -73,7 +73,7 @@ export default Service.extend({
   showFooterGithubLinks: false,
 
   init() {
-    LingoLinq.appState = this;
+    LingoLinq.appState = this; frame_listener.set('appState', this); // integrations read it before any highlight (scanning, button search, modeling) runs frame_listener.setup (utils/frame_listener.js:16)
     // Expose globally for utilities
     window.appState = this;
     if (typeof window !== 'undefined') {
@@ -170,7 +170,7 @@ export default Service.extend({
   },
 
   willDestroy() {
-    this._super(...arguments);
+    this._super(...arguments); if(buttonTracker) { buttonTracker.transitioning = false; } if(this._boardLoadOverlayCleanup) { this._boardLoadOverlayCleanup(); } if(scanner && scanner.get('appState') === this) { scanner.scanning = false; scanner.set('appState', null); } // a transition, its pending board overlay, and the scanner it drives end with the service
     if (this.refreshing_user) {
       // clearTimeout, NOT runCancel: refresh_user's reschedule is a native
       // setTimeout (see the comment at its call site), and Ember's cancel() looks
@@ -1161,7 +1161,7 @@ export default Service.extend({
         // If we are staying on the same board, force a redraw
         editManager.process_for_displaying();
       }
-      var check = function() {
+      var check = function() { if(_this.isDestroyed || _this.isDestroying) { return; } // a torn-down app-state stops polling
         check.attempts = (check.attempts || 0);
         if(!buttonTracker.transitioning) { check.attempts++; }
         var currentKey = _this.get('currentBoardState.key');
@@ -1470,7 +1470,7 @@ export default Service.extend({
     if(preferred && current) {
       emberSet(preferred, 'text_direction', current.text_direction);
     }
-    if(preferred && this.get('label_locale') && this.get('label_locale') == this.get('vocalization_locale')) {
+    if(preferred && current && preferred.key == current.key && this.get('label_locale') && this.get('label_locale') == this.get('vocalization_locale')) {
       emberSet(preferred, 'locale', this.get('label_locale'));
     }
     
@@ -1680,7 +1680,7 @@ export default Service.extend({
           // locale, then update the user's preferences
           // to set the new locale as the new preference
           var home = user.get('preferences.home_board');
-          if(home && home.locale && opts.override_state && home.locale != opts.override_state.locale && user.get('preferences.home_board')) {
+          if(home && home.locale && opts.override_state && opts.override_state.locale && home.key == opts.override_state.key && home.locale != opts.override_state.locale) {
             user.set('preferences.home_board.locale', opts.override_state.locale);
             var save_user = false;
           }
@@ -1850,31 +1850,31 @@ export default Service.extend({
   }),
   sync_send_utterance: observer('stashes.working_vocalization', function() {
     if(!LingoLinq || !LingoLinq.store) { return; }
-    var shareable_voc = function() {
+    var shareable_voc = () => {
       var u = LingoLinq.store.createRecord('utterance', {
         button_list: this.stashes.get('working_vocalization') || [], 
         timestamp: (new Date()).getTime() / 1000,
         user_id: this.get('referenced_user.id')
       });
       u.assert_remote_urls();
-      return u.get('button_list');
+      return this.release_sentence_record(u);
     };
 
     if(!this.get('sessionUser.supporter_view')) {
       // TODO: DRY this check, it's in sync too
-      if(this.get('sessionUser.preferences.remote_modeling') && (this.get('pairing') || this.get('sessionUser.preferences.remote_modeling_auto_follow') || this.get('followers.allowed'))) {
+      if(this.get('sessionUser.preferences.remote_modeling') && (this.get('pairing') || this.get('sessionUser.preferences.remote_modeling_auto_follow') || this.get('followers.allowed')) && this.in_sentence_room()) {
         var str = JSON.stringify(shareable_voc());
         // If the sentence has changed or hasn't been
         // encoded, then send it through encoding
-        if((str != this.get('sync_utterance.json') || !this.get('sync_utterance.encoded')) && window.persistence) {
+        if(this.sentence_needs_encoding(str) && window.persistence) {
           this.set('sync_utterance', {
-            json: str
+            json: str, encoding: true
           });
           window.persistence.ajax('/api/v1/users/' + this.get('sessionUser.id') + '/ws_encrypt', {
             type: 'POST',
             data: {text: str}
-          }).then(function(res) {
-            if(JSON.stringify(shareable_voc()) == str) {
+          }).then((res) => {
+            if(!this.isDestroyed && !this.isDestroying && JSON.stringify(shareable_voc()) == str) {
               this.set('sync_utterance', {
                 json: str,
                 encoded: res.encoded,
@@ -1882,7 +1882,7 @@ export default Service.extend({
               });
               sync.send_update(this.get('referenced_user.id') || this.get('currentUser.id'), {utterance: res.encoded});
             }
-          }, function(err) { });
+          }, (err) => { this.sentence_encoding_failed(str); });
         } else {
           var encoded = this.get('sync_utterance.encoded');
           if(encoded) {
@@ -1890,7 +1890,7 @@ export default Service.extend({
             this.set('sync_utterance.attempted', true);
           }
         }
-      }
+      } else if(this.get('sync_utterance')) { this.set('sync_utterance', null); }
     }
   }),
   sync_keepalive: observer('short_refresh_stamp', function() {
@@ -2058,7 +2058,7 @@ export default Service.extend({
           modal.close();
         }
         // Ensure scanner has a reference to appState for preference checks
-        if(!scanner.get('appState')) {
+        if(!live_service(scanner.get('appState'))) {
           scanner.set('appState', _this);
         }
         var interval = parseInt(_this.get('currentUser.preferences.device.scanning_interval'), 10);
@@ -2083,7 +2083,7 @@ export default Service.extend({
         }
       }
       runLater(function() {
-        _this.retry_images();
+        if(_this.isDestroyed || _this.isDestroying) { return; } _this.retry_images();
       }, 1000);
       buttonTracker.multi_touch_modeling = _this.get('currentUser.preferences.multi_touch_modeling');
       buttonTracker.keyboard_listen = _this.get('currentUser.preferences.device.external_keyboard');
@@ -2891,7 +2891,7 @@ export default Service.extend({
       if(this.get('speak_mode')) {
         var _this = this;
         runLater(function() {
-          var $button_list = $("#button_list");
+          if(_this.isDestroyed || _this.isDestroying) { return; } var $button_list = $("#button_list");
           var $item = null;
           if(_this.get('insertion.index')) {
             $item = $button_list.find(".utterance_cursor");
@@ -3195,8 +3195,8 @@ export default Service.extend({
             modal.warning(i18n.t('no_local_voices', "This device doesn't have any local voices, so an Internet connection will be required for any speech output until you download a premium voice"), true);
           }
           if(!capabilities.mobile && this.get('currentUser.preferences.device.fullscreen')) {
-            capabilities.fullscreen(true).then(null, function() {
-              if(!noticed) {
+            capabilities.fullscreen(true).then(null, () => {
+              if(!noticed && !this.isDestroyed && !this.isDestroying) { // not into another app's modal once this one is gone
                 modal.warning(i18n.t('fullscreen_failed', "Full Screen Mode failed to load"), true);
               }
             });
@@ -4419,7 +4419,7 @@ export default Service.extend({
           } else {
             obj.spoken = true;
             obj.for_speaking = true;
-            var speakDone = false;
+            var speakDone = false, speakPending = false;
             var doSpeak = function() {
               if(speakDone) { return; }
               speakDone = true;
@@ -4453,9 +4453,9 @@ export default Service.extend({
               if (soundUrl) {
                 button_to_speak.sound = soundUrl;
                 doSpeak();
-                return;
+                // Speech can finish later; the rest of the press (log, send, link) must still run
               }
-              if (soundId && button.load_sound) {
+              if (!soundUrl && soundId && button.load_sound) {
                 // Use the board URL map via 'local' first. Only fall back to
                 // 'remote' findRecord when online and the map has no URL —
                 // calling remote first skips board.sound_urls and TTS-falls-back
@@ -4483,11 +4483,11 @@ export default Service.extend({
                       doSpeak();
                     }
                   });
-                  return;
+                  speakPending = true;
                 }
               }
             }
-            doSpeak();
+            if(!speakPending) { doSpeak(); }
           }
         } else {
           click_sound();
@@ -5460,6 +5460,15 @@ export default Service.extend({
     this.updateFavicon();
   },
 
+  /* A sync that finds boards no synced user can view any more holds the marks back while
+     Speak Mode is on, so the board in use is never pulled away (utils/board_revocation.js).
+     They are applied once Speak Mode is off. */
+  apply_deferred_board_revocations: observer('speak_mode', function() {
+    if(!this.get('speak_mode') && boardRevocation.has_deferred()) {
+      boardRevocation.flush_deferred().then(null, function() { });
+    }
+  }),
+
   /* READ by global_transition before its modal.close(). Every route change closes every
      modal, which let the Back button (or any link) dismiss the "Please Log Back In" dialog with
      nothing re-prompting, leaving the user on pages whose requests all fail. While the logout is
@@ -5474,6 +5483,26 @@ export default Service.extend({
     var to_route = (transition && transition.to_route) || '';
     if(/^login(\.|$)/.test(to_route) || ['forgot_login', 'forgot_password', 'register', 'offline_boards'].indexOf(to_route) !== -1) { return false; }
     return !!(modal.is_open('force-logout') && this.session && this.session.logout_under_way());
+  },
+  // sync_send_utterance's helpers live here, below the rows .eslint-todo anchors by line.
+  release_sentence_record: function(record) {
+    var list = record.get('button_list');
+    record.unloadRecord();
+    return list;
+  },
+  // Without an open connection to this room the sentence has nowhere to go, so it stays on the device
+  in_sentence_room: function() {
+    return sync.in_room(this.get('referenced_user.id') || this.get('currentUser.id'));
+  },
+  sentence_needs_encoding: function(str) {
+    if(str != this.get('sync_utterance.json')) { return true; }
+    return !this.get('sync_utterance.encoded') && !this.get('sync_utterance.encoding');
+  },
+  sentence_encoding_failed: function(str) {
+    if(this.isDestroyed || this.isDestroying) { return; }
+    if(this.get('sync_utterance.json') == str) {
+      this.set('sync_utterance.encoding', false);
+    }
   }
 });
 
@@ -5488,6 +5517,11 @@ export const ScrollTopRoute = Route.extend({
   }
 });
 // window.app_state will be set in initializer after service is created
+// Below the baselined lint rows so they keep their line numbers (.eslint-todo).
+import { live_service } from '../utils/live_service';
+// Placed last: an import at the top would shift every line of the line-anchored ESLint baseline.
+// Imports are hoisted, so position does not matter at runtime.
+import boardRevocation from '../utils/board_revocation';
 
 /* A DEAD SESSION AT BOOT LOGS OUT ONCE (final review, 2026-10-13). The ajax layer (utils/extras.js) calls
    force_logout for the failed user lookup, and the same rejection then reaches find_user's handler above; a

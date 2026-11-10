@@ -334,6 +334,11 @@ describe('editManager', function() {
       testBoardDom.parentNode.removeChild(testBoardDom);
       testBoardDom = null;
     }
+    // get_edited_image / retrieve_badge leave a pending-request callback on the singleton (holding
+    // that test's promise) until the editor answers; drop it so no later test's editor message can
+    // resolve this test's request.
+    editManager.imageEditingCallback = null;
+    editManager.badgeEditingCallback = null;
   });
 
   describe("setup", function() {
@@ -2295,7 +2300,9 @@ describe('editManager', function() {
       expect(board.get('ordered_buttons')).toEqual(undefined);
       editManager.setup(board);
       editManager.process_for_displaying();
-      waitsFor(function() { return board.get('ordered_buttons'); });
+      // highlight_button is sent by a later step than the one that sets ordered_buttons, so wait for both
+      // before checking the messages (waiting for ordered_buttons alone made this assertion timing-dependent).
+      waitsFor(function() { return board.get('ordered_buttons') && (board.sent_messages || []).indexOf('highlight_button') >= 0; });
       runs(function() {
         expect(board.get('ordered_buttons')).not.toEqual(undefined);
         expect(board.get('ordered_buttons')[0][0].get('label')).toEqual('crow');
@@ -2629,8 +2636,11 @@ describe('editManager', function() {
       });
       stubBoardReload('1_2', {board: {id: '1_2', key: 'example/copy'}});
       stubCopyBoardSideEffects(b);
-      editManager.copy_board(b, null, copyBoardUser()).then(null, function() { });
-      waitsFor(function() { return found; });
+      // copy_board settles after reloading the copy, which is fetched in the same flush as the copy's
+      // button set (app/utils/edit_manager.js:2749-2768): waiting for it covers both fetches.
+      var settled = false;
+      editManager.copy_board(b, null, copyBoardUser()).then(function() { settled = true; }, function() { settled = true; });
+      waitsFor(function() { return found && settled; });
       runs();
     });
 

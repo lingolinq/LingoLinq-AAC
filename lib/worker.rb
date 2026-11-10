@@ -9,6 +9,17 @@ module Worker
     super
   ensure
     clear_request_thread_caches
+    clear_scheduled_stamp(args)
+  end
+
+  # BoyBand sets the job class's last_scheduled_stamp from the job's 'scheduled' value and never
+  # clears it (boy_band.rb:155). Resque forks a process per job, so production never sees it after
+  # the job; clear it so in-process runs (Worker.process_queues) and a non-forking worker match.
+  # Readers that would otherwise act on a stale stamp: upstream_downstream.rb:8 and :382-386.
+  def self.clear_scheduled_stamp(args)
+    klass_string = args.find { |a| a.is_a?(String) && !a.start_with?('domain::') }
+    klass = klass_string && Object.const_get(klass_string) rescue nil
+    klass.last_scheduled_stamp = nil if klass.respond_to?(:last_scheduled_stamp=)
   end
 
   # Single source of truth for the request/job-scoped Thread.current caches
@@ -162,15 +173,21 @@ module Worker
     end
   end
 
+  # The queues the app schedules to (Worker's own :default, SlowWorker's :slow, and the :priority /
+  # :whenever targets of schedule_for).
+  KNOWN_QUEUES = %w[priority default slow whenever].freeze
+
   # boy_band's flush_queues empties Resque lists but leaves sizeof/{queue} cache
   # entries behind. scheduled_for? trusts that cache and returns false when it
   # still reads >500 even though the queue was just flushed — flaky scheduled? in
-  # specs and any code that flushes then immediately checks scheduling.
+  # specs and any code that flushes then immediately checks scheduling. The known queues' caches
+  # are cleared too, even when Resque's queue registry does not list them yet (nothing enqueued
+  # since Redis was emptied), or a stale size would survive the flush.
   def self.flush_queues
     super
     return unless Resque.redis
 
-    Resque.queues.each do |key|
+    (Resque.queues | KNOWN_QUEUES).each do |key|
       Resque.redis.del("sizeof/#{key}")
     end
   end

@@ -2,7 +2,12 @@ require "spec_helper"
 
 describe UserMailer, :type => :mailer do
   after(:each) do
+    JsonApi::Json.set_host(@mailer_spec_host) if @mailer_spec_host
     JsonApi::Json.load_domain("default")
+  end
+
+  before(:each) do
+    @mailer_spec_host = JsonApi::Json.current_host
   end
 
   describe "schedule_delivery" do
@@ -422,6 +427,59 @@ describe UserMailer, :type => :mailer do
       expect(m.subject).to eq(nil)
     end
 
+    # #912: org.settings['email_templates'] is copied onto the domain in
+    # Organization.load_domains (three lines that no other spec reads). A stored
+    # override must survive set_host -> enqueue -> Worker.process_queues ->
+    # SystemEmailTemplates.lookup -> SystemEmailOverride#mail and appear in BOTH
+    # MIME parts. Calling set_domain_id directly would skip the queue restore.
+    it "delivers a stored org email-template override through the worker queue" do
+      o = Organization.create(custom_domain: true)
+      o.settings['hosts'] = ['override-mail.example.test']
+      o.settings['host_settings'] = {}
+      o.settings['email_templates'] = {
+        'user_mailer/log_message' => {
+          'html_body' => '<p>ZXQ-html-override-912-not-in-default</p>',
+          'text_body' => 'ZXQ-text-override-912-not-in-default'
+        }
+      }
+      o.save
+      # Same drain as the cheddar.org app_name examples; with transactional
+      # fixtures the after-commit domain refresh may not run, and the mail job
+      # below still rebuilds an empty Redis domain cache via load_domains.
+      Worker.process_queues
+
+      u = User.create(settings: {email: 'test@example.com'})
+      d = Device.create(:user => u)
+      l = LogSession.create(:user => u, :author => u, :device => d)
+      l.data['note'] = {'text' => 'you are my friend'}
+      l.save
+
+      previous_host = JsonApi::Json.current_host
+      begin
+        JsonApi::Json.set_host('https://override-mail.example.test')
+        ActionMailer::Base.deliveries.clear
+        UserMailer.schedule_delivery(:log_message, u.global_id, l.global_id)
+        Worker.process_queues
+
+        expect(ActionMailer::Base.deliveries.length).to eq(1)
+        mail = ActionMailer::Base.deliveries.last
+        html = message_body(mail, :html)
+        text = message_body(mail, :text)
+        expect(html).to include('ZXQ-html-override-912-not-in-default')
+        expect(text).to include('ZXQ-text-override-912-not-in-default')
+        expect(html).not_to match(/just posted a message/)
+        expect(text).not_to match(/just posted a message/)
+      ensure
+        JsonApi::Json.set_host(previous_host)
+      end
+    end
+
+    # Catches a leaked set_host: load_domain("default") does not reset current_host,
+    # so later examples (lesson_assigned) would build expected URLs from this host.
+    it "does not leave the override-mail host set for later examples" do
+      expect(JsonApi::Json.current_host.to_s).not_to include('override-mail.example.test')
+    end
+
     it "should include a status-check footer if specified" do
       u = User.create(settings: {email: 'test@example.com'})
       d = Device.create(:user => u)
@@ -447,6 +505,9 @@ describe UserMailer, :type => :mailer do
   end
   
   describe "new_user_registration" do
+    # examples below assign these directly; a leaked IPLOCATE_API_KEY sends later specs to the network
+    restore_env_after_each('NEW_REGISTRATION_EMAIL', 'IPLOCATE_API_KEY')
+
     it "should use the ENV recipient address" do
       u = User.create
       ENV['NEW_REGISTRATION_EMAIL'] = 'asdf@example.com'
@@ -588,6 +649,30 @@ describe UserMailer, :type => :mailer do
   end
   
   describe "usage_reminder" do
+    it "should not include screenshot images in any section" do
+      u = User.create(:settings => {'name' => 'stacy', 'email' => 'stacy@example.com'})
+      html = message_body(UserMailer.usage_reminder(u.global_id), :html)
+      expect(html).to match(/Getting Started/)
+      expect(html).to match(/reporting and logging built-in/)
+      expect(html).not_to match(/<img/)
+      expect(html).not_to match(/amazonaws/)
+
+      u.settings['preferences']['role'] = 'supporter'
+      u.save
+      html = message_body(UserMailer.usage_reminder(u.global_id), :html)
+      expect(html).to match(/signed up as a supervisor/)
+      expect(html).not_to match(/<img/)
+      expect(html).not_to match(/amazonaws/)
+
+      u.settings['preferences']['role'] = 'communicator'
+      u.save
+      Device.create(:user => u)
+      html = message_body(UserMailer.usage_reminder(u.global_id), :html)
+      expect(html).to match(/Doing More/)
+      expect(html).not_to match(/<img/)
+      expect(html).not_to match(/amazonaws/)
+    end
+
     it "should generate a message to the specified user" do
       u = User.create(:settings => {'name' => 'stacy', 'email' => 'stacy@example.com'})
       m = UserMailer.usage_reminder(u.global_id)
@@ -970,6 +1055,6 @@ describe UserMailer, :type => :mailer do
     end
   end
   
-  it "should have a default reply-to of noreply@mylingolinq.com"
+  it "should have a default reply-to address"
   it "should have specs for the mailer erb templates"
 end

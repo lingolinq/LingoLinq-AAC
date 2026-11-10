@@ -35,6 +35,11 @@ describe('word_suggestions', function() {
     word_suggestions.last_locale = null;
     word_suggestions.fallback_url_result = null;
   });
+  // record_selection queues a usage sync and schedules its flush 5 s out; a test must not leave that
+  // timer for the next one (it blocked the sync-owner module's own flush).
+  afterEach(function() {
+    word_suggestions.cancel_sync_flush();
+  });
   describe("lookup", function() {
     it("should suggest words", function() {
       stub(word_suggestions, 'fallback_url', function() { return RSVP.reject(); });

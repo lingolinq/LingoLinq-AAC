@@ -286,12 +286,12 @@ function fakeAudio() {
         c();
       });
     },
-    pause: function() { this.pauseCalled = true; this.playing = false; },
+    pause: function() { this.pauseCalled = true; this.playing = false; clearTimeout(this._endTimer); }, // a paused element does not end later
     play: function() {
       this.playCalled = true;
       this.playing = true;
       var _this = this;
-      setTimeout(function() {
+      this._endTimer = setTimeout(function() {
         _this.trigger('ended');
       }, Math.random() * 100);
       return RSVP.resolve();

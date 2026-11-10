@@ -617,6 +617,15 @@ describe ExtraData, :type => :model do
       expect(Uploader).to receive(:remote_remove).with('b')
       LogSession.clear_extra_data(s.global_id, ['a', 'b'])
     end
+
+    it 'should still attempt the public URL when the private one is deferred for missing credentials, then raise' do
+      u = User.create
+      d = Device.create(user: u)
+      s = LogSession.create!(user: u, author: u, device: d, data: {})
+      expect(Uploader).to receive(:remote_remove).with('a').and_raise(Uploader::RemoteCredentialsMissing)
+      expect(Uploader).to receive(:remote_remove).with('b')
+      expect { LogSession.clear_extra_data(s.global_id, ['a', 'b']) }.to raise_error(Uploader::RemoteCredentialsMissing)
+    end
   end
 
   describe "extra_data_remote_paths" do

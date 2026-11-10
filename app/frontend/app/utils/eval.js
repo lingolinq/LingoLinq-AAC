@@ -52,16 +52,16 @@ var evaluation = {
     this._services.i18n = i18n;
     this._services.capabilities = capabilities;
   },
-  // Fall back when setup() has not run yet or eval.js was re-evaluated (e.g. dev reload) while the app kept running.
-  get appState() { return this._services.appState || app_state; },
-  get persistence() { return this._services.persistence || persistence_singleton; },
-  get stashes() { return this._services.stashes || stashes_singleton; },
-  get speecher() { return this._services.speecher || speecher_singleton; },
-  get utterance() { return this._services.utterance || utterance_singleton; },
-  get obf() { return this._services.obf || (typeof window !== 'undefined' && window.obf); },
-  get modal() { return this._services.modal || modal_singleton; },
-  get i18n() { return this._services.i18n || i18n_singleton; },
-  get capabilities() { return this._services.capabilities || capabilities_singleton; },
+  // Fall back when setup() has not run yet, eval.js was re-evaluated (dev reload), or the stored service was destroyed with its app.
+  get appState() { return live_service(this._services.appState) || app_state; },
+  get persistence() { return live_service(this._services.persistence) || persistence_singleton; },
+  get stashes() { return live_service(this._services.stashes) || stashes_singleton; },
+  get speecher() { return live_service(this._services.speecher) || speecher_singleton; },
+  get utterance() { return live_service(this._services.utterance) || utterance_singleton; },
+  get obf() { return live_service(this._services.obf) || (typeof window !== 'undefined' && window.obf); },
+  get modal() { return live_service(this._services.modal) || modal_singleton; },
+  get i18n() { return live_service(this._services.i18n) || i18n_singleton; },
+  get capabilities() { return live_service(this._services.capabilities) || capabilities_singleton; },
   register: function(obf) {
     obf.register("eval", evaluation.callback);
     obf.eval = evaluation;
@@ -3356,3 +3356,5 @@ evaluation.step_description = function(id, library) {
 };
 
 export default evaluation;
+// Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
+import { live_service } from './live_service';

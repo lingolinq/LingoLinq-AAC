@@ -67,7 +67,7 @@ const BaseModel = Model.extend({
       var tmp_key = this.get('key');
       var type = modelNameForRecord(this);
       if(!type) {
-        return this._super();
+        return this._super(...arguments);
       }
       var attrs = attributeValuesForRecord(this);
       var rec = this.store.createRecord(type, attrs);
@@ -80,7 +80,8 @@ const BaseModel = Model.extend({
         });
       });
     }
-    return this._super();
+    // Arguments forwarded so `save({adapterOptions})` reaches Ember Data (utils/preference_save.js).
+    return this._super(...arguments);
   }
 });
 

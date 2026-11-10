@@ -1,0 +1,311 @@
+# MediaConvert COMPLETE events never update the record (#981 read side)
+
+Date: 2026-10-29. Parent: #981. Branch `traci/fix/transcoder-complete-event-paths` from
+`develop` 5766c05b0. Learnings consulted: `learnings-archive/2026-09.md` "a spec that mocks an
+AWS client with OpenStruct proves the code matches itself" (the red test uses
+`stub_responses`), and "MediaConvert is not a pipeline-id swap".
+
+## Symptom
+
+When MediaConvert finishes a job, `Api::CallbacksController#callback` answers
+`400 event not handled` and the ButtonSound or UserVideo stays `transcoding_in_progress`, with
+no mp3/wav/mp4. Not yet observed live (no COMPLETE event has reached this system; staging's two
+real jobs on 2026-09-19 ended in ERROR 1040, fixed by 4ddfa51b8). Production is unaffected
+today: `APP_MEDIACONVERT_ROLE_ARN` is unset on the `production` GitHub environment (checked
+2026-10-29), so `Transcoder.configured?` is false and no job is submitted there. Staging has the
+role set, so every staging recording that converts will hit this.
+
+## Fact sheet
+
+- **(a) Where is the value read?** CONFIRMED. `Transcoder.output_files(job)`
+  (`lib/transcoder.rb:201-214`) reads `out.output_file_paths` at `:207`, where `job` is the
+  `GetJob` response fetched in `handle_event` (`:17`). `handle_event` calls it at `:38`, then
+  returns false when no `.mp3` / `.mp4` is found (`:45`, `:58`).
+- **(b) All shapes.** CONFIRMED. A real `GetJob` `OutputDetail` is
+  `Struct.new(:duration_in_ms, :video_details)` (`aws-sdk-mediaconvert-1.194.0
+  types.rb:13075-13077`), so `respond_to?(:output_file_paths)` is false and `output_files` is
+  always `[]` against a real response. The paths exist only on the EventBridge job-state-change
+  event: `detail.outputGroupDetails[].outputDetails[].outputFilePaths` (array of `s3://` URIs)
+  with `durationInMs` beside it (AWS docs, `mediaconvert/latest/ug/file-group.html` and
+  `file-group-with-frame-capture-output.html`, read 2026-10-29). Frame capture lists the FINAL
+  still; `frame_capture_output` sets `max_captures: 1` (`lib/transcoder.rb:358`), so that is
+  `.0000001.jpg`. One writer: the EventBridge rule -> SNS -> `callbacks_controller.rb:32`, the
+  only caller of `handle_event` (`git grep`).
+- **(c) Cross-file claims.**
+  - The SNS `Message` is the EventBridge event as a JSON string, and `parse_event_message`
+    already extracts `detail` from it. CONFIRMED live by the two staging ERROR callbacks on
+    2026-09-19, which parsed `jobId`/`status` and saved the error
+    (`2026-09-19_transcoder-duplicate-output-paths.md`).
+  - Outputs land in `UPLOADS_S3_BUCKET`: CONFIRMED, `file_group_settings` builds the destination
+    with `s3_uri` from that variable (`lib/transcoder.rb`, `s3_uri`).
+  - ASSUMED, not load-bearing for the code but load-bearing for "proven": a real COMPLETE event
+    from this system carries `outputGroupDetails` in the documented shape. Only a staging smoke
+    test can confirm it; the controller already logs the body (`callbacks_controller.rb:31`).
+
+## Red test
+
+`spec/lib/transcoder_spec.rb`, `describe "handle_event against an SDK-shaped GetJob"`: a real
+`stub_responses` client for `GetJob` (cannot carry `output_file_paths`) plus a COMPLETE event in
+the documented shape. Audio and video examples fail on develop (`handle_event` returns false);
+21 existing examples pass. The guard examples (paths outside the destination, unsafe names)
+and the GetJob-status examples pass on develop only vacuously; they guard the new code, and
+their mutations are in "Red-team pass on the branch".
+
+## Candidate fixes
+
+1. **Read paths and durations from the event's `detail`; keep `GetJob` for `user_metadata`**
+   (proposed). `handle_event` already holds `detail`. `GetJob` stays the source for which
+   record to update, so the record lookup is unchanged. Smallest change to the read.
+2. **Drop `GetJob` and use `detail.userMetadata` from the event too.** One fewer AWS call, but
+   it changes the ERROR path and the record lookup as well, which work today (proven live
+   2026-09-19). Rejected: wider blast radius for no fix.
+3. **Rebuild the paths from the job settings** (destination + input basename + name_modifier +
+   extension, all present on `GetJob`). Works without the event, but re-implements AWS's file
+   naming, which is exactly what failed with errorCode 1040. Rejected.
+
+The first draft guarded only the bucket. The adversary review below replaced that with the
+destination-equality guard, and the red-team pass on the finished branch added the name
+allowlist and the GetJob status check (see "Red-team pass on the branch").
+
+## Existing specs this changes (needs approval, Rule 14)
+
+The specification these encode changed: paths come from the event, not from `GetJob`.
+- `handle_event` examples at `:61`, `:103`, `:140` put `output_file_paths` on an `OpenStruct`
+  GetJob and send an event without paths. Proposed: move the paths into the event (same
+  expected `update_media_object` arguments), keeping the `OpenStruct` GetJob for metadata only.
+- `:174` (ERROR) is unaffected; its paths are never read.
+- `:348` "should find no output files on an SDK-shaped GetJob response" is kept unchanged (it
+  pins the real SDK shape; see the review below). The positive case sits beside it in
+  `describe "handle_event against an SDK-shaped GetJob"`.
+- `spec/controllers/api/callbacks_controller_spec.rb:125` "should handle transcoding" put the
+  paths on an `OpenStruct` GetJob too. Rewritten the same way (approved 2026-10-30): the fake
+  GetJob echoes the destination the real `audio_job` builder submitted, and the paths travel
+  in the COMPLETE event. Red against develop's `lib/transcoder.rb`, green with the fix.
+
+Approval: Traci approved the `:61`, `:103`, `:140` rewrites and keeping `:348` on 2026-10-29,
+and the controller spec rewrite on 2026-10-30.
+
+## Mutations that must turn the tests red
+
+First round (run 2026-10-29, each restored from a copy): paths read from GetJob again, 5 red;
+destination check removed, 4 red; prefix match instead of exact, 1 red; duration dropped, 5
+red; bucket-only check, 3 red. The second round is under "Red-team pass on the branch".
+
+## Adversary review of this proposal (2026-10-29) and what changed
+
+Verdict: proceed with candidate 1, with a stronger guard. Each finding checked by hand:
+
+- **Medium, CONFIRMED, accepted.** "Signature-checked, so defence in depth" was wrong.
+  `Aws::SNS::MessageVerifier#authenticate!` verifies the signature and that the signing cert
+  is on an `sns.*.amazonaws.com` host (`aws-sdk-sns message_verifier.rb:40,64-75`); it never
+  compares the body's `TopicArn`. The controller routes on the `x-amz-sns-topic-arn` header
+  (`callbacks_controller.rb:5,26`), which the sender sets. Any AWS account can publish a
+  genuinely signed message from its own topic. Today that only lets it log an error on a
+  record; once paths come from the event it could repoint a child's button sound. Proposed
+  changes: (1) the controller requires the body's `TopicArn` to be in `SNS_ARNS` for
+  Notification messages (not done, see below); (2, done) an output path is accepted only when
+  its directory exactly equals the destination in the trusted `GetJob` response
+  (`job.settings.output_groups[].output_group_settings.file_group_settings.destination`,
+  `types.rb:6110-6112`), which also pins the bucket.
+- **Medium, CONFIRMED, accepted.** A `start_with?` guard would pass the red test. Add a
+  sibling-bucket case (`lingolinq-test-uploads-evil`) and a nested-directory case
+  (`some/dir/` vs `some/dir/0/`, since record directories are id digits).
+- **Low, CONFIRMED, accepted.** The video example's still equals the fallback guess
+  (`transcoder.rb:65`), so a mutant ignoring it passes. Use `.0000003.jpg`.
+- **Low, CONFIRMED, accepted.** The stubbed GetJob carries the same 12000 ms, so a mutant
+  reading durations from GetJob passes. Give the event a different duration. In the rewritten
+  existing specs, remove `output_file_paths` from the OpenStructs entirely. Keep `:348` as is
+  (it pins the real SDK shape) and add the positive example beside it instead of inverting.
+- **Low, deferred.** Stale or duplicate COMPLETE events can repoint a record to an older
+  output: pre-existing `update_media_object` behaviour (`media_object.rb:24-27`), not changed
+  here.
+- **Low, deferred.** A COMPLETE with no usable outputs returns 400 without
+  `media_object_error`. Worth doing once a real event is seen; kept out to keep one change.
+
+## Body `TopicArn` check: not done (accepted Low, 2026-10-30)
+
+Change (1) in the adversary section, requiring the signed body's `TopicArn` to be in
+`SNS_ARNS`, was left out by Traci's decision. The first rationale given for that ("only files
+inside that job's own folder", "until the real COMPLETE or the daily retry") was WRONG; the
+red-team pass below disproved both, and Traci then approved the two checks that make it true.
+With them in place, a forged but genuinely signed message from a foreign topic:
+- needs a live job ID from our account (not guessable, not in API responses);
+- cannot complete a record while the job is SUBMITTED or PROGRESSING, or after ERROR or
+  CANCELED, because GetJob's own status must be COMPLETE. The ERROR branch is NOT gated
+  (unchanged, live-proven 2026-09-19): a forged ERROR, replayable without limit, still appends
+  an attacker-chosen code to `settings['media_object_errors']` (`transcoder.rb:33`,
+  `media_object.rb:76-81`). Nothing reads that field; pre-existing, accepted Low;
+- can name only plain file names inside that record's own folder (`uploadable.rb:72-75`: the
+  folder is every digit of the record id, so it is not shared). The name need not exist, so
+  "that record's own outputs" was too strong (corrected 2026-10-30, second review).
+Residual: once a job is COMPLETE and before its real event arrives (or for good, if the real
+event was lost), a forger could complete the record with any allowed name in its folder,
+including one that does not exist. The real event is then ignored and the daily retry skips the
+url, so the button stays silent and the real outputs go untracked. Nothing is disclosed, and it
+still needs the live job ID above. Against the TopicArn check: it would reject every real completion in any
+environment whose `SNS_ARNS` is wrong, and needs edits to about five existing controller
+examples. Revisit if the callback ever accepts anything less constrained than this.
+
+## Red-team pass on the branch (2026-10-30) and what changed
+
+`REVIEWED=range origin/develop (92195340588aa8d39a28ac7d814e0e5d6aa5aa93) ... HEAD
+(03ad24c2ab620cfc1435e025f7cf2291caf3e3c0)`. Senior-dev pass: no Critical/High (one Medium
+withdrawn after checking `uploadable.rb:72-75`). Adversary pass, each checked by hand:
+- **Medium, CONFIRMED, fixed.** The guard checked the directory, not the name. The stored URL
+  is upload_url + key (`media_object.rb:63`), `best_url` unescapes it when it holds `%20`
+  (`uploadable.rb:48`), and browsers read `\` as `/` and resolve `..`, so a name like
+  `..\..\sounds\9\9\x.mp3` escaped. Fix: names must match `\A[A-Za-z0-9._-]+\z`; every name the
+  builders produce does (`<global_id>-<sha512hex>` from `uploadable.rb:67-70` plus the
+  `name_modifier_for` suffix and extension).
+- **Low, CONFIRMED, fixed.** A forged COMPLETE was permanent: it drops the transcoding key
+  (`media_object.rb:33`), so the real event is ignored, and the daily retry skips urls ending
+  `.mp3`/`.mp4` (`button_sound.rb:148,158`). Fix: GetJob's `status` must be COMPLETE.
+  SUBMITTED/PROGRESSING returns `:retry`, answered 503: SNS retries only 5xx and 429, and treats
+  every other error, 400 included, as permanent (AWS SNS "message delivery retries", read
+  2026-10-30). ASSUMED: GetJob agrees with the event by the time it arrives; if it lags past the
+  retry policy (default HTTP/S policy: 3 retries, 20 s apart, unless the subscription sets its
+  own; not checked), the record is left for the daily retry.
+- **Low, CONFIRMED, fixed.** A non-numeric, negative or infinite (`1e400`) `durationInMs` raised
+  (500) or was stored; now it is ignored (duration nil). Huge finite values are still stored,
+  as the owner can already set any duration (`button_sound.rb:301`). Correction (second
+  review): a JSON integer of 309+ digits is a finite Integer, `to_f` makes it Infinity and
+  `to_i` raises FloatDomainError, so that form still gives a 500. Nothing is written, so it was
+  left as is (see "Second review" below).
+- **Low, CONFIRMED, fixed (approved 2026-10-30).** The `:348` comment still said "the fix must
+  invert this example"; it now says what the example pins. `output_files`' `detail={}` default
+  existed only for that call, so it is gone and the call passes `{}`. The assertion is unchanged.
+
+Mutations (each restored from a copy): name check removed, 3 red; `%` allowed, 2 red; GetJob
+status check removed, 2 red; `:retry` removed, 2 red; controller 503 removed, 1 red; duration
+guard back to nil-only, 5 red.
+
+## Risks and open questions
+
+- A real COMPLETE that is dropped (503 retries exhausted while GetJob lags, or a 400 because an
+  event shape differs from the docs) leaves that job's mp3/wav in S3 recorded nowhere. The
+  erasure sweep (`media_object.rb:113-165`) lists only keys held in settings, and the prefix
+  (`media_object.rb:87`) is never saved, so those voice derivatives would outlive account
+  erasure. The 400 route predates this branch (2026-09-18 log); the 503 route is new but narrow.
+  Before the staging smoke test: attach a dead-letter queue to the nonprod SNS subscription, or
+  (follow-up) save the prefix at schedule time so the sweep can list `prefix*`.
+
+- A real COMPLETE event has never been seen here (ASSUMED shape above). Staging smoke test with
+  synthetic audio is the proof; until then this is "documented shape", not "proven".
+- Video is predicted to hit errorCode 1040 before it ever reaches this code (the frame
+  capture's `.mp4` name_modifier, see the 2026-09-19 log). Out of scope here; audio can be
+  proven on its own.
+- Durations: `durationInMs` sits beside each path in the event; today's code reads it from
+  `GetJob`, where it does exist. Reading both from the event keeps them paired per output.
+
+## Open items triage (2026-10-30, Traci: fix in this PR only if real, review proposals first)
+
+Each item checked against the code before deciding. Verdicts are for the adversary to falsify.
+
+1. **Forged ERROR replays grow `media_object_errors`.** Real in mechanism
+   (`transcoder.rb:32-35`, `media_object.rb:76-81`), unreachable in practice: needs a live job ID
+   from our MediaConvert account, which no API response carries, and nothing reads the field
+   (`git grep media_object_errors`: writer only). Proposed: no change.
+2. **A late, older job repoints the record.** Not a real harm: both jobs transcode the same
+   source; a forced re-transcode happens only while the url does not end `.mp3`/`.mp4`
+   (`button_sound.rb:148,158`), so the "older" output has the same content. Proposed: no change.
+3. **COMPLETE with no usable outputs returns 400 without `media_object_error`.** Not a real
+   harm: nothing reads `media_object_errors`; the controller already logs the body
+   (`callbacks_controller.rb:31`). Proposed: no change.
+4. **Video predicted to hit 1040.** Not established. The prediction assumed the frame-capture
+   output (RAW, FRAME_CAPTURE) gets an empty extension like RAW mp3/wav did. AWS's frame-capture
+   sample (`mediaconvert/latest/ug/file-group-with-frame-capture-output.html`, read 2026-10-30)
+   shows the still as `file.0000036.jpg`, i.e. the codec supplies `.jpg`, so `<base><mod>.mp4`
+   (frame capture, before numbering and `.jpg`) need not equal the mp4's path. Setting
+   `extension: 'jpg'` cannot be verified offline either way. Proposed: no change; the staging
+   video smoke test decides.
+5. **Transcode outputs the record never recorded survive erasure.** REAL (latent).
+   `remove_derivative_remote_data` (`media_object.rb:113-187`) deletes only keys held in
+   settings. Outputs land at `prefix.<ext>` where `prefix = file_path + file_prefix + "v" + ts`
+   (`media_object.rb:87`) and the name is `<input stem><name_modifier>.<ext>`
+   (`transcoder.rb:name_modifier_for`): first transcode `<file_prefix>v<ts>.mp3/.wav/.mp4` and
+   video still `<file_prefix>v<ts>.mp4.0000001.jpg`. Any job whose COMPLETE is dropped (400 on a
+   shape mismatch, 503 retries exhausted) or whose outputs were written before an ERROR leaves
+   files nothing points at, and account erasure (Flusher -> destroy -> this callback) misses them:
+   a child's voice recording outliving erasure (GDPR Art. 17, COPPA deletion).
+
+### Proposal for 5
+
+Candidate A (proposed): sweep the record's transcode family at destroy.
+- `remove_derivative_remote_data`: when `settings['transcoding_attempted']`, schedule
+  `Uploader.remote_remove_transcode_family(file_path + file_prefix + 'v', class, global_id)`.
+  `file_prefix` is `global_id + '-' + sha512(global_id, created_at)` (`uploadable.rb:67-70`), so
+  the stem is unique to this record and covers every transcode it ever ran, including ones from
+  before this change (no backfill).
+- `Uploader.remote_remove_transcode_family(stem, ...)`: `list_remote_keys_with_prefix(stem)`;
+  keep only keys matching `\A<escaped stem>\d+\.(?:mp3|wav|mp4|mp4\.\d{7}\.jpg)\z`; for each, skip
+  it if `remote_path_in_use?(key)` (`uploader.rb:105-111`, another ButtonSound/UserVideo/
+  ButtonImage row still points at it, e.g. a copy), else `remote_remove(key)` (its scary-delete
+  guard still applies; `transcoded_thumbnail_key?` covers the video still). Listing failure (nil)
+  logs and returns false; there is no guessed fallback because the timestamps are unknowable.
+  Credentials missing: same `remote_delete_ready?` deferral as the thumbnail family, with a new
+  retry action `delete_transcode_family_retry` dispatched in `retry_remote_delete`.
+- The original upload (`<file_prefix>.<ext>`, no `v`) is not matched: hex never contains `v`.
+Candidate B: save each prefix in settings at schedule time and delete `prefix.*` keys at
+destroy. Rejected: misses every job scheduled before the change, and adds a settings write.
+Candidate C: attach an SNS dead-letter queue. Rejected as the fix: it only makes a dropped
+event visible; nothing would delete the files.
+
+Risks / open questions:
+- Another record using one of these keys: only through `url` (copies share `url`,
+  `board.rb:1607-1615`), which `remote_path_in_use?` checks per key. `full_filename` and
+  `secondary_output` are written only from the record's own id/hash or its own job
+  (`uploadable.rb:58`, `media_object.rb:34,68`), so no other row can hold them. Not a risk.
+- `s3:ListBucket` on the uploads bucket is unverified in deployed envs (same caveat as the
+  thumbnail family); without it the sweep logs and deletes nothing (no regression).
+- Re-transcode names (`<stem>v<ts1>_<file_prefix>v<ts2>.mp3`) only arise when the input is an
+  earlier output; that needs a forced re-transcode after a success, which
+  `schedule_missing_transcodings` does not do. The strict regex excludes them; they stay covered
+  only if they ever became `full_filename`/`prior_full_filenames`.
+- Existing `remove_derivative_remote_data` specs that `expect(Worker).to receive(:schedule)` for
+  one call may need the new call allowed (Rule 14, approved "show me after").
+Test: a destroyed ButtonSound with `transcoding_attempted` schedules the family sweep; the
+Uploader method (stubbed S3 list) deletes `stem` + `123.mp3/.wav`, keeps the original upload,
+another record's key, a key still in use, and a non-matching name; nil listing deletes nothing.
+Mutations: drop the in-use check; loosen the regex to a prefix match; drop the `v`.
+
+### Adversary review of the triage (2026-10-30) and decision
+
+Items 1-4: the review could not show any of them is a real, reachable problem; no change.
+Item 5 is real and is the existing register finding LL-c4566fa37f (`audit-reports/FINDINGS.json`;
+closure is Scot's), not a new issue. Candidate A as written is not enough and not safe to ship
+here: it misses the registered "record destroyed mid-job" trigger (a COMPLETE for a destroyed
+record returns true and keeps nothing, `transcoder.rb:74-75`), records no retry when listing
+fails (`uploader.rb:63-75`), would fall into the thumbnail branch of `retry_remote_delete`
+(`uploader.rb:92-95`), and would queue a job the staging worker cannot run until promotion
+(dev web and staging worker share Redis, `docs/INFRASTRUCTURE.md:137-145`). It also breaks a
+different set of existing specs than predicted (`media_object_spec.rb:274,342,356,544`).
+The over-deletion question is closed: two records share an object only through `url`.
+This branch already shrinks LL-c4566fa37f: on develop every real COMPLETE is dropped.
+Item 5 moves to its own PR against LL-c4566fa37f.
+
+Found alongside, both pre-existing: (a) the upload buckets are documented "versioning on"
+(`docs/INFRASTRUCTURE.md:171`) and no noncurrent-version expiry exists in the repo, so a
+`remote_remove` may leave the voice data as an old version (PLAUSIBLE until the bucket's
+lifecycle configuration is read); (b) a ButtonSound may take another user's file URL with no
+owner check (`button_sound.rb:298-299` -> `uploadable.rb:86-90`), which makes that file "in
+use" and keeps it past the owner's erasure. Both belong with the item 5 erasure work.
+
+## Second review (2026-10-30, Traci: fix only real issues)
+
+`REVIEWED=PR lingolinq/LingoLinq-AAC#1239 at 7130d0e8d7abad2fa47e886b87b0e32d7e2d82df`.
+Senior-dev pass: Approve with comments, Lows only. Adversary pass: ship, Lows only. Each was
+checked by hand; no code change came out of it.
+- **Integer-overflow `durationInMs` gives a 500.** CONFIRMED (Ruby probe). Not a real issue:
+  it needs a signed message for a live job, nothing is written, and the message is the sender's
+  own. Only the claim above was wrong, and it is corrected.
+- **No parent-directory rejection example.** CONFIRMED gap; a `start_with?` mutant would pass.
+  The exact-match code is correct today, so there is no defect; not done.
+- **Forged names need not exist.** CONFIRMED; the residual in "Body TopicArn check" is
+  corrected. Still gated on a live job ID, so it stays an accepted Low.
+- **Video destination not pinned; `..` passes `OUTPUT_NAME`.** Not real: both jobs use
+  `file_group_settings` (`transcoder.rb:125,150,254-260`), and only names ending
+  `.mp3/.wav/.mp4/.jpg/.png` are used (`transcoder.rb:49-64`).
+- **The callback logs the full body (pre-existing, `callbacks_controller.rb:31`).** Real: a
+  COMPLETE's `outputFilePaths` are working links to public-read recordings in Cloud Logging.
+  The staging smoke test reads that line, so trimming it to jobId and status follows the smoke
+  test, in the erasure work rather than a new issue.

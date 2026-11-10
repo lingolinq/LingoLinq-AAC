@@ -189,7 +189,7 @@ class Device < ApplicationRecord
 
     self.settings['long_token'] = long_token if long_token != nil
     key = new_access_token
-
+    touch_user_activity
   
     # Keep track of which devices were used most recently/frequently to help
     # display most-relevant ones in the UI under "user devices".
@@ -218,8 +218,23 @@ class Device < ApplicationRecord
   end
   
   def logout!
+    old_keys = self.settings['keys'] || []
     self.settings['keys'] = []
     self.save
+    old_keys.each { |key| RedisInit.permissions.del("user_token/#{key['value']}") }
+  end
+
+  # Ends one session. A row can hold several (SSO logins share one), so the others are left alone.
+  # The marker comes first and check_token reads it first, so a request already in flight cannot
+  # bring the token back by caching it again or saving the row's old keys.
+  def revoke_token!(token)
+    marked = Permissions.setex(RedisInit.permissions, "revoked_token/#{token}", [self.token_timeout, 13.hours.to_i].max, 'true')
+    Rails.logger.warn("revoke_token!: no marker written for device #{self.global_id}") unless marked
+    self.with_lock do
+      self.settings['keys'] = (self.settings['keys'] || []).reject { |key| key['value'] == token }
+      self.save
+    end
+    RedisInit.permissions.del("user_token/#{token}")
   end
   
   def unique_device_key
@@ -309,6 +324,9 @@ class Device < ApplicationRecord
     scopes = nil
     valet = nil
     valet_mode = false
+    if RedisInit.permissions.exists?("revoked_token/#{token}")
+      return {error: "Invalid token", skip_on_token_check: true, invalid_token: true}
+    end
     cached = RedisInit.permissions.get("user_token/#{token}")
     res = {}
     if cached
@@ -374,7 +392,12 @@ class Device < ApplicationRecord
         user.permission_scopes = scopes
 
         store = [user_id, device_id, PermissionScopesNormalize.for_api(scopes).join(','), valet_mode].join("::")
-        Permissions.setex(RedisInit.permissions, "user_token/#{token}", 12.hours.to_i, store) if !res[:error]
+        if res[:cached] && !res[:error]
+          # EXPIRE, not SETEX: it keeps an active session going but cannot recreate a deleted entry
+          RedisInit.permissions.expire("user_token/#{token}", 12.hours.to_i)
+        elsif !res[:cached] && !res[:error]
+          Permissions.setex(RedisInit.permissions, "user_token/#{token}", 12.hours.to_i, store)
+        end
         res[:user] = user
         user.assert_valet_mode! if valet_mode
         res[:device_id] = device_id
@@ -399,7 +422,7 @@ class Device < ApplicationRecord
           do_save = true
         end
       end
-      User.where(['id = ? and updated_at < ?', self.user_id, 24.hours.ago]).update_all(updated_at: Time.now)
+      touch_user_activity
     end
     if app_version && self.settings['app_version'] != app_version
       self.settings['app_version'] = app_version
@@ -410,6 +433,14 @@ class Device < ApplicationRecord
     end
     self.save if do_save
     !!(key && !key['needs_refresh'])
+  end
+
+  # Marks the device's user active (updated_at), at most once a day, when a token is issued
+  # (any sign-in: password, SSO, native long token, integration refresh) or used after 15 idle
+  # minutes. updated_at is the inactivity sweep's activity clock: use after the sweep scheduled a
+  # deletion cancels it (User.scheduled_deletion_proceeds?).
+  def touch_user_activity
+    User.where(['id = ? and updated_at < ?', self.user_id, 24.hours.ago]).update_all(updated_at: Time.now)
   end
   
   def tokens

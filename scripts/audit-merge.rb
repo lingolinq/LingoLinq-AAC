@@ -78,6 +78,10 @@ SCOT_OWNED_CLOSED = %w[verified-closed accepted-risk superseded remediated-unver
 SCOT_OWNED_DISPOSITIONS = %w[accepted fixed dismissed-false-positive wontfix].freeze
 # The only status this script is ever allowed to assign.
 ASSIGNABLE_STATUS = 'open'
+# The only disposition this script may write if it writes one (Scot owns every other value).
+# The create path currently omits the key; the invariant still refuses any other value on a
+# just-created row.
+ASSIGNABLE_DISPOSITION = 'untriaged'
 
 # --- PII / secret detection (mirrors scripts/promote-finding.rb + lib/pii_scrubber.rb) -----------
 # The register is code/path evidence only (PII-free, Tier 2 content). A finder finding
@@ -215,6 +219,8 @@ summary = { 'auditedSha' => run_sha, 'auditedDate' => run_date,
             'restampedMeta' => !opts[:no_restamp],
             'new' => [], 'reseen' => [], 'regressions' => [],
             'severityChangeCandidates' => [], 'skipped' => [] }
+# ids this invocation actually created (see the end-of-run invariant below).
+created_ids = []
 
 opts[:ins].each do |path|
   die("input not found: #{path}") unless File.file?(path)
@@ -227,6 +233,11 @@ opts[:ins].each do |path|
       summary['skipped'] << { 'input' => path, 'reason' => "unparseable JSON: #{e.message[0, 120]}" }
       next
     end
+  # A restamp claims the whole tree was audited at --sha, so output from any other commit (a leftover
+  # file) cannot feed one. Nothing is written yet, so this refuses the whole merge.
+  unless opts[:no_restamp] || (doc.is_a?(Hash) && doc['auditedSha'] == run_sha)
+    die("#{path}: its auditedSha is not the SHA being restamped (#{run_sha}); nothing was written")
+  end
   domain = doc.is_a?(Hash) ? (doc['domain'] || 'unknown') : 'unknown'
   incoming = doc.is_a?(Hash) ? (doc['findings'] || []) : Array(doc)
 
@@ -346,15 +357,31 @@ opts[:ins].each do |path|
       }
       findings << record
       by_id[id] = record
+      created_ids << id
       summary['new'] << { 'id' => id, 'ruleKey' => rule_key, 'severity' => sev, 'domain' => domain, 'file' => anchor }
     end
   end
 end
 
-# Invariant: this script must never have produced a closed/accepted/superseded status.
+# Invariant: this script must never have produced a Scot-owned status or a non-untriaged
+# disposition on a finding it just created THIS RUN. Checked against `created_ids`, the ids this
+# very invocation added to `findings` above -- NOT a `firstSeen == run_date` date-string match,
+# which also matches a row an EARLIER invocation created today and that Scot (or a direct
+# register edit) has since moved to a Scot-owned status: that row's re-find in THIS run only takes
+# the reseen/regression branch above, which never writes status or disposition, so it cannot be
+# what this invariant is checking for, and a date-proxy match on it is a false positive that would
+# abort the whole batch under a diagnostic ("assigned a Scot-owned status") this run did not do
+# (issue #1022; the same created_ids form in scripts/promote-finding.rb is kept in lockstep by
+# hand. The previous conjunction `status == ASSIGNABLE_STATUS && SCOT_OWNED_CLOSED` was dead:
+# ASSIGNABLE_STATUS is 'open', which is not in SCOT_OWNED_CLOSED, so the branch never ran).
 findings.each do |f|
-  if f['status'] == ASSIGNABLE_STATUS && f['firstSeen'] == run_date && SCOT_OWNED_CLOSED.include?(f['status'])
+  next unless created_ids.include?(f['id'])
+  if SCOT_OWNED_CLOSED.include?(f['status'])
     die("invariant violation: assigned a Scot-owned status to #{f['id']}")
+  end
+  disp = f.dig('disposition', 'state')
+  if disp && disp != ASSIGNABLE_DISPOSITION
+    die("invariant violation: assigned disposition #{disp.inspect} to #{f['id']} (only Scot triages)")
   end
 end
 

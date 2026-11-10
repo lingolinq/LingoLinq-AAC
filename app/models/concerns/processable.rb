@@ -1,4 +1,7 @@
 require 'sanitize'
+# Required explicitly, not left to Zeitwerk, so this stays loadable where lib/ autoload is
+# skipped (RESQUE_WORKER=='true'), as in board.rb.
+require_relative '../../../lib/legacy_links'
 
 module Processable
   extend ActiveSupport::Concern
@@ -87,7 +90,7 @@ module Processable
       stash = JobStash.create
       stash.data = {'key' => key, 'value' => value, 'save_method' => save_method}
       stash.save
-      schedule(:update_setting, 'job_stash', stash.global_id)
+      ActiveRecord.after_all_transactions_commit { schedule(:update_setting, 'job_stash', stash.global_id) } # once the stash commits
       'pending'
     end
   end
@@ -113,7 +116,7 @@ module Processable
   end
   
   def process_license(license)
-    self.settings['license'] = OBF::Utils.parse_license(license);
+    self.settings['license'] = LegacyLinks.normalize_license(OBF::Utils.parse_license(license));
   end
   
   def process_string(str)

@@ -332,7 +332,7 @@ module Flusher
   def self.flush_deleted_users
     users = User.where(['schedule_deletion_at < ?', Time.now]).limit(500).select('id, user_name')
     users.each do |user|
-      Worker.schedule(Flusher, :flush_user_completely, user.global_id, user.user_name)
+      Worker.schedule(Flusher, :flush_user_completely, user.global_id, user.user_name) if User.scheduled_deletion_proceeds?(user.id)
     end
     users.count
   end
@@ -484,6 +484,8 @@ module Flusher
   
   def self.flush_user_completely(user_id, user_name)
     user = find_user(user_id, user_name)
+    # an inactivity-sweep deletion cancelled by use of the account since the flush was enqueued
+    return false unless User.scheduled_deletion_proceeds?(user.id)
     flush_user_content(user_id, user_name)
     # TODO: remove any public comments by the user
     LogSession.where(:author_id => user.id).each do |note|

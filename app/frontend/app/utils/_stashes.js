@@ -502,13 +502,13 @@ var stashes = EmberObject.extend({
           button: obj
         };
         stashes.notify_observers(obj);
-      } else if(obj.tallies) {
+      } else if(obj.tallies || (obj.assessment && obj.assessment.tallies)) {
         log_event = {
           type: 'assessment',
           timestamp: timestamp,
           user_id: user_id,
           geo: geo,
-          assessment: obj
+          assessment: obj.tallies ? obj : obj.assessment
         };
       } else if(obj.mastery_cutoff) {
         log_event = {
@@ -601,7 +601,7 @@ var stashes = EmberObject.extend({
       log_event.window_width = window.outerWidth;
       log_event.window_height= window.outerHeight;
 
-      if(log_event) {
+      if(keep_offline_goal_fields(log_event, obj)) {
         stashes.last_id = stashes.last_id || 1;
         if(stashes.last_id > 50000) { stashes.last_id = 1; }
         stashes.id_seed = stashes.id_seed || Math.floor(Math.random() * 10);
@@ -880,4 +880,16 @@ var stashes_export = new Proxy(stashes, {
     return prop in target;
   }
 });
+// A note or a goal assessment recorded offline (record-note, quick-assessment) keeps the fields
+// the server reads from the queued event (LogSession#split_out_later_sessions): the goal and its
+// status, the video and notify. Returns the event, so log_event's check reads as before.
+function keep_offline_goal_fields(log_event, obj) {
+  if(log_event && obj && (log_event.type == 'note' || (log_event.type == 'assessment' && obj.assessment))) {
+    ['goal_id', 'goal_status', 'video_id', 'notify'].forEach(function(key) {
+      if(obj[key] != null) { log_event[key] = obj[key]; }
+    });
+  }
+  return log_event;
+}
+
 export default stashes_export;

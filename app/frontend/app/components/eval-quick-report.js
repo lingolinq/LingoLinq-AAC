@@ -262,10 +262,9 @@ export default Component.extend({
         } else {
           _this.get('router').transitionTo('board', board.key);
         }
-      }, function(err) {
+      }, function() {
         _this.set('buildingBoard', false);
-        const msg = (err && err.error) || i18n.t('eval_build_board_failed', "Could not build the starter board. Please try again.");
-        _this.set('buildError', msg);
+        _this.set('buildError', i18n.t('eval_build_board_failed', "Could not build the starter board. Please try again."));
       });
     }
   }

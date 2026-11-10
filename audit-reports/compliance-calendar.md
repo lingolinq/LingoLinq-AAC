@@ -18,15 +18,12 @@
 | 2026-09-01 | OpenRouter ZDR re-verification (after every key rotation, plus quarterly) | SOC2 | event-driven + quarterly |
 | 2026-09-01 | Google Gemini API fallback path BAA/DPA verification | HIPAA | annual |
 | 2026-09-01 | Mechanical secret-shaped-string rejector in audit toolchain (LL-b5c30235d3) | SOC2 | one-time |
-| 2026-10-09 | Q3 2026 /audit-run make-up pass (partial-coverage gaps) | SOC2 | one-time |
-| 2026-10-16 | Monthly light /audit-run (diff-since-last-run scope, no full re-scan) | SOC2 | monthly |
 
 ## Recurring reviews (full set)
 
 | Framework | Review | Cadence | Last done | Next due |
 |---|---|---|---|---|
-| SOC2 | Full /audit-run (6 finders, full scope) + adversary verify - all frameworks | quarterly | 2026-09-16 | 2026-12-16 |
-| SOC2 | Monthly light /audit-run (diff-since-last-run scope, no full re-scan) | monthly | 2026-08-18 | 2026-10-16 |
+| SOC2 | Annual formal /audit-run (6 finders, full scope) + adversary verify - all frameworks | annual | 2026-09-16 | 2027-09-16 |
 | FERPA | FERPA vendor-disclosure + directory-info posture review | annual | (none) | 2026-09-01 |
 | HIPAA | HIPAA Security Rule risk assessment + BAA inventory review | annual | 2026-02-01 | 2027-02-01 |
 | GDPR | GDPR DPA + RoPA + data-residency review | annual | (none) | 2026-09-01 |
@@ -39,25 +36,18 @@
 | SOC2 | Mechanical secret-shaped-string rejector in audit toolchain (LL-b5c30235d3) | one-time | (none) | 2026-09-01 |
 | FERPA | District DPA / SDPC NDPA renewals + registry listing | per-contract (track renewal dates as they are signed) | (none) | (none) |
 | HIPAA | Re-brand + re-share BREACH_RUNBOOK Drive mirror to v2.2.2 (DOC-f576f43250) | one-time | (none) | 2026-08-31 |
-| SOC2 | Q3 2026 /audit-run make-up pass (partial-coverage gaps) | one-time | (none) | 2026-10-09 |
+| SOC2 | Q3 2026 /audit-run make-up pass (partial-coverage gaps) | one-time | 2026-10-31 | (none) |
 
 ## Review instructions, regulatory watch, and basis
 
 The following details are part of each recurring review record. They are rendered so missed-cycle
 context, required work, and the source basis remain visible with the schedule.
 
-### Full /audit-run (6 finders, full scope) + adversary verify - all frameworks
+### Annual formal /audit-run (6 finders, full scope) + adversary verify - all frameworks
 
-- **Drafts:** Full fan-out: privacy/infra/api/dependency/accessibility/code-hygiene finders over the whole codebase, reconcile into FINDINGS.json via audit-merge.rb, adversary-verify every new/regressed finding in fresh context, citation-check green, render the quarterly unified report. Headline = open Critical/High counts (not a synthetic score).
-- **Watch:** Quarterly heavy run catches drift across the full surface. Schedule early in the weekly Pro/Max plan window (heavy parallel Opus consumes weekly caps). First full run on the migrated .claude/ system was 2026-06-14 (audited SHA 1aa5d2db). Q3 2026 run (2026-09-16) had PARTIAL coverage (finders without checklist skills or read-only guard, no AWS read, no bundle-audit, accessibility static only); its make-up pass is due before the October monthly light run.
-- **Basis:** plan 5.1, 9.1 (decision: quarterly full + monthly light); .claude/skills/audit-run cadence section
-- **Linked findings:** (none recorded)
-
-### Monthly light /audit-run (diff-since-last-run scope, no full re-scan)
-
-- **Drafts:** Diff-scoped run: finders scan only what changed since the last run (orchestrator steps 0-5), reconcile + adversary-verify new/regressed findings, citation-check green. No quarterly report render unless something material surfaces.
-- **Watch:** Light run is steps 0-5 only (no full re-scan, no quarterly report). Catches regressions between heavy runs without burning plan-cap headroom. nextDue is advisory scheduling, not a compliance claim. 2026-09-17: before the October light run, complete the Q3 make-up pass Scot approved with the partial-coverage restamp (finders spawned so checklist skills and the read-only guard load, verified by a guard canary; bundle-audit; AWS account-level read).
-- **Basis:** plan 5.1, 9.1; .claude/skills/audit-run cadence section
+- **Drafts:** Full fan-out: privacy/infra/api/dependency/accessibility/code-hygiene finders over the whole codebase, reconcile into FINDINGS.json via audit-merge.rb, adversary-verify every new/regressed finding in fresh context, citation-check green, render the unified report, then Scot's sign-off stamp PR. Headline = open Critical/High counts (not a synthetic score).
+- **Watch:** One formal full run per year (Scot, 2026-11-07), replacing the quarterly full plus monthly light cadence. /audit-run stays available for ad hoc runs in full or light mode; an ad hoc run needs no sign-off stamp PR and does not update lastDone here. lastDone 2026-09-16 is the last full-scope run (Q3 2026, partial coverage; its make-up pass, rev-audit-run-q3-makeup, was done 2026-10-31). nextDue 2027-09-16 set by Scot on 2026-11-08. Schedule early in the weekly Pro/Max plan window (heavy parallel Opus consumes weekly caps).
+- **Basis:** Scot decision 2026-11-07 (annual formal run; ad hoc runs need no sign-off stamp PR); replaces plan 5.1, 9.1 (quarterly full + monthly light); .claude/skills/audit-run cadence section
 - **Linked findings:** (none recorded)
 
 ### FERPA vendor-disclosure + directory-info posture review
@@ -84,7 +74,7 @@ context, required work, and the source basis remain visible with the schedule.
 ### Subprocessor list review (SUBPROCESSORS.md)
 
 - **Drafts:** updated subprocessor inventory + change notice draft (GDPR Art. 28(2) prior-notice posture)
-- **Watch:** any new third-party data processor added to the stack triggers an off-cycle review. MISSED CYCLE, THEN PERFORMED: lastDone was null and nextDue 2026-09-01 until 2026-08-07, while docs/legal/SUBPROCESSORS.md recorded its last full line-by-line review as 2026-04-20. On a quarterly cadence from 2026-04-20 a cycle fell due 2026-07-20 and was not performed. Re-dating past that gap would have hidden an overdue Article 28 review because, at the time, the renderer surfaced only nextDue and never this field, so the CEO directed on 2026-08-08 that the review be PERFORMED instead. It was: every external host in lib/, app/models/, app/controllers/ and config/ was reconciled against the section 4 table, and it found two active processors absent from the register (Stripe, and iplocate.io, the latter with an ungated call site raised as LL-07f1869d92). Findings are recorded in SUBPROCESSORS.md section 4.1 and its 2026-08-08 change-log entry. lastDone 2026-08-08 reflects that performed review; nextDue 2026-11-08 is one quarter on. Note the many dated amendments in the change log are per-change updates, not the periodic full-register review this item tracks.
+- **Watch:** any new third-party data processor added to the stack triggers an off-cycle review. MISSED CYCLE, THEN PERFORMED: lastDone was null and nextDue 2026-09-01 until 2026-08-07, while docs/legal/SUBPROCESSORS.md recorded its last full line-by-line review as 2026-04-20. On a quarterly cadence from 2026-04-20 a cycle fell due 2026-07-20 and was not performed. Re-dating past that gap would have hidden an overdue Article 28 review because, at the time, the renderer surfaced only nextDue and never this field, so the CEO directed on 2026-08-08 that the review be PERFORMED instead. It was: every external host in lib/, app/models/, app/controllers/ and config/ was reconciled against the section 4 table, and it found two active processors absent from the register (Stripe, and one tracked as LL-07f1869d92). Findings are recorded in SUBPROCESSORS.md section 4.1 and its 2026-08-08 change-log entry. lastDone 2026-08-08 reflects that performed review; nextDue 2026-11-08 is one quarter on. Note the many dated amendments in the change log are per-change updates, not the periodic full-register review this item tracks. Amended 2026-11-06 under rule 4: a finding's detail was removed from this text (Scot Wahlquist).
 - **Basis:** plan 1.3, 2.5; docs/legal/SUBPROCESSORS.md
 - **Linked findings:** (none recorded)
 
@@ -162,7 +152,7 @@ context, required work, and the source basis remain visible with the schedule.
 
 - **Drafts:** Re-run the six finders with checklist skills and the read-only guard verified by a canary; run bundle-audit; take an AWS account-level read; merge into FINDINGS.json and record in runs.jsonl.
 - **Watch:** Approved by Scot on 2026-09-17 as the condition for keeping the Q3 audit pointer with a partial-coverage qualifier. Due before the October monthly light run.
-- **Basis:** Scot decision 2026-09-17; LL-c667ec15e3
+- **Basis:** Scot decision 2026-09-17; LL-c667ec15e3. Done 2026-10-31 (partial coverage, PR #1249); Scot counted it as the make-up pass on 2026-11-05.
 - **Linked findings:** (none recorded)
 
 ## Fixed regulatory dates
@@ -172,7 +162,7 @@ context, required work, and the source basis remain visible with the schedule.
 | **2026-04-22** | **passed enforceable** | Written data-retention policy with enforced deletion; written information security program; expanded PI (voiceprints,... | COPPA |
 | **2026-08-02** | **passed enforceable** | Disclose AI interaction to users; label synthetic/AI-generated content; deepfake identification. Applies to ANY in-sc... | EU AI Act |
 | 2026-12-02 | upcoming | The 2026-12-02 grace on the Article 50(2) machine-readable marking sub-obligation comes from the Digital Omnibus on A... | EU AI Act |
-| 2027-04-24 | upcoming | WCAG 2.1 AA for web content of large public entities (April-2026 IFR extended the date). Small entities: 2028-04. Lin... | WCAG |
+| 2027-04-26 | upcoming | WCAG 2.1 AA for web content of large public entities (April-2026 IFR extended the date). Small entities and special d... | WCAG |
 | 2027-12-02 | upcoming | High-risk obligations for Annex III systems (deferred from earlier by the Digital Omnibus). An AAC word predictor is ... | EU AI Act |
 | (conditional) | conditional | EAA enforceable since 2025-06. LingoLinq is likely inside the microenterprise exemption (<10 staff AND <EUR 2M turnov... | EAA |
 | (conditional) | conditional | docs/legal/SUBPROCESSORS.md §2 commits to 30 days advance notice before any subprocessor change that affects a tenant... | GDPR |

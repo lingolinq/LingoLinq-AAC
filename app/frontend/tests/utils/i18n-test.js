@@ -980,7 +980,9 @@ describe("i18n", function() {
   });
   describe("date", function() {
     it("should return the correct value", function() {
-      var d = new Date(1474326397835);
+      // Local time, so the formatted day is the same in every timezone: the epoch 1474326397835 is
+      // 23:06 UTC on Sep 19, already Sep 20 east of UTC, and failed there.
+      var d = new Date(2016, 8, 19, 18, 6, 37, 835);
       expect(templateHelpers.date(d, 'day')).toEqual('September 19th 2016');
       expect(templateHelpers.date(d, 'short_day')).toEqual('Sep 19th 2016');
       expect(templateHelpers.date(d, 'whatever')).toEqual(window.moment(d).format('MMMM Do YYYY, h:mm a'));

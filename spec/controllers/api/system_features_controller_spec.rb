@@ -84,6 +84,19 @@ describe Api::SystemFeaturesController, type: :controller do
       expect(SystemFeatureSettings.default_enabled_features).to eq(['goals', 'lessons'])
     end
 
+    it 'persists an empty enabled list' do
+      make_site_admin
+      put :update, params: {org_id: 'default', enabled_features: []}, as: :json
+      expect(response).to have_http_status(:ok)
+      expect(SystemFeatureSettings.default_enabled_features).to eq([])
+    end
+
+    it 'rejects a save that omits enabled_features' do
+      make_site_admin
+      put :update, params: {org_id: 'default'}, as: :json
+      assert_error('enabled_features required', 400)
+    end
+
     it 'persists canary group features' do
       make_site_admin
       put :update, params: {org_id: 'group:canary', enabled_features: ['goals']}

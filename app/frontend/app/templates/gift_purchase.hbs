@@ -78,13 +78,13 @@
                 {{else}}
                   $295
                 {{/if}}
-                <br><span class='text-muted money-smaller' style='display: block; line-height: 14px; margin-top: 10px; '>{{t "<a href='https://blog.mylingolinq.com/what-in-the-world-are-aac-cloud-extras/' target='_blank' rel='noopener'>cloud extras</a><br>credit included" key="5_years_cloud_extras"}}</span>
+                <br><span class='text-muted money-smaller' style='display: block; line-height: 14px; margin-top: 10px; '>{{t "cloud extras<br>credit included" key="5_years_cloud_extras"}}</span>
               </button>
             </div>
             <div>
               <label style='margin-top: 15px; font-size: 20px;'>
                 <input type="checkbox" checked={{this.subscription.extras}} {{on "change" (set-field this "subscription.extras" "checkbox")}} />
-                <img src="https://lingolinq.s3.amazonaws.com/icons/lessonpix_symbolstix_pcs.png" style="width: 60px; margin-left: 0px;" >
+                <img src={{path "images/lessonpix_symbolstix_pcs.png"}} alt="" style="width: 60px; margin-left: 0px;" >
                 {{t "Add LessonPix, SymbolStix & PCS (BoardMaker) by Tobii Dynavox ($25)" key="include_extras"}}
               </label>
               <label style='margin-top: 15px; font-size: 20px;'>

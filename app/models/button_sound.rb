@@ -55,11 +55,16 @@ class ButtonSound < ApplicationRecord
       # Also "not permitted," not a failure. Both return false for a nil user.
       return if FeatureFlags.coppa_blocks_ai_for?(self.user)
       return if FeatureFlags.eu_under16_blocks_ai_for?(self.user)
-      # The org-wide disable_ai_features switch. Transcription is Google speech
-      # recognition, a standard service like text-to-speech and translation, so it
-      # is not gated by the account's personal AI preference (2026-09-30), which
-      # now defaults to off.
+      # The org-wide disable_ai_features switch.
       return unless FeatureFlags.ai_enabled_for?(self.user)
+      # The account's personal "Allow AI features" preference. Transcription is Google
+      # speech recognition, a standard service, so it keeps running while that preference
+      # was never set (AI features default to off, 2026-09-30); but an explicit opt-out
+      # stops it, so a recording is not sent to Google after the person turned AI off
+      # (2026-10-22). Only a recognizable "off" counts (FeatureFlags.ai_pref_value: false,
+      # 'false', 0, '0'); never set, blank or anything else still transcribes. Read from
+      # the recording's owner, as every check above is.
+      return if User.ai_features_opted_out?(self.user)
       if frd
         language_code, alternative_codes = SpeechLanguage.for_recording(self.settings['locale'], self.user)
         if !language_code
@@ -139,7 +144,9 @@ class ButtonSound < ApplicationRecord
     params[:upload_url] + self.settings['secondary_output']['filename']
   end
   
+  # Returns the number of records queued; the scheduler logs it (scheduler.rake:62,153).
   def self.schedule_missing_transcodings
+    scheduled = 0
     ButtonSound.where("url NOT LIKE '%.mp3'").where(['created_at > ?', 2.weeks.ago]).each do |bs|
       if bs.settings['extra_transcoding_attempts'] && bs.settings['extra_transcoding_attempts'] > 1
       elsif bs.settings['transcoding_in_progress'] && bs.updated_at > 48.hours.ago
@@ -147,6 +154,8 @@ class ButtonSound < ApplicationRecord
         bs.settings['extra_transcoding_attempts'] ||= 0
         bs.settings['extra_transcoding_attempts'] += 1
         bs.schedule_transcoding(true)
+        # schedule_transcoding queues nothing without a full_filename (media_object.rb:85)
+        scheduled += 1 if bs.settings['full_filename']
       end
     end
 
@@ -157,8 +166,10 @@ class ButtonSound < ApplicationRecord
         bs.settings['extra_transcoding_attempts'] ||= 0
         bs.settings['extra_transcoding_attempts'] += 1
         bs.schedule_transcoding(true)
+        scheduled += 1 if bs.settings['full_filename']
       end
     end
+    scheduled
   end
   
   

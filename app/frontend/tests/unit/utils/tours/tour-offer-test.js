@@ -4,7 +4,6 @@ import EmberObject from '@ember/object';
 import RSVP from 'rsvp';
 import utterance from 'frontend/utils/utterance';
 import speecher from 'frontend/utils/speecher';
-import stashes from 'frontend/utils/_stashes';
 import { maybe_offer_tour, accept_tour_offer, dismiss_tour_offer } from 'frontend/utils/tours/tour_offer';
 import { start_talking_now } from 'frontend/utils/tours/start_talking';
 
@@ -74,25 +73,31 @@ module('Unit | Utility | tours | tour offer', function(hooks) {
   });
 
   test('speaking a message makes the offer', function(assert) {
-    assert.expect(1);
+    assert.expect(2);
     var u = user();
     var as = appState(u);
     as.set('button_list', [{ label: 'hello' }]);
     var prevAppState = utterance.appState;
     var prevVocalized = utterance.get('list_vocalized');
     var speak = speecher.speak_collection;
-    var log = stashes.log;
     speecher.speak_collection = function() {};
-    stashes.log = function() {};
+    // The utterance logs through `stashes`, a proxy (utils/_stashes.js) that forwards reads to the
+    // stashes service in window.stashes and has no set trap: assigning to it lands on the util object,
+    // not the service. So stub this test's own service (looking it up makes it window.stashes) and put
+    // its own prototype method back by deleting the own property afterwards.
+    var stashesService = this.owner.lookup('service:stashes');
+    var logged = 0;
+    stashesService.log = function() { logged++; };
     try {
       utterance.appState = as;
       utterance.vocalize_list(null, {});
       assert.true(as.get('tour_offer_visible'), 'offered after the message');
+      assert.ok(logged > 0, 'the utterance logged through the stubbed stashes service');
     } finally {
       utterance.appState = prevAppState;
       utterance.set('list_vocalized', prevVocalized); // so the next suite starts with the utterance as it was
       speecher.speak_collection = speak;
-      stashes.log = log;
+      delete stashesService.log;
     }
   });
 

@@ -6,13 +6,14 @@ class OrganizationUnit < ApplicationRecord
   include SecureSerialize
   secure_serialize :settings
   before_save :generate_defaults
+  after_destroy :schedule_destroyed_unit_cleanup
   include Replicate
 
   belongs_to :organization
   belongs_to :user_goal, optional: true  # units can exist without a goal
   
-  add_permissions('view', 'view_stats') {|user| self.supervisor?(user) }
-  add_permissions('view', 'edit', 'view_stats') {|user| self.supervisor?(user, true) }
+  add_permissions('view', 'view_stats') {|user| self.organization && self.supervisor?(user) }
+  add_permissions('view', 'edit', 'view_stats') {|user| self.organization && self.supervisor?(user, true) }
   add_permissions('view', 'edit', 'delete') {|user| self.organization && self.organization.allows?(user, 'edit') }
   add_permissions('view', 'view_stats', 'edit', 'delete') {|user| self.organization && self.organization.allows?(user, 'manage') }
   
@@ -92,7 +93,8 @@ class OrganizationUnit < ApplicationRecord
     link = UserLink.generate(user, self, 'org_unit_supervisor')
     link.data['state']['user_name'] = user.user_name
     link.data['state']['edit_permission'] = true if edit_permission
-    link.save
+    # back in the room: a removal still pending for them is dropped (room_member_removal)
+    member_removal_done(user, 'supervisor') if link.save
 #     assert_list('supervisors', user.global_id)
 #     self.settings['supervisors'] << {
 #       'user_id' => user.global_id,
@@ -128,6 +130,7 @@ class OrganizationUnit < ApplicationRecord
     return false unless user && org
     UserLink.remove(user, self, 'org_unit_supervisor')
     assert_list('supervisors', user.global_id)
+    record_member_removal(user, 'supervisor')
     schedule(:assert_supervision, {user_id: user.global_id, remove_supervisor: user_name})
     true
     self.save
@@ -139,7 +142,8 @@ class OrganizationUnit < ApplicationRecord
     return false unless user && org && org.managed_user?(user) && !org.pending_user?(user)
     link = UserLink.generate(user, self, 'org_unit_communicator')
     link.data['state']['user_name'] = user.user_name
-    link.save
+    # back in the room: a removal still pending for them is dropped (room_member_removal)
+    member_removal_done(user, 'communicator') if link.save
 #     assert_list('communicators', user.global_id)
 #     self.settings['communicators'] << {
 #       'user_id' => user.global_id,
@@ -156,6 +160,7 @@ class OrganizationUnit < ApplicationRecord
     return false unless user && org
     UserLink.remove(user, self, 'org_unit_communicator')
     assert_list('communicators', user.global_id)
+    record_member_removal(user, 'communicator')
     schedule(:assert_supervision, {user_id: user.global_id, remove_communicator: user_name})
     true
     self.save
@@ -173,11 +178,66 @@ class OrganizationUnit < ApplicationRecord
     end
   end
   
+  # A room's links (org_unit_supervisor, org_unit_communicator) and the supervision links it made
+  # outlive the room (no dependent: option), and Organization.clean_up_destroyed reads only the
+  # rooms that still exist. The destroy records the cleanup in its transaction (the durable row,
+  # with the deleting actor captured from the request) and enqueues it after commit; the row is
+  # released by OrganizationUnit.clean_up_destroyed when it completes, and
+  # RemoteAction#process_action re-queues it if the job is lost.
+  def schedule_destroyed_unit_cleanup
+    unit_id = self.global_id
+    RemoteAction.create(path: unit_id, action: 'clean_up_destroyed_unit', act_at: Time.now,
+      extra: {'organization_id' => self.organization_id, 'actor' => Organization.deleting_actor}.to_json)
+    ActiveRecord.after_all_transactions_commit do
+      OrganizationUnit.schedule(:clean_up_destroyed, unit_id)
+    end
+    true
+  end
+
+  # Takes a deleted room off its members' supervision links (User.strip_rooms_from_supervision,
+  # each pair under the supervisee's lock: only a link the room alone made is removed, and each
+  # removal is recorded), then removes the room's own links. Fail-closed: an error leaves the row
+  # and the room's links in place, so the retry still finds every pair. Idempotent.
+  def self.clean_up_destroyed(unit_id)
+    rows = RemoteAction.where(path: unit_id, action: 'clean_up_destroyed_unit')
+    data = rows.map{|r| JSON.parse(r.extra) rescue nil }.compact.first
+    return true unless data
+    org_id = data['organization_id']
+    links = UserLink.where(record_code: "OrganizationUnit:#{unit_id}").select{|l| ['org_unit_supervisor', 'org_unit_communicator'].include?(l.data['type']) }
+    supervisors = User.where(id: links.select{|l| l.data['type'] == 'org_unit_supervisor' }.map(&:user_id).uniq).to_a
+    communicators = User.where(id: links.select{|l| l.data['type'] == 'org_unit_communicator' }.map(&:user_id).uniq).to_a
+    if supervisors.length > 0 && communicators.length > 0
+      org_code = "Organization:#{Organization.new(id: org_id).global_id}"
+      staff_since = Organization.staff_since_for(org_code, supervisors.map(&:id)).transform_values{|at| Time.iso8601(at) }
+      User.strip_rooms_from_pairs(supervisors.product(communicators), [unit_id], staff_since, org_id, data['actor'] || {}, reason: 'organization_unit_deleted')
+    end
+    # members taken out of the room whose removal had not run yet: the room no longer lists them
+    member_rows = RemoteAction.where(action: 'room_member_removal').where('path LIKE ?', "#{ActiveRecord::Base.sanitize_sql_like(unit_id)}::%")
+    error = nil
+    member_rows.each do |row|
+      _, user_id, kind = row.path.split(/::/)
+      user = User.find_by_global_id(user_id)
+      begin
+        strip_deleted_room_member(unit_id, user, kind, org_id, data['actor'] || {}) if user
+      rescue StandardError => e
+        error ||= e
+      end
+    end
+    raise error if error
+    links.each(&:destroy)
+    member_rows.delete_all
+    rows.delete_all
+    true
+  end
+
   def self.supervised_units(user)
     return [] unless user
     links = UserLink.links_for(user).select{|l| l['type'] == 'org_unit_supervisor' }
     ids = links.select{|l| l['user_id'] == user.global_id }.map{|l| l['record_code'].split(/:/)[1] }
-    OrganizationUnit.find_all_by_global_id(ids).uniq
+    units = OrganizationUnit.find_all_by_global_id(ids).uniq
+    # a destroyed organization's rooms keep their links until Organization.clean_up_destroyed runs
+    live_org_ids = Organization.where(id: units.map(&:organization_id).uniq).pluck(:id)
+    units.select{|u| live_org_ids.include?(u.organization_id) }
   end
 
   def retire_goal_for(user, goal, force_conclude=false)
@@ -281,7 +341,7 @@ class OrganizationUnit < ApplicationRecord
     supervisors.each do |sup|
       edit_permission = !!supervisor_links.detect{|l| l['user_id'] == sup.global_id && l['state'] && l['state']['edit_permission'] }
       communicators.each do |comm|
-        User.link_supervisor_to_user(sup, comm, nil, !!edit_permission, self.global_id)
+        link_room_pair(sup, comm, !!edit_permission)
       end
     end
   end
@@ -289,34 +349,172 @@ class OrganizationUnit < ApplicationRecord
   def assert_supervision(opts={})
     ref_user = User.find_by_path(opts['user_id'])
     return false unless ref_user
+    # A job queued before the organization was destroyed must not link its rooms' members
+    # afterwards; a removal still applies (strip_destroyed_org_supervision).
+    return strip_destroyed_org_supervision(ref_user, opts) unless self.organization
 
-    links = UserLink.links_for(self)
+    # read fresh: who is in the room now decides a queued removal and who a queued add links
+    links = UserLink.links_for(self, true)
     communicator_ids = links.select{|l| l['type'] == 'org_unit_communicator' }.map{|l| l['user_id'] }.uniq
     supervisor_links = links.select{|l| l['type'] == 'org_unit_supervisor' }
     supervisor_ids = supervisor_links.map{|l| l['user_id'] }.uniq
     communicators = User.find_all_by_global_id(communicator_ids)
     supervisors = User.find_all_by_global_id(supervisor_ids)
 
+    # a member put back in the room since the removal was queued keeps the room's supervision:
+    # the removal only completes its row (decided per pair under the lock, unlink_room_pair)
     if opts['remove_supervisor']
-      communicators.each do |user|
-        User.unlink_supervisor_from_user(ref_user, user, self.global_id)
+      unless supervisor_ids.include?(ref_user.global_id)
+        communicators.each do |user|
+          unlink_room_pair(ref_user, user, ref_user, 'org_unit_supervisor')
+        end
       end
+      member_removal_done(ref_user, 'supervisor')
     elsif opts['remove_communicator']
       self.schedule(:assert_goal)
-      supervisors.each do |user|
-        User.unlink_supervisor_from_user(user, ref_user, self.global_id)
+      unless communicator_ids.include?(ref_user.global_id)
+        supervisors.each do |user|
+          unlink_room_pair(user, ref_user, ref_user, 'org_unit_communicator')
+        end
       end
+      member_removal_done(ref_user, 'communicator')
     elsif opts['add_supervisor']
       edit_permission = !!supervisor_links.detect{|l| l['user_id'] == ref_user.global_id && l['state'] && l['state']['edit_permission'] }
       communicators.each do |user|
-        User.link_supervisor_to_user(ref_user, user, nil, edit_permission, self.global_id)
+        link_room_pair(ref_user, user, edit_permission)
       end
     elsif opts['add_communicator']
       self.schedule(:assert_goal)
       supervisors.each do |user|
         edit_permission = !!supervisor_links.detect{|l| l['user_id'] == user.global_id && l['state'] && l['state']['edit_permission'] }
-        User.link_supervisor_to_user(user, ref_user, nil, edit_permission, self.global_id)
+        link_room_pair(user, ref_user, edit_permission)
       end
     end
+  end
+
+  # Links a supervisor to a communicator for this room, under the supervisee's lock and only while
+  # the room and its organization still exist, read under that lock: a job that loaded the room
+  # before it (or its district) was deleted must not put it back on a link after the cleanup took
+  # it off. The cleanup takes the same lock per pair, so either it runs after this link (and
+  # strips it) or this reads the committed deletion.
+  #
+  # Both must also still be in the room, read fresh under the lock: a removal that landed after
+  # the job read the room is followed (its own job, taking the same lock, unlinks either before
+  # this reads or after this links).
+  def link_room_pair(supervisor, communicator, edit_permission)
+    User.with_supervision_lock(communicator) do
+      next false unless OrganizationUnit.where(id: self.id).exists? && Organization.where(id: self.organization_id).exists?
+      next false unless room_member?(supervisor, 'org_unit_supervisor') && room_member?(communicator, 'org_unit_communicator')
+      User.link_supervisor_to_user(supervisor, communicator, nil, edit_permission, self.global_id)
+    end
+  end
+
+  # Takes this room off a supervisor-communicator link for a member taken out of the room
+  # (removed: that member, kind: their room link type), under the supervisee's lock, unless the
+  # member is back in the room, read fresh under the lock: a re-add that landed after the job
+  # read the room keeps the room's supervision (its add job, taking the same lock, links after).
+  def unlink_room_pair(supervisor, communicator, removed, kind)
+    User.with_supervision_lock(communicator) do
+      next false if room_member?(removed, kind)
+      User.unlink_supervisor_from_user(supervisor, communicator, self.global_id)
+    end
+  end
+
+  def room_member?(user, kind)
+    UserLink.links_for(self, true).any?{|l| l['type'] == kind && l['user_id'] == user.global_id }
+  end
+
+  # A member taken out of a room leaves the room's links at once (remove_supervisor,
+  # remove_communicator) and is unlinked by a queued job. When the organization was destroyed in
+  # between, Organization.clean_up_destroyed reads the rooms' current members and cannot see that
+  # member, so the job takes the destroyed organization's rooms off the member's supervision links
+  # itself, the same way the cleanup does (User.strip_rooms_from_supervision: only a link known to
+  # be room-made is removed; a direct one is kept without the rooms). Pairs come from the member's
+  # own supervision links, not from the room's members.
+  def strip_destroyed_org_supervision(ref_user, opts)
+    return false unless opts['remove_supervisor'] || opts['remove_communicator']
+    kind = opts['remove_supervisor'] ? 'supervisor' : 'communicator'
+    org_id = self.organization_id
+    unit_ids = OrganizationUnit.where(organization_id: org_id).map(&:global_id)
+    pairs = OrganizationUnit.removed_member_pairs(ref_user, kind, unit_ids)
+    if pairs.length > 0
+      staff_since, actor = Organization.destroyed_org_cleanup_context(org_id)
+      User.strip_rooms_from_pairs(pairs, unit_ids, staff_since, org_id, actor)
+    end
+    member_removal_done(ref_user, kind)
+    true
+  end
+
+  # The supervision pairs of a member taken out of a room, from the member's own supervision links
+  # that list any of unit_ids (the room no longer lists the member).
+  def self.removed_member_pairs(ref_user, kind, unit_ids)
+    if kind == 'supervisor'
+      links = ref_user.supervisee_links.select{|l| ((l['state'] || {})['organization_unit_ids'] || []).intersect?(unit_ids) }
+      User.find_all_by_global_id(links.map{|l| l['user_id'] }.uniq).map{|comm| [ref_user, comm] }
+    else
+      links = ref_user.supervisor_links.select{|l| ((l['state'] || {})['organization_unit_ids'] || []).intersect?(unit_ids) }
+      User.find_all_by_global_id(links.map{|l| l['record_code'].split(/:/)[1] }.uniq).map{|sup| [sup, ref_user] }
+    end
+  end
+
+  # A member's removal (remove_supervisor, remove_communicator) is completed by a queued
+  # assert_supervision; this row backs that job, is released when it completes
+  # (member_removal_done), and RemoteAction#process_action runs complete_member_removal from it
+  # if the job is lost. Ids and the kind only.
+  def member_removal_path(user, kind)
+    "#{self.global_id}::#{user.global_id}::#{kind}"
+  end
+
+  def record_member_removal(user, kind)
+    path = member_removal_path(user, kind)
+    RemoteAction.where(path: path, action: 'room_member_removal').delete_all
+    RemoteAction.create(path: path, action: 'room_member_removal', act_at: 1.hour.from_now,
+      extra: {'organization_id' => self.organization_id}.to_json)
+  end
+
+  def member_removal_done(user, kind)
+    RemoteAction.where(path: member_removal_path(user, kind), action: 'room_member_removal').delete_all
+  end
+
+  def self.complete_member_removal(path)
+    rows = RemoteAction.where(path: path, action: 'room_member_removal')
+    return true unless rows.exists?
+    unit_id, user_id, kind = path.split(/::/)
+    user = User.find_by_global_id(user_id)
+    unit = OrganizationUnit.find_by_global_id(unit_id)
+    if user && unit
+      # releases the row when it completes
+      unit.assert_supervision({'user_id' => user.global_id, "remove_#{kind}" => true})
+    elsif user && RemoteAction.where(path: unit_id, action: 'clean_up_destroyed_unit').exists?
+      # the deleted room's cleanup completes it (clean_up_destroyed) and releases the row
+    else
+      if user
+        data = rows.map{|r| JSON.parse(r.extra) rescue nil }.compact.first || {}
+        strip_deleted_room_member(unit_id, user, kind, data['organization_id'], {})
+      end
+      rows.delete_all
+    end
+    true
+  end
+
+  # Completes the removal of a member taken out of a room that was deleted before the removal ran:
+  # the room's id (and, when the organization is gone too, its other rooms' ids) comes off the
+  # member's supervision links, the same origin-aware way the cleanups strip.
+  def self.strip_deleted_room_member(unit_id, user, kind, org_id, actor)
+    unit_ids = [unit_id]
+    if org_id && Organization.where(id: org_id).exists?
+      reason = 'organization_unit_deleted'
+      pairs = removed_member_pairs(user, kind, unit_ids)
+      org_code = "Organization:#{Organization.new(id: org_id).global_id}"
+      staff_since = Organization.staff_since_for(org_code, pairs.map{|sup, comm| sup.id }.uniq).transform_values{|at| Time.iso8601(at) }
+    else
+      reason = 'organization_deleted'
+      unit_ids += OrganizationUnit.where(organization_id: org_id).map(&:global_id) if org_id
+      pairs = removed_member_pairs(user, kind, unit_ids)
+      staff_since, org_actor = org_id ? Organization.destroyed_org_cleanup_context(org_id) : [{}, {}]
+      actor = org_actor if actor.blank?
+    end
+    return true if pairs.empty?
+    User.strip_rooms_from_pairs(pairs, unit_ids, staff_since, org_id, actor || {}, reason: reason)
   end
 end

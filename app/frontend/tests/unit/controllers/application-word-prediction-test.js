@@ -61,8 +61,8 @@ module('Unit | Controller | application: word-prediction sidebar toggle', functi
     var c = wire(this, user, { correct_pin: true });
     c.send('set_word_prediction', true);
     await settled();
-    assert.strictEqual(user.get('preferences.word_suggestions'), true, 'preference set on');
-    assert.strictEqual(user.get('preferences.device.updated'), true, 'device dirty bit set');
+    assert.true(user.get('preferences.word_suggestions'), 'preference set on');
+    assert.true(user.get('preferences.device.updated'), 'device dirty bit set');
     assert.strictEqual(user.saves.length, 1, 'saved once');
   });
 
@@ -71,7 +71,7 @@ module('Unit | Controller | application: word-prediction sidebar toggle', functi
     var c = wire(this, user, { correct_pin: true });
     c.send('set_word_prediction', false);
     await settled();
-    assert.strictEqual(user.get('preferences.word_suggestions'), false, 'preference set off');
+    assert.false(user.get('preferences.word_suggestions'), 'preference set off');
     assert.strictEqual(user.saves.length, 1, 'saved once');
   });
 
@@ -80,7 +80,7 @@ module('Unit | Controller | application: word-prediction sidebar toggle', functi
     var c = wire(this, user, { correct_pin: false });
     c.send('set_word_prediction', true);
     await settled();
-    assert.strictEqual(user.get('preferences.word_suggestions'), true, 'preference unchanged');
+    assert.true(user.get('preferences.word_suggestions'), 'preference unchanged');
     assert.strictEqual(user.saves.length, 0, 'not saved');
   });
 
@@ -89,7 +89,7 @@ module('Unit | Controller | application: word-prediction sidebar toggle', functi
     var c = wire(this, user, { correct_pin: false });
     c.send('set_word_prediction', true);
     await settled();
-    assert.strictEqual(user.get('preferences.word_suggestions'), false, 'preference unchanged');
+    assert.false(user.get('preferences.word_suggestions'), 'preference unchanged');
     assert.strictEqual(user.saves.length, 0, 'not saved');
   });
 

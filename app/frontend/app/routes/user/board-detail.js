@@ -7,12 +7,11 @@ import speecher from '../../utils/speecher';
 import editManager from '../../utils/edit_manager';
 import contentGrabbers from '../../utils/content_grabbers';
 import persistence from '../../utils/persistence';
-import capabilities from '../../utils/capabilities';
 import boardDetailCache from '../../utils/board_detail_cache';
 import boardCacheDiag from '../../utils/board_cache_diag';
 import scanner from '../../utils/scanner';
 import modal from '../../utils/modal';
-import { available_board_langs, resolve_board_display_locale } from '../../utils/board_display_locale';
+import { available_board_langs, board_default_locale, session_board_locale } from '../../utils/board_display_locale';
 
 export default Route.extend({
   store: service('store'),
@@ -25,45 +24,14 @@ export default Route.extend({
 
   // Load offline url_cache from IndexedDB/filesystem before building buttons
   // so _make_btn can resolve local image URLs (mirrors legacy fast_html).
+  // The app also does this at startup for every view; this joins the same promise
+  // (persistence.prepare_local_files in services/persistence.js).
   _maybe_prime_caches: function() {
     var persistenceSvc = this.persistence;
-    if(!persistenceSvc || persistenceSvc.get('primed')) {
+    if(!persistenceSvc || typeof persistenceSvc.prepare_local_files !== 'function') {
       return RSVP.resolve();
     }
-    if(!this.stashes || !this.stashes.get('auth_settings')) {
-      return RSVP.resolve();
-    }
-    if(this._prime_caches_promise) {
-      return this._prime_caches_promise;
-    }
-    var ensure_local = RSVP.resolve();
-    var local = persistenceSvc.get('local_system');
-    if(!local || local.available === undefined) {
-      ensure_local = capabilities.storage.status().then(function(res) {
-        if(res.available && !res.requires_confirmation) {
-          res.allowed = true;
-        }
-        persistenceSvc.set('local_system', res);
-      }, function() {
-        return RSVP.resolve();
-      });
-    }
-    var route = this;
-    var clearPrimePromiseIfUnprimed = function() {
-      if(!persistenceSvc.get('primed')) {
-        route._prime_caches_promise = null;
-      }
-    };
-    this._prime_caches_promise = ensure_local.then(function() {
-      var localAfter = persistenceSvc.get('local_system');
-      if(!localAfter || !localAfter.available || !localAfter.allowed) {
-        return RSVP.resolve();
-      }
-      return persistenceSvc.prime_caches(true).then(null, function() {
-        return RSVP.resolve();
-      });
-    }).then(clearPrimePromiseIfUnprimed, clearPrimePromiseIfUnprimed);
-    return this._prime_caches_promise;
+    return persistenceSvc.prepare_local_files();
   },
 
   // Build the symbol grid, warm current-board images, prefetch linked boards.
@@ -191,7 +159,7 @@ export default Route.extend({
         boardCacheDiag.mark('model:cache_hit_root_only_warm', { board_key: board_key });
         boardDetailCache.warm_full_tree_if_root_only(board_key);
       }
-      return RSVP.resolve(cached_record);
+      return _this.cached_unless_revoked(cached_record, params.boardname);
     }
 
     // Cache miss — two-phase load so large vocab trees do not block paint:
@@ -513,7 +481,7 @@ export default Route.extend({
     var board_key = model.get('key') || '';
     var user_locale = _this.appState.get('currentUser.preferences.locale') ||
       _this.appState.get('sessionUser.preferences.locale');
-    var keyboard_default_locale = (board_key.match(/\/keyboard$/) && !user_locale) ? 'en' : model_locale;
+    var keyboard_default_locale = board_default_locale(model_locale, board_key, user_locale, board_langs);
     _this.appState.set('currentBoardState', {
       id: model.get('global_id') || model.get('id'),
       key: board_key,
@@ -531,14 +499,8 @@ export default Route.extend({
     // Honor Switch Languages for the whole session. An empty locales list
     // (Flexiones, a cache hit before translations hydrate) must not drop
     // Spanish back to the board default.
-    var has_locale_override = _this.stashes.get('override_label_locale') || _this.stashes.get('override_vocalization_locale');
     ['label_locale', 'vocalization_locale'].forEach(function(loc_type) {
-      _this.appState.set(loc_type, resolve_board_display_locale({
-        boardDefault: keyboard_default_locale,
-        boardLangs: board_langs,
-        override: has_locale_override,
-        preferred: _this.stashes.get(loc_type) || _this.stashes.get('override_' + loc_type) || has_locale_override
-      }));
+      _this.appState.set(loc_type, session_board_locale(_this.stashes, loc_type, keyboard_default_locale, board_langs));
     });
 
     // Set up editManager for edit mode operations. ordered_buttons was
@@ -662,5 +624,18 @@ export default Route.extend({
         this.stashes.persist('current_mode', 'default');
       }
     }
+  },
+  // A cache hit serves a board without asking the server. Offline, a board whose
+  // local copy is marked as no longer viewable by any synced user resolves as
+  // this route's error state instead (the { error, boardname } shape the failed
+  // fetch uses), never as the cached copy. utils/board_revocation.js#blocks_view_route
+  // decides; it never blocks online.
+  cached_unless_revoked: function(record, boardname) {
+    var online = !!(this.persistence && this.persistence.get('online'));
+    return boardRevocation.blocks_view_route(record, this.appState, online).then(function(blocked) {
+      return blocked ? { error: true, boardname: boardname } : record;
+    });
   }
 });
+// Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
+import boardRevocation from '../../utils/board_revocation';

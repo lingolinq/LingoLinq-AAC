@@ -1,18 +1,23 @@
 # CLAUDE.md
 
-Guidance for Claude Code in LingoLinq-AAC. This file holds the repo-wide rules only and
-is kept under 200 lines. Everything else loads on demand:
+Guidance for Claude Code in LingoLinq-AAC. This file holds the repo-wide rules only.
+Everything else loads on demand:
 
 | Where | Loads when | Holds |
 |---|---|---|
 | `app/frontend/CLAUDE.md` | you read files under `app/frontend/` | Ember commands, test-run discipline, 5.12 gotchas, frontend map |
+| `.claude/rules/testing-frontend.md` | touching frontend tests, e2e, `ci.yml` or `app/frontend/app/**` | the frontend testing standards: which test, isolation, deferred-work guards, running, CI |
 | `.claude/rules/compliance-docs.md` | touching `docs/legal/**` or `audit-reports/**` | register governance, attested-doc rules |
 | `.claude/rules/data-bearing-paths.md` | touching fixtures, seeds, cassettes, migrations, `db/language/` | the Tier 1 data boundary |
 | `.claude/rules/deploy.md` | touching the deploy workflow, Dockerfile, `scripts/gcp/` | Cloud Run facts |
-| `.claude/rules/github-pr.md` | opening or updating a PR without `gh` | the credential route and its handling rules |
-| `/fix-proposal` skill | before a bug fix or behaviour change in application code | fact sheet, red test first, proposal review, falsification |
+| `.claude/rules/github-pr.md` | every session (no `paths:`) | PR consent and credential rules for any route; the `gh` and fallback API routes |
+| `.claude/rules/testing.md` | touching `spec/**` or `.rspec` | no network in specs, test credentials, Redis state, clock-dependent examples |
+| `/fix-proposal` skill | before a fix or behaviour change in its required scope (Rule #0 item 12) | fact sheet, red test first, proposal review, falsification |
 | `/pr-preflight` skill | before opening or pushing to a PR | P1 to P6 checks and the PR body block |
 | `AGENTS.md`, `.github/copilot-instructions.md` | Codex and Copilot | the same rules in short form; change them in the same PR |
+
+**Adding process.** Add a gate, review round, attestation or consent step only when a law, a
+signed contract or a real incident calls for it, and name which.
 
 ## Rule #0: check this first, every time, before touching code
 
@@ -55,14 +60,16 @@ everything else in this file.
 11. **A red test run is not a regression until the run COMPLETED and you have a
     baseline.** The mechanics for each suite are in `app/frontend/CLAUDE.md` (Ember) and
     the Testing section below (RSpec).
-12. **For a bug fix or behaviour change in application code: establish the three facts,
-    write the red test first, and review the proposal before editing.** The full
-    discipline is the `/fix-proposal` skill. In one line each: where is the value READ;
-    what are ALL the shapes it can hold; is each cross-file claim TRUE. Label every fact
-    CONFIRMED (`file:line`) or ASSUMED, and let nothing ASSUMED carry a fix. "This one is
-    obvious" is the signal to write the sheet, not to skip it. Only a change that cannot
-    alter runtime behaviour (docs, agent instructions, comments) skips the sheet; config,
-    entrypoints, workflows and migrations count as application code.
+12. **For a bug fix or behaviour change in data handling, auth, sync and offline, or any
+    area on the dual-review list in "Before a PR": establish the three facts, write the red
+    test first, and review the proposal before editing.** The full discipline is the
+    `/fix-proposal` skill. In one line each: where is the value READ; what are ALL the
+    shapes it can hold; is each cross-file claim TRUE. Label every fact CONFIRMED
+    (`file:line`) or ASSUMED, and let nothing ASSUMED carry a fix. "This one is obvious" is
+    the signal to write the sheet, not to skip it. Migrations count as data handling, and
+    workflows, entrypoints and deploy config count as infra. For anything else (UI,
+    styling, copy, docs, small isolated fixes, backend logic outside that list) the sheet and
+    red-test-first are optional (a red test is still welcome); items 1 to 4 still apply.
 13. **One coherent change per unit, and stop when the error rate rises.** Two
     self-inflicted errors close together, or a verification step re-run because the
     first attempt was botched, means commit what is verified, write down what remains,
@@ -98,17 +105,22 @@ everything else in this file.
 ## Branching (mandatory before any code change)
 
 - **Never edit on `main`, `staging`, or `develop`.** Branch from `develop` for all
-  regular work: `git checkout develop && git pull && git checkout -b <new-branch>`.
-  Prefer an isolated worktree when other sessions share the checkout.
+  regular work, in your own worktree. Start new tasks with the isolated launcher, which
+  takes the ownership lock; to continue a task in an existing worktree, stop its previous
+  writer and use the launcher's `--attach PATH`. Only where the launcher is not installed,
+  create the worktree by hand with
+  `git fetch origin develop && git worktree add --no-track -b <new-branch> <path> origin/develop`
+  and set the upstream on your first push (`git push -u origin <new-branch>`). Never
+  `git checkout -b` or switch branches in a checkout another session shares.
 - **Name:** a developer handle plus a `<type>` (`fix`, `feat`, `chore`, `docs`, `perf`,
   `refactor`, `test`, `compliance`, `security`). Scot's branches are always
   `<type>/scot-<kebab-slug>`, the launcher form; its 8-hex token is part of the name
   (`docs/scot-branch-naming-convention-f3117a76`). Teammates use that form or
   `<dev>/<type>/<slug>`; both are accepted. Never rename an existing branch.
 - **Hotfixes are the one exception:** an urgent production fix branches from `main` with
-  type `hotfix` (`hotfix/scot-<slug>`), opens a PR directly against `main` (Scot
-  approves), and is merged back to `develop` immediately afterwards. Hotfix and release
-  branches are made by hand, not by the launcher. See `CONTRIBUTING.md`.
+  type `hotfix` (`hotfix/scot-<slug>`), opens a PR directly against `main` (any one senior
+  dev approves; see `CONTRIBUTING.md` section 7), and is merged back to `develop` at once.
+  Hotfix and release branches are made by hand, not by the launcher.
 - **Stay on the active feature branch** when the request is part of work already in
   progress on it (CI failures, review feedback, follow-ups). Do not spawn a side branch
   and merge back unless asked.
@@ -153,6 +165,13 @@ data isolation between district accounts is mandatory.
   refused in production. Only `console` and `runner` are audited; `rake`, other
   `bin/rails` subcommands, direct Ruby boots and `psql` are not (finding LL-7f7372e3eb).
 - **Never commit secrets.** Reference 1Password items and Secret Manager names.
+- **No production data in this repo or in any non-production environment** (dev, staging,
+  a local database). Test data is generated or obviously fake: `example.com` addresses,
+  phone numbers from 555-0100 to 555-0199, names like "Test Student". The content scan in
+  the `data-bearing-paths` check is the automated check; it sees shapes (emails, phone
+  numbers, SSN-shaped numbers, base64 media), not meaning, so the author's own look comes first. This
+  rule is about what goes in, not a statement about what is there: Tier 1 handling of dev
+  and staging is unchanged.
 - No em dashes in user-facing prose.
 
 ## Backend architecture
@@ -196,17 +215,31 @@ test DB `lingolinq-test`. Deploy prep: `bin/deploy_prep`, `rake extras:mobile`,
 - **Backend:** RSpec in `spec/` mirroring the tree. `bundle exec rspec`,
   `bundle exec rspec spec/models/user_spec.rb:42`. Local runs need the DB user in the
   environment (the `RAILS_ENV=test DB_USER=... PGPASSWORD=...` prefix in
-  `docs/PRE_COMMIT_CHECKLIST.md`). `AuditEvent` rows commit outside the RSpec transaction
-  and the test DB can carry orphaned rows; scope any `delete_all` to the describe block.
+  `docs/PRE_COMMIT_CHECKLIST.md`). `AuditEvent` writes on the same connection as the example
+  and rolls back with it, but rows written outside an example (a `rails runner` or console
+  against the test DB) persist, so the test DB can carry orphaned rows; scope any `delete_all`
+  to the describe block.
 - **Frontend:** QUnit via `cd app/frontend && ember test`; read the run-shape rules in
   `app/frontend/CLAUDE.md` before interpreting a failure.
 - Reconcile totals against a known-good baseline before claiming a delta.
+- **Standards** (which kind of test, isolation enforced by the leak check, e2e, CI gates):
+  `.claude/rules/testing-frontend.md`; RSpec: `.claude/rules/testing.md`.
 
 ## Before a PR
 
-Run `/pr-preflight`. Then the dual review: `/review-pr` (senior-dev pass) and
-`/adversary-review` (red team). A Critical or High finding from either blocks the PR.
-The senior-dev pass ships the diff to an external model on an account with no BAA, so run
+Run `/pr-preflight`. Then review, sized to what the PR touches:
+
+- **A normal PR gets one review.** The Codex GitHub connector's automatic review counts, or
+  one `/review-pr` pass. A PR from an outside contributor (a fork) also needs a human review
+  from the core team.
+- **Dual review** (`/review-pr` senior-dev pass plus `/adversary-review` red team) only
+  when the PR touches authentication or sessions, consent or account ownership, access to
+  another user's or organization's data, billing, AI model routing or the AI client, infra
+  or deploy config, or the `data-bearing-paths` gate.
+- **At most two review rounds.** A third round needs Scot's OK.
+- A Critical or High finding from any review blocks the PR.
+
+The `/review-pr` pass ships the diff to an external model on an account with no BAA, so run
 the PII pre-flight first and match the form to the argument: for a PR number,
 `bash ~/ai-company-brain/scripts/review-preflight.sh pr <n> lingolinq/LingoLinq-AAC`;
 for a branch, `bash ~/ai-company-brain/scripts/review-preflight.sh range <base> <head>`;
@@ -218,14 +251,19 @@ line verbatim with the verdict. The `range` or `working` form run against a PR n
 wrong diff and records a pass it did not earn. That guard lives at a
 LingoLinq-internal path: if you cannot reach `~/ai-company-brain/`, you are not set up to
 run this pass, so stop and hand it to someone who is rather than proceeding without it.
-Codex-specific invocation detail lives in `AGENTS.md`. The Codex GitHub connector is set to review every PR automatically; that review skips the PII pre-flight and is neither dual-review pass, so confirm a PR actually got it rather than assuming. A `@codex review` comment requests one; it posts under your GitHub account, so ask before posting. No repository rule requests Copilot code review (an author's own Copilot settings may still request one).
-A PR that adds or changes a data-bearing path (fixtures, factories, seeds, migrations, VCR
-cassettes, data rake tasks, data files, `db/language/`), any file under `.github/workflows/`,
-or the check's own files fails the `data-bearing-paths/<base>` status until a reviewer with
-write access confirms every changed data file is synthetic (and has looked at any workflow
-change) and adds the `synthetic-data` label (never an agent: rule 15). That records an
-approval as a commit status on the current head commit for that base, and the label is
-removed; after a later push, add it again. `develop` is squash-only, so a PR to it is
+Codex-specific invocation detail lives in `AGENTS.md`. The Codex GitHub connector is set to review every PR automatically; that review skips the PII pre-flight. It is the one review a normal PR needs but neither dual-review pass, so confirm a PR actually got it rather than assuming. A `@codex review` comment requests one; it posts under your GitHub account, so ask before posting. No repository rule requests Copilot code review (an author's own Copilot settings may still request one).
+When a PR adds or changes a data-bearing path (fixtures, factories, seeds, migrations, VCR
+cassettes, data rake tasks, data files, `db/language/`), the `data-bearing-paths/<base>`
+check scans the lines it adds there. A clean change passes with no label. The status fails
+until a reviewer with write access confirms the data is synthetic and adds the
+`synthetic-data` label (never an agent: rule 15) when the scan finds an email on a domain
+not reserved for examples, a phone number outside 555-0100 to 555-0199, an SSN-shaped
+number, or an image, audio or video file inlined as a base64 `data:` URI; when a binary
+file is added under such a path; when `db/language/` or a VCR cassette changes (always);
+when the check's own files change; or when a workflow file names the `data-bearing-status`
+environment, `DATA_BEARING_APP_PRIVATE_KEY` or `DATA_BEARING_APP_CLIENT_ID`. Other workflow
+files are not gated. The label records an approval as a commit status on the current head commit for
+that base, and the label is removed; after a later push, add it again. `develop` is squash-only, so a PR to it is
 judged by its net diff. PRs to `staging` and `main` are checked commit by commit for
 changes that never went through `develop`; a merge commit counts only for what it adds
 beyond its parents, so a release merge of `develop` does not trip again. The author may
@@ -236,9 +274,10 @@ since a pushed branch is published whether or not it merges.
 ## Audit and compliance system
 
 `/audit-run` (user-only skill) stamps the audited SHA, fans out six read-only finder
-agents in parallel (`.claude/agents/*-auditor.md`, each preloading its
+agents in parallel as unnamed subagents (`.claude/agents/*-auditor.md`, each preloading its
 `.claude/skills/<domain>-audit` checklist and guarded by
-`.claude/hooks/audit-readonly-guard.sh`), reconciles into `audit-reports/FINDINGS.json`
+`.claude/hooks/audit-readonly-guard.sh`), stops before merging unless
+`scripts/audit-fanout-gate.rb` passes, reconciles into `audit-reports/FINDINGS.json`
 via `scripts/audit-merge.rb`, runs the `adversary` agent as verifier, and validates with
 `scripts/citation-check.rb`. `/ember-audit-run` does the same for upgrade regressions
 into the separate `audit-reports/ember-upgrade/FINDINGS-EMBER.json`. Headline is the
@@ -246,7 +285,14 @@ count of open Critical/High findings. Only Scot closes, downgrades, or accepts r
 restamping `meta.auditedSha` is a governance act (see `.claude/rules/compliance-docs.md`
 and `audit-reports/README.md`). Findings never contain student or patient data.
 
+An `/audit-run` may write "full" in `meta.auditedRef` only if, at one commit, every finder examined
+every item in its own checklist and every read on the named live-read list in its skill succeeded.
+Only three things a repo read cannot answer are disclosed standing limits: callers outside the repo,
+vendor internals, and provider-side key revocation unless the provider console is opened.
+Assistive-technology testing does not count toward full, and every full stamp says so. Open findings
+do not affect coverage.
+
 ## Notes
 
 - License AGPLv3; contributor agreement required; OpenAAC Slack for questions.
-- Ember history: 3.28 to 4.12 (#437) to 5.12 (#490, 2026-07-08). Target 5.12 APIs.
+- Target Ember 5.12 APIs.

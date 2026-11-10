@@ -3,6 +3,14 @@
 **Status: APPROVED 2026-07-28.** All three open fields set by Scot. Effective on
 merge into LingoLinq-AAC.
 
+> **Retired 2026-10-27:** the CI Codex review gate was retired (Scot), its keys
+> revoked, and `codex-review.yml`, `.github/codex/` and the gate's scripts
+> removed. Nothing posts `codex-review/deep-pass` and it is not a required
+> check on any branch, so this policy has nothing to apply to. Any token with
+> commit-status write access could still post that context, so a future
+> required check of that name would need to pin which app may post it. Bringing a CI review gate back is a new approval, not a
+> revival of this one. The text below is kept as the record.
+
 > **Operational note, 2026-09-12:** the premises below have moved.
 > `codex-review/deep-pass` is currently **not** a required status check on
 > `develop`, `staging` or `main` (it was dropped during the 2026-08 reviewer

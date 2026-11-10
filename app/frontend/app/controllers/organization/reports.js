@@ -221,7 +221,7 @@ export default Controller.extend({
       _this.process_list_response(data, false);
     }, function(err) {
       _this.set('results.loading', false);
-      _this.set('results.error', {error: err.error || i18n.t('unexpected_error', "Unexpected error")});
+      _this.set('results.error', {error: apiErrorMessage(err, i18n.t('unexpected_error', "Unexpected error"))});
     });
   },
   get_report: observer('current_report', 'model.id', 'per_page', 'sort_by', 'sort_order', function() {
@@ -286,7 +286,7 @@ export default Controller.extend({
         _this.process_list_response(data, true);
       }, function(err) {
         _this.set('results.loading_more', false);
-        _this.set('results.error', {error: err.error || i18n.t('unexpected_error', "Unexpected error")});
+        _this.set('results.error', {error: apiErrorMessage(err, i18n.t('unexpected_error', "Unexpected error"))});
       });
     },
     download_list: function() {
@@ -309,7 +309,7 @@ export default Controller.extend({
           columns.push(user.registration_type);
           columns.push(user.referrer);
           columns.push(user.ad_referrer);
-          rows.push(columns.join(','));
+          rows.push(csvRow(columns));
         });
         element.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(rows.join("\n")));
         element.setAttribute('download', 'users.csv');
@@ -318,7 +318,7 @@ export default Controller.extend({
           var columns = [];
           columns.push(stat.key);
           columns.push(stat.value);
-          rows.push(columns.join(','));
+          rows.push(csvRow(columns));
         });
         element.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(rows.join("\n")));
         element.setAttribute('download', 'stats.csv');
@@ -403,3 +403,5 @@ export default Controller.extend({
     }
   }
 });
+import apiErrorMessage from '../../utils/api_error_message';
+import { csvRow } from '../../utils/csv';

@@ -59,7 +59,7 @@ export default modal.ModalController.extend({
         });
         promises.push(new RSVP.Promise(function(res, rej) {
           runLater(function() {
-            persistence.ajax('/api/v1/users/self/translate', {
+            if(_this.isDestroyed || _this.isDestroying) { return res({}); } persistence.ajax('/api/v1/users/self/translate', { // a torn-down controller must not post through another app
               type: 'POST',
               data: {
                 words: words,

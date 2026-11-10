@@ -46,6 +46,50 @@ describe Processable, :type => :model do
       expect(r.process_html('bacon <b>is</b>')).to eq('bacon <b>is</b>')
       expect(r.process_html("<a href='http://www.google.com'>Google</a> <a href='javascript:alert(true);'>alert</a> <img src='file://something.png'/>")).to eq("<a href=\"http://www.google.com\">Google</a> <a>alert</a> <img>")
     end
+
+    # GHSA-pq4g-8rxf-4g29: crass before 1.0.8 mis-tokenized a bad url() ending in an escaped
+    # backslash, so the CSS after it slipped past the RELAXED sanitizer.
+    it "should not let a bad url() smuggle CSS past the sanitizer" do
+      r = FakeRecord.new
+      style_block = r.process_html('<style>url(x y\\\\) {} @import "https://evil.example/x.css"; q ) {}</style>')
+      # The element itself survives, so the CSS really went through the tokenizer; without
+      # this, a config that dropped <style> entirely would pass the next line without crass.
+      # On sanitize 7.0.1 this line is also the crass detector: with crass before 1.0.8 the
+      # whole element is dropped, so it fails here while every other line in this example passes.
+      expect(style_block).to include('<style>')
+      expect(style_block).not_to include('@import')
+      # sanitize 7.0.1 also removes any declaration holding a bad url() inside a (...) block, so
+      # this half pins that removal rather than crass. The control is a declaration after the
+      # bad one: it shows the attribute survived and was sanitized, not dropped.
+      style_attr = r.process_html('<p style="color: (url(x y\\\\)); background-image: url(javascript:alert(1)); z: ); font-weight: bold">hi</p>')
+      expect(style_attr).to include('font-weight: bold')
+      expect(style_attr).not_to include('javascript:')
+      expect(style_attr).not_to include('color:')
+    end
+
+    # GHSA-wgw9-qhqg-8hv5: sanitize before 7.0.1 did not parse CSS nesting the way browsers do,
+    # so a nested rule or a nested @media carried a blocked url() scheme, and a property RELAXED
+    # does not allow (inset), past its allowlists. The flat rule shows each allowlist working.
+    # RELAXED allows nearly every property (position included), so those are not pinned.
+    it "should not let nested CSS carry a blocked url() or property past the sanitizer" do
+      r = FakeRecord.new
+      flat = r.process_html('<style>p{inset:0;background:url(data:image/png;base64,AAAA)}</style>')
+      expect(flat).to include('<style>')
+      expect(flat).not_to include('data:')
+      expect(flat).not_to include('inset')
+      payloads = {
+        'nested rule in a value' => '<p><style>p{color:not(z), *{position:fixed;inset:0;background:url(data:image/png;base64,AAAA)}}</style><b>hi</b></p>',
+        'declarations in a nested @media' => '<p><style>p{@media all{position:fixed;inset:0;background:url(data:image/png;base64,AAAA);a{}}}</style>hi</p>',
+        'javascript: in a nested rule' => '<p><style>p{color:not(z), *{background:url(javascript:alert(1))}}</style><b>hi</b></p>'
+      }
+      payloads.each do |name, html|
+        out = r.process_html(html)
+        expect(out).to include('<style>'), name
+        expect(out).not_to include('data:'), name
+        expect(out).not_to include('javascript:'), name
+        expect(out).not_to include('inset'), name
+      end
+    end
   end
   
   describe "clean_path" do

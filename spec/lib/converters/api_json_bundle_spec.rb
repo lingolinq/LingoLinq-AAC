@@ -1,4 +1,5 @@
 require 'spec_helper'
+require 'tmpdir'
 require Rails.root.join('lib/converters/api_json_bundle')
 
 describe Converters::ApiJsonBundle do
@@ -229,13 +230,14 @@ describe Converters::ApiJsonBundle do
 
     it 'rejects local bundle files larger than MAX_BUNDLE_BYTES' do
       stub_const('Converters::ApiJsonBundle::MAX_BUNDLE_BYTES', 10)
-      path = Rails.root.join('tmp', "oversized-bundle-#{SecureRandom.hex(8)}.json")
-      File.binwrite(path, '{"boards":[]}' + (' ' * 5))
-      expect {
-        described_class.load_bundle(path.to_s)
-      }.to raise_error(Progress::ProgressError, /exceeds maximum size/)
-    ensure
-      File.delete(path) if path && File.exist?(path)
+      # its own directory: Rails.root/tmp does not exist in a fresh checkout
+      Dir.mktmpdir('oversized-bundle') do |dir|
+        path = File.join(dir, 'bundle.json')
+        File.binwrite(path, '{"boards":[]}' + (' ' * 5))
+        expect {
+          described_class.load_bundle(path)
+        }.to raise_error(Progress::ProgressError, /exceeds maximum size/)
+      end
     end
   end
 

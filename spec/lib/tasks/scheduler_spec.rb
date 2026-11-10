@@ -18,6 +18,8 @@ describe 'scheduler:dispatch rake task' do
     allow(LogSession).to receive(:check_possible_mergers).and_return(0)
     allow(Uploader).to receive(:remote_remove_batch)
     allow(UserGoal).to receive(:advance_goals).and_return(goal_count_double)
+    allow(ButtonImage).to receive(:schedule_for)
+    allow(ButtonSound).to receive(:schedule_for)
   end
 
   def stub_daily_collaborators
@@ -47,6 +49,20 @@ describe 'scheduler:dispatch rake task' do
     it 'invokes AiApiLog.redact_old_ip_addresses! to scrub IPs older than 90 days' do
       expect(AiApiLog).to receive(:redact_old_ip_addresses!).and_return(0)
       Rake::Task['scheduler:dispatch'].invoke
+    end
+
+    it 'invokes DemoDistrict.refresh! to roll the demo organization forward' do
+      expect(DemoDistrict).to receive(:refresh!).and_return({ skipped_org: true })
+      expect { Rake::Task['scheduler:dispatch'].invoke }.not_to raise_error
+    end
+
+    # Another demo run (a manual rake demo:refresh or create_district!) holds the lock and is
+    # doing the work, so this one skips without failing the dispatch.
+    it 'treats a demo refresh skipped for another run in progress as done, not failed' do
+      expect(DemoDistrict).to receive(:refresh!).and_return({ skipped_busy: true })
+      expect {
+        expect { Rake::Task['scheduler:dispatch'].invoke }.not_to raise_error
+      }.to output(/refresh_demo_district\] done: another demo run is in progress/).to_stdout
     end
   end
 
@@ -87,6 +103,12 @@ describe 'scheduler:dispatch rake task' do
       expect { Rake::Task['scheduler:dispatch'].invoke }.to raise_error(SystemExit)
     end
 
+    it 'enqueues the failed-upload retry sweep at 6 AM too' do
+      expect(ButtonImage).to receive(:schedule_for).with(:slow, :retry_failed_uploads)
+      expect(ButtonSound).to receive(:schedule_for).with(:slow, :retry_failed_uploads)
+      Rake::Task['scheduler:dispatch'].invoke
+    end
+
     it 'exits zero when every task succeeds' do
       expect { Rake::Task['scheduler:dispatch'].invoke }.not_to raise_error
     end
@@ -105,6 +127,20 @@ describe 'scheduler:dispatch rake task' do
 
     it 'drains the SES events queue on every hourly run' do
       expect(SesEventsWorker).to receive(:perform).and_return({received: 0, disabled_addresses: 0, malformed: 0, failed: 0})
+      Rake::Task['scheduler:dispatch'].invoke
+    end
+
+    it 'does not invoke DemoDistrict.refresh!' do
+      expect(DemoDistrict).not_to receive(:refresh!)
+      Rake::Task['scheduler:dispatch'].invoke
+    end
+
+    # The sweep loads embedded pictures, so it runs on a worker, never inside this Job.
+    it 'enqueues the failed-upload retry sweep without running it' do
+      expect(ButtonImage).to receive(:schedule_for).with(:slow, :retry_failed_uploads)
+      expect(ButtonSound).to receive(:schedule_for).with(:slow, :retry_failed_uploads)
+      expect(ButtonImage).not_to receive(:retry_failed_uploads)
+      expect(ButtonSound).not_to receive(:retry_failed_uploads)
       Rake::Task['scheduler:dispatch'].invoke
     end
   end

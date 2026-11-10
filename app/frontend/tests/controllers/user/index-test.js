@@ -13,6 +13,26 @@ import { queryLog } from 'frontend/tests/helpers/ember_helper';
 import EmberObject from '@ember/object';
 import RSVP from 'rsvp';
 import boardsPageListCache from 'frontend/utils/boards_page_list_cache';
+import LingoLinq from '../../../app';
+
+// Setting a model with preferences.home_board.key fires the controller's update_home_board observer,
+// which fetches that board through the real store (app/controllers/user/index.js:1361-1370), even
+// when the test replaced controller.store. Call before setting the model (observers run synchronously);
+// returns a condition for waitsFor that holds once every such fetch has settled.
+function trackHomeBoardFetches() {
+  var realFindRecord = LingoLinq.store.findRecord;
+  var fetches = [];
+  stub(LingoLinq.store, 'findRecord', function() {
+    var promise = realFindRecord.apply(LingoLinq.store, arguments);
+    var fetch = { settled: false };
+    fetches.push(fetch);
+    promise.then(function() { fetch.settled = true; }, function() { fetch.settled = true; });
+    return promise;
+  });
+  return function() {
+    return fetches.length > 0 && fetches.every(function(fetch) { return fetch.settled; });
+  };
+}
 
 describe('UserIndexController', 'controller:user-index', function() {
   var testOwner;
@@ -61,6 +81,7 @@ describe('UserIndexController', 'controller:user-index', function() {
   it('loads global public boards with the same query as /search/en/_', function() {
     var controller = testOwner.lookup('controller:user/index');
     var queryArgs = null;
+    var homeBoardFetched = trackHomeBoardFetches();
 
     controller.set('store', {
       query: function(type, args) {
@@ -89,11 +110,14 @@ describe('UserIndexController', 'controller:user-index', function() {
     runs(function() {
       expect(queryArgs).toEqual({ q: '', locale: 'en', sort: 'popularity', per_page: 50 });
     });
+    waitsFor(homeBoardFetched);
+    runs();
   });
 
   it('retry_board_list re-fetches after a Mine list error', function() {
     var controller = testOwner.lookup('controller:user/index');
     var queryCount = 0;
+    var homeBoardFetched = trackHomeBoardFetches();
     controller.set('store', {
       query: function(type, args) {
         if (type !== 'board') { return RSVP.resolve([]); }
@@ -127,6 +151,8 @@ describe('UserIndexController', 'controller:user-index', function() {
       expect(controller.get('model.my_boards.error')).toEqual(undefined);
       expect(controller.get('model.my_boards.done')).toEqual(true);
     });
+    waitsFor(homeBoardFetched);
+    runs();
   });
 
   /*
@@ -193,6 +219,7 @@ describe('UserIndexController', 'controller:user-index', function() {
 
     it('places the home board first regardless of name', function() {
       var controller = testOwner.lookup('controller:user/index');
+      var homeBoardFetched = trackHomeBoardFetches();
       var home    = makeBoard({ key: 'larry/zzz-home', name: 'Z Home', starred_for_current_user: false });
       var apple   = makeBoard({ key: 'larry/apple',     name: 'Apple',  starred_for_current_user: false });
       var banana  = makeBoard({ key: 'larry/banana',    name: 'Banana', starred_for_current_user: false });
@@ -205,6 +232,8 @@ describe('UserIndexController', 'controller:user-index', function() {
 
       expect(list.filtered_results.length).toEqual(3);
       expect(list.filtered_results[0].board.get('key')).toEqual('larry/zzz-home');
+      waitsFor(homeBoardFetched);
+      runs();
     });
 
     it('puts starred (favorite) boards before non-starred, alphabetical within each group', function() {
@@ -231,6 +260,7 @@ describe('UserIndexController', 'controller:user-index', function() {
 
     it('home board wins even when it would lose the favorite/alpha tiebreaker', function() {
       var controller = testOwner.lookup('controller:user/index');
+      var homeBoardFetched = trackHomeBoardFetches();
       // home is non-starred and named "Z" — would normally sort LAST.
       var home  = makeBoard({ key: 'larry/home',  name: 'Z',     starred_for_current_user: false });
       var liked = makeBoard({ key: 'larry/liked', name: 'A',     starred_for_current_user: true  });
@@ -243,10 +273,13 @@ describe('UserIndexController', 'controller:user-index', function() {
 
       expect(list.filtered_results[0].board.get('key')).toEqual('larry/home');
       expect(list.filtered_results[1].board.get('key')).toEqual('larry/liked');
+      waitsFor(homeBoardFetched);
+      runs();
     });
 
     it('does not apply Mine-tab sort on Public tab — server order preserved', function() {
       var controller = testOwner.lookup('controller:user/index');
+      var homeBoardFetched = trackHomeBoardFetches();
       var first  = makeBoard({ id: '1', key: 'other/first',  name: 'Z Board', starred_for_current_user: true  });
       var second = makeBoard({ id: '2', key: 'other/second', name: 'A Board', starred_for_current_user: false });
       controller.set('model', EmberObject.create({
@@ -264,6 +297,8 @@ describe('UserIndexController', 'controller:user-index', function() {
       expect(list.filtered_results.length).toEqual(2);
       expect(list.filtered_results[0].board.get('key')).toEqual('other/first');
       expect(list.filtered_results[1].board.get('key')).toEqual('other/second');
+      waitsFor(homeBoardFetched);
+      runs();
     });
 
     it('collapses same-name public boards preferring current user then lingolinq', function() {

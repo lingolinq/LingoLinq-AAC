@@ -46,7 +46,7 @@ module('Unit | Component | dashboard preview-boards cache', function(hooks) {
     var second = mk(this, uid, [board('1'), board('2'), board('3')]);
     second._loadPreviewBoards();
     assert.strictEqual((second.get('_fetchedPreviewBoards') || []).length, 2, 'seeded from the cache synchronously, before its own fetch resolves');
-    assert.strictEqual(second.get('boardsLoading'), false, 'no loading flash on return');
+    assert.false(second.get('boardsLoading'), 'no loading flash on return');
     await settled();
     assert.strictEqual((second.get('_fetchedPreviewBoards') || []).length, 3, 'then revalidated to the fresh result');
   });
@@ -60,7 +60,7 @@ module('Unit | Component | dashboard preview-boards cache', function(hooks) {
 
     var b = mk(this, uidB, [board('9')]);
     b._loadPreviewBoards();
-    assert.strictEqual(b.get('_fetchedPreviewBoards') || null, null, 'no cross-user seed (B has no cache yet)');
+    assert.notOk(b.get('_fetchedPreviewBoards'), 'no cross-user seed (B has no cache yet)');
     await settled();
     assert.strictEqual((b.get('_fetchedPreviewBoards') || []).length, 1, 'B gets its own result');
   });

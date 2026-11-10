@@ -8,6 +8,72 @@ describe JsonApi::BoardVersion do
   end
 
   describe "build_json" do
+    # Board#update_privacy (the batch privacy cascade) describes its save; history must list it.
+    it "lists a version saved by the batch privacy change" do
+      u = User.create
+      b = Board.create(:user => u)
+      b.update_privacy('public', u, [b.global_id])
+      expect(b.reload.settings['edit_description']['notes']).to eq(['batch set to public'])
+
+      json = nil
+      expect { json = JsonApi::BoardVersion.paginate({}, Board.user_versions(b.global_id)) }.not_to raise_error
+      expect(json['boardversion'].map { |v| v['action'] }).to include('batch set to public')
+    end
+
+    # Board#update_privacy makes any level other than public or unlisted private.
+    it "describes a batch change to private as private" do
+      u = User.create
+      b = Board.create(:user => u, :public => true)
+      b.update_privacy('private', u, [b.global_id])
+      b.reload
+      expect(b.public).to eq(false)
+      expect(b.settings['edit_description']['notes']).to eq(['batch set to private'])
+
+      b.update_privacy('anything else', u, [b.global_id])
+      expect(b.reload.settings['edit_description']['notes']).to eq(['batch set to private'])
+    end
+
+    it "describes a batch change to unlisted as unlisted" do
+      u = User.create
+      b = Board.create(:user => u)
+      b.update_privacy('unlisted', u, [b.global_id])
+      b.reload
+      expect(b.settings['unlisted']).to eq(true)
+      expect(b.settings['edit_description']['notes']).to eq(['batch set to unlisted'])
+
+      json = JsonApi::BoardVersion.paginate({}, Board.user_versions(b.global_id))
+      version = json['boardversion'].detect { |v| v['action'] == 'batch set to unlisted' }
+      expect(version['modifier']['user_name']).to eq(u.user_name)
+    end
+
+    # Board#generate_defaults keeps LAMP/WFL-named and protected-vocabulary boards private
+    # (app/models/board.rb:984-997); the note names the level the save left, not the one asked for.
+    it "describes a batch change that the board's own rules keep private as private" do
+      u = User.create
+      lamp = Board.create(:user => u, :settings => {'name' => 'LAMP words'})
+      lamp.update_privacy('public', u, [lamp.global_id])
+      lamp.reload
+      expect(lamp.public).to eq(false)
+      expect(lamp.settings['edit_description']['notes']).to eq(['batch set to private'])
+
+      protected_board = Board.create(:user => u, :settings => {'protected' => {'vocabulary' => true}})
+      protected_board.update_privacy('unlisted', u, [protected_board.global_id])
+      protected_board.reload
+      expect(protected_board.public).to eq(false)
+      expect(protected_board.settings['edit_description']['notes']).to eq(['batch set to private'])
+    end
+
+    # Versions already stored in production hold that description's notes as a single String.
+    it "labels a version whose stored notes are a single String" do
+      u = User.create
+      stored = Board.new(settings: {'name' => 'stored', 'edit_description' => {'timestamp' => 1.0, 'notes' => 'batch set to public'}})
+      version = PaperTrail::Version.new(item_type: 'Board', event: 'update', whodunnit: "user:#{u.global_id}", created_at: Time.now)
+      allow(Board).to receive(:load_version).with(version).and_return(stored)
+
+      json = nil
+      expect { json = JsonApi::BoardVersion.build_json(version) }.not_to raise_error
+      expect(json['action']).to eq('batch set to public')
+    end
     it "should return appropriate attributes" do
       u = User.create
       PaperTrail.request.whodunnit = "user:#{u.global_id}"

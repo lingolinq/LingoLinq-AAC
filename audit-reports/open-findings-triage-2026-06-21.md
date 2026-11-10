@@ -49,7 +49,7 @@ the closure governance-complete and populate the board's "Closed/decided by".
 - **LL-aacae48768** render-postgres-public-ip-allowlist: `render.yaml` commits no `ipAllowList` (public default); confirm/close by reading the live Render Postgres `ipAllowList` on prod + dev/staging.
 
 **Audit-system self-findings (interim mitigation done; structural fix deferred, your risk-acceptance call):**
-- **LL-97f9001bb4** audit-guard denylist: now blocks pipe-to-shell/eval; structural allowlist/sandbox is Phase 3.
+- **LL-97f9001bb4**: details withheld under the security disclosure policy (amended 2026-11-06, Scot Wahlquist).
 - **LL-a2b45c2bcb** finder-agent memory cross-run: memory policy now documented in-file; `memory: project` persistence retained.
 - **LL-5f0f4f52f8** audit-system not self-audited: self-audit scope added to infra-auditor checklist; automated meta-audit pass is Phase 4.
 

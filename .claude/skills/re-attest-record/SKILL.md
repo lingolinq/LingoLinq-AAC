@@ -14,7 +14,7 @@ CI `document-register-render.rb --check` can fail two different ways with simila
 | FAIL text | Attested? | Your move |
 |---|---|---|
 | `contentHash drift for "…"` … `(run render)` | **No** (`attestation: {}` or empty) | Do **not** use this skill. Run `scripts/regenerate-register.sh` and commit. |
-| `contentHash drift on the ATTESTED row` … `/re-attest-record` | **Yes** | This skill (Scot only). **Do not run render** — it bumps `contentHash`, dirties the register, then fails again as "attested revision no longer exists" (the #721 footgun; fixed messaging in #766). |
+| `contentHash drift on the ATTESTED row` … `/re-attest-record` | **Yes** | This skill (Scot only). **Do not run render** — it bumps `contentHash`, dirties the register, then fails again as "attested revision no longer exists". |
 | `attested revision no longer exists` | **Yes** (already re-rendered or hash already bumped) | This skill. Revert the mistaken register edit if you already rendered; then Path A/B below. |
 
 Rule of thumb: if the message says **ATTESTED**, stop and ping Scot. If it says **run render**, regenerate.
@@ -100,8 +100,7 @@ Use this for any planned change to an attested file under `docs/legal/**`.
    (ISO date, no status token, no `v2` / `final` / initials). Copy forward only what should
    remain true; fix stale claims in the **new** file.
 
-   **The filename carries NO status token** (rule changed 2026-08-10; this step previously said
-   `<YYYY-MM-DD>_<kebab-slug>_<status>.<ext>`). Status is a mutable property of the register row,
+   **The filename carries NO status token.** Status is a mutable property of the register row,
    and rule 3 freezes an attested file's name permanently, so a status in the name would either go
    false at the first status change or force a rename that rule 3 forbids. A record must **never**
    be attested at a `_draft` path. If the live record is one of the four grandfathered dated
@@ -226,4 +225,4 @@ register's link to the previously attested bytes; `priorAttestations` will keep 
 - Working supersession example: `DOC-9f6a2412ad` → `DOC-ae3f9d06ef` in
   `audit-reports/DOCUMENT-REGISTER.json`.
 - `.claude/skills/promote-finding/SKILL.md` (sibling governed register skill; adds findings).
-- CLAUDE.md "PR Preflight" P3 (the artifact-integrity `--check` bundle this must pass).
+- `.claude/skills/pr-preflight/SKILL.md` P3 (the artifact-integrity `--check` bundle this must pass).

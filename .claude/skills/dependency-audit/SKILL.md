@@ -15,8 +15,7 @@ produce findings, never install/update anything.
   if present).
 
 ## Constraints that shape recommendations
-- **Node 22 and Ember 5.12 are the current pins.** (Ember 3.28 -> 5.12 shipped in #490,
-  2026-07-08; Node 20 -> 22 in #643.) Do NOT recommend jumping Ember majors as a fix; 5.x ->
+- **Node 22 and Ember 5.12 are the current pins.** Do NOT recommend jumping Ember majors as a fix; 5.x ->
   6.x is a separate migration effort, and Node 24 is gated behind it (ember-cli adds Node 24
   at 6.7). Flag CVEs and EOL risk, but frame upgrade options within these constraints
   (e.g. backport, patch pin, or "blocked on the Ember 6 migration").
@@ -65,3 +64,10 @@ Rules:
 - The orchestrator computes the stable `id`, sets timestamps/owner, and reconciles against the
   existing register. For a row whose ruleKey is the self-referencing withheld form (`minimized-finding-` + its own id,
   lowercased), citation-check does not recompute the id; never emit a `minimized-finding-` ruleKey.
+
+## Run receipt (required)
+Your top-level output JSON must also carry these two keys. The orchestrator's fan-out gate
+(`scripts/audit-fanout-gate.rb`, finding LL-c667ec15e3) refuses the whole run without them.
+- `"checklistToken": "dependency-audit-ck1"` is named only in this checklist. Copy it from here; never search for it.
+- `"guardCanary": "denied"`: make `mktemp --dry-run` your FIRST Bash call. It creates nothing and the
+  read-only guard should deny it. Report `"denied"` only if it was denied; otherwise report `"ran"`.

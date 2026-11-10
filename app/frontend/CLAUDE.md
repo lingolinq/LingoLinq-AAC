@@ -37,8 +37,8 @@ a `# fail` line, which looks exactly like a red suite.
 - **Do not run a full suite while `ember serve` or browser probes are running.** That
   contention is the cause of truncation.
 - **Do not raise `browser_disconnect_timeout` in `testem.js`.** The 120s is deliberate.
-  CI's fail-fast is a separate mechanism: the `build-and-test` job has a 50-minute
-  `timeout-minutes` step cap (`.github/workflows/ci.yml`). For a patient local run,
+  CI's fail-fast is a separate mechanism: each `ember-shard` job's test step has a 50-minute
+  `timeout-minutes` cap (`.github/workflows/ci.yml`). For a patient local run,
   copy the config to a temp file outside the repo and pass `--config-file`.
 - The same discipline applies to any suite: reconcile totals against a known-good run
   before claiming a delta.

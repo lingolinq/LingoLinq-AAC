@@ -81,6 +81,27 @@ Snippets must exist verbatim at the given `auditedSha` — cite from `git show <
 if your working tree may differ. If your slice is clean, return `"findings": []` with a
 short `"note"`.
 
+**Coverage block (required).** That object also carries this block, the same shape in every finder:
+`"coverage": { "examined": ["<item id>"], "notReached": [{ "item": "<item id>", "reason": "<short
+reason>" }], "standingLimits": ["<short string>"] }`. `examined` and `notReached` together list
+every item in your checklist, and `notReached` may be an empty list. Item ids are `class-<n>`, the
+breakage class number in the `ember-upgrade-audit` skill, and a slice covers every class: one with
+nothing to check in your slice is examined. An item counts as examined only if you checked it across
+your whole assigned slice at the audited SHA: a sampled or partly read item goes in `notReached`. An
+item whose evidence is a document outside this repo stays in `notReached` until the orchestrator has
+handed you that document and you have read it. `standingLimits` holds only these three things a repo
+read cannot answer, each string starting with the item id it limits (`<item id>: vendor internals`):
+callers outside the repo, vendor internals, and provider-side key revocation without the provider
+console. An item you ran out of time for or had no access to is `notReached`, never a standing
+limit. `/ember-audit-run` does not decide a coverage stamp; the block keeps every finder's receipt
+the same shape.
+
+**Public-text rule.** Findings go to a public register. No finding field may carry a value from a
+live read (an account ID, a resource name, a config value), a secret, customer data, or a
+description of what this run did not reach. A `type:"code"` snippet stays verbatim, because
+committed source is already public. `note` and the `coverage` block are never committed to this
+repo.
+
 ## Memory
 This agent keeps no persistent memory: `memory:` is intentionally unset (the read-only guard
 denies every write). Twin/duplicate modules, dead files, and route-to-template maps belong in

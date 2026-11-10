@@ -4,9 +4,9 @@
 # promote-finding.rb - bridge PR-time review findings into the findings register.
 #
 # Part of the Audit/Compliance Modernization ("operationalize the review pipeline", from the
-# 2026-06-14 PR-review-workflow evaluation, recommendation #4). Today the n8n PR Review Bot and
-# the /review-pr + /adversary-review CLI passes post findings to a PR comment + Google Chat and
-# then they evaporate: no register row, no triage, no owner. Only the periodic /audit-run feeds
+# 2026-06-14 PR-review-workflow evaluation, recommendation #4). The Codex GitHub connector posts its review on the
+# PR, and the /review-pr + /adversary-review CLI passes post findings to a PR comment + Google
+# Chat; then they evaporate: no register row, no triage, no owner. Only the periodic /audit-run feeds
 # audit-reports/FINDINGS.json. This script closes that gap by promoting a *reviewed*
 # Critical/High PR finding INTO the register as status "open", so it gets tracked and triaged
 # rather than just logged.
@@ -36,12 +36,11 @@
 #     silently re-anchored here instead).
 #
 # WHY a manual command and not a hook / an n8n auto-promote step (the trigger decision):
-#   1. The n8n PR bot runs a DeepSeek pass via OpenRouter (no BAA). FINDINGS.json is the compliance
-#      SSOT (PII-free, Tier 2). The concern is not a reviewer *seeing* the register -- under the
+#   1. FINDINGS.json is the compliance SSOT (PII-free, Tier 2). The concern is not a reviewer *seeing* the register -- under the
 #      two-tier policy an approved reviewer may -- it is auto-promoting bot-curated content INTO
-#      the SSOT, which would require giving the n8n service write access to the repo register --
+#      the SSOT, which would require giving an automated reviewer write access to the repo register --
 #      a governance and attack-surface violation. So promotion is operated from a trusted Claude
-#      session, never by the bot.
+#      session, never by a bot.
 #   2. AI reviewers carry a 5-15% false-positive rate. Auto-promoting every Critical/High would
 #      flood the register with FPs. A human-in-the-loop deciding "yes, this one is real, track it"
 #      IS the triage gate the evaluation says is the differentiator (attribution + ownership).

@@ -1,6 +1,9 @@
 require 'spec_helper'
 
 describe ExternalTracker do
+  # examples below assign these directly; a leaked IPLOCATE_API_KEY sends later specs to the network
+  restore_env_after_each('IPLOCATE_API_KEY', 'HUBSPOT_ACCESS_TOKEN')
+
   describe "track_new_user" do
     it "should do nothing if not allowed" do
       ExternalTracker.track_new_user(nil)

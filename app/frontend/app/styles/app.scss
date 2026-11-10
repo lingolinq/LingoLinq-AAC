@@ -9430,27 +9430,6 @@ body.pretty_loader #loading_box {
     width: 60%;
     margin: 0 auto;
   }
-  /* Board Alt: colored icon above label (modern board layout – grid in teal) */
-  .sidebar_item__icon--board-alt {
-    display: block;
-    width: 60%;
-    margin: 0 auto;
-    color: rgba(44, 183, 176, 0.95);
-    background: linear-gradient(145deg, rgba(44, 183, 176, 0.25) 0%, rgba(91, 141, 239, 0.2) 100%);
-    border-radius: 6px;
-    padding: 4px;
-    box-sizing: border-box;
-  }
-  .sidebar_item__icon--board-alt svg {
-    display: block;
-    width: 100%;
-    height: auto;
-    aspect-ratio: 1;
-  }
-  &.sidebar_item--board-alt-active .sidebar_item__icon--board-alt {
-    color: #fff;
-    background: $brand-charcoal-dark;
-  }
 }
 #sidebar > a:hover {
   text-decoration: none;
@@ -17024,18 +17003,6 @@ form.row.subscription-form-with-cards {
 
 /* Supporter / Eval secondary states */
 .subscription-form-card .semi_dim { opacity: 0.85; }
-
-.subscription-form-cards a[href*='blog.mylingolinq.com'] {
-  color: var(--fs-dark-teal, $brand-verdigris);
-  text-decoration: none;
-  font-weight: 500;
-  border-bottom: 1px solid transparent;
-  transition: border-color 0.12s ease;
-}
-
-.subscription-form-cards a[href*='blog.mylingolinq.com']:hover {
-  border-bottom-color: var(--fs-dark-teal, $brand-verdigris);
-}
 
 /* Applied in: speak-menu component - speak options dropdown */
 /* ── Modern Speak Menu ─────────────────────────────────── */
@@ -50510,26 +50477,37 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 }
 /* Compact two-column "definition list" for the advanced-options fields (macOS/
    iOS settings style): a FIXED-width label column + a flexible control column,
-   so Fill order / Board key / Language all line up on a consistent grid instead
+   so Fill order / Board key line up on a consistent grid instead
    of stacking label-over-control. */
 .new-board--modern .new-board-field--key,
-.new-board--modern .new-board-field--locale,
 .new-board--modern .new-board-field--fill-order {
   display: grid;
   grid-template-columns: 116px minmax(0, 1fr);
   align-items: center;
   gap: 8px 14px;
 }
+/* Language takes its own full row under Name + Description on wizard step 1, and
+   its label stays at the top when the hint and translation notice run long. */
+.new-board--modern .new-board-field--locale {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: 116px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px 14px;
+}
+@media (max-width: $aac-breakpoint-md) {
+  .new-board--modern .new-board-field--locale {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .new-board--modern .new-board-field--key > .nb-field__label,
 .new-board--modern .new-board-field--locale > .nb-field__label,
 .new-board--modern .new-board-field--fill-order > .nb-field__label {
   margin: 0;
 }
-/* Hint reads inline in the content column (no full-width line / extra margin),
-   with a little left padding so it's spaced off the "Language" label. */
+/* Hint and translation notice sit under the select, in the content column. */
 .new-board--modern .new-board-field--locale .nb-field__hint {
-  margin: 0;
-  padding-left: 8px;
+  margin: 6px 0 0;
 }
 
 /* Modern stepper — single glass pill with inline +/- icon buttons.

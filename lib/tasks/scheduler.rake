@@ -201,11 +201,13 @@ task "scheduler:dispatch" => :environment do
       "#{count} AI log IPs redacted"
     end
 
-    # AiApiLog tiered retention (reconciled with docs/legal/DATA_RETENTION.md and
-    # docs/legal/AI_DATA_FLOW_CLASSIFICATION.md section 6; keep these three surfaces
-    # identical). Windows: 24 months general, 12 months rolling children (under-13),
-    # up to 5 years EU-jurisdiction, up to 6 years HIPAA hard floor
-    # (45 CFR 164.316(b)(2)). NOT a flat 24-month purge.
+    # AiApiLog tiered retention (reconciled with docs/legal/2026-09-22_data-retention.md
+    # and docs/legal/2026-08-25_ai-data-flow-classification.md section 6; keep these
+    # three surfaces identical). Windows: 24 months general, 12 months rolling children (under-13),
+    # up to 5 years EU-jurisdiction, up to 6 years for healthcare-linked accounts
+    # (disclosed window; the earlier "45 CFR 164.316(b)(2) six-year floor" framing
+    # was retracted 2026-08-30, #888). NOT a flat 24-month purge. Both windows are
+    # open for counsel.
     #
     # WIRED here today (per-item status below; the EU purge currently matches zero rows):
     #   - EU 5-year purge (purge_old_eu_ai_api_logs below): scans jurisdiction = 'EU'
@@ -214,7 +216,7 @@ task "scheduler:dispatch" => :environment do
     #     wherever Phase 4 is deployed (staged on staging; effective in production only
     #     after the Phase 4/5 prod deploy)". Phase 4 IS in production. The purge is
     #     WIRED but currently deletes NOTHING: the stamp writes 'EU' only for a
-    #     confirmed :eu user, production had none as of the 2026-08-23 audited read,
+    #     user resolving to :eu, production had none as of the 2026-08-23 audited read,
     #     and the filter is
     #     created_at < 5.years.ago while the jurisdiction column dates from
     #     2026-06-21 -- so a write-time-stamped row cannot match before ~2031-06
@@ -231,11 +233,14 @@ task "scheduler:dispatch" => :environment do
     # DECIDED, NOT YET ENFORCED (no task here on purpose): the 24-month general and
     # 12-month children tiers. ai_api_logs carries no per-row child-subject or
     # HIPAA-covered marker (only jurisdiction / user_global_id / organization_global_id),
-    # so a purge that safely carves out the 6-year HIPAA audit floor and the 12-month
-    # children tier cannot be written without first stamping those classes at write
-    # time (a schema + call-site change). A blanket 24-month delete is deliberately NOT
-    # shipped because it would destroy HIPAA audit-floor rows early. Tracked in
-    # docs/legal/DATA_RETENTION.md and AI_DATA_FLOW_CLASSIFICATION.md section 6.
+    # so a purge cannot safely tell child or healthcare-linked rows from the rest without
+    # first stamping those classes at write time (a schema + call-site change). A blanket
+    # 24-month delete is not shipped: it would cut the disclosed up-to-6-years healthcare
+    # window to 24 months. That window is a stated maximum, not a floor, but ai_api_log.rb
+    # says a shorter default is a separate decision that must weigh it, and the window is
+    # open for counsel. Tracked in
+    # docs/legal/2026-09-22_data-retention.md and
+    # docs/legal/2026-08-25_ai-data-flow-classification.md section 6.
     run_task.call("purge_old_eu_ai_api_logs") do
       count = AiApiLog.purge_old_eu_logs!
       "#{count} EU AI logs purged (5-year retention)"
@@ -265,6 +270,32 @@ task "scheduler:dispatch" => :environment do
       count = License.expire_stale_licenses!
       "#{count} licenses expired"
     end
+
+    # Rolls the Demo School District's synthetic activity forward through yesterday
+    # (America/Los_Angeles). Writes only into the organization flagged
+    # settings['demo_data'] == true and only for @demoschooldistrict.org users; with no
+    # flagged organization (staging, dev) it logs and does nothing. See lib/demo_district.rb.
+    # Loaded in the body for the same reason as data_policy_enforcer above.
+    run_task.call("refresh_demo_district") do
+      require_relative '../demo_district'
+      res = DemoDistrict.refresh!
+      if res[:skipped_org]
+        "no flagged demo organization"
+      elsif res[:skipped_busy]
+        # Another run (rake demo:refresh, create_district!) holds the lock and does the work.
+        "another demo run is in progress; skipped"
+      else
+        "#{res[:sessions_created]} sessions, #{res[:summaries_updated]} summaries, #{res[:goals_tracked]} goals, #{res[:profiles_refreshed]} profiles through #{res[:through]}; skipped #{res[:skipped_users].length} users"
+      end
+    end
+  end
+
+  # Hourly, after the daily block. Only enqueues: the sweep loads embedded pictures one at a
+  # time, which belongs on a worker, not in this 512Mi Job (Uploadable.retry_failed_uploads).
+  run_task.call("retry_failed_uploads") do
+    ButtonImage.schedule_for(:slow, :retry_failed_uploads)
+    ButtonSound.schedule_for(:slow, :retry_failed_uploads)
+    "enqueued for images and sounds"
   end
 
   if failed.any?

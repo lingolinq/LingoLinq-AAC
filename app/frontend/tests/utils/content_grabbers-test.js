@@ -10,9 +10,10 @@ import {
   runs,
   stub
 } from 'frontend/tests/helpers/jasmine';
-import { fake_dbman } from 'frontend/tests/helpers/ember_helper';
+import { fake_dbman, queryLog } from 'frontend/tests/helpers/ember_helper';
 import RSVP from 'rsvp';
 import contentGrabbers from '../../utils/content_grabbers';
+import LingoLinq from '../../app';
 import EmberObject from '@ember/object';
 import persistence from '../../utils/persistence';
 import app_state from '../../utils/app_state';
@@ -97,6 +98,111 @@ describe("contentGrabbers", function() {
   });
 
   describe("save_record", function() {
+    // Same-URL images share one saved record (parallel saves, Ember Data identity), except that a
+    // record keeping its picture is never merged into one the user cannot edit: the server
+    // ignores their changes to it (copy-on-write, pictureGrabber.save_image_preview).
+    describe("with a saved image of the same URL", function() {
+      var push_image = function(id, url, attrs) {
+        return LingoLinq.store.push({ data: {
+          id: id, type: 'image', attributes: Object.assign({ url: url }, attrs || {})
+        }});
+      };
+      var save = function(attrs) {
+        var res = {done: false};
+        var rec = LingoLinq.store.createRecord('image', attrs);
+        contentGrabbers.save_record(rec).then(function(r) { res.record = r; res.done = true; }, function(e) { res.error = e; res.done = true; });
+        return res;
+      };
+
+      it("shares it for a new record that does not keep its picture", function() {
+        var url = 'https://example.com/dedupe-1.png';
+        var saved = push_image('1_9201', url, {permissions: {edit: false}});
+        var res = save({url: url});
+        waitsFor(function() { return res.done; });
+        runs(function() {
+          expect(res.record === saved).toEqual(true);
+        });
+      });
+
+      it("shares one the user can edit even when the new record keeps its picture", function() {
+        var url = 'https://example.com/dedupe-2.png';
+        var saved = push_image('1_9202', url, {permissions: {edit: true}});
+        var res = save({url: url, preserve_source_image: true});
+        waitsFor(function() { return res.done; });
+        runs(function() {
+          expect(res.record === saved).toEqual(true);
+        });
+      });
+
+      // Images loaded with a board carry no permissions (board.rb images_and_sounds_for), so
+      // "unknown" is the usual state; such a record may be someone else's.
+      it("saves a new record that keeps its picture instead of sharing one of unknown ownership that does not", function() {
+        var url = 'https://example.com/dedupe-4.png';
+        var saved = push_image('1_9204', url);
+        queryLog.defineFixture({
+          method: 'POST',
+          type: 'image',
+          compare: function(s) { return s.get('url') == url && s.get('preserve_source_image') === true; },
+          response: RSVP.resolve({image: {id: '1_9214', url: url, preserve_source_image: true, permissions: {edit: true}}})
+        });
+        var res = save({url: url, preserve_source_image: true});
+        waitsFor(function() { return res.done; });
+        runs(function() {
+          expect(res.error).toEqual(undefined);
+          expect(res.record === saved).toEqual(false);
+          expect(res.record && res.record.get('id')).toEqual('1_9214');
+        });
+      });
+
+      it("shares one of unknown ownership that already keeps its picture", function() {
+        var url = 'https://example.com/dedupe-5.png';
+        var saved = push_image('1_9205', url, {preserve_source_image: true});
+        var res = save({url: url, preserve_source_image: true});
+        waitsFor(function() { return res.done; });
+        runs(function() {
+          expect(res.record === saved).toEqual(true);
+        });
+      });
+
+      it("saves a new record that keeps its picture instead of sharing one the user cannot edit", function() {
+        var url = 'https://example.com/dedupe-3.png';
+        var saved = push_image('1_9203', url, {permissions: {edit: false}});
+        queryLog.defineFixture({
+          method: 'POST',
+          type: 'image',
+          compare: function(s) { return s.get('url') == url && s.get('preserve_source_image') === true; },
+          response: RSVP.resolve({image: {id: '1_9213', url: url, preserve_source_image: true, permissions: {edit: true}}})
+        });
+        var res = save({url: url, preserve_source_image: true});
+        waitsFor(function() { return res.done; });
+        runs(function() {
+          expect(res.error).toEqual(undefined);
+          expect(res.record === saved).toEqual(false);
+          expect(res.record && res.record.get('id')).toEqual('1_9213');
+        });
+      });
+
+      // What the server actually sends someone who cannot edit: no edit key at all
+      // (permissable only writes granted actions; spec/models/button_image_spec.rb).
+      it("saves a new record that keeps its picture instead of sharing one whose permissions have no edit key", function() {
+        var url = 'https://example.com/dedupe-6.png';
+        var saved = push_image('1_9206', url, {permissions: {user_id: '1_2', view: true}, preserve_source_image: true});
+        queryLog.defineFixture({
+          method: 'POST',
+          type: 'image',
+          compare: function(s) { return s.get('url') == url && s.get('preserve_source_image') === true; },
+          response: RSVP.resolve({image: {id: '1_9216', url: url, preserve_source_image: true, permissions: {user_id: '1_1', view: true, edit: true}}})
+        });
+        var res = save({url: url, preserve_source_image: true});
+        waitsFor(function() { return res.done; });
+        runs(function() {
+          expect(res.error).toEqual(undefined);
+          expect(res.record === saved).toEqual(false);
+          expect(res.record && res.record.get('id')).toEqual('1_9216');
+        });
+      });
+    });
+
     it("should return a promise", function() {
       var obj = EmberObject.extend({
         save: function() { return RSVP.reject(); }
@@ -130,12 +236,12 @@ describe("contentGrabbers", function() {
       expect(obj.get('url')).toEqual("data:image/png;...");
       expect(obj.get('data_url')).toEqual("data:image/png;...");
       defer.resolve(obj);
-      res.then(function(result) {
-        expect(result).toEqual(obj);
-      });
+      var saved = null;
+      res.then(function(result) { saved = result; });
 
-      waitsFor(function() { return obj.get('url'); });
+      waitsFor(function() { return saved; });
       runs(function() {
+        expect(saved).toEqual(obj);
         expect(obj.get('data_url')).toEqual("data:image/png;...");
         expect(obj.get('url')).toEqual("data:image/png;...");
       });
@@ -447,19 +553,19 @@ describe("contentGrabbers", function() {
 
   describe("file_dropped", function() {
     beforeEach(function() {
-      stub(contentGrabbers, 'check_for_dropped_file', function() {});
+      checked = false; stub(contentGrabbers, 'check_for_dropped_file', function() { checked = true; });
     });
 
-    /* `file_dropped` schedules `runLater(check_for_dropped_file, 100)`. That timer outlives the
-       test: `restoreStubs` puts the REAL handler back at test end and nothing cancels the timer
-       (`cancelHarnessAsyncWork` only cancels sync-harness work), so it fires against whatever
-       `droppedFile` is still on the singleton -- `{a: 1}`, which is not a Blob. `read_file`
-       builds its FileReader INSIDE an RSVP executor, so the `readAsDataURL` TypeError surfaces
-       as an unhandled rejection, which QUnit charges to whichever unrelated test is running.
+    /* `file_dropped` schedules `runLater(check_for_dropped_file, 100)`. Each test waits for that
+       call (the stub records it in `checked`), so the timer cannot fire in a LATER test, where
+       `restoreStubs` has put the real handler back and it would act on whatever `droppedFile`
+       is still on the singleton (`{a: 1}` is not a Blob: `read_file`'s FileReader TypeError
+       surfaced as an unhandled rejection that QUnit charged to an unrelated test).
 
-       This leak is PRE-EXISTING, not introduced here: the two original tests in this block
-       strand `{a: 1}` the same way. Nulling makes the late call a no-op, because
-       `check_for_dropped_file` is guarded by `if(drop)` (services/content-grabbers.js:414). */
+       The afterEach also nulls `droppedFile`, so even a late call stays a no-op
+       (`check_for_dropped_file` is guarded by `if(drop)`, services/content-grabbers.js:414).
+       Kept to the same line count: baselined lint rows below are line-anchored. */
+    var checked = false;
     afterEach(function() {
       contentGrabbers.droppedFile = null;
     });
@@ -469,13 +575,13 @@ describe("contentGrabbers", function() {
       contentGrabbers.board_controller = controller.get('board');
       contentGrabbers.file_dropped('abc', 'image', file);
       expect(contentGrabbers.droppedFile.type).toEqual('image');
-      expect(contentGrabbers.droppedFile.file).toEqual(file);
+      expect(contentGrabbers.droppedFile.file).toEqual(file); waitsFor(function() { return checked; }); runs();
     });
     it("should trigger the button dialog, which will then check for a dropped file", function() {
       var file = {a: 1};
       contentGrabbers.board_controller = controller.get('board');
       contentGrabbers.file_dropped('abc', 'image', file);
-      expect(controller.get('board').sentMessages['buttonSelect']).not.toEqual(null);
+      expect(controller.get('board').sentMessages['buttonSelect']).not.toEqual(null); waitsFor(function() { return checked; }); runs();
     });
 
     /* `file_dropped` reads `board_controller` as its FIRST statement and calls `.send()` on it
@@ -507,7 +613,7 @@ describe("contentGrabbers", function() {
       contentGrabbers.board_controller = live;
       contentGrabbers.file_dropped('abc', 'image', {a: 1});
       expect(live.sentMessages['buttonSelect']).toBeTruthy();
-      expect(contentGrabbers.droppedFile.type).toEqual('image');
+      expect(contentGrabbers.droppedFile.type).toEqual('image'); waitsFor(function() { return checked; }); runs();
     });
 
     it("does not send to a destroying board_controller, and strands no file", function() {
@@ -1027,4 +1133,141 @@ describe("contentGrabbers", function() {
       p.then(null, function() { });
     });
   });
+    // A picture picked by URL (a library search result) is created pending, with an upload form
+    // for the client, unless the server already stores that URL (Uploader.valid_remote_url?). The
+    // form arrives keyed by the new record's id (utils/extras.js upload_params_by_id); the meta
+    // stub stands for another create's form, which this record must never use.
+    describe("save_record, an image saved by URL", function() {
+      var pushed_ids = [];
+      afterEach(function() {
+        pushed_ids.forEach(function(id) { window.lingoLinqExtras.upload_params_take(id); });
+        pushed_ids = [];
+      });
+      // opts.form: push an upload form for the created id; opts.upload: makes upload_to_remote's answer
+      var setup = function(url, response, opts) {
+        var res = {uploads: []};
+        if(opts.form) {
+          pushed_ids.push(response.image.id);
+          window.lingoLinqExtras.upload_params_by_id[response.image.id] = {a: 2};
+        }
+        var ajax = persistence.ajax;
+        stub(persistence, 'ajax', function(req) {
+          if(req === '/api/v1/search/proxy?url=' + encodeURIComponent(url)) {
+            return RSVP.resolve({data: 'data:image/png;base64,AAAA'});
+          }
+          return ajax.apply(this, arguments);
+        });
+        stub(persistence, 'meta', function(model, obj) {
+          return obj ? null : {remote_upload: {a: 'another create'}};
+        });
+        stub(contentGrabbers, 'upload_to_remote', function(args) {
+          res.uploads.push(args);
+          return opts.upload();
+        });
+        // answers one create only, so a second create of the URL needs a fixture of its own
+        queryLog.defineFixture({
+          method: 'POST',
+          type: 'image',
+          compare: function(s) {
+            if(s.get('url') != url || res.created) { return false; }
+            res.created = true;
+            return true;
+          },
+          response: RSVP.resolve(response)
+        });
+        return res;
+      };
+      var save = function(url) {
+        var res = {done: false};
+        var rec = LingoLinq.store.createRecord('image', {url: url, content_type: 'image/png', preserve_source_image: true});
+        contentGrabbers.save_record(rec).then(function(r) { res.record = r; res.done = true; }, function(e) { res.error = e; res.done = true; });
+        return res;
+      };
+
+      it("uploads the picture when the server answers pending", function() {
+        var url = 'https://example.com/by-url-1.png';
+        var net = setup(url, {image: {id: '1_9221', url: null, pending: true, content_type: 'image/png'}},
+          {form: true, upload: function() { return RSVP.resolve({confirmed: true, url: 'https://uploads.example.com/9221.png'}); }});
+        var res = save(url);
+        waitsFor(function() { return res.done; });
+        runs(function() {
+          expect(res.error).toEqual(undefined);
+          expect(net.uploads.length).toEqual(1);
+          expect(net.uploads[0] && net.uploads[0].data_url).toEqual('data:image/png;base64,AAAA');
+          expect(net.uploads[0] && net.uploads[0].a).toEqual(2);
+          expect(res.record && res.record.get('url')).toEqual('https://uploads.example.com/9221.png');
+          expect(res.record && res.record.get('pending')).toEqual(false);
+        });
+      });
+
+      it("does not upload a picture the server already stores", function() {
+        var url = 'https://example.com/by-url-2.png';
+        var net = setup(url, {image: {id: '1_9222', url: url, content_type: 'image/png'}}, {form: false});
+        var res = save(url);
+        waitsFor(function() { return res.done; });
+        runs(function() {
+          expect(res.error).toEqual(undefined);
+          expect(net.uploads.length).toEqual(0);
+          expect(res.record && res.record.get('url')).toEqual(url);
+        });
+      });
+
+      it("does not use another create's upload form for a pending record without its own", function() {
+        var url = 'https://example.com/by-url-3.png';
+        var net = setup(url, {image: {id: '1_9223', url: null, pending: true, content_type: 'image/png'}}, {form: false});
+        var res = save(url);
+        waitsFor(function() { return res.done; });
+        runs(function() {
+          expect(res.error).toEqual(undefined);
+          expect(net.uploads.length).toEqual(0);
+          expect(res.record && res.record.get('id')).toEqual('1_9223');
+        });
+      });
+
+      it("shares one save and one upload between two saves of the same URL", function() {
+        var url = 'https://example.com/by-url-4.png';
+        var net = setup(url, {image: {id: '1_9224', url: null, pending: true, content_type: 'image/png'}},
+          {form: true, upload: function() { return RSVP.resolve({confirmed: true, url: 'https://uploads.example.com/9224.png'}); }});
+        var first = save(url);
+        var second = save(url);
+        waitsFor(function() { return first.done && second.done; });
+        runs(function() {
+          expect(first.error).toEqual(undefined);
+          expect(second.error).toEqual(undefined);
+          expect(net.uploads.length).toEqual(1);
+          expect(second.record === first.record).toEqual(true);
+          expect(second.record && second.record.get('url')).toEqual('https://uploads.example.com/9224.png');
+        });
+      });
+
+      it("leaves the record pending when the upload fails, and a later save of the URL tries again", function() {
+        var url = 'https://example.com/by-url-5.png';
+        var net = setup(url, {image: {id: '1_9225', url: null, pending: true, content_type: 'image/png'}},
+          {form: true, upload: function() { return RSVP.reject({error: "upload failed"}); }});
+        var first = save(url);
+        var second = null;
+        waitsFor(function() { return first.done; });
+        runs(function() {
+          expect(first.error).toEqual(undefined);
+          expect(first.record && first.record.get('id')).toEqual('1_9225');
+          expect(first.record && first.record.get('pending')).toEqual(true);
+          var pending = contentGrabbers.get('_pendingImageSavesByUrl') || {};
+          expect(pending[persistence.normalize_url(url)]).toEqual(undefined);
+          queryLog.defineFixture({
+            method: 'POST',
+            type: 'image',
+            compare: function(s) { return s.get('url') == url; },
+            response: RSVP.resolve({image: {id: '1_9226', url: null, pending: true, content_type: 'image/png'}})
+          });
+          pushed_ids.push('1_9226');
+          window.lingoLinqExtras.upload_params_by_id['1_9226'] = {a: 2};
+          second = save(url);
+        });
+        waitsFor(function() { return second && second.done; });
+        runs(function() {
+          expect(second.record && second.record.get('id')).toEqual('1_9226');
+          expect(net.uploads.length).toEqual(2);
+        });
+      });
+    });
 });

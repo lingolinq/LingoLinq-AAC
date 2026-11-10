@@ -5,6 +5,7 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import i18n from '../../utils/i18n';
 import persistence from '../../utils/persistence';
+import apiErrorMessage from '../../utils/api_error_message';
 
 export default Controller.extend({
   app_state: service('app-state'),
@@ -180,7 +181,7 @@ export default Controller.extend({
       _this.set('telemetry', data);
     }, function(err) {
       _this.set('telemetry', {
-        error: (err && err.error) || i18n.t('unexpected_error', "Unexpected error")
+        error: apiErrorMessage(err, i18n.t('unexpected_error', "Unexpected error"))
       });
     });
   },

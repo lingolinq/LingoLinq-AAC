@@ -1365,7 +1365,7 @@ Button.extra_actions = function(button) {
   if(button && button.integration && button.integration.action_type == 'webhook') {
     var action_state_id = Math.random();
     var update_state = function(obj) {
-     if(!button.get('action_status') || button.get('action_status.state') == action_state_id) {
+     if(button.isDestroyed || button.isDestroying) { return; } if(!button.get('action_status') || button.get('action_status.state') == action_state_id) {
         if(obj) {
           obj.state = action_state_id;
         }
@@ -2054,7 +2054,7 @@ Button.load_actions = function() {
       },
       content: function(match) {
         var n_days = (match && parseInt(match[1], 10)) || 1;
-        var now = window.moment().add(-1 * n_days, 'day');
+        var now = window.moment().add(n_days, 'day');
         return [{text: now.format('dddd')}];
       }
     },
@@ -2064,7 +2064,7 @@ Button.load_actions = function() {
       inline_description: "this month",
       description: i18n.t('current_month', "Speak the name of the current month"),
       content: function() {
-        return "DATE";
+        return [{text: window.moment().format('MMMM')}];
       }
     },
     {
@@ -2103,7 +2103,7 @@ Button.load_actions = function() {
       inline_description: "battery",
       description: i18n.t('battery_level', "Speak the current battery level"),
       content: function() {
-        return (app_state.get('battery') || i18n.t('unknown', "Unknown")) + " " + i18n.t('percent_battery_left', "percent battery left");
+        var level = app_state.get('battery.level'); return [{text: (level != null && isFinite(level) ? level : i18n.t('unknown', "Unknown")) + " " + i18n.t('percent_battery_left', "percent battery left")}];
       }
     },
     {
@@ -2227,14 +2227,14 @@ Button.load_actions = function() {
         var seconds = match ? parseInt(match[1], 10) : 30;
         var duration = templateHelpers.seconds_ago(seconds);
         modal.success(i18n.t('timer_started', "Timer Started:") + " " + duration, true);
-        var start = (new Date()).getTime();
+        var start = (new Date()).getTime(); var timer_for = LingoLinq.appState; // the app whose button started it, if any (destroyed already: the timer does nothing)
         var tick = function() {
-          if(app_state.get('speak_mode')) {
+          if(owner_gone(timer_for)) { return; } if(app_state.get('speak_mode')) { // its app is gone: stop
             var now = (new Date()).getTime();
             if(now - start > (seconds * 1000)) {
               speecher.beep();
               runLater(function() {
-                speecher.beep();
+                if(owner_gone(timer_for)) { return; } speecher.beep(); // the reminder beep belongs to the same app
               }, 1500);
               modal.open('modals/timer');
             } else {
@@ -2266,3 +2266,5 @@ Button.clean_text = clean_text;
 window.button_broken_image = Button.broken_image;
 
 export default Button;
+// Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
+import { owner_gone } from './live_service';

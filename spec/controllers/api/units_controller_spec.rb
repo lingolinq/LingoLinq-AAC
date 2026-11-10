@@ -161,6 +161,47 @@ describe Api::UnitsController, :type => :controller do
       expect(json['unit']['id']).to eq(ou.global_id)
       expect(OrganizationUnit.find_by_global_id(ou.global_id)).to eq(nil)
     end
+
+    # A room links each of its supervisors to each of its communicators; deleting the room takes
+    # it off those links (only a link the room alone made is removed), and the district's later
+    # cleanup, which reads the district's remaining rooms, cannot do it for a deleted room.
+    it "takes the deleted room off its members' supervision links" do
+      token_user
+      o = Organization.create
+      o.add_manager(@user.user_name)
+      ou = OrganizationUnit.create(:organization => o)
+      sup = User.create
+      direct_sup = User.create
+      comm = User.create
+      o.add_supervisor(sup.user_name, false)
+      o.add_supervisor(direct_sup.user_name, false)
+      o.add_user(comm.user_name, false, false)
+      User.link_supervisor_to_user(User.find(direct_sup.id), User.find(comm.id))
+      ou.add_supervisor(sup.user_name, true)
+      ou.add_supervisor(direct_sup.user_name)
+      ou.add_communicator(comm.user_name)
+      Worker.process_queues
+      expect(User.find(comm.id).supervisor_user_ids).to include(sup.global_id, direct_sup.global_id)
+      before = AuditEvent.pluck(:id)
+
+      delete :destroy, params: {:id => ou.global_id}
+      expect(response).to be_successful
+      Worker.process_queues
+      Worker.process_queues
+
+      expect(User.find(comm.id).supervisor_user_ids).not_to include(sup.global_id)
+      expect(User.find(sup.id).supervisor_for?(User.find(comm.id))).to eq(false)
+      expect(User.find(comm.id).supervisor_user_ids).to include(direct_sup.global_id)
+      events = AuditEvent.where.not(id: before).select{|e| e.data['type'] == 'supervision_link_removed' }
+      expect(events.map{|e| [e.data['reason'], e.data['supervisor_id'], e.data['organization_unit_ids']] }).to eq([['organization_unit_deleted', sup.global_id, [ou.global_id]]])
+
+      o.reload.destroy
+      Worker.process_queues
+      Worker.process_queues
+
+      expect(User.find(comm.id).supervisor_user_ids).not_to include(sup.global_id)
+      expect(User.find(comm.id).supervisor_user_ids).to include(direct_sup.global_id)
+    end
   end
   
   describe "stats" do
@@ -590,7 +631,49 @@ describe Api::UnitsController, :type => :controller do
       get :logs, params: {:unit_id => u.global_id}
       assert_unauthorized
     end
-    
+
+    # A room's supervisor reads its communicators' logs and stats through the room; once the
+    # district is deleted the room grants nothing, whether or not its cleanup has run yet.
+    it "should refuse a room supervisor once the room's organization is destroyed" do
+      token_user
+      o = Organization.create(:settings => {'total_licenses' => 10})
+      o2 = Organization.create(:settings => {'total_licenses' => 10})
+      unit = OrganizationUnit.create(:organization => o)
+      live_unit = OrganizationUnit.create(:organization => o2)
+      comm = User.create
+      comm2 = User.create
+      o.add_supervisor(@user.user_name, false)
+      o2.add_supervisor(@user.user_name, false)
+      o.add_user(comm.user_name, false, false)
+      o2.add_user(comm2.user_name, false, false)
+      unit.add_supervisor(@user.user_name)
+      unit.add_communicator(comm.user_name)
+      live_unit.add_supervisor(@user.user_name)
+      live_unit.add_communicator(comm2.user_name)
+      Worker.process_queues
+      get :logs, params: {:unit_id => unit.global_id}
+      expect(response).to be_successful
+
+      o.reload.destroy
+      Worker.flush_queues
+      [:logs, :stats, :log_stats].each do |action|
+        get action, params: {:unit_id => unit.global_id}
+        assert_unauthorized
+      end
+      post :note, params: {:unit_id => unit.global_id, :note => 'hello'}
+      assert_unauthorized
+
+      Organization.clean_up_destroyed(o.id)
+      get :logs, params: {:unit_id => unit.global_id}
+      assert_unauthorized
+      expect(UserLink.where(record_code: Webhook.get_record_code(unit)).count).to eq(0)
+
+      get :logs, params: {:unit_id => live_unit.global_id}
+      expect(response).to be_successful
+      get :stats, params: {:unit_id => live_unit.global_id}
+      expect(response).to be_successful
+    end
+
     it "should return a paginated list of logs if authorized" do
       o = Organization.create(:settings => {'total_licenses' => 100})
       unit = OrganizationUnit.create(:organization => o)

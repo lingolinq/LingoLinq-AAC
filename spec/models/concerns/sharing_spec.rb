@@ -704,6 +704,8 @@ describe Sharing, :type => :model do
   end
   
   describe "all_shared_board_ids" do
+    include SharedBoardRebuildHelpers
+
     it "should return all shallow shares" do
       u = User.create
       u2 = User.create
@@ -713,7 +715,7 @@ describe Sharing, :type => :model do
       b3 = Board.create(:user => u3)
       b.share_with(u3)
       b2.share_with(u3)
-      expect(Board.all_shared_board_ids_for(u3.reload).sort).to eq([b.global_id, b2.global_id])
+      expect(Board.all_shared_board_ids_for(u3.reload)).to match_array([b.global_id, b2.global_id])
     end
     
     it "should return downstream deep shares" do
@@ -735,7 +737,7 @@ describe Sharing, :type => :model do
       b.reload.share_with(u3, true)
       b4.reload.share_with(u3)
       
-      expect(Board.all_shared_board_ids_for(u3.reload).sort).to eq([b.global_id, b2.global_id, b3.global_id, b4.global_id])
+      expect(Board.all_shared_board_ids_for(u3.reload)).to match_array([b.global_id, b2.global_id, b3.global_id, b4.global_id])
     end
     
     it "should not return downstream deep shares by different authors than the original upstream shared boards" do
@@ -757,7 +759,7 @@ describe Sharing, :type => :model do
       b.reload.share_with(u3, true)
       b4.reload.share_with(u3)
       
-      expect(Board.all_shared_board_ids_for(u3.reload).sort).to eq([b.global_id, b3.global_id, b4.global_id])
+      expect(Board.all_shared_board_ids_for(u3.reload)).to match_array([b.global_id, b3.global_id, b4.global_id])
     end
     
     it "should not return duplicates" do
@@ -776,7 +778,7 @@ describe Sharing, :type => :model do
       b2.reload.share_with(u3, true)
       b3.reload.share_with(u3, true)
       
-      expect(Board.all_shared_board_ids_for(u3.reload).sort).to eq([b.global_id, b2.global_id, b3.global_id])
+      expect(Board.all_shared_board_ids_for(u3.reload)).to match_array([b.global_id, b2.global_id, b3.global_id])
     end
     
     it "should not return a downstream deep share by a different author even if that author shared an unrelated board" do
@@ -797,8 +799,9 @@ describe Sharing, :type => :model do
       Worker.process_queues
       b.reload.reload.share_with(u3, true)
       b4.reload.reload.share_with(u3)
-      
-      expect(Board.all_shared_board_ids_for(u3.reload).sort).to eq([b.global_id, b3.global_id, b4.global_id])
+
+      # any order: ids are strings, so a sorted list puts "1_1000" before "1_997"
+      expect(Board.all_shared_board_ids_for(u3.reload)).to contain_exactly(b.global_id, b3.global_id, b4.global_id)
     end
     
     it "should return downstream deep shares by any of the co-authors, even if the share is pending" do
@@ -854,7 +857,300 @@ describe Sharing, :type => :model do
       expect(Board.all_shared_board_ids_for(u2.reload, true).sort).to eq([b.global_id])
       b.reload.update_shares_for(u2, true)
       u2.reload
-      expect(Board.all_shared_board_ids_for(u2.reload, true).sort).to eq([b.global_id, b2.global_id, b3.global_id])
+      expect(Board.all_shared_board_ids_for(u2.reload, true)).to match_array([b.global_id, b2.global_id, b3.global_id])
+    end
+    # The cached list counts as fresh while its stamp is >= the user's boards_updated_at. Both used to
+    # be rounded to hundredths of a second, so a sharing change within the same ~10 ms as the list
+    # being built looked no newer than the list, and the stale list was served.
+    it "serves the cached list while nothing has changed (positive control)" do
+      u = User.create
+      u2 = User.create
+      b = Board.create(:user => u)
+      b.share_with(u2)
+      expect(Board.all_shared_board_ids_for(u2.reload)).to eq([b.global_id])
+      expect(UserLink).to_not receive(:links_for)
+      expect(Board.all_shared_board_ids_for(u2.reload)).to eq([b.global_id])
+    end
+
+    # The stamp comes from the user's stored boards_updated_at, so this pins that column (not the
+    # clock): a change 4 ms after the list's stamp, in the same hundredth of a second, must rebuild.
+    it "rebuilds after a sharing change in the same hundredth of a second as the list's stamp" do
+      u = User.create
+      u2 = User.create
+      b = Board.create(:user => u)
+      b2 = Board.create(:user => u)
+      b.share_with(u2)
+      User.where(id: u2.id).update_all(boards_updated_at: Time.at(1_800_000_000, 120_000, :usec))
+      expect(Board.all_shared_board_ids_for(User.find(u2.id))).to eq([b.global_id])
+
+      b2.share_with(u2)
+      User.where(id: u2.id).update_all(boards_updated_at: Time.at(1_800_000_000, 124_000, :usec))
+      expect(Board.all_shared_board_ids_for(User.find(u2.id)).sort).to eq([b.global_id, b2.global_id].sort)
+    end
+
+    # Old code (a rollback, or staging sharing a database with dev) reads 'timestamp' as a float
+    # rounded to hundredths and compares it with boards_updated_at.to_f.round(2). The microsecond
+    # stamp lives under its own key so 'timestamp' keeps that meaning for old readers.
+    it "keeps the old-format 'timestamp' for code that still reads it" do
+      u = User.create
+      u2 = User.create
+      b = Board.create(:user => u)
+      b.share_with(u2)
+      Board.all_shared_board_ids_for(u2.reload)
+      entry = u2.reload.settings['all_shared_board_ids']['viewing']
+      expect(entry['timestamp']).to be_a(Float)
+      expect(entry['timestamp']).to eq(u2.boards_updated_at.to_f.round(2))
+      expect(entry['stamp_us']).to eq(Board.boards_updated_stamp(u2))
+    end
+
+    # An org link brings that org's home boards into the list (Organization.attached_orgs), so
+    # adding or removing one must move the stamp the cached list is compared with.
+    it "drops a former org's private home board after detach" do
+      manager = User.create
+      u2 = User.create
+      b = Board.create(:user => manager)
+      o = Organization.create
+      o.settings['default_home_boards'] = [{'id' => b.global_id, 'key' => b.key}]
+      o.save
+      o.add_user(u2.user_name, false, false)
+      expect(Board.all_shared_board_ids_for(User.find(u2.id))).to include(b.global_id)
+
+      UserLink.remove(User.find(u2.id), o, 'org_user')
+
+      expect(Board.all_shared_board_ids_for(User.find(u2.id))).not_to include(b.global_id)
+    end
+
+    it "includes a new org's private home board after attach" do
+      manager = User.create
+      u2 = User.create
+      b = Board.create(:user => manager)
+      b2 = Board.create(:user => manager)
+      b2.share_with(u2)
+      o = Organization.create
+      o.settings['default_home_boards'] = [{'id' => b.global_id, 'key' => b.key}]
+      o.save
+      expect(Board.all_shared_board_ids_for(User.find(u2.id))).to eq([b2.global_id])
+
+      link = UserLink.generate(User.find(u2.id), o, 'org_supervisor', {'pending' => false})
+      link.save
+
+      expect(Board.all_shared_board_ids_for(User.find(u2.id))).to include(b.global_id)
+    end
+
+    it "rebuilds a cached list that has no microsecond stamp, however large its 'timestamp'" do
+      u = User.create
+      u2 = User.create
+      b = Board.create(:user => u)
+      b.share_with(u2)
+      u2.reload
+      u2.settings['all_shared_board_ids'] = {'viewing' => {'timestamp' => 9_999_999_999_999_999, 'list' => ['1_stale']}}
+      u2.save
+      expect(Board.all_shared_board_ids_for(u2.reload)).to eq([b.global_id])
+    end
+
+    # A rebuild reads the user's links, walks the shared boards (seconds for a large set), then
+    # stamps and saves the list. An unshare that commits during the walk must not be hidden by
+    # that stamp: the next read, and the background jobs the unshare queues, must drop the board.
+    # A deep share's list includes the shared board's downstream_board_ids, which tracking fills in
+    # after the share. The refresh the share queues can run first and store the list without the
+    # sub-boards; tracking then only schedules a refresh 30 minutes out, and that refresh moves
+    # boards_updated_at only when private access changed. So the stored list stayed current to every
+    # plain read (board search, shared_with?, board_revisions) while it lacked the sub-boards.
+    describe "a deep-shared board whose downstream boards are tracked after the share" do
+      def deep_share_with_sub_boards(public)
+        author = User.create
+        sharee = User.create
+        b = Board.create(:user => author, :public => public)
+        b.share_with(sharee, true)
+        b2 = Board.create(:user => author, :public => public)
+        b.settings['buttons'] = [{'id' => 1, 'load_board' => {'id' => b2.global_id, 'key' => b2.key}}]
+        b.save
+        b3 = Board.create(:user => author, :public => public)
+        b2.settings['buttons'] = [{'id' => 1, 'load_board' => {'id' => b3.global_id, 'key' => b3.key}}]
+        b2.save
+        Worker.process_queues
+        expect(b.reload.downstream_board_ids.sort).to eq([b2.global_id, b3.global_id].sort)
+        [sharee, b, b2, b3]
+      end
+
+      it "includes the public sub-boards in the next plain read" do
+        sharee, b, b2, b3 = deep_share_with_sub_boards(true)
+
+        expect(Board.all_shared_board_ids_for(User.find(sharee.id)).sort).to eq([b.global_id, b2.global_id, b3.global_id].sort)
+        expect(b3.reload.shared_with?(User.find(sharee.id))).to eq(true)
+      end
+
+      it "includes a sub-board linked after the share was already listed" do
+        sharee, b, b2, b3 = deep_share_with_sub_boards(true)
+        expect(Board.all_shared_board_ids_for(User.find(sharee.id))).to include(b3.global_id)
+        # linked from the shared board itself, so its own track updates the list (propagating up
+        # from a deeper board is timing-dependent within one second: complete_stream_checks)
+        b4 = Board.create(:user => b.user, :public => true)
+        b.reload.settings['buttons'] = b.settings['buttons'] + [{'id' => 2, 'load_board' => {'id' => b4.global_id, 'key' => b4.key}}]
+        b.save
+        Worker.process_queues
+        expect(b.reload.downstream_board_ids).to include(b4.global_id)
+
+        expect(Board.all_shared_board_ids_for(User.find(sharee.id))).to include(b4.global_id)
+      end
+
+      # update_setting defers the tracking write to a job when the board row moved meanwhile
+      # (processable.rb); the lists are expired when that write lands, not before it.
+      it "expires the lists when a deferred tracking write lands" do
+        sharee, b, b2, b3 = deep_share_with_sub_boards(true)
+        expect(Board.all_shared_board_ids_for(User.find(sharee.id))).to include(b3.global_id)
+        b4 = Board.create(:user => b.user, :public => true)
+        stale = Board.find(b.id)
+        Board.where(id: b.id).update_all(updated_at: 1.minute.from_now)
+        # only the deferred write runs below, not another track that recomputes the list
+        Worker.flush_queues
+        RemoteAction.delete_all
+        stamp = Board.boards_updated_stamp(User.find(sharee.id))
+
+        res = stale.update_setting({'downstream_board_ids' => stale.downstream_board_ids + [b4.global_id]}, nil, :save_tracked_downstream)
+
+        expect(res).to eq('pending')
+        expect(Board.boards_updated_stamp(User.find(sharee.id))).to eq(stamp)
+        Worker.process_queues
+        expect(b.reload.downstream_board_ids).to include(b4.global_id)
+        expect(Board.boards_updated_stamp(User.find(sharee.id))).to be > stamp
+        expect(Board.all_shared_board_ids_for(User.find(sharee.id))).to include(b4.global_id)
+      end
+    end
+
+    describe "an unshare that commits while the list is being rebuilt" do
+      it "is not served afterwards as a fresh list" do
+        b, u2 = shared_board_setup
+        unshare_mid_rebuild(b, u2)
+
+        Board.all_shared_board_ids_for(User.find(u2.id), false)
+
+        expect(@unshared_mid_rebuild).to eq(true)
+        expect(Board.all_shared_board_ids_for(User.find(u2.id))).to eq([])
+      end
+
+      # UserLink.links_for caches links under the caller's loaded updated_at (user_link.rb:97), so a
+      # caller loaded before the unshare rebuilds from the old links; the stamp must not be newer.
+      it "is not stamped newer than the links a stale caller rebuilt it from" do
+        b, u2 = shared_board_setup
+        stale = User.find(u2.id)
+        UserLink.links_for(stale)
+        b.reload.unshare_with(User.find(u2.id))
+
+        loaded_stamp = Board.boards_updated_stamp(stale)
+        # the stale caller really rebuilds (no cache hit), from its own cached links; matched by
+        # identity, since other copies of the same user compare equal
+        allow(UserLink).to receive(:links_for).and_call_original
+        expect(UserLink).to receive(:links_for).with(satisfy { |rec| rec.equal?(stale) }).and_call_original
+
+        Board.all_shared_board_ids_for(stale, false)
+
+        expect(User.find(u2.id).settings['all_shared_board_ids']['viewing']['stamp_us']).to eq(loaded_stamp)
+        expect(Board.all_shared_board_ids_for(User.find(u2.id))).to eq([])
+      end
+
+      it "is dropped when the unshare's jobs run after the rebuild saves" do
+        b, u2 = shared_board_setup
+        unshare_mid_rebuild(b, u2)
+
+        Board.all_shared_board_ids_for(User.find(u2.id), false)
+        Worker.process_queues
+
+        expect(@unshared_mid_rebuild).to eq(true)
+        expect(Board.all_shared_board_ids_for(User.find(u2.id))).to eq([])
+        expect(u2.reload.private_viewable_board_ids).not_to include(b.global_id)
+      end
+
+      it "is dropped when the unshare's jobs finish before the rebuild saves" do
+        b, u2 = shared_board_setup
+        unshare_mid_rebuild(b, u2, run_jobs: true)
+
+        Board.all_shared_board_ids_for(User.find(u2.id), false)
+
+        expect(@unshared_mid_rebuild).to eq(true)
+        expect(Board.all_shared_board_ids_for(User.find(u2.id))).to eq([])
+        expect(u2.reload.private_viewable_board_ids).not_to include(b.global_id)
+      end
+    end
+
+    # settings is one serialized column, written whole on save (go_secure persist_secure_object). The
+    # rebuild must store only its own cache entry, never the caller's copy of everything else.
+    describe "storing the rebuilt list" do
+      it "keeps settings that another process changed while the list was being rebuilt" do
+        u = User.create
+        u2 = User.create
+        b = Board.create(:user => u)
+        b.share_with(u2)
+        caller_copy = User.find(u2.id)
+        ran = false
+        during_rebuild do
+          ran = true
+          other = User.find(u2.id)
+          other.settings['preferences'] ||= {}
+          other.settings['preferences']['spec_marker'] = 'changed elsewhere'
+          other.save
+        end
+
+        expect(Board.all_shared_board_ids_for(caller_copy, false)).to eq([b.global_id])
+
+        expect(ran).to eq(true)
+        stored = User.find(u2.id)
+        expect(stored.settings['preferences']['spec_marker']).to eq('changed elsewhere')
+        expect(stored.settings['all_shared_board_ids']['viewing']['list']).to eq([b.global_id])
+      end
+
+      it "leaves the caller's copy of the user unchanged" do
+        u = User.create
+        u2 = User.create
+        b = Board.create(:user => u)
+        b.share_with(u2)
+        caller_copy = User.find(u2.id)
+        before = caller_copy.settings.to_json
+
+        expect(Board.all_shared_board_ids_for(caller_copy, false)).to eq([b.global_id])
+
+        expect(caller_copy.settings.to_json).to eq(before)
+      end
+
+      # The read-modify-write of the fresh copy holds the row lock, so a settings write from another
+      # process cannot land between that read and the save (and then be overwritten).
+      it "reads the copy it saves under a row lock" do
+        u = User.create
+        u2 = User.create
+        b = Board.create(:user => u)
+        b.share_with(u2)
+        user_sql = []
+        # The example's fixture transaction is not joinable, so the lock's User.transaction runs as a
+        # SAVEPOINT, and so would a bare save. Number each savepoint as it opens and record which one
+        # was open for each users query: the locked read and the UPDATE must share one savepoint.
+        savepoints = []
+        opened = 0
+        tx_of = {}
+        record = lambda do |*, payload|
+          sql = payload[:sql]
+          if sql =~ /\ASAVEPOINT /
+            savepoints.push(opened += 1)
+          elsif sql =~ /\A(RELEASE|ROLLBACK TO) SAVEPOINT /
+            savepoints.pop
+          elsif sql =~ /\bFROM "users"|\AUPDATE "users"/
+            tx_of[user_sql.length] = savepoints.last
+            user_sql << sql
+          end
+        end
+        ActiveSupport::Notifications.subscribed(record, 'sql.active_record') do
+          Board.all_shared_board_ids_for(User.find(u2.id), false)
+        end
+
+        locked = user_sql.index { |sql| sql =~ /FOR UPDATE/ }
+        updated = user_sql.index { |sql| sql.start_with?('UPDATE "users"') }
+        expect(locked).not_to be_nil
+        expect(updated).not_to be_nil
+        expect(locked).to be < updated
+        lock_tx = tx_of[locked]
+        update_tx = tx_of[updated]
+        expect(lock_tx).to be_an(Integer)
+        expect(update_tx).to eq(lock_tx)
+      end
     end
   end
   
@@ -898,7 +1194,7 @@ describe Sharing, :type => :model do
       u2 = User.create
       b = Board.create(:user => u)
       b.share_with(u2, false, true)
-      expect(b.author_ids.sort).to eq([u.global_id, u2.global_id])
+      expect(b.author_ids).to match_array([u.global_id, u2.global_id])
     end
     
     it "should return a list of approved downstream editing author ids" do
@@ -909,7 +1205,7 @@ describe Sharing, :type => :model do
       b.share_with(u2, false, true)
       b.share_with(u3, true, true)
       b.update_shares_for(u3, true)
-      expect(b.reload.author_ids(true).sort).to eq([u.global_id, u3.global_id])
+      expect(b.reload.author_ids(true)).to match_array([u.global_id, u3.global_id])
     end
   end
   

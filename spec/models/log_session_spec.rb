@@ -754,6 +754,34 @@ describe LogSession, :type => :model do
       expect(session3.data['events'].map{|e| e['button']['label'] }.uniq).to eq(['hat'])
     end
 
+    it "keeps the goal of a note and of an assessment recorded offline" do
+      # Offline, the record-note and quick-assessment dialogs queue their note or assessment as
+      # an event with the goal on it; each splits out into its own session here.
+      u = User.create
+      g = UserGoal.create(:user => u)
+      d = Device.create(:user => u)
+      start = 2.weeks.ago.to_i
+      events = [
+        {'timestamp' => start, 'type' => 'button', 'button' => {'label' => 'hat', 'board' => {'id' => '1_1'}}},
+        {'timestamp' => start + 60, 'type' => 'note', 'note' => {'text' => 'ahem', 'timestamp' => start + 60},
+          'goal_id' => g.global_id, 'goal_status' => 3},
+        {'timestamp' => start + 120, 'type' => 'assessment', 'goal_id' => g.global_id,
+          'assessment' => {'description' => 'quick', 'tallies' => [{'correct' => true, 'timestamp' => start + 110}],
+            'totals' => {'correct' => 2, 'incorrect' => 1}}}
+      ]
+      s = LogSession.new(:data => {'events' => events}, :user => u, :author => u, :device => d)
+      s.split_out_later_sessions(true)
+      Worker.process_queues
+
+      note = LogSession.where(goal_id: g.id, log_type: 'note').first
+      expect(note).not_to eq(nil)
+      expect(note.data['goal']['status']).to eq(3)
+      assessment = LogSession.where(goal_id: g.id, log_type: 'assessment').first
+      expect(assessment).not_to eq(nil)
+      expect(assessment.data['goal']['positives']).to eq(2)
+      expect(assessment.data['goal']['negatives']).to eq(1)
+    end
+
     it "should create and deliver 'share' events" do
       u2 = User.create
 

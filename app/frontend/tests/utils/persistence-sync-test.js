@@ -5210,4 +5210,415 @@ describe("persistence-sync", function() {
       });
     });
   });
+
+  // Offline copies of boards a synced user can no longer view (utils/board_revocation.js).
+  // board_revisions (include_revoked=1) lists them as revoked_ids and leaves them out of the
+  // revisions map. The sync must pass over such a board (it is not a sync error), and mark the
+  // local copy once the whole sync succeeded; a failed revisions request marks nothing.
+  // In the app the sync runs on services/persistence.js (the utils/persistence.js export forwards
+  // to window.persistence). The 'utils' case hides the service's sync() so the utils copy's
+  // sync and sync_boards run, keeping the hooks there covered too (state stays on the service).
+  describe("revoked boards", function() {
+    function utilsSyncWindow(service) {
+      return new Proxy(service, {
+        has: function(target, prop) { return prop === 'sync' ? false : (prop in target); },
+        get: function(target, prop) {
+          if(prop === 'sync') { return undefined; }
+          var val = target[prop];
+          return typeof val === 'function' ? val.bind(target) : val;
+        }
+      });
+    }
+
+    var denied_body = {error: 'Not authorized', unauthorized: true, permission: 'view', status: 400};
+
+    function revokedBoards() {
+      var grid = {rows: 1, columns: 1, order: [['1']]};
+      return [
+        {id: '1_145', key: 'fred/home', full_set_revision: 'current', permissions: {}, current_revision: 'current', image_urls: {}, image_url: 'http://example.com/board.png',
+          buttons: [{id: '1', image_id: '2', load_board: {id: '1_167'}}], grid: grid},
+        {id: '1_167', key: 'fred/next', full_set_revision: 'current', permissions: {}, current_revision: 'current', image_urls: {}, image_url: 'http://example.com/board.png',
+          buttons: [{id: '1', image_id: '2', load_board: {id: '1_178'}}], grid: grid},
+        {id: '1_178', key: 'other/shared', full_set_revision: 'current', permissions: {}, current_revision: 'current', image_urls: {}, image_url: 'http://example.com/board.png',
+          buttons: [{id: '1', image_id: '2'}], grid: grid}
+      ];
+    }
+
+    function runRevokedSync(revisionsAnswer, outcome, impl) {
+      var tailDone = false;
+      primeBoardRevisionsSyncHarness(function() { tailDone = true; });
+      boardRevocation.reset_for_tests();
+      persistence.known_missing = {};
+      var boards = revokedBoards();
+      var reloads = {};
+      stubStoreUrl(function(url) { return RSVP.resolve({url: url}); });
+      chainPersistenceAjax(function(url, opts) {
+        if (url == '/api/v1/users/1340/board_revisions') {
+          outcome.revisions_opts = opts;
+          return revisionsAnswer();
+        }
+      });
+      persistence.url_uncache = {'http://www.example.com/pic.png': true};
+      primeLocalSyncStorage([{id: '2', url: 'http://www.example.com/pic.png'}]);
+      var stored = false;
+      var store_promises = boards.map(function(b) { return persistence.store('board', b, b.id); });
+      store_promises.push(persistence.store('image', {id: '2', url: 'http://www.example.com/pic.png'}, '2'));
+      store_promises.push(persistence.store('dataCache', {url: 'http://www.example.com/pic.png', content_type: 'image/png', data_uri: 'data:image/png;base64,a0a'}, 'http://www.example.com/pic.png'));
+      store_promises.push(persistence.store('settings', {'1_145': 'current', '1_167': 'current', '1_178': 'current'}, 'synced_full_set_revisions'));
+      RSVP.all_wait(store_promises).then(function() {
+        return waitForBoardsStored(['1_145', '1_167', '1_178']);
+      }).then(function() {
+        // The revoked board's copy is old, as on a real device: without the revoked list the
+        // sync would try to reload it and get the server's "Not authorized".
+        refreshBoardsInStore([boards[0], boards[1]], { fresh: true });
+        refreshBoardsInStore([boards[2]]);
+        setTimeout(function() { stored = true; }, 100);
+      }, function() { stored = true; });
+
+      var done = false;
+      waitsFor(function() { return stored; });
+      runs(function() {
+        LingoLinq.all_wait = true;
+        queryLog.real_lookup = true;
+        stubBoardReloadTracking([boards[0], boards[1]], reloads);
+        stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+        stub(window.$, 'realAjax', function(options) {
+          if(options.url === '/api/v1/users/1340') {
+            return RSVP.resolve({user: {id: '1340', user_name: 'fred', avatar_url: 'http://example.com/pic.png', preferences: {home_board: {id: '1_145'}}}});
+          } else if(options.url == '/api/v1/boards/1_178' || options.url == '/api/v1/boards/other/shared') {
+            outcome.fetched_revoked = true;
+            return RSVP.reject({status: 400, readyState: 4, responseJSON: Object.assign({}, denied_body), responseText: JSON.stringify(denied_body)});
+          } else if(options.url && options.url.match(/\/api\/v1\/buttonsets\//)) {
+            return RSVP.resolve({ buttonset: { buttons: [], full_set_revision: 'current' } });
+          }
+          return RSVP.reject({});
+        });
+        setTimeout(function() {
+          window.persistence = persistenceTarget() || persistence;
+          persistence.known_missing = {};
+          cancelSyncTailWork();
+          persistence.set('sync_status', null);
+          persistence.set('sync_progress', null);
+          var service = window.persistence;
+          if(impl === 'utils') {
+            window.persistence = utilsSyncWindow(service);
+            // The harness points sync_boards at the service's traversal on both objects;
+            // put the utils traversal back so this case runs utils/persistence.js end to end.
+            var utilsSyncBoards = Object.getPrototypeOf(persistence).sync_boards;
+            stub(persistence, 'sync_boards', function() {
+              outcome.utils_traversal = true;
+              return utilsSyncBoards.apply(this, arguments).then(function(res) { tailDone = true; return res; });
+            });
+          }
+          var restore = function() { window.persistence = service; done = true; };
+          outcome.ran_utils = (impl === 'utils' && !('sync' in window.persistence));
+          persistence.sync(1340).then(restore, restore);
+        }, 50);
+      });
+      waitsFor(function() { return waitForSyncDoneAndSettled(done) && tailDone; });
+      runs(function() {
+        var log = (persistenceTarget() || persistence).get('sync_log') || [];
+        outcome.last_log = log[log.length - 1];
+        outcome.reloads = reloads;
+        var polls = 0;
+        var poll = function() {
+          lingoLinqExtras.storage.find('board', '1_178').then(function(rec) {
+            outcome.revoked_raw = rec && rec.raw;
+            polls++;
+            if((rec && rec.raw && rec.raw.revoked) || polls > 30) {
+              lingoLinqExtras.storage.find('board', '1_145').then(function(own) {
+                outcome.own_raw = own && own.raw;
+                outcome.checked = true;
+              }, function() { outcome.checked = true; });
+            } else {
+              setTimeout(poll, 50);
+            }
+          }, function() { outcome.checked = true; });
+        };
+        poll();
+      });
+      waitsFor(function() { return outcome.checked; });
+    }
+
+    it("passes over a revoked board without a sync error, then marks its local copy", function() {
+      db_wait(function() {
+        var outcome = {};
+        runRevokedSync(function() {
+          return RSVP.resolve({revisions: {'1_145': 'current', 'fred/home': 'current', '1_167': 'current', 'fred/next': 'current'}, revoked_ids: ['1_178']});
+        }, outcome, 'service');
+        runs(function() {
+          expect(outcome.revisions_opts.data.include_revoked).toEqual('1');
+          expect(outcome.fetched_revoked).toEqual(undefined);
+          expect(outcome.last_log && outcome.last_log.issues).toEqual(false);
+          expect(outcome.revoked_raw && outcome.revoked_raw.revoked).toEqual(true);
+          expect(outcome.revoked_raw && outcome.revoked_raw.key).toEqual('other/shared');
+          expect(outcome.revoked_raw && outcome.revoked_raw.buttons && outcome.revoked_raw.buttons.length).toEqual(1);
+          expect(outcome.own_raw && outcome.own_raw.revoked).toEqual(undefined);
+          cancelSyncTailWork();
+          persistence.set('sync_progress', null);
+          LingoLinq.sync_testing_real_boards = false;
+          boardRevocation.reset_for_tests();
+        });
+      });
+    });
+
+    it("marks nothing when the board_revisions request fails", function() {
+      db_wait(function() {
+        var outcome = {};
+        runRevokedSync(function() {
+          var rej = RSVP.reject({fakeXHR: {status: 500}, message: 'error', result: 'Internal Server Error'});
+          rej.then(null, function() { });
+          return rej;
+        }, outcome, 'service');
+        runs(function() {
+          expect(outcome.revisions_opts && outcome.revisions_opts.data.include_revoked).toEqual('1');
+          expect(!!(outcome.last_log && outcome.last_log.finished)).toEqual(true);
+          expect(outcome.revoked_raw && outcome.revoked_raw.key).toEqual('other/shared');
+          expect(outcome.revoked_raw && outcome.revoked_raw.revoked).toEqual(undefined);
+          expect(outcome.own_raw && outcome.own_raw.revoked).toEqual(undefined);
+          cancelSyncTailWork();
+          persistence.set('sync_progress', null);
+          LingoLinq.sync_testing_real_boards = false;
+          boardRevocation.reset_for_tests();
+        });
+      });
+    });
+
+    // utils/persistence.js: its own sync, request and sync_boards traversal. Its sync cannot
+    // complete under LingoLinq.sync_testing (spread_out runs the step synchronously, before the
+    // promise it names is assigned: a pre-existing test-mode defect), so this case covers the
+    // request and the traversal hook; marking at completion is covered by the service case.
+    it("utils implementation: requests the revoked list and passes over a revoked board", function() {
+      db_wait(function() {
+        var outcome = {};
+        runRevokedSync(function() {
+          return RSVP.resolve({revisions: {'1_145': 'current', 'fred/home': 'current', '1_167': 'current', 'fred/next': 'current'}, revoked_ids: ['1_178']});
+        }, outcome, 'utils');
+        runs(function() {
+          var statuses = (outcome.last_log && outcome.last_log.statuses) || [];
+          expect(outcome.ran_utils).toEqual(true);
+          expect(outcome.utils_traversal).toEqual(true);
+          expect(outcome.revisions_opts.data.include_revoked).toEqual('1');
+          expect(outcome.revisions_opts.data.check_ids).toEqual(undefined);
+          expect(statuses.map(function(s) { return s.id; }).sort()).toEqual(['1_145', '1_167']);
+          expect(outcome.fetched_revoked).toEqual(undefined);
+          cancelSyncTailWork();
+          persistence.set('sync_progress', null);
+          LingoLinq.sync_testing_real_boards = false;
+          boardRevocation.reset_for_tests();
+        });
+      });
+    });
+  });
+
+  // A sync the app starts on its own (a reason is passed) fails quietly and backs off; only a sync
+  // the user started (no reason, 'manual_sync') shows the error popup. Decided 2026-10-26 when the
+  // automatic checks were restored (docs/task-management/2026-10-26_restore-persistence-setup.md).
+  var failSyncFor1340 = function(reason, errors) {
+    cancelSyncTailWork();
+    unloadSyncStoreRecords();
+    persistence.set('sync_log', null);
+    persistence.set('sync_progress', null);
+    persistence.set('sync_status', null);
+    persistence.set('auto_sync_backoff_until', null);
+    persistence.set('auto_sync_failures', 0);
+    stub(modal, 'error', function(msg) { errors.push(msg); });
+    stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+    stubOnPersistence('sync_user', function() { return RSVP.resolve(); });
+    stubOnPersistence('sync_boards', function() { return RSVP.resolve({}); });
+    queryLog.defineFixture({
+      method: 'GET',
+      type: 'user',
+      response: RSVP.resolve({user: {id: '1340', user_name: 'fred'}}),
+      id: "1340"
+    });
+    var prevFind = LingoLinq.store.findRecord;
+    stub(LingoLinq.store, 'findRecord', function(type, id) {
+      return prevFind.apply(this, arguments).then(function(record) {
+        if (type === 'user' && String(id) === '1340' && record) {
+          stub(record, 'reload', function() {
+            return RSVP.reject({error: 'failed to retrieve user details'});
+          });
+        }
+        return record;
+      });
+    });
+    var state = {done: false};
+    persistence.sync(1340, null, null, reason).then(function() { state.done = true; }, function() { state.done = true; });
+    return state;
+  };
+
+  it("should not show the error popup for a failed automatic sync, and should back off", function() {
+    db_wait(function() {
+      var errors = [];
+      var before = (new Date()).getTime();
+      var state = failSyncFor1340('sync_stamp_changed:a:b', errors);
+      waitsFor(function() { return state.done && persistence.get('sync_status') === 'failed'; });
+      runs(function() {
+        expect(errors.length).toEqual(0);
+        expect(persistence.get('auto_sync_backoff_until') > before).toEqual(true);
+        persistence.set('auto_sync_backoff_until', null);
+        persistence.set('auto_sync_failures', 0);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+      });
+    });
+  });
+
+  it("should still show the error popup for a failed sync the user started", function() {
+    db_wait(function() {
+      var errors = [];
+      var state = failSyncFor1340(undefined, errors);
+      waitsFor(function() { return state.done && persistence.get('sync_status') === 'failed'; });
+      runs(function() {
+        expect(errors).toEqual(['failed to retrieve user details']);
+        expect(persistence.get('auto_sync_backoff_until')).toEqual(null);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+      });
+    });
+  });
+
+  // Pushing to the cloud, changing the home board and updating the sidebar start a sync with a
+  // reason, but the user started them, so a failure still shows the popup and does not back off.
+  it("should still show the error popup for a failed sync the user started with a reason", function() {
+    db_wait(function() {
+      var errors = [];
+      var state = failSyncFor1340('push_to_cloud', errors);
+      waitsFor(function() { return state.done && persistence.get('sync_status') === 'failed'; });
+      runs(function() {
+        expect(errors).toEqual(['failed to retrieve user details']);
+        expect(persistence.get('auto_sync_backoff_until')).toEqual(null);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+      });
+    });
+  });
+
+  // The sync check runs on every refresh_stamp tick. A long sync's event time is its start, and
+  // last_sync_at is written only after the lastSync store resolves, so the finished sync must
+  // record its event time when its status changes or the next tick starts a second full sync.
+  it("should record the sync event time when a sync finishes, before the lastSync store resolves", function() {
+    db_wait(function() {
+      cancelSyncTailWork();
+      unloadSyncStoreRecords();
+      persistence.set('sync_progress', null);
+      persistence.set('sync_status', null);
+      stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+      stubOnPersistence('sync_user', function() { return RSVP.resolve(); });
+      stubOnPersistence('sync_boards', function() { return RSVP.resolve({}); });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'user',
+        response: RSVP.resolve({user: {id: '1340', user_name: 'fred'}}),
+        id: "1340"
+      });
+      var svc = window.persistence;
+      var at_finish = null;
+      var finished = false;
+      var store_done = false;
+      // Read just after the status change (once every observer of it has run, as the check's next
+      // tick would) but before the lastSync store resolves.
+      var watcher = function() {
+        var status = svc.get('sync_status');
+        if(!finished && (status === 'succeeded' || status === 'finished')) {
+          finished = true;
+          Promise.resolve().then(function() {
+            at_finish = {event_at: svc.get('last_sync_event_at'), store_done: store_done};
+          });
+        }
+      };
+      var store_watcher = function() { store_done = true; };
+      svc.addObserver('last_sync_at', store_watcher);
+      var done = false;
+      persistence.sync(1340).then(function() { done = true; }, function() { done = true; });
+      // As if the sync had started long ago.
+      svc.set('last_sync_event_at', 1);
+      svc.addObserver('sync_status', watcher);
+      waitsFor(function() { return done && at_finish !== null; });
+      runs(function() {
+        svc.removeObserver('sync_status', watcher);
+        svc.removeObserver('last_sync_at', store_watcher);
+        expect(at_finish.store_done).toEqual(false);
+        expect(at_finish.event_at > 1).toEqual(true);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+      });
+    });
+  });
+
+  // last_sync_at drives the sync check observer synchronously, so a finished sync must record its
+  // event time first; otherwise the check still sees the sync's start time and can start a second
+  // full sync straight away after a long one.
+  it("should record the sync event time before last_sync_at on success", function() {
+    db_wait(function() {
+      cancelSyncTailWork();
+      unloadSyncStoreRecords();
+      persistence.set('sync_progress', null);
+      persistence.set('sync_status', null);
+      stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+      stubOnPersistence('sync_user', function() { return RSVP.resolve(); });
+      stubOnPersistence('sync_boards', function() { return RSVP.resolve({}); });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'user',
+        response: RSVP.resolve({user: {id: '1340', user_name: 'fred'}}),
+        id: "1340"
+      });
+      var svc = window.persistence;
+      var seen = [];
+      var watcher = function() { seen.push(svc.get('last_sync_event_at')); };
+      var done = false;
+      persistence.sync(1340).then(function() { done = true; }, function() { done = true; });
+      var started_at = persistence.get('last_sync_event_at');
+      svc.addObserver('last_sync_at', watcher);
+      waitsFor(function() { return done && seen.length > 0; });
+      runs(function() {
+        svc.removeObserver('last_sync_at', watcher);
+        expect(persistence.get('sync_status') === 'succeeded' || persistence.get('sync_status') === 'finished').toEqual(true);
+        expect(seen[0] > started_at).toEqual(true);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+      });
+    });
+  });
+
+  // Cancelling a sync ends in its failure branch, which stashes last_sync_status 'failed'. The user
+  // stopped it, so the device keeps the last real result: the Modern home notice reads it after a
+  // reload, and the two-failures pause counts it.
+  it("should not remember a cancelled sync as a failed one", function() {
+    db_wait(function() {
+      cancelSyncTailWork();
+      unloadSyncStoreRecords();
+      persistence.set('sync_progress', null);
+      persistence.set('sync_status', null);
+      stashes.persist('last_sync_status', 'succeeded');
+      var errors = [];
+      stub(modal, 'error', function(msg) { errors.push(msg); });
+      stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+      stubOnPersistence('sync_user', function() { return RSVP.resolve(); });
+      stubOnPersistence('sync_boards', function() {
+        persistence.cancel_sync();
+        return RSVP.reject({error: 'canceled'});
+      });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'user',
+        response: RSVP.resolve({user: {id: '1340', user_name: 'fred'}}),
+        id: "1340"
+      });
+      var done = false;
+      persistence.sync(1340).then(function() { done = true; }, function() { done = true; });
+      waitsFor(function() { return done; });
+      runs(function() {
+        expect(persistence.get('sync_status')).toEqual('failed');
+        expect(stashes.get('last_sync_status')).toEqual('succeeded');
+        stashes.persist('last_sync_status', null);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+      });
+    });
+  });
 });
+// Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
+import boardRevocation from '../../utils/board_revocation';

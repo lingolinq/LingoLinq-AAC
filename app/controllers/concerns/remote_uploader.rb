@@ -1,6 +1,15 @@
 module RemoteUploader
   extend ActiveSupport::Concern
 
+  # A new record waiting for a client upload is useless without an upload form, and the JSON leaves
+  # the form out when S3 is not configured. Remove the record and answer through
+  # ApplicationController#remote_uploads_unavailable instead of leaving a pending orphan.
+  def ensure_upload_form_available!(record)
+    return if !record.pending_upload? || Uploader.client_uploads_configured?
+    record.destroy
+    Uploader.ensure_client_uploads_configured!
+  end
+
   def upload_success
     # check on S3 that the file uploaded successfully
     type = ButtonImage
