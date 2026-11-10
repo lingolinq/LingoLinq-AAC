@@ -290,11 +290,16 @@ class Device < ApplicationRecord
     @expired_keys ||= {}
     @refreshable_keys ||= {}
     new_keys = []
+    # A key issued before the person answered "Trust this Device" carries the organization's idle timeout
+    # (generate_token!). Once the device is trusted, its own idle limit applies to those keys too, as it does to
+    # every key issued afterwards; a shared or valet device keeps the organization's timeout.
+    trusted_browser = self.token_type == :browser && self.settings['long_token'] == true && !self.settings['valet']
     keys.each do |k|
       # tokens that haven't been inactive for too long, 
       # AND tokens that were created too long ago (or were
       # scheduled for expiry due to refresh request)
-      inactive_too_long = self.token_type != :integration && k['last_timestamp'] <= Time.now.to_i - (k['timeout'] || self.inactivity_timeout)
+      idle_limit = (trusted_browser ? nil : k['timeout']) || self.inactivity_timeout
+      inactive_too_long = self.token_type != :integration && k['last_timestamp'] <= Time.now.to_i - idle_limit
       needs_refresh = self.token_type == :integration && (Time.now.to_i - (k['timestamp'] || k['last_timestamp']) > (k['timeout'] || self.inactivity_timeout))
       created_too_long_ago = (Time.now.to_i - (k['timestamp'] || k['last_timestamp']) > self.token_timeout) || (k['expire_at'] && k['expire_at'] < Time.now.to_i)
       if created_too_long_ago

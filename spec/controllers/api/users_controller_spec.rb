@@ -725,6 +725,30 @@ describe Api::UsersController, :type => :controller do
       expect(@device.inactivity_timeout).to eq(14.days.to_i)
     end
 
+    it "keeps a session signed in past the organization idle timeout once the person trusts the device" do
+      token_user
+      o = Organization.create
+      o.settings['inactivity_timeout'] = 20
+      o.save
+      o.add_manager(@user.user_name)
+      @device.settings['browser'] = true
+      @device.save
+      @device.generate_token!(false)
+      key = @device.settings['keys'].last
+      expect(key['timeout']).to eq(20.minutes.to_i)
+      request.headers['Authorization'] = "Bearer #{key['value']}"
+
+      put :update, params: {:id => @user.global_id, :user => {:preferences => {:device => {:long_token => true, :asserted => true}}}}
+      expect(response).to be_successful
+
+      d = Device.find(@device.id)
+      expect(d.settings['long_token']).to eq(true)
+      idx = d.settings['keys'].index { |k| k['value'] == key['value'] }
+      d.settings['keys'][idx]['timestamp'] = 21.minutes.ago.to_i
+      d.settings['keys'][idx]['last_timestamp'] = 21.minutes.ago.to_i
+      expect(d.valid_token?(key['value'])).to eq(true)
+    end
+
     # `PUT /api/v1/users/self` is the hottest Ember Data write in the app, and
     # Ember serializes the WHOLE record on every save. As of 6df5b1bbc the body
     # is JSON again rather than form-encoded, so preference scalars arrive with

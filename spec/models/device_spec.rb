@@ -296,6 +296,108 @@ describe Device, :type => :model do
       expect(d.settings['keys'].length).to eq(1)
       expect(d.settings['keys'][0]['needs_refresh']).to eq(true)
     end
+
+    # A Home Screen sign-in is asked "Trust this Device" AFTER the token was issued, so the token carries the
+    # organization's idle timeout. Answering Trust marks the device (User#process_device), not the token.
+    describe "an organization idle timeout on a token issued before the device was trusted" do
+      def browser_device_with_org_timeout
+        o = Organization.create
+        u = User.create
+        o.settings['inactivity_timeout'] = 20
+        o.save
+        d = Device.create(user: u, settings: {'browser' => true})
+        o.add_manager(u.user_name)
+        d.generate_token!(false)
+        expect(d.settings['keys'][0]['timeout']).to eq(20.minutes.to_i)
+        d
+      end
+
+      def idle_for_21_minutes(d)
+        d.settings['keys'][0]['timestamp'] = 21.minutes.ago.to_i
+        d.settings['keys'][0]['last_timestamp'] = 21.minutes.ago.to_i
+        d.settings['keys'][0]['needs_refresh'] = nil
+      end
+
+      it "no longer applies once the device is trusted" do
+        d = browser_device_with_org_timeout
+        token = d.settings['keys'][0]['value']
+        d.settings['long_token'] = true
+        d.settings['long_token_set'] = true
+        idle_for_21_minutes(d)
+        expect(d.valid_token?(token)).to eq(true)
+        expect(d.settings['keys'][0]['needs_refresh']).to eq(nil)
+      end
+
+      it "still applies when the person answers that the device is shared" do
+        d = browser_device_with_org_timeout
+        token = d.settings['keys'][0]['value']
+        d.settings['long_token'] = false
+        d.settings['long_token_set'] = true
+        idle_for_21_minutes(d)
+        expect(d.valid_token?(token)).to eq(false)
+        expect(d.settings['keys'][0]['needs_refresh']).to eq(true)
+      end
+
+      it "does not revive a token that had already timed out before the device was trusted" do
+        d = browser_device_with_org_timeout
+        token = d.settings['keys'][0]['value']
+        idle_for_21_minutes(d)
+        expect(d.valid_token?(token)).to eq(false)
+        expect(d.settings['keys'][0]['needs_refresh']).to eq(true)
+        d.settings['long_token'] = true
+        d.settings['long_token_set'] = true
+        expect(d.valid_token?(token)).to eq(false)
+      end
+
+      it "is lifted for every token on the trusted device, not only the one that answered" do
+        d = browser_device_with_org_timeout
+        d.generate_token!(false)
+        expect(d.settings['keys'].map { |k| k['timeout'] }).to eq([20.minutes.to_i, 20.minutes.to_i])
+        tokens = d.settings['keys'].map { |k| k['value'] }
+        d.settings['long_token'] = true
+        d.settings['keys'].each { |k| k['timestamp'] = 21.minutes.ago.to_i; k['last_timestamp'] = 21.minutes.ago.to_i }
+        expect(tokens.map { |t| d.valid_token?(t) }).to eq([true, true])
+      end
+
+      it "applies again to that token when the person later answers that the device is shared" do
+        d = browser_device_with_org_timeout
+        token = d.settings['keys'][0]['value']
+        d.settings['long_token'] = true
+        idle_for_21_minutes(d)
+        expect(d.valid_token?(token)).to eq(true)
+        d.settings['long_token'] = false
+        idle_for_21_minutes(d)
+        expect(d.valid_token?(token)).to eq(false)
+      end
+
+      it "still applies on a valet session, also when the device row is marked trusted" do
+        d = browser_device_with_org_timeout
+        token = d.settings['keys'][0]['value']
+        d.settings['long_token'] = true
+        d.settings['valet'] = true
+        idle_for_21_minutes(d)
+        expect(d.valid_token?(token)).to eq(false)
+      end
+
+      it "still applies to a token that carries one on a device that is not a browser" do
+        d = browser_device_with_org_timeout
+        token = d.settings['keys'][0]['value']
+        d.settings.delete('browser')
+        expect(d.token_type).not_to eq(:browser)
+        d.settings['long_token'] = true
+        idle_for_21_minutes(d)
+        expect(d.valid_token?(token)).to eq(false)
+      end
+
+      it "still ends a trusted browser session after 28 idle days" do
+        d = browser_device_with_org_timeout
+        token = d.settings['keys'][0]['value']
+        d.settings['long_token'] = true
+        d.settings['keys'][0]['last_timestamp'] = 29.days.ago.to_i
+        d.settings['keys'][0]['needs_refresh'] = nil
+        expect(d.valid_token?(token)).to eq(false)
+      end
+    end
   end
 
   describe "valid_token?" do

@@ -1984,3 +1984,36 @@ POSTs, failed writes). The local e2e stack serves button sets from the database,
 `generate` jobs would go to the Redis the development server shares, so it would not show the staging behaviour.
 To measure with the #1212 app run against staging; if it worsens #1212, move the button-set step after
 `sync_boards` resolves.
+
+#### Trusted device keeps the organization idle timeout in its first session: fixed (2026-11-10)
+
+**Cause (CONFIRMED):** with the shell on, a Home Screen sign-in sends no `long_token`, so the key gets
+`key['timeout']` from the organization (`app/models/device.rb:204-209`). The Trust answer marks the device row
+(`app/models/user.rb:3856-3858`), not the key, and `clean_old_keys` read the key's timeout before the row's own
+limit, so a trusted iPad was signed out after the organization's idle minutes (a timed-out browser key never
+recovers). Before this branch that sign-in got a long token with no key timeout.
+**Fix:** in `clean_old_keys`, a browser row with `long_token == true` that is not a valet session uses its own idle
+limit (28 days) for every key, also keys that carry an organization timeout. Nothing changes for untrusted rows,
+valet sessions, app and integration devices.
+**Security review (proposal, before the edit): proceed with changes; applied** (valet excluded explicitly, six more
+specs). Its findings, recorded as scope:
+- No new access of substance: a signed-in member can already set `long_token` on their own device row (PUT
+  /api/v1/users/self, `users_controller.rb:199`) and sign in again to get a token with no organization timeout. The
+  fix removes the second sign-in. No organization setting enforces the timeout on trusted devices.
+- Accepted reach: the timeout is lifted from every live key on that device row, not only the one that answered
+  (same user only; browsers without a device id share the `default` row). A supervisor with `edit` who sets
+  `long_token` on a supervisee's device now also extends that device's live sessions, not only future ones.
+- A key already marked `needs_refresh` before the Trust answer stays dead (the prompt left open past the idle
+  minutes): the person signs in again. Specified, not fixed.
+- Shared after Trust: a key issued before the trust gets the organization timeout back; a key issued while trusted
+  has none and falls to the 12-hour default. Pre-existing gap.
+- Pre-existing, separate work: no AuditEvent when a device's trust setting changes; the Redis-cached token path
+  skips `valid_token?`, so the organization timeout is enforced only on a cache miss or a token check.
+**Specs:** `spec/models/device_spec.rb` "an organization idle timeout on a token issued before the device was
+trusted" (8 examples) and `spec/controllers/api/users_controller_spec.rb` "keeps a session signed in past the
+organization idle timeout once the person trusts the device" (through the real Trust request). Red before (the two
+trusted cases), green after. Mutations: fix removed, 4 fail; every browser trusted or not, 3 fail; valet not
+excluded, 1 fails; any device type, 1 fails. Device, session controller, users controller and organization specs:
+1,051 examples, 0 failures.
+**Before merge:** an authentication change needs the dual review on the PR (`/review-pr` after the PII preflight,
+then `/adversary-review`).
