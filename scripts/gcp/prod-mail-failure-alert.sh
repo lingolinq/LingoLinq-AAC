@@ -12,8 +12,14 @@
 #   cloud_run_worker_pool resources in lingolinq-prod.
 #
 # WHAT IT DOES NOT COVER
-#   Mail that SES accepts and later bounces (the SES reputation alarms cover that), and mail
-#   sent inline outside a job whose error is rescued by its caller.
+#   - Mail sent inline inside a non-mailer job: BoyBand queues most jobs as
+#     "<Class> . perform_action", so an SES error raised there logs
+#     "[job failed] User . perform_action Aws::SES::Errors::..." and does not match (for example
+#     the expiration and usage mails in Subscription.check_for_subscription_updates).
+#   - Mail that SES accepts and later bounces (the SES reputation alarms cover that).
+#   It DOES also fire on mailer code errors (a NoMethodError in a mailer job), not only SES
+#   problems. Before --apply, measure the failed mail jobs in the Resque failed list by mailer
+#   and error class to know the base rate.
 #
 # ASSUMPTION TO CONFIRM ONCE
 #   The app logs plain text to STDOUT (config/environments/production.rb), which Cloud Logging

@@ -1421,8 +1421,9 @@ module Subscription
             AuditEvent.log_command('system', {'type' => 'inactivity_notice_not_sent', 'user_id' => user.global_id,
               'step' => (attempts > 2 ? 'account_deleted' : 'deletion_warning'), 'reason' => skip_reason})
           end
-          # Only a notice that reached SES shows SES is accepting mail; a skipped one releases
-          # no held rejections.
+          # A notice the mailer skips (skip_reason) never goes to SES, so it releases no held
+          # rejections. Only a predicted skip is excluded: an InvalidParameterValue that
+          # General.deliver_message swallows still counts as accepted.
           unless mail_accepted || skip_reason
             mail_accepted = true
             release_held.call

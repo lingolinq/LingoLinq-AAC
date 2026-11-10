@@ -606,3 +606,18 @@ Verdict: Approve with comments (no Critical or High). Done:
 - Found, unrelated and pre-existing: the app does not boot with `RESQUE_WORKER=true` on develop either
   (`config/environment.rb:33`, `uninitialized constant AppSearcher`), so that setting is unused in
   production. Not changed here.
+
+## Adversary review of d3068582d and 0234f8b50 (owner-requested, before push)
+
+Reviewed SHA `0234f8b50`. Verdict: ship; no Critical or High. Three Lows. Under Rule 13 (two self-inflicted
+errors this session) only non-runtime fixes were made; the rest are follow-ups.
+- Low 1 (CONFIRMED, `boy_band.rb:415,466`): most jobs are queued as `perform_action` with the real method in
+  `args[2]['method']`, so the line reads `User . perform_action <Err>` and an SES error inside a non-mailer
+  job is not matched. Done: the script and policy doc state it. Follow-up: log `args[2]['method']` for
+  `perform_action`, add an `Aws::SES::Errors::` clause to the filter, use the real job shape in the slow-job
+  spec fixture.
+- Low 2 (PLAUSIBLE): the alert also fires on mailer code errors. Done: documented; measure the base rate in
+  the Resque failed list before `--apply`.
+- Low 3 (CONFIRMED path): `skip_reason` predicts, it does not observe; a swallowed InvalidParameterValue still
+  counts as accepted. Done: the comment no longer claims "reached SES". Follow-up: have `deliver_message`
+  return the outcome.
