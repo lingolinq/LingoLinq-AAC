@@ -5,11 +5,17 @@ class UserMailer < ActionMailer::Base
   default from: ENV['DEFAULT_EMAIL_FROM']
   layout 'email'
   
+  # Turns email off for every account on a permanently bounced address, recording why and
+  # when. The 'bounce' reason is what lets password reset through
+  # (Api::UsersController#forgot_password). An account already off is left as it is: a repeat
+  # bounce would only add a version, and an account turned off for another reason (a shared
+  # demo login, DemoDistrict::Seeder.disable_email!) must not become resettable.
   def self.bounce_email(email)
     hash = User.generate_email_hash(email)
     users = User.where(:email_hash => hash)
     users.each do |user|
-      user.update_setting('email_disabled', true)
+      next if user.settings['email_disabled']
+      user.update_setting({'email_disabled' => true, 'email_disabled_reason' => 'bounce', 'email_disabled_at' => Time.now.utc.iso8601})
     end
   end
 

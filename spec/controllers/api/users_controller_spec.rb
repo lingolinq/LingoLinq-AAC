@@ -1956,6 +1956,22 @@ describe Api::UsersController, :type => :controller do
       expect(json).to eq({'email_sent' => true})
     end
 
+    it "should email a user whose address was disabled by a bounce, with the uniform response" do
+      u = User.create(:settings => {'email' => 'bob@example.com', 'email_disabled' => true, 'email_disabled_reason' => 'bounce'})
+      expect(UserMailer).to receive(:schedule_delivery).with(:forgot_password, [u.global_id])
+      post :forgot_password, params: {:key => u.user_name}
+      expect(response).to be_successful
+      expect(JSON.parse(response.body)).to eq({'email_sent' => true})
+    end
+
+    it "should email bounce-disabled users found by email address, but not users disabled for another reason" do
+      bounced = User.create(:settings => {'email' => 'bob@example.com', 'email_disabled' => true, 'email_disabled_reason' => 'bounce'})
+      User.create(:settings => {'email' => 'bob@example.com', 'email_disabled' => true, 'email_disabled_reason' => 'demo'})
+      expect(UserMailer).to receive(:schedule_delivery).with(:forgot_password, [bounced.global_id])
+      post :forgot_password, params: {:key => 'bob@example.com'}
+      expect(JSON.parse(response.body)).to eq({'email_sent' => true})
+    end
+
     it "should email all matching users for the given email address" do
       u = User.create(:settings => {'email' => 'bob@example.com'})
       u2 = User.create(:settings => {'email' => 'bob@example.com'})

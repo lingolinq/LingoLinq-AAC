@@ -2558,6 +2558,16 @@ describe User, :type => :model do
       expect(u.reload.settings['email_disabled']).to eq(nil)
     end
 
+    it "clears why and when email was disabled along with the flag" do
+      u = User.process_new(:email => 'bob@example.com')
+      UserMailer.bounce_email('bob@example.com')
+      expect(u.reload.settings['email_disabled_reason']).to eq('bounce')
+      u.process({'email' => 'fred@example.com'})
+      u.reload
+      expect(u.settings['email_disabled_reason']).to eq(nil)
+      expect(u.settings['email_disabled_at']).to eq(nil)
+    end
+
     it "keeps email_disabled when the address only changes case or whitespace" do
       u = User.process_new(:email => 'bob@example.com')
       UserMailer.bounce_email('bob@example.com')

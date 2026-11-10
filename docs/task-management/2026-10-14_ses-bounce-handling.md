@@ -310,3 +310,123 @@ JSON + `--check`/`--apply` shape, on the same proven channel.
 4. `gem 'aws-sdk-sqs', '~> 1'` as a direct Gemfile entry (today it is transitive via
    aws-sdk-rails 3.13.0).
 5. The #1117 log-based alert above.
+
+---
+
+# 2026-11-09 continuation: #1145 email items, owner decisions applied
+
+Develop merged in (`d6415147c`; two keep-both conflicts in `scheduler_spec.rb` and the
+2026-10 learnings archive). Post-merge: SES, scheduler and user specs 495 examples, 0 failures.
+This branch now carries the "Email delivery" section of #1145 only; the other #1145 sections go
+to their own branch afterwards (owner decision, 2026-11-09). Their triage is recorded at the end.
+
+## Owner decisions (Traci, 2026-11-09)
+
+1. Complaints: count only (unchanged; follow-up 1 closed as decided).
+2. Password reset: always send reset mail to a user whose email was disabled.
+3. Inactivity sweep: an `email_disabled` account proceeds on the normal schedule, and each notice
+   that was not sent is recorded.
+
+## Learnings consulted
+
+archive 2026-10 "`email_disabled` blocks password reset" (this branch's own entry) and "User settings
+writes from scheduled code are not versioned unless whodunnit is set". Applied to A below.
+
+## Fact sheet (on this branch at `d6415147c`)
+
+A. Password reset
+- (a) CONFIRMED the only read that blocks reset mail is `users_controller.rb:902`
+  (`not_disabled_users = users.select{|u| !u.settings['email_disabled'] }`), before
+  `generate_password_reset` (:903). The mail itself is not gated: `UserMailer#forgot_password`
+  (`user_mailer.rb:89-93`) -> `mail_message` (`mailers/concerns/general.rb:4-13`) ->
+  `channels_for('forgot_password')`, which returns `[named_email]` regardless (`notifiable.rb:14-15`).
+- (b) CONFIRMED writers of `settings['email_disabled'] = true`: `UserMailer.bounce_email`
+  (`user_mailer.rb:8-14`, called only by `SesEventsWorker` on this branch) and
+  `DemoDistrict::Seeder.disable_email!` (`lib/demo_district/seeder.rb:239-246`). Clearer:
+  `User#process_params` on a different address (`user.rb:2750-2755`, this branch). Shapes: absent,
+  `true` from a bounce, `true` from the demo seeder. Nothing records which.
+- (c) CONFIRMED the demo seeder relies on the reset block: its comment (`seeder.rb:232-234`) names
+  `forgot_password` as a reader, and it drops `password_resets` in the same write. Demo accounts are
+  shared logins on `@demoschooldistrict.org` (`DemoDistrict.demo_email?`). "Always send" as worded
+  would let anyone request a reset link for a shared demo login, mailed to that domain.
+- CONFIRMED `update_setting` accepts a hash and writes each key (`processable.rb:68-78`).
+
+B. Inactivity sweep
+- (a) CONFIRMED the notice is skipped at `general.rb:8` via `channels_for(caller label)` ->
+  `[]` when `email_disabled` (`notifiable.rb:17-18`); `general.rb:6` also skips a blank address.
+  `deliver_message` (`general.rb:28-35`) then delivers nothing and raises nothing, so the sweep
+  (`subscription.rb:1362-1366`) treats the step as sent: no rescue, the step stands, and
+  `mail_accepted` is set (:1415-1418).
+- (b) Shapes at send time: address present and enabled (sent), `email_disabled` (skipped), blank or
+  non-email address (skipped, documented as intended at `subscription.rb:1517-1521`).
+- (c) CONFIRMED the existing durable record for a notice-less step is an AuditEvent
+  `inactivity_step_kept_without_notice` (`subscription.rb:1384-1387`), asserted in
+  `subscription_spec.rb:2580-2597`. Settings on the row are erased when the account is flushed, so a
+  settings-only record would vanish exactly when it is needed.
+
+## Proposal
+
+A. Candidates
+- A1 (chosen): record why email was disabled. `bounce_email` writes `email_disabled_reason: 'bounce'`
+  and `email_disabled_at`; `forgot_password` lets a user through when the reason is `'bounce'`. A flag
+  with no reason (demo seeder, or any unknown writer) still blocks. `bounce_email` leaves an account
+  alone when it is already disabled for another reason, so a demo address can never be turned into a
+  bounce one. `process_params` clears the reason and timestamp with the flag. This is also F2's
+  `email_disabled_reason`/`_at` follow-up.
+- A2: bypass for everyone except `DemoDistrict.demo_email?`. Rejected: couples the reset controller to
+  the demo module, and any future disable writer silently opens reset.
+- A3: always send (the decision as worded). Rejected: regresses demo account isolation (fact A c).
+- Tests: controller, bounce-disabled user gets `schedule_delivery(:forgot_password, [id])` (mutation:
+  keep filtering every disabled user -> red); existing `users_controller_spec.rb:1950` (no reason ->
+  blocked) stays unchanged and goes red under "bypass every disabled user". Mailer, `bounce_email`
+  writes the reason; leaves a reason-less disabled account untouched (mutation: overwrite -> red).
+  User, email change clears reason and timestamp (mutation: clear flag only -> red).
+
+B. Candidates
+- B1 (chosen): after a notice that went through without error, when the account is `email_disabled`,
+  write AuditEvent `{'type' => 'inactivity_notice_not_sent', 'user_id' => gid, 'step' => mail,
+  'reason' => 'email_disabled'}` (ids only, same shape as the kept-without-notice event). The step and
+  schedule are unchanged.
+- B2: a settings key on the row (`last_inactivity_notice_unsent`). Rejected: erased at flush, and it
+  would have to join `inactivity_step_fields`/undo bookkeeping.
+- Tests: warning step and deletion step for an `email_disabled` account each write one event and keep
+  the step (mutation: drop the audit -> red); an enabled account writes none (mutation: audit always ->
+  red).
+
+Risks and unresolved questions
+- Blank-address accounts are also skipped silently and are far more numerous (most communicators).
+  Not recorded here: the decision named `email_disabled`. Question for the owner.
+- An unsent notice still sets `mail_accepted`, which releases held SES rejections (:1415-1418) although
+  nothing reached SES. Pre-existing for blank addresses; not changed here. Question for review.
+- Production rows with `email_disabled` and no reason, from before this branch, keep blocking reset.
+  `bounce_email` has had no caller, so none should be bounce rows; not verified live.
+
+## Adversarial review of the A/B proposal (adversary agent, at `d6415147c`) and what was done
+
+Each finding re-checked before acting.
+
+- High (demo logins can end up 'bounce' and open reset to an unregistered domain): mechanism CONFIRMED
+  in code, but the production path is moot: demo districts are created only in a nonprod migrate job
+  (`lib/demo_district.rb:130-131`) and the consumer runs only in production (prod-only queue URL), so
+  `bounce_email` never meets a demo user. Applied anyway as defence in depth: the seeder writes
+  `email_disabled_reason: 'demo'`, overwriting any other reason, and no longer skips a row whose reason
+  is not 'demo'. CONFIRMED separately: `demoschooldistrict.org` has no DNS record here (`getent hosts`
+  empty); reported to the owner as its own issue (register it, or move seeds to a reserved domain).
+- Medium (SES account-level suppression may drop the reset mail): cannot be checked here (no `aws`
+  CLI). Not a blocker: A1 is no worse than today. Added to the rollout checklist:
+  `aws sesv2 get-account --query SuppressionAttributes`; if BOUNCE is suppressed, decision 2 needs an
+  owner follow-up (removing an address from the list from an unauthenticated endpoint is its own
+  risk).
+- Medium (B1 decided from the stale batch copy; `mail_accepted` set by notices that never went out):
+  CONFIRMED (`user.rb:2223-2232` copies only written keys; NullMail delivers nil, actionmailer
+  `base.rb:653,658-669`). Changed: the skip reason is read from the fresh locked row through one shared
+  predicate, `Notifiable#mail_skip_reason` (same address check and `channels_for` that `mail_message`
+  uses); an unsent notice is audited with its reason and does not set `mail_accepted`. Decided from the
+  predicate, not `deliver_message`'s return value, because existing specs stub `deliver_message` with
+  blocks that return nil. Blank-address accounts are recorded too (`no_address`): same fact, at most 3
+  rows per account per cycle. Remaining gap: an `InvalidParameterValue` swallowed by `deliver_message`
+  (`general.rb:32-34`) is still treated as sent; it logs `SES delivery failed`, which the new log alert
+  covers.
+- Low (bounced users now reach `generate_password_reset`'s bare save, lost-update race with an email
+  change): PLAUSIBLE, same race every enabled user already has. Accepted, noted.
+- Low (`email_disabled_at` churn): applied, written only on the absent-to-true transition.

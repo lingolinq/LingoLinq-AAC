@@ -2747,11 +2747,11 @@ class User < ApplicationRecord
         return false
       end
       processed_email = process_string(new_email)
-      # A different mailbox gets a fresh start: email_disabled was set for the OLD address
-      # (UserMailer.bounce_email, from an SES bounce or complaint). Compared by email hash so a
-      # case or whitespace edit of the same mailbox does not re-enable it.
+      # A different mailbox gets a fresh start: email_disabled, and why and when it was set, were
+      # for the OLD address (UserMailer.bounce_email, from an SES permanent bounce). Compared by
+      # email hash so a case or whitespace edit of the same mailbox does not re-enable it.
       if User.generate_email_hash(processed_email) != User.generate_email_hash(self.settings['email'])
-        self.settings.delete('email_disabled')
+        %w(email_disabled email_disabled_reason email_disabled_at).each { |key| self.settings.delete(key) }
       end
       self.settings['email'] = processed_email
     end

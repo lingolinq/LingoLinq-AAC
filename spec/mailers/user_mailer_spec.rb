@@ -33,6 +33,36 @@ describe UserMailer, :type => :mailer do
       expect(u2.reload.settings['email_disabled']).to eq(true)
       expect(u3.reload.settings['email_disabled']).to eq(true)
     end
+
+    it "should record that a bounce disabled the address, and when" do
+      u = User.create(:settings => {'email' => 'bob.miller@example.com'})
+      UserMailer.bounce_email("bob.miller@example.com")
+      u.reload
+      expect(u.settings['email_disabled_reason']).to eq('bounce')
+      expect(Time.iso8601(u.settings['email_disabled_at'])).to be > 1.minute.ago
+    end
+
+    it "should keep the first bounce time and add no version on a repeat bounce" do
+      PaperTrail.request.whodunnit = 'system:spec'
+      u = User.create(:settings => {'email' => 'bob.miller@example.com'})
+      UserMailer.bounce_email("bob.miller@example.com")
+      first_at = u.reload.settings['email_disabled_at']
+      versions = u.versions.count
+      UserMailer.bounce_email("bob.miller@example.com")
+      expect(u.reload.settings['email_disabled_at']).to eq(first_at)
+      expect(u.versions.count).to eq(versions)
+    ensure
+      PaperTrail.request.whodunnit = nil
+    end
+
+    it "should leave an address disabled for another reason as it is" do
+      u = User.create(:settings => {'email' => 'bob.miller@example.com', 'email_disabled' => true})
+      UserMailer.bounce_email("bob.miller@example.com")
+      u.reload
+      expect(u.settings['email_disabled']).to eq(true)
+      expect(u.settings['email_disabled_reason']).to eq(nil)
+      expect(u.settings['email_disabled_at']).to eq(nil)
+    end
   end
 
   describe "deliver_message" do
