@@ -82876,40 +82876,6 @@ span.md-board-detail-modeling-btn--badge {
    the access badge (500 vs 700) per spec — these convey passive
    counts/dates, the access badge conveys a permission state. */
 
-/* Sub-navigation pills inside admin index (Managers, Supervisors, etc.) */
-.md-pillnav--org-sub {
-  width: fit-content !important;
-  margin: 0 auto 24px !important;
-  padding: 6px 10px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  flex-wrap: wrap !important;
-  gap: 4px !important;
-  border-radius: 999px !important;
-  background: rgba(255, 255, 255, 0.85) !important;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04) !important;
-  border: 1px solid rgba(0, 0, 0, 0.06) !important;
-}
-.md-pillnav--org-sub .md-pillnav__pill {
-  padding: 8px 14px !important;
-  border-radius: 999px !important;
-  background: transparent !important;
-  border: none !important;
-  font-size: 14px !important;
-  font-weight: 600 !important;
-  color: var(--md-navy, $la-navy) !important;
-  cursor: pointer !important;
-  transition: background 0.15s ease !important;
-}
-.md-pillnav--org-sub .md-pillnav__pill:hover {
-  background: rgba($brand-dusty-denim, 0.08) !important;
-}
-.md-pillnav--org-sub .md-pillnav__pill.is-active {
-  background: var(--md-navy, $la-navy) !important;
-  color: #fff !important;
-}
-
 /* Parent org badge */
 .md-org-parent-badge {
   text-align: center;
