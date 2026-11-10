@@ -468,19 +468,15 @@ export default Component.extend({
        change, so it lands on the new board rather than on the dying preview.
        Named so it also answers "why did that take so long".
 
-       Two handlers, not one: the home board is set either way, but the images
-       are exactly what did NOT get saved when the preload rejects, so promising
-       offline use on that path is the one claim we know to be false — and the
-       user finds out only when they are offline and the board renders blank. */
+       One handler: preload_board_images always resolves, and it only loads pictures into the
+       browser's memory, so there is nothing here that could tell whether the board is on the
+       device. The message says what is true and a sync is started (utils/home_board.js, #1034). */
     var finish = function() {
-      modal.success(i18n.t('board_now_your_home_board', "This is now your home board, and it's saved for offline use."), true);
+      modal.success(home_board_set_message(), true);
+      sync_after_home_change(persistence);
       go();
     };
-    var finish_without_images = function() {
-      modal.success(i18n.t('board_now_your_home_board_no_offline', "This is now your home board. Some images could not be saved for offline use — reconnect and open the board once to finish saving it."), true);
-      go();
-    };
-    preload_board_images(homeBoard).then(finish, finish_without_images);
+    preload_board_images(homeBoard).then(finish, finish);
   },
 
   // Clear the copying overlay and surface a (localized) error. Leaves the preview
@@ -517,3 +513,5 @@ export default Component.extend({
 
 // Imported last so the .eslint-todo rows above keep their lines.
 import { remember_trial } from '../utils/board_picker_trials';
+import { home_board_set_message, sync_after_home_change } from '../utils/home_board';
+import persistence from '../utils/persistence';

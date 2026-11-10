@@ -1032,7 +1032,7 @@
               {{#if (and this.can_set_as_home (not (get this.speak_menu_hidden_set "set_as_home")))}}
                 <div class="md-board-detail-actions-menu__section">
                   <button type="button" class="md-board-detail-actions-menu__item" data-bd-action="set_as_home" {{on "click" (this.ctrlAction "set_as_home")}}
-                    title={{t "Make this the board you start on, and available offline" key="board_detail_set_as_home_tooltip"}}>
+                    title={{t "Make this the board you start on. It is kept on this device after the next sync." key="board_detail_set_as_home_kept_after_sync"}}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
                       <polyline points="9 22 9 12 15 12 15 22"/>
