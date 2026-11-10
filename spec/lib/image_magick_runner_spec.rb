@@ -3,6 +3,16 @@ require 'tmpdir'
 require 'open3'
 
 describe ImageMagickRunner do
+  # The examples that ask the real ImageMagick whether a label reached its file read depend on a
+  # policy that refuses the read. Pinning the repo's own (the one production adds, Dockerfile:57)
+  # makes them observe the same thing on every host, whatever its stock policy.
+  let(:repo_policy) { {'MAGICK_CONFIGURE_PATH' => Rails.root.join('config', 'imagemagick').to_s} }
+  let(:unobservable) do
+    'an unescaped " @x.txt" was not refused, so this example cannot observe a file read here: ' \
+      'ImageMagick did not skip the whitespace, did not enter the read branch, loaded no ' \
+      'path @* policy, or reports the refusal from another function'
+  end
+
   describe "run" do
     it "does not pass arguments through a shell" do
       Dir.mktmpdir do |dir|
@@ -78,19 +88,18 @@ describe ImageMagickRunner do
       skip('ImageMagick not installed') unless system('montage', '-version', :out => File::NULL, :err => File::NULL)
       Dir.mktmpdir do |dir|
         input = File.join(dir, 'in.png')
-        system('convert', '-size', '40x40', 'xc:skyblue', input)
+        system(repo_policy, 'convert', '-size', '40x40', 'xc:skyblue', input)
         File.write(File.join(dir, 'x.txt'), 'SECRET')
         expect(File.exist?(input)).to eq(true), 'convert did not create the input image'
-        # Positive control: unescaped, the same label must trip the policy, or the absence of
-        # the error below proves nothing.
-        control, _status = Open3.capture2e('montage', '-label', '@x.txt', input, '-tile', '1x1',
-                                           '-pointsize', '16', '-geometry', '40x40+3+10',
+        # Positive control: unescaped, a whitespace-prefixed label must trip the policy, or the
+        # absence of the error below proves nothing.
+        control, _status = Open3.capture2e(repo_policy, 'montage', '-label', ' @x.txt', input,
+                                           '-tile', '1x1', '-pointsize', '16', '-geometry', '40x40+3+10',
                                            File.join(dir, 'o.png'), :chdir => dir)
-        expect(control).to include('InterpretImageProperties'),
-          'an unescaped @x.txt did not reach the file-read branch, so this example cannot observe one'
+        expect(control).to include('InterpretImageProperties'), unobservable
         reached = (1..127).select do |byte|
           label = ImageMagickRunner.escape_label(byte.chr + '@x.txt')
-          out, _s = Open3.capture2e('montage', '-label', label, input, '-tile', '1x1',
+          out, _s = Open3.capture2e(repo_policy, 'montage', '-label', label, input, '-tile', '1x1',
                                     '-pointsize', '16', '-geometry', '40x40+3+10',
                                     File.join(dir, 'o.png'), :chdir => dir)
           out.include?('InterpretImageProperties')
@@ -183,25 +192,24 @@ describe ImageMagickRunner do
 
     it "stops montage reaching a file read for a whitespace-prefixed at-sign" do
       # Asks ImageMagick rather than encoding my own idea of which bytes count as space.
-      # Oracle: the stock Debian policy (path rights=none pattern=@*) turns a REACHED file
-      # read into an InterpretImageProperties error, so its absence means the read branch
-      # was never entered. On a host without that policy this arm cannot observe the read;
-      # the string assertion above is what covers that case.
+      # Oracle: the repo policy (config/imagemagick/policy.xml, path rights=none pattern=@*),
+      # pinned through repo_policy so every host runs under it, turns a REACHED file read into
+      # an InterpretImageProperties error, so its absence means the read branch was never
+      # entered. The positive control proves the oracle works on this host's ImageMagick.
       skip('ImageMagick not installed') unless system('montage', '-version', :out => File::NULL, :err => File::NULL)
       Dir.mktmpdir do |dir|
         input = File.join(dir, 'in.png')
-        system('convert', '-size', '40x40', 'xc:skyblue', input)
+        system(repo_policy, 'convert', '-size', '40x40', 'xc:skyblue', input)
         File.write(File.join(dir, 'x.txt'), 'SECRET')
         expect(File.exist?(input)).to eq(true), 'convert did not create the input image'
-        # Positive control: unescaped, the same label must trip the policy, or the absence of
-        # the error below proves nothing.
-        control, _status = Open3.capture2e('montage', '-label', '@x.txt', input, '-tile', '1x1',
-                                           '-pointsize', '16', '-geometry', '40x40+3+10',
+        # Positive control: unescaped, a whitespace-prefixed label must trip the policy, or the
+        # absence of the error below proves nothing.
+        control, _status = Open3.capture2e(repo_policy, 'montage', '-label', ' @x.txt', input,
+                                           '-tile', '1x1', '-pointsize', '16', '-geometry', '40x40+3+10',
                                            File.join(dir, 'o.png'), :chdir => dir)
-        expect(control).to include('InterpretImageProperties'),
-          'an unescaped @x.txt did not reach the file-read branch, so this example cannot observe one'
+        expect(control).to include('InterpretImageProperties'), unobservable
         [' ', "\t", "\n"].each do |prefix|
-          out, _status = Open3.capture2e('montage', '-label',
+          out, _status = Open3.capture2e(repo_policy, 'montage', '-label',
             ImageMagickRunner.escape_label("#{prefix}@x.txt"), input, '-tile', '1x1',
             '-pointsize', '16', '-geometry', '40x40+3+10', File.join(dir, 'o.png'),
             :chdir => dir)

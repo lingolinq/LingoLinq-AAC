@@ -90,16 +90,22 @@ jobs:
       # when montage is missing (spec/lib/image_magick_runner_spec.rb:78), so without this a broken
       # install goes back to skipping and CI stays green. The policy checks are the production image's
       # (Dockerfile:66-70). No pipefail, on purpose: the last check needs convert to be REFUSED, which
-      # is a non-zero exit, so no check that must succeed is written as a pipe.
+      # is a non-zero exit, so no check is written as a pipe. Each failure names its check and prints what
+      # ImageMagick said (messages only: the text: read goes to null:), so a mismatch is diagnosable.
       - name: Verify ImageMagick and its policy
         run: |
+          fail() { echo "::error::ImageMagick check failed: $1"; cat "$2"; exit 1; }
+          policy="$RUNNER_TEMP/im-policy.txt"
+          refusal="$RUNNER_TEMP/im-refusal.txt"
           for bin in montage convert identify; do "$bin" -version > /dev/null; done
           convert -version > "$RUNNER_TEMP/im-version.txt"
           head -1 "$RUNNER_TEMP/im-version.txt"
-          convert -list policy > "$RUNNER_TEMP/im-policy.txt"
-          grep -qF "Path: $MAGICK_CONFIGURE_PATH/policy.xml" "$RUNNER_TEMP/im-policy.txt"
-          grep -qi 'pattern: PCL' "$RUNNER_TEMP/im-policy.txt"
-          convert text:/etc/passwd null: 2>&1 | grep -q 'security policy .TEXT'
+          convert -list policy > "$policy"
+          grep '^Path:' "$policy" || fail 'no policy file is listed' "$policy"
+          grep -qF "Path: $GITHUB_WORKSPACE/config/imagemagick/policy.xml" "$policy" || fail 'the repo policy file is not loaded' "$policy"
+          grep -qi 'pattern: PCL' "$policy" || fail 'the policy was not read through its last coder rule' "$policy"
+          convert text:/etc/passwd null: > "$refusal" 2>&1 || true
+          grep -q 'security policy .TEXT' "$refusal" || fail 'the TEXT coder was not refused' "$refusal"
 
       - name: Setup assets (vendor.css, frontend.css symlinks)
         run: bundle exec rails extras:assert_js
