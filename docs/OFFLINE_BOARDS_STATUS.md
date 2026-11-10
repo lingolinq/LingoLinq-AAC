@@ -117,7 +117,8 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
 | Decision | By | Date |
 |---|---|---|
 | A real server denial wins on Modern view, except home and sidebar boards; Speak Mode no longer exempts | Traci | 2026-11-05 |
-| Device copies are for speaking only; saving actions are refused; no swap when the connection returns | Traci | 2026-11-05 |
+| ~~Device copies are for speaking only; saving actions are refused~~ (replaced 2026-11-09, next row); no swap when the connection returns | Traci | 2026-11-05 |
+| Modern view treats a device copy like Basic view does: no "saved on this device" notice, Edit works offline, other actions are not blocked up front (ones that need the server say so). Accepted risk: an offline edit is sent at the next sync with no check for newer server changes. A real server denial still wins (row 1) | Traci | 2026-11-09 |
 | Ask "Trust this Device" on Home Screen sign-ins | Scot | 2026-11-05 |
 | Ask it only where the offline shell is on | Scot (suggestion), Traci | 2026-11-07 |
 | Earlier trusted Home Screen iPads: keep Scot's manual workaround for now; code fix is Scot's call (#1285) | Traci | 2026-11-07 |
