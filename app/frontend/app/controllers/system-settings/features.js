@@ -4,7 +4,7 @@ import { computed } from '@ember/object';
 import { getOwner } from '@ember/application';
 import i18n from '../../utils/i18n';
 import modal from '../../utils/modal';
-import apiErrorMessage from '../../utils/api_error_message';
+import apiErrorMessage from '../../utils/api_error_message'; import { groupIdFor, groupsFor, groupFeatures } from '../../utils/system_feature_groups';
 export default Controller.extend({
   persistence: service('persistence'),
 
@@ -17,7 +17,7 @@ export default Controller.extend({
   loadError: false,
   saving: false,
   searchQuery: '',
-  categoryFilter: '',
+  categoryFilter: 'all',
   pendingToggles: null,
 
   init() {
@@ -56,9 +56,9 @@ export default Controller.extend({
   filteredFeatures: computed('features.[]', 'searchQuery', 'categoryFilter', function() {
     var list = this.get('features') || [];
     var q = (this.get('searchQuery') || '').trim().toLowerCase();
-    var cat = this.get('categoryFilter') || '';
+    var cat = (this.get('categoryFilter') || 'all') === 'all' ? '' : this.get('categoryFilter');
     return list.filter(function(f) {
-      if (cat && f.category !== cat) {
+      if (cat && groupIdFor(f.category) !== cat) {
         return false;
       }
       if (!q) {
@@ -72,9 +72,9 @@ export default Controller.extend({
 
   categoryOptions: computed('categories.[]', function() {
     var cats = this.get('categories') || [];
-    var options = [{id: '', label: i18n.t('system_settings_filter_all_categories', "All categories")}];
-    cats.forEach(function(c) {
-      options.push({id: c, label: c});
+    var options = [{id: 'all', name: i18n.t('system_settings_filter_all_categories', "All categories")}];
+    groupsFor(cats).forEach(function(g) {
+      options.push({id: g.id, name: g.label});
     });
     return options;
   }),
@@ -226,5 +226,14 @@ export default Controller.extend({
         modal.error(apiErrorMessage(err, i18n.t('system_settings_save_error', "Could not save settings.")));
       });
     }
-  }
+  },
+
+  /* THE PAGE'S SECTIONS (2026-11-09, requested: "sort the features into their categories on the
+     page" with "professional groupings"): the filtered features grouped and ordered by
+     utils/system_feature_groups.js. The Category filter above picks one of these sections
+     (`categoryOptions`, `filteredFeatures`), so the dropdown and the headings say the same thing.
+     Added at the end of the file so the line-anchored .eslint-todo rows above stay aligned. */
+  featureGroups: computed('filteredFeatures.[]', function() {
+    return groupFeatures(this.get('filteredFeatures'));
+  })
 });

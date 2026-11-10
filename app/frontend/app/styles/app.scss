@@ -95280,6 +95280,26 @@ body.md-tour--centered-step .shepherd-modal-overlay-container.shepherd-modal-is-
   color: var(--md-muted, $la-navy);
   margin-bottom: 16px;
 }
+/* The feature sections (2026-11-09, templates/system-settings/features.hbs): a heading over each
+   group, with room between groups so they read as sections rather than one list. */
+.la-system-settings__feature-group {
+  margin-top: 28px;
+}
+.la-system-settings__feature-group:first-of-type {
+  margin-top: 8px;
+}
+.la-system-settings__feature-group-title {
+  margin: 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid rgba($la-navy, 0.12);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--md-ink, $brand-blue-black);
+}
+/* <ModernSelect> fills its field, as the native selects it replaced did. */
+.la-system-settings__filter-select {
+  width: 100%;
+}
 .la-system-settings__feature-list {
   list-style: none;
   padding: 0;

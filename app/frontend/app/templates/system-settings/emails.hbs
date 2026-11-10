@@ -6,14 +6,12 @@
       <span class="la-system-settings__label-text">{{t "Search" key="system_settings_search_label"}}</span>
       <input type="search" value={{this.searchQuery}} class="form-control la-system-settings__search-input" autocomplete="off" placeholder={{t "Email name…" key="system_settings_emails_search_placeholder"}} {{on "input" (set-field this "searchQuery")}} />
     </label>
-    <label class="la-system-settings__filter">
+    {{!-- <ModernSelect>, not a native <select>, so the open list takes the app's styles too
+         (requested 2026-11-09). "All categories" is the '' option, which it shows as the placeholder. --}}
+    <div class="la-system-settings__filter">
       <span class="la-system-settings__label-text">{{t "Category" key="system_settings_category_label"}}</span>
-      <select class="form-control" {{on "change" (this.ctrlActionMut "categoryFilter" "value")}}>
-        {{#each this.categoryOptions as |opt|}}
-          <option value={{opt.id}} selected={{is-equal opt.id this.categoryFilter}}>{{opt.label}}</option>
-        {{/each}}
-      </select>
-    </label>
+      <ModernSelect @class="la-system-settings__filter-select" @selectId="system_settings_email_category" @ariaLabel={{t "Category" key="system_settings_category_label"}} @content={{this.categoryOptions}} @selection={{this.categoryFilter}} @action={{mut this.categoryFilter}} @placeholder={{t "All categories" key="system_settings_filter_all_categories"}} />
+    </div>
   </div>
 
   {{#if this.loading}}

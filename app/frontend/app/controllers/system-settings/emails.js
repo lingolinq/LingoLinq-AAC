@@ -12,7 +12,7 @@ export default Controller.extend({
   loading: false,
   loadError: false,
   searchQuery: '',
-  categoryFilter: '',
+  categoryFilter: 'all',
 
   init() {
     this._super(...arguments);
@@ -28,7 +28,7 @@ export default Controller.extend({
   filteredTemplates: computed('templates.[]', 'searchQuery', 'categoryFilter', function() {
     var list = this.get('templates') || [];
     var q = (this.get('searchQuery') || '').trim().toLowerCase();
-    var cat = this.get('categoryFilter') || '';
+    var cat = (this.get('categoryFilter') || 'all') === 'all' ? '' : this.get('categoryFilter');
     return list.filter(function(t) {
       if (cat && t.category !== cat) {
         return false;
@@ -43,9 +43,9 @@ export default Controller.extend({
 
   categoryOptions: computed('categories.[]', function() {
     var cats = this.get('categories') || [];
-    var options = [{id: '', label: i18n.t('system_settings_filter_all_categories', "All categories")}];
+    var options = [{id: 'all', name: i18n.t('system_settings_filter_all_categories', "All categories")}];
     cats.forEach(function(c) {
-      options.push({id: c, label: c});
+      options.push({id: c, name: c});
     });
     return options;
   }),
