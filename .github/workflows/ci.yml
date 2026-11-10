@@ -75,6 +75,15 @@ jobs:
           ruby-version: "3.4"
           bundler-cache: true
 
+      # The runner image has no ImageMagick, so specs that need the real binary skipped here. Production
+      # installs it from the distribution and adds config/imagemagick/policy.xml (Dockerfile); do the same.
+      - name: Install ImageMagick
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq imagemagick
+          echo "MAGICK_CONFIGURE_PATH=$GITHUB_WORKSPACE/config/imagemagick" >> "$GITHUB_ENV"
+          convert -version | head -1
+
       - name: Setup assets (vendor.css, frontend.css symlinks)
         run: bundle exec rails extras:assert_js
 
