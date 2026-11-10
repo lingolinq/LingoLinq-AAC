@@ -114,6 +114,14 @@ module('Unit | Utility | persistence saved pictures', function(hooks) {
     assert.strictEqual(res.direct, 0, 'no direct request');
   });
 
+  test('the Sync button reuses a saved CURRENT upload, whose id carries a nonce', async function(assert) {
+    // Every picture uploaded today has this shape; the two-part id above is only on older records.
+    var url = 'https://uploads-cdn.example.com/images/7/9/8/1/8/1_79818_0a1b2c3d4e5f0a1b2c3d4e5f-' + SHA + '.png';
+    var res = await save_then_force(this.target, url, 'image');
+    assert.strictEqual(res.downloads, 1, 'downloaded once, on the first save only');
+    assert.strictEqual(res.writes, 1, 'written once, not rewritten');
+  });
+
   test('the Sync button reuses a saved uploaded sound, including a transcoded one', async function(assert) {
     var url = 'https://uploads-cdn.example.com/sounds/4/5/1_45-' + SHA + 'v1699999999.mp3';
     var res = await save_then_force(this.target, url, 'sound');
@@ -215,6 +223,15 @@ module('Unit | Utility | persistence saved pictures', function(hooks) {
     this.target.set('local_system', { available: false });
     var res = await request_with_row(this.target, 'https://example.com/pictures/hen.png', 'image', { content_type: 'image/png', data_uri: PNG }, { force: true });
     assert.strictEqual(res.downloads, 1);
+  });
+
+  test('with no file storage, the Sync button reuses a current upload already in the database', async function(assert) {
+    // The case people meet: an iPad keeps pictures in the database, and tapping Sync asked for every uploaded
+    // picture again. An upload's address never changes what it holds, so the saved row is used.
+    this.target.set('local_system', { available: false });
+    var url = 'https://uploads-cdn.example.com/images/7/9/8/1/8/1_79818_0a1b2c3d4e5f0a1b2c3d4e5f-' + SHA + '.png';
+    var res = await request_with_row(this.target, url, 'image', { content_type: 'image/png', data_uri: PNG }, { force: true });
+    assert.deepEqual([res.downloads, res.writes, res.direct], [0, 0, 0]);
   });
 
   test('with no file storage, a JSON file is not reused (button sets change)', async function(assert) {

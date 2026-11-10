@@ -236,6 +236,60 @@ trusted; the utils copy also goes direct. Mutations that must fail: remove the h
 service tests or the utils test); loosen the host pattern to any CloudFront host or drop its anchor (the two
 guards).
 
+### 7b. The "do not download again" rule misses current uploads (#1221): fact sheet and proposal
+
+**(a) Where the value is read.** CONFIRMED: `is_permanent_upload_url` (`app/frontend/app/utils/permanent_upload.js:9-16`)
+has two callers, `app/frontend/app/services/persistence.js:1556` and `app/frontend/app/utils/persistence.js:1593`.
+Each adds its answer to `trusted_not_to_change` AFTER `cors_match` is built (`:1551`, `:1588`), so it changes
+only whether a saved copy is looked for and reused (`:1559-1575`), never the fetch route.
+
+**(b) The shapes an upload address can hold.**
+- CONFIRMED: the key is `file_path + global_id + "-" + sha512` plus an extension
+  (`app/models/concerns/uploadable.rb:58-80`), kept in `settings['full_filename']` (`:64`). A picture's is set
+  once; a sound's is replaced by the transcoded file's key (`app/models/concerns/media_object.rb:34`).
+- CONFIRMED: `ButtonImage` and `ButtonSound` have protected ids (`app/models/button_image.rb:8`,
+  `app/models/button_sound.rb:9`), so `global_id` is `1_<id>_<nonce>` unless the record's nonce is `legacy`
+  (`app/models/concerns/global_id.rb:4-10`). The nonce is 24 hex characters (`go_secure` 0.70, `nonce`:
+  the first 24 of a SHA-512 hex digest).
+- CONFIRMED on production: all 47 uploads on the public board `lingolinq/crisis-vocabulary` are
+  `/images/<digits>/1_<id>_<24 hex>-<128 hex>.png` or `.svg`. The pattern at `permanent_upload.js:9` expects
+  `<n>_<n>-<128 hex>` and matches none of them.
+- CONFIRMED: a transcoded sound keeps the same prefix and adds `v<unix time>`
+  (`app/models/concerns/media_object.rb:87`), under a new key; the old key is not overwritten.
+
+**(c) Claims about other files.** CONFIRMED: no third caller (`git grep is_permanent_upload_url -- app/frontend/app`).
+Carried over from the first review of this rule, not re-derived: an upload's bytes are never rewritten under the
+same key. The nonce does not change that argument: it is part of the id, fixed when the record is created.
+
+**Candidates.** (1, recommended) allow one optional `_<hex>` part between the id and the dash:
+`\d+_\d+(?:_[0-9a-f]+)?-`. (2) Accept any id text before the dash: simpler to write, but it widens "trusted" to
+shapes the server never produces. Rejected.
+
+**Risks.** A wrongly saved copy of a current upload is no longer replaced by tapping Sync (already the accepted
+behaviour for trusted pictures: status doc, code work item 1). This rule was decided and reviewed on 2026-11-08;
+the change makes it apply to the uploads it was written for.
+
+**Review outcome (adversary agent, 2026-11-10): ship with conditions, all applied.**
+1. The negatives did not catch a wider character class (their "other text" case failed on its hyphens). Added:
+   non-hex letters, a nonce one character short, one character long. The pattern now requires exactly 24 hex
+   characters, what the server makes; any other length is simply not trusted.
+2. Where this changes what people see: with file storage the sync already skips a saved picture before
+   `store_url_now` runs (`services/persistence.js:3192`, `:3226`), so trust matters only in a race. On a device
+   WITHOUT file storage (iPad Safari, the Home Screen app, after a quota error), tapping Sync no longer downloads
+   current uploads again. The other side of that: on such a device nothing replaces a bad saved row of a current
+   upload (the picture repair only handles file copies, `utils/button.js:1258-1270`). Test added for the
+   no-file-storage forced Sync.
+3. Exception to "never rewritten": the upload form the server hands out is valid for 60 minutes and
+   `upload_success` has no already-confirmed guard (`lib/uploader.rb:736-741`,
+   `app/models/concerns/remote_uploader.rb:13-37`), so an owner could post different bytes to a published key
+   within the hour. Older than this branch; a server guard is separate work.
+The reviewer also confirmed no other path rewrites a published key and no newly matched address can change.
+
+**Tests** (red before the fix): `permanent-upload-test.js` "matches a current upload, whose id carries a nonce"
+(with an empty nonce, two nonces, other text, and a video as negatives); `persistence-saved-pictures-test.js` "the
+Sync button reuses a saved CURRENT upload". Mutations: remove the optional group (both fail); make the nonce
+accept any characters or repeat (the negatives fail).
+
 ## 8. Three small sync items
 
 Investigator's report by code trace; nothing was run.

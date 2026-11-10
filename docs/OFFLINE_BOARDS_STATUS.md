@@ -97,9 +97,10 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
   emulator, first sync: 42 records written more than once (one picture 48 times) before, none after (#1221).
 - Pictures and sounds uploaded to LingoLinq have permanent addresses and are no longer downloaded again when a
   copy is already saved (by address shape, on any host). Button-set files on the same server still refresh. Not
-  measurable locally (no uploaded pictures in the local data). Found 2026-11-10: the address check does not
-  match current uploads, whose ids carry an extra part, so today this applies to older uploads only (#1221; see
-  item 2 under "Code work still to do").
+  measurable locally (no uploaded pictures in the local data). Corrected 2026-11-10: the address check missed
+  every current upload (their ids carry an extra part) and now matches them. What changes for people: on a device
+  with no file storage (iPad), tapping Sync no longer downloads uploaded pictures again. On such a device nothing
+  replaces a bad saved copy of an uploaded picture (#1221).
 - With no file storage (iPad), a picture already saved in the database is reused instead of downloaded and written
   again on every sync. The picture proxy now refuses a download cut off part way, so a broken copy is not saved
   (`spec/controllers/api/search_controller_spec.rb`). Measured in WebKit, second sync: 1,692 writes (22.1 MB, 237 s) before, 7 writes (0.54 MB, 13 s) after, all 1,651 pictures still saved; first sync 56 records written more than once before, 2 after (#1221).
@@ -223,8 +224,7 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
    (`utils/direct_fetch.js`). A direct request also has a 45 s limit in both copies of the sync code now, and a web
    page answered in place of a picture (a filtering network) is refused. Button-set files on the CDN still go
    through the proxy. To measure after release: proxy requests per sync on production, before and after.
-   **Left:** an uploaded picture's "do not download again" rule does not apply to current uploads (their ids carry
-   an extra part the address check does not expect; `utils/permanent_upload.js`), so Sync downloads them again; a
+   **Left:** a
    first sync in the iOS or Android app against staging with a large account, counting proxy requests and
    board errors, compared with the issue's 246-error first sync; the full sync on iOS and Android; production server load under a full
    sync; a board slower than the adapter's 15 s limit on both tries is still lost with its folders (parked until the
