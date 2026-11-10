@@ -2464,7 +2464,7 @@ class User < ApplicationRecord
 
   # How many liked boards are listed, counted from the first one liked. The offline sync saves the listed
   # boards (app/frontend/app/utils/offline_sync_seeds.js), so a liked board past this is not kept offline.
-  LIKED_BOARD_REFS_LIMIT = 100
+  LIKED_BOARD_REFS_LIMIT = 50
 
   def starred_board_refs
     refs = []

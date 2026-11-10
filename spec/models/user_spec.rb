@@ -6306,7 +6306,7 @@ describe User, :type => :model do
   end
 
   # The liked list feeds the offline sync (app/frontend/app/utils/offline_sync_seeds.js): a liked board
-  # that is not in it is never saved on the device. Up to 100 liked boards are kept, the first ones liked.
+  # that is not in it is never saved on the device. Up to 50 liked boards are kept, the first ones liked.
   describe "starred_board_refs limit" do
     def like_boards(user, count)
       owner = User.create
@@ -6324,9 +6324,9 @@ describe User, :type => :model do
       expect(refs.map { |r| r['id'] }).to eq(boards.map(&:global_id))
     end
 
-    it "lists at most the first 100 liked boards, and looks up no more than those" do
+    it "lists at most the first 50 liked boards, and looks up no more than those" do
       u = User.create
-      boards = like_boards(u, 101)
+      boards = like_boards(u, 51)
       u.reload
       looked_up = nil
       allow(Board).to receive(:find_all_by_global_id).and_wrap_original do |original, ids|
@@ -6334,9 +6334,9 @@ describe User, :type => :model do
         original.call(ids)
       end
       refs = u.starred_board_refs.reject { |r| r['suggested'] }
-      expect(looked_up.length).to eq(100)
-      expect(refs.length).to eq(100)
-      expect(refs.map { |r| r['id'] }).to eq(boards[0, 100].map(&:global_id))
+      expect(looked_up.length).to eq(50)
+      expect(refs.length).to eq(50)
+      expect(refs.map { |r| r['id'] }).to eq(boards[0, 50].map(&:global_id))
     end
 
     it "skips a liked board that was deleted, and still lists the ones after it" do

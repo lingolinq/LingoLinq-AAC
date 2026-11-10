@@ -124,6 +124,7 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
 | Earlier trusted Home Screen iPads: keep Scot's manual workaround for now; code fix is Scot's call (#1285) | Traci | 2026-11-07 |
 | Offline sync saves home, sidebar, liked boards and Crisis Vocabulary; like a board to keep it offline | Traci | 2026-11-08 |
 | Keep "Like" in both views (Modern's "Set as Favorite" renamed) and add the offline wording | Traci | 2026-11-08 |
+| The first 50 liked boards are kept offline (the server listed only 25, so later likes never synced; first set to 100 on 2026-11-09, then 50). The liked-list home grid stays at its first 25 tiles; a "Show more" tile, a message when a like is past the limit, hiding boards a person can no longer view and clearing deleted ones are a follow-up PR | Traci | 2026-11-10 |
 
 ## What's left
 

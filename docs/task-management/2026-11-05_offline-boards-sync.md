@@ -1885,3 +1885,8 @@ the no-internet e2e cases as `no-internet-e2e-cases.patch` there. Local test DBs
 `DATABASE_URL=postgres:///lingolinq-test-claude` with `bundle exec dotenv -f /home/tracid/LingoLinq-AAC/.env`),
 `lingolinq-e2e-claude` (e2e; Rails on 5077; build with `ember build --environment production`, never the plain
 development build, which starts Mirage).
+
+**2026-11-10: the limit is 50, not 100 (Traci).** `LIKED_BOARD_REFS_LIMIT = 50` (`app/models/user.rb:2467`); the
+spec's limit example is now 51 liked, 50 listed and looked up. Green at 50, all four red with 25 put back. Earlier
+entries that say 100 describe the first choice. Traci chose option 2: only the cap ships in this PR (with the home
+grid held at 25, still to do); the view filter, pruning, the past-limit message and "Show more" go to a follow-up PR.
