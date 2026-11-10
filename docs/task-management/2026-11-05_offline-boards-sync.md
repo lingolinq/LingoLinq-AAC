@@ -2102,3 +2102,86 @@ by `e2e/offline-launch.spec.js` "a sync saves the home board, starred boards and
 sync; this exact case is to be confirmed in the Android emulator run.
 **Not built as its own review step:** the design came from the adversarial review of the 'kept' proposal (its High
 finding and recommended gate); the built change goes through the next pre-push review.
+
+#### Android emulator runs with hardware graphics, and what they say about the 'cached' fix (2026-11-10)
+
+**Emulator setup that works here (WSL2, NVIDIA).** `~/android-tools/sdk`, AVD `ll_trace`, JDK
+`~/android-tools/jdk-21.0.13+9`. Start with
+`GALLIUM_DRIVER=d3d12 MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA LD_LIBRARY_PATH=/usr/lib/wsl/lib emulator -avd ll_trace -gpu host -feature -Vulkan -no-window -no-snapshot -no-audio -no-boot-anim`.
+Without the two Mesa variables the renderer is llvmpipe (software). With them and Vulkan left on, the emulator
+process crashed about a minute after boot, twice (with and without a window). With `-feature -Vulkan` it stayed up
+for hours; `dumpsys SurfaceFlinger` reports `D3D12 (NVIDIA GeForce RTX 5060 Laptop GPU)`. Yardstick from #1221: a
+native database read took a median of 4 to 5 ms before and during each sync (the issue: about 8 ms with working
+graphics, about 1,900 ms without), so these timings count as hardware-accelerated Android EMULATOR timings.
+**Packaging.** Local server from this worktree (Traci, under `op`). `npx ember build --environment production`
+then `bin/rails extras:assert_js` AT ONCE: the live `ember serve` on 8184 rewrites `dist/` as a development build
+(19 MB, Mirage) whenever a source file changes, so copying after any edit packages the wrong bundle (hit once).
+Then fetch the served `/assets/application.debug-*.js` and `.css` into a scratch root
+(`public/assets/application-local.{js,css}`, with `public/{images,fonts,icons,locales}` linked), run
+`LINGOLINQ_ROOT=<scratch> LINGOLINQ_API_HOST=http://localhost:5000 bin/package_from_lingolinq` in
+`~/lingolinq_mobile`, `npx cap sync android`, `./gradlew assembleDebug`, `adb install -r`, `adb reverse tcp:5000
+tcp:5000`, `pm clear`, launch, `adb forward tcp:9333 localabstract:webview_devtools_remote_<pid>`. The production
+bundle is minified, so grep it for minified shapes. Driver: `/home/tracid/offline-sync-handoff/scripts/emu-first-sync.js`
+with `emu-hooks2.js`. Its in-page request counter recorded nothing (cause not looked at); request counts below are
+from `log/development.log` for each run's time window.
+
+**Runs** (installed app, SQLite, `mobile` true, aiden_parker, first sync started by the app, app data cleared):
+
+| | 1: d44233132 | 2: + `retrieved` correction | 3: check switched off |
+|---|---|---|---|
+| Sync | succeeded, 0 errors | succeeded, 0 errors | succeeded, 0 errors |
+| Time | 276 s | 232 s | 207 s |
+| Boards in the log / board rows on the device | 102 / 102 | 102 / 102 | 102 / 102 |
+| Statuses | 101 re-downloaded, 1 downloaded | 97 re-downloaded, 4 cached, 1 downloaded | 101 cached, 1 downloaded |
+| Sync's own board requests (not `/tree`) | about 118 | 114 | 114 |
+| Modern view `/tree?root_only=1` requests | about 216 | 216 | 215 |
+| `search/proxy` requests | 36 | 36 | 36 |
+| Button-set GET / generate POST | 10 / 10 | 10 / 10 | 20 / 0 seen |
+
+**Corrections to what I said during the session.**
+- "A first sync asked for every board three times (334 for 102)" was WRONG. 214 to 216 of those requests are Modern
+  view's own background prefetch (`/tree?root_only=1`); the app sits on the board-detail page after sign-in. The
+  sync made about 114 board requests in all three runs. The same wrong figure is in a comment in the UNCOMMITTED
+  test and in `known_on_device`'s comment in the uncommitted correction; both must be rewritten before any commit.
+- With a healthy server the 'cached' fix (d44233132) changes NOTHING that matters: the same 102 rows land on the
+  device with the same number of requests, check on or off. Only the label changes ('cached' to 're-downloaded').
+  So the defect it targets (rated High by review, from reading) did NOT occur in this scenario, although the
+  scenario is the one described (boards pushed by Modern view's prefetch, 102 missing boards so the batch download
+  is skipped).
+- Inference, NOT verified: the label change suggests each in-memory board gets a background fetch through the
+  adapter (which stores the row); with the check off the sync answers 'cached' without waiting for it, with the
+  check on it waits (the reload joins that fetch, hence no extra request) and would report a failure. If so, the
+  fix matters only when board requests fail.
+- 36 proxy requests against 1,383 in a browser before the bucket change: in the installed app pictures are fetched
+  directly, so bucket CORS was not the cause of the staging timeouts in the app (supports the corrected item 2).
+
+**The decisive experiment, NOT run:** the same first sync with single-board requests made to fail (CDP
+`Fetch.failRequest` for `/api/v1/boards/<id-or-key>` but not `/tree` or `?ids=`; with CapacitorHttp the URL is inside
+`/_capacitor_http_interceptor_?u=`), once with the check off and once on, counting boards the sync reported WITHOUT
+an error that have no row on the device. Check off and that count above zero would confirm the defect; zero in both
+would mean d44233132 should be dropped. My driver for it was mangled by a shell quoting mistake (an unquoted
+heredoc); write it with a quoted heredoc.
+
+**Stopped under Rule 13** (a wrong regression claim from misreading the log, a build packaged after the watcher
+rewrote `dist/`, then the mangled driver). State:
+- Pre-push review of af9f2c217..d44233132: the first four commits (f25478717, f317ef648, fc1a9a7d5, 9db67cb75) are
+  cleared to push by SHA; d44233132 is held. Its other findings: `local_result` is not a declared attribute, so that
+  half of my correction was dead (removed in the uncommitted version); the default sync harness stubs
+  `storage.find_all` to an empty list and drops board writes (`persistence-sync-test.js:646-656`), which is why no
+  rows appeared in my probe, and `primeLocalSyncStorage` gives real storage; the supervisee failure path adds a
+  full board-table read that can be skipped when the list is already noted; the 'kept' tests no longer pin the
+  record-completeness guard.
+- d44233132 is committed locally and NOT to be pushed until the experiment decides it. 389a182dc (reserved names,
+  below) was committed on top of it and also carries `2026-11-10_offline-followup-proposals.md` sections 7 and 8,
+  which I had staged (an unrelated doc in a fix commit).
+- Uncommitted, saved as `/home/tracid/offline-sync-handoff/cached-fix-correction-UNTESTED.patch`: the `retrieved`
+  correction and two whole-sync tests on real storage. The whole-sync tests have NEVER been run.
+- The emulator is running with the check-off build installed; the local server serves the working tree's build.
+- Not done: Traci's request to skip the extra board-table read (it belongs to d44233132, pending the decision).
+
+**Reserved names in another letter case: fixed (389a182dc).** Sign-up and renaming call
+`generate_user_name(name, false)` and lowercase afterwards (`app/models/user.rb:3353-3359`), and the reserved check
+compared the cased string (`app/models/concerns/processable.rb:148`), so "Admin" became the user name `admin`. The
+check now compares the lowercased suggestion. Spec red before (`got: "Admin"`), green after; processable_spec 31
+examples, 0 failures. My first version of the spec called the default (lowercasing) path and passed without the
+fix; corrected to the sign-up path before the fix was applied.
