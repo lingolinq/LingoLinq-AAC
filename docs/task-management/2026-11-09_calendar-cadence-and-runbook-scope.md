@@ -50,3 +50,21 @@ contract requires, and state which environments the breach runbook covers. Docs 
 - Follow-ups (frozen or out of scope): the data-retention docs' "Related" line points at the 2026-09-14
   runbook; `bundleDefinitions` `requiredDocs` still point at the 2026-08-15 runbook; the
   `rev-breach-runbook-drive-remirror` row still targets v2.2.2.
+
+## 2026-11-10: attestation and close-out
+
+The "draft", "not attested" and "retargeted only after Scot attests" statements above describe
+the state on 2026-11-09 and are kept as history.
+
+- Scot attested `DOC-c731415bd9` (runbook) and `DOC-c6eadd79fb` (subprocessor register) on
+  2026-11-10 at sha256 `c73ea73d...` and `d7d275e1...`. Both rows are `approved`, and the
+  predecessors still verify against their frozen bytes.
+- Scot confirmed that removing Gemini needs no customer notice and no further section 7 exit step.
+  That determination is in the register row's attestation note, not in the attested file.
+- Seven `bundleDefinitions` `requiredDocs` entries were retargeted: four runbook, three
+  subprocessor register.
+- Review: one senior-dev pass (Codex `gpt-6.1-sol`, high) on PR #1297 at `f6b5f1fa9`. The verdict
+  was approve with comments.
+- Follow-ups for the next subprocessor register successor:
+  - Reword the header's "carries NO attestation of its own" to point only at the register row.
+  - Put the Gemini section 7 determination beside row 5.
