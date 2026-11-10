@@ -1332,6 +1332,7 @@ module Subscription
           # fresh row as well.
           attempts = nil
           step = nil
+          skip_reason = nil
           taken = user.update_settings_locked(touch: false) do |fresh|
             next false if fresh.updated_at != user.updated_at || fresh.inactivity_deletion_exempt?
             next false if fresh.schedule_deletion_at
@@ -1353,6 +1354,8 @@ module Subscription
             end
             fresh.updated_at = retry_point
             step = [previous, inactivity_step_fields(fresh)]
+            # read from the locked row: the mailer skips this notice without raising
+            skip_reason = fresh.mail_skip_reason(attempts > 2 ? 'account_deleted' : 'deletion_warning')
             true
           end
           next unless taken
@@ -1411,6 +1414,12 @@ module Subscription
             Rails.logger.error("[inactivity sweep] mail stopped for this run: #{kind} error (#{e.class}#{e.respond_to?(:code) ? " #{e.code}" : ''}#{reason})#{note}")
             mail_stopped = true
             break
+          end
+          # The step stands as for a sent notice (see INACTIVITY_MAIL_FAILURE_LIMIT); the audit
+          # records that no notice went out and why. Ids only.
+          if skip_reason
+            AuditEvent.log_command('system', {'type' => 'inactivity_notice_not_sent', 'user_id' => user.global_id,
+              'step' => (attempts > 2 ? 'account_deleted' : 'deletion_warning'), 'reason' => skip_reason})
           end
           unless mail_accepted
             mail_accepted = true
