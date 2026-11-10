@@ -227,8 +227,8 @@
             "location": "https://docs.google.com/document/d/1wvjHGzOYfnpfqonKmr9HwK2wZKxWf-PTuOV20mS8zkE/edit"
           },
           {
-            "title": "Incident Response and Breach Runbook (2026-08-15 successor)",
-            "location": "docs/legal/2026-08-15_incident-response-breach-runbook.md"
+            "title": "Incident Response & Breach Runbook (2026-11-09 successor)",
+            "location": "docs/legal/2026-11-09_incident-response-breach-runbook.md"
           },
           {
             "title": "Data Retention Schedule (2026-09-22 successor)",
@@ -247,8 +247,8 @@
             "location": "COMPLIANCE.md"
           },
           {
-            "title": "Subprocessor Register (2026-08-16 successor)",
-            "location": "docs/legal/2026-08-16_subprocessor-register.md"
+            "title": "Subprocessor Register (2026-11-09 successor)",
+            "location": "docs/legal/2026-11-09_subprocessor-register.md"
           }
         ],
         "gaps": [
@@ -269,8 +269,8 @@
             "location": "docs/legal/2026-08-20_compliance-posture-report.md"
           },
           {
-            "title": "Subprocessor Register (2026-08-16 successor)",
-            "location": "docs/legal/2026-08-16_subprocessor-register.md"
+            "title": "Subprocessor Register (2026-11-09 successor)",
+            "location": "docs/legal/2026-11-09_subprocessor-register.md"
           },
           {
             "title": "Data Retention Schedule (2026-09-22 successor)",
@@ -289,8 +289,8 @@
             "location": "docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md"
           },
           {
-            "title": "Incident Response and Breach Runbook (2026-08-15 successor)",
-            "location": "docs/legal/2026-08-15_incident-response-breach-runbook.md"
+            "title": "Incident Response & Breach Runbook (2026-11-09 successor)",
+            "location": "docs/legal/2026-11-09_incident-response-breach-runbook.md"
           },
           {
             "title": "AI Data-Flow Classification (2026-08-17 successor)",
@@ -323,16 +323,16 @@
             "location": "docs/legal/2026-08-09_compliance-program-overview_draft.md"
           },
           {
-            "title": "Subprocessor Register (2026-08-16 successor)",
-            "location": "docs/legal/2026-08-16_subprocessor-register.md"
+            "title": "Subprocessor Register (2026-11-09 successor)",
+            "location": "docs/legal/2026-11-09_subprocessor-register.md"
           },
           {
             "title": "Data Retention Schedule (2026-09-22 successor)",
             "location": "docs/legal/2026-09-22_data-retention.md"
           },
           {
-            "title": "Incident Response and Breach Runbook (2026-08-15 successor)",
-            "location": "docs/legal/2026-08-15_incident-response-breach-runbook.md"
+            "title": "Incident Response & Breach Runbook (2026-11-09 successor)",
+            "location": "docs/legal/2026-11-09_incident-response-breach-runbook.md"
           },
           {
             "title": "Accessibility Conformance Report (ACR / VPAT)",
@@ -397,8 +397,8 @@
             "location": "https://docs.google.com/document/d/1Q6hDhooIQVMArkpn4ppxr4om3-Hx64QmYiIQe0sSWmY/edit"
           },
           {
-            "title": "Incident Response and Breach Runbook (2026-08-15 successor)",
-            "location": "docs/legal/2026-08-15_incident-response-breach-runbook.md"
+            "title": "Incident Response & Breach Runbook (2026-11-09 successor)",
+            "location": "docs/legal/2026-11-09_incident-response-breach-runbook.md"
           },
           {
             "title": "Written Information Security Program (WISP)",
@@ -4161,7 +4161,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-11-09_subprocessor-register.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [
         "GDPR",
         "FERPA",
@@ -4175,7 +4175,7 @@
         "security-review"
       ],
       "mirrors": [],
-      "notes": "Created 2026-11-09 from Scot Wahlquist's decisions of that date: review the register when a subprocessor is added or changed rather than quarterly, and remove row 5 (Gemini, runtime path disabled since 2026-07-09, no live call site on develop). Changed: the header (supersedes, reason, last reviewed, next review; the old lines are kept, labelled as retained for the record), row 5, two section 5.7 sentences naming row 5 or rev-gemini-baa-annual, and one new section 8 change-log row. Nothing else differs from the predecessor's bytes. nextReviewDue is null because the review is event-driven, matching the compliance calendar item rev-gdpr-subprocessor-quarterly. ATTESTER MUST CONFIRM: (1) no customer notice is owed for removing row 5; (2) the section 7 exit steps for Gemini need nothing further, since no deletion confirmation from Google is on file. At attestation, retarget the bundleDefinitions requiredDocs that still point at the 2026-08-16 record. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition.",
+      "notes": "Created 2026-11-09 from Scot Wahlquist's decisions of that date: review the register when a subprocessor is added or changed rather than quarterly, and remove row 5 (Gemini, runtime path disabled since 2026-07-09, no live call site on develop). Changed: the header (supersedes, reason, last reviewed, next review; the old lines are kept, labelled as retained for the record), row 5, two section 5.7 sentences naming row 5 or rev-gemini-baa-annual, and one new section 8 change-log row. Nothing else differs from the predecessor's bytes. nextReviewDue is null because the review is event-driven, matching the compliance calendar item rev-gdpr-subprocessor-quarterly. CONFIRMED by Scot Wahlquist on 2026-11-10: (1) no customer notice is owed for removing row 5; (2) no further section 7 exit step is needed for Gemini, although no deletion confirmation from Google is on file. At attestation (2026-11-10) the bundleDefinitions requiredDocs that pointed at the 2026-08-16 record were retargeted to this row. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition.",
       "supersedes": "DOC-052b0e947c",
       "retention": {
         "class": "policy-version",
@@ -4186,7 +4186,13 @@
       "legalHold": false,
       "dispositionEligibleAfter": null,
       "id": "DOC-c6eadd79fb",
-      "contentHash": "d7d275e1880e8924cbe7557a2f8166cccad8d290c06c423b1149a51e137af7eb"
+      "contentHash": "d7d275e1880e8924cbe7557a2f8166cccad8d290c06c423b1149a51e137af7eb",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-11-10",
+        "attestedContentHash": "d7d275e1880e8924cbe7557a2f8166cccad8d290c06c423b1149a51e137af7eb",
+        "note": "First attestation of these bytes, given by Scot Wahlquist in the authoring session on 2026-11-10 against the sha256 shown to him. Path A successor to DOC-052b0e947c (2026-09-14_subprocessor-register.md, attested 2026-09-15), which remains frozen and byte-identical. Scope of this pin: review made event-driven (when a subprocessor is added or changed, GDPR Article 28(2)), so no next review date; row 5 (Google Gemini API) marked REMOVED 2026-11-09 and kept as history. Confirmed 2026-11-10: no customer notice is owed for removing row 5, and no further section 7 exit step is needed for Gemini. No other vendor row was re-reviewed; the last full review remains 2026-08-08."
+      }
     },
     {
       "title": "Compliance & Security Program v1.3.2 (2026-09-14 successor)",
@@ -4275,7 +4281,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-11-09_incident-response-breach-runbook.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [
         "HIPAA",
         "GDPR",
@@ -4290,7 +4296,7 @@
         "baa"
       ],
       "mirrors": [],
-      "notes": "Created 2026-11-09 from Scot Wahlquist's decisions of 2026-11-06 (dev and staging hold no real user content) and 2026-11-08 (a problem confined to dev or staging is a normal bug unless real user data is found there), as recorded in the company's agent data rules merged 2026-11-08. Changed: section 1 (new 'Environments in scope' paragraph), section 4.2 step 5, the header, the predecessor's DRAFT banner (replaced, since it went false at the 2026-09-15 attestation), and two section 13 entries. Nothing else differs from the predecessor's bytes. CONFIRMED by Scot Wahlquist on 2026-11-09, before attestation (the attestation itself is recorded separately): (1) n8n keeps its prior handling and is not covered by the dev and staging exception; (2) an account on dev or staging that the team did not create is a stop-and-tell-the-Incident-Commander trigger, not by itself an incident; (3) nextReviewDue 2027-08-02 follows the bytes, which carry the predecessor's next-review date. At attestation, retarget the bundleDefinitions requiredDocs that still point at the 2026-08-15 record. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition.",
+      "notes": "Created 2026-11-09 from Scot Wahlquist's decisions of 2026-11-06 (dev and staging hold no real user content) and 2026-11-08 (a problem confined to dev or staging is a normal bug unless real user data is found there), as recorded in the company's agent data rules merged 2026-11-08. Changed: section 1 (new 'Environments in scope' paragraph), section 4.2 step 5, the header, the predecessor's DRAFT banner (replaced, since it went false at the 2026-09-15 attestation), and two section 13 entries. Nothing else differs from the predecessor's bytes. CONFIRMED by Scot Wahlquist on 2026-11-09, before attestation (the attestation itself is recorded separately): (1) n8n keeps its prior handling and is not covered by the dev and staging exception; (2) an account on dev or staging that the team did not create is a stop-and-tell-the-Incident-Commander trigger, not by itself an incident; (3) nextReviewDue 2027-08-02 follows the bytes, which carry the predecessor's next-review date. At attestation (2026-11-10) the bundleDefinitions requiredDocs that pointed at the 2026-08-15 record were retargeted to this row. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition.",
       "supersedes": "DOC-f082212111",
       "retention": {
         "class": "policy-version",
@@ -4301,7 +4307,13 @@
       "legalHold": false,
       "dispositionEligibleAfter": null,
       "id": "DOC-c731415bd9",
-      "contentHash": "c73ea73ded18c7a5be6ab405ce3add3737aafbf9cc240696f982827affd6e029"
+      "contentHash": "c73ea73ded18c7a5be6ab405ce3add3737aafbf9cc240696f982827affd6e029",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-11-10",
+        "attestedContentHash": "c73ea73ded18c7a5be6ab405ce3add3737aafbf9cc240696f982827affd6e029",
+        "note": "First attestation of these bytes, given by Scot Wahlquist in the authoring session on 2026-11-10 against the sha256 shown to him. Path A successor to DOC-f082212111 (2026-09-14_incident-response-breach-runbook.md, attested 2026-09-15), which remains frozen and byte-identical. Scope of this pin: section 1 'Environments in scope', section 4.2 step 5, the header and replaced banner, and the two section 13 entries. Confirmed 2026-11-09: n8n keeps its prior handling and is outside the dev and staging exception; an account on dev or staging that the team did not create is a stop-and-tell trigger, not by itself an incident; next review stays 2027-08-02."
+      }
     },
     {
       "id": "DOC-2bff04d268",
