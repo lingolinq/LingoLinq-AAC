@@ -211,6 +211,36 @@ describe FeatureFlags do
     end
   end
 
+  describe "piper_voices" do
+    # On-device Piper voices (app/frontend/app/utils/piper_tts.js). Each voice downloads 63 to
+    # 115 MB the first time it is picked, so nobody gets them without turning the flag on.
+    it "is registered as available but OFF by default, including for canary users" do
+      expect(FeatureFlags::AVAILABLE_FRONTEND_FEATURES).to include('piper_voices')
+      expect(FeatureFlags::ENABLED_FRONTEND_FEATURES).not_to include('piper_voices')
+      expect(FeatureFlags::DISABLED_CANARY_FEATURES).to include('piper_voices')
+      expect(SystemFeatureSettings.default_enabled_features).not_to include('piper_voices')
+      expect(SystemFeatureSettings.canary_enabled_features).not_to include('piper_voices')
+    end
+
+    it "is OFF with no user, with no per-user value, and for a canary user" do
+      u = User.create
+      expect(FeatureFlags.feature_enabled_for?('piper_voices', nil)).to eq(false)
+      expect(FeatureFlags.feature_enabled_for?('piper_voices', u)).to eq(false)
+      u.settings['feature_flags'] = {'canary' => true}
+      expect(FeatureFlags.feature_enabled_for?('piper_voices', u)).to eq(false)
+    end
+
+    it "is ON for a user who opts in" do
+      u = User.create
+      u.settings['feature_flags'] = {'piper_voices' => true}
+      expect(FeatureFlags.feature_enabled_for?('piper_voices', u)).to eq(true)
+    end
+
+    it "has an admin description" do
+      expect(SystemFeatureRegistry::METADATA['piper_voices']).to include(:name, :description)
+    end
+  end
+
   describe "multilingual_grammar" do
     # Reserved for the first reader of db/language/ schema-2 data. Every state short of
     # an explicit opt-in must read as OFF.

@@ -56,7 +56,7 @@ var speecher = EmberObject.extend({
     this.appState = appState;
     this.persistence = persistence;
     this.stashes = stashes;
-    this.tts_voices = tts_voices;
+    this.tts_voices = tts_voices; this.watch_piper_flag(appState);
   },
   text_direction: function() {
     var voice = speecher.get('voices').find(function(v) { return v.voiceURI == speecher.voiceURI; });
@@ -350,7 +350,7 @@ var speecher = EmberObject.extend({
       var voices = speecher.get('voices');
       var found_voice = voices.find(function(v) { return v.voiceURI == voice.voice_uri; });
       if(found_voice) {
-        this.voiceURI = found_voice.voiceURI;
+        this.voiceURI = found_voice.voiceURI; piper_tts.preload(this.voiceURI);
         this.voiceLang = found_voice.lang;
       } else if(voice.voice_uri == 'force_default') {
         this.voiceURI = 'force_default';
@@ -850,10 +850,10 @@ var speecher = EmberObject.extend({
       if(speecher.use_capturable_speech()) {
         utterance.cloud_lang = (voice && voice.lang) || current_locale || navigator.language;
         speak_utterance();
-      } else if(voice && voice.voiceURI && voice.voiceURI.match(/^extra:/)) {
+      } else if(voice && voice.voiceURI && voice.voiceURI.match(/^(extra|piper):/)) {
         var voice_id = voice.voiceURI.replace(/^extra:/, '');
         runLater(function() {
-          capabilities.tts.speak_text(text, {
+          (voice_id.match(/^piper:/) ? piper_tts : capabilities.tts).speak_text(text, {
             voice_id: voice_id,
             pitch: utterance.pitch,
             volume: utterance.volume,
@@ -1416,7 +1416,7 @@ var speecher = EmberObject.extend({
       } else if(capabilities.syste == 'Windows' && window.TTS && window.TTS.stopSpeakingText) {
         window.TTS.stopSpeakingText({success: function() { }, error: function() { }});
       }
-      capabilities.tts.stop_text();
+      capabilities.tts.stop_text(); piper_tts.stop();
       if(this.audio.text) {
         this.audio.text.pause();
         if(this.audio.text.media) {
@@ -1583,7 +1583,7 @@ speecher.store_device_voices = function(list, device_voice_count) {
   // user's voice would otherwise make update_voice_uri pick a fallback and keep it, and null the
   // alternate voice, which has no voice_uris to find it again.
   var only_added = previous.every(function(v) { return list.some(function(d) { return d.voiceURI == v.voiceURI; }); });
-  speecher.store_voice_list(speecher.with_backup_voices(list), device_voice_count);
+  speecher.store_voice_list(speecher.with_piper_voices(speecher.with_backup_voices(list)), device_voice_count);
   if(had_list && device_voice_count > 0 && speecher._device_voice_key != previous_key && only_added) {
     speecher.reapply_user_voice();
   }
@@ -1606,3 +1606,31 @@ window.speecher = speecher;
 export default speecher;
 // Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
 import { live_service, owner_gone } from './live_service';
+
+// Piper voices (feature flag piper_voices; app/utils/piper_tts.js). They go after the device and
+// backup voices, and only while the signed-in user has the flag. Flags arrive with the user,
+// after the first list is built at boot, so the list is rebuilt when the user's flags change.
+speecher.piper_voices_enabled = function() {
+  var appState = live_service(speecher.appState);
+  return !!(appState && appState.get('feature_flags.piper_voices'));
+};
+speecher.with_piper_voices = function(list) {
+  var rest = list.filter(function(v) { return !v.piper_voice; });
+  if(!speecher.piper_voices_enabled()) { return rest; }
+  return rest.concat(piper_tts.voice_list_entries());
+};
+// Adds or removes the Piper voices when the flag changes, then finds the user's saved voice
+// again in the new list (the same step store_device_voices takes for new device voices).
+speecher.apply_piper_voices = function() {
+  if(!speecher._built_voices) { return; }
+  var listed = speecher._built_voices.some(function(v) { return v.piper_voice; });
+  if(speecher.piper_voices_enabled() == listed) { return; }
+  speecher.store_voice_list(speecher.with_piper_voices(speecher._built_voices), speecher._device_voice_count || 0);
+  speecher.reapply_user_voice();
+};
+speecher.watch_piper_flag = function(appState) {
+  if(!appState || !appState.addObserver || speecher._watching_piper_flag) { return; }
+  speecher._watching_piper_flag = true;
+  appState.addObserver('currentUser.feature_flags', speecher, speecher.apply_piper_voices);
+};
+import piper_tts from './piper_tts';
