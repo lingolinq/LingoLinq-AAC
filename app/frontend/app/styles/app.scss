@@ -97547,8 +97547,11 @@ body:not(.ll-layout-focused) #content:has(.ll-appshell):not(:has(.md-main--updat
 body:not(.ll-layout-focused) #content .ll-appshell .md-shell.md-shell--org-directory {
   padding-top: 42px !important;
 }
+/* Focused 50 -> 80 (2026-11-09): the directory now takes the home page's `#content` padding (the
+   Focused rule at the end of this group, requested: "fix the organizations focused at 900px to
+   match the home page menu position"), 30px less, and the 30px moves here so the title stays. */
 body.ll-layout-focused #content .ll-appshell .md-shell.md-shell--org-directory {
-  padding-top: 50px !important;
+  padding-top: 80px !important;
 }
 /* THE ORG PAGES UNDER THE ORG TABS CLEAR THEM THE SAME WAY (2026-11-08). In Modern an org editor's
    org pages now carry the org tabs in the app shell's nav slot (requested: in the same place as
@@ -97572,8 +97575,12 @@ body.ll-layout-focused #content .ll-appshell.ll-appshell--org-tabs .md-shell {
    `#content`'s top padding places it: the home page takes `var(--topbar-height)` (the Focused home
    rule, `#content.index.with_user:has(.md-shell--layout-focused)`), every other page the base
    `+ 3rem`, which put the tabs 30px under the home pill nav. The same value here; the 30px it
-   removes moves into the shell's padding just above (10 -> 40), so the title does not move. */
-body.ll-layout-focused #within_ember #content:has(.ll-appshell--org-tabs) {
+   removes moves into the shell's padding just above (10 -> 40), so the title does not move.
+   THE ORGANIZATIONS DIRECTORY TOO (2026-11-09, requested: "fix the organizations focused at 900px
+   to match the home page menu position"): its pill nav sat 30px under the home page's for the same
+   reason; its shell clearance above took the 30px (50 -> 80). Both arguments of the `:has()` are
+   one class, so the rule's weight is unchanged. */
+body.ll-layout-focused #within_ember #content:has(.ll-appshell--org-tabs, .md-shell--org-directory) {
   padding-top: var(--topbar-height) !important;
 }
 

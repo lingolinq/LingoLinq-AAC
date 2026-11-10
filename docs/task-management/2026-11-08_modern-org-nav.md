@@ -106,3 +106,7 @@ Rebased on develop (084552a6b); one conflict, both sides appending to `learnings
 - **Medium, checked and not changed.** People-page pills for non-editors: the page body is gated on `permissions.edit` (people.hbs:1), and `showSectionPillNav` is false only on a route mapped to a primary pill (the Rooms list), so editors always get the tabs there. `showOrgNav` in Basic: read only inside `{{#if this.showGlobalChrome}}` (application.hbs:1607), which Basic never passes.
 - **Low, fixed.** Stale comments on the org-tabs clearance rules; the task log and learnings claimed a `width: fit-content` rule that round 2 removed.
 - **Not done.** Template rendering tests for the rail rows and `OrgTabs`; full board fetch for a name (the home board is normally already in the store); distinct landmark names for the rail and the tabs (Basic has the same pair).
+
+## Round 5: Organizations directory, Focused at 900px and below (2026-11-09)
+
+Requested: "fix the organizations focused at 900px to match the home page menu position". Same cause as round 3 (`#content` base `+ 3rem` vs the Focused home page's `var(--topbar-height)`). The directory joins the org-tabs `#content` rule (`:has(.ll-appshell--org-tabs, .md-shell--org-directory)`, weight unchanged) and its Focused shell clearance takes the 30px (50 -> 80). Measured: directory nav 86 at 900 (was 116), dropdown 126 at 640/375 (was 156); title unchanged (156 desktop, 382 at 900, 416 at 640/375); Gentle unchanged.
