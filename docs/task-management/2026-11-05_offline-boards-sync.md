@@ -1722,3 +1722,54 @@ from `ember serve --proxy`; my attempt on port 8186 failed ("port in use"). Stop
 self-inflicted setup errors). Private e2e DB `lingolinq-e2e-claude` (fresh, seeded) and Rails on 5077 are running.
 Next: build dist with ember serve --proxy http://localhost:5077 (a free port, and a free live-reload port), copy with
 extras:assert_js, run the control first, then the three cases; then run the red sync test.
+
+#### Fix proposal: liked boards past the 25th are never synced (2026-11-09, for adversarial review)
+
+**Fact sheet**
+- (a) READ, CONFIRMED: the sync's starting list is built once, synchronously, by `offlineSyncSeeds.seeds(user)` at
+  `services/persistence.js:3060` and `utils/persistence.js:3088`; liked boards come only from
+  `user.get('stats.starred_board_refs')` (`utils/offline_sync_seeds.js:36-44`).
+- (b) SHAPES, CONFIRMED: `settings['starred_board_ids']` is an uncapped list of board IDS (shallow ids;
+  `user.rb:2453-2460`), `settings['starred_boards']` its length, sent as `stats.starred_boards`
+  (`lib/json_api/user.rb:511`). `starred_board_refs` resolves only `[0, 25]` of the ids (`user.rb:2469`) and, with
+  fewer than 8 liked, appends suggested boards marked `suggested: true` (`user.rb:2486-2516`). Refs are sent only to a
+  caller with `supervise` (`json_api/user.rb:512-515`). With the `shallow_clones` flag (available, not enabled by
+  default) a ref's key is `<user>/my:<owner>:<board>` (`user.rb:2478-2481`).
+- (c) CROSS-FILE, CONFIRMED: `GET /api/v1/boards?user_id=<id>&starred=true` filters to ALL liked ids
+  (`boards_controller.rb:140-144`), needs `view_detailed` and `model` on the user (`:77`, `:129`), which every
+  caller who has `supervise` also has (`user.rb:56`, `:71`), and pages with `per_page` up to 50
+  (`lib/json_api/board.rb:10`, `meta.more` / `meta.next_url`). The Liked tab already calls it
+  (`components/board-picker.js:383`).
+- ASSUMED (not load-bearing): how often real accounts exceed 25 likes.
+
+**Red test (written, run, fails for the cause):** `tests/utils/persistence-sync-test.js` "more than 25 liked
+boards": 27 liked, profile refs hold 25; expects the liked list to be requested, boards 26 and 27 visited, 28
+statuses. Today 4 of its 5 checks fail (board 25, inside the cap, passes).
+
+**Candidates**
+1. (chosen by Traci) The sync pages the liked-boards endpoint when `stats.starred_boards` is greater than the
+   number of non-suggested refs, and adds a seed (depth 1, "starred board") for each liked board not already seeded.
+   One new exported function in `utils/offline_sync_seeds.js` (returns a promise of extra seeds); both sync copies
+   call it before the traversal starts. No server change, no cost on profile loads; cost is 1 request per 50 liked
+   boards, only for accounts over 25.
+2. Raise or remove the server cap in `starred_board_refs`: one line, but a board lookup for every liked board on
+   every profile load, for every caller.
+3. A server-side uncapped key list for the sync: the ids are not keys, so it costs the same lookup as 2.
+Simplest alternative rejected: documenting a 25-board limit (the UI says "like a board to keep it offline").
+
+**Failure handling:** if a liked-list page fails, the sync continues with the seeds it has and records one error
+(`board_errors`, so the sync reports "finished with errors"), never a silent pass. A liked board the caller can no
+longer view fails as any refused board does today.
+
+**Risks seen**
+- The endpoint returns full board JSON (heavier than needed); only accounts over 25 pay it.
+- With `shallow_clones`, the endpoint returns the original board's key while the refs carry the `my:` key, so the
+  first 25 could be seeded under one key and re-added under another. Mitigation: skip a listed board whose id (or
+  shallow root id) is already among the refs; compare by id, not key.
+- The trigger compares a count with a list: a liked board that was deleted keeps its id in the count, so such an
+  account pages the list on every sync (wasteful, not wrong).
+- The utils copy of the sync must get the same call (whether users reach it is unverified).
+**Unresolved:** exact id shape the endpoint returns for a liked shallow clone; whether the index response is ordered
+stably across pages (a board skipped between pages would be missed until the next sync).
+
+**Mutation that must turn the test red:** remove the call to the new function (or return no extra seeds).
