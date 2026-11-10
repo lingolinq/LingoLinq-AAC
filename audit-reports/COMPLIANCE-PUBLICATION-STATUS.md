@@ -87,7 +87,6 @@
 | Parental Consent Email (COPPA / under-13) | git | `docs/legal/PARENTAL_CONSENT_EMAIL.md` | 2026-07-23 | approved | Review date is older than 2026-10-31. |
 | Scheduler Dispatch: Interruption and Post-Interruption Observations (2026-09-14 draft) | git | `docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md` |  | draft | No review recorded. |
 | Security, Privacy & Compliance Overview (2026-09-14 successor) | git | `docs/legal/2026-09-14_compliance-program-overview.md` | 2026-09-14 | approved | Review date is older than 2026-10-31. |
-| Subprocessor Register (2026-09-14 successor) | git | `docs/legal/2026-09-14_subprocessor-register.md` | 2026-09-14 | approved | Review date is older than 2026-10-31. |
 | accessibility-auditor agent definition | git | `.claude/agents/accessibility-auditor.md` | 2026-06-21 | published | Review date is older than 2026-10-31. |
 | api-auditor agent definition | git | `.claude/agents/api-auditor.md` | 2026-06-21 | published | Review date is older than 2026-10-31. |
 | code-hygiene-auditor agent definition | git | `.claude/agents/code-hygiene-auditor.md` | 2026-08-12 | published | Review date is older than 2026-10-31. |
@@ -180,7 +179,7 @@ Every rule is `status: draft` and legally inert. No deletion behaviour is wired 
 | `executed-agreement` | term + 7 years | archive | 10 | draft |
 | `corporate-permanent` | permanent | archive | 0 | unused (no record of this class exists yet) |
 | `grant-record` | award + 7 years | archive | 0 | unused (no record of this class exists yet) |
-| `policy-version` | supersession + 7 years | archive | 60 | draft |
+| `policy-version` | supersession + 7 years | archive | 61 | draft |
 | `audit-evidence` | 7 years | archive | 21 | draft |
 | `attestation-record` | permanent | archive | 0 | unused (no record of this class exists yet) |
 | `dsar-case` | 3 years | delete | 0 | unused (no record of this class exists yet) |
@@ -189,7 +188,7 @@ Every rule is `status: draft` and legally inert. No deletion behaviour is wired 
 | `working-note` | 90 days | delete | 4 | draft |
 | `operational-config` | retain while in use; supersession + 1 year | archive | 15 | draft |
 
-All 110 rows carry a retention block.
+All 111 rows carry a retention block.
 
 No retention rule has been approved. Nothing in this register is eligible for disposition.
 
@@ -274,6 +273,7 @@ A superseded record is never edited, renamed, or moved. It keeps its row and its
 | LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft) | `docs/legal/2026-08-09_compliance-program-overview_draft.md` | Security, Privacy & Compliance Overview (2026-09-14 successor) | security-review |
 | Subprocessor Register | `docs/legal/SUBPROCESSORS.md` | Subprocessor Register (2026-08-16 successor) | (none) |
 | Subprocessor Register (2026-08-16 successor) | `docs/legal/2026-08-16_subprocessor-register.md` | Subprocessor Register (2026-09-14 successor) | school-dpa-package, soc2-evidence, security-review |
+| Subprocessor Register (2026-09-14 successor) | `docs/legal/2026-09-14_subprocessor-register.md` | Subprocessor Register (2026-11-09 successor) | school-dpa-package, soc2-evidence, security-review |
 
 ## Bundle Gaps
 
@@ -326,4 +326,4 @@ The missing layer is a Google Docs publisher/refresh workflow. Until that exists
 
 ---
 
-_110 documents tracked. 72 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 23 inferred retention class(es). 0 legal hold(s). 35 superseded record(s). 0 drifted attestation(s), 0 attested record(s) with no pinned hash, none awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._
+_111 documents tracked. 71 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 23 inferred retention class(es). 0 legal hold(s). 36 superseded record(s). 0 drifted attestation(s), 0 attested record(s) with no pinned hash, none awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._

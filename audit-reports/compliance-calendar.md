@@ -11,9 +11,6 @@
 | Date | Item | Framework | Cadence |
 |---|---|---|---|
 | 2026-08-31 | Re-brand + re-share BREACH_RUNBOOK Drive mirror to v2.2.2 (DOC-f576f43250) | HIPAA | one-time |
-| 2026-09-01 | FERPA vendor-disclosure + directory-info posture review | FERPA | annual |
-| 2026-09-01 | GDPR DPA + RoPA + data-residency review | GDPR | annual |
-| 2026-09-01 | Google Gemini API fallback path BAA/DPA verification | HIPAA | annual |
 | 2026-09-01 | Mechanical secret-shaped-string rejector in audit toolchain (LL-b5c30235d3) | SOC2 | one-time |
 
 ## Recurring reviews (full set)
@@ -21,14 +18,13 @@
 | Framework | Review | Cadence | Last done | Next due |
 |---|---|---|---|---|
 | SOC2 | Annual formal /audit-run (6 finders, full scope) + adversary verify - all frameworks | annual | 2026-09-16 | 2027-09-16 |
-| FERPA | FERPA vendor-disclosure + directory-info posture review | annual | (none) | 2026-09-01 |
+| FERPA | FERPA vendor-disclosure + directory-info posture review | annual | (none) | 2027-09-16 |
 | HIPAA | HIPAA Security Rule risk assessment + BAA inventory review | annual | 2026-02-01 | 2027-02-01 |
-| GDPR | GDPR DPA + RoPA + data-residency review | annual | (none) | 2026-09-01 |
+| GDPR | GDPR DPA + RoPA + data-residency review | annual | (none) | 2027-09-16 |
 | GDPR | Subprocessor list review (SUBPROCESSORS.md) | event-driven: when a subprocessor is added or changed | 2026-08-08 | (none) |
 | COPPA | COPPA data-retention enforcement + parental-consent flow check | annual | 2026-04-26 | 2027-09-16 |
 | WCAG | Accessibility Conformance Report (ACR/VPAT) refresh | annual | (none) | 2026-12-13 |
-| SOC2 | OpenRouter ZDR re-verification (after every key rotation, plus annually) | event-driven (model change) + annual | (none) | 2027-09-16 |
-| HIPAA | Google Gemini API fallback path BAA/DPA verification | annual | (none) | 2026-09-01 |
+| SOC2 | Runtime AI ZDR re-verification (after every model change, plus annually) | event-driven (model change) + annual | (none) | 2027-09-16 |
 | SOC2 | Mechanical secret-shaped-string rejector in audit toolchain (LL-b5c30235d3) | one-time | (none) | 2026-09-01 |
 | FERPA | District DPA / SDPC NDPA renewals + registry listing | per-contract (track renewal dates as they are signed) | (none) | (none) |
 | HIPAA | Re-brand + re-share BREACH_RUNBOOK Drive mirror to v2.2.2 (DOC-f576f43250) | one-time | (none) | 2026-08-31 |
@@ -49,7 +45,7 @@ context, required work, and the source basis remain visible with the schedule.
 ### FERPA vendor-disclosure + directory-info posture review
 
 - **Drafts:** register hygiene + posture delta for school-district data flows
-- **Watch:** FERPA NPRM on vendor-disclosure terms (RIN 1875-AA15) - in motion, nothing final; check quarterly
+- **Watch:** FERPA NPRM on vendor-disclosure terms (RIN 1875-AA15) - in motion, nothing final; check quarterly. Re-dated by Scot on 2026-11-09 from 2026-09-01, which was missed (never performed; lastDone is null), to 2027-09-16.
 - **Basis:** plan 1.3
 - **Linked findings:** (none recorded)
 
@@ -63,7 +59,7 @@ context, required work, and the source basis remain visible with the schedule.
 ### GDPR DPA + RoPA + data-residency review
 
 - **Drafts:** RoPA refresh, DPA terms review, right-to-deletion path verification for EU clients
-- **Watch:** EU AI Act intersects GDPR for EU clients - see fixed dates
+- **Watch:** EU AI Act intersects GDPR for EU clients - see fixed dates. Re-dated by Scot on 2026-11-09 from 2026-09-01, which was missed (never performed; lastDone is null), to 2027-09-16.
 - **Basis:** plan 1.3
 - **Linked findings:** (none recorded)
 
@@ -102,18 +98,11 @@ context, required work, and the source basis remain visible with the schedule.
 - **Basis:** plan 2.5, 6; audit-reports/wcag-modernized-2026-04-11*.md
 - **Linked findings:** (none recorded)
 
-### OpenRouter ZDR re-verification (after every key rotation, plus annually)
+### Runtime AI ZDR re-verification (after every model change, plus annually)
 
-- **Drafts:** confirm the OpenRouter ZDR account toggle is still on after any API-key rotation; PiiScrubber is the real backstop, ZDR is operator-maintained and unenforceable from config
-- **Watch:** ZDR is NOT a BAA. Re-verify the toggle after every key rotation - nothing else checks it (plan 2.4 item 7). Cadence set by Scot on 2026-11-09 to what a law or signed contract requires: re-verify on every model change, plus once a year on the annual audit date. lastDone is unchanged.
+- **Drafts:** confirm each runtime model allowlisted in lib/ai_client.rb and lib/eval_narrator.rb is still ZDR-eligible on Amazon Bedrock (Anthropic Covered Models are not) and that Bedrock model-invocation logging is still off; PiiScrubber is the real backstop
+- **Watch:** ZDR is NOT a BAA. Cadence set by Scot on 2026-11-09 to what a law or signed contract requires: re-verify on every model change, plus once a year on the annual audit date. On 2026-11-09 the title and this row stopped naming OpenRouter, which no code references; the id is kept. lastDone is unchanged.
 - **Basis:** plan 1.8, 2.4; ZDR verification SOP (Phase 1)
-- **Linked findings:** (none recorded)
-
-### Google Gemini API fallback path BAA/DPA verification
-
-- **Drafts:** Confirm Gemini API data-handling terms and whether any Google BAA covers the runtime fallback in lib/ai_word_predictor.rb; document result in AI Governance Memo section 7
-- **Watch:** Until resolved, PiiScrubber remains the controlling backstop for the Gemini path
-- **Basis:** docs/legal/AI_GOVERNANCE_MEMO.md section 7; lib/ai_word_predictor.rb Gemini fallback
 - **Linked findings:** (none recorded)
 
 ### Mechanical secret-shaped-string rejector in audit toolchain (LL-b5c30235d3)

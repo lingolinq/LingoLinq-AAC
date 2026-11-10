@@ -5,7 +5,7 @@
     "description": "Source of truth for recurring compliance review cadences and fixed regulatory dates. Owned by the compliance-officer agent, surfaced at /compliance-status. The officer DRAFTS and SURFACES; only Scot attests that a review was completed. Regenerate compliance-calendar.md with `ruby scripts/compliance-calendar-render.rb`; do not hand-edit the render.",
     "generatedDate": "2026-08-07",
     "owner": "compliance-officer (drafts/surfaces); Scot Wahlquist (attests completion)",
-    "basis": "Audit/Compliance Modernization plan 2026-06-11 sections 1.3, 5.1, 6, 9.1; fresh regulatory lookups 2026-06-13; Phase 4 audit-run cadence added 2026-06-14; audit-run cadence changed to one formal full run per year 2026-11-07; recurring review cadences sized to what a law or signed contract requires 2026-11-09 (SOC 2 quarterly row removed, not pursuing SOC 2)",
+    "basis": "Audit/Compliance Modernization plan 2026-06-11 sections 1.3, 5.1, 6, 9.1; fresh regulatory lookups 2026-06-13; Phase 4 audit-run cadence added 2026-06-14; audit-run cadence changed to one formal full run per year 2026-11-07; recurring review cadences sized to what a law or signed contract requires 2026-11-09 (SOC 2 quarterly row removed, not pursuing SOC 2); Scot 2026-11-09: overdue rev-ferpa-annual and rev-gdpr-dpa-annual re-dated to 2027-09-16, and rev-gemini-baa-annual removed (Gemini has no live call site; reactivating it is a subprocessor addition, which triggers rev-gdpr-subprocessor-quarterly)",
     "dateConvention": "ISO-8601 absolute dates. All cached regulatory dates are 'verify before relying'; regulation is fast-moving.",
     "governance": "A review is only 'done' when Scot attests. nextDue is advisory scheduling, not a compliance claim. No student/patient data in this file."
   },
@@ -27,9 +27,9 @@
       "title": "FERPA vendor-disclosure + directory-info posture review",
       "cadence": "annual",
       "lastDone": null,
-      "nextDue": "2026-09-01",
+      "nextDue": "2027-09-16",
       "drafts": "register hygiene + posture delta for school-district data flows",
-      "watch": "FERPA NPRM on vendor-disclosure terms (RIN 1875-AA15) - in motion, nothing final; check quarterly",
+      "watch": "FERPA NPRM on vendor-disclosure terms (RIN 1875-AA15) - in motion, nothing final; check quarterly. Re-dated by Scot on 2026-11-09 from 2026-09-01, which was missed (never performed; lastDone is null), to 2027-09-16.",
       "basis": "plan 1.3"
     },
     {
@@ -49,9 +49,9 @@
       "title": "GDPR DPA + RoPA + data-residency review",
       "cadence": "annual",
       "lastDone": null,
-      "nextDue": "2026-09-01",
+      "nextDue": "2027-09-16",
       "drafts": "RoPA refresh, DPA terms review, right-to-deletion path verification for EU clients",
-      "watch": "EU AI Act intersects GDPR for EU clients - see fixed dates",
+      "watch": "EU AI Act intersects GDPR for EU clients - see fixed dates. Re-dated by Scot on 2026-11-09 from 2026-09-01, which was missed (never performed; lastDone is null), to 2027-09-16.",
       "basis": "plan 1.3"
     },
     {
@@ -107,24 +107,13 @@
     {
       "id": "rev-zdr-reverify-on-rotation",
       "framework": "SOC2",
-      "title": "OpenRouter ZDR re-verification (after every key rotation, plus annually)",
+      "title": "Runtime AI ZDR re-verification (after every model change, plus annually)",
       "cadence": "event-driven (model change) + annual",
       "lastDone": null,
       "nextDue": "2027-09-16",
-      "drafts": "confirm the OpenRouter ZDR account toggle is still on after any API-key rotation; PiiScrubber is the real backstop, ZDR is operator-maintained and unenforceable from config",
-      "watch": "ZDR is NOT a BAA. Re-verify the toggle after every key rotation - nothing else checks it (plan 2.4 item 7). Cadence set by Scot on 2026-11-09 to what a law or signed contract requires: re-verify on every model change, plus once a year on the annual audit date. lastDone is unchanged.",
+      "drafts": "confirm each runtime model allowlisted in lib/ai_client.rb and lib/eval_narrator.rb is still ZDR-eligible on Amazon Bedrock (Anthropic Covered Models are not) and that Bedrock model-invocation logging is still off; PiiScrubber is the real backstop",
+      "watch": "ZDR is NOT a BAA. Cadence set by Scot on 2026-11-09 to what a law or signed contract requires: re-verify on every model change, plus once a year on the annual audit date. On 2026-11-09 the title and this row stopped naming OpenRouter, which no code references; the id is kept. lastDone is unchanged.",
       "basis": "plan 1.8, 2.4; ZDR verification SOP (Phase 1)"
-    },
-    {
-      "id": "rev-gemini-baa-annual",
-      "framework": "HIPAA",
-      "title": "Google Gemini API fallback path BAA/DPA verification",
-      "cadence": "annual",
-      "lastDone": null,
-      "nextDue": "2026-09-01",
-      "drafts": "Confirm Gemini API data-handling terms and whether any Google BAA covers the runtime fallback in lib/ai_word_predictor.rb; document result in AI Governance Memo section 7",
-      "watch": "Until resolved, PiiScrubber remains the controlling backstop for the Gemini path",
-      "basis": "docs/legal/AI_GOVERNANCE_MEMO.md section 7; lib/ai_word_predictor.rb Gemini fallback"
     },
     {
       "id": "gov-secret-rejector-build",
