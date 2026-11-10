@@ -82,13 +82,11 @@
 | Findings Register (FINDINGS.json) | git | `audit-reports/FINDINGS.json` | 2026-06-19 | published | Review date is older than 2026-10-31. |
 | GCP BAA Acceptance Record (2026-09-14 successor) | git | `docs/legal/2026-09-14_gcp-baa-accepted.md` | 2026-09-14 | approved | Review date is older than 2026-10-31. |
 | Incident Log | git | `docs/legal/INCIDENT_LOG.md` | 2026-05-27 | approved | Review date is older than 2026-10-31. |
-| Incident Response & Breach Runbook (2026-09-14 successor) | git | `docs/legal/2026-09-14_incident-response-breach-runbook.md` | 2026-09-14 | approved | Review date is older than 2026-10-31. |
 | LingoLinq Capability Ledger (rendered) | git | `docs/legal/CAPABILITY_LEDGER.md` | 2026-07-12 | published | Review date is older than 2026-10-31. |
 | Minimum-Necessary Privacy, Data Retention, and AI Use Policy: Counsel Review Memorandum (2026-08-30 draft) | git | `docs/legal/2026-08-30_minimum-necessary-privacy-retention-ai-use-counsel-review.md` | 2026-08-30 | draft | Review date is older than 2026-10-31. |
 | Parental Consent Email (COPPA / under-13) | git | `docs/legal/PARENTAL_CONSENT_EMAIL.md` | 2026-07-23 | approved | Review date is older than 2026-10-31. |
 | Scheduler Dispatch: Interruption and Post-Interruption Observations (2026-09-14 draft) | git | `docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md` |  | draft | No review recorded. |
 | Security, Privacy & Compliance Overview (2026-09-14 successor) | git | `docs/legal/2026-09-14_compliance-program-overview.md` | 2026-09-14 | approved | Review date is older than 2026-10-31. |
-| Subprocessor Register (2026-09-14 successor) | git | `docs/legal/2026-09-14_subprocessor-register.md` | 2026-09-14 | approved | Review date is older than 2026-10-31. |
 | accessibility-auditor agent definition | git | `.claude/agents/accessibility-auditor.md` | 2026-06-21 | published | Review date is older than 2026-10-31. |
 | api-auditor agent definition | git | `.claude/agents/api-auditor.md` | 2026-06-21 | published | Review date is older than 2026-10-31. |
 | code-hygiene-auditor agent definition | git | `.claude/agents/code-hygiene-auditor.md` | 2026-08-12 | published | Review date is older than 2026-10-31. |
@@ -181,7 +179,7 @@ Every rule is `status: draft` and legally inert. No deletion behaviour is wired 
 | `executed-agreement` | term + 7 years | archive | 10 | draft |
 | `corporate-permanent` | permanent | archive | 0 | unused (no record of this class exists yet) |
 | `grant-record` | award + 7 years | archive | 0 | unused (no record of this class exists yet) |
-| `policy-version` | supersession + 7 years | archive | 59 | draft |
+| `policy-version` | supersession + 7 years | archive | 61 | draft |
 | `audit-evidence` | 7 years | archive | 21 | draft |
 | `attestation-record` | permanent | archive | 0 | unused (no record of this class exists yet) |
 | `dsar-case` | 3 years | delete | 0 | unused (no record of this class exists yet) |
@@ -190,7 +188,7 @@ Every rule is `status: draft` and legally inert. No deletion behaviour is wired 
 | `working-note` | 90 days | delete | 4 | draft |
 | `operational-config` | retain while in use; supersession + 1 year | archive | 15 | draft |
 
-All 109 rows carry a retention block.
+All 111 rows carry a retention block.
 
 No retention rule has been approved. Nothing in this register is eligible for disposition.
 
@@ -228,7 +226,7 @@ _No record is under legal hold. A hold suspends all disposition for the rows it 
 
 ## Attestation Integrity
 
-38 attested git record(s). `attestation.attestedContentHash` pins the bytes that were attested; `ruby scripts/document-register-render.rb --check` fails when a pinned hash stops matching the file. Drive and Notion rows are out of scope: their hashes are operator-supplied, so there is nothing CI can verify.
+40 attested git record(s). `attestation.attestedContentHash` pins the bytes that were attested; `ruby scripts/document-register-render.rb --check` fails when a pinned hash stops matching the file. Drive and Notion rows are out of scope: their hashes are operator-supplied, so there is nothing CI can verify.
 
 **No pinned attestation has drifted.** Every record that pins a hash still matches the attested bytes.
 
@@ -268,12 +266,14 @@ A superseded record is never edited, renamed, or moved. It keeps its row and its
 | Data Retention Schedule (2026-08-09 draft) | `docs/legal/2026-08-09_data-retention_draft.md` | Data Retention Schedule (2026-09-14 successor) | (none) |
 | Data Retention Schedule (2026-09-14 successor) | `docs/legal/2026-09-14_data-retention.md` | Data Retention Schedule (2026-09-22 successor) | (none) |
 | Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record | `docs/legal/GCP_BAA_ACCEPTED.md` | GCP BAA Acceptance Record (2026-09-14 successor) | baa |
+| Incident Response & Breach Runbook (2026-09-14 successor) | `docs/legal/2026-09-14_incident-response-breach-runbook.md` | Incident Response & Breach Runbook (2026-11-09 successor) | soc2-evidence, school-dpa-package, security-review, baa |
 | Incident Response and Breach Runbook | `docs/legal/BREACH_RUNBOOK.md` | Incident Response and Breach Runbook (2026-08-15 successor) | (none) |
 | Incident Response and Breach Runbook (2026-08-15 successor) | `docs/legal/2026-08-15_incident-response-breach-runbook.md` | Incident Response & Breach Runbook (2026-09-14 successor) | soc2-evidence, school-dpa-package, security-review, baa |
 | LingoLinq Security, Privacy & Compliance Overview | `docs/legal/COMPLIANCE_PROGRAM_OVERVIEW.md` | LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft) | (none) |
 | LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft) | `docs/legal/2026-08-09_compliance-program-overview_draft.md` | Security, Privacy & Compliance Overview (2026-09-14 successor) | security-review |
 | Subprocessor Register | `docs/legal/SUBPROCESSORS.md` | Subprocessor Register (2026-08-16 successor) | (none) |
 | Subprocessor Register (2026-08-16 successor) | `docs/legal/2026-08-16_subprocessor-register.md` | Subprocessor Register (2026-09-14 successor) | school-dpa-package, soc2-evidence, security-review |
+| Subprocessor Register (2026-09-14 successor) | `docs/legal/2026-09-14_subprocessor-register.md` | Subprocessor Register (2026-11-09 successor) | school-dpa-package, soc2-evidence, security-review |
 
 ## Bundle Gaps
 
@@ -326,4 +326,4 @@ The missing layer is a Google Docs publisher/refresh workflow. Until that exists
 
 ---
 
-_109 documents tracked. 73 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 23 inferred retention class(es). 0 legal hold(s). 34 superseded record(s). 0 drifted attestation(s), 0 attested record(s) with no pinned hash, none awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._
+_111 documents tracked. 71 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 23 inferred retention class(es). 0 legal hold(s). 36 superseded record(s). 0 drifted attestation(s), 0 attested record(s) with no pinned hash, none awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._
