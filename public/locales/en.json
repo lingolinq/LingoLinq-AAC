@@ -749,6 +749,8 @@
   "device_storage_unavailable": "This device can't save boards right now. Try restarting the app.",
   "like_offline_hint": "Like this board to keep it on this device for offline use",
   "liked_kept_offline": "Liked. This board will be kept on this device for offline use after the next sync.",
+  "liked_at_limit": "Liked. This board will be kept on this device for offline use after the next sync. You have reached the limit of %{limit} liked boards kept on this device.",
+  "liked_past_limit": "Liked, but not kept on this device: you have reached the limit of %{limit} liked boards kept for offline use. Unlike a board to make room for this one.",
   "liked_boards_offline_note": "Liked boards are kept on this device for offline use.",
   "sync_offline_scope": "Kept on this device for offline use: your home board and its folders, your sidebar boards, your liked boards, and Crisis Vocabulary.",
   "device_storage_full": "This device is out of storage, so boards could not be saved for offline use. Free up some space, then sync again.",

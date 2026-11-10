@@ -712,13 +712,14 @@ describe Api::BoardsController, :type => :controller do
       expect(response).to be_successful
       expect(b.reload.settings['starred_user_ids']).to eq(["en:" + @user.global_id])
       json = JSON.parse(response.body)
-      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id})
+      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id, 'liked_boards' => 1, 'liked_limit' => 50, 'kept_offline' => true})
 
       post :star, params: {:board_id => "#{b.global_id}-#{@user.global_id}"}
       expect(response).to be_successful
       expect(b.reload.settings['starred_user_ids']).to eq(["en:" + @user.global_id])
       json = JSON.parse(response.body)
-      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id})
+      # liked_boards counts the stored list plus this like; the first like's list update is a queued job here.
+      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id, 'liked_boards' => 1, 'liked_limit' => 50, 'kept_offline' => true})
       Worker.process_queues
       expect(@user.reload.settings['starred_board_ids']).to eq([b.global_id, "#{b.global_id}-#{@user.global_id}"])
 
@@ -742,13 +743,14 @@ describe Api::BoardsController, :type => :controller do
       expect(response).to be_successful
       expect(b.reload.settings['starred_user_ids']).to eq(["en:" + @user.global_id])
       json = JSON.parse(response.body)
-      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id})
+      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id, 'liked_boards' => 1, 'liked_limit' => 50, 'kept_offline' => true})
 
       post :star, params: {:board_id => "#{b.global_id}-#{@user.global_id}"}
       expect(response).to be_successful
       expect(b.reload.settings['starred_user_ids']).to eq(["en:" + @user.global_id])
       json = JSON.parse(response.body)
-      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id})
+      # liked_boards counts the stored list plus this like; the first like's list update is a queued job here.
+      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id, 'liked_boards' => 1, 'liked_limit' => 50, 'kept_offline' => true})
       Worker.process_queues
       expect(@user.reload.settings['starred_board_ids']).to eq([b.global_id, "#{b.global_id}-#{@user.global_id}"])
 
@@ -776,13 +778,14 @@ describe Api::BoardsController, :type => :controller do
       expect(response).to be_successful
       expect(b.reload.settings['starred_user_ids']).to eq(["en:" + @user.global_id])
       json = JSON.parse(response.body)
-      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id})
+      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id, 'liked_boards' => 1, 'liked_limit' => 50, 'kept_offline' => true})
 
       post :star, params: {:board_id => "#{b.global_id}-#{@user.global_id}"}
       expect(response).to be_successful
       expect(b.reload.settings['starred_user_ids']).to eq(["en:" + @user.global_id])
       json = JSON.parse(response.body)
-      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id})
+      # liked_boards counts the stored list plus this like; the first like's list update is a queued job here.
+      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id, 'liked_boards' => 1, 'liked_limit' => 50, 'kept_offline' => true})
       Worker.process_queues
       expect(@user.reload.settings['starred_board_ids']).to eq([b.global_id, "#{b.global_id}-#{@user.global_id}"])
 
@@ -884,13 +887,14 @@ describe Api::BoardsController, :type => :controller do
       expect(response).to be_successful
       expect(b.reload.settings['starred_user_ids']).to eq(["en:" + @user.global_id])
       json = JSON.parse(response.body)
-      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id})
+      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id, 'liked_boards' => 1, 'liked_limit' => 50, 'kept_offline' => true})
 
       post :star, params: {:board_id => "#{b.global_id}-#{@user.global_id}"}
       expect(response).to be_successful
       expect(b.reload.settings['starred_user_ids']).to eq(["en:" + @user.global_id])
       json = JSON.parse(response.body)
-      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id})
+      # liked_boards counts the stored list plus this like; the first like's list update is a queued job here.
+      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id, 'liked_boards' => 1, 'liked_limit' => 50, 'kept_offline' => true})
       Worker.process_queues
       expect(@user.reload.settings['starred_board_ids']).to eq([b.global_id, "#{b.global_id}-#{@user.global_id}"])
 
@@ -954,13 +958,14 @@ describe Api::BoardsController, :type => :controller do
       expect(response).to be_successful
       expect(b.reload.settings['starred_user_ids']).to eq(["en:" + @user.global_id])
       json = JSON.parse(response.body)
-      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id})
+      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id, 'liked_boards' => 1, 'liked_limit' => 50, 'kept_offline' => true})
 
       post :star, params: {:board_id => "#{b.global_id}-#{@user.global_id}"}
       expect(response).to be_successful
       expect(b.reload.settings['starred_user_ids']).to eq(["en:" + @user.global_id])
       json = JSON.parse(response.body)
-      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id})
+      # liked_boards counts the stored list plus this like; the first like's list update is a queued job here.
+      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id, 'liked_boards' => 1, 'liked_limit' => 50, 'kept_offline' => true})
       Worker.process_queues
       expect(@user.reload.settings['starred_board_ids']).to eq([b.global_id, "#{b.global_id}-#{@user.global_id}"])
 
@@ -2321,7 +2326,38 @@ describe Api::BoardsController, :type => :controller do
       expect(response).to be_successful
       expect(b.reload.settings['starred_user_ids']).to eq(["en:" + @user.global_id])
       json = JSON.parse(response.body)
-      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id})
+      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id, 'liked_boards' => 1, 'liked_limit' => 50, 'kept_offline' => true})
+    end
+
+    # Only the first LIKED_BOARD_REFS_LIMIT liked boards are kept offline (User#starred_board_refs). The answer
+    # carries the person's count after this like and whether this board is kept, so the app can say when a
+    # like is past the limit (Traci, 2026-11-10).
+    it "should say a like past the limit is not kept offline, and count the liked boards" do
+      token_user
+      owner = User.create
+      earlier = User::LIKED_BOARD_REFS_LIMIT.times.map { Board.create(:user => owner, :public => true) }
+      @user.settings['starred_board_ids'] = earlier.map(&:global_id)
+      @user.settings['starred_boards'] = earlier.length
+      @user.save
+      b = Board.create(:user => owner, :public => true)
+      post :star, params: {:board_id => b.global_id}
+      json = JSON.parse(response.body)
+      expect(json['starred']).to eq(true)
+      expect(json['liked_boards']).to eq(User::LIKED_BOARD_REFS_LIMIT + 1)
+      expect(json['liked_limit']).to eq(User::LIKED_BOARD_REFS_LIMIT)
+      expect(json['kept_offline']).to eq(false)
+      Worker.process_queues
+      # Liking one of the first ones again changes nothing: it keeps its place and is still kept.
+      post :star, params: {:board_id => earlier[0].global_id}
+      json = JSON.parse(response.body)
+      expect(json['liked_boards']).to eq(User::LIKED_BOARD_REFS_LIMIT + 1)
+      expect(json['kept_offline']).to eq(true)
+      Worker.process_queues
+      delete :unstar, params: {:board_id => b.global_id}
+      json = JSON.parse(response.body)
+      expect(json['starred']).to eq(false)
+      expect(json['liked_boards']).to eq(User::LIKED_BOARD_REFS_LIMIT)
+      expect(json['kept_offline']).to eq(false)
     end
   end
   
@@ -2344,7 +2380,7 @@ describe Api::BoardsController, :type => :controller do
       expect(response).to be_successful
       expect(b.reload.settings['starred_user_ids']).to eq([])
       json = JSON.parse(response.body)
-      expect(json).to eq({'starred' => false, 'stars' => 0, 'user_id' => @user.global_id})
+      expect(json).to eq({'starred' => false, 'stars' => 0, 'user_id' => @user.global_id, 'liked_boards' => 0, 'liked_limit' => 50, 'kept_offline' => false})
     end
 
     it "should unstar a starred shallow clone" do
@@ -2360,7 +2396,7 @@ describe Api::BoardsController, :type => :controller do
       expect(b.reload.settings['starred_user_ids']).to eq(["en:" + @user.global_id])
       expect(@user.reload.settings['starred_board_ids']).to eq(["#{b.global_id}-#{@user.global_id}"])
       json = JSON.parse(response.body)
-      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id})
+      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id, 'liked_boards' => 1, 'liked_limit' => 50, 'kept_offline' => true})
 
       delete :unstar, params: {:board_id => "#{b.global_id}-#{@user.global_id}"}
       expect(response).to be_successful
@@ -2369,7 +2405,7 @@ describe Api::BoardsController, :type => :controller do
       Worker.process_queues
       expect(@user.reload.settings['starred_board_ids']).to eq([])
       json = JSON.parse(response.body)
-      expect(json).to eq({'starred' => false, 'stars' => 0, 'user_id' => @user.global_id})
+      expect(json).to eq({'starred' => false, 'stars' => 0, 'user_id' => @user.global_id, 'liked_boards' => 0, 'liked_limit' => 50, 'kept_offline' => false})
     end
 
   end

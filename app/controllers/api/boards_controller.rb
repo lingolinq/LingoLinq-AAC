@@ -1062,7 +1062,19 @@ class Api::BoardsController < ApplicationController
     return unless allowed?(board, 'view')
     return unless exists?(@api_user)
     board.star!(@api_user, star)
-    render json: {starred: board.starred_by?(@api_user), user_id: @api_user.global_id, stars: board.stars}.to_json
+    render json: {starred: board.starred_by?(@api_user), user_id: @api_user.global_id, stars: board.stars}.merge(liked_boards_summary(@api_user, board)).to_json
+  end
+
+  # Only the first LIKED_BOARD_REFS_LIMIT liked boards are kept on a device (User#starred_board_refs lists that
+  # many, and the offline sync saves the listed ones), so the app says when a like is past the limit. The
+  # user's liked list is kept by a job (Board#star schedules User#remember_starred_board!), so the count is the
+  # stored list plus or minus this like, and "kept" is the board's place in that list.
+  def liked_boards_summary(user, board)
+    ids = user.reload.settings['starred_board_ids'] || []
+    id = board.shallow_id
+    list = board.starred_by?(user) ? (ids.include?(id) ? ids : ids + [id]) : (ids - [id])
+    position = list.index(id)
+    {liked_boards: list.length, liked_limit: User::LIKED_BOARD_REFS_LIMIT, kept_offline: !position.nil? && position < User::LIKED_BOARD_REFS_LIMIT}
   end
 
   TRUNCATED_NAME_ENDINGS = %w[the a an to for with and or of in on].freeze
