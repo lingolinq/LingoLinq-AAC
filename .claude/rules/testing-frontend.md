@@ -22,8 +22,8 @@ The history behind each rule is in `docs/task-management/2026-10-05_ci-test-stal
 1. **A test exists to fail when the behaviour breaks.** Before trusting a new test, make it fail:
    revert the fix (or break the code it covers) and watch it go red, then restore. Name that
    mutation in the PR. A test that cannot fail for the right reason is not coverage.
-2. **Red first for a bug fix or behaviour change** (Rule 0.12, `/fix-proposal`): the test is
-   derived from the traced mechanism and written before the fix.
+2. **Red first for a bug fix or behaviour change in Rule 0.12's required scope** (`/fix-proposal`;
+   welcome elsewhere): the test is derived from the traced mechanism and written before the fix.
 3. **Tests harden, never soften** (Rule 0.14). Never delete, skip, `todo`, loosen, narrow, re-baseline
    or route around a failing test or check without explicit human approval. The failure is the finding.
 4. **Deterministic or it is broken.** A test may not depend on test order, the wall clock, real

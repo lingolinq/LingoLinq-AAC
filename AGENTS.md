@@ -13,6 +13,8 @@ include children and clinical patients; FERPA, HIPAA, GDPR and COPPA apply.
 
 ## Hard rules
 
+- **Adding process.** Add a gate, review round, attestation or consent step only when a
+  law, a signed contract or a real incident calls for it, and name which.
 - **Diagnose before fixing; never guess.** Trace the real code path, verify the root
   cause with evidence, and never break working behaviour. Label facts CONFIRMED
   (`file:line`) or ASSUMED; nothing ASSUMED may carry a fix.
@@ -88,10 +90,16 @@ template expects). Tests: `bundle exec rspec` and `cd app/frontend && ember test
 standards (which kind of test, red-then-falsify, test isolation enforced by the frontend leak
 check, Playwright e2e is not in CI, the CI gates) are in `.claude/rules/testing-frontend.md`.
 
-Two independent reviews then gate the PR: a senior-dev pass and an adversarial red-team
-pass. A Critical or High finding from either blocks the PR; this is a blocking gate, not
-advisory. Which passes you can run depends on which tool you are, and the three cases
-differ; do not compress them to "available" or "unavailable".
+Then review, sized to what the PR touches. A normal PR gets one review: the Codex GitHub
+connector's automatic review counts, or one senior-dev pass; a PR from an outside
+contributor (a fork) also needs a human review from the core team. Dual review (a senior-dev
+pass and an adversarial red-team pass) applies only when the PR touches authentication or
+sessions, consent or account ownership, access to another user's or organization's data,
+billing, AI model routing or the AI client, infra or deploy config, or the
+`data-bearing-paths` gate. At most two review rounds; a third needs Scot's OK. A Critical
+or High finding from any review blocks the PR; this is a blocking gate, not advisory.
+Which passes you can run depends on which tool you are, and the three cases differ; do
+not compress them to "available" or "unavailable".
 
 **Codex: you can run the senior-dev pass, and you are its strongest documented caller.**
 The live surface is the `review-pr` SKILL, invoked as `$review-pr` or listed via
@@ -118,15 +126,16 @@ are not in the review rotation (quota; `ai-company-brain/instructions/ANTIGRAVIT
 not run it as a matter of course; route it to Codex and name who ran it. A consumer Gemini
 CLI has no skill surface and runs neither pass.
 
-**Neither of you can discharge the adversarial pass.** Codex has no such skill at all,
-and while an `adversary-review` file is installed for Antigravity it only instructs
-spawning Claude's `adversary` subagent, which is Claude-only. Name the reviewer who owes
-that pass. There is no CI-side route for the senior-dev pass. The required
-`codex-review-tests` CI job runs the frontend-scope, path-classifier (shell and real-repo)
-and data-bearing-path suites; a green CI run is not the dual review.
+**Neither of you can discharge the adversarial pass** a dual-review PR needs. Codex has
+no such skill at all, and while an `adversary-review` file is installed for Antigravity it
+only instructs spawning Claude's `adversary` subagent, which is Claude-only. Name the
+reviewer who owes that pass. There is no CI-side route for the senior-dev pass. The
+required `codex-review-tests` CI job runs the frontend-scope, path-classifier (shell and
+real-repo) and data-bearing-path suites; a green CI run is not a review.
 
 The Codex GitHub connector is set to review every PR automatically. That review skips the
-PII pre-flight and is neither pass; confirm a PR actually got it rather than assuming. A
+PII pre-flight. It is the one review a normal PR needs, but neither dual-review pass;
+confirm a PR actually got it rather than assuming. A
 `@codex review` comment requests one and posts under your GitHub account, so ask before
 posting. No repository rule requests Copilot code review.
 
@@ -145,9 +154,11 @@ values itself);
 before opening or updating a pull request read `.claude/rules/github-pr.md` (ask the user
 first; use `gh` when it is installed and logged in, otherwise the git credential helper's
 OAuth token; never print the credential or write it to a tracked file).
-For a bug fix or behaviour change in application code, the fact-sheet and red-test
-discipline is `.claude/skills/fix-proposal/SKILL.md`; only a change that cannot alter
-runtime behaviour (docs, agent instructions, comments) skips it.
+For a bug fix or behaviour change in data handling, auth, sync and offline, or any area on
+the dual-review list above, the fact-sheet and red-test-first discipline in
+`.claude/skills/fix-proposal/SKILL.md` is required. For anything else (UI, styling, copy,
+docs, small isolated fixes, backend logic outside that list) it is optional (a red test is
+still welcome).
 
 Backend architecture and hotspots: `CLAUDE.md`. Frontend: `app/frontend/CLAUDE.md`.
 Infra: `docs/INFRASTRUCTURE.md`. Debugging: `docs/CODE_INVESTIGATION.md`. Durable
