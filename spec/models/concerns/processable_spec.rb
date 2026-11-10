@@ -180,6 +180,17 @@ describe Processable, :type => :model do
       
     end
 
+    # Sign-up and renaming keep the letter case the person typed (generate_user_name(name, false)) and lowercase
+    # it afterwards (User#process_params), so the reserved check has to ignore case: "Admin" would otherwise
+    # become the user name "admin".
+    it "should not allow a reserved route as a username in another letter case" do
+      u = User.new
+      expect(u.generate_user_name("Admin", false)).to eq("Admin_1")
+      expect(u.generate_user_name("Offline-Shell", false)).to eq("Offline-Shell_1")
+      expect(u.generate_user_name("ABOUT", false)).to eq("ABOUT_1")
+      expect(u.generate_user_name("Franklin", false)).to eq("Franklin")
+    end
+
     it "allows the official lingolinq system username" do
       u = User.new
       expect(u.generate_user_name("lingolinq")).to eq("lingolinq")

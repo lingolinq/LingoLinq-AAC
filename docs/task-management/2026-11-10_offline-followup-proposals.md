@@ -106,3 +106,53 @@ Paths are under `app/frontend/` unless they start with `app/`, `lib/` or `spec/`
   notice on the Modern dashboard, and say how many boards had a problem. Alternative: "12 of at least 40 boards".
 - Questions for Traci: "saved" or "checked"; include supervisees; does Modern get a syncing notice; should 'kept'
   have its own tally. No feature flag for rewording; the new Modern notice is borderline.
+
+## 7. Production pictures go through the server proxy; let the app fetch the uploads CDN directly (#1212)
+
+Investigator's report, not re-verified except where noted.
+- In production an uploaded picture's URL is on `https://d34sa6lc5jfe66.cloudfront.net` (`lib/uploader.rb:649-660`,
+  `app/models/concerns/uploadable.rb:46-52`); 47 such URLs were found on the public board
+  `lingolinq/crisis-vocabulary`. `cors_match` (`app/services/persistence.js:1546-1552`, and the copy in
+  `app/utils/persistence.js:1583-1673`) does not include that host, so every such picture goes to
+  `/api/v1/search/proxy` (`:1634`), one server thread each.
+- The CDN allows it: ranged GETs with `Origin` set to `https://app.lingolinq.com`, `capacitor://localhost` and
+  `https://localhost`, with and without `?cr=1`, all answered `access-control-allow-origin: *` (curl, 2026-11-10).
+  The `cr=1` query the app appends does not seem to be part of the CDN cache key (a request without it was a cache
+  hit right after one with it); to confirm in the CloudFront cache policy.
+- The frontend never learns the CDN host: `UPLOADS_S3_CDN` is in no view, JSON API or frontend config.
+- Side finding: `is_permanent_upload_url` (`app/utils/permanent_upload.js:9`) returns false for a real production
+  picture URL. It expects `<n>_<n>-<128 hex>`, but `ButtonImage` and `ButtonSound` ids carry a nonce
+  (`1_<id>_<nonce>`), so only legacy records match. The #1221 "trusted by its shape, not downloaded again" reuse
+  therefore does not apply to current uploads. Needs its own proposal.
+- What a direct download skips: the proxy's content-type allow list (`search_controller.rb:438`), its size cap
+  (`:447-451`) and the new cut-off check (`:457-460`); a browser fires `error` on a short body, native behaviour is
+  unchecked. Gained: no Rails thread, no base64 JSON (about a third smaller), CDN edge caching.
+- The report-only CSP already allows `https://*.cloudfront.net` for `connect-src`
+  (`config/initializers/content_security_policy.rb:74`, `:113`).
+- Recommended (A): emit the CDN host to the page (next to `symbol_proxy_key`, `application.html.erb:137`) and move
+  the direct-fetch list into ONE helper used by both persistence copies; dev and staging have no CDN and are
+  unchanged. The mobile bundle must get the value too (how the apps receive page-level settings: to verify).
+  Rejected: hard-coding the host a third time; a server-side redirect.
+- Red tests: in `tests/unit/utils/persistence-saved-pictures-test.js`: a CDN picture is requested directly and not
+  through the proxy; a failed direct request still falls back to the proxy; with no CDN host configured nothing
+  changes.
+- Expected effect: the `search/proxy` requests for uploaded pictures disappear from production syncs. To measure:
+  count proxy log lines per sync before and after.
+
+## 8. Three small sync items
+
+Investigator's report by code trace; nothing was run.
+- **Retry gap (#1212): real, low severity.** A board whose lookup failed is in neither list while it waits for its
+  retry (`app/services/persistence.js:3364`), so a board that links to it queues it again (`:3238-3252`) and it is
+  requested at once; if that fails too, two error rows are recorded for the one board. The two-request limit holds
+  per lookup string. Fix (about 3 lines): remember unreachable boards for the sync and do not queue them again.
+  Red test: beside "should ask for a board linked from two places at most twice", with the failing board listed
+  first. The interleaving itself cannot be reached in the one-thread test harness.
+- **iPad detection wiring (#1201): a test gap, not a defect.** The only call of `is_ipad_with_mac_agent` is
+  `app/utils/capabilities.js:230`, inside code that runs when the module loads; removing it leaves every test green.
+  Proposed: move the detection block unchanged into `detect_platform(caps, nav, win)` and test that. The report
+  lists every reader of `capabilities.mobile` (sync thread counts, touch handling, sign-in overlay, autofocus,
+  ratings prompt).
+- **`lookupsToSyncSeeds`: dead code.** No caller in `app/`; one unit test
+  (`tests/unit/utils/board-prefetch-planner-test.js`, "lookupsToSyncSeeds produces sync queue entries"). Its seeds
+  carry no `button_set` mark. Deleting it and that test needs Traci's approval (Rule 0.14); otherwise a comment.
