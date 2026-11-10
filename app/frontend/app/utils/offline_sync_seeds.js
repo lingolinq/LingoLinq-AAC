@@ -37,9 +37,11 @@ export function offline_sync_seeds(user) {
   }
   // A liked board that is also the home board is already a seed: the sync tells boards apart by id, or by key
   // when a seed has no id, so a second seed with only the key would visit it twice.
+  // By id when the liked entry has one; by key only when it has none (a style option is a key alone).
   var is_home = function(ref_or_key) {
     if(!home || !home.id || !ref_or_key) { return false; }
-    return (!!ref_or_key.id && ref_or_key.id == home.id) || (!!home.key && (ref_or_key.key || ref_or_key) == home.key);
+    if(ref_or_key.id) { return ref_or_key.id == home.id; }
+    return !!home.key && (ref_or_key.key || ref_or_key) == home.key;
   };
   (user.get('preferences.sidebar_boards') || []).forEach(function(b) {
     if(b && b.key) {

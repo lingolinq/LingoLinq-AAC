@@ -74,6 +74,14 @@ module('Unit | Utility | offline_sync_seeds', function() {
     assert.strictEqual(seeds[0].visit_source, 'home board');
   });
 
+  test('a liked board with its own id is kept, also when its key matches the home board', function(assert) {
+    var seeds = offline_sync_seeds(user(
+      { home_board: { id: '1_1', key: 'me/home' } },
+      [{ id: '1_2', key: 'me/home' }]
+    ));
+    assert.deepEqual(seeds.map((s) => s.visit_source), ['home board', 'starred board', 'crisis vocabulary']);
+  });
+
   test('a board reached through a link does not get its own button set', function(assert) {
     assert.false(offlineSyncSeeds.gets_button_set({ key: 'me/folder', depth: 1, visit_source: 'me/home' }));
     assert.false(offlineSyncSeeds.gets_button_set({ key: 'me/deeper', depth: 2, visit_source: 'me/liked' }));

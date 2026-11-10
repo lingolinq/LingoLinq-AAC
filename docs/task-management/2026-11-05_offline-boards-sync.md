@@ -2048,3 +2048,23 @@ are marked 'cached' and never written. Proposed: gate both branches on the board
 `find_all('board')` (`:2904`), no extra reads. Item 2 (#1212) is not closed until this lands. After a refused keep
 and a failed retry the board's folders are skipped again, which is acceptable because the parent could not open
 offline anyway.
+
+**Pre-push review of b15efb0c4..af9f2c217 (2026-11-10): OK to push; pushed by SHA.** Follow-ups from it:
+- Fixed here: the home check in `offline_sync_seeds` dropped a liked board whose key equals the home board's key
+  even when it carried a different id. It now compares ids when the liked entry has one, and keys only when it has
+  none. Unit test added; with the correction removed that test fails alone.
+- Corrections to proposal 4's fact sheet: a `suggested board` seed (style options included) exists only with
+  `sync_starred_boards` (`utils/offline_sync_seeds.js`, the `ref.suggested && !sync_all` return). The proposal left
+  "suggested board and the fallback Crisis Vocabulary seed" unresolved; both were included on the proposal review's
+  recommendation (develop gave suggested boards a button set under the liked-list home, and the fallback seed stands
+  in for the sidebar entry that got one). Traci has not been asked to confirm this.
+- Open: `lookupsToSyncSeeds` (`utils/board_prefetch_planner.js:252`) has no caller in `app/`; if it is used again
+  its seeds carry no `button_set` mark. Delete it or make it add the mark.
+- Open, a condition for merge: measure a sync with many liked boards (see proposal 4, "NOT done").
+- The reviewer verified the seed builder against the previous version over 660 input combinations: same seeds and
+  order, plus the mark, minus duplicates of the home board.
+**Route name (2026-11-10):** `offline-shell` added to `LingoLinq::RESERVED_ROUTES` (`config/routes.rb`), built by a
+helper agent in its own worktree and re-run here: `spec/models/concerns/processable_spec.rb` and `spec/routing`, 37
+examples, 0 failures; with the entry removed the reserved-names example fails (`got: "offline-shell"`). Not done:
+other excluded first segments that are legal names (`wait`, `cable`, `rails`, `jobby`, `assets`, `oauth2`) need a
+check of existing accounts first; whether an account named `offline-shell` already exists was not checked.
