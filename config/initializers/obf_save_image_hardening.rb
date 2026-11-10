@@ -25,7 +25,7 @@ require Rails.root.join('lib/image_magick_runner').to_s
 # completes in normal time with any genuinely-missing symbols skipped.
 #
 # convert runs through ImageMagickRunner, which confines it to the files it is
-# given: the image is the user's, and can name other files for ImageMagick to draw.
+# given.
 module OBFSaveImageHardening
   MIN_IMAGE_BYTES = 100
   # Bounds one fetch. SafeHttp supplies no timeout of its own.

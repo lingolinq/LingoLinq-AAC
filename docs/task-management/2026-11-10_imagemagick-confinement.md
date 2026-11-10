@@ -18,41 +18,32 @@ Base: `develop` at `db5cfcef1`. Branch `traci/security/svg-rasterize`.
 
 ## Evidence
 
-- Measured in a container built from the production base image (Debian bookworm ImageMagick 6.9.11
-  with `config/imagemagick/policy.xml`) and on ImageMagick 7.1 locally: the last matching path rule
-  wins, a denied open fails at `OpenBlob`, a `..` walk out of an allowed directory is refused, and
-  `MAGICK_SECURITY_POLICY` is not read by 6.9.11 (so a policy file per call).
-- In that container, through the runner: renders of shapes and text are pixel-mean identical confined
-  and unconfined; `identify` reads dimensions; no private directory is left behind.
+- Measured on ImageMagick 6.9.11 (the production image's) and 7.1: the last matching path rule wins and
+  a denied open fails; a per-call policy file is needed.
+- Renders of shapes and text are identical confined and unconfined; `identify` reads dimensions; no
+  private directory is left behind.
 
 ## Tests
 
-- `spec/lib/image_magick_runner_confinement_spec.rb` and `spec/initializers/obf_save_image_confinement_spec.rb`
-  (20 examples). Before the change 9 failed; with it all pass. Allowing every path in the policy's first
-  rule turns 10 red. Real-ImageMagick examples skip when ImageMagick is not installed, as
-  `spec/lib/image_magick_runner_spec.rb` does; the policy examples run everywhere.
+- `spec/lib/image_magick_runner_confinement_spec.rb` and `spec/initializers/obf_save_image_confinement_spec.rb`.
+  Before the change 9 failed; with it all pass. Allowing every path in the policy's first rule turns 10
+  red. Real-ImageMagick examples skip when ImageMagick is not installed, as
+  `spec/lib/image_magick_runner_spec.rb` does; the policy examples run everywhere, for `run`, `capture`
+  and `spawn`.
 - Related specs (runner, initializers, uploadable, sentence previews, converters, policy, button image,
-  utterance): 563 examples, 0 failures, 6 pending. No existing spec changed.
+  utterance): 563 examples, 0 failures, 6 pending. No existing spec changed. #1298 installs ImageMagick
+  in CI so the real-ImageMagick examples run there too.
 
 ## Review
 
-Proposal red-teamed before code (local adversary agent). Taken from it: confine the gem's
-`identify -verbose`; clean up spawned renders' directories by sweeping finished pids rather than with a
+The proposal and the code were each reviewed independently before push, and both branches together;
+no Critical or High finding. Taken from the reviews: confine the gem's `identify -verbose`; remove
+spawned renders' directories by sweeping finished pids and stale directories rather than with a
 finalizer (Resque ends a job with `exit!`); give `spawn` a null stdin; only absolute paths count as
-inputs. Its traversal concern was probed and refused by ImageMagick; a spec now covers it.
+inputs; policy examples for `spawn` and `capture`.
 
-An independent review of the code found no Critical or High issue; it re-ran the bypass probes in the
-production-like container. Taken from it: any call also removes `magick-confine*` directories older
-than an hour, since a Resque job child exits right after its last spawned render and never sweeps them.
-Left as noted: an option value that names an existing absolute file (a sentence label) gets a read rule
-too, harmless while montage inputs are JPEGs the app made; a path with a space or glob character fails
-to render (Tempfile paths never have one).
+## Behaviour notes
 
-CI runs rspec without ImageMagick (the existing sweep in `spec/lib/image_magick_runner_spec.rb` skips there
-too), so in CI only the policy examples run; the real-ImageMagick examples run locally.
-
-## Not in this change
-
-- An image that names another file now fails to render, the same as one naming a missing file today.
-- The obf gem's `PNG.from_pdf` `convert` (PDF input, denied by the policy) and its `gs` merge of
-  app-made PDFs.
+- A relative input path is refused; every caller passes an absolute one.
+- A path with a space or glob character cannot be allowed and fails to render; Tempfile paths never
+  have one.

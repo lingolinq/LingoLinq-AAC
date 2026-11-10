@@ -4,9 +4,8 @@
 # config/initializers/obf_save_image_hardening.rb:91-118.
 #
 # ImageMagick commands also run confined: a per-call policy lets ImageMagick open only the files
-# named on the command line, its output, its own temp directory, and its config and font files. An
-# image can name other files for ImageMagick to draw (an SVG <image href>, and ImageMagick picks the
-# decoder from the content, not the file name); the policy refuses those opens whatever the format.
+# named on the command line, its output, its own temp directory, and its config and font files,
+# whatever the format of the image.
 require 'fileutils'
 require 'tmpdir'
 

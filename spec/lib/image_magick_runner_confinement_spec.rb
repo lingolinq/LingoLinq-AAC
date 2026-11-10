@@ -158,6 +158,32 @@ describe ImageMagickRunner, "confinement" do
       expect(patterns.grep(/in\*/)).to eq([])
     end
 
+    def denies_first?(env)
+      policy = File.read(File.join(env['MAGICK_CONFIGURE_PATH'].split(':').first, 'policy.xml'))
+      rule = Nokogiri::XML(policy).xpath('/policymap/policy[@domain="path"]').first
+      rule['pattern'] == '*' && rule['rights'] == 'none'
+    end
+
+    it "hands the same policy to capture" do
+      seen = nil
+      allow(IO).to receive(:popen) do |env, *_rest|
+        seen = env.is_a?(Hash) && denies_first?(env)
+        ''
+      end
+      ImageMagickRunner.capture('identify', '-format', '%w', File.join(@dir, 'x.png'))
+      expect(seen).to eq(true)
+    end
+
+    it "hands the same policy to spawn" do
+      seen = nil
+      allow(Process).to receive(:spawn) do |env, *_rest|
+        seen = env.is_a?(Hash) && denies_first?(env)
+        999_999_999
+      end
+      ImageMagickRunner.spawn('convert', File.join(@dir, 'x.svg'), File.join(@dir, 'x.jpg'))
+      expect(seen).to eq(true)
+    end
+
     it "leaves commands other than ImageMagick alone" do
       expect(ImageMagickRunner).to receive(:system).with('/bin/echo', 'x', :in => File::NULL).and_return(true)
       ImageMagickRunner.run('/bin/echo', 'x')
