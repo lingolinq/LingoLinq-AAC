@@ -1792,3 +1792,32 @@ written is NOT safe to build.** Corrections to the proposal above:
 Reviewer's alternative, now the leading candidate: a sync-only server call that returns the remaining liked refs
 (same id and key forms as the profile refs, no visibility filter beyond the existing `supervise` gate), so the cost
 is paid only when a sync asks. Needs Traci's decision (it is a small server change). Nothing built.
+
+#### Fix proposal 2: raise the liked-list cap from 25 to 100 (2026-11-09; Traci chose this and the cap of 100)
+
+**Diagnosis (CONFIRMED):** `User#starred_board_refs` resolves `starred_board_ids[0, 25]` (`app/models/user.rb:2469`);
+the loop below it walks every id but only finds the 25 resolved (`:2473-2484`). The sync seeds read only this list
+(`utils/offline_sync_seeds.js:36-44`), so like 26 onward is never saved offline.
+**Candidates:** (A, chosen) one named limit of 100 replacing the literal 25: same id and key forms, no visibility
+gap, no paging, one batched lookup (`global_id.rb:140`). (B) a sync-only server call for the rest: more code and
+API surface for the same result under a cap of 100. (C) client paging of the starred index: rejected by review
+(drops private shared boards; `next_url` loses the filter).
+**Red test (run, red):** `spec/models/user_spec.rb` "starred_board_refs limit": 30 liked returns 30 in liked order
+(got 25); 101 liked returns the first 100 (got 25). Mutation: put 25 back.
+**Every reader of `stats.starred_board_refs` (CONFIRMED by grep, each read):**
+- `utils/offline_sync_seeds.js:36` the sync (the fix). `utils/board_prefetch_planner.js:41` online warm-up: up to
+  100 lookups instead of 25.
+- `models/board.js:968` whether a board shows as liked: boards 26 to 100 now show correctly.
+- `controllers/caseload.js:247` length only. `components/dashboard/authenticated-view.js:986` sort and heart.
+- Only with "Make my Home Board a list of all my liked boards" (`preferences.sync_starred_boards`):
+  `utils/obf.js:194` builds that home grid from the refs, so it grows from 25 tiles to up to 100 (smaller tiles);
+  `models/user.js:941` loads a button set per ref; `services/app-state.js:1406` next-board order;
+  `utils/word_suggestions.js:1439` lookups.
+- Server: `boards_controller.rb:108` (shallow clone ids from refs).
+**Risks:** a larger user JSON for accounts over 25 likes (about 100 to 150 bytes a ref); the liked-list home grid
+changing size for people who use that preference and have more than 25 likes (Traci to decide: let it grow, or keep
+that grid at 25); longer syncs for those accounts (each liked board is reloaded every sync, with its folders).
+**Past 100:** when a like lands and the person already has 100 liked boards, the Like message says this one will not
+be kept offline until another is unliked. Unresolved: the most reliable source for that count at like time
+(`stats.starred_boards` on the signed-in user may be stale; the star response returns only `starred`, `stars`,
+`user_id`).
