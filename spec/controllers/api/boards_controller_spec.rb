@@ -3717,6 +3717,28 @@ describe Api::BoardsController, :type => :controller do
     board.reload
   end
 
+  # An owned board whose buttons reference the given image ids (#1219 preload specs).
+  def board_with_image_ids(owner, image_ids)
+    board = Board.create(user: owner)
+    board.settings['buttons'] = image_ids.each_with_index.map { |id, i| { 'id' => i + 1, 'label' => "b#{i}", 'image_id' => id } }
+    board.settings['grid'] = { 'rows' => 1, 'columns' => image_ids.length, 'order' => [image_ids.each_index.map { |i| i + 1 }] }
+    board.instance_variable_set('@buttons_changed', true)
+    board.save
+    board.reload
+  end
+
+  # The image ids a lite-serialized board carries: its image_urls keys without the <id>-<library> alternates.
+  def own_image_ids(wrapped)
+    (wrapped['board']['image_urls'] || {}).keys.reject { |k| k.include?('-') }
+  end
+
+  def tree_of(owner, children)
+    root = Board.create(user: owner)
+    root.settings['downstream_board_ids'] = children.map(&:global_id)
+    root.save
+    root.reload
+  end
+
   # Builds a root with +count+ owned, image-bearing descendants and wires
   # downstream_board_ids directly (the controller reads it straight from
   # settings; no linking machinery needed).
@@ -3867,9 +3889,119 @@ describe Api::BoardsController, :type => :controller do
         "(~2/board ceiling).\nlarge-tree SQL:\n#{large_q.join("\n")}"
       })
     end
+
+    # #1219 (PR #1268): the button images of the whole tree are loaded once (Board.preload_button_images), so the
+    # number of button_images queries does not grow with the number of boards. Before, images_and_sounds_for ran
+    # ButtonImage.find_all_by_global_id once per image-bearing board: 145 lookups and 312 queries on one 145-board
+    # tree, the cause of the Rack::Timeout mode of the issue.
+    it "loads the tree's button images in one lookup, however many boards there are" do
+      token_user
+      small_root, _small = build_owned_tree(@user, 3)
+      large_root, _large = build_owned_tree(@user, 18)
+      get :tree, params: { board_id: small_root.global_id }
+      get :tree, params: { board_id: large_root.global_id }
+      image_queries = lambda { |queries| queries.select { |sql| sql =~ /FROM "button_images"/ } }
+      user_queries = lambda { |queries| queries.select { |sql| sql =~ /FROM "users"/ } }
+      expect(ButtonImage).to_not receive(:find_all_by_global_id)
+      small_all = count_board_sql { get :tree, params: { board_id: small_root.global_id } }
+      large_all = count_board_sql { get :tree, params: { board_id: large_root.global_id } }
+      json = assert_success_json
+      small_q = image_queries.call(small_all)
+      large_q = image_queries.call(large_all)
+      expect(small_q.length).to be >= 1
+      expect(large_q.length).to(eq(small_q.length), lambda {
+        "button_images queries grew from #{small_q.length} to #{large_q.length} for 15 extra image boards:\n#{large_q.join("\n")}"
+      })
+      expect(user_queries.call(large_all).length).to eq(user_queries.call(small_all).length)
+      # Each board gets its own images, not the tree's, and not none.
+      expect(json['descendants'].length).to eq(18)
+      json['descendants'].each do |d|
+        expect(own_image_ids(d)).to eq(d['board']['buttons'].map { |b| b['image_id'] }.compact)
+      end
+    end
+
+    it "gives each board only the images its own ids name, by find_all_by_global_id's nonce rule" do
+      # A lookup over the whole tree's ids would keep or drop a record by the FIRST id that names it; a board
+      # referencing an image with a stale nonce must not get it, and must not take it from a board whose id is right.
+      token_user
+      img = ButtonImage.create(url: 'http://example.com/shared.png')
+      good_id = img.global_id
+      stale_id = "#{img.global_id.split('_')[0, 2].join('_')}_notthenonce"
+      expect(stale_id).to_not eq(good_id)
+      stale_first = board_with_image_ids(@user, [stale_id])
+      good = board_with_image_ids(@user, [good_id])
+      root = tree_of(@user, [stale_first, good])
+      get :tree, params: { board_id: root.global_id }
+      json = assert_success_json
+      by_key = {}
+      json['descendants'].each { |d| by_key[d['board']['key']] = d }
+      expect(own_image_ids(by_key[stale_first.key])).to eq([])
+      expect(own_image_ids(by_key[good.key])).to eq([good_id])
+    end
+
+    it "serializes a protected image shared by two boards exactly as the per-board lookup did, licensed or not" do
+      token_user
+      protected_url = 'http://localhost:3000/api/v1/users/1_1/protected_image/lessonpix/30983'
+      fallback_url = 'https://lessonpix.com/drawings/30983/100x100/30983.png'
+      img = ButtonImage.create(url: protected_url, settings: { 'protected' => true, 'protected_source' => 'lessonpix', 'fallback' => { 'url' => fallback_url }, 'license' => { 'type' => 'private', 'source_url' => 'https://lessonpix.com/pictures/30983/cat' } })
+      expect(img.protected?).to eq(true)
+      a = board_with_image_ids(@user, [img.global_id])
+      b = board_with_image_ids(@user, [img.global_id])
+      root = tree_of(@user, [a, b])
+      descendants = lambda { |preload|
+        if preload
+          allow(Board).to receive(:preload_button_images).and_call_original
+        else
+          allow(Board).to receive(:preload_button_images) { |boards, _user| boards }
+        end
+        get :tree, params: { board_id: root.global_id }
+        assert_success_json['descendants']
+      }
+      # Unlicensed viewer: both boards get the fallback, and the preload changes nothing.
+      allow_any_instance_of(User).to receive(:enabled_protected_sources).and_return([])
+      with_fb = descendants.call(true)
+      without_fb = descendants.call(false)
+      expect(with_fb.length).to eq(2)
+      expect(with_fb).to eq(without_fb)
+      with_fb.each do |d|
+        expect(d['board']['has_fallbacks']).to eq(true)
+        expect(d['board']['image_urls'][img.global_id]).to eq(fallback_url)
+      end
+      # Licensed viewer: both boards get the protected image, and the preload changes nothing.
+      allow_any_instance_of(User).to receive(:enabled_protected_sources).and_return(['lessonpix'])
+      with_lic = descendants.call(true)
+      without_lic = descendants.call(false)
+      expect(with_lic).to eq(without_lic)
+      with_lic.each do |d|
+        expect(d['board']['has_fallbacks']).to_not eq(true)
+        expect(d['board']['image_urls'][img.global_id]).to start_with(protected_url)
+      end
+    end
   end
 
   describe "#bulk" do
+    # #1219 (PR #1268): the same one-lookup rule for the bulk prefetch.
+    it "loads the requested boards' button images in one lookup, however many boards there are" do
+      token_user
+      _small_root, small = build_owned_tree(@user, 3)
+      _large_root, large = build_owned_tree(@user, 18)
+      post :bulk, params: { keys: small.map(&:global_id) }
+      post :bulk, params: { keys: large.map(&:global_id) }
+      image_queries = lambda { |queries| queries.select { |sql| sql =~ /FROM "button_images"/ } }
+      expect(ButtonImage).to_not receive(:find_all_by_global_id)
+      small_q = image_queries.call(count_board_sql { post :bulk, params: { keys: small.map(&:global_id) } })
+      large_q = image_queries.call(count_board_sql { post :bulk, params: { keys: large.map(&:global_id) } })
+      json = assert_success_json
+      expect(small_q.length).to be >= 1
+      expect(large_q.length).to(eq(small_q.length), lambda {
+        "button_images queries grew from #{small_q.length} to #{large_q.length} for 15 extra image boards:\n#{large_q.join("\n")}"
+      })
+      expect(json['boards'].length).to eq(18)
+      json['boards'].each do |d|
+        expect(own_image_ids(d)).to eq(d['board']['buttons'].map { |b| b['image_id'] }.compact)
+      end
+    end
+
     it "returns the requested boards, permission-filtered" do
       token_user
       other = User.create

@@ -359,7 +359,7 @@ class Board < ApplicationRecord
   def generate_stats(frd=false)
     self.settings['stars'] = (self.settings['starred_user_ids'] || []).length
     self.settings['locale_stars'] = {}
-    @button_images = nil
+    @button_images = nil; @button_images_batched = nil
     pops = {}
     home_pops = {}
     locales = []
@@ -2537,7 +2537,7 @@ class Board < ApplicationRecord
     bis = self.known_button_images
     # NOTE: enabled_protected_sources is already cached
     protected_sources = (user && user.enabled_protected_sources(true)) || []
-    ButtonImage.cached_copy_urls(bis, user, nil, protected_sources)
+    ButtonImage.cached_copy_urls(bis, user, nil, protected_sources) unless @button_images_batched
     # JsonApi::Image.as_json(i, :original_and_fallback => true).slice('id', 'url', 'fallback_url', 'protected_source'))
     pref = user && user.settings['preferences']['preferred_symbols']
     include_other_sources = user && (user.supporter_role? || (user.settings['preferences']['preferred_symbols'] || 'original') != 'original')
@@ -2563,8 +2563,49 @@ class Board < ApplicationRecord
   end
 
   def reload
-    @button_images = nil
+    @button_images = nil; @button_images_batched = nil
     super
+  end
+
+  # ONE IMAGE LOOKUP FOR A SET OF BOARDS (#1219, PR #1268). JsonApi::Board serializes a tree or a bulk prefetch
+  # board by board, and images_and_sounds_for loaded each board's button images with its own query (145 lookups
+  # and 312 queries on one 145-board tree: the Rack::Timeout mode of the issue). This loads every board's images
+  # in one query, resolves their cached copies once, and hands each board its own list, so known_button_images
+  # answers from memory. Each board keeps exactly the records find_all_by_global_id would give it, by that rule
+  # applied to the board's own ids (a record with a legacy nonce, or whose nonce the id names): one lookup over
+  # the union would let one board's stale nonce drop another board's valid image, and a dropped image falls
+  # back to the stored URL in image_urls, which may be a protected one (lib/json_api/board.rb:250).
+  def self.preload_button_images(boards, user)
+    ids_by_board = {}
+    boards.each { |b| ids_by_board[b.object_id] = b.grid_buttons.map { |btn| btn['image_id'] }.compact.uniq }
+    pieces = {}
+    ids_by_board.values.flatten.uniq.each { |id| pieces[id] = ButtonImage.id_pieces(id) }
+    db_ids = pieces.values.map { |p| p[:id] }.compact.uniq
+    return boards if db_ids.empty?
+    by_db_id = {}
+    ButtonImage.where(id: db_ids).each { |bi| by_db_id[bi.id.to_s] = bi }
+    kept = {}
+    boards.each do |b|
+      list = ids_by_board[b.object_id].map do |id|
+        p = pieces[id]
+        bi = p && by_db_id[p[:id]]
+        (bi && (bi.nonce == 'legacy' || bi.nonce == p[:nonce])) ? bi : nil
+      end.compact
+      list.each { |bi| kept[bi.id] = bi }
+      b.button_images_preloaded(list)
+    end
+    if kept.any?
+      protected_sources = (user && user.enabled_protected_sources(true)) || []
+      ButtonImage.cached_copy_urls(kept.values, user, nil, protected_sources)
+    end
+    boards
+  end
+
+  # The images preload_button_images chose for this board, in the board's own button order; their cached
+  # copies are already resolved, so images_and_sounds_for skips that step.
+  def button_images_preloaded(images)
+    @button_images = images
+    @button_images_batched = true
   end
 
   def known_button_images

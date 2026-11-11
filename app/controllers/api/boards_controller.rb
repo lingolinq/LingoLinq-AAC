@@ -452,6 +452,9 @@ class Api::BoardsController < ApplicationController
     # Rack::Timeout under MAX_TREE fan-out. See RCA 2026-05-24, issue #286.
     # Gated by a deploy-free kill-switch (see lite_board_serialization?).
     lite = lite_board_serialization?
+    # One image lookup for the whole tree (#1219); under the same kill-switch as lite, so 'false' restores the
+    # whole pre-fix path.
+    Board.preload_button_images([root] + descendants, @api_user) if lite
     root_json = JsonApi::Board.as_json(root, wrapper: true, permissions: @api_user, skip_subs: true, as_lite: lite)
     descendants_json = descendants.map do |b|
       JsonApi::Board.as_json(b, wrapper: true, permissions: @api_user, skip_subs: true, as_lite: lite)
@@ -506,6 +509,7 @@ class Api::BoardsController < ApplicationController
     # navigation, so skip the per-board N+1 enrichment (RCA 2026-05-24,
     # issue #286). Same deploy-free kill-switch as #tree.
     lite = lite_board_serialization?
+    Board.preload_button_images(visible, @api_user) if lite # one image lookup for the set (#1219)
     out = visible.map do |board|
       JsonApi::Board.as_json(board, wrapper: true, permissions: @api_user, skip_subs: true, as_lite: lite)
     end
