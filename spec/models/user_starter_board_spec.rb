@@ -30,6 +30,7 @@ describe User, "#provision_starter_board!" do
     source, starter = source_and_starter
     user = User.create
     expect(user).to_not receive(:save)
+    expect(user).to_not receive(:save!)
     expect(user).to_not receive(:save_with_sync)
     expect(user.provision_starter_board!({'id' => starter.global_id}, source.global_id)).to eq(true)
   end

@@ -20,11 +20,22 @@ export function pickStarterBoard(list) {
   return pick(new RegExp('(^|/)' + STARTER_BOARD_SLUG + '$')) || pick(new RegExp(STARTER_BOARD_SLUG)) || list[0];
 }
 
+/* A lookup that found nothing, as the server answers it ({error: "Record not found"}, a 404) or the local
+   store does ("record not found: board <key>", utils/persistence.js). Any other failure (offline, a timeout,
+   a server error) is not a reason to search instead. */
+function is_not_found(err) {
+  var text = (err && (err.error || err.message)) || (typeof err === 'string' ? err : '');
+  var status = err && (err.status || (err.errors && err.errors[0] && err.errors[0].status));
+  return /not found/i.test(String(text)) || String(status) === '404';
+}
+
 /* The exact catalog key first, the same lookup the welcome card makes (tours/start_talking.js), so the pick
    cannot land on another account's public copy or a sub-board; the name search only when that key is not
-   there (a dev seed whose catalog owner is not `lingolinq`). */
+   there (a dev seed whose catalog owner is not `lingolinq`). Review of fe22582ea: a search on every failure
+   ran on offline and server errors too, and its loosest match is any public board. */
 function findStarterBoard() {
-  return RSVP.resolve(LingoLinq.store.findRecord('board', STARTER_BOARD_KEY)).then(null, function() {
+  return RSVP.resolve(LingoLinq.store.findRecord('board', STARTER_BOARD_KEY)).then(null, function(err) {
+    if (!is_not_found(err)) { return RSVP.reject(err); }
     return LingoLinq.store.query('board', { q: STARTER_BOARD_NAME, public: true, per_page: 10 }).then(function(results) {
       var list = (results && results.slice) ? results.slice() : (results || []);
       return pickStarterBoard(list) || null;

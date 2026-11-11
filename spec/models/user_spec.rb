@@ -3444,6 +3444,17 @@ describe User, :type => :model do
       keys = User.signup_sidebar_boards(u).map { |b| b['key'] }.compact
       expect(keys).to include(SystemBoardSources.board_key('inflections-es'))
       expect(keys).not_to include(SystemBoardSources.board_key('inflections'))
+      # The starter follows the Spanish copy jobs' gate, not the locale alone: the Spanish set is only on an
+      # environment where that flag is on, and a stored sidebar entry for a missing board stays stored.
+      expect(keys).to include(SystemBoardSources.board_key('vocal-flair-60'))
+      expect(keys).not_to include(SystemBoardSources.board_key('vocal-flair-60-es'))
+    end
+
+    it "should put the Spanish starter in the signup sidebar only when the Spanish library sign-up is enabled" do
+      u = User.new
+      u.settings = {'preferences' => {'locale' => 'es'}}
+      allow(FeatureFlags).to receive(:signup_spanish_library_boards_enabled?).with(u).and_return(true)
+      keys = User.signup_sidebar_boards(u).map { |b| b['key'] }.compact
       expect(keys).to include(SystemBoardSources.board_key('vocal-flair-60-es'))
       expect(keys).not_to include(SystemBoardSources.board_key('vocal-flair-60'))
     end

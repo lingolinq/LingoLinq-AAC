@@ -4396,9 +4396,11 @@ class User < ApplicationRecord
   # sidebar keep default_active_sidebar_boards (no starter / Senner) so a deploy
   # does not change live speak-mode sidebars or enqueue those trees as sync roots.
   # The library entry is the starter (Vocal Flair 60; Traci, 2026-11-11, it was Vocal Flair 84), the same
-  # board sign-up copies and likes, so the entry resolves to that one copy (resolve_sidebar_boards_for).
+  # board sign-up copies and likes, so the entry resolves to that one copy (resolve_sidebar_boards_for). The
+  # Spanish starter only under the same gate as the Spanish copy jobs (lib/user_board_provisioner.rb): a
+  # stored entry for a board that is not there stays stored and fails on every sync (review of fe22582ea).
   def self.signup_sidebar_boards(user = nil)
-    starter_slug = spanish_preferred_locale?(user) ? SystemBoardSources::SPANISH_STARTER_BOARD_SLUG : SystemBoardSources::STARTER_BOARD_SLUG
+    starter_slug = FeatureFlags.signup_spanish_library_boards_enabled?(user) ? SystemBoardSources::SPANISH_STARTER_BOARD_SLUG : SystemBoardSources::STARTER_BOARD_SLUG
     starter = {
       'name' => "Vocal Flair 60",
       'key' => SystemBoardSources.board_key(starter_slug),

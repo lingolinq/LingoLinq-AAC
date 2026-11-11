@@ -739,3 +739,19 @@ Spec rewrites approved by Traci: the provisioner order example and the sidebar e
 84 (red before the build). Follow-ups: the Spanish pick (`STARTER_BOARD_KEY` is English); with `shallow_clones`
 on, a liked own copy's `my:` key is not matched by the home seed (two seeds of one tree, beta flag); jobs queued
 under `provision_starter_board!` fail on a rollback to older code (no copy for those sign-ups).
+
+**Code-level review of `fe22582ea` (2026-11-11): stop, then ship with conditions; applied.** High, confirmed
+at `user.rb:4333` and `lib/user_board_provisioner.rb:37`: the sign-up sidebar chose the Spanish starter by
+locale alone while the Spanish copy jobs are gated on `signup_spanish_library_boards_enabled?` (a flag, off by
+default), and `lingolinq/vocal-flair-60-es` is not on staging or production (the reviewer's public GET); a
+stored entry for a missing board stays stored and is seeded into every sync. The sidebar now uses the copy
+jobs' gate; specs for both flag states; mutation (locale alone) red. Medium: workers still on older code during
+a deploy fail the new job without retry (`progress.rb:243-246`, NoMethodError), so sign-ups in that window get
+no starter copy and no like (dev web shares the staging worker pool; prod replaces workers last): named in the
+PR, no code change. Low: Quick Assign fell back to the name search on every failure (offline, 5xx), whose
+loosest match is any public board; it now searches only when the key is not found (`is_not_found`), with
+tests for found, not found and other failures; mutation (always search) red. Low, not applied: the like job's
+`remember_starred_board!` is a plain `save_with_sync` (the existing like path, milliseconds wide). The no-save
+spec now also catches `save!`. Installed mobile builds carry the old Quick Assign (Vocal Flair 84) until
+their next app store release while sign-up likes 60: two sets would sync for a user who takes Quick Assign on
+an old app build.
