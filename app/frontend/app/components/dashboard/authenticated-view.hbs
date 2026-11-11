@@ -91,12 +91,13 @@
       {{/if}}
       {{!-- Syncing (item 8): a first sync can take minutes, and Modern view showed nothing meanwhile. --}}
       {{#if this.syncing_notice}}
-      <section class="md-pending-notice" role="status" aria-live="polite" data-test-syncing-notice>
+      {{!-- Only the sentence is a live region: the count changes every few seconds and must not be read out each time. --}}
+      <section class="md-pending-notice" data-test-syncing-notice>
         <span class="md-pending-notice__icon" aria-hidden="true">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 14.3-4.8"/><polyline points="18 3 18 8 13 8"/><path d="M20 12a8 8 0 0 1-14.3 4.8"/><polyline points="6 21 6 16 11 16"/></svg>
         </span>
         <div class="md-pending-notice__body">
-          <p class="md-pending-notice__text">{{t "Syncing your boards for offline use." key="syncing_boards_notice"}} {{this.sync_progress_line}}</p>
+          <p class="md-pending-notice__text"><span role="status">{{t "Syncing your boards for offline use." key="syncing_boards_notice"}}</span> <span data-test-syncing-progress>{{this.sync_progress_line}}</span></p>
           <div class="md-pending-notice__actions">
             <button type="button" class="md-btn md-btn--ghost" {{on "click" (fn this.onExtraAction "sync_details")}}>{{t "Sync Details" key="sync_details"}}</button>
           </div>

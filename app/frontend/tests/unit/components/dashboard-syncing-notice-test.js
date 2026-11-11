@@ -1,6 +1,8 @@
 import { module, test } from 'qunit';
 import { setupTest } from '../../helpers';
+import EmberObject from '@ember/object';
 import lingoLinqExtras from 'frontend/utils/extras';
+import { stub, restoreStubs } from 'frontend/tests/helpers/jasmine';
 
 /* THE MODERN HOME PAGE SAYS A SYNC IS RUNNING, AND HOW FAR IT HAS GOT (item 8, PR #1268).
  * components/dashboard/authenticated-view.js#syncing_notice and #sync_progress_line; Basic's home card
@@ -30,9 +32,27 @@ module('Unit | Component | dashboard syncing notice', function(hooks) {
     this.persistence.set('sync_progress', { root_user: '1_1', visited: 12, to_visit: 30, total: 42, errored: 0 });
     var page = home(this);
     assert.true(page.get('syncing_notice'));
-    assert.strictEqual(page.get('sync_progress_line'), 'Saved so far: 12 boards');
+    assert.strictEqual(page.get('sync_progress_line'), 'Saved so far: 12 boards.');
     this.persistence.set('sync_progress.visited', 13);
-    assert.strictEqual(page.get('sync_progress_line'), 'Saved so far: 13 boards', 'follows the count');
+    assert.strictEqual(page.get('sync_progress_line'), 'Saved so far: 13 boards.', 'follows the count');
+  });
+
+  test('hidden on an external device, and when the open database is another user\'s', function(assert) {
+    assert.expect(2);
+    this.persistence.set('syncing', true);
+    var appState = this.owner.lookup('service:app-state');
+    var page = home(this);
+    var priorUser = appState.get('currentUser');
+    try {
+      appState.set('currentUser', EmberObject.create({ external_device: true }));
+      assert.false(page.get('syncing_notice'), 'an external device syncs nothing here');
+      appState.set('currentUser', priorUser);
+      stub(this.persistence, 'local_db_is_current_user', function() { return false; });
+      assert.false(page.get('syncing_notice'), 'another user\'s database');
+    } finally {
+      appState.set('currentUser', priorUser);
+      restoreStubs();
+    }
   });
 
   test('hidden when no sync is running', function(assert) {

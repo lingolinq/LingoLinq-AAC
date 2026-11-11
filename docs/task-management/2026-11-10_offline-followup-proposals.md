@@ -631,3 +631,16 @@ number is never substituted ("<sub> 1 board </sub>"). The template `t` helper ta
 progress line uses two plain keys instead. Worth its own small fix with a test; any JS caller passing `count`
 for a "||" string is affected.
 
+**Code-level review of the item 8 commit (adversary agent, 2026-11-11; ship with conditions, applied).** (1) `errored`
+also counts boards the sync could not fetch at all (deleted or unreachable links, `services/persistence.js:3378`,
+`:3380`), which were never visited, so "visited minus errored" undercounted; the count is now `visited` (the
+board's record is on the device; pictures may still be arriving) and the problems are reported beside it, as two
+sentences. The §14 line "errored counts boards that ended with an error" was wrong. Test added through the
+service's own `update_sync_progress`. (2) The Modern notice's live region is now only the fixed sentence, so a
+screen reader does not re-read the count every few seconds; the count sits beside it, outside the region.
+Reserving the notice's space so the grid does not move is Traci's UI call, not done. (3) Tests added for the
+external-device and other-user-database gates. (4) Correction to the i18n note: the template `t` helper calls the
+same `i18n.t`; English works only because `en.json` is never loaded and the code's one-word defaults are used; in
+any other language a JS `count` call on a "||" string hits `String#sub` (for example
+`controllers/offline_boards.js:46`). Older than this PR; its own fix.
+
