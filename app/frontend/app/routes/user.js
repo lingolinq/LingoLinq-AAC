@@ -112,7 +112,8 @@ export default Route.extend({
     };
     var from_device = function() {
       return _this._device_owner(user_id, boardname, own_page).then(function(owner) {
-        return owner ? finish(owner) : query_server().then(null, give_up);
+        // The patient retry is a server answer too: it clears the shortened-wait note (utils/board_device_copy.js).
+        return owner ? finish(owner) : query_server().then(function(found) { _this.appState.set('device_copy_server_silent_at', null); return found; }, give_up);
       });
     };
     if(!this.persistence.get('online')) { return from_device(); }

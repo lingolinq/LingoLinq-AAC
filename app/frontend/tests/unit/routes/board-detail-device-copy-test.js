@@ -538,6 +538,25 @@ module('Unit | Route | user/board-detail device copy', function(hooks) {
     }
   });
 
+  test('a trusted device keeps its memory hit on a dead session, with no request', async function(assert) {
+    assert.expect(2);
+    this.appState.set('sessionUser.preferences.device.long_token', true);
+    this.persistenceService.set('local_system', {available: false});
+    var store = this.owner.lookup('service:store');
+    store.push(store.normalize('board', row()));
+    boardDetailCache.set(row({name: 'From memory'}));
+    var session = this.route.get('session');
+    var prior = session.get('invalid_token');
+    session.set('invalid_token', true);
+    try {
+      await open(this);
+      assert.strictEqual(this.requests.length, 0, 'served from memory');
+      assert.strictEqual(this.route.get('_raw_board_data.name'), 'From memory');
+    } finally {
+      session.set('invalid_token', prior);
+    }
+  });
+
   test('only one board of pictures is kept in memory', async function(assert) {
     this.persistenceService.set('local_system', {available: false});
     this.persistenceService.find_url = function() { return RSVP.resolve('data:x'); };

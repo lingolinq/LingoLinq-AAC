@@ -585,7 +585,7 @@ export default {
 
   // Wipe everything (e.g. on logout / user switch).
   clear: function() {
-    _by_key = {};
+    if (_stop_listening) { _stop_listening(); _stop_listening = null; } _by_key = {}; // the listener: see _ensure_listening at the end of this file
     _by_id = {};
     _inflight = {};
     _warmed = {};
@@ -1191,6 +1191,7 @@ import boardRevocation from './board_revocation'; // last, so the lint baseline 
 function _on_boards_revoked(ids) {
   (ids || []).forEach(function(id) { var entry = _lookup(id); if (entry) { _drop(entry); } });
 }
+var _stop_listening = null;
 function _ensure_listening() {
-  if (!boardRevocation.has_marked_listener(_on_boards_revoked)) { boardRevocation.on_marked(_on_boards_revoked); }
+  if (!_stop_listening) { _stop_listening = boardRevocation.on_marked(_on_boards_revoked); }
 }

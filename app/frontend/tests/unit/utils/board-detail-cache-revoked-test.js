@@ -26,8 +26,12 @@ module('Unit | Utility | board detail cache drops revoked boards', function(hook
     assert.ok(boardDetailCache.get('owner/kept'), 'the other board stays');
   });
 
-  test('the cache is listening as soon as it holds anything', function(assert) {
+  test('the cache listens while it holds anything, and stops when cleared', function(assert) {
     boardDetailCache.set(raw('1_4', 'owner/four'));
     assert.true(boardRevocation.has_marked_listener(boardDetailCache.on_boards_revoked), 'registered');
+    boardDetailCache.clear();
+    assert.false(boardRevocation.has_marked_listener(boardDetailCache.on_boards_revoked), 'gone with the cache, so a test\'s cleanup drops it');
+    boardDetailCache.set(raw('1_5', 'owner/five'));
+    assert.true(boardRevocation.has_marked_listener(boardDetailCache.on_boards_revoked), 'back on the next store');
   });
 });

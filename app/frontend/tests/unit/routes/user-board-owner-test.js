@@ -189,6 +189,16 @@ module('Unit | Route | user owner of a board page', function(hooks) {
     assert.strictEqual(this.route.appState.get('device_copy_server_silent_at'), null);
   });
 
+  test('a silent try, no owner on the device, then a patient answer: the note is cleared', async function(assert) {
+    this.route.persistence.set('online', true);
+    this.route.appState.set('device_copy_server_silent_at', null);
+    var calls = 0;
+    this.server = function() { calls++; return calls === 1 ? RSVP.reject(no_answer) : RSVP.resolve(EmberObject.create({user_name: 'lingolinq', really_fresh: true})); };
+    await this.route.model({user_id: 'lingolinq'}, to_board('crisis'));
+    assert.strictEqual(calls, 2, 'the bounded try, then the patient one');
+    assert.strictEqual(this.route.appState.get('device_copy_server_silent_at'), null, 'the server answered in the end');
+  });
+
   test('a server that refuses clears the note too', async function(assert) {
     this.route.persistence.set('online', true);
     this.route.appState.set('device_copy_server_silent_at', Date.now() - 1000);

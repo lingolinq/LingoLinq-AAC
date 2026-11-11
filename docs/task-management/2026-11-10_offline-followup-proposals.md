@@ -597,3 +597,14 @@ test is now the shared-device case with the dead 400 (a trusted device keeps the
 Still open, said plainly: a server-side session end is noticed only at the next token check, on the cached and
 the network path alike; a trusted device keeps the device copy on a dead session by design.
 
+**Code-level review of the item 9 commits (adversary agent, 2026-11-11; no Critical or High; applied).** (1) The
+dead-session gate now exempts trusted devices, which keep their copies on a dead session by the existing policy;
+without the exemption a trusted iPad made two failing requests per tap before showing the same copy. Test added.
+(2) The wait note is also cleared when the patient owner retry (no owner on the device) succeeds. Test added.
+(3) The memory cache unregisters its listener in `clear()` and registers again on the next store, so a test's
+cleanup drops it and a background `settle` from an earlier test cannot reach a later test's cache. (4) `_one_try`
+takes the smaller of the route's wait and the remaining wait, so an overridden wait is honoured and the dead
+branch is gone. Limits added to the status doc: Basic view's own memory path is not gated; the revoked list
+covers the synced tree only. Style point accepted as a point: statements joined to existing lines keep the
+line-anchored lint baseline still; it is the repo's own pattern, not line compression of old code.
+

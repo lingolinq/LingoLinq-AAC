@@ -680,7 +680,7 @@ export default Route.extend({
     // full wait again (utils/board_device_copy.js remaining_wait).
     var appState = this.get('appState'), silent_at = appState && appState.get('device_copy_server_silent_at');
     if(silent_at) { appState.set('device_copy_server_silent_at', null); }
-    var timeout = (this.device_copy_wait === DEVICE_COPY_WAIT_MS) ? remaining_wait(silent_at, Date.now()) : this.device_copy_wait;
+    var timeout = Math.min(this.device_copy_wait, remaining_wait(silent_at, Date.now()));
     return { type: 'GET', timeout: timeout, attempt: 3 };
   },
   // What to do when the one bounded /tree attempt gave no board. No answer and a copy on the device:
@@ -773,6 +773,9 @@ export default Route.extend({
   // then stays unused, so a tap asks the server instead of showing a copy for the rest of its 5 minutes.
   _session_known_dead: function() {
     var session = this.session;
+    // A trusted device keeps its copies on a dead session (the same policy as _copy_refused), so its memory
+    // hit stands too; gating it would only add two failing requests before the same copy shows.
+    if(offline_shell.device_trust(this.appState.get('sessionUser')) === 'trusted') { return false; }
     return !!(session.get('invalid_token') || (this._dead_token && this._dead_token === session.get('access_token')));
   },
   // A dead session is remembered per token: in Speak Mode nothing logs out (utils/extras.js), and the

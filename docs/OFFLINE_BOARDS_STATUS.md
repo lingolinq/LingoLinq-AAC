@@ -256,10 +256,14 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
      through the board page's gate, which online fetches the latest board and says so. Basic view unchanged.
    - A 5-minute cache path on shared devices. **Done:** the memory cache drops a board the sync says is revoked
      (told before the Speak Mode hold-back, so the open board page hears it too), and a session known to be dead
-     no longer gets the memory copy. Still true: a server-side session end is noticed at the next token check on
-     every path; a trusted device keeps its device copy on a dead session by design.
+     no longer gets the memory copy (Modern view; a trusted device keeps its copies on a dead session by the
+     existing policy, so its memory hit stands too). Still true: a server-side session end is noticed at the next
+     token check on every path; the server's revoked list covers the synced tree (home, sidebar, liked boards and
+     their folders), so a board opened from a link stays in memory for its 5 minutes; Basic view's own memory
+     path is not gated.
    - Up to 8 + 8 seconds of waiting on a hung network before the device copy opens. **Done:** the board request
-     after a silent owner lookup keeps only what is left of the 8 seconds, never under 3 (worst case 11 s).
+     after a silent owner lookup keeps only what is left of the 8 seconds, never under 3 (11 s of network waits in
+     the worst case; device reads in between are not counted).
 10. **Verify #1221 after release** (needs production or a real device): before and after timings on a
     hardware-accelerated Android device and an iPad; the board count on a real account; one first sync checked
     board by board for missing boards.
