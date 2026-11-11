@@ -505,6 +505,39 @@ module('Unit | Route | user/board-detail device copy', function(hooks) {
     assert.strictEqual(reads, 0);
   });
 
+  // Item 9C (PR #1268): a board in memory is served for up to 5 minutes without a server round trip. Once the
+  // session is known to be dead (the token check set invalid_token), the memory copy must not keep a shared
+  // device on a board: the request goes to the server, which answers for the dead session.
+  test('on a shared device, a memory hit is not served once the session is known to be dead', async function(assert) {
+    assert.expect(6);
+    var dead = {fakeXHR: {status: 400, responseJSON: {error: 'Not authorized', invalid_token: true, status: 400}}};
+    this.appState.set('sessionUser.preferences.device.long_token', false);
+    this.persistenceService.set('local_system', {available: false});
+    var store = this.owner.lookup('service:store');
+    store.push(store.normalize('board', row()));
+    var session = this.route.get('session');
+    var prior = session.get('invalid_token');
+    try {
+      // The token check has said the session is dead: the memory copy is skipped and the server asked.
+      boardDetailCache.set(row({name: 'From memory'}));
+      session.set('invalid_token', true);
+      this.answers = [dead];
+      assert.true((await open(this)).error, 'the dead session\'s answer, not the copy');
+      assert.true(this.requests.length >= 1, 'the server was asked (the dead-session path makes its usual requests)');
+      assert.notStrictEqual(this.route.get('_raw_board_data.name'), 'From memory');
+      // Only the route knows (a board request answered 400 with invalid_token in Speak Mode): the same.
+      session.set('invalid_token', false);
+      this.requests.length = 0;
+      boardDetailCache.set(row({name: 'From memory again'}), {force: true});
+      assert.true(this.route._session_known_dead(), 'remembered from the 400 for this token');
+      assert.true((await open(this)).error);
+      assert.notStrictEqual(this.route.get('_raw_board_data.name'), 'From memory again');
+    } finally {
+      session.set('invalid_token', prior);
+      this.route._dead_token = null;
+    }
+  });
+
   test('only one board of pictures is kept in memory', async function(assert) {
     this.persistenceService.set('local_system', {available: false});
     this.persistenceService.find_url = function() { return RSVP.resolve('data:x'); };

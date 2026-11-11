@@ -556,3 +556,44 @@ floor case fails); never note (the user-route case fails).
   tried board already in memory as a device copy could still be adopted stale from a folder; that is the
   pre-existing path for fresh folders too, and belongs to #1301 ("Use this board" on device copies).
 
+## 13. Item 9C: the 5-minute memory cache on a shared device (Traci, 2026-11-10)
+
+**Facts (CONFIRMED).** Modern view keeps a board's JSON in memory for 5 minutes (`utils/board_detail_cache.js:27`,
+`TTL_MS`) and, on a hit, serves it with no server round trip (`routes/user/board-detail.js:126-162`). The only
+gate on that hit is `cached_unless_revoked` (`:635-640`), which does nothing while online
+(`utils/board_revocation.js:641-643`, `blocks_view_route`). So, while online, two things the server would refuse
+are still shown from memory for up to 5 minutes: a board the sync has just marked revoked
+(`apply_revocations`, `:356-397`, writes the mark to the stored copy and the index, and touches no memory copy),
+and any board once the session is dead (the token check sets `session.invalid_token`, `services/session.js:294-297`;
+the memory cache is cleared only at SPA sign-out, `services/app-state.js:2254`, or by a page reload). "Another
+user's board" is not reachable: sign-out clears the cache. The remaining window is also bounded by whatever
+navigation misses the cache next.
+**Change, two small pieces.** (1) `apply_revocations` tells listeners which ids it marked (`on_marked`,
+`notify_marked`); the memory cache registers a listener the first time it stores anything (at call time, not at
+module load: `board_detail_cache` imports `utils/persistence`, which imports `board_revocation`, so a load-time
+registration could run before `board_revocation` has evaluated) and drops those boards by id and key. (2) The
+route's cache-hit branch also requires `!session.invalid_token`; a known-dead session asks the server, which
+answers for the dead session as it does on a miss. **Not changed:** the TTL, and the token-check cadence (a
+server-side session end is still noticed only at the next check, on the cached and the network path alike; a
+background token check per cache hit would add a request to every folder tap).
+**Alternatives rejected:** importing the cache into `board_revocation` (import cycle through `utils/persistence`);
+checking `is_revoked` on every online hit (a database read per folder tap, and the index is not in memory).
+**Risks:** a listener registered once per page lifetime; `notify_marked` runs on the sync's completion path and
+must never throw (listeners are called in a try). **Tests:** red first: `board-detail-device-copy-test.js`
+"a memory hit is not served once the session is known to be dead"; `board-revocation-test.js` (listeners hear the
+marked ids); `board-detail-cache-revoked-test.js` (dropped by id and key, the other board stays, registered on
+first store). Mutations: drop the `invalid_token` condition; notify before the marks are written (the ids still
+arrive, so pin the order with the record check already in the revocation test); forget to register.
+
+**Review outcome (adversary agent, 2026-11-10): stop; reworked, applied.** (1) Modern's board page is always in
+Speak Mode, where `apply_revocations` holds marks back (`:381-385`), so "notify the ids it marked" would have sent
+nothing in the main case; the notice now goes out at the top of `apply_revocations` with the server's full
+revoked list, before the Speak Mode check and the device-row walk, which also reaches boards held only in memory
+(never synced). (2) In Speak Mode a board request that answers 400 with `invalid_token` sets only the route's
+`_dead_token` (`:773-781`), not `session.invalid_token`; the gate reads both (`_session_known_dead`). (3) The route
+test is now the shared-device case with the dead 400 (a trusted device keeps the copy by the existing policy,
+`:779`), and also covers the route-only dead token. (4) The cache registers by asking `has_marked_listener`,
+`reset_for_tests` leaves listeners alone, `unsubscribe` runs in `finally`, and a listener that throws is caught.
+Still open, said plainly: a server-side session end is noticed only at the next token check, on the cached and
+the network path alike; a trusted device keeps the device copy on a dead session by design.
+

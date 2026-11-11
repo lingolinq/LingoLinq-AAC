@@ -353,9 +353,25 @@ function spared(refs, rec) {
 // are marked (deferred while Speak Mode is on), every other marked board, and
 // any home or sidebar board, is cleared. With a decision (settled_decision),
 // a mark is not written over anything newer than it (superseded).
+// Who wants to know which boards the server says are revoked, before anything is written (item 9C, PR #1268):
+// the memory cache (utils/board_detail_cache.js) drops those boards so an online tap asks the server. Told
+// here, ahead of the Speak Mode hold-back below and of the device-row walk, so it reaches boards held only in
+// memory and boards whose mark is deferred. A listener that throws never fails the sync.
+var marked_listeners = [];
+export function on_marked(fn) {
+  marked_listeners.push(fn);
+  return function() { marked_listeners = marked_listeners.filter(function(f) { return f !== fn; }); };
+}
+export function has_marked_listener(fn) { return marked_listeners.indexOf(fn) !== -1; }
+export function notify_marked(ids) {
+  var list = (ids || []).slice();
+  marked_listeners.forEach(function(fn) { try { fn(list); } catch(e) { /* a listener's problem, not the sync's */ } });
+}
+
 export function apply_revocations(revoked_ids, decision) {
   var lookup = {};
   (revoked_ids || []).forEach(function(id) { lookup[id] = true; });
+  if(revoked_ids && revoked_ids.length) { notify_marked(revoked_ids); }
   return RSVP.all([local_boards(), load_index(), decision_guard(decision)]).then(function(res) {
     var list = res[0];
     var index = Object.assign({}, res[1]);
@@ -724,5 +740,8 @@ export default {
   unavailable_record: unavailable_record,
   reload_from_server: reload_from_server,
   local_copy_unless_denied: local_copy_unless_denied,
-  reset_for_tests: reset_for_tests
+  reset_for_tests: reset_for_tests,
+  on_marked: on_marked,
+  has_marked_listener: has_marked_listener,
+  notify_marked: notify_marked
 };

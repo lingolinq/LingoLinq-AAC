@@ -131,7 +131,7 @@ export default Route.extend({
         return b.get('key') === board_key;
       });
     }
-    if (cached_raw && cached_record && !cached_record.get('should_reload')) {
+    if (cached_raw && cached_record && !cached_record.get('should_reload') && !this._session_known_dead()) { // item 9C: a dead session asks the server
       // Deep-clone so downstream consumers (normalize, _build_from_raw)
       // can mutate without poisoning the cached copy.
       var cached_copy = JSON.parse(JSON.stringify(cached_raw));
@@ -767,6 +767,13 @@ export default Route.extend({
   _refused: function() {
     this._refused_boards = this._refused_boards || {};
     return this._refused_boards;
+  },
+  // The session is known to be dead: the token check said so, or a board request answered 400 with
+  // invalid_token for this token (Speak Mode logs nobody out, so the route remembers). The memory cache
+  // then stays unused, so a tap asks the server instead of showing a copy for the rest of its 5 minutes.
+  _session_known_dead: function() {
+    var session = this.session;
+    return !!(session.get('invalid_token') || (this._dead_token && this._dead_token === session.get('access_token')));
   },
   // A dead session is remembered per token: in Speak Mode nothing logs out (utils/extras.js), and the
   // next navigation may have no server answer to show it. Read even when there is no copy.

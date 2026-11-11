@@ -50,7 +50,7 @@ function _is_fresh(entry) {
 }
 
 function _index(entry) {
-  if (entry.key) { _by_key[entry.key] = entry; }
+  _ensure_listening(); if (entry.key) { _by_key[entry.key] = entry; } // listening: see _ensure_listening at the end of this file
   if (entry.id) { _by_id[entry.id] = entry; }
 }
 
@@ -578,7 +578,7 @@ export default {
   },
 
   // Drops a cached entry (e.g. on save or before edit-mode entry).
-  invalidate: function(key_or_id) {
+  on_boards_revoked: _on_boards_revoked, invalidate: function(key_or_id) {
     var entry = _lookup(key_or_id);
     if (entry) { _drop(entry); }
   },
@@ -1182,4 +1182,15 @@ import { live_service } from './live_service';
 // current by then (tests boot a new app per test; production never destroys its app-state).
 function _pipeline_app_alive(opts) {
   return !(opts && opts.app) || !!live_service(opts.app);
+}
+import boardRevocation from './board_revocation'; // last, so the lint baseline rows above keep their lines
+
+// Item 9C (PR #1268): a board the sync says is revoked leaves memory, so an online tap asks the server
+// instead of showing the copy for the rest of its 5 minutes. Registered the first time anything is stored
+// (at call time, not at load: this module imports utils/persistence, which imports board_revocation).
+function _on_boards_revoked(ids) {
+  (ids || []).forEach(function(id) { var entry = _lookup(id); if (entry) { _drop(entry); } });
+}
+function _ensure_listening() {
+  if (!boardRevocation.has_marked_listener(_on_boards_revoked)) { boardRevocation.on_marked(_on_boards_revoked); }
 }
