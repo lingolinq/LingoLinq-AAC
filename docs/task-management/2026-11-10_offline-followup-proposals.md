@@ -763,5 +763,6 @@ job's row). An old worker ignores the key and copies the starter as before this 
 likes; nothing unknown to old code is scheduled, and there is no second job to order. Residual: sign-ups whose
 starter job ran on an old worker during the rollover have the copy but not the like. Resque here has no
 delayed jobs, which ruled out a separate like job that waits for the copy. Specs rewritten for the flag
-(`spec/models/user_starter_board_spec.rb`, 6, one for "no flag, no like"); mutation (no like) 3 red. The Spanish
+(`spec/models/user_starter_board_spec.rb`, 6, one for "no flag, no like"); mutations: no like on the new-copy path (the
+like spec red), no like on the existing-copy path (the home-copy spec red). The Spanish
 pick mismatch is follow-up issue #1303.
