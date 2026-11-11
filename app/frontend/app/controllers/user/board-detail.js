@@ -9866,7 +9866,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
       var board = this.get('model');
       var _this = this;
       if(!board) { return; }
-      modal.open('switch-languages', { board: board, device_copy: !!this.get('served_from_device') }).then(function(res) {
+      modal.open('switch-languages', { board: board, device_copy: !!this.get('served_from_device'), refresh_device_copy: this.get('device_copy_gate') }).then(function(res) {
         if(res && res.switched) {
           if(board && board.set) {
             board.set('last_cb', null);
@@ -10460,6 +10460,12 @@ BoardDetailController.reopen({
      save goes back with no conflict check (services/persistence.js#sync_changed), so anything that
      would write it, or copy it to the server, stops here. Returns true when the action must stop.
      With a connection, the board is fetched again so the action works on the next try. */
+  // The gate above as a function the trial bar and the languages modal can call (a bound function, not an
+  // action: `ctrlAction` drops return values, and the gate's answer is what the caller needs).
+  device_copy_gate: computed(function() {
+    var _this = this;
+    return function() { return _this._blocked_on_device_copy(); };
+  }),
   _blocked_on_device_copy: function() {
     if(!this.get('served_from_device')) { return false; }
     this._close_options_menu();

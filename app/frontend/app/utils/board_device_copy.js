@@ -12,6 +12,20 @@ import { is_protected_board, route_refuses_local } from './board_revocation';
 // (utils/extras.js), and the route makes up to three, so a communicator on a bad connection would wait
 // minutes for a board already on the device.
 export var DEVICE_COPY_WAIT_MS = 8000;
+// One wait for a hung network, not two (item 9, PR #1268). On a cold board launch the owner lookup
+// (routes/user.js) tries the server once for DEVICE_COPY_WAIT_MS before reading the device; the board
+// request that follows (routes/user/board-detail.js _one_try) used to wait the full limit again. The owner
+// lookup now notes when that silent try STARTED (app state `device_copy_server_silent_at`, cleared by any
+// server answer and consumed by the first board request), and the board request keeps what is left of the
+// limit, never under the floor. A note older than the memory is ignored, as is one from the future.
+export var DEVICE_COPY_WAIT_FLOOR_MS = 3000;
+export var SERVER_SILENT_MEMORY_MS = 20000;
+export function remaining_wait(silent_started_at, now) {
+  if(!silent_started_at) { return DEVICE_COPY_WAIT_MS; }
+  var elapsed = now - silent_started_at;
+  if(elapsed < 0 || elapsed > SERVER_SILENT_MEMORY_MS) { return DEVICE_COPY_WAIT_MS; }
+  return Math.max(DEVICE_COPY_WAIT_FLOOR_MS, DEVICE_COPY_WAIT_MS - elapsed);
+}
 // How long reading that copy may take before the page gives up on it.
 export var DEVICE_READ_WAIT_MS = 5000;
 

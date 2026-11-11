@@ -612,6 +612,25 @@ module('Unit | Route | user/board-detail device copy', function(hooks) {
     assert.deepEqual(warmed, ['warm', 'prefetch']);
   });
 
+  // Item 9 (PR #1268): the board request after a silent owner lookup keeps only what is left of the wait.
+  test('after the owner lookup found the server silent, the board request waits only for what is left', function(assert) {
+    assert.expect(5);
+    var appState = this.route.get('appState');
+    var prior = appState.get('device_copy_server_silent_at');
+    try {
+      appState.set('device_copy_server_silent_at', null);
+      assert.strictEqual(this.route._one_try().timeout, DEVICE_COPY_WAIT_MS, 'no note: the full wait');
+      appState.set('device_copy_server_silent_at', Date.now() - 8000);
+      assert.strictEqual(this.route._one_try().timeout, 3000, 'the owner lookup used the whole wait: the floor');
+      assert.strictEqual(appState.get('device_copy_server_silent_at'), null, 'read once');
+      assert.strictEqual(this.route._one_try().timeout, DEVICE_COPY_WAIT_MS, 'the next request gets the full wait');
+      appState.set('device_copy_server_silent_at', Date.now() - 60000);
+      assert.strictEqual(this.route._one_try().timeout, DEVICE_COPY_WAIT_MS, 'an old note is forgotten');
+    } finally {
+      appState.set('device_copy_server_silent_at', prior);
+    }
+  });
+
   test('the edit route sends a device copy back to the board, and leaves a normal board alone', function(assert) {
     var edit = this.owner.lookup('route:user/board-detail/edit');
     var moved = [];
@@ -688,6 +707,81 @@ module('Unit | Controller | user/board-detail on a device copy', function(hooks)
     await bar._performUse();
     assert.strictEqual(warned.length, 1);
     assert.notOk(bar.get('busy'), 'stopped before the home board changes');
+  });
+
+  // Item 9 (PR #1268): "needs a connection" showed while online. The board page now hands both the trial bar
+  // and the languages modal its own device-copy gate (_blocked_on_device_copy), which says "needs a connection"
+  // offline and, online, "getting the latest version" while it fetches the board, as Edit and the others do.
+  test('on the board page, Use on a device copy goes through the page\'s gate, which fetches the board when online', async function(assert) {
+    var warned = [];
+    var gated = 0;
+    stub(modal, 'warning', function(text) { warned.push(text); });
+    var bar = this.owner.factoryFor('component:trial-bar').create({deviceCopy: true, onDeviceCopy: function() { gated++; return true; }});
+    await bar._performUse();
+    assert.strictEqual(gated, 1, 'the page\'s gate ran');
+    assert.deepEqual(warned, [], 'the bar itself said nothing');
+    assert.notOk(bar.get('busy'));
+  });
+
+  test('when the page\'s gate lets Translate through (no longer a device copy), it opens', function(assert) {
+    var opened = [];
+    stub(modal, 'open', function(name) { opened.push(name); return RSVP.resolve(); });
+    var languages = this.owner.factoryFor('component:switch-languages').create();
+    languages.set('model', {board: EmberObject.create({key: 'me/board'}), device_copy: true, refresh_device_copy: function() { return false; }});
+    languages.send('open_translate');
+    assert.deepEqual(opened, ['translation-select']);
+  });
+
+  test('the page\'s gate is a function that answers for the page\'s current state', function(assert) {
+    assert.expect(4);
+    var warned = [];
+    stub(modal, 'warning', function(text) { warned.push(text); });
+    var controller = this.owner.lookup('controller:user/board-detail');
+    controller.set('model', EmberObject.create({key: 'me/board'}));
+    var gate = controller.get('device_copy_gate');
+    assert.strictEqual(typeof gate, 'function');
+    controller.set('served_from_device', false);
+    assert.false(gate(), 'a normal board: not blocked');
+    controller.set('served_from_device', true);
+    var realPersistence = window.persistence;
+    window.persistence = EmberObject.create({online: false});
+    try { assert.true(gate(), 'a device copy offline: blocked'); } finally { window.persistence = realPersistence; }
+    assert.strictEqual(warned.length, 1);
+  });
+
+  test('the languages modal\'s Translate goes through the page\'s gate when it has one', function(assert) {
+    var warned = [];
+    var opened = [];
+    var gated = 0;
+    stub(modal, 'open', function(name) { opened.push(name); return RSVP.resolve(); });
+    stub(modal, 'warning', function(text) { warned.push(text); });
+    var languages = this.owner.factoryFor('component:switch-languages').create();
+    languages.set('model', {board: EmberObject.create({key: 'me/board'}), device_copy: true, refresh_device_copy: function() { gated++; return true; }});
+    languages.send('open_translate');
+    assert.strictEqual(gated, 1);
+    assert.deepEqual(opened, []);
+    assert.deepEqual(warned, []);
+  });
+
+  test('the board page gives the languages modal its gate', function(assert) {
+    assert.expect(3);
+    var opts = [];
+    stub(modal, 'open', function(name, options) { opts.push(options); return RSVP.resolve(); });
+    var controller = this.owner.lookup('controller:user/board-detail');
+    controller.set('model', EmberObject.create({key: 'me/board'}));
+    controller.set('served_from_device', true);
+    controller.send('switch_languages');
+    assert.strictEqual(typeof opts[0].refresh_device_copy, 'function');
+    var warned = [];
+    stub(modal, 'warning', function(text) { warned.push(text); });
+    var realPersistence = window.persistence;
+    window.persistence = EmberObject.create({online: false});
+    try {
+      assert.true(opts[0].refresh_device_copy(), 'the gate stops the action');
+    } finally {
+      window.persistence = realPersistence;
+    }
+    assert.strictEqual(warned.length, 1, 'and says why');
   });
 
   module('with a connection', function(hooks) {

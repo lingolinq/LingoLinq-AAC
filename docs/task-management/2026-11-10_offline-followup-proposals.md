@@ -543,3 +543,16 @@ lookup now gets the device copy on that launch; the copy shows the notice and Ed
 two user-route cases, and three 9B cases. Mutations: ignore the note (the `_one_try` case fails); no floor (the
 floor case fails); never note (the user-route case fails).
 
+**Review outcome (adversary agent, 2026-11-10): 9B ship with conditions, 9D stop; both reworked, applied.**
+- 9D: the note was going to be the FAILURE time, which on a real hang leaves nearly the full 8 s again (the test
+  server rejected at once, so the tests could not tell). Now the START of the bounded try is noted, and the test
+  server stays silent for a while and asserts the note is no later than the time the request was sent. The note
+  is cleared by any server answer (owner found, or a refusal), read once by the first board request, and cleared
+  at sign-out (`clear_user_state`). A board with no device copy gets the shorter first try too; its patient
+  retry is unchanged, so this is the same shape as today, five seconds sooner. Accepted.
+- 9B: the gate is a bound function on the controller (`device_copy_gate`), not an action: `ctrlAction` drops
+  return values. Added: a test of what the controller hands over, and a test that a gate answering false lets
+  Translate open. Not done, recorded as a limit: Use refreshes the page's board, not the tried root board, so a
+  tried board already in memory as a device copy could still be adopted stale from a folder; that is the
+  pre-existing path for fresh folders too, and belongs to #1301 ("Use this board" on device copies).
+

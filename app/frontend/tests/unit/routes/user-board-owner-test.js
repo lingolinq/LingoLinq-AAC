@@ -166,6 +166,37 @@ module('Unit | Route | user owner of a board page', function(hooks) {
     assert.strictEqual(this.queries.length, 1);
   });
 
+  test('online with no route to the server: the START of the silent try is noted for the board request that follows', async function(assert) {
+    this.route.persistence.set('online', true);
+    this.device.board['lingolinq/crisis'] = {id: '1_9', key: 'lingolinq/crisis'};
+    this.route.appState.set('device_copy_server_silent_at', null);
+    // The server stays silent for a while, as a hung network does; the note must be the time the try was sent.
+    var sent = null;
+    this.server = function() { sent = Date.now(); return new RSVP.Promise(function(resolve, reject) { setTimeout(function() { reject(no_answer); }, 120); }); };
+    var before = Date.now();
+    await this.route.model({user_id: 'lingolinq'}, to_board('crisis'));
+    var noted = this.route.appState.get('device_copy_server_silent_at');
+    assert.strictEqual(typeof noted, 'number', 'noted when the bounded try got no answer');
+    assert.true(noted >= before, 'not before the launch');
+    assert.true(noted <= sent, 'the time the try was sent, not the time it failed');
+  });
+
+  test('a server that answers clears the note', async function(assert) {
+    this.route.persistence.set('online', true);
+    this.route.appState.set('device_copy_server_silent_at', Date.now() - 1000);
+    this.server = function() { return RSVP.resolve(EmberObject.create({user_name: 'lingolinq', really_fresh: true})); };
+    await this.route.model({user_id: 'lingolinq'}, to_board('crisis'));
+    assert.strictEqual(this.route.appState.get('device_copy_server_silent_at'), null);
+  });
+
+  test('a server that refuses clears the note too', async function(assert) {
+    this.route.persistence.set('online', true);
+    this.route.appState.set('device_copy_server_silent_at', Date.now() - 1000);
+    this.server = function() { return RSVP.reject({fakeXHR: {status: 404}}); };
+    await assert.rejects(this.route.model({user_id: 'lingolinq'}, to_board('crisis')));
+    assert.strictEqual(this.route.appState.get('device_copy_server_silent_at'), null);
+  });
+
   test('online with no copy: the normal request still runs after the bounded one', async function(assert) {
     this.route.persistence.set('online', true);
     await assert.rejects(this.route.model({user_id: 'lingolinq'}, to_board('crisis')));

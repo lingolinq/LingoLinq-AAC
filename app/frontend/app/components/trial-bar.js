@@ -91,10 +91,16 @@ export default Component.extend({
   _performUse: function() {
     var _this = this;
     var appState = this.get('appState');
-    // A device copy can be older than the server's board, and adopting it posts its buttons (#1213).
+    // A device copy can be older than the server's board, and adopting it posts its buttons (#1213). The board
+    // page hands over its gate (controllers/user/board-detail.js device_copy_gate): offline it says why and
+    // stops; online it fetches the board and stops, so the next tap works. Without a gate (Basic view), stop.
     if(this.get('deviceCopy')) {
-      modal.warning(i18n.t('board_action_needs_connection', "This board needs an Internet connection to do that."));
-      return RSVP.resolve();
+      var gate = this.get('onDeviceCopy');
+      if(typeof gate !== 'function') {
+        modal.warning(i18n.t('board_action_needs_connection', "This board needs an Internet connection to do that."));
+        return RSVP.resolve();
+      }
+      if(gate()) { return RSVP.resolve(); }
     }
     var trial = this.get('trial');
     var me = appState.get('currentUser');

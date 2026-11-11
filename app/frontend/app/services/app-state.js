@@ -2251,7 +2251,7 @@ export default Service.extend({
 
     // In-memory board JSON / ordered_buttons / image-warm state must not
     // leak across users on SPA sign-out (full reload clears module state).
-    try { boardDetailCache.clear(); } catch(e) { /* non-critical */ }
+    try { boardDetailCache.clear(); } catch(e) { /* non-critical */ } this.set('device_copy_server_silent_at', null); // and the shortened device-copy wait (utils/board_device_copy.js)
     // Dashboard Boards-card preview cache (names + image urls) is module-scoped and survives the
     // component; drop it so it does not linger in memory on a shared device after sign-out.
     try { previewBoardCache.reset(); } catch(e) { /* non-critical */ }

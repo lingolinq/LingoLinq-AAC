@@ -676,7 +676,12 @@ export default Route.extend({
   },
   // One attempt that ends itself. A new object each time: $.ajax changes the options it is given.
   _one_try: function() {
-    return { type: 'GET', timeout: this.device_copy_wait, attempt: 3 };
+    // After a silent owner lookup, only what is left of the wait; read once, so a later request gets the
+    // full wait again (utils/board_device_copy.js remaining_wait).
+    var appState = this.get('appState'), silent_at = appState && appState.get('device_copy_server_silent_at');
+    if(silent_at) { appState.set('device_copy_server_silent_at', null); }
+    var timeout = (this.device_copy_wait === DEVICE_COPY_WAIT_MS) ? remaining_wait(silent_at, Date.now()) : this.device_copy_wait;
+    return { type: 'GET', timeout: timeout, attempt: 3 };
   },
   // What to do when the one bounded /tree attempt gave no board. No answer and a copy on the device:
   // the copy. No answer and no copy: this page has nothing else, so ask with the usual patience.
@@ -808,7 +813,7 @@ export default Route.extend({
 });
 // Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
 import boardRevocation from '../../utils/board_revocation';
-import { DEVICE_COPY_WAIT_MS, DEVICE_READ_WAIT_MS, board_kept_on_refusal, leave_unsaved_board, load_copy_images, read_device_copy, server_refused, session_ended, usable_copy, within } from '../../utils/board_device_copy';
+import { DEVICE_COPY_WAIT_MS, DEVICE_READ_WAIT_MS, remaining_wait, board_kept_on_refusal, leave_unsaved_board, load_copy_images, read_device_copy, server_refused, session_ended, usable_copy, within } from '../../utils/board_device_copy';
 import offline_shell from '../../utils/offline_shell';
 import { DEFAULT_WAIT_MS, wait_for_session_user } from '../../utils/session_user_wait';
 import { no_connection } from '../../utils/board_owner';

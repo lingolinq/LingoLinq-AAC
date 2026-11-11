@@ -116,8 +116,14 @@ export default Route.extend({
       });
     };
     if(!this.persistence.get('online')) { return from_device(); }
-    return query_server({ one_try: this.owner_wait_ms }).then(null, function(err) {
-      if(!no_server_answer(err)) { return RSVP.reject(err); }
+    var started = Date.now();
+    return query_server({ one_try: this.owner_wait_ms }).then(function(owner) {
+      _this.appState.set('device_copy_server_silent_at', null); // the server answered: no shortened wait follows
+      return owner;
+    }, function(err) {
+      if(!no_server_answer(err)) { _this.appState.set('device_copy_server_silent_at', null); return RSVP.reject(err); }
+      // Silent: the board request that follows keeps what is left of the wait (utils/board_device_copy.js).
+      _this.appState.set('device_copy_server_silent_at', started);
       return from_device();
     });
   },

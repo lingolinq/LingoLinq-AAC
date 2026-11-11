@@ -126,9 +126,15 @@ export default Component.extend({
     open_translate() {
       const board = this.get('model.board');
       if (!board) { return; }
+      // The board page's gate, when it gave one (controllers/user/board-detail.js device_copy_gate): offline it
+      // says why; online it fetches the board, and says so. Without one, stop with the plain message.
       if (this.get('model.device_copy')) {
-        modal.warning(i18n.t('board_action_needs_connection', "This board needs an Internet connection to do that."));
-        return;
+        const gate = this.get('model.refresh_device_copy');
+        if (typeof gate !== 'function') {
+          modal.warning(i18n.t('board_action_needs_connection', "This board needs an Internet connection to do that."));
+          return;
+        }
+        if (gate()) { return; }
       }
       const opts = { board: board };
       if (board.get) {
