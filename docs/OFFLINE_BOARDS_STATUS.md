@@ -247,7 +247,13 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
 4. **Picture data repair (operations):** some saved picture addresses fail; a one-time data cleanup.
 5. **#1229:** done. A new device that has never finished a sync keeps retrying after the backoff, and one reconnect can retry a dropped connection. See the task log.
 6. **#1230:** Modern view's "Sync failed" notice can show the wrong state.
-7. **#1219:** the board tree request (`/tree`) fails on very large boards (Cloud Run response size cap).
+7. **#1219:** the board tree request (`/tree`) fails on very large boards (Cloud Run response size cap). **Built
+   2026-11-11:** one image lookup per tree or bulk page (the timeout mode); `/tree` pages descendants by a 1 MiB
+   budget in the list's own order, older app builds get one answer stopped at 24 MiB (the cap mode); the Modern warm
+   walks at most 4 pages (2 on a phone or tablet), deeper folders load on tap, a failed page is resumed once then
+   given up. Each unit proposal- and code-reviewed, red tests and mutations in the task log
+   (`docs/task-management/2026-11-09_tree-endpoint-1219.md`). To close the issue: one signed-in `/tree` of the
+   largest tree on dev or staging after merge. Compression and a size alert: Scot's infra items.
 8. **A "N of M boards saved" count** during sync. **Done 2026-11-11:** a drawer bottom right on every page while a
    sync runs, like a board copy ("Syncing your boards for offline use... Saved so far: 12 boards." with "2 with a
    problem." when some boards had one), hidden while Speak Mode is on a board page and back when it ends; when the
