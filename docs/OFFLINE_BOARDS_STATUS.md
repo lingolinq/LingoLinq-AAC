@@ -293,7 +293,9 @@ important languages.
 
 - **#1285 (Scot):** should iPads that were trusted on a Home Screen sign-in before this PR be asked again by code,
   instead of the manual workaround (Preferences > Session Timeout on each iPad)? A design and a standards write-up
-  are in the issue and in `docs/task-management/2026-11-07_aac-device-trust-research.md`.
+  are in the issue and in `docs/task-management/2026-11-07_aac-device-trust-research.md`. Decision requested from
+  Scot on the issue in plain language on 2026-11-11 (workaround or code fix; if the fix, here or its own PR before
+  the shell goes on in production); he is assigned. Not a merge blocker: the shell is off in production.
 - **Liking in Modern view (Traci, UI):** Like is only in Edit mode (Board Actions). Now that liking is how a board is
   kept offline, a Like on Modern's board page outside Edit may be wanted.
 - **Scot's open review items** in the PR text (the four Low items left as known limits).
