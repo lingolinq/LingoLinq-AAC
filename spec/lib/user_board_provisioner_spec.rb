@@ -2,7 +2,9 @@ require 'spec_helper'
 
 describe UserBoardProvisioner do
   describe ".provision_for" do
-    it "schedules vocal-flair-84 first, then sidebar utilities, then remaining library boards when enabled" do
+    # The starter (Vocal Flair 60; Traci, 2026-11-11, PR #1268) is first, through the job that also likes the copy;
+    # it was Vocal Flair 84 through the plain copy job.
+    it "schedules the starter first through the liking job, then sidebar utilities, then remaining library boards when enabled" do
       source = User.create(user_name: 'lingolinq')
       user = User.create
       yesno = Board.process_new({name: 'Yes/No', public: true}, {user: source, key: 'yesno'})
@@ -13,14 +15,13 @@ describe UserBoardProvisioner do
       b4 = Board.process_new({name: 'Crisis Vocabulary', public: true}, {user: source, key: 'crisis-vocabulary'})
 
       allow(FeatureFlags).to receive(:signup_default_library_boards_enabled?).and_return(true)
-      # VF84 must not be copied inline (Rack::Timeout on staging); all copies are Progress jobs.
+      # The starter must not be copied inline (Rack::Timeout on staging); all copies are Progress jobs.
       expect(user).to_not receive(:copy_board_to_library)
       expect(Progress).to receive(:schedule).with(
         user,
-        :copy_board_to_library,
-        {'id' => b3.global_id},
+        :provision_starter_board!,
+        {'id' => b2.global_id},
         source.global_id,
-        nil,
         for_user: user
       ).ordered
       expect(Progress).to receive(:schedule).with(
@@ -50,7 +51,7 @@ describe UserBoardProvisioner do
       expect(Progress).to receive(:schedule).with(
         user,
         :copy_board_to_library,
-        {'id' => b2.global_id},
+        {'id' => b3.global_id},
         source.global_id,
         nil,
         for_user: user
@@ -67,9 +68,9 @@ describe UserBoardProvisioner do
       described_class.provision_for(user)
       user.reload
       sidebar_keys = (user.settings['preferences']['sidebar_boards'] || []).map { |b| b['key'] }
-      expect(sidebar_keys).to include(SystemBoardSources.board_key('vocal-flair-84'))
+      expect(sidebar_keys).to include(SystemBoardSources.board_key('vocal-flair-60'))
       expect(sidebar_keys).to include(SystemBoardSources.board_key('senner-baud'))
-      expect(sidebar_keys).not_to include(SystemBoardSources.board_key('vocal-flair-60'))
+      expect(sidebar_keys).not_to include(SystemBoardSources.board_key('vocal-flair-84'))
     end
 
     it "writes the signup sidebar even when library copies are disabled" do
@@ -80,7 +81,7 @@ describe UserBoardProvisioner do
       expect(described_class.provision_for(user)).to eq([])
       user.reload
       sidebar_keys = (user.settings['preferences']['sidebar_boards'] || []).map { |b| b['key'] }
-      expect(sidebar_keys).to include(SystemBoardSources.board_key('vocal-flair-84'))
+      expect(sidebar_keys).to include(SystemBoardSources.board_key('vocal-flair-60'))
       expect(sidebar_keys).to include(SystemBoardSources.board_key('senner-baud'))
     end
 
@@ -125,10 +126,9 @@ describe UserBoardProvisioner do
       ).ordered
       expect(Progress).to receive(:schedule).with(
         user,
-        :copy_board_to_library,
+        :provision_starter_board!,
         {'id' => vf.global_id},
         source.global_id,
-        nil,
         for_user: user
       ).ordered
       expect(Progress).to receive(:schedule).with(

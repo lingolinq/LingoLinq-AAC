@@ -5,7 +5,7 @@ import Component from '@ember/component';
  *
  * A supporter opening `/board-picker?user_id=<communicator>` is asked HOW they
  * want to give that communicator a home board before the picker itself is in
- * play: browse the catalog, take the one-click Vocal Flair 84 assignment, or
+ * play: browse the catalog, take the one-click Vocal Flair 60 assignment, or
  * build a board from scratch. The self flow never sees it (the caller gates on
  * `for_self`) — picking your own home board has its own CTA block on the page.
  *

@@ -678,3 +678,64 @@ region that arrives already filled may not be announced), not applied: the previ
 live region to cover only the sentence, and the two branches never show together; a screen-reader check is on
 the list for the accessibility pass. Also noted: `session.js:898` calls a `persistence.clear_user_state` that
 the service does not define (guarded by `typeof`, so a silent skip); not this PR's defect.
+
+## 16. The starter board is Vocal Flair 60 everywhere, and sign-up likes it (Traci, 2026-11-11)
+
+Decision: "pick a board for me", Quick Assign and the start-talking welcome all use Vocal Flair 60, and a new
+account likes its Vocal Flair 60 so the offline sync keeps it; the person can unlike it later.
+
+**Facts.** (a) READ: the home-board pick reads 'Vocal Flair 84' in `utils/assign-vocal-flair-home.js:81` (regex
+`:16`) for Quick Assign (`controllers/board-picker.js:259`, `controllers/setup.js:1023`,
+`components/tour-board-picker.js:115`) and defaults to 84 in `utils/recommended_home_board.js:82` for "pick for
+me" (`controllers/board-picker.js:255`); the welcome card reads `STARTER_BOARD_KEY = 'lingolinq/vocal-flair-60'`
+(`utils/tours/start_talking.js:23`); the eval report passes its measured grid size (`eval-page-set-card.js:95`),
+not a default. The offline sync reads `user.stats.starred_board_refs` (`utils/offline_sync_seeds.js:52`) from
+`User#starred_board_refs` (`app/models/user.rb:2469`) from `settings['starred_board_ids']`, written by
+`User#remember_starred_board!` (`:2449`), which `Board#star` schedules (`app/models/board.rb:206`). Sign-up
+provisioning is `UserBoardProvisioner.provision_for` from `api/users_controller.rb:287` and
+`session_controller.rb:1008` (the two sign-up routes). (b) SHAPES: provisioning is off (flag,
+`user_board_provisioner.rb:7`: sidebar only), Spanish (`SPANISH_LIBRARY_SLUGS`), or the async list
+`SIGNUP_ASYNC_SLUGS` (VF84 first "so home-board pickers see it soon"), each a `Progress.schedule(user,
+:copy_board_to_library, {'id'}, source_id, nil, for_user:)` job. `copy_board_to_library` returns false (no
+original or updater), true with an existing copy (retried), or true after `copy_for` plus `copy_board_links`;
+the copy is `user.boards.where(parent_board: original).order('id DESC').first` (`user.rb:3914`). (c) CROSS-FILE:
+`findExistingUserCopy` expects the copy at `user_name/<slug>` (`utils/board-copy.js:30-34`); `copy_for` keys
+the copy that way (checked below). The like list keeps the first 50 (`LIKED_BOARD_REFS_LIMIT`); a liked board
+that is also the home board is one seed (`offline_sync_seeds.js:38`). The sidebar written at sign-up carries the
+public VF84 (`User.signup_sidebar_boards`, `user.rb:4371`), a separate feature, not changed here.
+
+**Proposal.** Frontend: one `utils/starter_board.js` (`STARTER_BOARD_SLUG`, `STARTER_BOARD_KEY`,
+`STARTER_BOARD_BUTTONS = 60`); `assign-vocal-flair-home.js` becomes `assignStarterBoardAsHome`, querying and
+matching the starter; `recommended_home_board.js` defaults to `STARTER_BOARD_BUTTONS`; `start_talking.js` reads
+the shared constant; the Quick Assign label says 60 (en plus the number in the other locales). Backend:
+`SystemBoardSources::STARTER_BOARD_SLUG` (and the Spanish `vocal-flair-60-es`), `SIGNUP_ASYNC_SLUGS` puts the
+starter first (the picker's reuse window), and the provisioner schedules `User#provision_starter_board!` for
+the starter slug: `copy_board_to_library`, then find the copy and `star!(self, true)` plus
+`remember_starred_board!` inline (the job `Board#star` schedules repeats it, idempotently). Alternatives
+rejected: liking the public `lingolinq/vocal-flair-60` in the request (a write on one hot public row per
+sign-up, a stars count that counts sign-ups, and two trees synced once the copy becomes home); a frontend like
+after registration (misses SSO and API sign-ups). Risks: the like and the copy must be one job (two jobs on
+parallel workers can run out of order), hence the method; flag off means no copy and no like; the 50-like
+limit (the starter is like one); the spec that pins VF84 first in the async order is rewritten for the new
+order (a specification change under Traci's decision, named in the PR). Open: whether the sign-up sidebar's
+VF84 entry should also become 60 (Traci). Tests: provisioner spec (starter first, the new method, both paths),
+`User#provision_starter_board!` (copy liked and listed; retry idempotent; missing original a no-op), frontend
+(assign util queries and picks the starter; "pick for me" default is 60). Mutations: default back to 84; drop
+the `star!`.
+
+**Review (2026-11-11): build with changes, all applied.** High, confirmed at `app/models/progress.rb:233` and
+`user.rb:2240-2246`: the job's user row is loaded when the job starts, so an inline `remember_starred_board!`
+after a seconds-long copy would write the whole settings column over a home board chosen meanwhile; the method
+saves nothing on `self` (`Board#star!` schedules the list update, which loads the user fresh), and a spec pins
+that. Medium: a copy the welcome card makes can race the job; the like prefers the home board when it is a copy
+of the starter (read from a fresh row), else the newest copy. Medium: Spanish sign-ups (flag-gated) like
+`vocal-flair-60-es` while the pick stays English, as it is today; recorded below as a follow-up rather than
+widened. Low: Quick Assign looks the starter up by its exact key first and keeps the name search as the
+dev-seed fallback. Comment and locale sweep done (13 locale files, the number only). Traci also decided the
+sign-up sidebar's library entry becomes Vocal Flair 60 (it resolves to the same copy, `User.resolve_sidebar_boards_for`).
+Spec rewrites approved by Traci: the provisioner order example and the sidebar examples that pinned 84. Tests:
+`spec/models/user_starter_board_spec.rb` (5), the provisioner spec, `tests/unit/utils/starter-board-assign-test.js`
+(3), one in `recommended-home-board-test.js`. Mutations: no like (3 red), ignore the home copy (1 red), default
+84 (red before the build). Follow-ups: the Spanish pick (`STARTER_BOARD_KEY` is English); with `shallow_clones`
+on, a liked own copy's `my:` key is not matched by the home seed (two seeds of one tree, beta flag); jobs queued
+under `provision_starter_board!` fail on a rollback to older code (no copy for those sign-ups).

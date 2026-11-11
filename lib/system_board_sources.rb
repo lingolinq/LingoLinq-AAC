@@ -15,6 +15,12 @@ module SystemBoardSources
   SENNER_BAUD_LOCAL_OBZ = Rails.root.join('tmp/seed-boards/SennerBaudSocialPages60ll.obz').freeze
   SENNER_BAUD_NAME = 'Senner-Baud Social Pages'.freeze
   SIGNUP_LIBRARY_SLUGS = %w[quick-core-60 vocal-flair-60 vocal-flair-84 crisis-vocabulary senner-baud].freeze
+  # The starter board (Traci, 2026-11-11; PR #1268): what the welcome card, Quick Assign and "pick a board for
+  # me" set up (app/frontend/app/utils/starter_board.js), the sign-up sidebar's library entry, and the one copy
+  # sign-up likes so the offline sync keeps it (User#provision_starter_board!). Spanish sign-ups get the
+  # Spanish set's starter instead.
+  STARTER_BOARD_SLUG = 'vocal-flair-60'.freeze
+  SPANISH_STARTER_BOARD_SLUG = 'vocal-flair-60-es'.freeze
   # Intentionally empty: an in-request sync copy of vocal-flair-84 exceeds Rack::Timeout
   # (~16s) on staging and 500s signup after the user row is already persisted
   # (see docs/task-management/2026-07-28-staging-registration-timeout.md).
@@ -22,11 +28,11 @@ module SystemBoardSources
   SIGNUP_SYNC_SLUGS = [].freeze
   # Utility boards copied async so default sidebar entries can resolve to user-owned copies.
   SIDEBAR_COPY_SLUGS = %w[yesno inflections].freeze
-  # Prefer VF84 first among async jobs so home-board pickers see it soon after signup.
+  # The starter first among async jobs so the home-board pick finds the account's copy soon after signup.
   SIGNUP_ASYNC_SLUGS = (
-    %w[vocal-flair-84] +
+    [STARTER_BOARD_SLUG] +
     SIDEBAR_COPY_SLUGS +
-    (SIGNUP_LIBRARY_SLUGS - %w[vocal-flair-84] - SIGNUP_SYNC_SLUGS)
+    (SIGNUP_LIBRARY_SLUGS - [STARTER_BOARD_SLUG] - SIGNUP_SYNC_SLUGS)
   ).freeze
   SPANISH_LIBRARY_SLUGS = %w[quick-core-60-es vocal-flair-60-es].freeze
   SPANISH_SOURCE_MAP = {

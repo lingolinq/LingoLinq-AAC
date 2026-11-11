@@ -3428,12 +3428,13 @@ describe User, :type => :model do
       expect(keys).not_to include(SystemBoardSources.board_key('vocal-flair-60'))
     end
 
-    it "should include vocal-flair-84 and senner-baud in the signup sidebar list" do
+    # The library entry is the starter, Vocal Flair 60 (Traci, 2026-11-11, PR #1268); it was Vocal Flair 84.
+    it "should include the starter (vocal-flair-60) and senner-baud in the signup sidebar list" do
       keys = User.signup_sidebar_boards.map { |b| b['key'] }.compact
-      expect(keys).to include(SystemBoardSources.board_key('vocal-flair-84'))
+      expect(keys).to include(SystemBoardSources.board_key('vocal-flair-60'))
       expect(keys).to include(SystemBoardSources.board_key(SystemBoardSources::SENNER_BAUD_SLUG))
       expect(keys).to include(SystemBoardSources.board_key('inflections'))
-      expect(keys).not_to include(SystemBoardSources.board_key('vocal-flair-60'))
+      expect(keys).not_to include(SystemBoardSources.board_key('vocal-flair-84'))
       expect(keys).not_to include('mbaud12/senner-baud-greetings')
     end
 
@@ -3443,12 +3444,13 @@ describe User, :type => :model do
       keys = User.signup_sidebar_boards(u).map { |b| b['key'] }.compact
       expect(keys).to include(SystemBoardSources.board_key('inflections-es'))
       expect(keys).not_to include(SystemBoardSources.board_key('inflections'))
-      expect(keys).to include(SystemBoardSources.board_key('vocal-flair-84'))
+      expect(keys).to include(SystemBoardSources.board_key('vocal-flair-60-es'))
+      expect(keys).not_to include(SystemBoardSources.board_key('vocal-flair-60'))
     end
 
-    it "should not auto-add vocal-flair-84 or senner-baud into an older saved sidebar" do
+    it "should not auto-add the starter (vocal-flair-60) or senner-baud into an older saved sidebar" do
       u = User.new
-      vf84_key = SystemBoardSources.board_key('vocal-flair-84')
+      vf84_key = SystemBoardSources.board_key('vocal-flair-60')
       senner_key = SystemBoardSources.board_key(SystemBoardSources::SENNER_BAUD_SLUG)
       crisis_key = SystemBoardSources.board_key('crisis-vocabulary')
       saved = User.default_sidebar_boards.reject do |b|
@@ -3487,7 +3489,7 @@ describe User, :type => :model do
       yesno = Board.process_new({name: 'Yes/No', public: true}, {user: source, key: 'yesno'})
       inflections = Board.process_new({name: 'Inflections', public: true}, {user: source, key: 'inflections'})
       crisis = Board.process_new({name: 'Crisis Vocabulary', public: true}, {user: source, key: 'crisis-vocabulary'})
-      vf84 = Board.process_new({name: 'Vocal Flair 84', public: true}, {user: source, key: 'vocal-flair-84'})
+      vf84 = Board.process_new({name: 'Vocal Flair 60', public: true}, {user: source, key: 'vocal-flair-60'})
       senner = Board.process_new({name: SystemBoardSources::SENNER_BAUD_NAME, public: true}, {user: source, key: 'senner-baud'})
       yesno.copy_for(u)
       inflections.copy_for(u)

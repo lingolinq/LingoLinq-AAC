@@ -2,7 +2,7 @@ import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { computed, observer } from '@ember/object';
 import openRecommendedHomeBoard from '../utils/recommended_home_board';
-import { assignVocalFlair84AsHome } from '../utils/assign-vocal-flair-home';
+import { assignStarterBoardAsHome } from '../utils/assign-vocal-flair-home';
 import { after_pick_for_other } from '../utils/board_picker_landing';
 import LingoLinq from '../app';
 import modal from '../utils/modal';
@@ -256,7 +256,7 @@ export default Controller.extend({
         return;
       }
       _this.set('assigning_home_board', true);
-      assignVocalFlair84AsHome(user, {
+      assignStarterBoardAsHome(user, {
         locale: _this.appState.get('label_locale'),
         onSuccess: function(home) {
           _this.set('assigning_home_board', false);

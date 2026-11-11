@@ -82,6 +82,21 @@ describe('recommended_home_board setup_user lifetime', function() {
     expect(vocalFlairButtonsForGrid(null)).toEqual(24);
   });
 
+  // "Pick a board for me" with no measured grid opens the starter, Vocal Flair 60 (Traci, 2026-11-11; it was 84,
+  // while the welcome card set up 60).
+  it('opens the starter set when no button count is given', function() {
+    var queries = [];
+    stub(LingoLinq.store, 'query', function(type, params) { queries.push(params); return RSVP.resolve([]); });
+    stub(modal, 'error', function() { });
+    var done = false;
+    openRecommendedHomeBoard().then(function() { done = true; });
+    waitsFor(function() { return done; });
+    runs(function() {
+      expect(queries.length).toEqual(1);
+      expect(queries[0].q).toEqual('Vocal Flair 60');
+    });
+  });
+
   it('points setup_user at the communicator once the preview opens', function() {
     var done = false;
     openRecommendedHomeBoard(60, communicator).then(function() { done = true; });

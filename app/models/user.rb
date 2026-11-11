@@ -3929,6 +3929,34 @@ class User < ApplicationRecord
     true
   end
 
+  # SIGN-UP LIKES THE STARTER BOARD (Traci, 2026-11-11; PR #1268, proposals doc section 16). The starter's
+  # provisioning job (lib/user_board_provisioner.rb): copy the starter into this account's library as the other
+  # library sets are copied, then like the copy, so the offline sync keeps one core board from the first sync
+  # (User#starred_board_refs feeds app/frontend/app/utils/offline_sync_seeds.js). The person can unlike it.
+  #
+  # Nothing here saves `self`: this row was loaded when the job started (Progress.perform_action), and a save
+  # after a copy that takes seconds would write over anything saved meanwhile (a home board chosen on the
+  # welcome card). Board#star schedules remember_starred_board! in a job of its own, which loads the user fresh.
+  def provision_starter_board!(library_board, updater_id)
+    original = library_board && Board.find_by_path(library_board['id'])
+    return false unless original && copy_board_to_library(library_board, updater_id)
+    copy = starter_copy_for(original)
+    return false unless copy
+    copy.star!(self, true) unless copy.starred_by?(self)
+    true
+  end
+
+  # The copy to like: the home board when the person already made a copy of this starter their home (the
+  # welcome card can copy while the job runs, and a second copy liked would be a second tree on every device),
+  # read from a fresh row for the same reason as above; otherwise the newest copy.
+  def starter_copy_for(original)
+    fresh = User.find_by(id: self.id) || self
+    prefs = (fresh.settings || {})['preferences'] || {}
+    home = prefs['home_board'] && prefs['home_board']['id'] && Board.find_by_global_id(prefs['home_board']['id'])
+    return home if home && home.user_id == self.id && home.parent_board_id == original.id
+    self.boards.where(parent_board: original).order('id DESC').first
+  end
+
   def copy_to_home_board(home_board, updater_id, symbol_library)
     original = home_board && Board.find_by_path(home_board['id'])
     updater = User.find_by_path(updater_id)
@@ -4365,13 +4393,16 @@ class User < ApplicationRecord
   end
 
   # Written onto the user at signup only. Existing accounts with an empty stored
-  # sidebar keep default_active_sidebar_boards (no VF84 / Senner) so a deploy
+  # sidebar keep default_active_sidebar_boards (no starter / Senner) so a deploy
   # does not change live speak-mode sidebars or enqueue those trees as sync roots.
+  # The library entry is the starter (Vocal Flair 60; Traci, 2026-11-11, it was Vocal Flair 84), the same
+  # board sign-up copies and likes, so the entry resolves to that one copy (resolve_sidebar_boards_for).
   def self.signup_sidebar_boards(user = nil)
-    vf84 = {
-      'name' => "Vocal Flair 84",
-      'key' => SystemBoardSources.board_key('vocal-flair-84'),
-      'image' => '/images/vocal-flair-84.png',
+    starter_slug = spanish_preferred_locale?(user) ? SystemBoardSources::SPANISH_STARTER_BOARD_SLUG : SystemBoardSources::STARTER_BOARD_SLUG
+    starter = {
+      'name' => "Vocal Flair 60",
+      'key' => SystemBoardSources.board_key(starter_slug),
+      'image' => '/images/vocal-flair-60.png',
       'home_lock' => false
     }
     senner_key = SystemBoardSources.board_key(SystemBoardSources::SENNER_BAUD_SLUG)
@@ -4380,7 +4411,7 @@ class User < ApplicationRecord
       key = entry['key']
       if key == SystemBoardSources.board_key('keyboard')
         result << localize_signup_sidebar_entry(entry, user)
-        result << vf84
+        result << starter
       elsif key == senner_key
         result << localize_signup_sidebar_entry(entry, user)
       elsif inactive_by_default_sidebar_keys.include?(key)
