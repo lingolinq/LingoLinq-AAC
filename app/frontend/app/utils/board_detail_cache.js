@@ -455,10 +455,11 @@ export default {
     return !!entry.root_only;
   },
 
-  // If the entry is a root-only prefetch/lite load, fetch the full /tree
-  // (no root_only) and ingest descendants. No-ops when the cache is already
-  // a full tree. Shares in-flight full-tree requests. Resolves
-  // { warmed, descendant_count } and never rejects.
+  // If the entry is a root-only prefetch/lite load, fetch the full tree in
+  // pages (_warm_tree_pages, #1219) and ingest descendants. No-ops when the
+  // cache is already a full tree. Shares one in-flight warm per key for the
+  // whole loop. Resolves { warmed, descendant_count } (plus partial when the
+  // warm stopped early) and never rejects.
   warm_full_tree_if_root_only: function(key_or_id) {
     var _this = this;
     if (!this.is_root_only(key_or_id)) {
@@ -472,30 +473,29 @@ export default {
     /* Distinct from prefetch 'tree:' inflight, which is the root_only GET. */
     var inflight_key = 'full-tree:' + key;
     var req = _inflight[inflight_key];
+    /* THE FULL TREE ARRIVES IN PAGES (#1219 units B and B2, PR #1268; _warm_tree_pages at the end of this file).
+       `/tree?offset=0`, then `?offset=<next_offset>` while the answer carries one; a server from before paging
+       sends none, so one request, as before. Each page's descendants go to the cache and the store as they
+       arrive. The root-only mark is cleared when the loop ends: the last page, or TREE_WARM_MAX_PAGES
+       (TREE_WARM_MAX_PAGES_MOBILE on a phone or tablet, capabilities.mobile: the devices the page count exists
+       to protect), after which deeper folders load on their first tap, as they do today when a warm has not
+       reached them. A page that fails leaves the mark and a resume offset on the entry, so the next open
+       continues from there instead of starting over; a second failure ends the warm as partial, so a page that
+       cannot be served never causes a re-warm on every open. The result keeps its shape, { warmed,
+       descendant_count } over all pages, plus partial when the warm stopped early. Lines here are kept so the
+       lint baseline rows below keep their numbers. */
+    //
+    //
+    //
     if (!req) {
-      req = persistence.ajax('/api/v1/boards/' + key + '/tree', { type: 'GET' });
+      req = _warm_tree_pages(_this, key);
       _inflight[inflight_key] = req;
       var _clear = function() {
         if (_inflight[inflight_key] === req) { delete _inflight[inflight_key]; }
       };
       req.then(_clear, _clear);
     }
-    return req.then(function(data) {
-      if (!data || !data.root || !data.root.board) {
-        return { warmed: false };
-      }
-      _this.ingest_tree(data, null, {
-        force: false,
-        warm_root_images: false,
-        root_only: false
-      });
-      return {
-        warmed: true,
-        descendant_count: (data.descendants && data.descendants.length) || 0
-      };
-    }, function() {
-      return { warmed: false };
-    });
+    return req;
   },
 
   // Returns the cached raw board JSON, or null if missing/stale.
@@ -1195,3 +1195,58 @@ var _stop_listening = null;
 function _ensure_listening() {
   if (!_stop_listening) { _stop_listening = boardRevocation.on_marked(_on_boards_revoked); }
 }
+
+/* The paged full-tree warm: see the explanation at warm_full_tree_if_root_only above. */
+export var TREE_WARM_MAX_PAGES = 4;
+export var TREE_WARM_MAX_PAGES_MOBILE = 2;
+export var TREE_WARM_MAX_FAILURES = 2;
+
+function _warm_tree_pages(cache, key) {
+  var entry = _lookup(key);
+  var max_pages = capabilities.mobile ? TREE_WARM_MAX_PAGES_MOBILE : TREE_WARM_MAX_PAGES;
+  var offset = (entry && entry.warm_resume) || 0;
+  var pages = 0;
+  var count = 0;
+  var finish = function(partial) {
+    var e = _lookup(key);
+    if (e) { e.root_only = false; e.warm_resume = null; e.warm_failures = 0; }
+    var res = { warmed: count > 0 || !partial, descendant_count: count };
+    if (partial) { res.partial = true; }
+    return res;
+  };
+  var step = function() {
+    return persistence.ajax('/api/v1/boards/' + key + '/tree?offset=' + offset, { type: 'GET' }).then(function(data) {
+      if (!data || !data.root || !data.root.board) { return { warmed: false }; }
+      pages += 1;
+      if (offset === 0) {
+        var root_raw = normalize_board_payload(data.root);
+        if (root_raw) {
+          // Keeps the root-only mark: a page is not yet the whole tree.
+          cache.set(root_raw, { force: false, root_only: true });
+          _push_board_to_store(root_raw);
+        }
+      }
+      (data.descendants || []).forEach(function(wrapped) {
+        var sub_raw = normalize_board_payload(wrapped);
+        if (!sub_raw) { return; }
+        cache.set(sub_raw);
+        _push_board_to_store(sub_raw);
+        count += 1;
+      });
+      var next = data.next_offset;
+      if (typeof next !== 'number' || next <= offset) { return finish(false); }
+      if (pages >= max_pages) { return finish(true); }
+      offset = next;
+      return step();
+    }, function() {
+      var e = _lookup(key);
+      if (!e) { return { warmed: false }; }
+      e.warm_failures = (e.warm_failures || 0) + 1;
+      e.warm_resume = offset;
+      if (e.warm_failures >= TREE_WARM_MAX_FAILURES) { return finish(true); }
+      return { warmed: false };
+    });
+  };
+  return step();
+}
+import capabilities from './capabilities'; // at the end, like the imports above it, so the lint baseline rows keep their lines
