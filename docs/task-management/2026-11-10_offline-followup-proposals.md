@@ -644,3 +644,23 @@ same `i18n.t`; English works only because `en.json` is never loaded and the code
 any other language a JS `count` call on a "||" string hits `String#sub` (for example
 `controllers/offline_boards.js:46`). Older than this PR; its own fix.
 
+## 15. Item 8, second form: the sync as an app-wide drawer, like a board copy (Traci, 2026-11-11)
+
+Traci's direction after seeing the Modern home notice: "when the syncing starts, show a message in the bottom
+right that shows no matter what page the user goes to (unless it's in speak mode on board-alt or board-detail,
+then hide it), but reshow it if the user navigates away from speak mode. Then, a syncing notification (like when
+the copying boards is completed), again unless the user is in speak mode on either board-detail or board-alt."
+Facts (CONFIRMED): the board-copy drawer is `components/copy-progress-drawer` (bottom right, `styles` class
+`.ll-copy-drawer`), mounted once from `templates/application.hbs:5` so it survives route changes, driven by
+`services/copy-progress.js` (status, message, dismiss); its result card waits to be dismissed. The sync runs in
+the persistence service and reports through `sync_status` ('syncing', then 'succeeded' | 'finished' | 'failed';
+`sync_errors` and `sync_status_error` carry the detail). Speak Mode is `appState.speak_mode`; the board pages are
+the `user.board-detail`, `user.board-alt` and `board` routes. Built: `services/sync-notice.js` follows
+`sync_status` (an observer, removed on destroy; a sync of another user's open database is ignored, as the failed
+notice does); `components/sync-progress-drawer` reuses the copy drawer's classes and slot, hides while
+`speak_mode` is on and the route is a board page, yields to a running copy, and offers Sync Details and Dismiss;
+a clean success dismisses itself after 8 s (automatic syncs succeed many times a day), problems and failures
+wait. The Modern home notice from §14 is removed. Tests: `tests/unit/services/sync-notice-test.js`,
+`tests/unit/components/sync-progress-drawer-test.js`. Mutations: ignore Speak Mode (the hidden test fails); never
+turn the drawer into a card (the result tests fail).
+
