@@ -255,8 +255,9 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
    failures wait to be dismissed). The Basic home card, rail and Sync Details show the same line. No total: it grew and shrank as linked boards were found. Saved means
    the board's record is on the device (pictures may still be arriving); the problem count also holds boards the sync
    could not fetch at all, so it is not subtracted; every synced user's boards count, and a board shared by two of
-   them counts for each. Only the Modern notice's fixed sentence is a live region. UI call left for Traci: the grid
-   moves when a notice appears (the sync drawer floats, so it does not).
+   them counts for each. Only the drawer's syncing sentence is a live region. Nothing moves when a sync starts: the
+   drawer floats, and the Basic home card and rail rows have a title and a sub line in every state (checked
+   2026-11-11), so the former grid-movement call is closed.
 9. **Smaller items** (2026-11-10):
    - #1206: the iOS SQLite shim passes a schema row through as data. **Done:** the backup shim drops the row and
      accepts the sync's short `executeSql` form, matching the shell's bridge (13 tests).
