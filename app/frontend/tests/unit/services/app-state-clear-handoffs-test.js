@@ -47,4 +47,22 @@ module('Unit | Service | app-state clear_user_state handoffs', function(hooks) {
       assert.notOk(appState.get(k), k);
     });
   });
+
+  /* SYNC DRAWER (item 8, PR #1268, review of 986559581): the persistence service keeps sync_status after an SPA
+     sign-out (session.js calls a persistence.clear_user_state that the service does not define), so a result
+     card waiting to be dismissed stayed on the login page, and its Sync Details opened the previous person's log. */
+  test('a waiting sync result card is dismissed', function(assert) {
+    var appState = this.owner.lookup('service:app-state');
+    var persistence = this.owner.lookup('service:persistence');
+    var notice = this.owner.lookup('service:sync-notice');
+    var saved = { sync_status: persistence.get('sync_status'), root_sync_canceled: persistence.get('root_sync_canceled') };
+    persistence.set('root_sync_canceled', false);
+    persistence.set('sync_status', 'syncing');
+    persistence.set('sync_status', 'failed');
+    assert.strictEqual(notice.get('status'), 'done', 'a card was waiting');
+    try { appState.clear_user_state(); } catch (e) { /* unrelated teardown in a bare test owner */ }
+    assert.strictEqual(notice.get('status'), null, 'the card is gone');
+    persistence.set('sync_status', saved.sync_status);
+    persistence.set('root_sync_canceled', saved.root_sync_canceled);
+  });
 });

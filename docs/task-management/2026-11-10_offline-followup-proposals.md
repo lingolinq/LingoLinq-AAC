@@ -664,3 +664,17 @@ wait. The Modern home notice from §14 is removed. Tests: `tests/unit/services/s
 `tests/unit/components/sync-progress-drawer-test.js`. Mutations: ignore Speak Mode (the hidden test fails); never
 turn the drawer into a card (the result tests fail).
 
+
+**Code-level adversarial review of `986559581` (2026-11-11): ship with conditions, both applied.** Medium 1,
+confirmed at `services/persistence.js:2400` then `:2404` and `:2442` then `:2455-2459` (also
+`utils/storage_failures.js:33-35`): the sync writes its status first and the detail after it, and the observer
+runs inside the first write, so the card copied the previous sync's count and reason; `message` and `detail`
+are now computed from the live fields. Medium 2, confirmed at `:4900`: a cancelled sync ends as failed and got a
+"Sync failed" card; `root_sync_canceled` now means nothing to report, as on the Modern home page. Low 1,
+confirmed: the service has no `clear_user_state`, so after an SPA sign-out a waiting card stayed on the login
+page with the previous person's Sync Details; `appState.clear_user_state` dismisses it. Three tests in the
+real write order plus one in `app-state-clear-handoffs-test.js`; each red before its fix. Low 2 (a live
+region that arrives already filled may not be announced), not applied: the previous review asked for the
+live region to cover only the sentence, and the two branches never show together; a screen-reader check is on
+the list for the accessibility pass. Also noted: `session.js:898` calls a `persistence.clear_user_state` that
+the service does not define (guarded by `typeof`, so a silent skip); not this PR's defect.
