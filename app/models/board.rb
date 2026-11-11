@@ -2581,9 +2581,8 @@ class Board < ApplicationRecord
     pieces = {}
     ids_by_board.values.flatten.uniq.each { |id| pieces[id] = ButtonImage.id_pieces(id) }
     db_ids = pieces.values.map { |p| p[:id] }.compact.uniq
-    return boards if db_ids.empty?
     by_db_id = {}
-    ButtonImage.where(id: db_ids).each { |bi| by_db_id[bi.id.to_s] = bi }
+    ButtonImage.where(id: db_ids).each { |bi| by_db_id[bi.id.to_s] = bi } if db_ids.any?
     kept = {}
     boards.each do |b|
       list = ids_by_board[b.object_id].map do |id|

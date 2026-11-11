@@ -416,6 +416,17 @@ class Api::BoardsController < ApplicationController
   # the visible board first, then call /tree again (without root_only)
   # in the background to warm folder targets. Same lite root JSON either way.
   MAX_TREE = 500
+  # #1219 unit B (PR #1268): descendants come in pages. A client that sends `offset` (new builds send 0) gets a
+  # page: the capped id list is walked from `offset`, in its own order, at most TREE_PAGE_IDS ids, loaded and
+  # image-preloaded TREE_PAGE_CHUNK at a time, and the page stops adding boards once their JSON passes
+  # TREE_PAGE_BYTES (always at least one); `next_offset` is present while ids remain, and counts every id walked,
+  # seen or not. A request with no `offset` (an app build from before this change) gets one answer stopped at
+  # TREE_LEGACY_BYTES: never less than it got before, never near Cloud Run's 32 MiB cap. Each board is encoded
+  # once and the body is assembled from the pieces (docs/task-management/2026-11-09_tree-endpoint-1219.md).
+  TREE_PAGE_IDS = 100
+  TREE_PAGE_CHUNK = 25
+  TREE_PAGE_BYTES = 1.megabyte
+  TREE_LEGACY_BYTES = 24.megabytes
   def tree
     # Member route is GET /api/v1/boards/:board_id/tree, so Rails supplies
     # params['board_id'] (NOT params['id']). Reading 'id' here made every
@@ -430,36 +441,64 @@ class Api::BoardsController < ApplicationController
     return unless allowed?(root, 'view')
 
     root_only = params['root_only'].to_s =~ /^(1|true|yes)$/i
-    descendants = []
-    unless root_only
-      descendant_ids = ((root.settings || {})['downstream_board_ids'] || []).first(MAX_TREE)
-      if descendant_ids.any?
-        ApplicationRecord.using(:master) do
-          descendants = Board.find_all_by_global_id(descendant_ids)
-        end
-        # Permission filter. Use the Permissable model method `allows?`
-        # directly — NOT the controller's `allowed?`, which renders an
-        # error response as a side effect (it's designed for single-
-        # resource gates, not list filtering). `scopes` mirrors what
-        # `allowed?` computes internally via `api_permission_scopes`.
-        scopes = api_permission_scopes
-        descendants = descendants.select { |b| b && b.allows?(@api_user, 'view', scopes) }
-      end
-    end
+    paged = params.key?('offset')
+    offset = paged ? [[params['offset'].to_i, 0].max, MAX_TREE].min : 0
+    ids = root_only ? [] : ((root.settings || {})['downstream_board_ids'] || []).first(MAX_TREE)
+    slice = paged ? (ids[offset, TREE_PAGE_IDS] || []) : ids
+    budget = paged ? TREE_PAGE_BYTES : TREE_LEGACY_BYTES
 
     # as_lite drops the per-board N+1 enrichment (parent_board, find_copies_by,
     # shared_users, per-image ButtonImage lookups) that made this endpoint
     # Rack::Timeout under MAX_TREE fan-out. See RCA 2026-05-24, issue #286.
     # Gated by a deploy-free kill-switch (see lite_board_serialization?).
     lite = lite_board_serialization?
-    # One image lookup for the whole tree (#1219); under the same kill-switch as lite, so 'false' restores the
-    # whole pre-fix path.
-    Board.preload_button_images([root] + descendants, @api_user) if lite
-    root_json = JsonApi::Board.as_json(root, wrapper: true, permissions: @api_user, skip_subs: true, as_lite: lite)
-    descendants_json = descendants.map do |b|
-      JsonApi::Board.as_json(b, wrapper: true, permissions: @api_user, skip_subs: true, as_lite: lite)
+    # Permission filter. Use the Permissable model method `allows?`
+    # directly — NOT the controller's `allowed?`, which renders an
+    # error response as a side effect (it's designed for single-
+    # resource gates, not list filtering). `scopes` mirrors what
+    # `allowed?` computes internally via `api_permission_scopes`.
+    scopes = api_permission_scopes
+    Board.preload_button_images([root], @api_user) if lite
+    root_json = JsonApi::Board.as_json(root, wrapper: true, permissions: @api_user, skip_subs: true, as_lite: lite).to_json
+    pieces = []
+    bytes = 0
+    consumed = 0
+    slice.each_slice(TREE_PAGE_CHUNK) do |chunk_ids|
+      boards = []
+      ApplicationRecord.using(:master) do
+        boards = Board.find_all_by_global_id(chunk_ids)
+      end
+      by_id = {}
+      boards.each { |b| by_id[b.global_id] ||= b; by_id[b.global_id(true)] ||= b }
+      visible = {}
+      chunk_ids.each do |id|
+        b = by_id[id]
+        visible[id] = b if b && b.allows?(@api_user, 'view', scopes)
+      end
+      # One image lookup for the chunk (#1219 unit A); under the same kill-switch as lite, so 'false' restores
+      # the whole pre-fix path.
+      Board.preload_button_images(visible.values.uniq, @api_user) if lite
+      stop = false
+      chunk_ids.each do |id|
+        consumed += 1
+        b = visible[id]
+        next unless b
+        piece = JsonApi::Board.as_json(b, wrapper: true, permissions: @api_user, skip_subs: true, as_lite: lite).to_json
+        pieces << piece
+        bytes += piece.bytesize
+        if bytes >= budget
+          stop = true
+          break
+        end
+      end
+      break if stop
     end
-    render json: { root: root_json, descendants: descendants_json }
+    next_offset = offset + consumed
+    body = +'{"root":'
+    body << root_json << ',"descendants":[' << pieces.join(',') << ']'
+    body << ',"next_offset":' << next_offset.to_s if next_offset < ids.length
+    body << '}'
+    render json: body
   end
 
   # Kill-switch for the #tree / #bulk lite serialization (RCA 2026-05-24,

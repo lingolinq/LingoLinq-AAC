@@ -3920,6 +3920,120 @@ describe Api::BoardsController, :type => :controller do
       end
     end
 
+    # #1219 unit B (PR #1268): descendants come in pages. `offset` indexes the capped id list; a page loads at most
+    # TREE_PAGE_IDS ids and stops adding boards once their JSON passes TREE_PAGE_BYTES (always at least one);
+    # `next_offset` is present while ids remain. A page can never reach Cloud Run's 32 MiB cap unless one board
+    # is that large by itself, whatever the data holds (inline pictures included).
+    def walk_tree_pages(root, extra = {})
+      pages = []
+      offset = 0
+      20.times do
+        params = { board_id: root.global_id }.merge(extra)
+        params[:offset] = offset
+        get :tree, params: params
+        json = assert_success_json
+        pages << json
+        offset = json['next_offset']
+        break if offset.nil?
+      end
+      pages
+    end
+
+    it "pages descendants by a byte budget and walks the whole set in the list's own order with next_offset" do
+      token_user
+      root, children = build_owned_tree(@user, 4)
+      # The list's order is not the database's: find_all_by_global_id answers in database order, and a page that
+      # followed that order with a positional next_offset would skip boards.
+      root.settings['downstream_board_ids'] = children.reverse.map(&:global_id)
+      root.save
+      stub_const("Api::BoardsController::TREE_PAGE_BYTES", 1)
+      pages = walk_tree_pages(root)
+      expect(pages.map { |p| p['descendants'].length }).to eq([1, 1, 1, 1])
+      expect(pages.map { |p| p['next_offset'] }).to eq([1, 2, 3, nil])
+      expect(pages.flat_map { |p| p['descendants'].map { |d| d['board']['id'] } }).to eq(children.reverse.map(&:global_id))
+      expect(pages.map { |p| p['root']['board']['id'] }.uniq).to eq([root.global_id])
+    end
+
+    it "loads at most TREE_PAGE_IDS ids per page" do
+      token_user
+      root, children = build_owned_tree(@user, 5)
+      stub_const("Api::BoardsController::TREE_PAGE_IDS", 2)
+      pages = walk_tree_pages(root)
+      expect(pages.map { |p| p['descendants'].length }).to eq([2, 2, 1])
+      expect(pages.map { |p| p['next_offset'] }).to eq([2, 4, nil])
+      expect(pages.flat_map { |p| p['descendants'].map { |d| d['board']['id'] } }).to eq(children.map(&:global_id))
+    end
+
+    it "counts a board the viewer may not see as consumed, so no visible board is skipped or repeated" do
+      token_user
+      other = User.create
+      mine1 = board_with_image(@user)
+      theirs = Board.create(user: other)
+      mine2 = board_with_image(@user)
+      mine3 = board_with_image(@user)
+      root = tree_of(@user, [mine1, theirs, mine2, mine3])
+      stub_const("Api::BoardsController::TREE_PAGE_IDS", 2)
+      pages = walk_tree_pages(root)
+      expect(pages.map { |p| p['descendants'].map { |d| d['board']['id'] } }).to eq([[mine1.global_id], [mine2.global_id, mine3.global_id]])
+      expect(pages.map { |p| p['next_offset'] }).to eq([2, nil])
+    end
+
+    it "advances past a page whose boards are all hidden from the viewer" do
+      token_user
+      other = User.create
+      theirs1 = Board.create(user: other)
+      theirs2 = Board.create(user: other)
+      mine = board_with_image(@user)
+      root = tree_of(@user, [theirs1, theirs2, mine])
+      stub_const("Api::BoardsController::TREE_PAGE_IDS", 2)
+      pages = walk_tree_pages(root)
+      expect(pages.map { |p| p['descendants'].map { |d| d['board']['id'] } }).to eq([[], [mine.global_id]])
+      expect(pages.map { |p| p['next_offset'] }).to eq([2, nil])
+    end
+
+    it "answers a request without offset (an older app build) in one response stopped at the legacy budget" do
+      token_user
+      root, children = build_owned_tree(@user, 4)
+      get :tree, params: { board_id: root.global_id }
+      json = assert_success_json
+      expect(json['descendants'].length).to eq(4)
+      expect(json).to_not have_key('next_offset')
+      stub_const("Api::BoardsController::TREE_LEGACY_BYTES", 1)
+      stub_const("Api::BoardsController::TREE_PAGE_BYTES", 1_000_000)
+      get :tree, params: { board_id: root.global_id }
+      json = assert_success_json
+      expect(json['descendants'].length).to eq(1)
+      expect(json['descendants'][0]['board']['id']).to eq(children[0].global_id)
+      get :tree, params: { board_id: root.global_id, offset: 0 }
+      expect(assert_success_json['descendants'].length).to eq(4)
+    end
+
+    it "clamps offset to the list" do
+      token_user
+      root, children = build_owned_tree(@user, 3)
+      get :tree, params: { board_id: root.global_id, offset: '-5' }
+      expect(assert_success_json['descendants'].length).to eq(3)
+      get :tree, params: { board_id: root.global_id, offset: '99999999999999999999' }
+      json = assert_success_json
+      expect(json['descendants']).to eq([])
+      expect(json).to_not have_key('next_offset')
+    end
+
+    it "sends every descendant in one page when they fit, with no next_offset, and a root_only answer never pages" do
+      token_user
+      root, children = build_owned_tree(@user, 18)
+      get :tree, params: { board_id: root.global_id, offset: 0 }
+      json = assert_success_json
+      expect(json['descendants'].length).to eq(children.length)
+      expect(json).to_not have_key('next_offset')
+      expect(response.body.bytesize).to be < Api::BoardsController::TREE_PAGE_BYTES
+      stub_const("Api::BoardsController::TREE_PAGE_BYTES", 1)
+      get :tree, params: { board_id: root.global_id, root_only: '1' }
+      json = assert_success_json
+      expect(json['descendants']).to eq([])
+      expect(json).to_not have_key('next_offset')
+    end
+
     it "gives each board only the images its own ids name, by find_all_by_global_id's nonce rule" do
       # A lookup over the whole tree's ids would keep or drop a record by the FIRST id that names it; a board
       # referencing an image with a stale nonce must not get it, and must not take it from a board whose id is right.
