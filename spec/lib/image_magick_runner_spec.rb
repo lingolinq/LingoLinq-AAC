@@ -116,6 +116,8 @@ describe ImageMagickRunner do
       skip('ImageMagick not installed') unless system('montage', '-version', :out => File::NULL, :err => File::NULL)
       # Every byte ImageMagick 6.9.12 skips before testing for the at-sign, written out here and
       # not read from LEADING_SPACE_BYTES, so narrowing that constant cannot narrow the control.
+      # If one of these goes red on the CI runner, CI cannot observe that byte there. Do not remove
+      # it: production's ImageMagick may still skip it. Report it instead.
       with_observable_file_read(["\t", "\n", "\v", "\f", "\r", ' ']) do |dir|
         reached = (1..127).select do |byte|
           montage_output(dir, ImageMagickRunner.escape_label(byte.chr + '@x.txt')).match?(file_read_refused)

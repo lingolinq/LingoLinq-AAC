@@ -91,8 +91,8 @@ jobs:
       # spec/lib/image_magick_runner_spec.rb), so without this a broken install goes back to skipping
       # and CI stays green. The policy checks are the production image's (Dockerfile:66-70). No check is
       # written as a pipe, so a failing command cannot hide behind a later one; the one command that is
-      # MEANT to fail, convert being refused, writes to a file that is then checked. Each failure names
-      # its check and prints what ImageMagick said (messages only: the text: read goes to null:). The
+      # MEANT to fail, convert being refused, writes to a file that is then checked. Each policy check
+      # names itself and prints what ImageMagick said (messages only: the text: read goes to null:). The
       # PCL and TEXT checks read the whole loaded policy, so the distribution's own file could satisfy
       # them; the listing is printed so the log shows which file carries each rule.
       - name: Verify ImageMagick and its policy
