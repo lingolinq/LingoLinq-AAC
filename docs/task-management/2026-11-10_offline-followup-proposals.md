@@ -487,3 +487,59 @@ limit and keeps the error branch (5xx or 429 answers the saved page), restores t
 the error branch added, restores the lifecycle "slow page waits" case, and turns the hang e2e case into one that
 pins the known limit (no answer and no cached page within 10 s). Scot's PR comment got a follow-up saying so.
 
+## 11. Item 9A, #1206: the backup SQLite shim passes the iOS column-list row through (Traci, 2026-11-10: "fix item 9")
+
+**(a) Where the value is read.** CONFIRMED: `toResultSet(values)` in `app/frontend/app/utils/capacitor_sqlite_shim.js:25-34`
+exposes every element of `values` as a row. It is reached from `runSql` for SELECT and PRAGMA (`:98-106`,
+`p.query(...).then(res => toResultSet(res.values))`), on both the `executeSql` path (`:124-136`) and the
+`transaction` path (`:137-196`, through `runSql`). dbman reads results through `rows.length` / `rows.item(i)`.
+**(b) Shapes.** CONFIRMED in the shell's tests and the plugin source cited by #1206: on iOS the raw plugin's
+`query` answers `[{ios_columns: [...]}, row, row...]` for a non-empty result; on Android `[row, row...]`; an empty
+result `[]`; `values` can be missing or not an array (the shim already guards with `Array.isArray`). A real column
+aliased `ios_columns` holds a string, not an array.
+**(c) Cross-repo claim.** CONFIRMED: the shell's bridge (`~/lingolinq_mobile/www/sqlite_bridge.js:28-37`, commit
+`cc94c74`) drops row 0 when `Array.isArray(rows[0].ios_columns)`, with tests in `test/sqlite_bridge.test.js`.
+The shim installs only when `window.sqlitePlugin` is absent (`:197-199`), so it is dormant in the shipped app.
+**Fix.** The same check, copied into `toResultSet`. The shared implementation the issue suggests cannot be one
+module: the two copies live in different repositories (the shell is a plain browser script, the shim an Ember
+module). The port is kept line-for-line so a diff shows drift. Alternative rejected: deleting the backup shim
+(then a monorepo-only package would have no SQLite on iOS).
+**Review outcome (adversary agent, 2026-11-10): ship with conditions, applied.** The shell got a second fix after
+`cc94c74`: `9a9789b` accepts the short `executeSql(sql, success, error)` form the sync uses
+(`services/persistence.js`) and adds `abortAllPendingTransactions`; without both, a live shim would fail every
+sync (the plugin rejects a function as `values`, and the abort call throws). Both ported with the shell's three
+tests. Corrections: four iOS-shaped cases are red before the fix (the PRAGMA case too); the shell has twelve cases
+at its head; the shim's lines were `:94-103`, `:123-134`, `:135-192` before this change. "Risk: none" was wrong
+for the reason above; with the second port the shim matches the shell's head. **Tests:**
+`tests/unit/utils/capacitor-sqlite-shim-test.js` (13 cases through the shim's Cordova-shaped API with a fake
+native plugin). Mutation: drop the `Array.isArray` qualifier (the "real column named ios_columns" case fails).
+
+## 12. Item 9B and 9D: "needs a connection" while online, and the 8 + 8 second wait (Traci, 2026-11-10)
+
+**9B facts (CONFIRMED).** The trial bar's Use (`app/frontend/app/components/trial-bar.js:95-98`) and the languages
+modal's Translate (`app/frontend/app/components/switch-languages.js:129-132`) show "needs an Internet connection"
+whenever a device copy is on screen, without reading `online`. The board page's other actions go through
+`_blocked_on_device_copy` (`app/frontend/app/controllers/user/board-detail.js:10463-10473`), which offline says
+"needs a connection" and online says "Getting the latest version" and fetches the board (`_refresh_device_copy`).
+The trial bar is given `@deviceCopy` (`app/frontend/app/templates/user/board-detail.hbs:626`); the modal is opened
+with `{board, device_copy}` (`board-detail.js:9869`). Basic view passes neither. **Change:** the page also hands
+each its gate (`@onDeviceCopy` on the bar; `refresh_device_copy` in the modal's options); each calls it when
+present and keeps its own message otherwise (Basic view, older callers). Nothing about what the gate does
+changes; #1301 will decide whether Use and Translate should go further than "fetch and try again".
+
+**9D facts (CONFIRMED).** On a cold board launch with a hung network, `routes/user.js` tries the owner lookup once
+with `owner_wait_ms` 8 s (`:119-124`) and then falls back to the device; the board route then tries the server
+once with `device_copy_wait` 8 s (`routes/user/board-detail.js:652`, `_one_try` `:678-680`) before the copy opens:
+16 s in all. Both limits are pinned by tests (`board-detail-device-copy-test.js` "the waits are the ones the
+design promises"; `user-board-owner-test.js:165`). **Change:** when the owner lookup's bounded try gets no answer
+(`no_server_answer`), the user route notes the time on app state (`device_copy_server_silent_at`); `_one_try` asks
+`remaining_wait(note, now)` (`utils/board_device_copy.js`): the full 8 s with no note, otherwise what is left of
+it, never under 3 s, and a note older than 20 s is ignored. Worst case 8 + 3 = 11 s. A server refusal inside the
+shorter window still wins (unchanged path). Alternatives: share one deadline object between routes (more
+coupling); drop the board route's try entirely after a silent owner lookup (loses a server refusal that would
+have arrived in 3 s). **Risks:** a server that answers the board request between 3 and 8 s after a silent owner
+lookup now gets the device copy on that launch; the copy shows the notice and Edit refreshes. **Tests:** red first:
+`tests/unit/utils/board-device-copy-wait-test.js` (5), the `_one_try` case in `board-detail-device-copy-test.js`,
+two user-route cases, and three 9B cases. Mutations: ignore the note (the `_one_try` case fails); no floor (the
+floor case fails); never note (the user-route case fails).
+

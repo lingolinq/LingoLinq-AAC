@@ -24,6 +24,14 @@ function sanitizeDbName(name) {
 
 function toResultSet(values) {
   var rows = Array.isArray(values) ? values : [];
+  // On iOS the plugin puts a column-list row ({ios_columns: [...]}) first in every non-empty query
+  // result (ios/Plugin/Utils/UtilsSQLCipher.swift); its own JS wrapper drops it (reorderRows in
+  // dist/plugin.js). This shim calls the raw plugin, so drop it here, as the shell's bridge does
+  // (lingolinq_mobile www/sqlite_bridge.js, #1206). Android never sends it.
+  var first = rows[0];
+  if(first && typeof first === 'object' && Array.isArray(first.ios_columns)) {
+    rows = rows.slice(1);
+  }
   return {
     rows: {
       length: rows.length,
@@ -121,6 +129,13 @@ function makeDb(rawName) {
 
   return {
     executeSql: function(sql, params, success, error) {
+      // LingoLinq's sync calls the short form executeSql(sql, success, error), with no values, to
+      // check the database (services/persistence.js), so accept it here (as the shell's bridge does).
+      if(typeof params === 'function') {
+        error = success;
+        success = params;
+        params = [];
+      }
       enqueue(function() {
         return runSql(sql, params).then(function(rs) {
           if(typeof success === 'function') { success(rs); }
@@ -132,6 +147,10 @@ function makeDb(rawName) {
         });
       });
     },
+    // Cordova API. LingoLinq's sync calls it when its database check has not answered within a
+    // second (services/persistence.js). Statements here run in order on one queue, so there is
+    // nothing safe to cancel without risking a lost write: do nothing, and never throw.
+    abortAllPendingTransactions: function() {},
     transaction: function(fn, error, success) {
       enqueue(function() {
         var p = plugin();
