@@ -608,3 +608,26 @@ branch is gone. Limits added to the status doc: Basic view's own memory path is 
 covers the synced tree only. Style point accepted as a point: statements joined to existing lines keep the
 line-anchored lint baseline still; it is the repo's own pattern, not line compression of old code.
 
+
+
+## 14. Item 8: the board count during a sync (Traci, 2026-11-11: "build it")
+
+Facts (CONFIRMED): Basic view showed "Syncing... 12 / 40 boards" in three places (`components/sync-details.hbs:44-52`,
+`components/dashboard/classic-view.hbs:403-409`, `classic-rail.hbs:558-562`) from `sync_progress.visited` and
+`.total`; `total` is `to_visit + visited` summed over every synced user (`services/persistence.js:1972-1988`), so
+it grows as linked boards are found and can shrink. Modern view showed nothing while syncing
+(`authenticated-view.hbs` has only the sync-failed notice). `sync_progress.errored` counts boards that ended with
+an error. Decisions taken (Traci answered "ok / yes" to the shape on 2026-11-09; the small questions are settled
+here as follows): "saved" (visited minus errored), supervisees' boards included (the sync syncs them), boards kept
+from an earlier sync count as saved (they are on the device), and the problem count is shown when it is not zero.
+Change: one function, `utils/sync_progress.js#sync_progress_line`, used by the three Basic places and by a new
+Modern notice ("Syncing your boards for offline use. Saved so far: 12 boards", with a Sync Details button). No
+flag: a rewording of a shipped line and a notice that mirrors the existing sync-failed one. Tests:
+`tests/unit/utils/sync-progress-line-test.js`, `tests/unit/components/dashboard-syncing-notice-test.js`.
+\n
+Found while building, not fixed here: `i18n.t` in JS applies a `count` to a "a || b || %{n} c" string through
+`String#sub` (`utils/i18n.js`, the `count` branch), which is the legacy HTML wrapper, not a replacement, so the
+number is never substituted ("<sub> 1 board </sub>"). The template `t` helper takes another path and works. The
+progress line uses two plain keys instead. Worth its own small fix with a test; any JS caller passing `count`
+for a "||" string is affected.
+

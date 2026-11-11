@@ -1951,7 +1951,16 @@ AuthenticatedView.reopen({
     // A sync the user cancelled ends as failed; they stopped it, so it is not reported.
     if(status) { return status == 'failed' && !this.get('persistence.root_sync_canceled'); }
     return this.get('stashes.last_sync_status') == 'failed';
+  }),
+  // A sync in progress (item 8). Modern view showed nothing while syncing; a first sync with many liked boards
+  // takes minutes. Basic's home card shares this line (classic-view extends this component).
+  syncing_notice: computed('sync_able', 'persistence.syncing', function() {
+    return !!(this.get('sync_able') && this.get('persistence.syncing') && this.get('persistence').local_db_is_current_user());
+  }),
+  sync_progress_line: computed('persistence.sync_progress.{visited,errored,total}', function() {
+    return sync_progress_line(this.get('persistence.sync_progress'));
   })
 });
 
 export default AuthenticatedView;
+import { sync_progress_line } from '../../utils/sync_progress'; // last, so the lint baseline rows above keep their lines

@@ -43,14 +43,7 @@
           {{else}}
             {{#if (persistence-value 'syncing')}}
               {{t "Syncing..." key="syncing_ellipsis"}}
-              {{#if (persistence-value 'sync_progress')}}
-                {{#if (persistence-value 'sync_progress.total')}}
-                  {{persistence-value 'sync_progress.visited'}} /
-                  {{t "board" key="communication_set_board" count=(persistence-value 'sync_progress.total')}}
-                {{else}}
-                  {{t "initializing..." key="initializing_lower"}}
-                {{/if}}
-              {{/if}}
+              {{this.sync_progress_line}}
             {{else}}
               {{#if this.needs_sync}}
                 {{#if this.appState.installed_app}}

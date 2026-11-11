@@ -405,11 +405,7 @@
                 <span class="ch-row__sub">{{persistence-value 'sync_status_error'}}</span>
               {{else if (persistence-value 'syncing')}}
                 <span class="ch-row__title">{{t "Syncing..." key="syncing_ellipsis"}}</span>
-                {{#if (persistence-value 'sync_progress.total')}}
-                  <span class="ch-row__sub">{{persistence-value 'sync_progress.visited'}} / {{t "board" key="communication_set_board" count=(persistence-value 'sync_progress.total')}}</span>
-                {{else}}
-                  <span class="ch-row__sub">{{t "initializing..." key="initializing_lower"}}</span>
-                {{/if}}
+                <span class="ch-row__sub">{{this.sync_progress_line}}</span>
               {{else if this.needs_sync}}
                 {{#if this.app_state.installed_app}}
                   <span class="ch-row__title">{{t "Sync before going offline!" key="needs_update"}}</span>

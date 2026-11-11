@@ -5,6 +5,7 @@ import { getOwner } from '@ember/application';
 import modal from '../../utils/modal';
 import { pillForRoute } from '../../utils/primary_nav';
 import { showsAdminSlot } from '../../utils/admin_nav';
+import { sync_progress_line } from '../../utils/sync_progress';
 
 /* The Basic-view rail, as a component any page can render.
  *
@@ -32,6 +33,10 @@ export default Component.extend({
   stashes: service('stashes'),
   persistence: service('persistence'),
   router: service(),
+  // How the running sync is doing (item 8): the same line as the home card and Sync Details.
+  sync_progress_line: computed('persistence.sync_progress.{visited,errored,total}', function() {
+    return sync_progress_line(this.get('persistence.sync_progress'));
+  }),
 
   init() {
     this._super(...arguments);

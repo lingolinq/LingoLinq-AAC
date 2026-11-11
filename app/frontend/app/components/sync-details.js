@@ -3,6 +3,7 @@ import { inject as service } from '@ember/service';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { computed } from '@ember/object';
 import modal from '../utils/modal';
+import { sync_progress_line } from '../utils/sync_progress';
 
 /**
  * Sync Details modal (Phase 2).
@@ -13,6 +14,10 @@ export default Component.extend({
   stashes: service('stashes'),
   appState: service('app-state'),
   session: service('session'),
+  // How the running sync is doing (item 8): the same line as the home cards.
+  sync_progress_line: computed('persistence.sync_progress.{visited,errored,total}', function() {
+    return sync_progress_line(this.get('persistence.sync_progress'));
+  }),
   tagName: '',
 
   details: computed(
