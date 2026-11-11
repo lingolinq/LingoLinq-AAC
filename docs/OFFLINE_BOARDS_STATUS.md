@@ -297,7 +297,8 @@ important languages.
   Scot on the issue in plain language on 2026-11-11 (workaround or code fix; if the fix, here or its own PR before
   the shell goes on in production); he is assigned. Not a merge blocker: the shell is off in production.
 - **Liking in Modern view (Traci, UI):** Like is only in Edit mode (Board Actions). Now that liking is how a board is
-  kept offline, a Like on Modern's board page outside Edit may be wanted.
+  kept offline, a Like on Modern's board page outside Edit may be wanted. Traci, 2026-11-11: left as is for now,
+  to be decided later (it belongs with the Modern catch-up in #1301 if it goes ahead).
 - **Scot's open review items** in the PR text (the four Low items left as known limits).
 
 ## Known limits
