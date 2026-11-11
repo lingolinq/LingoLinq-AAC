@@ -25,4 +25,14 @@ module('Unit | Controller | organization tab dropdown label', function(hooks) {
     people.set('section', 'extras');
     assert.strictEqual(c.get('orgTabLabel'), 'Symbols', 'the extras section is the Symbols tab');
   });
+
+  /* NO TAB CURRENT (senior-dev review 2026-11-10): on Reports, Rooms, Settings and the other org
+     pages none of the six tabs is lit, and the trigger said "Admin", telling a screen-reader or
+     switch user they were on a page they were not. It names the menu instead. */
+  test('names the menu, not Admin, on a page that is none of the tabs', function(assert) {
+    this.owner.unregister('service:router');
+    this.owner.register('service:router', Service.extend({ currentRouteName: 'organization.reports' }));
+    var c = this.owner.lookup('controller:organization');
+    assert.strictEqual(c.get('orgTabLabel'), 'Organization Sections');
+  });
 });

@@ -465,7 +465,7 @@ app/controllers/organization/index.js|lingolinq/no-orphaned-action|165|5|1|21f2d
 app/controllers/organization/lessons.js|ember/require-computed-property-dependencies|32|23|1|49105b2e7238
 app/controllers/organization/lessons.js|ember/require-computed-property-dependencies|64|29|1|8664ba783a96
 app/controllers/organization/lessons.js|ember/require-computed-property-dependencies|97|26|1|893ae7200b6b
-app/controllers/organization/people.js|ember/no-runloop|296|11|2|5addc2170315
+app/controllers/organization/people.js|ember/no-runloop|291|11|2|5addc2170315
 app/controllers/organization/reports.js|ember/no-runloop|16|7|2|513c0395fe72
 app/controllers/organization/reports.js|ember/no-runloop|229|7|2|513c0395fe72
 app/controllers/organization/reports.js|ember/no-runloop|236|7|2|513c0395fe72
