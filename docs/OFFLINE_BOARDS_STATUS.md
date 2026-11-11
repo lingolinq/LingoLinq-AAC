@@ -249,11 +249,17 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
 6. **#1230:** Modern view's "Sync failed" notice can show the wrong state.
 7. **#1219:** the board tree request (`/tree`) fails on very large boards (Cloud Run response size cap).
 8. **A "N of M boards saved" count** during sync.
-9. **Smaller items:**
-   - #1206: the iOS SQLite shim passes a schema row through as data.
-   - "Needs a connection" wording that can show while online.
-   - A 5-minute cache path on shared devices.
-   - Up to 8 + 8 seconds of waiting on a hung network before the device copy opens.
+9. **Smaller items** (2026-11-10):
+   - #1206: the iOS SQLite shim passes a schema row through as data. **Done:** the backup shim drops the row and
+     accepts the sync's short `executeSql` form, matching the shell's bridge (13 tests).
+   - "Needs a connection" wording that can show while online. **Done:** Use and Translate on a device copy go
+     through the board page's gate, which online fetches the latest board and says so. Basic view unchanged.
+   - A 5-minute cache path on shared devices. **Done:** the memory cache drops a board the sync says is revoked
+     (told before the Speak Mode hold-back, so the open board page hears it too), and a session known to be dead
+     no longer gets the memory copy. Still true: a server-side session end is noticed at the next token check on
+     every path; a trusted device keeps its device copy on a dead session by design.
+   - Up to 8 + 8 seconds of waiting on a hung network before the device copy opens. **Done:** the board request
+     after a silent owner lookup keeps only what is left of the 8 seconds, never under 3 (worst case 11 s).
 10. **Verify #1221 after release** (needs production or a real device): before and after timings on a
     hardware-accelerated Android device and an iPad; the board count on a real account; one first sync checked
     board by board for missing boards.
