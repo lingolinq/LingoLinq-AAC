@@ -51,27 +51,26 @@ class UserBoardProvisioner
     end
   end
 
-  # The starter's job copies and then likes the copy (User#provision_starter_board!), so the offline sync keeps
-  # one core board from the first sync (Traci, 2026-11-11; PR #1268). One job for both, because two jobs on
-  # parallel workers can run in either order.
+  # The starter's copy job also likes the copy (`like_copy`, User#copy_board_to_library), so the offline sync
+  # keeps one core board from the first sync (Traci, 2026-11-11; PR #1268). The same job for both: two jobs on
+  # parallel workers can run in either order, and a worker still on older code during a deploy ignores the flag
+  # and copies as before.
   def self.schedule_slugs(user, source_user, slugs, starter_slug = nil)
     progresses = []
     slugs.each do |slug|
       board = public_system_board(slug)
       next unless board
 
-      progress = if slug == starter_slug
-        Progress.schedule(user, :provision_starter_board!, {'id' => board.global_id}, source_user.global_id, for_user: user)
-      else
-        Progress.schedule(
-          user,
-          :copy_board_to_library,
-          {'id' => board.global_id},
-          source_user.global_id,
-          nil,
-          for_user: user
-        )
-      end
+      library_board = {'id' => board.global_id}
+      library_board['like_copy'] = true if slug == starter_slug
+      progress = Progress.schedule(
+        user,
+        :copy_board_to_library,
+        library_board,
+        source_user.global_id,
+        nil,
+        for_user: user
+      )
       progresses << progress if progress
     end
     progresses

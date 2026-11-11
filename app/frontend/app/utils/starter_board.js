@@ -3,7 +3,7 @@
  * begins with. The welcome card's "Start talking now" (tours/start_talking.js), Quick Assign in the board
  * picker, the setup page and the tour picker (assign-vocal-flair-home.js) and "pick a board for me"
  * (recommended_home_board.js) all use it, and sign-up likes the account's own copy of it so the offline sync
- * keeps it (lib/user_board_provisioner.rb, User#provision_starter_board!). The eval report recommends by
+ * keeps it (lib/user_board_provisioner.rb, User#copy_board_to_library with `like_copy`). The eval report recommends by
  * measured grid size instead (eval-page-set-card.js) and does not read this.
  *
  * The server side of the same decision is SystemBoardSources::STARTER_BOARD_SLUG.

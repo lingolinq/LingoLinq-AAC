@@ -3905,6 +3905,10 @@ class User < ApplicationRecord
     end
   end
 
+  # `library_board['like_copy']` (the sign-up starter, lib/user_board_provisioner.rb): after the copy, like
+  # this account's copy as well, so the offline sync keeps one core board from the first sync. The flag rides on
+  # this job rather than a job of its own so that a worker still on older code during a deploy copies the
+  # starter as before and only skips the like; nothing it does not know is scheduled (review of fe22582ea).
   def copy_board_to_library(library_board, updater_id, symbol_library=nil)
     original = library_board && Board.find_by_path(library_board['id'])
     updater = User.find_by_path(updater_id)
@@ -3913,6 +3917,7 @@ class User < ApplicationRecord
     existing = self.boards.where(parent_board: original).order('id DESC').first
     if existing && ((existing.settings['swapped_library'] || 'original') == (symbol_library || 'original'))
       retry_incomplete_library_swap(existing, symbol_library)
+      like_library_copy!(original) if library_board['like_copy']
       return true
     end
 
@@ -3926,35 +3931,28 @@ class User < ApplicationRecord
       copier_id: updater.global_id,
       swap_library: symbol_library
     )
+    like_library_copy!(original) if library_board['like_copy']
     true
   end
 
-  # SIGN-UP LIKES THE STARTER BOARD (Traci, 2026-11-11; PR #1268, proposals doc section 16). The starter's
-  # provisioning job (lib/user_board_provisioner.rb): copy the starter into this account's library as the other
-  # library sets are copied, then like the copy, so the offline sync keeps one core board from the first sync
-  # (User#starred_board_refs feeds app/frontend/app/utils/offline_sync_seeds.js). The person can unlike it.
+  # SIGN-UP LIKES THE STARTER BOARD (Traci, 2026-11-11; PR #1268, proposals doc section 16): like this
+  # account's copy of `original` (User#starred_board_refs feeds app/frontend/app/utils/offline_sync_seeds.js).
+  # The person can unlike it. The copy liked is the home board when the person already made a copy of this
+  # board their home (the welcome card can copy while the job runs, and a second copy liked would be a second
+  # tree on every device), otherwise the newest copy.
   #
   # Nothing here saves `self`: this row was loaded when the job started (Progress.perform_action), and a save
   # after a copy that takes seconds would write over anything saved meanwhile (a home board chosen on the
-  # welcome card). Board#star schedules remember_starred_board! in a job of its own, which loads the user fresh.
-  def provision_starter_board!(library_board, updater_id)
-    original = library_board && Board.find_by_path(library_board['id'])
-    return false unless original && copy_board_to_library(library_board, updater_id)
-    copy = starter_copy_for(original)
-    return false unless copy
-    copy.star!(self, true) unless copy.starred_by?(self)
-    true
-  end
-
-  # The copy to like: the home board when the person already made a copy of this starter their home (the
-  # welcome card can copy while the job runs, and a second copy liked would be a second tree on every device),
-  # read from a fresh row for the same reason as above; otherwise the newest copy.
-  def starter_copy_for(original)
+  # welcome card); the home board is read from a fresh row for the same reason. Board#star schedules
+  # remember_starred_board! in a job of its own, which loads the user fresh.
+  def like_library_copy!(original)
     fresh = User.find_by(id: self.id) || self
     prefs = (fresh.settings || {})['preferences'] || {}
     home = prefs['home_board'] && prefs['home_board']['id'] && Board.find_by_global_id(prefs['home_board']['id'])
-    return home if home && home.user_id == self.id && home.parent_board_id == original.id
-    self.boards.where(parent_board: original).order('id DESC').first
+    copy = (home && home.user_id == self.id && home.parent_board_id == original.id) ? home : self.boards.where(parent_board: original).order('id DESC').first
+    return false unless copy
+    copy.star!(self, true) unless copy.starred_by?(self)
+    true
   end
 
   def copy_to_home_board(home_board, updater_id, symbol_library)

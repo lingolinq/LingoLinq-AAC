@@ -2,8 +2,8 @@ require 'spec_helper'
 
 describe UserBoardProvisioner do
   describe ".provision_for" do
-    # The starter (Vocal Flair 60; Traci, 2026-11-11, PR #1268) is first, through the job that also likes the copy;
-    # it was Vocal Flair 84 through the plain copy job.
+    # The starter (Vocal Flair 60; Traci, 2026-11-11, PR #1268) is first, and its copy job carries the like flag
+    # (a worker on older code copies and ignores the flag); it was Vocal Flair 84 without a like.
     it "schedules the starter first through the liking job, then sidebar utilities, then remaining library boards when enabled" do
       source = User.create(user_name: 'lingolinq')
       user = User.create
@@ -19,9 +19,10 @@ describe UserBoardProvisioner do
       expect(user).to_not receive(:copy_board_to_library)
       expect(Progress).to receive(:schedule).with(
         user,
-        :provision_starter_board!,
-        {'id' => b2.global_id},
+        :copy_board_to_library,
+        {'id' => b2.global_id, 'like_copy' => true},
         source.global_id,
+        nil,
         for_user: user
       ).ordered
       expect(Progress).to receive(:schedule).with(
@@ -126,9 +127,10 @@ describe UserBoardProvisioner do
       ).ordered
       expect(Progress).to receive(:schedule).with(
         user,
-        :provision_starter_board!,
-        {'id' => vf.global_id},
+        :copy_board_to_library,
+        {'id' => vf.global_id, 'like_copy' => true},
         source.global_id,
+        nil,
         for_user: user
       ).ordered
       expect(Progress).to receive(:schedule).with(

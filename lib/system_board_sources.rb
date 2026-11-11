@@ -17,7 +17,7 @@ module SystemBoardSources
   SIGNUP_LIBRARY_SLUGS = %w[quick-core-60 vocal-flair-60 vocal-flair-84 crisis-vocabulary senner-baud].freeze
   # The starter board (Traci, 2026-11-11; PR #1268): what the welcome card, Quick Assign and "pick a board for
   # me" set up (app/frontend/app/utils/starter_board.js), the sign-up sidebar's library entry, and the one copy
-  # sign-up likes so the offline sync keeps it (User#provision_starter_board!). Spanish sign-ups get the
+  # sign-up likes so the offline sync keeps it (User#copy_board_to_library, `like_copy`). Spanish sign-ups get the
   # Spanish set's starter instead.
   STARTER_BOARD_SLUG = 'vocal-flair-60'.freeze
   SPANISH_STARTER_BOARD_SLUG = 'vocal-flair-60-es'.freeze

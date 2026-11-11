@@ -755,3 +755,13 @@ tests for found, not found and other failures; mutation (always search) red. Low
 spec now also catches `save!`. Installed mobile builds carry the old Quick Assign (Vocal Flair 84) until
 their next app store release while sign-up likes 60: two sets would sync for a user who takes Quick Assign on
 an old app build.
+
+**Worker rollover fixed in code (Traci, 2026-11-11).** `provision_starter_board!` is gone: the like rides on the
+copy job that workers on older code already run, as `'like_copy' => true` in the board argument of
+`User#copy_board_to_library` (`User#like_library_copy!` does the like, home copy preferred, no save of the
+job's row). An old worker ignores the key and copies the starter as before this PR; a new worker copies and
+likes; nothing unknown to old code is scheduled, and there is no second job to order. Residual: sign-ups whose
+starter job ran on an old worker during the rollover have the copy but not the like. Resque here has no
+delayed jobs, which ruled out a separate like job that waits for the copy. Specs rewritten for the flag
+(`spec/models/user_starter_board_spec.rb`, 6, one for "no flag, no like"); mutation (no like) 3 red. The Spanish
+pick mismatch is follow-up issue #1303.
