@@ -248,7 +248,10 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
 5. **#1229:** done. A new device that has never finished a sync keeps retrying after the backoff, and one reconnect can retry a dropped connection. See the task log.
 6. **#1230:** Modern view's "Sync failed" notice can show the wrong state.
 7. **#1219:** the board tree request (`/tree`) fails on very large boards (Cloud Run response size cap).
-8. **A "N of M boards saved" count** during sync.
+8. **A "N of M boards saved" count** during sync. **Done 2026-11-11:** one line in all four places (Basic home card and
+   rail, Sync Details, and a new Modern notice with a Sync Details button): "Saved so far: 12 boards", plus "2 with a
+   problem." when some ended with an error. No total: it grew and shrank as linked boards were found. Saved counts
+   every synced user's boards and boards kept from an earlier sync.
 9. **Smaller items** (2026-11-10):
    - #1206: the iOS SQLite shim passes a schema row through as data. **Done:** the backup shim drops the row and
      accepts the sync's short `executeSql` form, matching the shell's bridge (13 tests).
