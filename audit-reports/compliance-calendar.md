@@ -10,13 +10,7 @@
 
 | Date | Item | Framework | Cadence |
 |---|---|---|---|
-| 2026-07-26 | COPPA data-retention enforcement + parental-consent flow check | COPPA | quarterly |
 | 2026-08-31 | Re-brand + re-share BREACH_RUNBOOK Drive mirror to v2.2.2 (DOC-f576f43250) | HIPAA | one-time |
-| 2026-09-01 | FERPA vendor-disclosure + directory-info posture review | FERPA | annual |
-| 2026-09-01 | GDPR DPA + RoPA + data-residency review | GDPR | annual |
-| 2026-09-01 | SOC 2 control review (continuous monitoring posture) | SOC2 | quarterly |
-| 2026-09-01 | OpenRouter ZDR re-verification (after every key rotation, plus quarterly) | SOC2 | event-driven + quarterly |
-| 2026-09-01 | Google Gemini API fallback path BAA/DPA verification | HIPAA | annual |
 | 2026-09-01 | Mechanical secret-shaped-string rejector in audit toolchain (LL-b5c30235d3) | SOC2 | one-time |
 
 ## Recurring reviews (full set)
@@ -24,15 +18,13 @@
 | Framework | Review | Cadence | Last done | Next due |
 |---|---|---|---|---|
 | SOC2 | Annual formal /audit-run (6 finders, full scope) + adversary verify - all frameworks | annual | 2026-09-16 | 2027-09-16 |
-| FERPA | FERPA vendor-disclosure + directory-info posture review | annual | (none) | 2026-09-01 |
+| FERPA | FERPA vendor-disclosure + directory-info posture review | annual | (none) | 2027-09-16 |
 | HIPAA | HIPAA Security Rule risk assessment + BAA inventory review | annual | 2026-02-01 | 2027-02-01 |
-| GDPR | GDPR DPA + RoPA + data-residency review | annual | (none) | 2026-09-01 |
-| GDPR | Subprocessor list review (SUBPROCESSORS.md) | quarterly | 2026-08-08 | 2026-11-08 |
-| COPPA | COPPA data-retention enforcement + parental-consent flow check | quarterly | 2026-04-26 | 2026-07-26 |
-| SOC2 | SOC 2 control review (continuous monitoring posture) | quarterly | (none) | 2026-09-01 |
-| WCAG | Accessibility Conformance Report (ACR/VPAT) refresh | semi-annual | (none) | 2026-12-13 |
-| SOC2 | OpenRouter ZDR re-verification (after every key rotation, plus quarterly) | event-driven + quarterly | (none) | 2026-09-01 |
-| HIPAA | Google Gemini API fallback path BAA/DPA verification | annual | (none) | 2026-09-01 |
+| GDPR | GDPR DPA + RoPA + data-residency review | annual | (none) | 2027-09-16 |
+| GDPR | Subprocessor list review (SUBPROCESSORS.md) | event-driven: when a subprocessor is added or changed | 2026-08-08 | (none) |
+| COPPA | COPPA data-retention enforcement + parental-consent flow check | annual | 2026-04-26 | 2027-09-16 |
+| WCAG | Accessibility Conformance Report (ACR/VPAT) refresh | annual | (none) | 2026-12-13 |
+| SOC2 | Runtime AI ZDR re-verification (after every model change, plus annually) | event-driven (model change) + annual | (none) | 2027-09-16 |
 | SOC2 | Mechanical secret-shaped-string rejector in audit toolchain (LL-b5c30235d3) | one-time | (none) | 2026-09-01 |
 | FERPA | District DPA / SDPC NDPA renewals + registry listing | per-contract (track renewal dates as they are signed) | (none) | (none) |
 | HIPAA | Re-brand + re-share BREACH_RUNBOOK Drive mirror to v2.2.2 (DOC-f576f43250) | one-time | (none) | 2026-08-31 |
@@ -53,7 +45,7 @@ context, required work, and the source basis remain visible with the schedule.
 ### FERPA vendor-disclosure + directory-info posture review
 
 - **Drafts:** register hygiene + posture delta for school-district data flows
-- **Watch:** FERPA NPRM on vendor-disclosure terms (RIN 1875-AA15) - in motion, nothing final; check quarterly
+- **Watch:** FERPA NPRM on vendor-disclosure terms (RIN 1875-AA15) - in motion, nothing final; check quarterly. Re-dated by Scot on 2026-11-09 from 2026-09-01, which was missed (never performed; lastDone is null), to 2027-09-16.
 - **Basis:** plan 1.3
 - **Linked findings:** (none recorded)
 
@@ -67,14 +59,14 @@ context, required work, and the source basis remain visible with the schedule.
 ### GDPR DPA + RoPA + data-residency review
 
 - **Drafts:** RoPA refresh, DPA terms review, right-to-deletion path verification for EU clients
-- **Watch:** EU AI Act intersects GDPR for EU clients - see fixed dates
+- **Watch:** EU AI Act intersects GDPR for EU clients - see fixed dates. Re-dated by Scot on 2026-11-09 from 2026-09-01, which was missed (never performed; lastDone is null), to 2027-09-16.
 - **Basis:** plan 1.3
 - **Linked findings:** (none recorded)
 
 ### Subprocessor list review (SUBPROCESSORS.md)
 
 - **Drafts:** updated subprocessor inventory + change notice draft (GDPR Art. 28(2) prior-notice posture)
-- **Watch:** any new third-party data processor added to the stack triggers an off-cycle review. MISSED CYCLE, THEN PERFORMED: lastDone was null and nextDue 2026-09-01 until 2026-08-07, while docs/legal/SUBPROCESSORS.md recorded its last full line-by-line review as 2026-04-20. On a quarterly cadence from 2026-04-20 a cycle fell due 2026-07-20 and was not performed. Re-dating past that gap would have hidden an overdue Article 28 review because, at the time, the renderer surfaced only nextDue and never this field, so the CEO directed on 2026-08-08 that the review be PERFORMED instead. It was: every external host in lib/, app/models/, app/controllers/ and config/ was reconciled against the section 4 table, and it found two active processors absent from the register (Stripe, and one tracked as LL-07f1869d92). Findings are recorded in SUBPROCESSORS.md section 4.1 and its 2026-08-08 change-log entry. lastDone 2026-08-08 reflects that performed review; nextDue 2026-11-08 is one quarter on. Note the many dated amendments in the change log are per-change updates, not the periodic full-register review this item tracks. Amended 2026-11-06 under rule 4: a finding's detail was removed from this text (Scot Wahlquist).
+- **Watch:** any new third-party data processor added to the stack triggers an off-cycle review. MISSED CYCLE, THEN PERFORMED: lastDone was null and nextDue 2026-09-01 until 2026-08-07, while docs/legal/SUBPROCESSORS.md recorded its last full line-by-line review as 2026-04-20. On a quarterly cadence from 2026-04-20 a cycle fell due 2026-07-20 and was not performed. Re-dating past that gap would have hidden an overdue Article 28 review because, at the time, the renderer surfaced only nextDue and never this field, so the CEO directed on 2026-08-08 that the review be PERFORMED instead. It was: every external host in lib/, app/models/, app/controllers/ and config/ was reconciled against the section 4 table, and it found two active processors absent from the register (Stripe, and one tracked as LL-07f1869d92). Findings are recorded in SUBPROCESSORS.md section 4.1 and its 2026-08-08 change-log entry. lastDone 2026-08-08 reflects that performed review; nextDue 2026-11-08 is one quarter on. Note the many dated amendments in the change log are per-change updates, not the periodic full-register review this item tracks. Amended 2026-11-06 under rule 4: a finding's detail was removed from this text (Scot Wahlquist). Cadence set by Scot on 2026-11-09 to what a law or signed contract requires: GDPR Art. 28(2) requires informing the controller of any intended addition or replacement of a subprocessor, not a periodic review, so the quarterly cycle is replaced by a review on every addition or change. lastDone is unchanged. The id keeps its old suffix because dated legal records cite it.
 - **Basis:** plan 1.3, 2.5; docs/legal/SUBPROCESSORS.md
 - **Linked findings:** (none recorded)
 
@@ -97,34 +89,20 @@ context, required work, and the source basis remain visible with the schedule.
 8. Interruption impact on COPPA controls specifically, cross-referenced to LL-cbc8bc4211 (the interruption impact assessment, split out 2026-09-18 when LL-3e36a18199 was closed on its liveness element) and to docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md.
 9. Evidence is aggregate counts and dates. global_id values are PSEUDONYMOUS IDENTIFIERS, not non-personal data: pairing one with reason=declined is a COPPA-adjacent inference, which is why the worker caps per-account report lines. Include per-account identifiers only where a criterion cannot otherwise be met, and do not reproduce them in the review record.
 
-> Acceptance criteria added 2026-09-14. lastDone and nextDue are DELIBERATELY UNCHANGED: the review has not been performed. Only Scot records a review as completed.
-
-### SOC 2 control review (continuous monitoring posture)
-
-- **Drafts:** control-evidence freshness check; map register findings to SOC 2 CC criteria; flag stale evidence before an auditor sees it
-- **Watch:** SOC 2 / ISO 27001 control overlap ~90% - implement once, map to many (plan 1.2)
-- **Basis:** plan 1.2, 1.3
-- **Linked findings:** (none recorded)
+> Acceptance criteria added 2026-09-14. lastDone and nextDue are DELIBERATELY UNCHANGED: the review has not been performed. Only Scot records a review as completed. Amended 2026-11-09: cadence changed from quarterly to annual and nextDue set to 2027-09-16 (the annual audit date) by Scot, because 16 CFR 312.10 requires a written retention policy and deletion, not a quarterly check. lastDone is still unchanged and the review is still not performed. The id keeps its old suffix because dated legal records cite it.
 
 ### Accessibility Conformance Report (ACR/VPAT) refresh
 
 - **Drafts:** refresh docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md against current AAC surfaces; re-test the dual render path (index.hbs + button.js fast_html)
-- **Watch:** WCAG 2.1 AA stands; district RFPs flow it down regardless of the extended ADA Title II dates. Also refresh on any major AAC UI change.
+- **Watch:** WCAG 2.1 AA stands; district RFPs flow it down regardless of the extended ADA Title II dates. Also refresh on any major AAC UI change. Cadence set by Scot on 2026-11-09 to what a law or signed contract requires: annual, nextDue unchanged. The id keeps its old suffix because no check requires a rename.
 - **Basis:** plan 2.5, 6; audit-reports/wcag-modernized-2026-04-11*.md
 - **Linked findings:** (none recorded)
 
-### OpenRouter ZDR re-verification (after every key rotation, plus quarterly)
+### Runtime AI ZDR re-verification (after every model change, plus annually)
 
-- **Drafts:** confirm the OpenRouter ZDR account toggle is still on after any API-key rotation; PiiScrubber is the real backstop, ZDR is operator-maintained and unenforceable from config
-- **Watch:** ZDR is NOT a BAA. Re-verify the toggle after every key rotation - nothing else checks it (plan 2.4 item 7).
+- **Drafts:** confirm each runtime model allowlisted in lib/ai_client.rb and lib/eval_narrator.rb is still ZDR-eligible on Amazon Bedrock (Anthropic Covered Models are not) and that Bedrock model-invocation logging is still off; PiiScrubber is the real backstop
+- **Watch:** ZDR is NOT a BAA. Cadence set by Scot on 2026-11-09 to what a law or signed contract requires: re-verify on every model change, plus once a year on the annual audit date. On 2026-11-09 the title and this row stopped naming OpenRouter, which no code references; the id is kept. lastDone is unchanged.
 - **Basis:** plan 1.8, 2.4; ZDR verification SOP (Phase 1)
-- **Linked findings:** (none recorded)
-
-### Google Gemini API fallback path BAA/DPA verification
-
-- **Drafts:** Confirm Gemini API data-handling terms and whether any Google BAA covers the runtime fallback in lib/ai_word_predictor.rb; document result in AI Governance Memo section 7
-- **Watch:** Until resolved, PiiScrubber remains the controlling backstop for the Gemini path
-- **Basis:** docs/legal/AI_GOVERNANCE_MEMO.md section 7; lib/ai_word_predictor.rb Gemini fallback
 - **Linked findings:** (none recorded)
 
 ### Mechanical secret-shaped-string rejector in audit toolchain (LL-b5c30235d3)

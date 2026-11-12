@@ -795,9 +795,10 @@ var stashes = EmberObject.extend({
           }
           // success!
         }, function(err) {
-          if (pushSerial !== stashes._logPushSerial) {
-            return;
-          }
+          // Re-queue even when a newer push has started: this batch was not delivered.
+          // The serial check below only keeps a stale failure out of the back-off.
+          stashes.persist('usage_log', to_persist.concat(stashes.get('usage_log')));
+          if (pushSerial !== stashes._logPushSerial) { return; }
           // error, try again later
           if(!stashes.errored_at || stashes.errored_at <= 2) {
 //             stashes.persist('usage_log', to_persist.concat(stashes.get('usage_log')));
@@ -808,7 +809,6 @@ var stashes = EmberObject.extend({
           }
           console.log(err);
           console.error("log push failed");
-          stashes.persist('usage_log', to_persist.concat(stashes.get('usage_log')));
         });
       }
     }

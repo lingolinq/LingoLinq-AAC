@@ -1,7 +1,7 @@
 import { modifier } from 'ember-modifier';
 
 /**
- * Swaps a `.ch-tabs` strip for its `.ch-tabselect` dropdown while the strip does not fit.
+ * Swaps a `.ch-tabs` strip for its dropdown (`.md-pillnav-dropdown--fit`) while the strip does not fit.
  *
  * WHY A MEASUREMENT AND NOT A BREAKPOINT (2026-10-02, requested: "when [the left menu]
  * expands, we need the menu on the right to convert to a dropdown"). Whether the tabs fit
@@ -19,11 +19,16 @@ import { modifier } from 'ember-modifier';
  * At <=550px the strip is `display: none` (_classic-home.scss, the home tabs' rule), measures 0,
  * and is never marked; the dropdown shows there through that same rule.
  *
- * Usage: <div {{fit-or-select}}><nav class="ch-tabs">…</nav><select class="ch-tabselect">…</select></div>
+ * Usage: <div {{fit-or-select}}><nav class="ch-tabs">…</nav><details class="md-pillnav-dropdown md-pillnav-dropdown--fit">…</details></div>
+ *
+ * THE STRIP IS `.ch-tabs` (Basic) OR `.md-pillnav` (Modern) since 2026-11-08, when the org tabs
+ * (templates/organization.hbs) started rendering in Modern with Modern's base classes.
  */
+const STRIP = '.ch-tabs, .md-pillnav';
+
 export default modifier(function fitOrSelect(element) {
   var check = function() {
-    var strip = element.querySelector('.ch-tabs');
+    var strip = element.querySelector(STRIP);
     var squeezed = !!strip && strip.scrollWidth > strip.clientWidth + 1;
     element.classList.toggle('is-squeezed', squeezed);
   };
@@ -31,7 +36,7 @@ export default modifier(function fitOrSelect(element) {
   if (typeof ResizeObserver === 'undefined') { return; }
   var observer = new ResizeObserver(check);
   observer.observe(element);
-  var strip = element.querySelector('.ch-tabs');
+  var strip = element.querySelector(STRIP);
   if (strip) { observer.observe(strip); }
   return function() { observer.disconnect(); };
 });

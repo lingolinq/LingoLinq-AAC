@@ -1,0 +1,31 @@
+---
+# Read by `bundle-audit check` from the repo root (security-scan in .github/workflows/ci.yml).
+#
+# Rails 7.2.3.2 advisories with no 7.2.x fix: each lists only 8.0.5.2 and 8.1.4.1. The Rails 8.1
+# upgrade is deferred until after the app release (Scot, 2026-11-09), so these are ignored by ID.
+# Any advisory NOT listed here still fails the scan. Remove this whole list with the Rails 8.1
+# upgrade. Exposure reasoning per advisory: docs/task-management/2026-11-09_rails-7-2-advisory-ignores.md
+ignore:
+  # actionmailbox: no Action Mailbox ingress is configured
+  - GHSA-5957-c7qm-m469 # Low: Mailgun ingress signature replay
+  # actionpack
+  - GHSA-2586-8ghr-69fj # Medium: CacheStore session restore; we use :cookie_store
+  - GHSA-gmj8-hvj3-49mw # Low: missing SameSite; session_store.rb sets same_site: :lax
+  - GHSA-r9jg-fmfx-2gv6 # Medium: Vary/content-negotiation cache poisoning; accepted risk until Rails 8.1
+  - GHSA-rwvh-fw6r-pwvp # Medium: ActionController::Live DoS; Live is not used
+  - GHSA-wm3x-v3qw-4jh3 # High: Parameters#each_key bypass; no Ruby code calls each_key
+  - GHSA-x6mj-8jx9-qhqv # Medium: Active Storage proxy mode; Active Storage is unused, routes not drawn
+  # actionview: views and mailers use none of the affected helpers or user-chosen attribute names
+  - GHSA-2p2f-4rq4-gjwc # Medium: XSS in text helpers
+  - GHSA-68p9-83h6-5wpj # Medium: XSS in tag helpers
+  - GHSA-rq8q-p985-fjq7 # Medium: XSS in strip_tags
+  - GHSA-v6rj-xm57-3p59 # Medium: XSS in highlight
+  # activestorage: no attachments, no storage service, routes not drawn (config/application.rb)
+  - GHSA-3f4q-8x5m-76v8 # Low: local file disclosure in video previews and analysis
+  - GHSA-3w93-6hmw-whh4 # Medium: unsigned Content-Type in GCS direct uploads
+  - GHSA-f3w6-w445-fwh9 # Critical: arbitrary file write and read in image analysis
+  - GHSA-hfr4-8rjc-97m2 # Medium: GCS direct upload size limit bypass
+  - GHSA-p2pm-g2h6-7j5j # Medium: filename handling DoS
+  - GHSA-v924-7rp8-4mxh # High: file read and RCE in video previews, analysis, image processing
+  # activesupport: Action Cable is unmounted; other safe_constantize callers pass fixed names
+  - GHSA-8474-xrp6-wh69 # High: safe_constantize DoS
