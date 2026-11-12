@@ -81,7 +81,7 @@ The JSON is the source of truth; regenerate the `.md` render with
 `ruby scripts/compliance-calendar-render.rb`. Escalate to Scot any item with a date inside
 90 days or already overdue. Fixed dates marked `passed-enforceable` with a linked `nextDue`
 (e.g. COPPA 2026-04-22 -> `rev-coppa-retention-quarterly`) require immediate ongoing
-verification, not just quarterly cadence review.
+verification, not just the linked review's cadence.
 
 ### 3. Regulatory watch
 On the volatile set, do FRESH lookups (**WebSearch/WebFetch only** - official regulator and
