@@ -5065,6 +5065,7 @@
   "sync_drawer_syncing": "Syncing your boards for offline use...",
   "sync_drawer_keep_working": "Keep working. We'll let you know when it's done.",
   "sync_drawer_succeeded": "Your boards are synced and ready for offline use.",
+  "sync_canceled_summary": "Sync canceled",
   "sync_drawer_finished_one": "Boards synced. 1 board had a problem.",
   "sync_drawer_finished_many": "Boards synced. %{n} boards had a problem.",
   "sync_drawer_failed": "Sync failed. Some boards may not be ready to use offline.",

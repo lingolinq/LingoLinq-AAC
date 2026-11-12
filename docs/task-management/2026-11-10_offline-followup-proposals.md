@@ -1075,11 +1075,206 @@ the 'self' record's `id`, so it always refetches by real id: `sessionUser` start
 **Audit of other user-id comparisons (Explore agent; rows 1-4 re-read by hand).** Affected, read in code:
 `utils/sync.js` `send`/`in_room` (subscriptions hold the real id; callers pass `currentUser.id`, so your own
 remote-modeling and follower updates can be dropped); `services/session.js:325` (refreshes on every token check);
-`services/app-state.js` ~495 (always the extra fetch); `utils/board-roots.js` (shallow copies not grouped under their
-roots on the dashboard, search, and `controllers/user/index.js:816`). Affected, plausible (not traced end to end):
+`services/app-state.js` ~495 (always the extra fetch). (Corrected in section 21: `utils/board-roots.js` is NOT
+affected; its id-gated rule only drops boards an ungated rule drops anyway.) Affected, plausible (not traced end to end):
 `controllers/board-picker.js` `for_self` and the `user_id == setup_user.id` checks there and in `controllers/setup.js`
 / `routes/setup.js`; `page_user_id === currentUser.id` in `controllers/user/index.js`, `available-boards-section.js`,
 `dashboard-user-boards.js`; daily use `is_self` (`controllers/user/index.js` ~243); `app-state.js`
 `set_speak_mode_user` (`board_user_id == session_user_id`); the Mine-list cache key `id || _actual_id` (wrong order) in
 `create-board-new.js`, `confirm-delete-board.js`; `controllers/user/preferences.js`, `stats.js`; focus-word
 `user_id` stashes; `tour-offer.js`. Not fixed here (Traci: fix the picker, audit the rest).
+
+## 21. The other user-id comparisons: traced end to end, proposal (2026-11-12; Traci: trace, then fix in this branch)
+
+Three Explore agents traced the audit rows; the load-bearing links below were re-read by hand.
+
+**Fact sheet.**
+- (a) Where the session user's id is read, and when it is 'self'. CONFIRMED: the dashboard model is
+  `findRecord('user', 'self')` (`routes/index.js:59`, `routes/bento.js:26`), so on the dashboard the card user is the 'self'
+  record. `sessionUser` becomes the 'self' record after `refresh_session_user()` (`app-state.js` ~2288), which runs after a
+  board copy (`edit_manager.js` ~2829), on the first route transition when no session user is loaded yet
+  (`app-state.js` ~775-781, a startup race with `find_user`), and after every successful token check while it is already
+  'self' (`session.js:325`), so once 'self' it stays 'self' for the page session.
+- (b) Shapes: a user record's `id` is the real global id ('1_3', local read or a findRecord by real id or user_name) or
+  'self' (network load of 'self'); `global_id`/`backend_user_id` give '1_3' for both, and null only with no record. Ids
+  from the server (ws subscriptions `res.user_id`, token check `data.user_id`, shallow-clone suffixes `<board>-<user>`,
+  `global_id.rb:14-15`) are always real.
+- (c) Cross-file claims CONFIRMED by reading: subscriptions are keyed by the server's real id (`users_controller.rb`
+  `ws_settings` `user.global_id` -> `sync.js:224-230`, `:145`); `send`/`in_room` look them up with the caller's id
+  (`sync.js:1062-1066`), callers pass `currentUser.id`/`sessionUser.id`; `default_listen` compares the message's real id
+  with `sessionUser.id` (`sync.js:700-703`); dashboard "Help me Choose" passes the card user's id when it differs from
+  `currentUser.id` (`dashboard-user-boards.js:21-25`) and the picker decides `for_self` by `id` (`board-picker.js:32-36`).
+
+**Findings kept (traced).**
+1. Sync and pairing (`utils/sync.js` send, in_room, default_listen, send_update's comparisons at :478, :486, :535, :565):
+   while the session user is 'self', your own room's updates, pairing confirmations and rejections are dropped and
+   incoming pair requests ignored. CONFIRMED.
+2. `services/session.js:325`: refreshes on every token check while 'self' (the refresh reinstalls 'self'). CONFIRMED.
+3. Picker and its entry points: `dashboard-user-boards.js` `homeBoardPickerUserId`, `controllers/user/index.js`
+   `homeBoardPickerUserId` and `toggleSetHomeMode`, `available-boards-section.js` `boardPickerQuery`,
+   `controllers/board-picker.js` `for_self`: a new user's own "Help me Choose" opens the picker for "someone else"
+   (`?user_id=self`). CONFIRMED by reading; UI check pending (needs an account with no home board).
+4. Trial bar and Basic Try: the snapshot stores `(setup_user || currentUser).id` (`board-preview-overlay.js` ~308, ~315,
+   `board_picker_landing.js:32`) and is compared by `id` (`trial-bar.js:66`, `board_picker_landing.js:60`). PLAUSIBLE.
+5. `app-state.js` `set_speak_mode_user` (`board_user_id == session_user_id`): your own real id with a 'self' session user
+   loads a second copy of you as the speak-mode user (run_eval from your own profile). CONFIRMED for that caller.
+6. Own page: daily use `is_self` (`controllers/user/index.js` ~243), `helpers/remote-modeling-access.js` `is_self`,
+   shallow-root grouping (`controllers/user/index.js:816`). PLAUSIBLE (stale page model vs 'self' session user).
+7. Mine-list cache clears keyed by `currentUser.id || _actual_id` (wrong order) or `model.user.id`
+   (`create-board-new.js` ~1883, `confirm-delete-board.js` ~251, `copying-board.js` ~253) while the snapshot is written
+   and read under `model.id`: a deleted board can reappear after a reload within 10 minutes. PLAUSIBLE.
+8. `controllers/user/preferences.js` ~1254, `controllers/user/stats.js` ~458/~470: saved preferences do not reach the live
+   record when the page model and current user are different records of you. PLAUSIBLE.
+9. Tour offer (`tour_offer.js:58` stores `currentUser.id`, `tour-offer.js:28` compares), last focus words
+   (`focus-words.js` ~98/~190). PLAUSIBLE, low.
+Dropped after tracing: `utils/board-roots.js` (same output either way), `mine_board_grouping.js` (no live caller),
+`controllers/setup.js`/`routes/setup.js` (self-heals; only a hand-typed URL), `controllers/profile.js` (never 'self'),
+`sync.js:509` focus_words.user_id (never set anywhere: separate dead condition), `controllers/modals/*` (orphaned).
+
+**Proposal.** One rule: compare people by backend id on both sides, `utils/backend_user_id.js` (a record) and, for id
+strings, 'self' read as the session user's backend id. Per finding:
+1. `sync.js`: one helper `sync.same_user(a, b)` / `sync.room_id(id)` ('self' -> backend id of sessionUser, other ids
+   unchanged), used on BOTH sides of every comparison listed (lookups in send/in_room map the argument; default_listen
+   and send_update compare room ids). Mapping only the argument would break send_update's `sessionUser.id == user_id`
+   tests, so both sides go through it.
+2. `session.js:325`: compare `backend_user_id(sessionUser)` with `data.user_id`. With no session user it is null and
+   still refreshes (login, boot); a different person still refreshes.
+3-6, 9: compare `backend_user_id` on both sides; the computeds return null (self flow) when they match; snapshots store
+   the backend id.
+7: clear every key the person's snapshot can be under (the backend id and 'self').
+8: same person but a different record: reload the live record (`refresh_session_user()`) instead of assigning the page
+   record to `currentUser` (assigning would split currentUser from sessionUser; the `set_current_user` observer would
+   revert it).
+
+**Not changed, on purpose.** The serializer pin (section 20). `app-state.js` ~495 startup branch: comparing by backend id
+there would stop the only fetch that gives the session a real-id record at startup and make 'self' the state for every
+session; the extra fetch is the cost.
+
+**Alternative rejected.** Make the session user always the real-id record (rewrite `refresh_session_user` to
+`findRecord(backend id)` or unload 'self'): fewer comparisons to fix, but it changes what every reload and save of the
+session user goes through, which is exactly what the pin protects (Ember Data's identifier merge throws when both
+records exist). Larger blast radius, separate change if ever.
+
+**Risks / open.** A 'self' record without `_actual_id` (read back from the device) still yields 'self': no fix there, no
+regression. `set_speak_mode_user` change makes a real-id self call take the self branch: verify every caller passes a
+supervisee's id or 'self' otherwise (switch-communicators not verified).
+
+**Tests (red first).** Per finding, stubs in the network-load shape `{ id: 'self', global_id: '1_3' }` against a real id,
+plus a genuinely-different-person guard for each comparison. Mutations: revert each comparison.
+
+## 22. The hanging cancel: diagnosed with UI probes, proposal (2026-11-12; Traci: investigate thoroughly, propose a fix)
+
+**Diagnosis (CONFIRMED in code and live).** `store_url` (`services/persistence.js`, and the same code in
+`utils/persistence.js` ~1515-1536) feeds downloads through a queue served by up to 3 workers
+(`persistence.storing_urls`, `storing_url_watchers`). A worker that finishes an item calls `storing_urls()` again; a
+worker that finds the queue empty decrements the count. The branch for an item of a cancelled sync
+(`part_of_canceled`, from `1941a8306`, 2018, "more aggressive short-circuiting of board sync"; on develop) resolves that
+item and does neither. So after a cancel each worker takes at most one cancelled item and stops, the count stays at 3,
+no worker is ever started again, and every queued item stays pending: the board-walk thread waiting on its board's
+downloads (`RSVP.all_wait(visited_board_promises)` before the next `nextBoard`, the only place the cancel is read) never
+returns, the walk never resolves, and the sync stays 'syncing'. Until a reload, every later `store_url` (the next sync,
+button-set downloads) also queues behind the dead workers.
+
+**Why it looked intermittent.** It needs the cancel to land while downloads are queued: a large, not-yet-cached home
+set (fresh copies) mid-walk. Cancels before the walk, or after the queue drained, ended normally (0.6-8 s).
+
+**UI evidence (Playwright, local stack, picture requests slowed 3 s so the queue fills, cancel 8 s into a manual sync).**
+- Home Quick Core 112: hung 2 of 2. 160 s after Cancel still 'syncing' with `sync_progress.canceled` true; the queue
+  frozen at 9 and 14 items (same count 30 s later), `storing_url_watchers` 3, 2 queued items tagged with the cancelled
+  sync's id.
+- Home Crisis Vocabulary (small): the sync ended, but the queue was left frozen with 4-10 untagged items (button-set
+  JSON) and 3 workers: the dead queue without the visible hang.
+- Probe (temporary, reverted): the cancelled branch also calls `storing_urls()`. Same reproduction, home Quick Core 112:
+  ended 2.6 s and 3.7 s after Cancel, queue drained to 0, 2 of 2.
+
+**Second problem the fix will expose (CONFIRMED live).** The board walk resolves on cancel, so a cancelled sync ends
+in the success branch (`services/persistence.js` ~2399-2409) and writes 'succeeded' (or 'finished'), stashes
+`last_sync_status`, and moves `last_sync_at`. The drawer then says "Your boards are synced and ready for offline use."
+after the person pressed Cancel (seen in both probe runs). Condition 2 of section 18 named the same branch.
+
+**Proposal.**
+1. Queue (both copies): in the cancelled branch, after resolving the item, call `storing_urls()` like the other two
+   branches (candidate A, the probed one). Candidate B, rejected: on cancel, drain every item of the cancelled sync from
+   the queue at once; faster for a huge queue, but it moves queue ownership into cancel and touches more code; A
+   already drains at one item per tick with no download.
+2. Success branch after a cancel: when `_canceled_sync_id === sync_id`, do what the failure branch does for a cancel
+   (`~2442`): clear `sync_status` only if this is still the active root sync, do not write 'succeeded'/'finished',
+   do not stash `last_sync_status`, do not move `last_sync_at` or the stamps (the sync did not finish; the next one must
+   still run), still clear `sync_progress`. The promise still resolves.
+
+**Risks / questions.** (2) changes what a resolving cancel reports: today 'succeeded' plus a moved clock, after it
+nothing. A partner of a later follow-up (section 19 queue) is unaffected: the queue starts on settle either way.
+`last_sync_at` staying put means the 48-hour/stamp checks may start a sync sooner after a cancel: intended (the
+boards were not saved). The `storing_url_watchers` count can still drift if `store_url_now` itself never settles (not
+seen; out of scope).
+
+**Tests (red first).** Unit: queue three sync-tagged items with a cancelled `sync_progress` plus an untagged item; all
+four settle and a later `store_url` runs (red today: the untagged item and the later one stay pending). Same for the
+utils copy. Sync: a cancel during the walk whose board step waits on a queued download ends the sync (red today:
+hangs); a cancelled sync that resolves leaves `sync_status` not 'succeeded', `last_sync_status` and `last_sync_at`
+unchanged. Mutations: drop the new `storing_urls()` call; drop the cancel guard in the success branch.
+
+**Review of section 22 (`adversary`, 2026-11-12): build with changes; findings checked by hand.**
+- CONFIRMED (re-ran the reviewer's node harness on the real `store_url` source with real RSVP): the one-line fix drains
+  cancelled items by recursion and overflows the stack at ~9,000 queued items ("Maximum call stack size exceeded"),
+  after which the queue freezes again at 3 workers. Same harness: after a cancel and a new sync, leftover items of the
+  OLD sync download under the new one (before and after the one-line fix), because the check reads the current
+  `sync_progress`, not the item's own sync id.
+- CONFIRMED: the failure branch writes `last_sync_event_at` (`services/persistence.js:2472`); skipping it after a
+  cancelled success lets the stamp/48-hour check restart a sync right after Cancel. `last_sync_stamp` moves at :2379,
+  before the planned check.
+- Accepted: tests must save and restore the service-class queue statics (the bare `persistence` in the service is the
+  class, :91; test cleanup resets only the instance and the utils class), and reach the utils copy through
+  `persistence.proto().store_url` (parity only).
+- Accepted: a cancelled sync of someone else's boards must not clear the signed-in person's status
+  (`sync_status_is_for_signed_in_user`, missing in the failure branch's cancel clear too).
+
+**Revised proposal.**
+1. Queue, both copies: one helper `item_is_stale(opts)` (an item of a sync that is not the running one: tagged, and
+   `sync_progress` null, cancelled, or a different `sync_id`; supervisee items carry the root's id, `:2036-2038`).
+   `storing_urls` first resolves and drops stale items in a LOOP (`while` the head is stale), then downloads one item
+   or, with an empty queue, decrements the worker count. No recursion per stale item, so no stack growth.
+2. Base sync, cancelled sync that resolves (`_canceled_sync_id === sync_id`), checked BEFORE `last_sync_stamp` moves
+   (`:2379`): clear `sync_progress`; clear `sync_status` only if still the active root sync AND it is the signed-in
+   person's (the same guard added to the failure branch's cancel clear); write `last_sync_event_at`; write a
+   `sync_log` entry with its own "Sync canceled" summary (new i18n key); do NOT write 'succeeded'/'finished', stash
+   `last_sync_status`, move `last_sync_at`, the stamps or `last_sync_stamp`. Resolve as before.
+3. Board walk: `nextBoard` also stops when `sync_progress.sync_id !== sync_id`, so a thread woken by the drained queue
+   after a follow-up sync started does not carry on under the new sync.
+Not covered (residual, recorded): a storage write in `store_url_now` that never calls back still holds a worker.
+
+**Tests (red first).** Unit, service copy with the class statics saved/restored by descriptor: cancelled-tagged items
+plus an untagged item and a later `store_url` all settle and the worker count returns to 0; 10,000 cancelled items
+drain without a stack error; an item tagged with an old sync id is not downloaded once a new sync runs. Utils copy
+through `proto()`: the first case (parity). Sync (persistence-sync harness): a cancel while a board step waits on a
+queued download ends the sync; a cancelled sync that resolves leaves `sync_status` not 'succeeded', `last_sync_status`,
+`last_sync_at` and `last_sync_stamp` unchanged, moves `last_sync_event_at`, logs "canceled"; a walk thread does not
+continue under a new sync id. UI: the Quick Core 112 reproduction ends within seconds and the drawer shows no "ready"
+card. Mutations: put back the recursion-free loop's missing continue; drop the stale-id check; drop the cancel guard in
+the success branch.
+
+**Built (Traci, 2026-11-12: "yes build it").**
+- `utils/url_store_queue.js` (`is_stale_item`, `drop_stale_head`, which returns what is left): both queue copies
+  (`services/persistence.js` `store_url`, `utils/persistence.js` `store_url`) drop stale items at the head in a loop
+  before taking one, and the old cancelled branch now continues the worker instead of stopping it. Lines edited in
+  place, so no baseline row moved.
+- `end_canceled_sync` (last `persistence.reopen`), called from the success branch's guard line before
+  `last_sync_stamp` moves: clears `sync_progress`, clears `sync_status` only for the active root sync of the signed-in
+  person, logs "Sync canceled" (`sync_canceled_summary`, `public/locales/en.json`), sets `last_sync_event_at`, and
+  writes no result, stash, clock or stamp. The failure branch's cancel clear got the same signed-in guard.
+- Board walk: the thread-start and per-board cancel checks also stop when `sync_progress.sync_id` is another sync's.
+- Tests: `tests/unit/utils/url-store-queue-test.js` (helper, incl. 10,000 items), `tests/unit/services/store-url-queue-test.js`
+  (service queue, class statics saved and restored: queue keeps going after a cancel, 10,000 cancelled items drain and
+  the workers end, an older sync's item is not downloaded), `tests/utils/persistence-sync-test.js` "a cancelled sync
+  that resolves". Red before the fix: 4 of 4 (the helper module did not exist yet, so its test ran only after).
+- Green, timing-strict: the whole persistence-sync module plus the new and neighbouring modules, 148 tests, 147 pass,
+  1 skip (the `xit` already on HEAD), 0 fail, no leak, late-read, queued-fetch or owner-gone lines. ESLint gate: no new
+  findings.
+- Mutations (one build): no loop drop -> the 10,000-item service test red; older-sync items not stale -> the older-sync
+  tests in both modules red; `end_canceled_sync` inert -> the cancelled-resolve test red.
+- UI (Quick Core 112, pictures slowed 3 s, cancel 8 s in; hung 2 of 2 before): ended 3.9, 3.9 and 4.1 s after Cancel,
+  `sync_status` null, no drawer card, queue drained to 0. An uncancelled sync still finished normally (9.4 s, its usual
+  "finished" card).
+- Not covered by a test: part 3 (a walk thread stops under a newer sync); proving it needs the real walk with a
+  follow-up starting mid-walk. One worker stays counted 30 s after an empty queue (a download in flight; the residual
+  `store_url_now` case), blocking nothing.

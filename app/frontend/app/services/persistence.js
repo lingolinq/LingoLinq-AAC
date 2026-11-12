@@ -1479,10 +1479,10 @@ var persistence = Service.extend({
       persistence.storing_url_watchers = 0;
       var _service = this;
       persistence.storing_urls = function() {
-        var serviceInstance = window.persistence || _service;
+        var serviceInstance = window.persistence || _service; drop_stale_head(persistence.urls_to_store, serviceInstance.get('sync_progress')); // items of a sync that is no longer running, resolved in a loop (utils/url_store_queue.js)
         if(persistence.urls_to_store && persistence.urls_to_store.length > 0) {
           var opts = persistence.urls_to_store.shift();
-          var part_of_canceled = opts.sync_id && (!serviceInstance.get('sync_progress') || serviceInstance.get('sync_progress.canceled'));
+          var part_of_canceled = is_stale_item(opts, serviceInstance.get('sync_progress'));
           if(!part_of_canceled) {
             serviceInstance.store_url_now(opts.url, opts.type, opts.keep_big, opts.force_reload).then(function(res) {
               opts.defer.resolve(res);
@@ -1492,7 +1492,7 @@ var persistence = Service.extend({
               if(persistence.storing_urls) { persistence.storing_urls(); }
             });
           } else {
-            opts.defer.resolve({});
+            opts.defer.resolve({}); if(persistence.storing_urls) { persistence.storing_urls(); } // a worker must never stop here: stopping froze the queue after a cancel
           }
         } else {
           persistence.storing_url_watchers--;
@@ -2373,7 +2373,7 @@ var persistence = Service.extend({
 
       var complete_sync = track_buttons.then(function() {
         var last_sync = (new Date()).getTime() / 1000;
-        if(_this_sync.get('sync_progress.root_user') == user_id) {
+        if(_this_sync.get('sync_progress.root_user') == user_id && !_this_sync.end_canceled_sync(sync_id, user_id, user_name, force)) { // a cancelled sync whose walk resolved ends as cancelled, before anything below moves the stamps or the clock
           var sync_stamps = _this_sync.get('sync_progress.sync_stamps');
           var statuses = _this_sync.get('sync_progress.board_statuses') || [];
           if(_this_sync.get('sync_progress.last_sync_stamp')) {
@@ -2439,7 +2439,7 @@ var persistence = Service.extend({
         var statuses = _this_sync.get('sync_progress.board_statuses') || [];
         var stamps = _this_sync.get('sync_progress.sync_stamps');
         _this_sync.set('sync_progress', null);
-        if(_this_sync._canceled_sync_id === sync_id) { if(_this_sync._active_root_sync_id === sync_id) { _this_sync.set('sync_status', null); } } else if(_this_sync.sync_status_is_for_signed_in_user(user_id)) { _this_sync.set('sync_status', 'failed'); }
+        if(_this_sync._canceled_sync_id === sync_id) { if(_this_sync._active_root_sync_id === sync_id && _this_sync.sync_status_is_for_signed_in_user(user_id)) { _this_sync.set('sync_status', null); } } else if(_this_sync.sync_status_is_for_signed_in_user(user_id)) { _this_sync.set('sync_status', 'failed'); }
         // if last sync attempt ended in failure and this attempt also
         // failed, then set last_sync_at to prevent repeated attempts to sync. Someone else's failure must not move this person's clock (#1230).
         if(_this_sync._canceled_sync_id !== sync_id && _this_sync.sync_status_is_for_signed_in_user(user_id) && _this_sync.stashes.get('last_sync_status') == 'failed' && _this_sync.sync_clock_advances_on_failure()) {
@@ -3047,7 +3047,7 @@ var persistence = Service.extend({
       var _sync = _this;
       var startBoardSync = function() {
       return new RSVP.Promise(function(resolve, reject) {
-        if(!_sync || _sync.isDestroyed || _sync.isDestroying || !_sync.get('sync_progress') || _sync.get('sync_progress.canceled')) {
+        if(!_sync || _sync.isDestroyed || _sync.isDestroying || !_sync.get('sync_progress') || _sync.get('sync_progress.canceled') || (sync_id !== true && _sync.get('sync_progress.sync_id') !== sync_id)) { // another sync now holds sync_progress (a follow-up after a cancel)
           resolve();
           return;
         }
@@ -3075,7 +3075,7 @@ var persistence = Service.extend({
         var dead_thread = false;
         function nextBoard(defer) {
           if(dead_thread) { defer.reject({error: "someone else failed"}); return; }
-          if(!_sync.get('sync_progress') || _sync.get('sync_progress.canceled')) {
+          if(!_sync.get('sync_progress') || _sync.get('sync_progress.canceled') || (sync_id !== true && _sync.get('sync_progress.sync_id') !== sync_id)) { // a thread woken after its sync ended must not walk on under the next one
             defer.resolve();
             return;
           }
@@ -5083,9 +5083,26 @@ persistence.reopen({
     var mine = (this._follow_up_syncs || []).some(function(entry) { return _this.sync_status_is_for_signed_in_user(entry.user_id); });
     if(this.get('follow_up_sync_pending') !== mine) { this.set('follow_up_sync_pending', mine); }
   },
+  // A cancelled sync can still resolve: the board walk resolves once it reads the cancel (nextBoard). Called by the base
+  // sync's success branch before it writes anything: the boards were not all saved, so it reports no success, stashes no
+  // result and moves neither the sync clock nor the stamps (the next sync must still run). It records the event time
+  // (as the failure branch does) so the automatic check does not restart a sync right after Cancel, and logs the cancel.
+  // Section 22 of docs/task-management/2026-11-10_offline-followup-proposals.md. Returns true when it ended the sync.
+  end_canceled_sync: function(sync_id, user_id, user_name, force) {
+    if(!sync_id || this._canceled_sync_id !== sync_id) { return false; }
+    this.set('sync_progress', null);
+    if(this._active_root_sync_id === sync_id && this.sync_status_is_for_signed_in_user(user_id)) { this.set('sync_status', null); }
+    var log = [].concat(this.get('sync_log') || []);
+    log.push({ user_id: user_name, manual: force, canceled: true, finished: new Date(), statuses: [], summary: i18n.t('sync_canceled_summary', "Sync canceled") });
+    this.set('sync_log', log);
+    this.set('sync_log_rand', Math.random());
+    this.set('last_sync_event_at', (new Date()).getTime());
+    return true;
+  },
   // Requests made before a cancel are dropped at once; one made after it queues and runs when the cancelled sync ends.
   cancel_sync: function() {
     this.drop_follow_up_syncs({error: "canceled"});
     return this._super(...arguments);
   }
 });
+import { is_stale_item, drop_stale_head } from '../utils/url_store_queue';

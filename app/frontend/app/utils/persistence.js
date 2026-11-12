@@ -1517,9 +1517,9 @@ var persistence = EmberObject.extend({
     if(!persistence.storing_urls) {
       persistence.storing_url_watchers = 0;
       persistence.storing_urls = function() {
-        if(persistence.urls_to_store && persistence.urls_to_store.length > 0) {
+        if(drop_stale_head(persistence.urls_to_store, safeGet(getPersistence(), 'sync_progress')) > 0) { // items of a sync that is no longer running are resolved first, in a loop (utils/url_store_queue.js)
           var opts = persistence.urls_to_store.shift();
-          var part_of_canceled = opts.sync_id && (!safeGet(getPersistence(), 'sync_progress') || safeGet(getPersistence(), 'sync_progress.canceled'));
+          var part_of_canceled = is_stale_item(opts, safeGet(getPersistence(), 'sync_progress'));
           if(!part_of_canceled) {
             persistence.store_url_now(opts.url, opts.type, opts.keep_big, opts.force_reload).then(function(res) {
               opts.defer.resolve(res);
@@ -1529,7 +1529,7 @@ var persistence = EmberObject.extend({
               if(persistence.storing_urls) { persistence.storing_urls(); }
             });
           } else {
-            opts.defer.resolve({});
+            opts.defer.resolve({}); if(persistence.storing_urls) { persistence.storing_urls(); } // a worker must never stop here: stopping froze the queue after a cancel
           }
         } else {
           persistence.storing_url_watchers--;
@@ -4638,3 +4638,4 @@ import offlineSyncSeeds from './offline_sync_seeds';
 import { queue_eventual_store } from './eventual_store_queue';
 import { is_permanent_upload_url } from './permanent_upload';
 import { on_uploads_cdn, is_web_page } from './direct_fetch';
+import { is_stale_item, drop_stale_head } from './url_store_queue';

@@ -7180,6 +7180,54 @@ describe("persistence-sync", function() {
       });
     });
   });
+
+  // A cancelled sync whose board walk resolves (the walk resolves on cancel, services/persistence.js nextBoard) ended in
+  // the success branch: 'succeeded' with "ready for offline use" in the drawer right after Cancel, the stash and the
+  // sync clocks moved as if the boards were saved (section 22 of docs/task-management/2026-11-10_offline-followup-proposals.md).
+  describe("a cancelled sync that resolves", function() {
+    it("ends as canceled: no success, no moved sync clock, a canceled log entry", function() {
+      db_wait(function() {
+        cancelSyncTailWork();
+        unloadSyncStoreRecords();
+        persistence.set('sync_progress', null);
+        persistence.set('sync_status', null);
+        persistence.set('root_sync_canceled', false);
+        persistence._canceled_sync_id = null;
+        stashes.persist('last_sync_status', 'succeeded');
+        var saved = { last_sync_at: persistence.get('last_sync_at'), last_sync_stamp: persistence.get('last_sync_stamp') };
+        persistence.set('last_sync_at', 12345);
+        persistence.set('last_sync_stamp', 'stamp-old');
+        persistence.set('last_sync_event_at', 1);
+        stub(modal, 'error', function() { });
+        stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+        stubOnPersistence('sync_user', function() { return RSVP.resolve(); });
+        stubOnPersistence('sync_boards', function() {
+          persistence.set('sync_progress.last_sync_stamp', 'stamp-new');
+          persistence.cancel_sync();
+          return RSVP.resolve({});
+        });
+        queryLog.defineFixture({ method: 'GET', type: 'user', response: RSVP.resolve({user: {id: '1370', user_name: 'fred'}}), id: '1370' });
+        var done = null;
+        persistence.sync('1370').then(function() { done = 'resolved'; }, function() { done = 'rejected'; });
+        waitsFor(function() { return done && syncSettled(); });
+        runs(function() {
+          var log = persistence.get('sync_log') || [];
+          var last = log[log.length - 1] || {};
+          expect(persistence.get('sync_status') === 'succeeded' || persistence.get('sync_status') === 'finished').toEqual(false);
+          expect(stashes.get('last_sync_status')).toEqual('succeeded');
+          expect(persistence.get('last_sync_at')).toEqual(12345);
+          expect(persistence.get('last_sync_stamp')).toEqual('stamp-old');
+          expect(persistence.get('last_sync_event_at') > 1).toEqual(true);
+          expect(last.canceled).toEqual(true);
+          stashes.persist('last_sync_status', null);
+          persistence.set('last_sync_at', saved.last_sync_at);
+          persistence.set('last_sync_stamp', saved.last_sync_stamp);
+          cancelSyncTailWork();
+          persistence.set('sync_progress', null);
+        });
+      });
+    });
+  });
 });
 // Every sync also starts from Crisis Vocabulary (#1221, utils/offline_sync_seeds.js), so the tests that run a
 // real sync answer it. Placed last so the ESLint baseline rows above do not move; function declarations are hoisted.
