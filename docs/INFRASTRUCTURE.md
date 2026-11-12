@@ -161,6 +161,37 @@ Hotfix branches may merge directly into `main`; what makes automatic deploy safe
 set of required checks on `main` (with `enforce_admins` on), the environment approval,
 the WIF ref conditions, and the candidate rollout, not branch provenance.
 
+### Weekly release gate
+
+The weekly workflow opens the `staging` to `main` PR with `GITHUB_TOKEN`.
+That token does not trigger the gate's `pull_request_target` workflow when
+the bot opens or edits the PR. The gate does listen for an `edited` event
+from a maintainer. See [GitHub's workflow trigger rules](https://docs.github.com/en/actions/concepts/security/github_token#when-github_token-triggers-workflow-runs).
+
+If `data-bearing-paths/main` is missing, have a maintainer make a real edit
+to the release PR description, such as recording the staging verification.
+Wait for the data-bearing workflow, then check the status on the PR's current
+head. If the head moved, read the status again on the new head. Set
+`release_pr` to the release PR number before running this check.
+
+```bash
+set -o pipefail
+head_sha=$(gh pr view "$release_pr" --repo lingolinq/LingoLinq-AAC --json headRefOid --jq '.headRefOid') &&
+  gh api --paginate "repos/lingolinq/LingoLinq-AAC/commits/$head_sha/statuses?per_page=100" |
+    jq -s '([.[][] | select(.context == "data-bearing-paths/main")] | first // empty) |
+      {state, source: .creator.login, run: .target_url}'
+```
+
+The check must report success from the configured data-bearing App on that
+head before merging. Empty output after a successful command means the
+status is still missing. If the edit produces no workflow run, check the
+repository's Actions event policy for the gate.
+
+For gate rollout, include a bot-created weekly release PR with a new staging
+head and no existing verdict. Confirm that the maintainer edit starts the
+gate and the App posts the expected verdict on that same head. Record the
+head SHA and run URL with the rollout evidence.
+
 ## AWS (account 239044785114)
 
 - IAM user `lingolinq-app` for the Rails app: S3 read/write only; Cloud Run uses a
