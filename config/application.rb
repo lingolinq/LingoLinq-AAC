@@ -45,6 +45,9 @@ module LingoLinq
     # The app has no channels, and sync.js connects to LLWEBSOCKET_URL, so it serves no socket of its own.
     config.action_cable.mount_path = nil
 
+    # Nothing attaches a file and no storage service is configured, so Active Storage serves no route.
+    config.active_storage.draw_routes = false
+
     # Settings in config/environments/* take precedence over those specified here.
     # Application configuration should go into files in config/initializers
     # -- all .rb files in that directory are automatically loaded.
