@@ -1031,7 +1031,7 @@ export default Component.extend({
           if (_this.isDestroyed || _this.isDestroying) {
             return;
           }
-          u.set('preferences.device.long_token', !!choice);
+          record_trust_choice(u, choice); // the value and the time of this explicit answer (utils/trust_choice.js)
           u.set('preferences.device.asserted', true);
           u.save().then(function() {
             if (_this.isDestroyed || _this.isDestroying) {
@@ -1410,3 +1410,4 @@ export function device_login_flags(data, caps, win) {
   return data;
 }
 import offline_shell from '../utils/offline_shell';
+import { record_trust_choice } from '../utils/trust_choice'; // at the end so the lint baseline rows keep their lines

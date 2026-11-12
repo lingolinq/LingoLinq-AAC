@@ -1949,6 +1949,80 @@ describe User, :type => :model do
       expect(u.settings['authored_organization_id']).to eq(nil)
     end
 
+    # PASS 2 OF THE FINAL REVIEW OF #1268 (Traci, 2026-11-11). A trusted browser device lifts the organization's idle
+    # timeout from keys issued before trust (Device#clean_old_keys). Only the person's own explicit answer, on their
+    # own device, may do that: a supervisor's save and a replayed old save still set long_token as they always have,
+    # but do not record an owner choice, so the organization timeout keeps applying.
+    describe "the owner's own trust answer" do
+      def owner_and_device
+        u = User.create
+        d = Device.create(user: u, developer_key_id: 0, device_key: '1.234 Classroom iPad', settings: {'browser' => true})
+        [u, d]
+      end
+
+      it "is recorded when the person answers Trust on their own device, with a fresh choice stamp" do
+        u, d = owner_and_device
+        u.process_params({'preferences' => {'device' => {'long_token' => true, 'long_token_chosen_at' => Time.now.to_i}}}, {'device' => d, 'updater' => u})
+        expect(d.reload.settings['long_token']).to eq(true)
+        expect(d.settings['long_token_owner_choice']).to eq(true)
+        expect(u.settings['preferences']['devices'].values.map { |v| v['long_token_chosen_at'] }.compact).to eq([])
+      end
+
+      it "is cleared when the person answers Shared" do
+        u, d = owner_and_device
+        d.settings['long_token'] = true
+        d.settings['long_token_owner_choice'] = true
+        d.save
+        u.process_params({'preferences' => {'device' => {'long_token' => false, 'long_token_chosen_at' => Time.now.to_i}}}, {'device' => d, 'updater' => u})
+        expect(d.reload.settings['long_token']).to eq(false)
+        expect(d.settings['long_token_owner_choice']).to eq(false)
+      end
+
+      it "is not recorded for a supervisor's save, which still sets long_token as before" do
+        u, d = owner_and_device
+        supervisor = User.create
+        u.process_params({'preferences' => {'device' => {'long_token' => true, 'long_token_chosen_at' => Time.now.to_i}}}, {'device' => d, 'updater' => supervisor})
+        expect(d.reload.settings['long_token']).to eq(true)
+        expect(d.settings['long_token_owner_choice']).to eq(false)
+      end
+
+      it "is not recorded when someone acts for the person" do
+        u, d = owner_and_device
+        admin = User.create
+        u.process_params({'preferences' => {'device' => {'long_token' => true, 'long_token_chosen_at' => Time.now.to_i}}}, {'device' => d, 'updater' => u, 'operator' => admin})
+        expect(d.reload.settings['long_token_owner_choice']).to eq(false)
+      end
+
+      it "is not recorded on a device that is not the person's" do
+        u, _d = owner_and_device
+        other = User.create
+        theirs = Device.create(user: other, developer_key_id: 0, device_key: '1.234 Other', settings: {'browser' => true})
+        u.process_params({'preferences' => {'device' => {'long_token' => true, 'long_token_chosen_at' => Time.now.to_i}}}, {'device' => theirs, 'updater' => u})
+        expect(theirs.reload.settings['long_token_owner_choice']).to_not eq(true)
+      end
+
+      it "is not recorded for a stale or future stamp (a replayed old save, or a fast clock), nor without one" do
+        [Time.now.to_i - 11.minutes.to_i, Time.now.to_i + 11.minutes.to_i, nil].each do |stamp|
+          u, d = owner_and_device
+          dev = {'long_token' => true}
+          dev['long_token_chosen_at'] = stamp if stamp
+          u.process_params({'preferences' => {'device' => dev}}, {'device' => d, 'updater' => u})
+          expect(d.reload.settings['long_token']).to eq(true)
+          expect(d.settings['long_token_owner_choice']).to eq(false), "stamp #{stamp.inspect}"
+        end
+      end
+
+      it "is left as it is by a save that only echoes the unchanged value" do
+        u, d = owner_and_device
+        d.settings['long_token'] = true
+        d.settings['long_token_owner_choice'] = true
+        d.save
+        u.process_params({'preferences' => {'device' => {'long_token' => true}}}, {'device' => d, 'updater' => u})
+        expect(d.reload.settings['long_token_owner_choice']).to eq(true)
+        expect(d.settings['long_token_set']).to eq(true)
+      end
+    end
+
     it "should set the device as long_token_set if long_token is set" do
       u = User.create
       d = Device.create(:user => u, :developer_key_id => 0, :device_key => '1.234 Other One')

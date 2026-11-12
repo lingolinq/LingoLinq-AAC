@@ -3853,9 +3853,25 @@ class User < ApplicationRecord
         device['voice']['voice_uris'] = voice_uris.uniq[0, 10]
         device['voice'].delete('voice_uri')
       end
+      # The client's stamp of an explicit Trust/Shared answer is a request marker, never stored or echoed.
+      chosen_at = device.delete('long_token_chosen_at')
       if non_user_params['device'] && device['long_token'] != nil
-        non_user_params['device'].settings['long_token'] = !!device['long_token']
-        non_user_params['device'].settings['long_token_set'] = true
+        # Pass 2 of the final review of #1268 (Traci, 2026-11-11): every writer still sets long_token as before
+        # (a supervisor's save included); only the person's own explicit answer on their own device records
+        # long_token_owner_choice, which is what lets a trusted browser device drop the organization's idle timeout
+        # (Device#clean_old_keys). Any other change of the value clears it; an unchanged echo leaves it as it is.
+        dev = non_user_params['device']
+        value = !!device['long_token']
+        updater = non_user_params['updater']
+        own_answer = chosen_at.to_s.match?(/\A\d+\z/) && (Time.now.to_i - chosen_at.to_i).abs <= 10.minutes.to_i &&
+          updater && updater.id == self.id && !non_user_params['operator'] && dev.user_id == self.id
+        if own_answer
+          dev.settings['long_token_owner_choice'] = value
+        elsif dev.settings['long_token'] != value
+          dev.settings['long_token_owner_choice'] = false
+        end
+        dev.settings['long_token'] = value
+        dev.settings['long_token_set'] = true
         if device['asserted']
           non_user_params['device'].settings.delete('temporary_device')
           # Eval accounts are only allowed to be logged into one device at a time

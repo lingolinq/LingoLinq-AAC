@@ -1212,6 +1212,10 @@ export default Controller.extend({
             if(['string', 'boolean', 'number'].indexOf(typeof(pending[key][dkey])) != -1) {
               if(pending[key][dkey] != orig[key][dkey]) {
                 user.set('preferences.device.' + dkey, pending[key][dkey]);
+                // The person changed "Keep me logged in on this private device": stamp the explicit choice
+                // (utils/trust_choice.js). For a supervisor editing a communicator the server sets the value as
+                // before and does not count it as the owner's choice.
+                if(dkey === 'long_token') { record_trust_choice(user, pending[key][dkey]); }
               }
             } else if(pending[key][dkey] == null) {
               if(orig[key][dkey] == null) { } else {
@@ -1495,3 +1499,4 @@ export default Controller.extend({
     }
   }
 });
+import { record_trust_choice } from '../../utils/trust_choice'; // at the end so the lint baseline rows keep their lines

@@ -318,10 +318,11 @@ describe Device, :type => :model do
         d.settings['keys'][0]['needs_refresh'] = nil
       end
 
-      it "no longer applies once the device is trusted" do
+      it "no longer applies once the person trusts the device" do
         d = browser_device_with_org_timeout
         token = d.settings['keys'][0]['value']
         d.settings['long_token'] = true
+        d.settings['long_token_owner_choice'] = true # the person's own answer (User#process_device)
         d.settings['long_token_set'] = true
         idle_for_21_minutes(d)
         expect(d.valid_token?(token)).to eq(true)
@@ -355,6 +356,7 @@ describe Device, :type => :model do
         expect(d.settings['keys'].map { |k| k['timeout'] }).to eq([20.minutes.to_i, 20.minutes.to_i])
         tokens = d.settings['keys'].map { |k| k['value'] }
         d.settings['long_token'] = true
+        d.settings['long_token_owner_choice'] = true
         d.settings['keys'].each { |k| k['timestamp'] = 21.minutes.ago.to_i; k['last_timestamp'] = 21.minutes.ago.to_i }
         expect(tokens.map { |t| d.valid_token?(t) }).to eq([true, true])
       end
@@ -363,6 +365,7 @@ describe Device, :type => :model do
         d = browser_device_with_org_timeout
         token = d.settings['keys'][0]['value']
         d.settings['long_token'] = true
+        d.settings['long_token_owner_choice'] = true
         idle_for_21_minutes(d)
         expect(d.valid_token?(token)).to eq(true)
         d.settings['long_token'] = false
@@ -385,6 +388,17 @@ describe Device, :type => :model do
         d.settings.delete('browser')
         expect(d.token_type).not_to eq(:browser)
         d.settings['long_token'] = true
+        idle_for_21_minutes(d)
+        expect(d.valid_token?(token)).to eq(false)
+      end
+
+      # Pass 2 of the final review (Traci, 2026-11-11): the lift needs the person's own answer, not just the flag.
+      it "still applies when the device was marked trusted by someone else (a supervisor's save, a replay)" do
+        d = browser_device_with_org_timeout
+        token = d.settings['keys'][0]['value']
+        d.settings['long_token'] = true
+        d.settings['long_token_set'] = true
+        d.settings['long_token_owner_choice'] = false
         idle_for_21_minutes(d)
         expect(d.valid_token?(token)).to eq(false)
       end

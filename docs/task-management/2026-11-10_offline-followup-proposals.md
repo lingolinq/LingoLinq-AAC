@@ -795,3 +795,56 @@ device keeps the organization's timeout). Not changed, noted: approval records f
 `.eslint-todo` re-anchoring are in the task logs and PR body of the sessions that made them; fixed sleeps and
 assignment-style stubs in older test files of this PR are left as they pass the leak check; the e2e order dependence
 is local-only; `:has()` on iOS below 15.4; the Spanish starter's sidebar name (#1303).
+
+## 18. Final review round, pass 2: `/adversary-review` (2026-11-11), and the fixes for its Mediums
+
+`REVIEWED=PR lingolinq/LingoLinq-AAC#1268 at b15f3482aa96c00df7e89866101612648d99e8b6`, preflight exit 0. Three
+red-team agents (sessions and infra; another person's data; sync integrity), each reading only the preflight diff. No
+Critical or High. Fixed already (`de9d4c75e`): a tree page or a device-copy picture that arrived after sign-out was
+written into the next session (a cache generation, bumped by `clear()`, and the `copy_image_urls` array identity).
+Traci, 2026-11-11: fix the real ones, each through a reviewed proposal, so the full review need not run again.
+
+**P1. A trust change only from the person's own explicit answer.** Fact: `User#process_device` (`app/models/user.rb:3856`)
+writes `long_token` from any user save carrying `preferences.device.long_token`; for a supervisor saving device
+settings `users_controller#update` picks the communicator's most recent device (`api/users_controller.rb`, the
+"Supervisor editing another user" branch), and an offline replay of a stored user record carries the old value. Since
+this PR a trusted browser device's keys drop the organization's idle timeout (`app/models/device.rb:296-302`), so either
+writer can turn a Shared iPad's 20-minute session into 28 days. Proposal: `process_device` changes `long_token` only
+when the value differs from the device's and (a) the updater is the user and no one acts for them (`operator` absent),
+(b) the device written is the request's own device (`options['device']` came from `@api_device_id` for the user
+themself), and (c) the payload carries `long_token_chosen_at` within 10 minutes of the server clock. The client sets
+that stamp in exactly two places: the Trust/Shared answer (`components/login-form.js:1034`) and a Preferences save in
+which the checkbox changed. An unchanged value is written as before (`long_token_set`). Not chosen: stamping the device
+on an explicit answer and lifting only for keys issued before the stamp (still lets a supervisor save set the flag the
+lift reads elsewhere, `offline_shell` and `board_device_copy` read it too). Lost capability: a supervisor can no longer
+set a communicator's device trust from their own account; the PR's workaround for #1285 already says to change it on
+the iPad. Tests: own explicit answer changes it; a supervisor save, an act-as save, a stale stamp, a missing stamp and a
+save from another device do not; an unchanged value still sets `long_token_set`. Mutation: drop each guard.
+
+**P2. The "ready" card waits for every root sync.** Fact: a root sync requested while one runs is not refused
+(`services/persistence.js` sync: `sync_progress` is kept, a second pass runs with its own seeds, so a home board chosen
+mid-sync is saved by it); but the first pass's 'succeeded' turns the drawer into "Your boards are synced and ready for
+offline use." while the second is still saving, and the second's own 'succeeded' is the same value, so no observer
+fires. Proposal: the service's root `sync()` counts running root syncs in an observable `root_syncs_running`
+(incremented at the call, decremented when the promise settles); `services/sync-notice.js` keeps the drawer in
+'syncing' while a settled status arrives with another root sync still running, and shows the result when the count
+reaches 0, reading the then-current status. Tests: two overlapping syncs, the first succeeding, shows no card until the
+second settles, then its result; one sync unchanged; a failure of the last one shows failed. Mutation: ignore the
+count. Liking during a sync starts no sync (as before); the like copy does not claim it is saved.
+
+**P3. Small, from the same pass.** (a) The finished card's count is every sync error (pictures included), not boards:
+"Boards synced. %{n} had a problem." becomes "Boards synced, with %{n} problems. Sync Details has the list." (b) SQLite
+write errors never set `quota`, so the installed apps say "try again" when the disk is full: `dbman` sets `quota` when
+the message matches `SQLITE_FULL`, "database or disk is full" or "disk full". (c) The offline-scope strings say every
+liked board is kept: they say "up to 50 liked boards" (from `LIKED_BOARD_REFS_LIMIT`). Not fixed here: the row-queue
+watchdog that frees a hung row without answering its caller predates this PR (an issue); #1285's rescoping (every
+Home Screen sign-in while the shell is off) is Scot's decision on that issue.
+
+**P1 revised (Traci, 2026-11-11: "don't remove something a supervisor can do today").** Every writer keeps setting
+`long_token` as it does today, the supervisor save included. What changes is what the organization-timeout lift reads:
+`process_device` records `long_token_owner_choice = true` only when the change comes with all of (a) the updater is the
+user, no operator, (b) the request's own device, (c) a fresh `long_token_chosen_at` stamp; any other write of
+`long_token` sets it false. `Device#keys` lifts the organization's idle timeout (`device.rb:296-302`) only for a
+trusted browser device whose `long_token_owner_choice` is true. A supervisor-set or replayed trust behaves as trust
+did before this PR: the key's organization timeout still wins. Tests: own explicit answer lifts it; a supervisor save
+sets the flag but does not lift; a stale or missing stamp does not lift; an unchanged value leaves the record as it is.
