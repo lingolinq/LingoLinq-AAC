@@ -251,7 +251,7 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
    of 2026-10-12 had already replaced (the replacement saves a home board); its unused code is removed.
 4. **Picture data repair (operations):** some saved picture addresses fail; a one-time data cleanup.
 5. **#1229:** done. A new device that has never finished a sync keeps retrying after the backoff, and one reconnect can retry a dropped connection. See the task log.
-6. **#1230:** done on this branch. A sync for someone else no longer changes the signed-in person's notice, a cancelled sync is not stored as a failure when another sync starts, and the notice's sentence is the only live region. See the task log.
+6. **#1230:** done. A sync for someone else no longer changes the signed-in person's notice, a cancelled sync is not stored as a failure when another sync starts, and the notice's sentence is the only live region. See the task log.
 7. **#1219:** the board tree request (`/tree`) fails on very large boards (Cloud Run response size cap). **Built
    2026-11-11:** one image lookup per tree or bulk page (the timeout mode); `/tree` pages descendants by a 1 MiB
    budget in the list's own order, older app builds get one answer stopped at 24 MiB (the cap mode); the Modern warm
