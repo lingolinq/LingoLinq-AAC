@@ -105,16 +105,19 @@ module ImageMagickRunner
   end
   private_class_method :confined_env
 
-  # The last matching rule wins (measured on ImageMagick 6.9.11 and 7.1), so everything is denied
-  # first. Reads: absolute paths on the command line that name a file (an [n] frame selector
-  # stripped). Write: the last argument, except for identify. ImageMagick refuses a '..' walk out
-  # of an allowed directory.
+  # The last matching rule wins (measured on ImageMagick 6.9.11, 6.9.12 and 7.1), so everything is
+  # denied first. Reads: absolute paths on the command line that name a file (an [n] frame selector
+  # stripped). Write: the last argument, except for identify. ImageMagick 6.9.12 matches a pattern
+  # against the path as written and its '*' spans '/', so '<allowed dir>/../../<file>' matches
+  # '<allowed dir>/*'; the final rule refuses any '..' segment. An argument that is not valid UTF-8
+  # is skipped, because a Regexp on it raises ArgumentError: nothing is allowed for it.
   def self.private_dir(args)
     dir = Dir.mktmpdir('magick-confine')
     command, *rest = args
     rules = [['none', '*']]
     system_read_dirs.each { |d| rules += pattern_variants(d).map { |p| ['read', "#{p}/*"] } }
     rest.each do |arg|
+      next unless arg.valid_encoding?
       path = arg.sub(/\[[^\]]*\]\z/, '')
       rules += pattern_variants(path).map { |p| ['read', p] } if path.start_with?('/') && File.file?(path)
     end
@@ -122,6 +125,7 @@ module ImageMagickRunner
       rules += pattern_variants(rest.last).map { |p| ['write', p] }
     end
     rules += pattern_variants(dir).map { |p| ['read|write', "#{p}/*"] }
+    rules << ['none', '*/..*']
     xml = rules.map { |rights, pattern| %(  <policy domain="path" rights="#{rights}" pattern="#{pattern}"/>) }
     File.write(File.join(dir, 'policy.xml'), "<policymap>\n#{xml.join("\n")}\n</policymap>\n")
     dir
@@ -129,14 +133,15 @@ module ImageMagickRunner
   private_class_method :private_dir
 
   # A path as given and resolved (macOS reaches its temp directory through /private), minus any
-  # form the policy cannot hold literally.
+  # form the policy cannot hold literally or that is not valid UTF-8.
   def self.pattern_variants(path)
+    return [] unless path.valid_encoding?
     real = begin
       File.exist?(path) ? File.realpath(path) : File.join(File.realpath(File.dirname(path)), File.basename(path))
     rescue SystemCallError
       path
     end
-    [path, real].uniq.reject { |p| p.match?(UNSAFE_PATTERN_CHARS) }
+    [path, real].uniq.reject { |p| !p.valid_encoding? || p.match?(UNSAFE_PATTERN_CHARS) }
   end
   private_class_method :pattern_variants
 

@@ -51,10 +51,20 @@ describe ImageMagickRunner, "confinement" do
     end
 
     it "does not draw a named file when the svg arrives under a raster file name" do
-      input = File.join(@dir, 'in.png')
-      File.write(input, "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"64\" height=\"64\"><image href=\"#{@victim}\" width=\"64\" height=\"64\"/></svg>")
+      # The blue rect makes a refused read render blue; without it the result is white, whose red is 1.0.
+      input = write_svg(@dir, "<image href=\"#{@victim}\" width=\"64\" height=\"64\"/>", 'in.png')
       out = File.join(@dir, 'out.jpg')
       ImageMagickRunner.run('convert', input, '-flatten', out)
+      expect(!File.exist?(out) || mean_red(out) < 0.1).to eq(true)
+    end
+
+    it "does not draw a file reached by walking up out of its own private directory" do
+      private_dir = File.join(@dir, 'magick-confine-known')
+      allow(Dir).to receive(:mktmpdir).and_call_original
+      allow(Dir).to receive(:mktmpdir).with('magick-confine') { FileUtils.mkdir_p(private_dir) && private_dir }
+      input = write_svg(@dir, "<image href=\"#{private_dir}/..#{@victim.delete_prefix(@dir)}\" width=\"64\" height=\"64\"/>")
+      out = File.join(@dir, 'out.jpg')
+      ImageMagickRunner.run('convert', '-background', 'white', input, '-flatten', out)
       expect(!File.exist?(out) || mean_red(out) < 0.1).to eq(true)
     end
 
@@ -182,6 +192,35 @@ describe ImageMagickRunner, "confinement" do
       end
       ImageMagickRunner.spawn('convert', File.join(@dir, 'x.svg'), File.join(@dir, 'x.jpg'))
       expect(seen).to eq(true)
+    end
+
+    # ImageMagick 6.9.12 matches a pattern against the path as written, and '*' spans '/', so
+    # '<allowed dir>/../../<file>' matches '<allowed dir>/*'. The last matching rule wins.
+    it "ends with a rule refusing any path that has a '..' segment" do
+      input = File.join(@dir, 'in.svg')
+      File.write(input, '<svg/>')
+      rules = Nokogiri::XML(policy_for('convert', input, File.join(@dir, 'out.jpg'))).xpath('/policymap/policy[@domain="path"]')
+      expect(rules.last['pattern']).to eq('*/..*')
+      expect(rules.last['rights']).to eq('none')
+    end
+
+    # A Regexp on a string that is not valid UTF-8 raises ArgumentError, and a label is an argument.
+    it "runs with an argument that is not valid UTF-8, and allows nothing for it" do
+      input = File.join(@dir, 'in.svg')
+      File.write(input, '<svg/>')
+      label = "caf\xE9".dup.force_encoding('UTF-8')
+      policy = nil
+      expect { policy = policy_for('montage', '-label', label, input, File.join(@dir, 'out.jpg')) }.not_to raise_error
+      expect(Nokogiri::XML(policy).xpath('/policymap/policy').map { |r| r['pattern'] }).to include(input)
+    end
+
+    it "runs with an output path that is not valid UTF-8, and allows no write for it" do
+      input = File.join(@dir, 'in.svg')
+      File.write(input, '<svg/>')
+      out = File.join(@dir, "out\xE9.jpg".dup.force_encoding('UTF-8'))
+      policy = nil
+      expect { policy = policy_for('convert', input, out) }.not_to raise_error
+      expect(Nokogiri::XML(policy).xpath('/policymap/policy[@rights="write"]').length).to eq(0)
     end
 
     it "leaves commands other than ImageMagick alone" do
