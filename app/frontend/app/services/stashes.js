@@ -906,9 +906,10 @@ export default Service.extend({
           }
           // success!
         }, (err) => {
-          if (this.isDestroyed || pushSerial !== this._logPushSerial) {
-            return;
-          }
+          if (this.isDestroyed) { return; }
+          // Re-queue even if a newer push started (this batch was not delivered); the serial check only guards the back-off.
+          this.persist('usage_log', to_persist.concat(this.get('usage_log')));
+          if (pushSerial !== this._logPushSerial) { return; }
           // error, try again later
           if(typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing && typeof window !== 'undefined') {
             window.stashes = this;
@@ -922,7 +923,6 @@ export default Service.extend({
           }
           console.log(err);
           console.error("log push failed");
-          this.persist('usage_log', to_persist.concat(this.get('usage_log')));
         });
       }
     }
