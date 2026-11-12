@@ -186,7 +186,10 @@
           </button>
         </li>
 
-        {{!-- Home board: open it, wait on the copy, or go pick one. --}}
+        {{!-- Home board: open it, wait on the copy, or go pick one. The second line is the board's
+             NAME, not its key (requested 2026-11-09), from the unit both rails use
+             (components/home-board-name.js); the key's slug while it loads or offline. This home
+             page's copy of the row and classic-rail.hbs's must change together. --}}
         <li class="ch-rail__item">
           {{#if this.homeBoardKey}}
             <LinkTo @route="board" @model={{this.homeBoardKey}} class="ch-row ch-row--board">
@@ -196,7 +199,7 @@
               <span class="ch-row__short" aria-hidden="true">{{t "Board" key="classic_short_board"}}</span>
               <span class="ch-row__body">
                 <span class="ch-row__title">{{t "Home Board" key="home_board"}}</span>
-                <span class="ch-row__sub">{{this.homeBoardKey}}</span>
+                <span class="ch-row__sub"><HomeBoardName @user={{this.appState.currentUser}} /></span>
               </span>
               <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
             </LinkTo>
@@ -475,32 +478,15 @@
       {{/unless}}
     </nav>
 
-    {{!-- Same four destinations as the tab strip above, as a native <select> for
-         <=550px, where four tabs no longer fit on one row. Both are in the DOM at every
-         width and _classic-home.scss swaps which one is shown.
-
-         A NATIVE select, not a custom menu: it gets the platform picker, keyboard
-         support and screen-reader semantics for free, on a page whose users include
-         switch-scanning and eye-gaze users. The `{{#unless}}` / `{{#if}}` gates are
-         copied verbatim from the strip so the two can never offer different options. --}}
-    <select class="ch-tabselect" aria-label={{t "Dashboard sections" key="classic_dashboard_sections"}} {{on "change" this.handleTabSelect}}>
-      <option value="main" selected={{is-equal this.currentTab "main"}}>{{t "Actions" key="actions"}}</option>
-      {{#unless this.app_state.currentUser.modeling_only}}
-        {{#if this.showCommunicatorsTab}}
-          <option value="supervisees" selected={{is-equal this.currentTab "supervisees"}}>{{t "Communicators" key="communicators"}}</option>
-        {{/if}}
-      {{/unless}}
-      <option value="boards" selected={{is-equal this.currentTab "boards"}}>{{t "Boards" key="boards"}}</option>
-      {{#unless this.app_state.currentUser.modeling_only}}
-        <option value="updates" selected={{is-equal this.currentTab "updates"}}>
-          {{~#if this.pending_updates.count~}}
-            {{t "Updates (%{n})" key="classic_tab_updates_n" n=this.pending_updates.count}}
-          {{~else~}}
-            {{t "Updates" key="updates"}}
-          {{~/if~}}
-        </option>
-      {{/unless}}
-    </select>
+    {{!-- Same four destinations as the tab strip above, for <=550px, where four tabs no longer fit on
+         one row. Both are in the DOM at every width and _classic-home.scss swaps which one is shown
+         (`.ch-tabselect`). Was a native <select>; since 2026-11-09 the app's pill-dropdown style
+         (requested: Basic's "select dropdown is not styled with our modern styles"; an open native
+         list cannot be styled), as components/dashboard/section-menu, which also owns how it opens,
+         closes and returns focus. Its options are `sectionMenuItems` (classic-view.js), built from
+         the same rules as the strip's `{{#unless}}` / `{{#if}}` gates above, so the two offer the same
+         sections. --}}
+    <Dashboard::SectionMenu @items={{this.sectionMenuItems}} @currentTab={{this.currentTab}} @onSelect={{this.selectSection}} @menuLabel={{t "Dashboard sections" key="classic_dashboard_sections"}} />
 
     {{!-- ── COMMUNICATORS ── People I Supervise --}}
     {{#if this.index_nav.supervisees}}

@@ -1015,10 +1015,18 @@ body.ll-layout-focused .md-workspace:has(.md-stats-main, .md-org-rooms, .md-org-
   display: none;
 }
 
-body.ll-layout-focused #within_ember #content:has(.md-shell--org:not(.md-shell--org-directory)) {
+/* NOT UNDER THE ORG TABS (2026-11-08): with the org tabs in the app shell's nav slot
+   (templates/application.hbs, `ll-appshell--org-tabs`) the page has a nav to clear, and `#content`
+   keeps Focused's usual padding so the tabs sit where the home pill nav does at every width
+   (at 900px and below the nav is in the flow, so this padding moved it 20px up). Those pages take
+   their clearance from the org-section rule beside `.md-shell--org-directory`'s, in app.scss.
+   The exclusion is in `:where()` so it adds no weight: these rules keep the specificity the rules
+   around them were written against (see the Gentle zeroing rule in app.scss for what an added
+   class cost there). */
+body.ll-layout-focused #within_ember #content:has(.md-shell--org:not(.md-shell--org-directory)):where(:not(:has(.ll-appshell--org-tabs))) {
   padding-top: calc(var(--topbar-height) + 1rem) !important;
 }
-body.ll-layout-focused #content:has(.md-shell--org:not(.md-shell--org-directory)) .ll-appshell .md-shell {
+body.ll-layout-focused #content:has(.md-shell--org:not(.md-shell--org-directory)):where(:not(:has(.ll-appshell--org-tabs))) .ll-appshell .md-shell {
   padding-top: 0 !important;
 }
 
@@ -5136,19 +5144,10 @@ body.ll-layout-focused {
     color: $focus-on-dark;
   }
 
-  // The <=550px replacement for the strip. Its chevron is an inline SVG data URI rather
-  // than a pseudo-element, because a <select> cannot host one — so recolouring it means
-  // re-stating the URI with a light stroke; `%231B365D` (navy) would vanish on this fill.
-  // Lightened with the strip it stands in for below 550px — leaving it dark would have made
-  // the same control change colour at a breakpoint. The chevron is an SVG data URI (a
-  // <select> cannot host a pseudo-element), so its stroke goes back to navy here.
-  .ch-tabselect {
-    background-color: rgba(255, 255, 255, 0.68);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%231B365D' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-    border-color: rgba($la-navy, 0.28);
-    color: $la-navy;
-    box-shadow: inset 0 1px 2px rgba($focus-shadow-ink, 0.12);
-  }
+  // (The <=550px replacement for the strip took a recolouring here while it was a native
+  // <select>, whose chevron was a background image. It is the app's pill dropdown since
+  // 2026-11-09 (components/dashboard/classic-view.hbs), styled by `.md-pillnav-dropdown*` in
+  // both layouts, so that override went with the select.)
 }
 
 // =============================================================================
@@ -5932,8 +5931,18 @@ body.ll-layout-focused .md-grid .md-card.md-card--rooms .md-card__sub::before {
 // button), which centres its title at y184, and this label has no such button. Inside the app
 // shell only: without it (a manager's org page) the page has its own pill nav above the label
 // and none of this spacing applies.
+// SINCE 2026-11-08 a manager's org page IS in the app shell, under the org tabs. Above 900px the
+// 78px holds there too. At 900px and below the tabs and the rail's dropdown sit in the flow above
+// the label, so 78px left it 98px under the dropdown (red-team review 2026-11-09); 20px puts it 40px
+// under, where the home page's header sits. The rooms-only supervisor's list (pill nav, no tabs)
+// keeps its 78px.
 body.ll-view-modern.ll-layout-focused .ll-appshell__content .md-compact-head--rooms {
   margin: 78px 25px 28px;
+}
+@media (max-width: 900px) {
+  body.ll-view-modern.ll-layout-focused .ll-appshell--org-tabs .ll-appshell__content .md-compact-head--rooms {
+    margin-top: 20px;
+  }
 }
 
 // NO GAP ABOVE THE ORGANISATION SWITCHER, with or without Compressed View (requested 2026-09-30):
