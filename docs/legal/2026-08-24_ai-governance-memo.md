@@ -253,8 +253,8 @@ Notes:
 - The runtime path's **Google Gemini** fallback was **disabled 2026-07-09** (`GEMINI_API_KEY`
   fallback removed from `lib/ai_word_predictor.rb`, `lib/ai_prediction_generator.rb`, and
   `lib/ai_board_generator.rb`; historical record in `docs/legal/AI_DATA_SHARING_CONSENT.md`
-  section 2.2). `rev-gemini-baa-annual` on the compliance calendar is retained as a reactivation
-  gate, not a live runtime concern (section 7).
+  section 2.2). It is a reactivation gate, not a live runtime concern (section 7). The calendar
+  row that tracked it, `rev-gemini-baa-annual`, was removed on 2026-11-09 (Scot).
 - No persistent or autonomous AI agent runs against production user data. Prediction is
   request-scoped and stateless beyond logging.
 - **No Anthropic "Covered Model" is ZDR-eligible; none may ever carry identifiable student or
@@ -285,8 +285,8 @@ Current posture (verify at publish time):
   `lib/ai_word_predictor.rb`, so the external-model path should not run for child accounts.
 - Any future change that sends children's data to an external model for training, fine-tuning, or
   feedback loops requires a new consent flow and a calendar update before shipping.
-- Quarterly verification is tracked as `rev-coppa-retention-quarterly` and linked from fixed date
-  `fix-coppa-2026-04-22`.
+- Annual verification (quarterly until 2026-11-09, when Scot set it to annual) is tracked as
+  `rev-coppa-retention-quarterly` and linked from fixed date `fix-coppa-2026-04-22`.
 
 ## 3. The data-handling backstop: no identifiable data to external models
 
@@ -325,7 +325,7 @@ The governing rule is simple and enforced in code, not just in policy:
   (2026-07-12) covers Google **infrastructure**, not a model-provider egress path. **Google (Gemini)
   as a model provider has no BAA**, but its runtime fallback was disabled 2026-07-09 (no AI inference
   reaches Google today); if it is ever reactivated, a covered-service / BAA check is required first
-  (see section 7, `rev-gemini-baa-annual`). No un-BAA'd model-provider egress path is live.
+  (see section 7). No un-BAA'd model-provider egress path is live.
 - **`AiApiLog`** records external model calls for audit. **`AuditEvent`** records privileged
   console access.
 
@@ -593,15 +593,18 @@ Tracked on the compliance calendar (`fix-euaiact-art50-2026-08-02`,
 
 ## 7. Open governance items (to resolve)
 
-- [ ] `rev-gemini-baa-annual` (Google Gemini API data-handling terms/BAA) is now a
-      **reactivation gate** rather than a live runtime item: the Gemini fallback was disabled
-      2026-07-09. Resolve before any future PR re-enables `GEMINI_API_KEY` fallback.
+- [ ] Google Gemini API data-handling terms/BAA is a **reactivation gate** rather than a live
+      runtime item: the Gemini fallback was disabled 2026-07-09. Resolve before any future PR
+      re-enables a Gemini path. `scripts/ai-endpoint-guard.sh` fails a change that reads
+      `GEMINI_API_KEY`, and a reactivation is a subprocessor addition, which triggers the
+      subprocessor review. The calendar row that tracked this, `rev-gemini-baa-annual`, was removed
+      on 2026-11-09 (Scot).
 - [x] **RESOLVED 2026-07-18 (raised by Codex review of PR #579):** the Anthropic model-provider
       egress path now has a signed BAA. Anthropic's HIPAA-Ready BAA was executed and HIPAA readiness
       enabled on the runtime-dedicated LingoLinq, LLC org 2026-07-18, verified live (Messages API
       200, Files API 400); see `docs/legal/ANTHROPIC_BAA_ACCEPTED.md` and the updated section 3.
       Google (Gemini) as a model provider still has no BAA, but its runtime fallback is disabled and
-      that residual is held by the `rev-gemini-baa-annual` reactivation gate above. Covered by
+      that residual is held by the Gemini reactivation gate above. Covered by
       Scot's 2026-07-19 re-attestation in section 8.
 - [ ] Per-feature data-flow documentation for each of the AI-gated features (feature flags
       enumerate the surface; the data-flow docs are the gap).
@@ -762,7 +765,7 @@ bracket immediately above. `docs/legal/DATA_RETENTION.md:33`
 still describes it as enforced; it is attested and Path-A frozen, so it is a declared follow-up, not corrected here. UPDATED 2026-08-25: `lib/tasks/scheduler.rake:153-164` WAS corrected in this same PR and now carries the fullest account of the defect, so it is no longer a follow-up; naming it as one had itself gone stale. The 90-day
 IP redaction leg is unaffected by this correction.]** **[SCOPE CLARIFIED 2026-09-14:** "unaffected by this correction" means unaffected by the 2026-08-25 EU-population correction specifically, which concerns the absence of stamped EU rows and has no bearing on the IP redaction leg. It is **not** a statement that the IP redaction leg was operating. Production scheduled dispatch of `rake scheduler:dispatch` was interrupted from 2026-07-21 to 2026-09-02 (finding `LL-3e36a18199`; open when written, verified-closed 2026-09-18 on its liveness element, with the interruption impact assessment now carried by `LL-cbc8bc4211`), so this task was not run by the scheduler in that window; whether it ran by any other route has not been established. Captures dated 2026-09-14 record hourly execution from 2026-09-02 and one run of the daily 06:00 UTC block on each of the twelve UTC dates 2026-09-03 through 2026-09-14. Across September 3 to 14, each of the six inspected task summaries appeared once per UTC date and reported zero for its stated result. Six of the eleven daily tasks were inspected; the remainder were not queried. These observations do not verify every daily task, do not establish stored population size or contents, and do not evidence completion of downstream asynchronous work. See `docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md`. Separately, scoped inspection at commit `4104b657b` finds that `ip_address` does not appear in any of the three files that reach `AiApiLog.log_ai_call` (`lib/ai_board_generator.rb:679`, `lib/ai_word_predictor.rb:408`, `lib/eval_narrator.rb:314`); other write paths have not been exhaustively inspected. At the 2026-08-17 live re-verification recorded in `docs/legal/2026-08-25_ai-data-flow-classification.md`, `ip_address` was null on all 64 `AiApiLog` rows then present; the table has not been re-queried since, so the current population is unknown.**]**;
 children 12-month and general 24-month **decided, not yet enforced** pending a per-row
-retention-class marker; HIPAA 6-year floor open). No new external data egress or model routing is
+retention-class marker; the disclosed up-to-6-years healthcare window open **[CORRECTION 2026-11-06: this read as a statutory floor. That framing was retracted on 2026-08-30 (#888): the window is a disclosed maximum, and whether any rule requires keeping these rows is open for counsel.]**). No new external data egress or model routing is
 introduced. This is a **substantive** change to the attested Article 50 position; per section 6 (AI
 drafts and flags, humans attest and accept risk), Scot reviewed and re-attested it on 2026-07-22.
 Nothing in this refresh goes live in production until Phases 3-5 deploy and the flag is enabled._

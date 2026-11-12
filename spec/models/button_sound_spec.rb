@@ -761,6 +761,32 @@ describe ButtonSound, :type => :model do
       expect(bs.settings['extra_transcoding_attempts']).to eq(5)
     end
     
+    # The scheduler logs this value (scheduler.rake:62,153), so it must be a count, not records.
+    it "should return the number of records it queued" do
+      u = User.create
+      due = lambda do |klass, settings|
+        rec = klass.create(:user => u, :url => 'asdf', :settings => settings)
+        rec.settings['transcoding_in_progress'] = nil
+        rec.save
+        rec
+      end
+      # Uneven on purpose: no relation size or single-loop subtotal equals the expected 4.
+      2.times { due.call(ButtonSound, {'full_filename' => 'asdf'}) }
+      due.call(ButtonSound, {'full_filename' => 'asdf', 'extra_transcoding_attempts' => 5})
+      ButtonSound.create(:user => u, :url => 'asdf', :settings => {'full_filename' => 'asdf'})
+      due.call(ButtonSound, {})
+      2.times { due.call(UserVideo, {'full_filename' => 'asdf'}) }
+      due.call(UserVideo, {'full_filename' => 'asdf', 'extra_transcoding_attempts' => 5})
+      2.times { UserVideo.create(:user => u, :url => 'asdf', :settings => {'full_filename' => 'asdf'}) }
+      due.call(UserVideo, {})
+      expect(Worker).to receive(:schedule).exactly(4).times
+      expect(ButtonSound.schedule_missing_transcodings).to eq(4)
+    end
+
+    it "should return zero when nothing is due" do
+      expect(ButtonSound.schedule_missing_transcodings).to eq(0)
+    end
+
     it "should not schedule for videos marked as in progress" do
       u = User.create
       bs = UserVideo.create(:user => u, :url => 'asdf', :settings => {'full_filename' => 'asdf'})

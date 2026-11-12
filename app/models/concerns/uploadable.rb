@@ -1,6 +1,7 @@
 require 'mime/types'
 require 'uri'
 require Rails.root.join('lib/svg_sanitizer').to_s
+require Rails.root.join('lib/image_magick_runner').to_s
 
 module Uploadable
   extend ActiveSupport::Concern
@@ -11,6 +12,11 @@ module Uploadable
   # Max size for data URIs stored in DB when S3 upload fails. Prevents DB bloat from large images.
   # 512KB is enough for typical button images (400x400) but blocks oversized photos.
   DATA_URI_STORE_MAX_BYTES = 512 * 1024
+
+  # A failed server-side post is retried by retry_failed_uploads (hourly, through
+  # scheduler:dispatch), never by check_for_pending, with back-off and a cap (lingolinq_mobile#3).
+  UPLOAD_RETRY_LIMIT = 6
+  UPLOAD_FAILURE_KEYS = ['upload_failed_at', 'upload_failures', 'upload_retry_at'].freeze
 
   PROTECTED_IMAGE_URL_MATCHER = /\/api\/v1\/users\/.+\/protected_image/
 
@@ -109,7 +115,8 @@ module Uploadable
         @upload_to_remote_arg = self.settings['pending_url'].to_s
       elsif !self.url && self.settings['data_uri'].present? && requires_server_sanitized_upload?
         self.settings['pending'] = false
-        @upload_to_remote_arg = UPLOAD_FROM_STORED_DATA_URI
+        # Not again after a failed post (retry_failed_uploads owns it) or during an upload.
+        @upload_to_remote_arg = UPLOAD_FROM_STORED_DATA_URI unless self.settings['upload_failed_at'] || @uploading_to_remote
       end
     end
     # TODO: check if it's a protected image (i.e. lessonpix) and download a cached
@@ -237,6 +244,10 @@ module Uploadable
 
   def upload_to_remote(source, rasterize=false)
     raise "must have id first" unless self.id
+    Uploader.ensure_deployed_uploads_configured!
+    # The saves made during an upload (full_filename's first save, the result) must not schedule
+    # another upload of the same record from check_for_pending.
+    @uploading_to_remote = true
     self.settings['pending_url'] = nil
     url = resolve_upload_source(source)
     unless url
@@ -276,16 +287,11 @@ module Uploadable
         file.write(body)
 
         if file_type == 'images' && !self.settings['width'] && !SvgSanitizer.svg_content_type?(self.settings['content_type'])
-          identify_data = `identify -verbose #{file.path}`
-          identify_data.split(/\n/).each do |line|
-            pre, post = line.sub(/^\s+/, '').split(/:\s/, 2)
-            if pre == 'Geometry'
-              match = (post || "").match(/(\d+)x(\d+)/)
-              if match && match[1] && match[2]
-                self.settings['width'] = match[1].to_i
-                self.settings['height'] = match[2].to_i
-              end
-            end
+          file.flush
+          match = ImageMagickRunner.capture('identify', '-format', '%w %h', "#{file.path}[0]").match(/\A(\d+) (\d+)/)
+          if match
+            self.settings['width'] = match[1].to_i
+            self.settings['height'] = match[2].to_i
           end
         end
       else
@@ -330,6 +336,10 @@ module Uploadable
         self.settings['data_uri'] = nil
         self.settings['pending_url'] = nil
         self.data = nil if self.respond_to?(:data=)
+        # A failed attempt already ran transcoding against a file that was not in S3 (MediaObject
+        # schedules it on full_filename's first save); let this save schedule it again.
+        self.settings.delete('transcoding_attempted') if self.settings['upload_failed_at'] && self.respond_to?(:schedule_transcoding)
+        clear_upload_failure
         self.save
       else
         # S3 upload failed - fall back to storing data URI directly when small enough
@@ -349,16 +359,27 @@ module Uploadable
         else
           self.settings['errored_pending_url'] = url
         end
+        # Every failed post is marked, embedded or not, so check_for_pending stops re-scheduling
+        # it (an SVG used to reschedule itself on each save) and retry_failed_uploads owns it.
+        self.settings['upload_failed_at'] = Time.now.to_i
         self.save
       end
     end
+  ensure
+    @uploading_to_remote = false
+  end
+
+  # New picture data starts over: a stale failure count must not hold back its upload.
+  def clear_upload_failure
+    UPLOAD_FAILURE_KEYS.each { |key| self.settings.delete(key) }
   end
 
   def convert_image(path)
     # TODO: PCS images aren't getting sized correctly with 
     # server-side convert, other SVGs probably have problems too
     # TODO: remove font-family from svg's as a tag attribute, it causes problems with rendering
-    `convert -background none -density 300 -resize 400x400 -gravity center -extent 400x400 #{path} #{path}.raster.png`
+    ImageMagickRunner.run('convert', '-background', 'none', '-density', '300', '-resize', '400x400',
+      '-gravity', 'center', '-extent', '400x400', path, "#{path}.raster.png")
   end
 
   # Images stay on SvgSanitizer (image/* only, SVG XSS path). Audio data URIs
@@ -616,6 +637,32 @@ module Uploadable
   alias_method :reject_svg_upload, :record_upload_rejection
 
   module ClassMethods
+    # Retries server-side uploads that failed and were kept embedded (url nil, data present).
+    # Runs on a worker (scheduler:dispatch only enqueues it): a candidate row holds the picture
+    # in data and again in settings, so records are loaded one at a time. The attempt is counted
+    # when it is scheduled, so a backed-up queue does not schedule a record twice and a raise
+    # before the failure branch still reaches the cap. Back-off doubles from 1 hour; the 5
+    # minutes of slack keep an hourly run from skipping a whole hour.
+    def retry_failed_uploads(limit: 500)
+      scheduled = 0
+      ids = self.where(url: nil).where.not(data: nil).where(['updated_at > ?', 2.weeks.ago]).order(:id).pluck(:id)
+      ids.each do |id|
+        break if scheduled >= limit
+        record = self.find_by(id: id)
+        next unless record && record.url.nil? && record.settings && record.settings['upload_failed_at']
+        failures = record.settings['upload_failures'].to_i
+        next if failures >= UPLOAD_RETRY_LIMIT
+        last = [record.settings['upload_failed_at'].to_i, record.settings['upload_retry_at'].to_i].max
+        next if last > ((2 ** failures).hours - 5.minutes).ago.to_i
+        record.settings['upload_failures'] = failures + 1
+        record.settings['upload_retry_at'] = Time.now.to_i
+        record.save
+        record.schedule_for(:slow, :upload_to_remote, UPLOAD_FROM_STORED_DATA_URI)
+        scheduled += 1
+      end
+      scheduled
+    end
+
     def assert_cached_copies(urls)
       res = {}
       ref_urls = urls.map{|u| (self.cached_copy_identifiers(u) || {})[:url] }

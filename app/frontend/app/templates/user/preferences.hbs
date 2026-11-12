@@ -2182,6 +2182,9 @@
     </div>
   {{/unless}}
   <div class="md-preferences__actions">
+    {{!-- Cancel first, Save on the right (requested 2026-11-09), as the app's modals order them:
+         the primary action last, in reading order and tab order alike. --}}
+    <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "cancelSave")}}>{{t "Cancel" key='cancel'}}</button>
     <button type="submit" class="btn btn-primary">
       {{#if (get this "status.saving")}}
         {{t "Saving Preferences..." key='saving_preferences'}}
@@ -2191,7 +2194,6 @@
         {{t "Save Preferences" key='save_preferences'}}
       {{/if}}
     </button>
-    <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "cancelSave")}}>{{t "Cancel" key='cancel'}}</button>
   </div>
   </form>
 </div>

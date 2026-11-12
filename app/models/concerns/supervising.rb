@@ -120,6 +120,11 @@ module Supervising
 
   def modeling_only_for?(supervisee, include_admin_managers=true)
     return true if self.modeling_only?
+    link_modeling_only_for?(supervisee)
+  end
+
+  # Modeling-only by this relationship or link, whatever the supporter's billing state.
+  def link_modeling_only_for?(supervisee)
     rel = approved_supervisor_relationship_to(supervisee)
     return true if rel&.permission_level == 'modeling_only'
     supervisee.supervisor_links.any?{|l| l['record_code'] == Webhook.get_record_code(self) && l['user_id'] == supervisee.global_id && l['state']['modeling_only'] }

@@ -33,7 +33,9 @@ name: Deploy to Cloud Run
 # one Secret Manager secret set, and ONE worker pool (lingolinq-worker-staging), which runs the
 # STAGING image. OPERATIONAL RULE, documented not enforced: a job class, argument shape, or queue
 # change on `develop` is not runnable until it merges to `staging`; dispatching develop with such
-# a change enqueues work the staging worker cannot process and can break it for both environments. A dev deploy
+# a change enqueues work the staging worker cannot process and can break it for both environments.
+# The same holds for one-off runs through `lingolinq-migrate-dev`, which shares the workers'
+# namespace (see the migrate step). A dev deploy
 # builds and ships the web service and runs ITS OWN migrate Job against the shared database
 # (the same thing Render's preDeploy `db:migrate` did), but it must NOT deploy a worker pool or
 # touch a scheduler Job: staging's worker drains the shared Redis for both. That is why the
@@ -731,6 +733,13 @@ jobs:
           [ -n "${V_SNS_ARNS:-}" ]               && ev="$ev,SNS_ARNS=$V_SNS_ARNS"
           [ -n "${V_SNS_REGION:-}" ]             && ev="$ev,SNS_REGION=$V_SNS_REGION"
           echo "APP_ENV_VARS=$ev" >> "$GITHUB_ENV"
+          # The migrate Job keeps its boot-only env, plus the workers' namespace suffix: operators
+          # run one-off rake tasks through it, and without the suffix every job they enqueued in
+          # nonprod went to a namespace no worker reads (lingolinq_mobile#3). Omitted when blank,
+          # for the same reason as above, so production's value is the literal it always was.
+          mev="RACK_ENV=production,RAILS_ENV=production,REDIS_TLS_VERIFY_HOSTNAME=false"
+          [ -n "${V_REDIS_NAMESPACE_SUFFIX:-}" ] && mev="$mev,REDIS_NAMESPACE_SUFFIX=$V_REDIS_NAMESPACE_SUFFIX"
+          echo "MIGRATE_ENV_VARS=$mev" >> "$GITHUB_ENV"
           # Values are non-secret by construction (buckets, labels, a publishable key); print the
           # NAMES so a wrong-environment deploy is visible in the log without leaking anything new.
           echo "Runtime env for '$ENV_NAME': $(printf '%s' "$ev" | tr ',' '\n' | cut -d= -f1 | tr '\n' ' ')"
@@ -804,7 +813,18 @@ jobs:
         # automatic retry then dies on PG::DuplicateTable, and the migration never records in
         # schema_migrations -- a partially advanced schema needing manual DBA repair.
         # Retrying a Rails migration is never correct. Fail once, loudly, and stop.
+        # The env comes from MIGRATE_ENV_VARS (assembled above) so the Job, and every one-off
+        # task an operator runs through it, uses the namespace the workers drain. Before the
+        # Job runs, read back what landed: its RAILS_ENV and REDIS_NAMESPACE_SUFFIX must match
+        # the configured suffix AND the live worker pool that drains the queue (this
+        # environment's, or with DEPLOY_WORKER off, staging's shared pool). A mismatch leaves the
+        # Job deployed but not executed.
+        env:
+          DEPLOY_WORKER_EFFECTIVE: ${{ steps.guard.outputs.deploy_worker }}
+          V_REDIS_NAMESPACE_SUFFIX: ${{ vars.APP_REDIS_NAMESPACE_SUFFIX }}
         run: |
+          set -euo pipefail
+          : "${MIGRATE_ENV_VARS:?assembled by the runtime env step}"
           gcloud run jobs deploy "$MIGRATE_JOB" \
             --image "$IMAGE" \
             --region "$GCP_REGION" \
@@ -818,8 +838,55 @@ jobs:
             --args "exec,rake,db:migrate" \
             --max-retries 0 \
             --task-timeout 3600s \
-            --set-env-vars "RACK_ENV=production,RAILS_ENV=production,REDIS_TLS_VERIFY_HOSTNAME=false" \
+            --set-env-vars "$MIGRATE_ENV_VARS" \
             --set-secrets "$BOOT_SECRETS"
+          # The first non-empty containers list: a Job nests it deeper than a service or pool.
+          env_value() {
+            jq -r --arg n "$1" 'first(.. | objects | .containers? | select(type == "array" and length > 0))[0].env[]?
+              | select(.name == $n) | .value // empty'
+          }
+          job_json="$(gcloud run jobs describe "$MIGRATE_JOB" --region "$GCP_REGION" --format=json)"
+          job_rails_env="$(printf '%s' "$job_json" | env_value RAILS_ENV)"
+          job_suffix="$(printf '%s' "$job_json" | env_value REDIS_NAMESPACE_SUFFIX)"
+          # With DEPLOY_WORKER off (dev), the pool that drains the shared Redis is staging's (see
+          # the header); dev's own web service would only echo dev's variable back.
+          if [ "$DEPLOY_WORKER_EFFECTIVE" = "true" ]; then
+            ref_name="$WORKER_POOL"
+          else
+            ref_name="lingolinq-worker-staging"
+          fi
+          # Only a genuine NOT_FOUND (a new environment) skips the live comparison, as in the
+          # "Record current serving revision" step; any other describe failure stops here.
+          ref_err="$(mktemp)"
+          ref_json=""
+          if ! ref_json="$(gcloud beta run worker-pools describe "$ref_name" --region "$GCP_REGION" --format=json 2>"$ref_err")"; then
+            if grep -qiE 'NOT_FOUND|could not be found|does not exist' "$ref_err"; then
+              ref_json=""
+            else
+              echo "::error::gcloud beta run worker-pools describe $ref_name failed; migrate Job $MIGRATE_JOB is deployed but was NOT executed."
+              cat "$ref_err" >&2
+              exit 1
+            fi
+          fi
+          bad=""
+          [ "$job_rails_env" = "production" ] || bad="$bad RAILS_ENV='${job_rails_env:-<unset>}' (expected production);"
+          [ "$job_suffix" = "${V_REDIS_NAMESPACE_SUFFIX:-}" ] \
+            || bad="$bad REDIS_NAMESPACE_SUFFIX='${job_suffix:-<unset>}' but APP_REDIS_NAMESPACE_SUFFIX is '${V_REDIS_NAMESPACE_SUFFIX:-<unset>}';"
+          if [ -n "$ref_json" ]; then
+            ref_suffix="$(printf '%s' "$ref_json" | env_value REDIS_NAMESPACE_SUFFIX)"
+            [ "$job_suffix" = "$ref_suffix" ] \
+              || bad="$bad REDIS_NAMESPACE_SUFFIX='${job_suffix:-<unset>}' but $ref_name reads '${ref_suffix:-<unset>}';"
+          else
+            # A brand-new environment: nothing drains the queue yet, so only the configured value applies.
+            echo "::notice::$ref_name does not exist yet; checked the migrate Job against the configured suffix only."
+          fi
+          if [ -n "$bad" ]; then
+            echo "::error::Migrate Job $MIGRATE_JOB is deployed but was NOT executed:$bad"
+            # The pool gets the new env only in a later step, so a deliberate suffix change fails
+            # here on every run until the pool is moved first.
+            echo "If APP_REDIS_NAMESPACE_SUFFIX was changed on purpose, move the draining pool first (gcloud beta run worker-pools update $ref_name --region $GCP_REGION --update-env-vars REDIS_NAMESPACE_SUFFIX=<new>, or --remove-env-vars REDIS_NAMESPACE_SUFFIX), then re-run this deploy."
+            exit 1
+          fi
           gcloud run jobs execute "$MIGRATE_JOB" \
             --region "$GCP_REGION" \
             --wait

@@ -234,7 +234,7 @@ describe AiBoardGenerator do
 
     it "leaves jurisdiction nil for a non-EU/unknown user (D-01 retention fail-safe)" do
       # An authoritative US signal AND an :unknown user must both stamp nil, never 'EU' --
-      # stamping an unsure (potentially HIPAA-covered) row 'EU' would delete it early.
+      # stamping an unsure row 'EU' would put it in a purge that cannot be undone.
       non_eu_user = User.new(settings: { 'preferences' => { 'jurisdiction' => 'US' } })
       unknown_user = User.new(settings: { 'preferences' => { 'locale' => 'en' } })
 

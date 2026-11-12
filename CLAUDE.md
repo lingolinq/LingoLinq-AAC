@@ -12,9 +12,12 @@ Everything else loads on demand:
 | `.claude/rules/deploy.md` | touching the deploy workflow, Dockerfile, `scripts/gcp/` | Cloud Run facts |
 | `.claude/rules/github-pr.md` | every session (no `paths:`) | PR consent and credential rules for any route; the `gh` and fallback API routes |
 | `.claude/rules/testing.md` | touching `spec/**` or `.rspec` | no network in specs, test credentials, Redis state, clock-dependent examples |
-| `/fix-proposal` skill | before a bug fix or behaviour change in application code | fact sheet, red test first, proposal review, falsification |
+| `/fix-proposal` skill | before a fix or behaviour change in its required scope (Rule #0 item 12) | fact sheet, red test first, proposal review, falsification |
 | `/pr-preflight` skill | before opening or pushing to a PR | P1 to P6 checks and the PR body block |
 | `AGENTS.md`, `.github/copilot-instructions.md` | Codex and Copilot | the same rules in short form; change them in the same PR |
+
+**Adding process.** Add a gate, review round, attestation or consent step only when a law, a
+signed contract or a real incident calls for it, and name which.
 
 ## Rule #0: check this first, every time, before touching code
 
@@ -57,14 +60,16 @@ everything else in this file.
 11. **A red test run is not a regression until the run COMPLETED and you have a
     baseline.** The mechanics for each suite are in `app/frontend/CLAUDE.md` (Ember) and
     the Testing section below (RSpec).
-12. **For a bug fix or behaviour change in application code: establish the three facts,
-    write the red test first, and review the proposal before editing.** The full
-    discipline is the `/fix-proposal` skill. In one line each: where is the value READ;
-    what are ALL the shapes it can hold; is each cross-file claim TRUE. Label every fact
-    CONFIRMED (`file:line`) or ASSUMED, and let nothing ASSUMED carry a fix. "This one is
-    obvious" is the signal to write the sheet, not to skip it. Only a change that cannot
-    alter runtime behaviour (docs, agent instructions, comments) skips the sheet; config,
-    entrypoints, workflows and migrations count as application code.
+12. **For a bug fix or behaviour change in data handling, auth, sync and offline, or any
+    area on the dual-review list in "Before a PR": establish the three facts, write the red
+    test first, and review the proposal before editing.** The full discipline is the
+    `/fix-proposal` skill. In one line each: where is the value READ; what are ALL the
+    shapes it can hold; is each cross-file claim TRUE. Label every fact CONFIRMED
+    (`file:line`) or ASSUMED, and let nothing ASSUMED carry a fix. "This one is obvious" is
+    the signal to write the sheet, not to skip it. Migrations count as data handling, and
+    workflows, entrypoints and deploy config count as infra. For anything else (UI,
+    styling, copy, docs, small isolated fixes, backend logic outside that list) the sheet and
+    red-test-first are optional (a red test is still welcome); items 1 to 4 still apply.
 13. **One coherent change per unit, and stop when the error rate rises.** Two
     self-inflicted errors close together, or a verification step re-run because the
     first attempt was botched, means commit what is verified, write down what remains,
@@ -160,6 +165,13 @@ data isolation between district accounts is mandatory.
   refused in production. Only `console` and `runner` are audited; `rake`, other
   `bin/rails` subcommands, direct Ruby boots and `psql` are not (finding LL-7f7372e3eb).
 - **Never commit secrets.** Reference 1Password items and Secret Manager names.
+- **No production data in this repo or in any non-production environment** (dev, staging,
+  a local database). Test data is generated or obviously fake: `example.com` addresses,
+  phone numbers from 555-0100 to 555-0199, names like "Test Student". The content scan in
+  the `data-bearing-paths` check is the automated check; it sees shapes (emails, phone
+  numbers, SSN-shaped numbers, base64 media), not meaning, so the author's own look comes first. This
+  rule is about what goes in, not a statement about what is there: Tier 1 handling of dev
+  and staging is unchanged.
 - No em dashes in user-facing prose.
 
 ## Backend architecture
@@ -215,9 +227,19 @@ test DB `lingolinq-test`. Deploy prep: `bin/deploy_prep`, `rake extras:mobile`,
 
 ## Before a PR
 
-Run `/pr-preflight`. Then the dual review: `/review-pr` (senior-dev pass) and
-`/adversary-review` (red team). A Critical or High finding from either blocks the PR.
-The senior-dev pass ships the diff to an external model on an account with no BAA, so run
+Run `/pr-preflight`. Then review, sized to what the PR touches:
+
+- **A normal PR gets one review.** The Codex GitHub connector's automatic review counts, or
+  one `/review-pr` pass. A PR from an outside contributor (a fork) also needs a human review
+  from the core team.
+- **Dual review** (`/review-pr` senior-dev pass plus `/adversary-review` red team) only
+  when the PR touches authentication or sessions, consent or account ownership, access to
+  another user's or organization's data, billing, AI model routing or the AI client, infra
+  or deploy config, or the `data-bearing-paths` gate.
+- **At most two review rounds.** A third round needs Scot's OK.
+- A Critical or High finding from any review blocks the PR.
+
+The `/review-pr` pass ships the diff to an external model on an account with no BAA, so run
 the PII pre-flight first and match the form to the argument: for a PR number,
 `bash ~/ai-company-brain/scripts/review-preflight.sh pr <n> lingolinq/LingoLinq-AAC`;
 for a branch, `bash ~/ai-company-brain/scripts/review-preflight.sh range <base> <head>`;
@@ -229,14 +251,19 @@ line verbatim with the verdict. The `range` or `working` form run against a PR n
 wrong diff and records a pass it did not earn. That guard lives at a
 LingoLinq-internal path: if you cannot reach `~/ai-company-brain/`, you are not set up to
 run this pass, so stop and hand it to someone who is rather than proceeding without it.
-Codex-specific invocation detail lives in `AGENTS.md`. The Codex GitHub connector is set to review every PR automatically; that review skips the PII pre-flight and is neither dual-review pass, so confirm a PR actually got it rather than assuming. A `@codex review` comment requests one; it posts under your GitHub account, so ask before posting. No repository rule requests Copilot code review (an author's own Copilot settings may still request one).
-A PR that adds or changes a data-bearing path (fixtures, factories, seeds, migrations, VCR
-cassettes, data rake tasks, data files, `db/language/`), any file under `.github/workflows/`,
-or the check's own files fails the `data-bearing-paths/<base>` status until a reviewer with
-write access confirms every changed data file is synthetic (and has looked at any workflow
-change) and adds the `synthetic-data` label (never an agent: rule 15). That records an
-approval as a commit status on the current head commit for that base, and the label is
-removed; after a later push, add it again. `develop` is squash-only, so a PR to it is
+Codex-specific invocation detail lives in `AGENTS.md`. The Codex GitHub connector is set to review every PR automatically; that review skips the PII pre-flight. It is the one review a normal PR needs but neither dual-review pass, so confirm a PR actually got it rather than assuming. A `@codex review` comment requests one; it posts under your GitHub account, so ask before posting. No repository rule requests Copilot code review (an author's own Copilot settings may still request one).
+When a PR adds or changes a data-bearing path (fixtures, factories, seeds, migrations, VCR
+cassettes, data rake tasks, data files, `db/language/`), the `data-bearing-paths/<base>`
+check scans the lines it adds there. A clean change passes with no label. The status fails
+until a reviewer with write access confirms the data is synthetic and adds the
+`synthetic-data` label (never an agent: rule 15) when the scan finds an email on a domain
+not reserved for examples, a phone number outside 555-0100 to 555-0199, an SSN-shaped
+number, or an image, audio or video file inlined as a base64 `data:` URI; when a binary
+file is added under such a path; when `db/language/` or a VCR cassette changes (always);
+when the check's own files change; or when a workflow file names the `data-bearing-status`
+environment, `DATA_BEARING_APP_PRIVATE_KEY` or `DATA_BEARING_APP_CLIENT_ID`. Other workflow
+files are not gated. The label records an approval as a commit status on the current head commit for
+that base, and the label is removed; after a later push, add it again. `develop` is squash-only, so a PR to it is
 judged by its net diff. PRs to `staging` and `main` are checked commit by commit for
 changes that never went through `develop`; a merge commit counts only for what it adds
 beyond its parents, so a release merge of `develop` does not trip again. The author may
@@ -257,6 +284,13 @@ into the separate `audit-reports/ember-upgrade/FINDINGS-EMBER.json`. Headline is
 count of open Critical/High findings. Only Scot closes, downgrades, or accepts risk;
 restamping `meta.auditedSha` is a governance act (see `.claude/rules/compliance-docs.md`
 and `audit-reports/README.md`). Findings never contain student or patient data.
+
+An `/audit-run` may write "full" in `meta.auditedRef` only if, at one commit, every finder examined
+every item in its own checklist and every read on the named live-read list in its skill succeeded.
+Only three things a repo read cannot answer are disclosed standing limits: callers outside the repo,
+vendor internals, and provider-side key revocation unless the provider console is opened.
+Assistive-technology testing does not count toward full, and every full stamp says so. Open findings
+do not affect coverage.
 
 ## Notes
 

@@ -59,7 +59,8 @@ Prompt each with:
   duplicating; verified-safe entries are non-findings unless the file changed after
   2026-07-09. Return the run receipt your checklist requires."
 
-Collect each finder's JSON `{domain, auditedSha, checklistToken, guardCanary, findings: [...]}` into
+Collect each finder's JSON `{domain, auditedSha, checklistToken, guardCanary, coverage, findings: [...]}` (`coverage`
+names unexamined areas, so it is never committed) into
 `/tmp/ember-finder-<slice>.json`. A finder returning findings for files outside its
 slice is fine when it followed a hit (twin files, templates); duplicates across slices
 are handled by the deterministic merge id.
@@ -161,9 +162,12 @@ Append one JSONL line to `audit-reports/ember-upgrade/run-log/runs.jsonl` (commi
 result), `new`/`reseen`/
 `regressions`/`skipped` counts, `newIds`, adversary tally, `citationCheck`, open
 Critical/High headline. `.jsonl` is a data-bearing extension
-(`scripts/codex-review-path-classifier.sh`), so the PR that commits this line fails
-`data-bearing-paths` until a reviewer confirms the rows are synthetic and adds the
-`synthetic-data` label; never add that label yourself (root `CLAUDE.md` rule 15).
+(`scripts/codex-review-path-classifier.sh`), so `data-bearing-paths` scans the line this
+PR adds; it fails only if the scan flags a value (an email on a non-example domain, a
+phone number outside 555-0100 to 555-0199, an SSN-shaped number, a base64 image, audio or
+video `data:` URI), until a reviewer confirms the rows are
+synthetic and adds the `synthetic-data` label; never add that label yourself (root
+`CLAUDE.md` rule 15).
 The per-tool examined log is automatic
 (`audit-run-logger.sh ember-upgrade-auditor` → `audit-reports/run-log/examined-<sha8>.jsonl`).
 

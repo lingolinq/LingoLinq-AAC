@@ -471,8 +471,11 @@ class FrontendScopeClassifierTest(unittest.TestCase):
             name for name, job in self.workflow["jobs"].items()
             if "ember-shard-scope" in json.dumps(job)
         }
+        # ember-full-serial (the staging-only full suite) reads the scope decision so a
+        # docs/audit-only develop->staging promotion is not charged a full serial run.
         self.assertEqual(
-            readers, {"lint-and-build", "ember-shard", "ember-shard-coverage", "build-and-test"}
+            readers,
+            {"lint-and-build", "ember-shard", "ember-shard-coverage", "build-and-test", "ember-full-serial"},
         )
 
     def test_the_gate_passes_only_when_everything_required_passed(self):

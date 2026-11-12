@@ -38163,16 +38163,22 @@ body.md-ds-active .app-navbar__beta-feedback-link {
    taller content (e.g. the badges grid) overflows past it, revealing #content's
    grey (#aaa) base below the shell. #content is the actual scroll container and
    its background stays behind the full scroll height, so paint the mesh there;
-   the shell is made transparent below so the two meshes don't seam. */
+   the shell is made transparent below so the two meshes don't seam.
+   SYSTEM SETTINGS TOO (2026-11-09, reported: "the main page bg doesn't extend all the way up to the
+   menu"): an `.md-shell` page in the app shell, so at 900px and below its own mesh began under the
+   rail's dropdown, leaving #content's flat colour above it. */
 #content:has(.md-shell--user),
-#within_ember:has(.md-shell--user) .page-footer {
+#content:has(.md-shell--system-settings),
+#within_ember:has(.md-shell--user) .page-footer,
+#within_ember:has(.md-shell--system-settings) .page-footer {
   @include md-page-wash;
   /* Pin the mesh to the viewport so #content AND the page-footer below it render
      the identical mesh with no seam, covering the whole page (the footer renders
      on every non-board page and is a sibling of #content). */
   background-attachment: fixed !important;
 }
-#content:has(.md-shell--user) {
+#content:has(.md-shell--user),
+#content:has(.md-shell--system-settings) {
   /* fill the viewport when the badge grid is short so the mesh isn't cut off */
   min-height: 100vh !important;
 }
@@ -38273,7 +38279,8 @@ body.ll-view-modern:not(.ll-layout-focused) .md-shell {
    otherwise re-apply the shell's own mesh on top of #content's — creating the
    two-tone "gray band" where the shell ends. With the shell transparent, only
    #content's single fixed mesh shows across the whole page. */
-.md-shell.md-shell--user {
+.md-shell.md-shell--user,
+.md-shell.md-shell--system-settings {
   background: transparent !important;
   /* Let #content drive the page height; the shell's own 100vh would double-count
      against #content's top padding and overflow. */
@@ -44259,14 +44266,30 @@ a.md-goal-nav-action:hover,
 .md-pref-box > .form-group:nth-of-type(1) {
   margin-top: 14px !important;
 }
-.md-preferences__form .col-sm-5,
-.md-preferences__form .col-sm-6 {
-  width: 60% !important;
+/* THE SETTING COLUMNS' DESKTOP WIDTHS, AT 768px AND UP ONLY (2026-11-09, reported: "all settings
+   items share the same problem, they are not stretching to fill the full width of their cards").
+   These held at every width, so below 768px, where each label sits on its own line above its
+   setting, the setting stayed at 60% (or its content width) of the card; and a content column with
+   no `col-xs-12` did not float, so a flex row inside it (the Voice select, the volume picker) was
+   squeezed to zero width beside the label's full-width float and pushed out of the card. */
+@media (min-width: 768px) {
+  .md-preferences__form .col-sm-5,
+  .md-preferences__form .col-sm-6 {
+    width: 60% !important;
+  }
+  .md-preferences__form .form-group > .col-sm-2:not(.control-label),
+  .md-preferences__form .form-group > .col-sm-3:not(.control-label) {
+    width: auto !important;
+    min-width: 200px;
+  }
 }
-.md-preferences__form .form-group > .col-sm-2:not(.control-label),
-.md-preferences__form .form-group > .col-sm-3:not(.control-label) {
-  width: auto !important;
-  min-width: 200px;
+/* ...AND BELOW 768px EVERY COLUMN OF A SETTING ROW IS FULL WIDTH, under its label, whatever its
+   `col-*` classes: one rule for every card, rather than `col-xs-12` added row by row. */
+@media (max-width: 767px) {
+  .md-preferences__form .form-group > [class*="col-"] {
+    float: left;
+    width: 100%;
+  }
 }
 .md-preferences__form .input-group {
   min-width: 160px;
@@ -44324,7 +44347,8 @@ a.md-goal-nav-action:hover,
   font-weight: 700;
   color: $brand-slate-blue;
 }
-.md-preferences__form .form-control {
+.md-preferences__form .form-control,
+.la-system-settings__body .form-control {
   font-size: 14px;
   padding: 8px 14px;
   border: 1.5px solid rgba($brand-blue-black, 0.12);
@@ -44332,7 +44356,8 @@ a.md-goal-nav-action:hover,
   color: var(--md-ink);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.md-preferences__form .form-control:focus-visible {
+.md-preferences__form .form-control:focus-visible,
+.la-system-settings__body .form-control:focus-visible {
   border-color: var(--md-teal);
   box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.12);
   outline: none;
@@ -44360,7 +44385,10 @@ a.md-goal-nav-action:hover,
   color: var(--md-muted);
 }
 /* Modern checkboxes */
-.md-preferences__form input[type="checkbox"] {
+/* System Settings' feature checkboxes share these (2026-11-09, requested: "the features page
+   checkmarks are the old bootstrap styles/colors"). */
+.md-preferences__form input[type="checkbox"],
+.la-system-settings__body input[type="checkbox"] {
   -webkit-appearance: none !important;
   -moz-appearance: none !important;
   appearance: none !important;
@@ -44381,11 +44409,13 @@ a.md-goal-nav-action:hover,
   margin: 0 8px 0 0 !important;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
-.md-preferences__form input[type="checkbox"]:checked {
+.md-preferences__form input[type="checkbox"]:checked,
+.la-system-settings__body input[type="checkbox"]:checked {
   background: #fff !important;
   border-color: rgba($brand-blue-black, 0.4) !important;
 }
-.md-preferences__form input[type="checkbox"]:checked::after {
+.md-preferences__form input[type="checkbox"]:checked::after,
+.la-system-settings__body input[type="checkbox"]:checked::after {
   content: '';
   position: absolute;
   top: 2px;
@@ -44396,7 +44426,8 @@ a.md-goal-nav-action:hover,
   border-width: 0 2px 2px 0 !important;
   transform: rotate(45deg);
 }
-.md-preferences__form input[type="checkbox"]:hover {
+.md-preferences__form input[type="checkbox"]:hover,
+.la-system-settings__body input[type="checkbox"]:hover {
   border-color: rgba($brand-blue-black, 0.4) !important;
 }
 .md-preferences__form .big_checkbox {
@@ -44499,8 +44530,10 @@ a.md-goal-nav-action:hover,
     position: static;
   }
 }
-/* Modern select dropdowns in preferences */
-.md-preferences__form select.form-control {
+/* Modern select dropdowns in preferences, and System Settings' (2026-11-09, requested: its "category
+   dropdowns and select lists" in the modern style) */
+.md-preferences__form select.form-control,
+.la-system-settings__body select.form-control {
   padding: 6px 32px 6px 14px;
   height: auto;
   line-height: 1.4;
@@ -46552,7 +46585,8 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
   .md-pillnav {
     margin-top: 24px !important;
   }
-  .md-pillnav-dropdown {
+  /* Not the Basic dashboard's section menu (`.ch-tabselect`, 2026-11-10): its spacing is its own. */
+  .md-pillnav-dropdown:where(:not(.ch-tabselect)) {
     margin-top: 32px !important;
   }
   .md-card--getting-started .md-card__head--getting-started {
@@ -48426,6 +48460,17 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
   box-shadow: 0 4px 14px rgba($la-navy, 0.10) !important;
 }
 .md-btn:active { transform: scale(var(--md-tap)); }
+/* DISABLED LOOKS DISABLED (2026-11-09, red-team review: System Settings' Save and Reset, now
+   `md-btn`, looked clickable while saving). Bootstrap's `.btn[disabled]` gave the old buttons this;
+   `md-btn` had no disabled state. No lift and no press while disabled, either. The box-shadow
+   `!important` matches the base `.md-btn` rule's own, which this state has to replace. */
+.md-btn:disabled,
+.md-btn[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none !important;
+  transform: none;
+}
 
 .md-btn--primary {
   background: rgba($brand-dusty-denim, 0.3) !important;
@@ -50477,26 +50522,37 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 }
 /* Compact two-column "definition list" for the advanced-options fields (macOS/
    iOS settings style): a FIXED-width label column + a flexible control column,
-   so Fill order / Board key / Language all line up on a consistent grid instead
+   so Fill order / Board key line up on a consistent grid instead
    of stacking label-over-control. */
 .new-board--modern .new-board-field--key,
-.new-board--modern .new-board-field--locale,
 .new-board--modern .new-board-field--fill-order {
   display: grid;
   grid-template-columns: 116px minmax(0, 1fr);
   align-items: center;
   gap: 8px 14px;
 }
+/* Language takes its own full row under Name + Description on wizard step 1, and
+   its label stays at the top when the hint and translation notice run long. */
+.new-board--modern .new-board-field--locale {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: 116px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px 14px;
+}
+@media (max-width: $aac-breakpoint-md) {
+  .new-board--modern .new-board-field--locale {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .new-board--modern .new-board-field--key > .nb-field__label,
 .new-board--modern .new-board-field--locale > .nb-field__label,
 .new-board--modern .new-board-field--fill-order > .nb-field__label {
   margin: 0;
 }
-/* Hint reads inline in the content column (no full-width line / extra margin),
-   with a little left padding so it's spaced off the "Language" label. */
+/* Hint and translation notice sit under the select, in the content column. */
 .new-board--modern .new-board-field--locale .nb-field__hint {
-  margin: 0;
-  padding-left: 8px;
+  margin: 6px 0 0;
 }
 
 /* Modern stepper — single glass pill with inline +/- icon buttons.
@@ -57451,7 +57507,10 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
     padding: 6px 8px !important;
 
   }
-  .md-pillnav-dropdown {
+  /* Not the Basic dashboard's section menu (`.ch-tabselect`, 2026-11-10): at <=550px it is the only
+     way between that page's sections (the tab strip is hidden there), so hiding it here left a
+     375px-wide phone with neither. Excluded in `:where()`, so the rule weighs what it did. */
+  .md-pillnav-dropdown:where(:not(.ch-tabselect)) {
     display: none !important;
   }
 }
@@ -57491,8 +57550,11 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
      `--user` rule below on specificity), `--org-menu` covers org managers at <=550,
      and `--user` is what an ORG manager actually lands on at <=460 (equal specificity
      to --org-menu, later in source). Leaving any at 40% gives one user type a
-     narrower pill than the others for no reason. */
-  .md-pillnav-dropdown:not(.md-pillnav-dropdown--org-menu) {
+     narrower pill than the others for no reason.
+     NOT THE BASIC DASHBOARD'S SECTION MENU (`.ch-tabselect`, 2026-11-10, red-team review): it wears
+     this class for its look, but keeps its own 75%-wide, flush placement (_classic-home.scss).
+     Excluded in `:where()`, so this rule weighs what it did for every dropdown it still covers. */
+  .md-pillnav-dropdown:not(.md-pillnav-dropdown--org-menu):where(:not(.ch-tabselect)) {
     display: block !important;
     width: 52% !important;
     /* 40px, i.e. the original 20px + 2rem (2026-08-16, requested). 1rem is 10px in this
@@ -57511,7 +57573,8 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
    one-class (0,1,0) !important show. Measured 2026-10-05 (org manager, Focused, home and
    caseload, 461-550px and 440px): pill row hidden, dropdown hidden, NO NAV AT ALL. Two-class
    selectors fix the tie on specificity and source order. The `--primary` hooks are emitted only
-   by components/user-pill-nav (modern, not Classic, which has its own tab dropdown), so the
+   by components/user-pill-nav (modern, not Classic, which has its own tab dropdown) and, since
+   2026-11-08, by the Modern org tabs in the same nav slot (components/org-tabs.hbs), so the
    other `md-pillnav--dashboard` navs (system settings, board picker) are untouched.
    Non-org users collapsed at 460px (the block above, still in place for the other navs) and
    their pills wrapped between 461 and 550; this brings everyone to 640.
@@ -57550,7 +57613,9 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
      this nav). The dropdown is 48px against the pill row's 44px and this padding 16px above 640px,
      so 12 + 48 matches 16 + 44: the bar is 66px tall on both sides of 640px and nothing below it
      jumps when the pills become the dropdown. */
-  .ll-appshell__navbar:has(> .md-pillnav-dropdown--primary) {
+  /* ANY DEPTH, not `> `, since 2026-11-08: the org tabs' dropdown also wears `--primary` in this
+     slot (components/org-tabs.hbs) and sits one level down, inside its `.ch-tabs-fit` wrapper. */
+  .ll-appshell__navbar:has(.md-pillnav-dropdown--primary) {
     padding-top: 12px;
   }
 }
@@ -57622,9 +57687,12 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
    superseded generic block (hardcoded order on only 5 cards, which fought the dynamic
    `--ord-*` order and left the action cards unsequenced) was removed so the two
    layouts each have a single authoritative small-screen rule. */
-/* Extra breathing room above the nav-pill menu on small screens. */
+/* Extra breathing room above the nav-pill menu on small screens.
+   Not the "< Home | section" back strip on a Modern org page (2026-11-09, red-team review of the
+   small-screen fix): there the rail's dropdown already sits right above it, and the 48px left it
+   68px under the dropdown. Excluded in `:where()`, so the rule's weight is unchanged elsewhere. */
 @media (max-width: 640px) {
-  .md-workspace > .md-pillnav {
+  .md-workspace > .md-pillnav:where(:not(.ll-appshell .md-shell--org .md-pillnav)) {
     margin-top: 48px !important;
   }
 }
@@ -82862,40 +82930,6 @@ span.md-board-detail-modeling-btn--badge {
    the access badge (500 vs 700) per spec — these convey passive
    counts/dates, the access badge conveys a permission state. */
 
-/* Sub-navigation pills inside admin index (Managers, Supervisors, etc.) */
-.md-pillnav--org-sub {
-  width: fit-content !important;
-  margin: 0 auto 24px !important;
-  padding: 6px 10px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  flex-wrap: wrap !important;
-  gap: 4px !important;
-  border-radius: 999px !important;
-  background: rgba(255, 255, 255, 0.85) !important;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04) !important;
-  border: 1px solid rgba(0, 0, 0, 0.06) !important;
-}
-.md-pillnav--org-sub .md-pillnav__pill {
-  padding: 8px 14px !important;
-  border-radius: 999px !important;
-  background: transparent !important;
-  border: none !important;
-  font-size: 14px !important;
-  font-weight: 600 !important;
-  color: var(--md-navy, $la-navy) !important;
-  cursor: pointer !important;
-  transition: background 0.15s ease !important;
-}
-.md-pillnav--org-sub .md-pillnav__pill:hover {
-  background: rgba($brand-dusty-denim, 0.08) !important;
-}
-.md-pillnav--org-sub .md-pillnav__pill.is-active {
-  background: var(--md-navy, $la-navy) !important;
-  color: #fff !important;
-}
-
 /* Parent org badge */
 .md-org-parent-badge {
   text-align: center;
@@ -95163,9 +95197,47 @@ body.md-tour--centered-step .shepherd-modal-overlay-container.shepherd-modal-is-
   -webkit-backdrop-filter: blur(10px) saturate(1.05);
 }
 
+/* STATUS TAG (2026-11-09, requested: "the status badges need modern style updates"). A read-only
+   label, not a button, after the informational-tag note further up this file: a small rounded
+   rectangle (a full pill reads as pressable), a soft tint with no shadow or border, and the 14px
+   text floor. Neutral by default; `--info` for a state someone set (Customized, inherited scope),
+   `--warning` for one they cannot change here (env-locked). First used by System Settings'
+   Emails and Features tables in place of Bootstrap's solid `.label`. */
+.md-status-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  color: #46505F;
+  background: rgba($la-navy, 0.07);
+}
+.md-status-tag--info {
+  color: #1f5b8a;
+  background: rgba($brand-dusty-denim, 0.12);
+}
+.md-status-tag--warning {
+  color: #7a4f00;
+  background: rgba(#E9A23B, 0.18);
+}
+
 /* System settings (emails + features) */
+/* The page's section, in place of the marketing `.la-section` (2026-11-09): the app's header
+   (`md-hero`) and the card, stacked, without the marketing padding that pushed them down. */
+.la-system-settings__section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 0 32px 40px;
+}
+/* TEXT AT 14px (2026-11-09, requested: "make the table text font size 14px"). These were `rem`,
+   and 1rem is 10px in this app, so the page read at 10px; 14px is the project floor for small
+   text, 16px for the feature names that lead each row. */
 .la-system-settings__body {
-  font-size: 1rem;
+  font-size: 14px;
   line-height: 1.55;
   color: var(--md-ink, $brand-blue-black);
 }
@@ -95205,18 +95277,18 @@ body.md-tour--centered-step .shepherd-modal-overlay-container.shepherd-modal-is-
   width: 100%;
 }
 .la-system-settings__label-text {
-  font-size: 1rem;
+  font-size: 14px;
   font-weight: 600;
   color: var(--md-muted, $la-navy);
 }
 .la-system-settings__table {
-  font-size: 1rem;
+  font-size: 14px;
 }
 .la-system-settings__link {
   font-weight: 600;
 }
 .la-system-settings__textarea {
-  font-size: 1rem;
+  font-size: 14px;
   line-height: 1.5;
   font-family: inherit;
   margin-bottom: 16px;
@@ -95245,9 +95317,29 @@ body.md-tour--centered-step .shepherd-modal-overlay-container.shepherd-modal-is-
 }
 
 .la-system-settings__hint {
-  font-size: 1rem;
+  font-size: 14px;
   color: var(--md-muted, $la-navy);
   margin-bottom: 16px;
+}
+/* The feature sections (2026-11-09, templates/system-settings/features.hbs): a heading over each
+   group, with room between groups so they read as sections rather than one list. */
+.la-system-settings__feature-group {
+  margin-top: 28px;
+}
+.la-system-settings__feature-group:first-of-type {
+  margin-top: 8px;
+}
+.la-system-settings__feature-group-title {
+  margin: 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid rgba($la-navy, 0.12);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--md-ink, $brand-blue-black);
+}
+/* <ModernSelect> fills its field, as the native selects it replaced did. */
+.la-system-settings__filter-select {
+  width: 100%;
 }
 .la-system-settings__feature-list {
   list-style: none;
@@ -95263,17 +95355,22 @@ body.md-tour--centered-step .shepherd-modal-overlay-container.shepherd-modal-is-
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 12px;
-  font-size: 1.05rem;
+  font-size: 16px;
   font-weight: 600;
   margin-bottom: 4px;
 }
+/* An env-locked feature cannot be toggled here: say so in the box itself. */
+.la-system-settings__feature-label input[type="checkbox"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .la-system-settings__feature-key {
-  font-size: 0.95rem;
+  font-size: 14px;
   font-weight: 400;
   color: var(--md-muted, $la-navy);
 }
 .la-system-settings__feature-desc {
-  font-size: 1rem;
+  font-size: 14px;
   margin: 4px 0 8px;
   color: var(--md-muted, $la-navy);
 }
@@ -95285,25 +95382,25 @@ body.md-tour--centered-step .shepherd-modal-overlay-container.shepherd-modal-is-
 }
 .la-system-settings__preview-text {
   white-space: pre-wrap;
-  font-size: 1rem;
+  font-size: 14px;
   max-height: 320px;
   overflow: auto;
 }
 .la-system-settings__vars code {
-  font-size: 1rem;
+  font-size: 14px;
 }
 .la-system-settings__vars-heading {
-  font-size: 1.15rem;
+  font-size: 18px;
   margin: 1.25rem 0 0.5rem;
 }
 .la-system-settings__vars-detail {
   margin: 0 0 1rem;
   dt {
-    font-size: 1rem;
+    font-size: 14px;
     margin-top: 0.75rem;
   }
   dd {
-    font-size: 1.05rem;
+    font-size: 14px;
     margin: 0.25rem 0 0 0;
   }
 }
@@ -97410,8 +97507,18 @@ body:not(.ll-layout-focused) #within_ember #content:has(.ll-appshell) {
 }
 /* Not the Updates arrival (2026-10-10): it takes Focused's positioning in both layouts — the
    shell keeps its nav clearance (`.ll-appshell .md-shell`); see `md-main--updates-arrival` in
-   _focused-view.scss. */
-body:not(.ll-layout-focused) #content:has(.ll-appshell):not(:has(.md-main--updates-arrival)) .ll-appshell .md-shell {
+   _focused-view.scss.
+   Not the Organizations directory either (2026-11-08): its first element is its title, so it keeps
+   its own clearance (`.md-shell--org-directory` below). This rule's `:has()` qualifiers made it
+   one class heavier than that one, so it zeroed the directory too and the title sat under the nav.
+   Nor an org page under the org tabs (`ll-appshell--org-tabs`, same reason; see beside the
+   directory rule).
+   BOTH EXCLUSIONS ARE IN `:where()`, WHICH ADDS NO WEIGHT. As plain `:not()`s they made this rule
+   two classes heavier, and the page rules that give clearance back on top of it (Goals and
+   Recordings 30px, Stats 52px at 900px and below) then lost to it: measured 2026-11-09 against
+   develop, those pages' content rose 30px and 52px. With `:where()` the rule skips the two shells
+   and keeps the weight those rules were written against. */
+body:not(.ll-layout-focused) #content:has(.ll-appshell):not(:has(.md-main--updates-arrival)) .ll-appshell:where(:not(.ll-appshell--org-tabs)) .md-shell:where(:not(.md-shell--org-directory)) {
   padding-top: 0 !important;
 }
 /* ...AND 52px OF IT BACK AT 1024 AND BELOW (requested 2026-09-21: "the main page content
@@ -97450,9 +97557,16 @@ body:not(.ll-layout-focused) #content:has(.ll-appshell):not(:has(.md-main--updat
 /* ...AND BOTH PUSHES START AT 900, NOT 1024 (2026-10-01, requested: "hold the full-size spacing").
    They made up for the workspace's 40px top margin, which used to go at 1024; that margin now holds
    down to 901 (the <=900 block after the general <=1024 block), so above 900 these would push the
-   page 12px (36px on Boards) below where it sits at full size. Below 900 nothing changes. */
+   page 12px (36px on Boards) below where it sits at full size. Below 900 nothing changes.
+   NOT THE ORG PAGES UNDER THE ORG TABS OR THE ORGANIZATIONS DIRECTORY (2026-11-09, reported: "on
+   small screens, the org page header is pushed way down low"): their 900px-and-below clearance is
+   set beside their own rules further down. Excluded in `:where()`, so this rule's weight is
+   unchanged for every page it still covers. Nor an org page with no top menu at all (an org member
+   who cannot edit it: `ll-appshell--no-nav`; red-team review 2026-11-09), for the same reason. The
+   rooms-only supervisor's Rooms list keeps it: that page has the pill nav, and its label spacing
+   (_focused-view.scss `.md-compact-head--rooms`) was measured with it. */
 @media (max-width: 900px) {
-  body:not(.ll-layout-focused) #content:has(.ll-appshell):not(:has(.md-main--updates-arrival)) .ll-appshell .md-shell {
+  body:not(.ll-layout-focused) #content:has(.ll-appshell):not(:has(.md-main--updates-arrival)) .ll-appshell:where(:not(.ll-appshell--org-tabs)) .md-shell:where(:not(.md-shell--org-directory, .ll-appshell--no-nav .md-shell--org)) {
     padding-top: 52px !important;
   }
   body:not(.ll-layout-focused) #content.boards-page .ll-appshell .md-shell {
@@ -97515,12 +97629,78 @@ body:not(.ll-layout-focused) #content:has(.ll-appshell):not(:has(.md-main--updat
    ON THE SHELL, not the workspace: the workspace's 20/40 is this page's own inner rhythm and is
    shared with the org DETAIL pages, which were not asked about and do not have this problem.
    `!important` matched, not added -- the rules being overridden
-   (`.ll-appshell .md-shell`, and the gentle `:has(.ll-appshell)` block above) both carry one. */
+   (`.ll-appshell .md-shell`, and the gentle `:has(.ll-appshell)` block above) both carry one.
+   GENTLE RE-MEASURED 2026-11-08 (reported: the title was under the nav). This rule had stopped
+   applying -- the gentle zeroing block above outweighed it and now skips this shell -- and its 70px
+   was worked out when gentle `#content` padded 26px; it now pads `--topbar-height + 1rem`, which
+   puts the hero at 114 with no shell padding. 156 - 114 = 42, the same target as Focused. */
 body:not(.ll-layout-focused) #content .ll-appshell .md-shell.md-shell--org-directory {
-  padding-top: 70px !important;
+  padding-top: 42px !important;
 }
+/* Focused 50 -> 80 (2026-11-09): the directory now takes the home page's `#content` padding (the
+   Focused rule at the end of this group, requested: "fix the organizations focused at 900px to
+   match the home page menu position"), 30px less, and the 30px moves here so the title stays. */
 body.ll-layout-focused #content .ll-appshell .md-shell.md-shell--org-directory {
-  padding-top: 50px !important;
+  padding-top: 80px !important;
+}
+/* THE ORG PAGES UNDER THE ORG TABS CLEAR THEM THE SAME WAY (2026-11-08). In Modern an org editor's
+   org pages now carry the org tabs in the app shell's nav slot (requested: in the same place as
+   the home pill nav), so, like this directory, their first element (the switcher or the title)
+   needs clearance under it. Same target as above: the title at 156 at desktop widths.
+   Measured without it: Gentle `#content` 26 + shell 0 + workspace 40/40 + hero 20 -> title at 126,
+   under the tabs (86-128). Focused first kept its usual `#content` 46 for these pages and so took
+   10 here; since the rule just below gives these pages the home page's `#content` (30px less), the
+   30px moved into this value: 40. Gentle stays 30.
+   At 900px and below neither applies: see the <=900px block after the Focused `#content` rule. */
+body:not(.ll-layout-focused) #content .ll-appshell.ll-appshell--org-tabs .md-shell {
+  padding-top: 30px !important;
+}
+body.ll-layout-focused #content .ll-appshell.ll-appshell--org-tabs .md-shell {
+  padding-top: 40px !important;
+}
+/* FOCUSED: THE TABS AT THE HOME PILL NAV'S HEIGHT AT 900px AND BELOW TOO (reported 2026-11-08:
+   "still positioned down from where it should be"). The rule applies at every width; above 900px
+   the nav slot is out of the flow, so only the title would move, and the shell's +30 above keeps
+   it still. At 900px and below the nav slot is in the flow, so
+   `#content`'s top padding places it: the home page takes `var(--topbar-height)` (the Focused home
+   rule, `#content.index.with_user:has(.md-shell--layout-focused)`), every other page the base
+   `+ 3rem`, which put the tabs 30px under the home pill nav. The same value here; the 30px it
+   removes moves into the shell's padding just above (10 -> 40), so the title does not move.
+   THE ORGANIZATIONS DIRECTORY TOO (2026-11-09, requested: "fix the organizations focused at 900px
+   to match the home page menu position"): its pill nav sat 30px under the home page's for the same
+   reason; its shell clearance above took the 30px (50 -> 80). MODERN ONLY: Basic's directory carries
+   `.md-shell--org-directory` too (templates/organizations.hbs) but never sits in the app shell, and
+   matching it moved Basic's rail up 10px (red-team review 2026-11-09), so the directory counts only
+   inside `.ll-appshell`. That ancestor is in `:where()`, so each `:has()` argument weighs one class
+   and the rule's weight is unchanged. */
+body.ll-layout-focused #within_ember #content:has(.ll-appshell--org-tabs, :where(.ll-appshell) .md-shell--org-directory) {
+  padding-top: var(--topbar-height) !important;
+}
+/* ...AND NONE OF THAT CLEARANCE AT 900px AND BELOW (2026-11-09, reported: "on small screens, the org
+   page header is pushed way down low"). The shell values above (30/40 under the tabs, 42/80 on the
+   directory) clear a nav that sits OUT of the flow above 900px. At 900px and below the nav and the
+   rail's dropdown are both in the flow above the content, so that clearance, Focused's general 52px
+   workspace padding (`.md-workspace` in the <=900px block) and Gentle's shared 52px shell push
+   (excluded from these pages above) only stacked empty space: the title sat 112px (Gentle) and 152px
+   (Focused) under the dropdown, against 20px on the home page. Same selectors as the rules above, so
+   these win on source order alone.
+   ALSO AN ORG PAGE WITH NO TOP MENU (red-team review 2026-11-09): an org member who cannot edit the
+   org gets the app shell but no tabs (`ll-appshell--no-nav`), and kept Gentle's 52px push and
+   Focused's 52px workspace padding, 166-216px under the dropdown. */
+@media (max-width: 900px) {
+  body:not(.ll-layout-focused) #content .ll-appshell .md-shell.md-shell--org-directory,
+  body.ll-layout-focused #content .ll-appshell .md-shell.md-shell--org-directory,
+  body:not(.ll-layout-focused) #content .ll-appshell.ll-appshell--org-tabs .md-shell,
+  body.ll-layout-focused #content .ll-appshell.ll-appshell--org-tabs .md-shell,
+  body:not(.ll-layout-focused) #content .ll-appshell.ll-appshell--no-nav .md-shell.md-shell--org,
+  body.ll-layout-focused #content .ll-appshell.ll-appshell--no-nav .md-shell.md-shell--org {
+    padding-top: 0 !important;
+  }
+  body.ll-layout-focused #content .ll-appshell .md-shell.md-shell--org-directory .md-workspace,
+  body.ll-layout-focused #content .ll-appshell.ll-appshell--org-tabs .md-shell .md-workspace,
+  body.ll-layout-focused #content .ll-appshell.ll-appshell--no-nav .md-shell.md-shell--org .md-workspace {
+    padding-top: 0 !important;
+  }
 }
 
 /* FOCUSED DASHBOARD: 32px OFF THE TOP BELOW 901px (requested 2026-09-21: "reduce the top

@@ -1983,6 +1983,65 @@ describe Api::UsersController, :type => :controller do
       json = JSON.parse(response.body)
       expect(json).to eq({'email_sent' => true})
     end
+
+    describe "reset link host" do
+      # DEFAULT_HOST must differ from the request's own host (test.host), or a
+      # link built from either would pass and the assertions would prove nothing.
+      around(:each) do |example|
+        prior = ENV['DEFAULT_HOST']
+        ENV['DEFAULT_HOST'] = 'links.lingolinq.test'
+        example.run
+      ensure
+        ENV['DEFAULT_HOST'] = prior
+      end
+
+      def delivered_reset_text
+        Worker.process_queues
+        mail = ActionMailer::Base.deliveries.last
+        expect(mail).not_to eq(nil)
+        mail.parts.map(&:decoded).join("\n")
+      end
+
+      it "should not build the reset link from a forwarded host the request supplied" do
+        u = User.create(:settings => {'email' => 'bob@example.com'})
+        request.headers['X-Forwarded-Host'] = 'attacker.example'
+        post :forgot_password, params: {:key => u.user_name}
+        expect(response).to be_successful
+        text = delivered_reset_text
+        expect(text).not_to include('attacker.example')
+        expect(text).to include("://links.lingolinq.test/#{u.user_name}/password_reset/")
+      end
+
+      it "should not build the reset link from a Host header the request supplied" do
+        u = User.create(:settings => {'email' => 'bob@example.com'})
+        request.host = 'attacker.example'
+        post :forgot_password, params: {:key => u.user_name}
+        expect(response).to be_successful
+        text = delivered_reset_text
+        expect(text).not_to include('attacker.example')
+        expect(text).to include("://links.lingolinq.test/#{u.user_name}/password_reset/")
+      end
+
+      it "should not build the reset link from a host restored from a queued job" do
+        u = User.create(:settings => {'email' => 'bob@example.com'})
+        # A job queued before the fix carries the raw host it was queued with.
+        JsonApi::Json.class_variable_get(:@@running_hosts)[Worker.thread_id] = {'timestamp' => Time.now.to_i, 'host' => 'https://attacker.example'}
+        u.generate_password_reset
+        UserMailer.schedule_delivery(:forgot_password, [u.global_id])
+        JsonApi::Json.set_host('https://links.lingolinq.test')
+        text = delivered_reset_text
+        expect(text).not_to include('attacker.example')
+        expect(text).to include("://links.lingolinq.test/#{u.user_name}/password_reset/")
+      end
+
+      it "should keep the request's host when it is a known host" do
+        u = User.create(:settings => {'email' => 'bob@example.com'})
+        request.host = 'app.lingolinq.com'
+        post :forgot_password, params: {:key => u.user_name}
+        expect(response).to be_successful
+        expect(delivered_reset_text).to include("://app.lingolinq.com/#{u.user_name}/password_reset/")
+      end
+    end
   end
 
   describe 'resend_parental_consent' do
@@ -3113,6 +3172,37 @@ describe Api::UsersController, :type => :controller do
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json['user'].map{|u| u['id']}).to eq([shared.global_id])
+    end
+
+    # #1277: goal access follows the CALLER, while edit_permission and modeling_only
+    # stay labels for the list owner's link (supervision-settings.hbs shows them that way).
+    def supervisees_row_for(owner_link, caller_link)
+      token_user
+      supporter = User.create
+      child = User.create
+      User.link_supervisor_to_user(supporter, child, nil, owner_link)
+      User.link_supervisor_to_user(@user, child, nil, caller_link)
+      User.link_supervisor_to_user(@user, supporter)
+      UserGoal.create(user: child, active: true, settings: {'summary' => "Probe goal"})
+      get 'supervisees', params: {'user_id' => supporter.global_id}
+      expect(response).to be_successful
+      JSON.parse(response.body)['user'].find { |u| u['id'] == child.global_id }
+    end
+
+    it "should not give a modeling-only caller the child's goals through an editing owner's list" do
+      row = supervisees_row_for(true, 'modeling_only')
+      expect(row).to_not eq(nil)
+      expect(row['can_set_goals']).to eq(false)
+      expect(row['goals_count']).to eq(nil)
+      expect(row['active_goals']).to eq(nil)
+      expect(row['edit_permission']).to eq(true)
+    end
+
+    it "should give an editing caller the child's goals through a modeling-only owner's list" do
+      row = supervisees_row_for('modeling_only', true)
+      expect(row['can_set_goals']).to eq(true)
+      expect(row['active_goals'].map { |g| g['summary'] }).to eq(["Probe goal"])
+      expect(row['modeling_only']).to eq(true)
     end
 
     # Regression guard for the fix above over-reaching. `supervise` (the

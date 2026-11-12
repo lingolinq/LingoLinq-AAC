@@ -8,7 +8,9 @@ class Organization < ApplicationRecord
   secure_serialize :settings
   before_save :generate_defaults
   after_save :touch_parent
+  after_save :note_domain_list_change
   after_destroy :schedule_destroyed_org_cleanup
+  after_destroy :note_domain_list_change
   has_many :licenses
   include Replicate
 
@@ -987,7 +989,6 @@ class Organization < ApplicationRecord
   end
   
   def touch_parent
-    Organization.schedule(:load_domains, true) if self.custom_domain
     return unless self.parent_organization_id
     Organization.where(id: self.parent_organization_id).update_all(updated_at: Time.now)
     true
@@ -1688,8 +1689,34 @@ class Organization < ApplicationRecord
     res
   end
 
+  DOMAIN_LIST_KEY = 'domain_org_ids'
+  DOMAIN_LIST_TTL = 72.hours.to_i
+
+  # A saved or destroyed org that has or had custom domains clears the cached list once the
+  # transaction commits, so each host's branding, email settings and COPPA override
+  # (JsonApi::Json.load_domain) follow the change. Registered on the transaction, not as the
+  # record's after_commit, which Rails 7.2 runs on only one in-memory copy per transaction. The
+  # list does not decide which hosts links may use: JsonApi::Json.custom_domain_host? confirms
+  # each entry against the database.
+  def note_domain_list_change
+    if self.custom_domain || self.custom_domain_before_last_save
+      ActiveRecord.after_all_transactions_commit { Organization.forget_domains }
+    end
+    true
+  end
+
+  # The rebuild it schedules replaces a list that a rebuild already reading the old rows writes
+  # back after the delete. A Redis error is logged, not raised: the change has committed, and the
+  # list falls back to its TTL.
+  def self.forget_domains
+    RedisInit.default.del(DOMAIN_LIST_KEY)
+    Organization.schedule(:load_domains, true)
+  rescue StandardError => e
+    Rails.logger.warn("custom domain list not cleared: #{e.class}")
+  end
+
   def self.load_domains(force=false)
-    domains = JSON.parse(RedisInit.default.get('domain_org_ids')) rescue nil
+    domains = JSON.parse(RedisInit.default.get(DOMAIN_LIST_KEY)) rescue nil
     if !domains || force
       domains = {}
       Organization.where(custom_domain: true).order('id ASC').each do |org|
@@ -1703,7 +1730,7 @@ class Organization < ApplicationRecord
           end
         end
       end
-      Permissions.setex(RedisInit.default, 'domain_org_ids', 72.hours.from_now.to_i, domains.to_json)
+      Permissions.setex(RedisInit.default, DOMAIN_LIST_KEY, DOMAIN_LIST_TTL, domains.to_json)
     end
     domains
   end

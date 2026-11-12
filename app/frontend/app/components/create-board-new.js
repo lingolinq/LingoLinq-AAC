@@ -239,14 +239,20 @@ export default Component.extend({
     };
   },
 
-  for_user_id: computed('model.for_user_id', function() {
-    // Return null when the model points at 'self' so the dropdown shows
-    // its placeholder ("Select who this board is for") instead of acting
-    // like the user has already made a real choice. The save path falls
-    // back to 'self' at submit time when no supervisee is picked.
-    var id = this.get('model.for_user_id');
-    if(!id || id === 'self') { return null; }
-    return id;
+  for_user_id: computed('model.for_user_id', {
+    get() {
+      // Return null when the model points at 'self' so the dropdown shows
+      // its placeholder ("Select who this board is for") instead of acting
+      // like the user has already made a real choice. The save path falls
+      // back to 'self' at submit time when no supervisee is picked.
+      var id = this.get('model.for_user_id');
+      if(!id || id === 'self') { return null; }
+      return id;
+    },
+    // ModernSelect writes its selection back before calling setForUserId, which owns the model.
+    set(key, value) {
+      return value;
+    }
   }),
 
   /** Soft attention cue for the supervisee dropdown. When the toggle is
@@ -273,7 +279,8 @@ export default Component.extend({
    *  granted explicit edit access for a supervisee still appears here). */
   user_options: computed('appState.sessionUser.known_supervisees.[]', function() {
     var supers = this.appState.get('sessionUser.known_supervisees') || [];
-    return supers.map(function(s) {
+    // boards#create needs edit access to author a board for someone.
+    return supers.filter(function(s) { return s.edit_permission !== false; }).map(function(s) {
       return {id: s.id, name: s.user_name};
     });
   }),
@@ -1231,6 +1238,26 @@ export default Component.extend({
     return this._authoring_locale_root() !== 'en';
   },
 
+  /** Labels and the board name go to Google for the English lookup, so say so first. */
+  shows_translation_notice: computed('model.locale', 'appState.feature_flags.english_first_board_generation', function() {
+    return this._needs_english_lookup();
+  }),
+
+  /** Readable name of the language the board will be made in. */
+  authoring_language_name: computed('model.locale', function() {
+    return i18n.readable_language(this.get('model.locale') || 'en');
+  }),
+
+  /** speecher fills `voices` after load, so the notice below watches it. Not `speech`:
+   *  that is the recognition state, which teardown clears, and speecher.ready is what
+   *  lets every board button make a sound. */
+  speech_output: speecher,
+
+  /** True when this device cannot speak the chosen language with a matching voice. */
+  shows_no_voice_notice: computed('model.locale', 'speech_output.voices', function() {
+    return !speecher.has_voice_for(this.get('model.locale') || 'en');
+  }),
+
   /** English string for a cached authoring-language label key, or the
    *  key itself when we are authoring in English / have no mapping. */
   _english_for_label(key) {
@@ -1323,7 +1350,8 @@ export default Component.extend({
       return RSVP.resolve();
     }
     var name = (this.get('model.name') || '').trim();
-    if(!name) {
+    // A board with no labels stores no English name, so it has no reason to send this one.
+    if(!name || !(this.get('parsed_labels') || []).length) {
       return RSVP.resolve();
     }
     if(this.get('_board_name_english')) {
@@ -1352,14 +1380,19 @@ export default Component.extend({
     });
   },
 
-  /** When creating for a supervisee, use their locale if the list already
-   *  carries one. Otherwise leave the current authoring locale in place. */
+  /** When creating for a supervisee, use their locale if the list carries one,
+   *  otherwise the creator's. A language picked on step 1 always stays. */
   _apply_supervisee_authoring_locale(userId) {
     if(!this.appState.get('feature_flags.english_first_board_generation')) {
       return;
     }
+    if(this.get('authoring_locale_chosen')) {
+      return;
+    }
+    var own_locale = this.get('preferred_communicator_locale') || 'en';
+    this.set('language_from_owner', false);
     if(!userId || userId === 'self') {
-      this._set_authoring_locale(this.get('preferred_communicator_locale') || 'en');
+      this._set_authoring_locale(own_locale);
       return;
     }
     var supers = this.appState.get('sessionUser.known_supervisees') ||
@@ -1373,9 +1406,9 @@ export default Component.extend({
       }
     }
     var loc = match && (match.locale || (match.preferences && match.preferences.locale));
-    if(loc) {
-      this._set_authoring_locale(loc);
-    }
+    // No language on record: back to the creator's, not the last person picked.
+    this._set_authoring_locale(loc || own_locale);
+    this.set('language_from_owner', !!loc);
   },
 
   /** Set model.locale and drop label-text caches when the 2-letter root
@@ -1387,6 +1420,7 @@ export default Component.extend({
     var nextRoot = ((loc || 'en').split(/_|-/)[0] || 'en').toLowerCase();
     this.set('model.locale', loc);
     if(prevRoot !== nextRoot) {
+      this.set('language_changed_after_labels', (this.get('parsed_labels') || []).length > 0);
       this._invalidate_authoring_locale_caches();
     }
   },
@@ -1397,7 +1431,13 @@ export default Component.extend({
     this.set('_board_name_english', null);
     this.set('_label_english_lookup_promise', null);
     this.set('_label_colors', {});
-    this.set('_label_images', {});
+    // A dropped image belongs to the label, not to the language it was looked up in.
+    var images = this.get('_label_images') || {};
+    var dropped = {};
+    Object.keys(images).forEach(function(key) {
+      if(images[key] && images[key].dropped) { dropped[key] = images[key]; }
+    });
+    this.set('_label_images', dropped);
     this.set('_label_images_lookup_promise', null);
     if((this.get('parsed_labels') || []).length) {
       this._lookup_label_colors();
@@ -1405,15 +1445,17 @@ export default Component.extend({
     }
   },
 
-  /** Per-button + board-name translations for the authoring locale and English. */
+  /** Per-button + board-name translations for the authoring locale and English.
+   *  A board with no buttons still gets the language header: boards_controller#create
+   *  rewrites the locale to en when translations are blank. It gets no English name,
+   *  so `en` does not join its locales with nothing translated behind it. Without the
+   *  English lookup it still gets the header: the client and server can read the feature
+   *  flag for different users, and the rewrite must not fire on a board in another language. */
   _build_authoring_translations(buttons) {
-    if(!this._needs_english_lookup()) {
+    if(this._authoring_locale_root() === 'en') {
       return null;
     }
-    var list = buttons || [];
-    if(list.length === 0) {
-      return null;
-    }
+    var list = this._needs_english_lookup() ? (buttons || []) : [];
     var authoring = this.get('model.locale') || this._authoring_locale_root();
     var authoringRoot = this._authoring_locale_root();
     var englishMap = this.get('_label_english') || {};
@@ -1428,7 +1470,7 @@ export default Component.extend({
       translations.board_name[authoring] = name;
       translations.board_name[authoringRoot] = name;
       var englishName = this.get('_board_name_english');
-      if(englishName) {
+      if(englishName && list.length > 0) {
         translations.board_name.en = englishName;
       }
     }
@@ -1828,11 +1870,8 @@ export default Component.extend({
       // don't auto-place" — combined with `buttons.length > 0` it
       // also bypasses the populate_from_labels path.
       this.set('model.grid.order', grid_order);
-      var translations = this._build_authoring_translations(buttons);
-      if(translations) {
-        this.set('model.translations', translations);
-      }
     }
+    this.set('model.translations', this._build_authoring_translations(buttons));
     this.get('model').save().then(function(board) {
       board.set('button_locale', board.get('locale'));
       _this.appState.set('label_locale', board.get('locale'));
@@ -2254,7 +2293,7 @@ export default Component.extend({
         // preview but render blank on the board page — see LEARNINGS. URL-baking
         // is the deliberate, proven path (matches the symbol-search flow).
         var next_map = Object.assign({}, _this.get('_label_images') || {});
-        next_map[key] = { image_url: saved_url };
+        next_map[key] = { image_url: saved_url, dropped: true };
         _this.set('_label_images', next_map);
         // Re-run preview_grid (deps on _label_images) so the tile updates.
         _this.notifyPropertyChange('_label_images');
@@ -2619,7 +2658,9 @@ export default Component.extend({
       this.set('model.visibility', value);
     },
     setLocale: function(value) {
-      this._set_authoring_locale(value);
+      // The list's placeholder rows have a blank id, and a board needs a real language.
+      this.setProperties({ authoring_locale_chosen: !!value, language_from_owner: false });
+      this._set_authoring_locale(value || this.get('preferred_communicator_locale') || 'en');
     },
     setLabelsOrder: function(value) {
       this.set('model.grid.labels_order', value);
@@ -2850,7 +2891,7 @@ export default Component.extend({
       var words = (this.get('_speak_words') || []).slice();
       words.push(entry);
       this.set('_speak_words', words);
-      try { speecher.speak_text(label); } catch(e) { /* speech is best-effort */ }
+      try { speecher.speak_text(label, null, { locale: this.get('model.locale') }); } catch(e) { /* speech is best-effort */ }
       // Don't let the bar bleed into the action buttons or scroll: once the
       // newly-added chip pushes the content past the bar's width (or wraps to a
       // second line), reset the bar to just this latest word so the user keeps
@@ -2886,7 +2927,7 @@ export default Component.extend({
       var words = this.get('_speak_words') || [];
       if(!words.length) { return; }
       var text = words.map(function(w) { return w.label; }).join(' ');
-      try { speecher.speak_text(text); } catch(e) { /* best-effort */ }
+      try { speecher.speak_text(text, null, { locale: this.get('model.locale') }); } catch(e) { /* best-effort */ }
     },
     speak_backspace: function() {
       var words = (this.get('_speak_words') || []).slice();

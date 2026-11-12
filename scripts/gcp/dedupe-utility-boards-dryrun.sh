@@ -54,7 +54,7 @@ gcloud run services describe "$WEB" \
   > "$TMPDIR_JOB/service.json"
 
 python3 - "$TMPDIR_JOB/service.json" "$TMPDIR_JOB/flags.env" <<'PY'
-import json, sys
+import json, re, sys
 svc = json.load(open(sys.argv[1]))
 out_path = sys.argv[2]
 tpl = svc["spec"]["template"]["spec"]
@@ -70,10 +70,20 @@ if not sa:
 if cloudsql.split(":")[0] == "lingolinq-prod":
     raise SystemExit("refusing Cloud SQL instance in lingolinq-prod")
 secrets = []
+# The workers' Resque namespace suffix: a plain value is copied into the plain env only when
+# non-empty (config/initializers/resque.rb treats an empty value as set); a secret-backed one
+# travels with the secrets above. Without it the Job used the `lingolinq` namespace, which no
+# nonprod worker reads.
+namespace_suffix = ""
 for env in container.get("env") or []:
     src = (env.get("valueFrom") or {}).get("secretKeyRef")
     if src:
         secrets.append("%s=%s:%s" % (env["name"], src["name"], src.get("key") or "latest"))
+    elif env.get("name") == "REDIS_NAMESPACE_SUFFIX":
+        namespace_suffix = env.get("value") or ""
+# flags.env is sourced below, so only a plain token may pass.
+if not re.fullmatch(r"[A-Za-z0-9_-]*", namespace_suffix):
+    raise SystemExit("web service REDIS_NAMESPACE_SUFFIX is not a plain [A-Za-z0-9_-] token; aborting")
 vpc = ann.get("run.googleapis.com/network-interfaces") or ""
 network = subnet = ""
 if vpc:
@@ -88,6 +98,7 @@ lines = [
     "SECRET_FLAGS=%s" % ",".join(secrets),
     "VPC_NETWORK=%s" % network,
     "VPC_SUBNET=%s" % subnet,
+    "NAMESPACE_SUFFIX=%s" % namespace_suffix,
 ]
 open(out_path, "w").write("\n".join(lines) + "\n")
 print("image=%s" % image)
@@ -114,8 +125,13 @@ deploy_args=(
   --task-timeout 1800s
   --memory 2Gi
   --cpu 1
-  --set-env-vars "RACK_ENV=production,RAILS_ENV=production,REDIS_TLS_VERIFY_HOSTNAME=false"
 )
+
+env_vars="RACK_ENV=production,RAILS_ENV=production,REDIS_TLS_VERIFY_HOSTNAME=false"
+if [[ -n "${NAMESPACE_SUFFIX:-}" ]]; then
+  env_vars="$env_vars,REDIS_NAMESPACE_SUFFIX=$NAMESPACE_SUFFIX"
+fi
+deploy_args+=(--set-env-vars "$env_vars")
 
 if [[ -n "${SECRET_FLAGS:-}" ]]; then
   deploy_args+=(--set-secrets "$SECRET_FLAGS")

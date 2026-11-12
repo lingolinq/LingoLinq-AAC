@@ -2717,7 +2717,6 @@ describe Organization, :type => :model do
     end
 
     it 'should not use the cached valud if force=true' do
-      RedisInit.default.set('domain_org_ids', {'a' => 1}.to_json)
       o1 = Organization.create
       o1.settings['hosts'] = ['a.com']
       o1.settings['host_settings'] = {'app_name' => 'A'}
@@ -2730,6 +2729,7 @@ describe Organization, :type => :model do
       o3.settings['hosts'] = ['c.com', 'd.com']
       o3.settings['host_settings'] = {'app_name' => 'D'}
       o3.save
+      RedisInit.default.set('domain_org_ids', {'a' => 1}.to_json)
       expect(Organization.load_domains).to eq({'a' => 1})
       expect(Organization.load_domains(true)).to eq({
         'b.com' => {'app_name' => 'B', 'org_id' => o2.global_id},
@@ -2751,22 +2751,17 @@ describe Organization, :type => :model do
       o3.settings['hosts'] = ['c.com', 'd.com']
       o3.settings['host_settings'] = {'app_name' => 'D'}
       o3.save
-      expect(RedisInit.default).to receive(:setex) do |key, ts, str|
-        expect(key).to eq('domain_org_ids')
-        expect(ts).to be < (72.hours.from_now.to_i + 10)
-        expect(ts).to be > (72.hours.from_now.to_i - 10)
-        json = JSON.parse(str)
-        expect(json).to eq({
-          'b.com' => {'app_name' => 'B', 'org_id' => o2.global_id},
-          'c.com' => {'app_name' => 'B', 'org_id' => o2.global_id},
-          'd.com' => {'app_name' => 'D', 'org_id' => o3.global_id}
-        })
-      end
       expect(Organization.load_domains).to eq({
         'b.com' => {'app_name' => 'B', 'org_id' => o2.global_id},
         'c.com' => {'app_name' => 'B', 'org_id' => o2.global_id},
         'd.com' => {'app_name' => 'D', 'org_id' => o3.global_id}
       })
+      expect(JSON.parse(RedisInit.default.get('domain_org_ids'))).to eq({
+        'b.com' => {'app_name' => 'B', 'org_id' => o2.global_id},
+        'c.com' => {'app_name' => 'B', 'org_id' => o2.global_id},
+        'd.com' => {'app_name' => 'D', 'org_id' => o3.global_id}
+      })
+      expect(RedisInit.default.ttl('domain_org_ids')).to be > (72.hours.to_i - 60)
     end
 
     it 'should invalidate the cache when a custom org is updated' do
@@ -2775,12 +2770,117 @@ describe Organization, :type => :model do
       o3.settings['hosts'] = ['c.com', 'd.com']
       o3.settings['host_settings'] = {'app_name' => 'D'}
       o3.save
-      expect(Organization.load_domains).to eq({'a' => 1})
+      expect(Organization.load_domains).to eq({
+        'c.com' => {'app_name' => 'D', 'org_id' => o3.global_id},
+        'd.com' => {'app_name' => 'D', 'org_id' => o3.global_id}
+      })
       Worker.process_queues
       expect(Organization.load_domains).to eq({
         'c.com' => {'app_name' => 'D', 'org_id' => o3.global_id},
         'd.com' => {'app_name' => 'D', 'org_id' => o3.global_id}
       })
+    end
+
+    # The list is a trust source for emailed links (JsonApi::Json.known_link_host?), so a domain
+    # must leave it as soon as its organization stops using it, without waiting for a job.
+    describe "when an organization stops using its custom domain" do
+      let!(:org) do
+        o = Organization.create(custom_domain: true)
+        o.settings['hosts'] = ['retired.example']
+        o.save
+        o
+      end
+
+      it 'should drop the domain once custom_domain is turned off' do
+        expect(Organization.load_domains(true).keys).to include('retired.example')
+        org.custom_domain = false
+        org.save
+        expect(Organization.load_domains.keys).not_to include('retired.example')
+      end
+
+      it 'should drop the domain once the organization is destroyed' do
+        expect(Organization.load_domains(true).keys).to include('retired.example')
+        org.destroy
+        expect(Organization.load_domains.keys).not_to include('retired.example')
+      end
+
+      it 'should drop a host removed from the organization' do
+        expect(Organization.load_domains(true).keys).to include('retired.example')
+        org.settings['hosts'] = ['current.example']
+        org.save
+        expect(Organization.load_domains.keys).to eq(['current.example'])
+      end
+
+      it 'should clear the list when the change commits, not before' do
+        Organization.load_domains(true)
+        Organization.transaction do
+          org.custom_domain = false
+          org.save
+          expect(RedisInit.default.get('domain_org_ids')).not_to eq(nil)
+        end
+        expect(RedisInit.default.get('domain_org_ids')).to eq(nil)
+        expect(Organization.load_domains.keys).not_to include('retired.example')
+      end
+
+      it 'should drop the domain when a later save in the same transaction does not change it again' do
+        Organization.load_domains(true)
+        Organization.transaction do
+          org.custom_domain = false
+          org.save
+          org.settings['note'] = 'later save'
+          org.save
+        end
+        expect(Organization.load_domains.keys).not_to include('retired.example')
+      end
+
+      it 'should keep the domains of other organizations' do
+        other = Organization.create(custom_domain: true)
+        other.settings['hosts'] = ['other.example']
+        other.save
+        expect(Organization.load_domains(true).keys.sort).to eq(['other.example', 'retired.example'])
+        org.custom_domain = false
+        org.save
+        expect(Organization.load_domains.keys).to eq(['other.example'])
+      end
+
+      # The list also carries each host's branding and COPPA override (JsonApi::Json.load_domain),
+      # so it must not stay stale when the switch-off is saved through another in-memory copy.
+      it 'should clear the list when a second copy saves in the same transaction' do
+        Organization.load_domains(true)
+        Organization.transaction do
+          first = Organization.find(org.id)
+          first.custom_domain = false
+          first.save
+          second = Organization.find(org.id)
+          second.settings['note'] = 'later save'
+          second.save
+        end
+        expect(RedisInit.default.get('domain_org_ids')).to eq(nil)
+        expect(Organization.load_domains.keys).not_to include('retired.example')
+      end
+
+      it 'should rebuild the list after the change commits, replacing a stale write' do
+        org.custom_domain = false
+        org.save
+        # a rebuild that read the rows before the commit writes them back after the clear
+        RedisInit.default.setex('domain_org_ids', 600, {'retired.example' => {'org_id' => org.global_id}}.to_json)
+        Worker.process_queues
+        expect(Organization.load_domains.keys).not_to include('retired.example')
+      end
+
+      it 'should not fail a committed save when the list cannot be cleared' do
+        allow(RedisInit.default).to receive(:del).and_raise(Redis::CannotConnectError)
+        org.custom_domain = false
+        expect { org.save }.not_to raise_error
+        expect(Organization.find(org.id).custom_domain).to eq(false)
+      end
+    end
+
+    it 'should keep the cached list for 72 hours' do
+      Organization.load_domains(true)
+      ttl = RedisInit.default.ttl('domain_org_ids')
+      expect(ttl).to be > (72.hours.to_i - 60)
+      expect(ttl).to be <= 72.hours.to_i
     end
   end
 

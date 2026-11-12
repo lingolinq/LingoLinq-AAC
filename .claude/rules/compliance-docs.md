@@ -16,8 +16,14 @@ paths:
   `/re-attest-record`; never edit the attested file in place.
 - Only Scot closes a finding, downgrades severity, accepts risk, or attests a document.
   `audit-merge.rb` only ever adds findings or marks them open.
-- Restamping `meta.auditedSha` is a governance act. Only a whole-tree `/audit-run` passes
-  `--sha` bare; any other addition uses `audit-merge.rb --sha <trueCommit> --no-restamp`.
+- Restamping `meta.auditedSha` is a governance act. Only an `/audit-run` (the annual formal run
+  or an ad hoc run) passes `--sha` bare; any other addition uses
+  `audit-merge.rb --sha <trueCommit> --no-restamp`.
+- Audit cadence: one formal full `/audit-run` per year (calendar row `rev-audit-run-annual-full`).
+  There is no quarterly or monthly requirement. `/audit-run` stays available for ad hoc runs, and
+  an ad hoc run needs no sign-off stamp PR (`.claude/skills/audit-run/SKILL.md`, "Cadence").
+- Add a gate, review round, attestation or consent step only when a law, a signed contract or a
+  real incident calls for it, and name which.
 - No student or patient data ever appears in a finding, a snippet, or a legal doc.
   Evidence is code and config only.
 - When you change a claim in one compliance doc, sweep the others:
