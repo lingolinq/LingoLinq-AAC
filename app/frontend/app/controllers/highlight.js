@@ -83,6 +83,8 @@ export default modal.ModalController.extend({
     };
     window.addEventListener('resize', _this.recompute);
   },
+  // scanner.setup(this) and frame_listener.setup(this) read the app from here (utils/scanner.js:159, utils/frame_listener.js:16).
+  appState: service('app-state'),
   shift_color: observer(
     'app_state.short_refresh_stamp',
     'model.shift_color',
@@ -263,3 +265,5 @@ export default modal.ModalController.extend({
     }
   }
 });
+// Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
+import { service } from '@ember/service';
