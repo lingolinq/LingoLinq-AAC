@@ -1,35 +1,43 @@
-<div class="la-wrapper la-wrapper--pricing la-wrapper--support la-system-settings">
-  <div class="app-shell">
-    <main class="la-main">
-      {{!-- Basic only: the rail beside every settings page, as on Organizations. A direct
-           child of `.la-main` so _classic-home.scss can turn this one page's main into a row;
-           Modern renders exactly as before. --}}
+{{!-- AN APP PAGE, BUILT AS THE OTHERS ARE (2026-11-09, requested: "modern -> add the menus like the
+     other app pages"). It was the public site's marketing page (`la-wrapper` / `la-main`, a fixed
+     full-screen layer), which in Modern covered the app shell's rail and set its own spacing. Now
+     `.md-shell` > `.md-workspace`, the structure of templates/organizations.hbs: Modern's app shell
+     wraps it with the rail (controllers/application.js CHROME_ROUTES), and in Basic its own rail is a
+     direct child of `.md-shell`, turned into a row by the rule Organizations and the board picker use
+     (_classic-home.scss). --}}
+<div class="md-shell md-shell--system-settings la-system-settings">
       {{#if this.isBasicView}}
         <Dashboard::ClassicRail @menuLabel={{t "System Settings" key="system_settings_title"}} />
       {{/if}}
-      <div class="md-workspace md-workspace--support">
-        <section class="la-section la-system-settings__section" aria-labelledby="system-settings-heading">
-          <div class="la-section-header la-system-settings__header">
-            <h1 id="system-settings-heading" class="la-hero-title">{{t "System Settings" key="system_settings_title"}}</h1>
-            <p class="la-pricing-hero-subtitle">{{t "Manage system emails and feature flags for your organization." key="system_settings_intro"}}</p>
-          </div>
+      <div class="md-workspace">
+        {{!-- THE APP'S PAGE HEADER, NOT THE MARKETING HERO (2026-11-09, requested: "the header and
+             subheader styles don't match the other pages", and "it starts too far down"). It was
+             `la-section` / `la-hero-title` / `la-pricing-hero-subtitle` from the public pricing and
+             support pages: a 35px title, a 24px two-line subtitle and the marketing section's
+             padding, which put the form a third of the way down the page. `md-hero` is the header
+             every app page uses (templates/organizations.hbs); the section's spacing is its own
+             (app.scss `.la-system-settings__section`). --}}
+        {{!-- The page's `<main>` landmark (red-team review 2026-11-09: it went with the marketing
+             `la-main`), as templates/organizations.hbs keeps its `md-main`. --}}
+        <main class="la-system-settings__main">
+        <section class="la-system-settings__section" aria-labelledby="system-settings-heading">
+          <header class="md-hero md-hero--dashboard la-system-settings__header">
+            <h1 id="system-settings-heading" class="md-hero__title">{{t "System Settings" key="system_settings_title"}}</h1>
+            <p class="md-hero__sub">{{t "Manage system emails and feature flags for your organization." key="system_settings_intro"}}</p>
+          </header>
 
           <div class="la-support-content-wrapper">
             <article class="la-about-glass-card la-support-page-card la-system-settings__card">
               <div class="la-support-page-card__body md-support-content la-system-settings__body">
                 <div class="la-system-settings__org-row">
-                  <label class="la-system-settings__org-label">
-                    <span class="la-system-settings__label-text">{{t "Organization" key="system_settings_org_label"}}</span>
-                    <select class="form-control la-system-settings__org-select" {{on "change" (this.ctrlActionEventValue "setOrgId" "value")}}>
-                      {{#each this.scopeOptionGroups as |group|}}
-                        <optgroup label={{group.label}}>
-                          {{#each group.options as |opt|}}
-                            <option value={{opt.id}} selected={{is-equal opt.id this.org_id}}>{{opt.name}}</option>
-                          {{/each}}
-                        </optgroup>
-                      {{/each}}
-                    </select>
-                  </label>
+                  {{!-- <ModernSelect>, the app's own dropdown (requested 2026-11-09: "the select
+                       dropdown list is still the old bootstrap"): a native <select> draws its open
+                       list itself, so only this can show the list in the app's styles. The groups
+                       become heading rows (controllers/system-settings.js `scopeSelectContent`). --}}
+                  <div class="la-system-settings__org-label">
+                    <span class="la-system-settings__label-text" id="system_settings_org_label">{{t "Organization" key="system_settings_org_label"}}</span>
+                    <ModernSelect @class="la-system-settings__org-select" @selectId="system_settings_org" @ariaLabel={{t "Organization" key="system_settings_org_label"}} @content={{this.scopeSelectContent}} @selection={{this.org_id}} @action={{this.chooseOrg}} @searchable={{true}} @searchPlaceholder={{t "Search organizations" key="system_settings_search_orgs"}} @placeholder={{t "Choose an organization" key="system_settings_choose_org"}} />
+                  </div>
                 </div>
 
                 <nav class="md-pillnav md-pillnav--dashboard la-system-settings__tabs" aria-label={{t "System settings sections" key="system_settings_tabs_label"}}>
@@ -45,7 +53,6 @@
             </article>
           </div>
         </section>
+        </main>
       </div>
-    </main>
-  </div>
 </div>

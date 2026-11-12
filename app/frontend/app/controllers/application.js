@@ -25,7 +25,7 @@ const CHROME_ROUTES = [
      each page's own markup, so a page needs no `md-shell` of its own to receive it — `search`
      has none. None of the three maps to a pill (utils/primary_nav.js), so `globalNavActive`
      stays null and they get the rail WITHOUT a second nav, exactly as board-picker does. */
-  'create-board-new', 'search', 'offline_boards'
+  'create-board-new', 'search', 'offline_boards', /* System Settings' pages (2026-11-09, requested: "add the menus like the other app pages"): the rail, no pill, as Goals has */ 'system-settings.index', 'system-settings.emails', 'system-settings.email-edit', 'system-settings.app-defaults', 'system-settings.features'
 ];
 import { isTesting } from '@ember/debug';
 import EmberObject from '@ember/object';
@@ -214,7 +214,7 @@ export default Controller.extend({
   on_board: computed('appState.current_route', 'appState.currentBoardState.id', function() {
     return this.appState.get('current_route') === 'board.index' && !!this.appState.get('currentBoardState.id');
   }),
-  /** True when on either the board or board-alt page — used to show the board picker instead of the home button. */
+  /** True on the board or board-alt page: picks the speak header's house icon (which runs `home` since 2026-11-09; it ran My Boards). */
   on_board_or_alt: computed('on_board', 'on_board_alt', function() {
     return this.get('on_board') || this.get('on_board_alt');
   }),
@@ -2338,8 +2338,16 @@ export default Controller.extend({
        line in CHROME_ROUTES: a flat entry would have given managers the account rail on exactly
        one page of a section that has none.
        ASKED OF `globalNavActive`, so the rail and the nav turn on together and share the one
-       reading of the user in utils/rooms_nav. */
-    if(route === 'organization.rooms') { return !!this.get('globalNavActive'); }
+       reading of the user in utils/rooms_nav.
+       SUPERSEDED 2026-11-08 (requested: Modern org pages need "their own side menu", as Basic's
+       have). EVERY `organization.*` PAGE NOW GETS THE RAIL, for everyone: an org editor's rail
+       switches to the org's own rows (`globalChromeOrg` below; components/account-rail.js
+       `orgNav`), anyone else keeps their account rail. The PILL NAV is unaffected: it still follows
+       `globalNavActive` alone (`showPillNav`), so it appears on the rooms page for a rooms-only
+       supervisor exactly as before and nowhere else in the section. A PREFIX, not a list, because
+       the section's pages are router.js's to add to; the org directory (`organizations`) is a
+       separate entry in CHROME_ROUTES. */
+    if(route.indexOf('organization.') === 0) { return true; }
     return CHROME_ROUTES.indexOf(route) !== -1;
   }),
 
@@ -2400,6 +2408,43 @@ export default Controller.extend({
       if(viewed) { return viewed; }
     }
     return this.appState.get('currentUser');
+  }),
+
+  /* THE ORGANISATION THE RAIL SERVES, on an `organization.*` page (2026-11-08); null elsewhere.
+     Read from the `organization` controller's model for the same reason `globalChromeUser` reads
+     the `user` controller's: the rail is mounted once in the app shell, so no page template can
+     hand it one. The rail decides from this org's permissions whether to show its rows.
+     ONLY THE ORG WHOSE PAGE IS SHOWING (red-team review 2026-11-09). `current_route` changes when a
+     transition STARTS and the controller keeps the last org it loaded, so while org B loaded (or
+     after it failed to) the rail and tabs showed org A's. The router's `currentRoute` changes only
+     once a page has rendered, so the org counts only when the `organization` route's `:id` in it
+     matches the model's id. */
+  organizationController: controller('organization'),
+  globalChromeOrg: computed('appState.current_route', 'router.currentRoute', 'organizationController.model.id', function() {
+    var route = this.appState.get('current_route') || '';
+    if(route.indexOf('organization.') !== 0) { return null; }
+    var model = this.get('organizationController.model');
+    var info = this.get('router.currentRoute');
+    while(info && info.name !== 'organization') { info = info.parent; }
+    var shownId = info && info.params && info.params.id;
+    if(!model || !shownId || String(shownId) !== String(model.id)) { return null; }
+    return model;
+  }),
+
+  /* THE ORG TABS IN THE NAV SLOT (2026-11-08, requested: the org top menu "positioned in the same
+     place on modern focused as the home pill menu shows, and ... on modern gentle"). Every rule that
+     places the home pill nav keys on `.ll-appshell__navbar` (its sticky offset, the shell's nav
+     clearance, the <=900px stacking), so the org tabs go IN that slot rather than being nudged to
+     match it from inside the page. Shown where the org page would have drawn them
+     (organization.js `showOrgTabs`: org editors, and never where the home pill nav already is). */
+  showOrgNav: computed('globalChromeOrg', 'showPillNav', 'organizationController.showOrgTabs', function() {
+    if(!this.get('globalChromeOrg') || this.get('showPillNav')) { return false; }
+    return !!this.get('organizationController.showOrgTabs');
+  }),
+  /* Whether the nav slot renders at all: the home pill nav or the org tabs. Also what tells the shell
+     there is a nav to clear (`ll-appshell--no-nav`). */
+  showNavbar: computed('showPillNav', 'showOrgNav', function() {
+    return !!this.get('showPillNav') || !!this.get('showOrgNav');
   }),
 
   content_class: computed(
