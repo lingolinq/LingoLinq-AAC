@@ -3951,7 +3951,48 @@ describe Api::BoardsController, :type => :controller do
       expect(pages.map { |p| p['descendants'].length }).to eq([1, 1, 1, 1])
       expect(pages.map { |p| p['next_offset'] }).to eq([1, 2, 3, nil])
       expect(pages.flat_map { |p| p['descendants'].map { |d| d['board']['id'] } }).to eq(children.reverse.map(&:global_id))
-      expect(pages.map { |p| p['root']['board']['id'] }.uniq).to eq([root.global_id])
+      expect(pages[0]['root']['board']['id']).to eq(root.global_id)
+      expect(pages[1..].map { |p| p['root'] }.uniq).to eq([nil]) # the root travels with the first page only
+    end
+
+    it "ends the page at the chunk where the budget trips, so no id of that chunk is skipped" do
+      # A page loads ids in chunks; when the budget trips inside a chunk the page must end there, or the ids after
+      # the stop in that chunk would be counted as consumed and never sent.
+      token_user
+      root, children = build_owned_tree(@user, 5)
+      stub_const("Api::BoardsController::TREE_PAGE_CHUNK", 2)
+      stub_const("Api::BoardsController::TREE_PAGE_BYTES", 1)
+      pages = walk_tree_pages(root)
+      expect(pages.flat_map { |p| p['descendants'].map { |d| d['board']['id'] } }).to eq(children.map(&:global_id))
+      expect(pages.map { |p| p['next_offset'] }).to eq([1, 2, 3, 4, nil])
+      expect(pages[0]['root']['board']['id']).to eq(root.global_id)
+      expect(pages[1]['root']).to eq(nil)
+    end
+
+    it "keeps a sub-board the viewer has replaced, under the replacement's own id" do
+      token_user
+      source = User.create(user_name: 'lingolinq')
+      original = Board.process_new({name: 'Shared Folder', public: true}, {user: source, key: 'shared-folder'})
+      replacement = board_with_image(@user)
+      extra = UserExtra.find_or_create_by(user: @user)
+      extra.settings ||= {}
+      extra.settings['replaced_boards'] = { original.global_id => replacement.global_id }
+      extra.save!
+      mine = board_with_image(@user)
+      root = tree_of(@user, [mine])
+      root.settings['downstream_board_ids'] = ["#{original.global_id}-#{@user.global_id}", mine.global_id]
+      root.save
+      get :tree, params: { board_id: root.global_id, offset: 0 }
+      json = assert_success_json
+      expect(json['descendants'].map { |d| d['board']['id'] }).to eq([mine.global_id, replacement.global_id])
+      expect(json).to_not have_key('next_offset')
+    end
+
+    it "treats an offset that is not a number as the first page" do
+      token_user
+      root, children = build_owned_tree(@user, 2)
+      get :tree, params: { board_id: root.global_id, offset: ['1'] }
+      expect(assert_success_json['descendants'].length).to eq(2)
     end
 
     it "loads at most TREE_PAGE_IDS ids per page" do

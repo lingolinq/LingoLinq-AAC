@@ -78,7 +78,8 @@ module('Unit | Utility | board-detail-cache paging', function(hooks) {
     assert.ok(boardDetailCache.get('user/folder1'), 'page 1 cached');
     assert.ok(boardDetailCache.get('user/folder2'), 'page 2 cached');
     assert.notOk(boardDetailCache.is_root_only('user/home'), 'the warm is complete');
-    assert.notOk(boardDetailCache.is_root_only('user/home'), 'no second loop afterwards');
+    await boardDetailCache.warm_full_tree_if_root_only('user/home');
+    assert.strictEqual(urls.length, 2, 'a second call after a complete warm makes no request');
   });
 
   test('an answer without next_offset (a server from before paging) ends after one request', async function(assert) {
@@ -103,7 +104,8 @@ module('Unit | Utility | board-detail-cache paging', function(hooks) {
 
   test('stops at the page cap, smaller on a phone or tablet, and reports the warm as partial', async function(assert) {
     var urls = [];
-    chainPersistenceAjax(function(url) { urls.push(url); var o = offset_of(url); return RSVP.resolve(root_page([o + 1], o + 1)); });
+    // The stub ends the list two pages past the cap, so a loop that ignored the cap fails here instead of running on.
+    chainPersistenceAjax(function(url) { urls.push(url); var o = offset_of(url); return RSVP.resolve(urls.length > TREE_WARM_MAX_PAGES + 2 ? root_page([o + 1]) : root_page([o + 1], o + 1)); });
     start_root_only();
     var result = await boardDetailCache.warm_full_tree_if_root_only('user/home');
     assert.strictEqual(urls.length, TREE_WARM_MAX_PAGES);
@@ -137,5 +139,30 @@ module('Unit | Utility | board-detail-cache paging', function(hooks) {
     assert.deepEqual(urls.map(offset_of), [0, 1, 1], 'the second warm resumes at the failed page, not from the start');
     assert.true(second.partial);
     assert.notOk(boardDetailCache.is_root_only('user/home'), 'a page that cannot be served does not cause a warm on every open');
+  });
+
+  test('the failure bound survives the cache entry being replaced, as a cache miss does on every open', async function(assert) {
+    var urls = [];
+    chainPersistenceAjax(function(url) { urls.push(url); return RSVP.reject({ error: 'server error', status: 500 }); });
+    start_root_only();
+    await boardDetailCache.warm_full_tree_if_root_only('user/home');
+    boardDetailCache.set({ key: 'user/home', id: '1_1', buttons: [{ id: 1 }] }, { force: true, root_only: true });
+    assert.ok(boardDetailCache.is_root_only('user/home'));
+    var second = await boardDetailCache.warm_full_tree_if_root_only('user/home');
+    assert.strictEqual(urls.length, 2);
+    assert.true(second.partial, 'the second failure still ends the warm');
+    assert.notOk(boardDetailCache.is_root_only('user/home'));
+  });
+
+  test('later pages need no root; the first page does', async function(assert) {
+    chainPersistenceAjax(function(url) {
+      var offset = offset_of(url);
+      if (offset === 0) { return RSVP.resolve(root_page([1], 1)); }
+      return RSVP.resolve({ root: null, descendants: [{ board: { key: 'user/folder2', id: '1_12', buttons: [] } }] });
+    });
+    start_root_only();
+    var result = await boardDetailCache.warm_full_tree_if_root_only('user/home');
+    assert.strictEqual(result.descendant_count, 2);
+    assert.ok(boardDetailCache.get('user/folder2'));
   });
 });

@@ -255,8 +255,8 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
 7. **#1219:** the board tree request (`/tree`) fails on very large boards (Cloud Run response size cap). **Built
    2026-11-11:** one image lookup per tree or bulk page (the timeout mode); `/tree` pages descendants by a 1 MiB
    budget in the list's own order, older app builds get one answer stopped at 24 MiB (the cap mode); the Modern warm
-   walks at most 4 pages (2 on a phone or tablet), deeper folders load on tap, a failed page is resumed once then
-   given up. Each unit proposal- and code-reviewed, red tests and mutations in the task log
+   walks at most 4 pages (2 on a phone or tablet), the rest of the list loads board by board on first tap, a failed
+   page is resumed once then given up. Each unit proposal-reviewed, then code-reviewed together (conditions applied), red tests and mutations in the task log
    (`docs/task-management/2026-11-09_tree-endpoint-1219.md`). To close the issue: one signed-in `/tree` of the
    largest tree on dev or staging after merge. Compression and a size alert: Scot's infra items.
 8. **A "N of M boards saved" count** during sync. **Done 2026-11-11:** a drawer bottom right on every page while a

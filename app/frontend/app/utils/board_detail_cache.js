@@ -459,7 +459,7 @@ export default {
   // pages (_warm_tree_pages, #1219) and ingest descendants. No-ops when the
   // cache is already a full tree. Shares one in-flight warm per key for the
   // whole loop. Resolves { warmed, descendant_count } (plus partial when the
-  // warm stopped early) and never rejects.
+  // warm stopped early) and never rejects. Progress lives in _warm_state.
   warm_full_tree_if_root_only: function(key_or_id) {
     var _this = this;
     if (!this.is_root_only(key_or_id)) {
@@ -478,13 +478,12 @@ export default {
        sends none, so one request, as before. Each page's descendants go to the cache and the store as they
        arrive. The root-only mark is cleared when the loop ends: the last page, or TREE_WARM_MAX_PAGES
        (TREE_WARM_MAX_PAGES_MOBILE on a phone or tablet, capabilities.mobile: the devices the page count exists
-       to protect), after which deeper folders load on their first tap, as they do today when a warm has not
-       reached them. A page that fails leaves the mark and a resume offset on the entry, so the next open
+       to protect), after which the rest of the list loads board by board on first tap, as today when a warm has
+       not reached a board. A page that fails leaves the mark and a resume offset on the entry, so the next open
        continues from there instead of starting over; a second failure ends the warm as partial, so a page that
        cannot be served never causes a re-warm on every open. The result keeps its shape, { warmed,
        descendant_count } over all pages, plus partial when the warm stopped early. Lines here are kept so the
        lint baseline rows below keep their numbers. */
-    //
     //
     //
     if (!req) {
@@ -585,6 +584,7 @@ export default {
 
   // Wipe everything (e.g. on logout / user switch).
   clear: function() {
+    _clear_warm_state();
     if (_stop_listening) { _stop_listening(); _stop_listening = null; } _by_key = {}; // the listener: see _ensure_listening at the end of this file
     _by_id = {};
     _inflight = {};
@@ -1175,7 +1175,7 @@ export default {
   }
 };
 // Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
-import { live_service } from './live_service';
+import { live_service, owner_gone } from './live_service';
 
 // A prefetch chain belongs to the app whose user change started it (pipeline opts `app`). It stops at
 // the next board once that app-state is destroyed, instead of carrying on against whichever app is
@@ -1201,23 +1201,33 @@ export var TREE_WARM_MAX_PAGES = 4;
 export var TREE_WARM_MAX_PAGES_MOBILE = 2;
 export var TREE_WARM_MAX_FAILURES = 2;
 
+// The warm's progress per board key (pages fetched, failures, the offset to resume at), kept apart from the cache
+// entry: a forced set replaces the entry on every cache miss, and the page cap and the failure bound must survive
+// that. Emptied by clear().
+var _warm_state = {};
+function _warm_state_for(key) { return (_warm_state[key] = _warm_state[key] || { pages: 0, failures: 0, resume: 0 }); }
+function _clear_warm_state() { _warm_state = {}; }
+
 function _warm_tree_pages(cache, key) {
-  var entry = _lookup(key);
+  var state = _warm_state_for(key);
   var max_pages = capabilities.mobile ? TREE_WARM_MAX_PAGES_MOBILE : TREE_WARM_MAX_PAGES;
-  var offset = (entry && entry.warm_resume) || 0;
-  var pages = 0;
+  var offset = state.resume || 0;
   var count = 0;
+  // The loop acts on the app that started it (the harness rule for deferred work, .claude/rules/testing-frontend.md).
+  var owner = LingoLinq.appState;
   var finish = function(partial) {
     var e = _lookup(key);
-    if (e) { e.root_only = false; e.warm_resume = null; e.warm_failures = 0; }
+    if (e) { e.root_only = false; }
+    delete _warm_state[key];
     var res = { warmed: count > 0 || !partial, descendant_count: count };
     if (partial) { res.partial = true; }
     return res;
   };
   var step = function() {
+    if (owner_gone(owner)) { return RSVP.resolve({ warmed: false }); }
     return persistence.ajax('/api/v1/boards/' + key + '/tree?offset=' + offset, { type: 'GET' }).then(function(data) {
-      if (!data || !data.root || !data.root.board) { return { warmed: false }; }
-      pages += 1;
+      if (!data || (offset === 0 && !(data.root && data.root.board))) { return { warmed: false }; }
+      state.pages += 1;
       if (offset === 0) {
         var root_raw = normalize_board_payload(data.root);
         if (root_raw) {
@@ -1235,15 +1245,14 @@ function _warm_tree_pages(cache, key) {
       });
       var next = data.next_offset;
       if (typeof next !== 'number' || next <= offset) { return finish(false); }
-      if (pages >= max_pages) { return finish(true); }
+      if (state.pages >= max_pages) { return finish(true); }
       offset = next;
+      state.resume = offset;
       return step();
     }, function() {
-      var e = _lookup(key);
-      if (!e) { return { warmed: false }; }
-      e.warm_failures = (e.warm_failures || 0) + 1;
-      e.warm_resume = offset;
-      if (e.warm_failures >= TREE_WARM_MAX_FAILURES) { return finish(true); }
+      state.failures += 1;
+      state.resume = offset;
+      if (state.failures >= TREE_WARM_MAX_FAILURES) { return finish(true); }
       return { warmed: false };
     });
   };

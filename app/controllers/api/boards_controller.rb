@@ -442,7 +442,7 @@ class Api::BoardsController < ApplicationController
 
     root_only = params['root_only'].to_s =~ /^(1|true|yes)$/i
     paged = params.key?('offset')
-    offset = paged ? [[params['offset'].to_i, 0].max, MAX_TREE].min : 0
+    offset = paged ? [[params['offset'].to_s.to_i, 0].max, MAX_TREE].min : 0
     ids = root_only ? [] : ((root.settings || {})['downstream_board_ids'] || []).first(MAX_TREE)
     slice = paged ? (ids[offset, TREE_PAGE_IDS] || []) : ids
     budget = paged ? TREE_PAGE_BYTES : TREE_LEGACY_BYTES
@@ -458,8 +458,12 @@ class Api::BoardsController < ApplicationController
     # resource gates, not list filtering). `scopes` mirrors what
     # `allowed?` computes internally via `api_permission_scopes`.
     scopes = api_permission_scopes
-    Board.preload_button_images([root], @api_user) if lite
-    root_json = JsonApi::Board.as_json(root, wrapper: true, permissions: @api_user, skip_subs: true, as_lite: lite).to_json
+    # The root goes with the first page only; later pages carry null (the client has it from the first).
+    root_json = 'null'
+    if offset == 0
+      Board.preload_button_images([root], @api_user) if lite
+      root_json = JsonApi::Board.as_json(root, wrapper: true, permissions: @api_user, skip_subs: true, as_lite: lite).to_json
+    end
     pieces = []
     bytes = 0
     consumed = 0
@@ -475,22 +479,32 @@ class Api::BoardsController < ApplicationController
         b = by_id[id]
         visible[id] = b if b && b.allows?(@api_user, 'view', scopes)
       end
+      # A sub-board id the viewer has replaced comes back as the replacement, under its own id
+      # (GlobalId.find_all_by_global_id): kept, after the ids of the chunk, so it is still sent as before paging.
+      replacements = boards.select { |b| !visible.value?(b) && b.allows?(@api_user, 'view', scopes) }
       # One image lookup for the chunk (#1219 unit A); under the same kill-switch as lite, so 'false' restores
       # the whole pre-fix path.
-      Board.preload_button_images(visible.values.uniq, @api_user) if lite
+      Board.preload_button_images(visible.values.uniq + replacements, @api_user) if lite
       stop = false
-      chunk_ids.each do |id|
-        consumed += 1
-        b = visible[id]
-        next unless b
+      add_piece = lambda do |b|
         piece = JsonApi::Board.as_json(b, wrapper: true, permissions: @api_user, skip_subs: true, as_lite: lite).to_json
         pieces << piece
         bytes += piece.bytesize
-        if bytes >= budget
-          stop = true
-          break
+        stop = true if bytes >= budget
+      end
+      chunk_ids.each do |id|
+        consumed += 1
+        b = visible[id]
+        add_piece.call(b) if b
+        break if stop
+      end
+      if !stop
+        replacements.each do |b|
+          add_piece.call(b)
+          break if stop
         end
       end
+      # The page ends here; the ids not walked in this chunk and the chunks after it are the next page's.
       break if stop
     end
     next_offset = offset + consumed
