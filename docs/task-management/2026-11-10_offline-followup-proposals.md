@@ -566,7 +566,8 @@ are still shown from memory for up to 5 minutes: a board the sync has just marke
 (`apply_revocations`, `:356-397`, writes the mark to the stored copy and the index, and touches no memory copy),
 and any board once the session is dead (the token check sets `session.invalid_token`, `services/session.js:294-297`;
 the memory cache is cleared only at SPA sign-out, `services/app-state.js:2254`, or by a page reload). "Another
-user's board" is not reachable: sign-out clears the cache. The remaining window is also bounded by whatever
+user's board" is not reachable: sign-out clears the cache (corrected 2026-11-11, final review pass 2: a tree warm
+still in flight at sign-out could write its pages back after the clear; a cache generation now drops them). The remaining window is also bounded by whatever
 navigation misses the cache next.
 **Change, two small pieces.** (1) `apply_revocations` tells listeners which ids it marked (`on_marked`,
 `notify_marked`); the memory cache registers a listener the first time it stores anything (at call time, not at

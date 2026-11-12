@@ -5,7 +5,7 @@ import LingoLinq from 'frontend/app';
 import RSVP from 'rsvp';
 import modal from 'frontend/utils/modal';
 import { stub, restoreStubs } from 'frontend/tests/helpers/jasmine';
-import { usable_copy, newest_copy, server_refused, session_ended, board_saved_here, device_has_board, leave_unsaved_board } from 'frontend/utils/board_device_copy';
+import { usable_copy, newest_copy, server_refused, session_ended, board_saved_here, device_has_board, leave_unsaved_board, load_copy_images } from 'frontend/utils/board_device_copy';
 
 /* Which copy of a board the Modern board page may show when the server gave no usable answer
  * (#1213). The rejection shapes are the real ones: utils/extras.js wraps every failure as
@@ -143,5 +143,40 @@ module('Unit | Utility | board_device_copy', function(hooks) {
     assert.true(server_refused([denied], 'me/board', '1_7', state({speak_mode: true})), 'Speak Mode');
     assert.false(server_refused([denied], 'me/board', '1_7', state({sessionUser: {user_name: 'me', supervisees: [], preferences: {home_board: {id: '1_7', key: 'me/board'}}}})), 'the home board');
     assert.false(server_refused([dead_session], 'me/board', '1_7', state()), 'a dead session is not a denial of this board');
+  });
+});
+
+/* PASS 2 OF THE FINAL REVIEW (2026-11-11): on a device without file storage, load_copy_images reads each picture and
+ * writes it into persistence.url_cache. A read that ended after a sign-out put the previous person's picture into the
+ * new session's cache, and nothing removed it. */
+module('Unit | Utility | board_device_copy pictures after sign-out', function() {
+  test('a picture read that ends after sign-out is not cached', async function(assert) {
+    var reads = {};
+    var fake = {
+      url_cache: {},
+      copy_image_urls: [],
+      prepare_local_files: function() { return RSVP.resolve(); },
+      get: function(key) { return key === 'local_system.available' ? false : undefined; },
+      find_url: function(url) { reads[url] = RSVP.defer(); return reads[url].promise; }
+    };
+    var done = load_copy_images(fake, { image_urls: { '1_1': 'http://example.com/a.png' } });
+    await new RSVP.Promise(function(resolve) { setTimeout(resolve, 0); });
+    assert.ok(reads['http://example.com/a.png'], 'the read started');
+    fake.copy_image_urls = []; fake.url_cache = {}; // what clear_user_state does
+    reads['http://example.com/a.png'].resolve('data:image/png;base64,AAAA');
+    await done;
+    assert.deepEqual(fake.url_cache, {});
+  });
+
+  test('without a sign-out the picture is cached', async function(assert) {
+    var fake = {
+      url_cache: {},
+      copy_image_urls: [],
+      prepare_local_files: function() { return RSVP.resolve(); },
+      get: function(key) { return key === 'local_system.available' ? false : undefined; },
+      find_url: function() { return RSVP.resolve('data:image/png;base64,AAAA'); }
+    };
+    await load_copy_images(fake, { image_urls: { '1_1': 'http://example.com/a.png' } });
+    assert.strictEqual(fake.url_cache['http://example.com/a.png'], 'data:image/png;base64,AAAA');
   });
 });

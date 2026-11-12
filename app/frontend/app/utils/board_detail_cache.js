@@ -1206,7 +1206,11 @@ export var TREE_WARM_MAX_FAILURES = 2;
 // that. Emptied by clear().
 var _warm_state = {};
 function _warm_state_for(key) { return (_warm_state[key] = _warm_state[key] || { pages: 0, failures: 0, resume: 0 }); }
-function _clear_warm_state() { _warm_state = {}; }
+// clear() (sign-out) bumps the generation; a warm started before it drops every page that arrives after it, so
+// a page of the previous person's tree never lands in the new session's cache (pass 2 of the final review).
+var _cache_generation = 0;
+export function cache_generation() { return _cache_generation; }
+function _clear_warm_state() { _warm_state = {}; _cache_generation += 1; }
 
 function _warm_tree_pages(cache, key) {
   var state = _warm_state_for(key);
@@ -1215,6 +1219,7 @@ function _warm_tree_pages(cache, key) {
   var count = 0;
   // The loop acts on the app that started it (the harness rule for deferred work, .claude/rules/testing-frontend.md).
   var owner = LingoLinq.appState;
+  var generation = _cache_generation;
   var finish = function(partial) {
     var e = _lookup(key);
     if (e) { e.root_only = false; }
@@ -1226,6 +1231,7 @@ function _warm_tree_pages(cache, key) {
   var step = function() {
     if (owner_gone(owner)) { return RSVP.resolve({ warmed: false }); }
     return persistence.ajax('/api/v1/boards/' + key + '/tree?offset=' + offset, { type: 'GET' }).then(function(data) {
+      if (generation !== _cache_generation) { return { warmed: false }; }
       if (!data || (offset === 0 && !(data.root && data.root.board))) { return { warmed: false }; }
       state.pages += 1;
       if (offset === 0) {
@@ -1250,6 +1256,7 @@ function _warm_tree_pages(cache, key) {
       state.resume = offset;
       return step();
     }, function() {
+      if (generation !== _cache_generation) { return { warmed: false }; }
       state.failures += 1;
       state.resume = offset;
       if (state.failures >= TREE_WARM_MAX_FAILURES) { return finish(true); }

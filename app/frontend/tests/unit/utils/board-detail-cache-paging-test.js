@@ -164,6 +164,22 @@ module('Unit | Utility | board-detail-cache paging', function(hooks) {
     assert.ok(boardDetailCache.get('user/b' + (MAX_ENTRIES + 2)), 'the newest stays');
   });
 
+  test('a page that arrives after sign-out (clear) is dropped, not written into the new session', async function(assert) {
+    var answer = RSVP.defer();
+    chainPersistenceAjax(function() { return answer.promise; });
+    start_root_only();
+    var warm = boardDetailCache.warm_full_tree_if_root_only('user/home');
+    boardDetailCache.clear();
+    var pushed = 0;
+    LingoLinq.store.push = function(payload) { pushed++; return payload; };
+    answer.resolve(root_page([1]));
+    var result = await warm;
+    assert.false(result.warmed);
+    assert.notOk(boardDetailCache.peek('user/folder1'), 'the previous person\'s board is not cached');
+    assert.notOk(boardDetailCache.peek('user/home'));
+    assert.strictEqual(pushed, 0, 'nothing pushed to the store');
+  });
+
   test('later pages need no root; the first page does', async function(assert) {
     chainPersistenceAjax(function(url) {
       var offset = offset_of(url);

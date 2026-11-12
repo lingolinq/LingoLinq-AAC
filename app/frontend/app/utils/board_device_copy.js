@@ -107,9 +107,13 @@ function load_images(persistence, raw) {
   (persistence.copy_image_urls || []).forEach(function(url) {
     if(!urls[url] && persistence.url_cache) { delete persistence.url_cache[url]; }
   });
-  persistence.copy_image_urls = Object.keys(urls);
+  var mine = Object.keys(urls);
+  persistence.copy_image_urls = mine;
   return RSVP.all(Object.keys(urls).map(function(url) {
     return persistence.find_url(url, 'image').then(function(found) {
+      // Sign-out (app-state clear_user_state) replaces copy_image_urls; a read that ends after it does not put the
+      // previous person's picture into the new session's url_cache (pass 2 of the final review).
+      if(persistence.copy_image_urls !== mine) { return; }
       persistence.url_cache = persistence.url_cache || {};
       persistence.url_uncache = persistence.url_uncache || {};
       persistence.url_cache[url] = found;
