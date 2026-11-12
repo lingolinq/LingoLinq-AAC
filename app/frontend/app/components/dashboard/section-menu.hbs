@@ -1,0 +1,17 @@
+{{!-- The Basic dashboard's <=550px section menu (section-menu.js). `ch-tabselect` is the dashboard's
+     own show-below-550px hook (_classic-home.scss); `md-pillnav-dropdown*` the shared look. The list
+     exists only while open, so a closed menu leaves nothing focusable behind, and `aria-controls`
+     names it only then. No `aria-haspopup`: this is a list of buttons, not an ARIA menu. --}}
+<div class="ch-tabselect md-pillnav-dropdown md-pillnav-dropdown--fit {{if this.open "is-open"}}" {{this.dismiss}}>
+  <button type="button" class="md-pillnav-dropdown__trigger" aria-label={{this.accessibleName}} aria-expanded={{if this.open "true" "false"}} aria-controls={{if this.open this.listId}} {{on "click" this.toggle}}>
+    <span class="md-pillnav-dropdown__label">{{this.current.label}}</span>
+    <svg class="md-pillnav-dropdown__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+  </button>
+  {{#if this.open}}
+    <ul class="md-pillnav-dropdown__list" id={{this.listId}} aria-label={{@menuLabel}}>
+      {{#each @items as |item|}}
+        <li><button type="button" class="md-pillnav-dropdown__option {{if (is-equal item.id @currentTab) "is-active"}}" aria-current={{if (is-equal item.id @currentTab) "page"}} {{on "click" (fn this.choose item.id)}}>{{item.label}}</button></li>
+      {{/each}}
+    </ul>
+  {{/if}}
+</div>

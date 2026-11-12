@@ -4,6 +4,7 @@ import { computed, observer, set as emberSet } from '@ember/object';
 import AuthenticatedView from './authenticated-view';
 import modal from '../../utils/modal';
 import i18n from '../../utils/i18n';
+import { basicDashboardSections } from '../../utils/basic_dashboard_sections';
 import { resolveSuperviseeHomeBoardKey } from '../../utils/supervisee_home_board';
 import scrollBelowHeader from '../../utils/scroll_below_header';
 import { pillForRoute } from '../../utils/primary_nav';
@@ -59,6 +60,11 @@ export default AuthenticatedView.extend({
     var self = this;
     // Bound once, so <BoardIcon @onAction> gets a stable function while the assign mode is on.
     this.set('_basicAssignFromTile', function(board) { return self._basicAssign(board); });
+    /* The <=550px section menu's choice (components/dashboard/section-menu): the same action the tab
+       strip sends. */
+    this.selectSection = function(id) {
+      self.send('set_index_nav', id);
+    };
     this.ctrlAction = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
       return function() {
@@ -70,13 +76,6 @@ export default AuthenticatedView.extend({
         }
         self.send.apply(self, [actionName].concat(args));
       };
-    };
-    // The <=550px tab dropdown needs the CHANGE EVENT's value, and `ctrlAction` above
-    // strips the event before dispatching -- so this one is wired directly rather than
-    // through it.
-    this.handleTabSelect = function(event) {
-      var v = event && event.target && event.target.value;
-      if(v) { self.send('set_index_nav', v); }
     };
     /* ARRIVING FROM A VIEW SWITCH (2026-09-28): the tab the Modern page maps to
        (utils/basic_landing.js). Taken here, before the first render, and shown at once through
@@ -216,7 +215,7 @@ export default AuthenticatedView.extend({
     return this.appState.get('currentUser');
   }),
 
-  // The active tab as a plain string, for the <=550px <select>. `index_nav` is a hash
+  // The active tab as a plain string, for the <=550px section menu. `index_nav` is a hash
   // ({main: true}, {boards: true}, ...) and can also hold values the tab strip has no
   // button for -- 'supervisors' (authenticated-view.js:883, :1711) and 'logging' (:1718).
   // Falling through to 'main' for those mirrors the strip exactly, whose Actions button
@@ -485,7 +484,7 @@ export default AuthenticatedView.extend({
     // separate override. Restoring the previous state on leaving would mean remembering a
     // second value and would silently undo an expand the user had just asked for.
     //
-    // Catches the <=550px `<select>` too — `handleTabSelect` (:71) sends this same action
+    // Catches the <=550px pill dropdown too: its options send this same action (classic-view.hbs)
     // rather than duplicating the logic.
     toggleBasicHomeAssign: function() {
       this._setBasicAssigning(!this.get('basicAssigningHome'));
@@ -601,6 +600,15 @@ export default AuthenticatedView.extend({
      open communicators section with a drawn tab"): Basic's landing for the Caseload is this tab,
      so anyone who can be sent here must be able to see it. Modeling-only accounts keep their
      earlier exclusion from the strip (the {{#unless}} around it in the template). */
+  /* THE <=550px SECTION MENU'S OPTIONS (components/dashboard/section-menu): the tab strip's sections,
+     by the strip's own rules (utils/basic_dashboard_sections.js, which states them and is tested). */
+  sectionMenuItems: computed('app_state.currentUser.modeling_only', 'showCommunicatorsTab', 'pending_updates.count', function() {
+    return basicDashboardSections({
+      modelingOnly: !!this.get('app_state.currentUser.modeling_only'),
+      showCommunicators: !!this.get('showCommunicatorsTab'),
+      pendingUpdates: this.get('pending_updates.count')
+    });
+  }),
   showCommunicatorsTab: computed('app_state.currentUser.{supporter_role,supporter_view,modeling_only}',
                                  'app_state.currentUser.known_supervisees.[]',
                                  'app_state.currentUser.supervisees.[]', function() {

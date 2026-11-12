@@ -132,9 +132,9 @@ describe EuJurisdiction do
 
   describe ".retention_stamp" do
     # The load-bearing D-01 contract: this column drives purge_old_eu_logs! (5yr delete),
-    # so ONLY a confirmed :eu user is stamped 'EU'. Both :non_eu AND :unknown must map to
+    # so ONLY a user resolving to :eu is stamped 'EU'. Both :non_eu AND :unknown must map to
     # nil, the OPPOSITE fail-safe direction from disclosure_required? -- an unsure
-    # (potentially HIPAA-covered) user must never be marked for early deletion.
+    # user must never be stamped for a purge that cannot be undone.
     it "stamps 'EU' for a confirmed :eu user" do
       expect(EuJurisdiction.retention_stamp(user(prefs: { 'jurisdiction' => 'FR' }))).to eq('EU')
     end

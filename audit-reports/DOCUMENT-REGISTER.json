@@ -227,8 +227,8 @@
             "location": "https://docs.google.com/document/d/1wvjHGzOYfnpfqonKmr9HwK2wZKxWf-PTuOV20mS8zkE/edit"
           },
           {
-            "title": "Incident Response and Breach Runbook (2026-08-15 successor)",
-            "location": "docs/legal/2026-08-15_incident-response-breach-runbook.md"
+            "title": "Incident Response & Breach Runbook (2026-11-09 successor)",
+            "location": "docs/legal/2026-11-09_incident-response-breach-runbook.md"
           },
           {
             "title": "Data Retention Schedule (2026-09-22 successor)",
@@ -247,8 +247,8 @@
             "location": "COMPLIANCE.md"
           },
           {
-            "title": "Subprocessor Register (2026-08-16 successor)",
-            "location": "docs/legal/2026-08-16_subprocessor-register.md"
+            "title": "Subprocessor Register (2026-11-09 successor)",
+            "location": "docs/legal/2026-11-09_subprocessor-register.md"
           }
         ],
         "gaps": [
@@ -269,8 +269,8 @@
             "location": "docs/legal/2026-08-20_compliance-posture-report.md"
           },
           {
-            "title": "Subprocessor Register (2026-08-16 successor)",
-            "location": "docs/legal/2026-08-16_subprocessor-register.md"
+            "title": "Subprocessor Register (2026-11-09 successor)",
+            "location": "docs/legal/2026-11-09_subprocessor-register.md"
           },
           {
             "title": "Data Retention Schedule (2026-09-22 successor)",
@@ -289,8 +289,8 @@
             "location": "docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md"
           },
           {
-            "title": "Incident Response and Breach Runbook (2026-08-15 successor)",
-            "location": "docs/legal/2026-08-15_incident-response-breach-runbook.md"
+            "title": "Incident Response & Breach Runbook (2026-11-09 successor)",
+            "location": "docs/legal/2026-11-09_incident-response-breach-runbook.md"
           },
           {
             "title": "AI Data-Flow Classification (2026-08-17 successor)",
@@ -323,16 +323,16 @@
             "location": "docs/legal/2026-08-09_compliance-program-overview_draft.md"
           },
           {
-            "title": "Subprocessor Register (2026-08-16 successor)",
-            "location": "docs/legal/2026-08-16_subprocessor-register.md"
+            "title": "Subprocessor Register (2026-11-09 successor)",
+            "location": "docs/legal/2026-11-09_subprocessor-register.md"
           },
           {
             "title": "Data Retention Schedule (2026-09-22 successor)",
             "location": "docs/legal/2026-09-22_data-retention.md"
           },
           {
-            "title": "Incident Response and Breach Runbook (2026-08-15 successor)",
-            "location": "docs/legal/2026-08-15_incident-response-breach-runbook.md"
+            "title": "Incident Response & Breach Runbook (2026-11-09 successor)",
+            "location": "docs/legal/2026-11-09_incident-response-breach-runbook.md"
           },
           {
             "title": "Accessibility Conformance Report (ACR / VPAT)",
@@ -397,8 +397,8 @@
             "location": "https://docs.google.com/document/d/1Q6hDhooIQVMArkpn4ppxr4om3-Hx64QmYiIQe0sSWmY/edit"
           },
           {
-            "title": "Incident Response and Breach Runbook (2026-08-15 successor)",
-            "location": "docs/legal/2026-08-15_incident-response-breach-runbook.md"
+            "title": "Incident Response & Breach Runbook (2026-11-09 successor)",
+            "location": "docs/legal/2026-11-09_incident-response-breach-runbook.md"
           },
           {
             "title": "Written Information Security Program (WISP)",
@@ -1760,7 +1760,7 @@
       "lastReviewed": "2026-06-16",
       "nextReviewDue": "2026-09-16",
       "attestation": {},
-      "contentHash": "912461225663e8990ce0cf7eefaea152923b7447d354be275b1e7d11284a477a",
+      "contentHash": "5b6d5afa8307364c5de0af611fc6be78aa85025f7ff8c47d78aed90929546dd8",
       "bundles": [
         "compliance-records-set-2026-06"
       ],
@@ -1794,7 +1794,7 @@
       "lastReviewed": "2026-06-16",
       "nextReviewDue": "2026-12-16",
       "attestation": {},
-      "contentHash": "fc6bf72bc23e951647c53522a5a7e77f0abf42287b3deaf523b1e2d7313f92e2",
+      "contentHash": "819428ba8bbeda672f2b2c512fa586e62cf5b6eee5862513697730950aa56ce6",
       "bundles": [],
       "mirrors": [],
       "id": "DOC-b35f7a3444",
@@ -1878,7 +1878,7 @@
       "lastReviewed": "2026-06-21",
       "nextReviewDue": "2026-12-21",
       "attestation": {},
-      "contentHash": "d4bd703d99a92f8cdfab291aafa53cdebd7b1324c3f9483cc19a508d5fdcf48f",
+      "contentHash": "d2b30ceb385f75333a194f19ae4b8bac67a26185219f3b11a0032e7dae1ead96",
       "bundles": [],
       "mirrors": [],
       "id": "DOC-d9f17c6919",
@@ -3179,8 +3179,8 @@
       "legalHold": false,
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-6d37a68cf4",
-      "notes": "Path A successor to DOC-6d37a68cf4 (attested 2026-08-19), created 2026-08-25. Corrects an ENFORCEMENT claim, not a compliance one: purge_old_eu_logs! deletes jurisdiction = 'EU' AND created_at < 5.years.ago (app/models/ai_api_log.rb:244-248); the jurisdiction column was created 2026-06-21 (db/migrate/20260621120000_add_article_50_fields_to_ai_api_logs.rb), so the oldest possible stamped row turns five years old on 2031-06-21 and the job matches zero rows until then. Two carriers: the attestation-history narrative (:36, PR #656 moved \"the EU tier from inert to functional\") and the section 6 retention table (:293). No data was retained longer than a rule permits; this is an enforcement-description defect, not a retention violation. The defect is that a document offered as evidence described a dormant job as an operating control. The same claim was corrected in place in the unattested draft docs/legal/2026-08-09_data-retention_draft.md (DOC-e62caf7fb9), which needed no supersession. NOTE ON LEGAL BASIS (added 2026-08-25 after review): the predecessor's \"Basis\" column attributes this tier to \"EU AI Act Article 50 record-keeping\". That attribution is INHERITED, not endorsed here, and is flagged as an open question for counsel: Article 50 is the AI Act's transparency provision and nothing in this record establishes that it imposes a five-year AiApiLog retention duty. This correction is scoped to the ENFORCEMENT claim only and takes no position on the legal basis. WINDOW CLAIM, tightened 2026-08-25 after review: the binding fact is the TABLE's age, not the stamp. ai_api_logs was created 2026-02-21 (db/migrate/20260221000001_create_ai_api_logs.rb), so no row can be five years old before 2031-02-21; write-time-stamped rows cannot qualify before 2031-06-21. A backfill or manual UPDATE stamping older rows could make one eligible sooner; no such backfill exists (no update_all touching jurisdiction). The earlier phrasing \"cannot delete any row before 2031-06-21\" was an overstatement. OPERATIVE REASON, added 2026-08-25 after review: the date is not why it matches nothing. The stamp writes 'EU' only for a confirmed :eu user (lib/eu_jurisdiction.rb; :unknown and :non_eu both map to nil), and as of the 2026-08-23 read EuJurisdiction.status is :unknown for 34 of 34 production accounts with jurisdiction null on all 64 AiApiLog rows. Nothing has ever been stamped, so the control is structurally dormant rather than merely date-gated; it does not start working in 2031 by the passage of time. ALIGNED 2026-08-26 after external review: an earlier phrasing here called the control \"structurally dormant\", which overstated it. spec/models/ai_api_log_spec.rb:550-586 drives a real EU user through the resolver and the purge deletes the row, so the mechanism is verified end to end. Zero production matches reflect an absence of eligible DATA (no confirmed :eu user; no row five years old), not a broken control. What the predecessor got wrong is that it matches EU rows in production today. Revised 2026-10-01 (unattested): the Regulated PII bucket row now follows the privacy policy merged in PR #909, with a matching row 3 in the corrections table.",
-      "contentHash": "a51a16c0bd7b5b541f71c0654c50fd95209bc0211f9c28800e9e0d3aed7c2385"
+      "notes": "Path A successor to DOC-6d37a68cf4 (attested 2026-08-19), created 2026-08-25. Corrects an ENFORCEMENT claim, not a compliance one: purge_old_eu_logs! deletes jurisdiction = 'EU' AND created_at < 5.years.ago (app/models/ai_api_log.rb:244-248); the jurisdiction column was created 2026-06-21 (db/migrate/20260621120000_add_article_50_fields_to_ai_api_logs.rb), so the oldest possible stamped row turns five years old on 2031-06-21 and the job matches zero rows until then. Two carriers: the attestation-history narrative (:36, PR #656 moved \"the EU tier from inert to functional\") and the section 6 retention table (:293). No data was retained longer than a rule permits; this is an enforcement-description defect, not a retention violation. The defect is that a document offered as evidence described a dormant job as an operating control. The same claim was corrected in place in the unattested draft docs/legal/2026-08-09_data-retention_draft.md (DOC-e62caf7fb9), which needed no supersession. NOTE ON LEGAL BASIS (added 2026-08-25 after review): the predecessor's \"Basis\" column attributes this tier to \"EU AI Act Article 50 record-keeping\". That attribution is INHERITED, not endorsed here, and is flagged as an open question for counsel: Article 50 is the AI Act's transparency provision and nothing in this record establishes that it imposes a five-year AiApiLog retention duty. This correction is scoped to the ENFORCEMENT claim only and takes no position on the legal basis. WINDOW CLAIM, tightened 2026-08-25 after review: the binding fact is the TABLE's age, not the stamp. ai_api_logs was created 2026-02-21 (db/migrate/20260221000001_create_ai_api_logs.rb), so no row can be five years old before 2031-02-21; write-time-stamped rows cannot qualify before 2031-06-21. A backfill or manual UPDATE stamping older rows could make one eligible sooner; no such backfill exists (no update_all touching jurisdiction). The earlier phrasing \"cannot delete any row before 2031-06-21\" was an overstatement. OPERATIVE REASON, added 2026-08-25 after review: the date is not why it matches nothing. The stamp writes 'EU' only for a confirmed :eu user (lib/eu_jurisdiction.rb; :unknown and :non_eu both map to nil), and as of the 2026-08-23 read EuJurisdiction.status is :unknown for 34 of 34 production accounts with jurisdiction null on all 64 AiApiLog rows. Nothing has ever been stamped, so the control is structurally dormant rather than merely date-gated; it does not start working in 2031 by the passage of time. ALIGNED 2026-08-26 after external review: an earlier phrasing here called the control \"structurally dormant\", which overstated it. spec/models/ai_api_log_spec.rb:550-586 drives a real EU user through the resolver and the purge deletes the row, so the mechanism is verified end to end. Zero production matches reflect an absence of eligible DATA (no confirmed :eu user; no row five years old), not a broken control. What the predecessor got wrong is that it matches EU rows in production today. Revised 2026-10-01 (unattested): the Regulated PII bucket row now follows the privacy policy merged in PR #909, with a matching row 3 in the corrections table. Revised 2026-11-06 (#1061): section 6 no longer rests on the retracted statutory-floor and Article 50 bases.",
+      "contentHash": "107a9df611fc7f3543b81b370058a6f2e20d6e3ec3d5b3b9fd577df3c6caea4f"
     },
     {
       "title": "AI Data-Sharing Consent: Rationale and Policy",
@@ -3550,7 +3550,7 @@
       "lastReviewed": "2026-08-12",
       "nextReviewDue": "2027-02-12",
       "attestation": {},
-      "contentHash": "a22fcec99d546c98c405d6ff130de4373cd8f0f7eb95f415173ce827be451a87",
+      "contentHash": "6ec7330b9bd618250a4f24115de7a4498504ed780e84d2c4674239a8d39d4f20",
       "bundles": [],
       "mirrors": [],
       "retention": {
@@ -3903,7 +3903,7 @@
       "supersedes": "DOC-39f37f8200",
       "notes": "Path A successor to DOC-39f37f8200 (attested 2026-08-04), created 2026-08-24 and reconciled 2026-08-25. Corrects TWO independent defect classes. (1) EU AI Act Article 50 status: the predecessor said the 50(1) disclosure modal is 'built and staged, gated OFF, not yet enabled for any user', that 'the whole path is inert', and that it is 'shown to no one in production'. A direct audited production read on 2026-08-23 falsified the enablement and inertness claims -- the article_50_disclosure flag IS ENABLED via the default_enabled_features DB Setting, which overrides the code constant (evidence: DOC-6c023a20a0, unattested). The same read does not establish that the modal was displayed; 'shown to no one because the flag is off' is false, but this record does not claim the UI rendered. (2) Bedrock runtime status, at four sites (section 2 operational-status note, section 3 BAA coverage bullet, the Runtime routing update paragraph, and the 2026-08-04 trailer), all of which stated or implied the runtime AI path has been not operational since revision 00014-5rw; credentials were re-mounted 53 minutes later on 00015-9l9. Those corrections were folded in from the never-merged PR #827 by three-way git merge-file over the frozen predecessor as common base; #827 is superseded by this record. BUNDLES: an earlier version of this note said security-review must not be retargeted until this record is attested. That rule was consciously OVERRIDDEN on 2026-08-25: the pack is customer-facing diligence and pinning it solely to the predecessor shipped the falsified 'shown to no one in production' claim to school districts and hospitals. Both records are now in the pack -- this successor for the corrected content, the predecessor so the pack still contains an ATTESTED AI-governance record. compliance-records-set-2026-06 is a frozen point-in-time binder and stays on the predecessor only. KNOWN GAP, not fixed here: docs/legal/2026-08-20_compliance-posture-report.md (also a security-review member) still says at :36 and :138 that article_50_disclosure 'remains AVAILABLE-only (not enabled)'. CORRECTED 2026-08-25: that file (DOC-59273ae805) is SUPERSEDED by DOC-c5408d90b7 (2026-08-22), which corrects exactly that claim at its own :106. The predecessor is attested and Path-A frozen, so \"until that is swept\" prescribed something impossible. The real residual is that the superseded row retains its bundle membership on this point. 2026-10-28 (issue #1227): a third, later correction: sections 2, 4 and 4.1 no longer describe the retired CI Codex review gate or the brain review guard as the data-bearing control, and section 4.1 now names the Codex GitHub connector. Still status:draft with empty attestation; only Scot attests.",
       "id": "DOC-506bbe2039",
-      "contentHash": "1e2b230133cbef526658a1634d8b43b7bc72fa6a1cf9001514a0ed9cfc6ac166"
+      "contentHash": "2a30ee0adcb0b7d2961abee5064134dfa6d8f88ae5033f53a45b3d2d85c191f3"
     },
     {
       "title": "Minimum-Necessary Privacy, Data Retention, and AI Use Policy: Counsel Review Memorandum (2026-08-30 draft)",
@@ -4079,7 +4079,7 @@
     },
     {
       "title": "Data Retention Schedule (2026-09-22 successor)",
-      "description": "Path A successor correcting three doc-versus-code defects the predecessor carried: the user-account inactivity row (2 years and soft-delete, where the code is 12 months and permanent destruction), the LogSession row (\"3 years default\", where no default exists in code), and the absence of any AuditEvent row (no retention control; the table grows without bound). Every other row is carried forward from the predecessor; the LogSnapshot mechanism and window cells and the two AiApiLog cells citing LL-3e36a18199 also changed, and the document discloses them.",
+      "description": "Path A successor correcting three doc-versus-code defects the predecessor carried: the user-account inactivity row (2 years and soft-delete, where the code is 12 months and permanent destruction), the LogSession row (\"3 years default\", where no default exists in code), and the absence of any AuditEvent row (no retention control; the table grows without bound). Every other row is carried forward from the predecessor; the LogSnapshot mechanism and window cells and the two AiApiLog cells citing LL-3e36a18199 also changed, and the document discloses them. Revised 2026-11-06 (#1061, #1060): further rows corrected, disclosed in the file's dated block.",
       "type": "policy",
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
@@ -4100,7 +4100,7 @@
         "dsar"
       ],
       "mirrors": [],
-      "notes": "Created 2026-09-22. Each correction was verified by reading the runtime source at origin/develop e64653c59 before the file was written: subscription.rb selects updated_at < 12.months.ago, sends two deletion_warning emails at least 3 weeks apart and then, on the next eligible pass, takes the attempts > 2 branch which sets schedule_deletion_at = 36.hours.from_now and sends account_deleted, after which the daily flush_users step of scheduler:dispatch runs Flusher.flush_deleted_users -> Flusher.flush_user_completely, which calls flush_record and logs an AuditEvent of type user_permanently_destroyed (lib/flusher.rb); lib/data_policy_enforcer.rb iterates only organizations with data_policy_version > 0 and their sponsored_users, purges only RETAINABLE_LOG_TYPES (session, note, assessment, eval, journal), and reaches no standalone account at all; app/models/audit_event.rb defines no purge method and no task in lib/tasks/scheduler.rake references the model. ATTESTER MUST CONFIRM: (1) that 12 months plus the warning cycle is the retention the business intends to promise customers, since it is SHORTER than the 2 years the superseded schedules stated and shorter than some customer expectations may assume; (2) that publishing \"no default LogSession window\" is acceptable, or whether a default should be implemented in code instead of documented away; (3) whether the unbounded AuditEvent table needs a retention rule before this schedule is published externally. This successor does NOT close, downgrade or supersede any finding. The branded Drive render DOC-52c8c33583 still carries pre-correction text and needs re-publication and re-attestation separately. DUAL REVIEW 2026-09-22 (Codex gpt-5.6-terra plus Claude adversary, findings at outputs/docs/2026-09-22-pr1047-dual-review-findings.md in ai-company-brain): five High and six Medium, all applied on this branch before merge. The substantive ones: the LogSession correction was itself wrong about scope; section 3 claimed org-policy inheritance works, which LL-14edf1a801 contradicts; the warning count was off by one; the document asserted LL-3e36a18199 open after Scot closed it on 2026-09-18; the account row omitted the expired-trial and COPPA offboarding destruction paths; and the four bundle requiredDocs still named the 2026-08-09 draft, now retargeted here. The public privacy page carries the same withdrawn claims and is filed as issue #1050 under open finding LL-933e61efd7; it is NOT fixed by this PR.",
+      "notes": "Created 2026-09-22. Each correction was verified by reading the runtime source at origin/develop e64653c59 before the file was written: subscription.rb selects updated_at < 12.months.ago, sends two deletion_warning emails at least 3 weeks apart and then, on the next eligible pass, takes the attempts > 2 branch which sets schedule_deletion_at = 36.hours.from_now and sends account_deleted, after which the daily flush_users step of scheduler:dispatch runs Flusher.flush_deleted_users -> Flusher.flush_user_completely, which calls flush_record and logs an AuditEvent of type user_permanently_destroyed (lib/flusher.rb); lib/data_policy_enforcer.rb iterates only organizations with data_policy_version > 0 and their sponsored_users, purges only RETAINABLE_LOG_TYPES (session, note, assessment, eval, journal), and reaches no standalone account at all; app/models/audit_event.rb defines no purge method and no task in lib/tasks/scheduler.rake references the model. ATTESTER MUST CONFIRM: (1) that 12 months plus the warning cycle is the retention the business intends to promise customers, since it is SHORTER than the 2 years the superseded schedules stated and shorter than some customer expectations may assume; (2) that publishing \"no default LogSession window\" is acceptable, or whether a default should be implemented in code instead of documented away; (3) whether the unbounded AuditEvent table needs a retention rule before this schedule is published externally. This successor does NOT close, downgrade or supersede any finding. The branded Drive render DOC-52c8c33583 still carries pre-correction text and needs re-publication and re-attestation separately. DUAL REVIEW 2026-09-22 (Codex gpt-5.6-terra plus Claude adversary, findings at outputs/docs/2026-09-22-pr1047-dual-review-findings.md in ai-company-brain): five High and six Medium, all applied on this branch before merge. The substantive ones: the LogSession correction was itself wrong about scope; section 3 claimed org-policy inheritance works, which LL-14edf1a801 contradicts; the warning count was off by one; the document asserted LL-3e36a18199 open after Scot closed it on 2026-09-18; the account row omitted the expired-trial and COPPA offboarding destruction paths; and the four bundle requiredDocs still named the 2026-08-09 draft, now retargeted here. The public privacy page carries the same withdrawn claims and is filed as issue #1050 under open finding LL-933e61efd7; it is NOT fixed by this PR. Revised 2026-11-06 (#1061, #1060): the retracted statutory-floor and Article 50 bases were removed from the AiApiLog rows, a healthcare-linked row was added, and the PaperTrail, analytics and ClusterLocation window cells now state what the code does; see the dated block in the file.",
       "supersedes": "DOC-4dc241c83a",
       "retention": {
         "class": "policy-version",
@@ -4111,7 +4111,7 @@
       "legalHold": false,
       "dispositionEligibleAfter": null,
       "id": "DOC-b08fdd2b17",
-      "contentHash": "e4df2476d7afaea7a9ddec1668ea9921c9c5b88fe5183548277012848dd1ea92"
+      "contentHash": "b0534abbaea462c6c87021036be16c92b55bd065f60b1fe3cfc4888fea88bbcb"
     },
     {
       "title": "Subprocessor Register (2026-09-14 successor)",
@@ -4120,7 +4120,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-09-14_subprocessor-register.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "GDPR",
         "FERPA",
@@ -4151,7 +4151,48 @@
         "attestedContentHash": "15bfb6f6988edc8a08f88fcade3c8d2a0a3330db60109589cca5a3a1a304625d",
         "note": "First attestation of these bytes. Path A successor to DOC-f850df36ad (2026-08-16_subprocessor-register.md, attested 2026-08-19), which remains frozen and byte-identical. Scope of this pin: the Render decommission changes only, namely rows 2 and 10 ended 2026-09-09, row 8 (n8n) relocated to self-hosted GCP Cloud Run rather than ended, and section 5.2 restated. No other vendor row was re-reviewed; the last full line-by-line review remains 2026-08-08 per section 4.1. Render deletion evidence, recorded because the register asked for a vendor record and none exists: Render does not issue an account-deletion confirmation. Two artifacts were filed 2026-09-16 in Drive folder 641.3 Evidence, Audits & Security Reviews, and each is scoped deliberately. (a) Vendor invoice 8AAC99E1-0016 for the LingoLinq team workspace, issued 2026-09-12 (Drive id 1qu4o_fw94p_Jdfluxn4KPZ7-_bcl6HmP, sha256 19391ba1d4da23e5af9c1458bb82b9c992e2af435ae9759237e02ddd0120760f). It corroborates the 2026-09-09 date arithmetically: Redis billed 197h 21m 8s for 1 instance and PostgresDB 394h 42m 14s across 2 instances (197h 21m 7s each), both equal to 8.2230 days from Sep 1 00:00, landing on 2026-09-09 at approximately 05:21, two independently billed line items agreeing to within one second. This is a standard monthly invoice, NOT labelled final or account-closing, so it evidences when usage STOPPED, not that the account was closed. (b) A Render billing screenshot captured 2026-09-16 (Drive id 1aeWm13jI2wPlpfBQkhwdIj5BIav29TO_, sha256 4fe433535a64b31e3651f361764f6cab486c427fa67fdad64ac4c19863509667) showing an EMPTY workspace, but the workspace shown is the personal Hobby workspace, not the LingoLinq team workspace: its Invoice History reads 'No past invoices' while the team workspace was invoiced on 2026-09-12. It is consistent with the team workspace having been deleted and must NOT be cited as proof of it. The account-deletion act itself therefore rests on the CEO's direct confirmation of 2026-09-15, not on a vendor document. Both files are held in Drive rather than this repository because the invoice carries a billing email address and LingoLinq-AAC is public. NOT confirmed and deliberately left open: whether Render retains residual copies after account deletion. The vendor has not been asked and has not stated a post-termination deletion timeline. Every document in this set says so rather than claiming Render holds nothing. This attestation does not resolve that question."
       },
-      "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen: it described a live write-frozen fallback that genuinely existed when written. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record, a dashboard screenshot or account-deletion email; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition."
+      "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen: it described a live write-frozen fallback that genuinely existed when written. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record, a dashboard screenshot or account-deletion email; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition.",
+      "supersededBy": "DOC-c6eadd79fb"
+    },
+    {
+      "title": "Subprocessor Register (2026-11-09 successor)",
+      "description": "Path A successor making the register review event-driven (when a subprocessor is added or changed, per GDPR Article 28(2)) instead of quarterly, and marking row 5 (Google Gemini API) REMOVED 2026-11-09 and retained as history. No other vendor row, data flow or contract changes.",
+      "type": "policy",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-11-09_subprocessor-register.md",
+      "status": "approved",
+      "frameworks": [
+        "GDPR",
+        "FERPA",
+        "HIPAA"
+      ],
+      "lastReviewed": "2026-11-09",
+      "nextReviewDue": null,
+      "bundles": [
+        "school-dpa-package",
+        "soc2-evidence",
+        "security-review"
+      ],
+      "mirrors": [],
+      "notes": "Created 2026-11-09 from Scot Wahlquist's decisions of that date: review the register when a subprocessor is added or changed rather than quarterly, and remove row 5 (Gemini, runtime path disabled since 2026-07-09, no live call site on develop). Changed: the header (supersedes, reason, last reviewed, next review; the old lines are kept, labelled as retained for the record), row 5, two section 5.7 sentences naming row 5 or rev-gemini-baa-annual, and one new section 8 change-log row. Nothing else differs from the predecessor's bytes. nextReviewDue is null because the review is event-driven, matching the compliance calendar item rev-gdpr-subprocessor-quarterly. CONFIRMED by Scot Wahlquist on 2026-11-10: (1) no customer notice is owed for removing row 5; (2) no further section 7 exit step is needed for Gemini, although no deletion confirmation from Google is on file. At attestation (2026-11-10) the bundleDefinitions requiredDocs that pointed at the 2026-08-16 record were retargeted to this row. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition.",
+      "supersedes": "DOC-052b0e947c",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "id": "DOC-c6eadd79fb",
+      "contentHash": "d7d275e1880e8924cbe7557a2f8166cccad8d290c06c423b1149a51e137af7eb",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-11-10",
+        "attestedContentHash": "d7d275e1880e8924cbe7557a2f8166cccad8d290c06c423b1149a51e137af7eb",
+        "note": "First attestation of these bytes, given by Scot Wahlquist in the authoring session on 2026-11-10 against the sha256 shown to him. Path A successor to DOC-052b0e947c (2026-09-14_subprocessor-register.md, attested 2026-09-15), which remains frozen and byte-identical. Scope of this pin: review made event-driven (when a subprocessor is added or changed, GDPR Article 28(2)), so no next review date; row 5 (Google Gemini API) marked REMOVED 2026-11-09 and kept as history. Confirmed 2026-11-10: no customer notice is owed for removing row 5, and no further section 7 exit step is needed for Gemini. No other vendor row was re-reviewed; the last full review remains 2026-08-08."
+      }
     },
     {
       "title": "Compliance & Security Program v1.3.2 (2026-09-14 successor)",
@@ -4198,7 +4239,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-09-14_incident-response-breach-runbook.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "HIPAA",
         "GDPR",
@@ -4230,7 +4271,49 @@
       "supersedes": "DOC-28f19f73e4",
       "id": "DOC-f082212111",
       "contentHash": "a5ff3188832ab1439d30cf0ebb72a3cd978d878784552dc1598e865870bbdfc8",
-      "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen: it described a live write-frozen fallback that genuinely existed when written. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record, a dashboard screenshot or account-deletion email; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition."
+      "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen: it described a live write-frozen fallback that genuinely existed when written. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record, a dashboard screenshot or account-deletion email; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition.",
+      "supersededBy": "DOC-c731415bd9"
+    },
+    {
+      "title": "Incident Response & Breach Runbook (2026-11-09 successor)",
+      "description": "Path A successor stating which environments the runbook covers: production and any environment where real user data is found. Dev and staging hold no real user data by policy, so a problem confined to them, touching nothing shared with production, is fixed as a normal bug and noted in its pull request unless real user data is found there. Production handling, notification clocks, severity rules and vendor contacts are unchanged.",
+      "type": "runbook",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-11-09_incident-response-breach-runbook.md",
+      "status": "approved",
+      "frameworks": [
+        "HIPAA",
+        "GDPR",
+        "FERPA"
+      ],
+      "lastReviewed": "2026-11-09",
+      "nextReviewDue": "2027-08-02",
+      "bundles": [
+        "soc2-evidence",
+        "school-dpa-package",
+        "security-review",
+        "baa"
+      ],
+      "mirrors": [],
+      "notes": "Created 2026-11-09 from Scot Wahlquist's decisions of 2026-11-06 (dev and staging hold no real user content) and 2026-11-08 (a problem confined to dev or staging is a normal bug unless real user data is found there), as recorded in the company's agent data rules merged 2026-11-08. Changed: section 1 (new 'Environments in scope' paragraph), section 4.2 step 5, the header, the predecessor's DRAFT banner (replaced, since it went false at the 2026-09-15 attestation), and two section 13 entries. Nothing else differs from the predecessor's bytes. CONFIRMED by Scot Wahlquist on 2026-11-09, before attestation (the attestation itself is recorded separately): (1) n8n keeps its prior handling and is not covered by the dev and staging exception; (2) an account on dev or staging that the team did not create is a stop-and-tell-the-Incident-Commander trigger, not by itself an incident; (3) nextReviewDue 2027-08-02 follows the bytes, which carry the predecessor's next-review date. At attestation (2026-11-10) the bundleDefinitions requiredDocs that pointed at the 2026-08-15 record were retargeted to this row. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition.",
+      "supersedes": "DOC-f082212111",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "id": "DOC-c731415bd9",
+      "contentHash": "c73ea73ded18c7a5be6ab405ce3add3737aafbf9cc240696f982827affd6e029",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-11-10",
+        "attestedContentHash": "c73ea73ded18c7a5be6ab405ce3add3737aafbf9cc240696f982827affd6e029",
+        "note": "First attestation of these bytes, given by Scot Wahlquist in the authoring session on 2026-11-10 against the sha256 shown to him. Path A successor to DOC-f082212111 (2026-09-14_incident-response-breach-runbook.md, attested 2026-09-15), which remains frozen and byte-identical. Scope of this pin: section 1 'Environments in scope', section 4.2 step 5, the header and replaced banner, and the two section 13 entries. Confirmed 2026-11-09: n8n keeps its prior handling and is outside the dev and staging exception; an account on dev or staging that the team did not create is a stop-and-tell trigger, not by itself an incident; next review stays 2027-08-02."
+      }
     },
     {
       "id": "DOC-2bff04d268",
