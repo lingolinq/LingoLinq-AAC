@@ -2037,7 +2037,7 @@ var persistence = Service.extend({
     if(!ignore_supervisees || !sync_id || this.get('sync_status.canceled')) {
       sync_id = "sync_for::" + user_name + "::" + (new Date()).getTime() + "::" + Math.random();
     }
-    this._this_call_sync_id = sync_id; if(!ignore_supervisees) { this._active_root_sync_id = sync_id; } this.set('last_sync_event_at', (new Date()).getTime());
+    var absorbed = !ignore_supervisees && this.get('sync_progress.sync_id') && this.get('sync_progress.sync_id') !== sync_id; this._this_call_sync_id = sync_id; if(!ignore_supervisees && !absorbed) { this._active_root_sync_id = sync_id; } this.set('last_sync_event_at', (new Date()).getTime()); // a root sync requested while another runs does not run (check_first skips its steps); it must not take over the running sync's id, or a cancel of that sync leaves the status at 'syncing' (final review of #1268)
 
     var status_user = this.get('sync_progress.root_user') || user_id; if(this.sync_status_is_for_signed_in_user(status_user)) { this.set('sync_status', 'syncing'); } var writes_before = failed_write_count(this); // writes that fail during this sync end it as failed (utils/storage_failures.js). A root sync for someone else must not set this, or the notice and drawer report their sync as yours (#1230).
     var synced_boards = [];

@@ -5661,6 +5661,55 @@ describe("persistence-sync", function() {
     });
   });
 
+  // Pass 2 of the final review of #1268 (2026-11-11). A root sync requested while one runs is not run (its steps
+  // skip: another sync id), but it took over _active_root_sync_id, so when the running sync was cancelled the
+  // cancel branch no longer recognised it as the active one and left sync_status at 'syncing': the drawer stayed
+  // up and automatic sync stopped (check_for_needs_sync refuses while syncing) until a reload.
+  it("should not leave the status at syncing when a sync requested mid-sync is followed by a cancel", function() {
+    db_wait(function() {
+      cancelSyncTailWork();
+      unloadSyncStoreRecords();
+      persistence.set('sync_progress', null);
+      persistence.set('sync_status', null);
+      persistence.set('root_sync_canceled', false);
+      persistence._canceled_sync_id = null;
+      stashes.persist('last_sync_status', 'succeeded');
+      stub(modal, 'error', function() { });
+      var reject_first = null;
+      var gate = new RSVP.Promise(function(_resolve, reject) { reject_first = reject; });
+      var boards = 0;
+      stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+      stubOnPersistence('sync_user', function() { return RSVP.resolve(); });
+      stubOnPersistence('sync_boards', function() {
+        boards = boards + 1;
+        if(boards === 1) {
+          // A request while this sync runs (a home board picked mid-sync), then the person cancels.
+          persistence.sync(1341).then(function() { }, function() { });
+          persistence.cancel_sync();
+          return gate;
+        }
+        return RSVP.resolve({});
+      });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'user',
+        response: RSVP.resolve({user: {id: '1341', user_name: 'fred'}}),
+        id: "1341"
+      });
+      var first_done = false;
+      persistence.sync(1341).then(function() { first_done = true; }, function() { first_done = true; });
+      waitsFor(function() { return boards === 1; });
+      runs(function() { reject_first({error: 'canceled'}); });
+      waitsFor(function() { return first_done; });
+      runs(function() {
+        expect(persistence.get('sync_status')).toEqual(null);
+        stashes.persist('last_sync_status', null);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+      });
+    });
+  });
+
   // #1230. sync_status and last_sync_status are one result for the whole device. A supervisor
   // syncing a supervisee from that person's page is a root sync for the other id
   // (controllers/user/index.js). Its success or failure was written to the same place as the

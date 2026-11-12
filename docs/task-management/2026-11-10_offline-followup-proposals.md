@@ -848,3 +848,37 @@ user, no operator, (b) the request's own device, (c) a fresh `long_token_chosen_
 trusted browser device whose `long_token_owner_choice` is true. A supervisor-set or replayed trust behaves as trust
 did before this PR: the key's organization timeout still wins. Tests: own explicit answer lifts it; a supervisor save
 sets the flag but does not lift; a stale or missing stamp does not lift; an unchanged value leaves the record as it is.
+
+**Review of P1 to P3 (2026-11-11).** P1 revised: build with changes, applied (two-sided 10-minute window, the
+stamp stripped before it is stored, Shared records false, the device must belong to the person); built in
+`5d5f14234` with the device_spec lift examples updated for the changed specification (Traci). P3: build with
+changes, applied (two keys for the singular, only the write path flags "database or disk is full", the limit from
+one constant guarded by a spec against `LIKED_BOARD_REFS_LIMIT`); built in the commit after it. P2: stop. Its premise
+was wrong: a root sync requested while one runs is not run at all. It gets a new sync id, `check_first`
+(`services/persistence.js:2061`) skips every step, and its promise never settles; nothing saves a home board chosen
+mid-sync (pre-existing on develop). In this PR the absorbed call also sets `_active_root_sync_id` (#1230,
+`e842c958b`), so a cancel afterwards leaves `sync_status` at 'syncing' and automatic sync stops until a reload or a
+manual Sync (on develop it ended 'failed').
+
+**P2 redesigned: a sync requested while one runs queues one follow-up.** The service's root `sync()` (the wrapper,
+`services/persistence.js` ~4880) keeps the running root sync's promise. A root sync requested while it runs does not
+call the base sync (so it never sets `_active_root_sync_id` or `sync_status`): it records one pending follow-up
+(later requests coalesce into it, keeping the latest reason) and returns a promise that settles with the follow-up's
+result. When the running sync settles, the wrapper starts the follow-up, unless the running sync was cancelled (the
+person stopped syncing; the follow-up's promise rejects as cancelled) or the app is gone. The drawer
+(`services/sync-notice.js`) keeps 'syncing' when a settled status arrives while a follow-up is pending, so "ready"
+appears only after the follow-up. Supervisee syncs (`ignore_supervisees`) pass through untouched. Tests: a home board
+chosen mid-sync gets a follow-up sync whose seeds include it; two mid-sync requests make one follow-up; cancel then a
+mid-sync request leaves the status not 'syncing' and starts nothing; the drawer shows no "ready" until the follow-up
+ends; the absorbed promise settles. Mutations: no follow-up; follow-up after cancel; drawer ignores the pending flag.
+
+**Review of P2 redesigned (2026-11-11): build with changes (one High, five Medium), not built here.** The follow-up
+queue touches the core of the sync (cancel timing, a sync started before extras are ready, one follow-up per user with
+`force` and the manual reason kept, automatic reasons never queuing, the drawer flag). What this PR itself broke is
+narrower and is fixed: a root sync requested while another runs took over `_active_root_sync_id`, so cancelling the
+running sync left `sync_status` at 'syncing' (drawer pinned, automatic sync stopped). The absorbed request no longer
+takes the id (`services/persistence.js`, the sync_id line); test "should not leave the status at syncing when a sync
+requested mid-sync is followed by a cancel" (`tests/utils/persistence-sync-test.js`), red before the fix. Unchanged and
+as on develop: a request made while a sync runs does nothing and its promise does not settle, so a home board chosen
+mid-sync is saved at the next sync (the sync stamp bump makes the next stamp check pick it up), while the running sync's
+card can still say "ready". The follow-up queue, with the review's seven conditions, is its own change.
