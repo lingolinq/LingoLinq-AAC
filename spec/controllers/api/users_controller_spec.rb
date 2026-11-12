@@ -738,7 +738,7 @@ describe Api::UsersController, :type => :controller do
       expect(key['timeout']).to eq(20.minutes.to_i)
       request.headers['Authorization'] = "Bearer #{key['value']}"
 
-      put :update, params: {:id => @user.global_id, :user => {:preferences => {:device => {:long_token => true, :asserted => true}}}}
+      put :update, params: {:id => @user.global_id, :user => {:preferences => {:device => {:long_token => true, :asserted => true, :long_token_chosen_at => Time.now.to_i}}}} # the person's own answer carries its stamp (utils/trust_choice.js; User#process_device)
       expect(response).to be_successful
 
       d = Device.find(@device.id)
