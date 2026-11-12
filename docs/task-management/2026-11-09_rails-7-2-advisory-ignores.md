@@ -24,16 +24,8 @@ CI on this PR's first head (`2c2e895e8`, run 42770536445): `security-scan` passe
 shows a fresh `ruby-advisory-db` clone followed by "No vulnerabilities found".
 
 ## Deployed check (2026-11-10)
-Read-only requests to `https://app.lingolinq.com`, no authentication:
-- `GET /cable` returns 404, so the deployed app serves no Action Cable endpoint (GHSA-8474).
-- `GET /` and `GET /api/v1/boards?public=true` (with `Accept: application/json`) both return
-  `cache-control: max-age=0, private, must-revalidate` and `vary: Accept`, served by
-  `Google Frontend` with no `age`, `x-cache` or `cf-cache-status` header. A shared cache must not
-  store a `private` response, so the cache-poisoning case (GHSA-r9jg) is not reachable for these
-  responses. It stays listed as not ruled out, because only two responses were sampled.
-- Not checked live: the Active Storage direct-upload route. It accepts only POST, and this check
-  sent no writes to production. The source-level evidence above (no storage service configured)
-  stands.
+A read-only check of the deployed app was made on 2026-11-10. Its results are kept in the
+private draft security advisory for these Rails advisories, not in this public repo.
 
 ## Exposure, per advisory
 Read at `develop` `db5cfcef1`. "Not used" means a `git grep` over `app/` (excluding the Ember
@@ -53,16 +45,16 @@ frontend), `lib/` and `config/` found no use.
 | GHSA-2p2f-4rq4-gjwc, GHSA-v6rj-xm57-3p59, GHSA-rq8q-p985-fjq7 | actionview | Medium | `highlight`, `simple_format` and `strip_tags` are not called in `app/views`, `app/helpers` or `app/mailers` |
 | GHSA-68p9-83h6-5wpj | actionview | Medium | Needs user-chosen HTML attribute names. The only tag helpers are two `link_to` calls in `app/views/ai_consent/disclosures/` with a translation string and the fixed path `/privacy` |
 | GHSA-5957-c7qm-m469 | actionmailbox | Low | No Action Mailbox ingress is configured |
-| **GHSA-r9jg-fmfx-2gv6** | actionpack | Medium | **Not ruled out.** A shared cache that honours `Vary` could store a response whose `Vary` omits `Accept` and serve it in the wrong format. Impact is a wrong representation (HTML without layout, or HTML for JSON) until the entry expires, not data disclosure. Accepted until the upgrade |
+| **GHSA-r9jg-fmfx-2gv6** | actionpack | Medium | **Accepted risk until the Rails 8.1 upgrade.** Not ruled out; the reasoning is in the private draft advisory |
 
-"Active Storage is unused": no model declares `has_one_attached` or `has_many_attached`, nothing
-sets `config.active_storage.*`, and `config/storage.yml` defines only the Disk `test` and `local`
-services, none for GCS. `require 'rails/all'` still loads the engine, so its routes are drawn, but
-nothing attaches, analyzes, previews or direct-uploads a file through it.
+"Active Storage is unused": no model declares `has_one_attached` or `has_many_attached`, no
+environment sets `config.active_storage.service`, and `config/storage.yml` defines only the Disk
+`test` and `local` services, none for GCS. `require 'rails/all'` still loads the engine, but
+`config.active_storage.draw_routes = false` (`config/application.rb`, added 2026-11-12) keeps its
+routes undrawn, so no request reaches it (`spec/routing/active_storage_routes_spec.rb`).
 
 ## Not covered
-- The external websocket service behind `LLWEBSOCKET_URL` has its own dependencies and is not
-  scanned by this job.
+- Scan coverage outside this job is recorded in the private draft advisory.
 - Optional hardening, not done here: replacing `require 'rails/all'` with the frameworks the app
   uses would stop Active Storage and Action Mailbox from loading at all.
 
