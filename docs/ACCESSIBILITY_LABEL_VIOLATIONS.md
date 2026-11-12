@@ -52,15 +52,14 @@ For each `<label for="X">`:
 
 ## 2. CORB (Cross-Origin Read Blocking)
 
-**Affected resources:** ifttt.png, lessonpix.png (10 requests total)
+**Status (2026-10-23): resolved by fix 3 below.** The icons are served from `public/images/`
+(`lessonpix.png`, `pcs.png`, `symbolstix.png`, `logos/ifttt.png`) and loaded through the
+`path` helper in `app/frontend/app/templates/user/edit.hbs` (the Integrations row),
+`app/frontend/app/components/button-settings.hbs` (the missing-library notes) and
+`app/frontend/app/templates/gift_purchase.hbs`. `spec/templates/legacy_asset_locations_spec.rb`
+fails if a template points at the old S3 location again.
 
-**Locations in code:**
-- `app/frontend/app/templates/user/edit.hbs` (lines 442, 446) — `s3.amazonaws.com/lingolinq/icons/`
-- `app/frontend/app/templates/button-settings.hbs` (line 304) — `lingolinq.s3.amazonaws.com/icons/lessonpix.png`
-- `app/frontend/app/templates/button-settings-picture.hbs` (line 167)
-- `app/frontend/app/templates/components/button-settings.hbs` (line 312)
-- `app/frontend/app/templates/setup/symbols.hbs` (line 71)
-- `app/frontend/app/templates/components/setup/symbols.hbs` (line 71)
+**Affected resources (as originally recorded):** ifttt.png, lessonpix.png (10 requests total)
 
 **Cause:** CORB blocks when the server returns a response type that doesn't match what the request expected (e.g., HTML/JSON for an image request). Common causes:
 - S3 objects missing or returning 404/error page (HTML)

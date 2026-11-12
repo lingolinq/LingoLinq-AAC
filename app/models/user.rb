@@ -1277,6 +1277,16 @@ class User < ApplicationRecord
     FeatureFlags.ai_pref_value(val)
   end
 
+  # Did this account explicitly turn the master "Allow AI features" preference off? True
+  # only for a recognizable "off" (FeatureFlags.ai_pref_value == false); never set, blank,
+  # or any other value is not an opt-out. Read by ButtonSound#schedule_transcription, which
+  # runs for accounts that never chose but not for one that opted out.
+  def self.ai_features_opted_out?(user)
+    prefs = user && user.settings.is_a?(Hash) && user.settings['preferences']
+    return false unless prefs.is_a?(Hash)
+    FeatureFlags.ai_pref_value(prefs['ai_features_enabled']) == false
+  end
+
   def registration_country
     c = self.settings && self.settings['country']
     return c if c.present?

@@ -54,6 +54,30 @@ describe BoardsController, :type => :controller do
     end
   end
 
+  # weblinger loads only from the copy in public/weblinger/. If that load fails,
+  # the page reports the failure (weblingerScriptFailed) instead of trying an
+  # outside host.
+  describe "weblinger script load" do
+    render_views
+
+    it "should load weblinger same-origin and report a failed load" do
+      get "index"
+      expect(response).to be_successful
+      expect(response.body).to include("src='/weblinger/weblinger.js'")
+      expect(response.body).to include("onerror='weblingerScriptFailed()'")
+      expect(response.body).not_to include('weblingerLoadFallback')
+      expect(response.body).not_to include('covidspeak')
+    end
+
+    it "should do the same in the ember index.html" do
+      html = File.read(Rails.root.join('app/frontend/app/index.html'))
+      expect(html).to include('src="/weblinger/weblinger.js"')
+      expect(html).to include('onerror="weblingerScriptFailed()"')
+      expect(html).not_to include('weblingerLoadFallback')
+      expect(html).not_to include('covidspeak')
+    end
+  end
+
   # iPad Add-to-Home-Screen can finish application.js (js_loaded) and still
   # never reach app-state setup_controller if capabilities.init hangs.
   # Production must not define LingoLinqHideBootOverlay (that would hide on
