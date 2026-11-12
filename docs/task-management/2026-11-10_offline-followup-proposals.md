@@ -1046,3 +1046,40 @@ committed fix otherwise intact:
   person themself. Same comparison and same refresh on develop (`board-preview-overlay.js:388`, `edit_manager.js:2829`).
 - Also seen in the traces: the client's home-board key flips between the old and new value as the two user records
   (`1_3` and `self`) carry different preferences.
+
+## 20. A self pick read as "for someone else": fixed; the 'self' record, its history, and an audit (2026-11-12)
+
+**Fix (Traci: make it).** `components/board-preview-overlay.js` `_finishPickForHome` decides "picking for someone else"
+by `backend_user_id` (`utils/backend_user_id.js`, the helper `components/confirm-home-board-copy.js` `forSomeoneElse`
+already uses) instead of `id`. Tests (`tests/unit/utils/home-board-message-test.js`): a self pick whose current user is
+the `{ id: 'self', global_id: '1_3' }` record opens the board and starts the sync (red before the fix: no sync); a pick
+for another person still takes the other-person path (guard, green before and after). Neighbouring picker modules,
+timing-strict: 54 of 54. UI, fresh copy of Vocal Flair 84 w/ Keyboard: ids turned `'self'` at 16.8 s as before, and the
+pick now opened the board, said "This is now your home board..." and started `home_board_changed` at 30.2 s.
+
+**Why the session user is keyed 'self' (do not undo).** `findRecord('user', 'self')` gets a payload with the real id.
+`serializers/application.js#normalizeResponse` rewrites it to 'self' and parks the real id in `_actual_id`
+(`4656159f3`, 2025-12-30, "preventing Ember Data warnings"; `updateRecord` was added to the request types later).
+On Ember Data 5.3.13 this is more than a warning: when a 'self' record and a real-id record are both materialized
+(the normal state after any `refresh_session_user`), a response re-keying 'self' to the real id THROWS ("Failed to
+update the 'id' for the RecordIdentifier 'user:self' to '1_3', because that id is already in use", `@ember-data/store`
+identifier merge). Every reload and save of the session user depends on the pin. `models/user.js#global_id` and
+`utils/backend_user_id.js` exist for comparisons; LEARNINGS already says to compare `global_id`.
+
+**Where the second record comes from.** Startup (`services/app-state.js` ~495) compares the session's real id with
+the 'self' record's `id`, so it always refetches by real id: `sessionUser` starts as the real-id record. Afterwards
+`refresh_session_user()` (`app-state.js` ~2288) installs the 'self' record; it runs after every board copy
+(`utils/edit_manager.js` ~2829) and after every successful token check, because `services/session.js:325` compares
+`sessionUser.id` with the server's real `data.user_id` (always unequal while the record is 'self').
+
+**Audit of other user-id comparisons (Explore agent; rows 1-4 re-read by hand).** Affected, read in code:
+`utils/sync.js` `send`/`in_room` (subscriptions hold the real id; callers pass `currentUser.id`, so your own
+remote-modeling and follower updates can be dropped); `services/session.js:325` (refreshes on every token check);
+`services/app-state.js` ~495 (always the extra fetch); `utils/board-roots.js` (shallow copies not grouped under their
+roots on the dashboard, search, and `controllers/user/index.js:816`). Affected, plausible (not traced end to end):
+`controllers/board-picker.js` `for_self` and the `user_id == setup_user.id` checks there and in `controllers/setup.js`
+/ `routes/setup.js`; `page_user_id === currentUser.id` in `controllers/user/index.js`, `available-boards-section.js`,
+`dashboard-user-boards.js`; daily use `is_self` (`controllers/user/index.js` ~243); `app-state.js`
+`set_speak_mode_user` (`board_user_id == session_user_id`); the Mine-list cache key `id || _actual_id` (wrong order) in
+`create-board-new.js`, `confirm-delete-board.js`; `controllers/user/preferences.js`, `stats.js`; focus-word
+`user_id` stashes; `tour-offer.js`. Not fixed here (Traci: fix the picker, audit the rest).

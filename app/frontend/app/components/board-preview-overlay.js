@@ -385,7 +385,7 @@ export default Component.extend({
     if (!_this.isDestroyed && !_this.isDestroying) { _this.set('copying', false); }
     var setupUser = setupUserSnapshot || app_state.get('setup_user');
     var currentUser = app_state.get('currentUser');
-    var pickingForOther = setupUser && currentUser && setupUser.get('id') != currentUser.get('id');
+    var pickingForOther = setupUser && currentUser && backend_user_id(setupUser) !== backend_user_id(currentUser); // by backend id: a copy refreshes the session user, whose record is keyed 'self' (utils/backend_user_id.js), so `id` read the person themself as someone else
     var key = (homeBoard && homeBoard.get && homeBoard.get('key')) || '';
     routerSvc = routerSvc || (_this.get && !_this.isDestroyed && _this.get('router')) || (app_state.controller && app_state.controller.router);
 
@@ -515,3 +515,4 @@ export default Component.extend({
 import { remember_trial } from '../utils/board_picker_trials';
 import { home_board_set_message, sync_after_home_change } from '../utils/home_board';
 import persistence from '../utils/persistence';
+import backend_user_id from '../utils/backend_user_id';

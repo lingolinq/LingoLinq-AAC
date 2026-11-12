@@ -80,4 +80,55 @@ module('Unit | Utility | home board message and sync', function(hooks) {
       service.set('auto_sync', prior.auto_sync);
     }
   });
+
+  /* A FRESH COPY CHANGES THE SESSION USER'S RECORD (2026-11-12). The copy job ends with refresh_session_user()
+   * (utils/edit_manager.js, the copy_board_links progress handler), which loads findRecord('user', 'self'); the
+   * serializer keys that record 'self' (serializers/application.js#normalizeResponse) and models/user.js#global_id
+   * holds the real id. The pick's snapshot was taken before, under the real id. Comparing `id` read '1_3' != 'self'
+   * as "picking for someone else": no board opened and no sync started. Stubs use the network-load shape
+   * ({ id: 'self', global_id }), as LEARNINGS asks. */
+  function pick_with_users(owner, snapshot, current) {
+    var shown = [];
+    var syncs = [];
+    var moves = [];
+    stub(modal, 'success', function(text) { shown.push(text); });
+    stub(modal, 'close_board_preview', function() { });
+    stubOnPersistence('sync', function() { syncs.push(Array.prototype.slice.call(arguments)); return RSVP.resolve(); });
+    var service = owner.lookup('service:persistence');
+    var app = owner.lookup('service:app-state');
+    var prior = { online: service.get('online'), auto_sync: service.get('auto_sync'), currentUser: app.get('currentUser'), setup_user: app.get('setup_user') };
+    service.set('online', true);
+    service.set('auto_sync', true);
+    app.set('setup_user', null);
+    app.set('currentUser', current);
+    var overlay = owner.factoryFor('component:board-preview-overlay').create();
+    var board = EmberObject.create({ key: '' });
+    overlay._finishPickForHome(board, null, snapshot, { transitionTo: function() { moves.push(Array.prototype.slice.call(arguments)); } });
+    return new RSVP.Promise(function(resolve) { RSVP.resolve().then(function() { RSVP.resolve().then(resolve); }); }).then(function() {
+      service.set('online', prior.online);
+      service.set('auto_sync', prior.auto_sync);
+      app.set('currentUser', prior.currentUser);
+      app.set('setup_user', prior.setup_user);
+      return { shown: shown, syncs: syncs, moves: moves };
+    });
+  }
+
+  test('"Pick this Board" for yourself after a copy refreshed your record still opens the board and starts the sync', async function(assert) {
+    var snapshot = EmberObject.create({ id: '1_3', global_id: '1_3', user_name: 'example' });
+    var current = EmberObject.create({ id: 'self', global_id: '1_3', user_name: 'example' });
+    var result = await pick_with_users(this.owner, snapshot, current);
+    assert.deepEqual(result.syncs, [['self', null, null, 'home_board_changed']], 'a sync was started');
+    assert.deepEqual(result.shown, [home_board_set_message()], 'the message for your own home board');
+    assert.strictEqual(result.moves.length, 1, 'and the board opens');
+  });
+
+  test('"Pick this Board" for someone else still takes the other-person path', async function(assert) {
+    var snapshot = EmberObject.create({ id: '1_9', global_id: '1_9', user_name: '' });
+    var current = EmberObject.create({ id: 'self', global_id: '1_3', user_name: 'example' });
+    stub(this.owner.lookup('service:app-state'), 'return_to_index', function() { });
+    var result = await pick_with_users(this.owner, snapshot, current);
+    assert.deepEqual(result.syncs, [], 'no sync of your own boards');
+    assert.deepEqual(result.moves, [], 'your board does not open');
+    assert.strictEqual(result.shown.length, 1, 'the other-person message');
+  });
 });
