@@ -31,7 +31,7 @@
        rendered <ul class="ub-boards-page__tabs"> markup. --}}
 
   {{#if this.boardsCtrl.starred_selected}}
-    <p class="ub-boards-page__offline-note">{{t "Liked boards are kept on this device for offline use." key="liked_boards_offline_note"}}</p>
+    <p class="ub-boards-page__offline-note">{{t "Liked boards are kept on this device for offline use, up to %{limit} of them." key="liked_boards_offline_note_limit" limit=(liked-boards-kept)}}</p>
   {{/if}}
   {{!-- Board grid (Mine folders, filter, DnD) --}}
   <div class="ub-boards-page__boards-body">

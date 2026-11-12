@@ -523,7 +523,9 @@ var dbman = {
             }, function(err) {
               console.log(err);
               done();
-              error({error: err.message});
+              // A full disk: the iOS plugin reports SQLite's rc 13 as "database or disk is full" (no SQLITE_FULL in
+              // the text); `quota` makes the sync say the device is out of storage (utils/storage_failures.js).
+              error({error: err.message, quota: /database or disk is full|disk is full|SQLITE_FULL/i.test((err && err.message) || '')});
               finished();
             });
           } catch(e) {

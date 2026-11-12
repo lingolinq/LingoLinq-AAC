@@ -1953,6 +1953,13 @@ describe User, :type => :model do
     # timeout from keys issued before trust (Device#clean_old_keys). Only the person's own explicit answer, on their
     # own device, may do that: a supervisor's save and a replayed old save still set long_token as they always have,
     # but do not record an owner choice, so the organization timeout keeps applying.
+    # The app says how many liked boards a sync keeps from its own constant (app/frontend/app/utils/like_limit.js
+    # LIKED_BOARDS_KEPT); it must match the number the server actually lists.
+    it "keeps the app's liked-boards limit equal to LIKED_BOARD_REFS_LIMIT" do
+      js = File.read(Rails.root.join('app/frontend/app/utils/like_limit.js'))
+      expect(js[/export var LIKED_BOARDS_KEPT = (\d+);/, 1].to_i).to eq(User::LIKED_BOARD_REFS_LIMIT)
+    end
+
     describe "the owner's own trust answer" do
       def owner_and_device
         u = User.create

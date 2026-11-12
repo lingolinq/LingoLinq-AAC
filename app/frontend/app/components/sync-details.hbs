@@ -58,7 +58,7 @@
           {{/if}}
         {{/if}}
       </p>
-      <p class="la-sync-details-muted-block">{{t "Kept on this device for offline use: your home board and its folders, your sidebar boards, your liked boards, and Crisis Vocabulary." key="sync_offline_scope"}}</p>
+      <p class="la-sync-details-muted-block">{{t "Kept on this device for offline use: your home board and its folders, your sidebar boards, up to %{limit} liked boards, and Crisis Vocabulary." key="sync_offline_scope_limit" limit=(liked-boards-kept)}}</p>
 
       {{#if this.details}}
         {{#each this.details as |sync|}}

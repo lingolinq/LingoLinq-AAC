@@ -32,7 +32,7 @@ module('Unit | Service | sync-notice', function(hooks) {
     this.persistence.set('sync_status', 'syncing');
     this.persistence.set('sync_status', 'finished');
     this.persistence.set('sync_errors', 2);
-    assert.strictEqual(this.notice.get('message'), 'Boards synced. 2 had a problem.');
+    assert.strictEqual(this.notice.get('message'), 'Boards synced. 2 boards had a problem.');
   });
 
   test('the failure reason is read after the status, in the order the sync writes them', function(assert) {
@@ -66,9 +66,17 @@ module('Unit | Service | sync-notice', function(hooks) {
     this.persistence.set('sync_errors', 3);
     this.persistence.set('sync_status', 'finished');
     assert.strictEqual(this.notice.get('kind'), 'finished');
-    assert.strictEqual(this.notice.get('message'), 'Boards synced. 3 had a problem.');
+    assert.strictEqual(this.notice.get('message'), 'Boards synced. 3 boards had a problem.');
     this.notice.dismiss();
     assert.strictEqual(this.notice.get('status'), null);
+  });
+
+  // Pass 2 of the final review (2026-11-11): one board reads "1 board", not "1 problems".
+  test('one board with a problem reads in the singular', function(assert) {
+    this.persistence.set('sync_status', 'syncing');
+    this.persistence.set('sync_errors', 1);
+    this.persistence.set('sync_status', 'finished');
+    assert.strictEqual(this.notice.get('message'), 'Boards synced. 1 board had a problem.');
   });
 
   test('a failed sync says so, with the reason when there is one', function(assert) {

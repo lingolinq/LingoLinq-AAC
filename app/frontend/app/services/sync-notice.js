@@ -35,7 +35,7 @@ export default Service.extend({
   message: computed('kind', 'persistence.sync_errors', function() {
     var kind = this.get('kind');
     if(kind === 'succeeded') { return i18n.t('sync_drawer_succeeded', "Your boards are synced and ready for offline use."); }
-    if(kind === 'finished') { return i18n.t('sync_drawer_finished', "Boards synced. %{n} had a problem.", { n: this.get('persistence.sync_errors') || 0 }); }
+    if(kind === 'finished') { var n = this.get('persistence.sync_errors') || 0; return n === 1 ? i18n.t('sync_drawer_finished_one', "Boards synced. 1 board had a problem.") : i18n.t('sync_drawer_finished_many', "Boards synced. %{n} boards had a problem.", { n: n }); }
     if(kind === 'failed') { return i18n.t('sync_drawer_failed', "Sync failed. Some boards may not be ready to use offline."); }
     return null;
   }),

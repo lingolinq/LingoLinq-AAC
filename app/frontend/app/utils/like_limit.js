@@ -15,3 +15,7 @@ export function like_message(data) {
   }
   return { kind: 'success', text: i18n.t('liked_kept_offline', "Liked. This board will be kept on this device for offline use after the next sync.") };
 }
+
+// How many liked boards a sync keeps on the device: the server's User::LIKED_BOARD_REFS_LIMIT
+// (app/models/user.rb). spec/models/user_spec.rb fails if the two ever differ.
+export var LIKED_BOARDS_KEPT = 50;

@@ -86,3 +86,39 @@ module('Unit | Utility | dbman store_internal commit', function() {
     assert.true(calls[0].quota, 'reported as out of storage');
   });
 });
+
+/* The installed apps write through SQLite (pass 2 of the final review of #1268). A full disk there never set
+ * `quota`, so the sync said "try again" instead of "out of storage". The iOS plugin reports SQLite's rc 13 as
+ * "... database or disk is full" (no SQLITE_FULL in the text). */
+module('Unit | Utility | dbman store_internal on SQLite', function() {
+  function sqliteStore(write_error) {
+    var prior = { db: dbman.db, type: dbman.db_type };
+    var calls = [];
+    dbman.db_type = 'sqlite_plugin';
+    dbman.db = {
+      executeSql: function(sql, args, success, error) {
+        if(/^SELECT/.test(sql)) { setTimeout(function() { success({ rows: { length: 0 } }); }, 0); return; }
+        setTimeout(function() { error(write_error); }, 0);
+      }
+    };
+    // The INSERT is issued from the SELECT's callback, so the stand-in stays until the write has answered.
+    return new Promise(function(resolve) {
+      var finish = function() { dbman.db = prior.db; dbman.db_type = prior.type; resolve(calls); };
+      try {
+        dbman.store_internal('board', { id: '1_7', key: 'example/board', raw: {} }, function() { calls.push('saved'); finish(); }, function(err) { calls.push(err); finish(); });
+      } catch(e) { calls.push(e); finish(); }
+    });
+  }
+
+  test('a write refused because the disk is full answers as out of storage', async function(assert) {
+    var calls = await sqliteStore({ message: 'Run: in run rc: 13 message: database or disk is full' });
+    assert.strictEqual(calls.length, 1);
+    assert.true(calls[0].quota);
+  });
+
+  test('another write error is not reported as out of storage', async function(assert) {
+    var calls = await sqliteStore({ message: 'Run: in run rc: 19 message: UNIQUE constraint failed' });
+    assert.strictEqual(calls.length, 1);
+    assert.false(calls[0].quota);
+  });
+});
