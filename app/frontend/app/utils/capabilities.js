@@ -2494,9 +2494,12 @@ var capabilities;
   
   
       var setup = capabilities.dbman.setup_database(key, capabilities.dbman.dbversion);
-      var setup_failed = function(err) { capabilities.database_unavailable(err, promise); };
+      // Settled once: after the watchdog gave up (capabilities.db false, the caller and the queued reads told),
+      // a late answer from setup changes nothing, so the app never holds a database it reported as unavailable.
+      var settled = false;
+      var setup_failed = function(err) { if(settled) { return; } settled = true; capabilities.database_unavailable(err, promise); };
       var setup_timer = setTimeout(function() { setup_failed({error: 'db setup timed out'}); }, capabilities.db_setup_wait);
-      setup.then(function(db) { clearTimeout(setup_timer);
+      setup.then(function(db) { clearTimeout(setup_timer); if(settled) { return; } settled = true;
         // Don't proceed with app initialization until db_connect completes, ensuring
         // stashes is populated with whatever data is available.
         var connect = stashes.db_connect(capabilities);

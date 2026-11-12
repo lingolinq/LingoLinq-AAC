@@ -1,6 +1,6 @@
 {{#if this.shown}}
   {{!-- The copy drawer's classes and slot (styles: .ll-copy-drawer); the status modifier picks the colour. --}}
-  <div class="ll-copy-drawer ll-copy-drawer--{{if this.sync_notice.is_syncing "copying" (if this.sync_notice.is_success "done" "error")}} {{if this.app_state.toast 'll-copy-drawer--above-toast'}}" data-test-sync-drawer={{this.sync_notice.status}}>
+  <div class="ll-copy-drawer ll-copy-drawer--{{if this.sync_notice.is_syncing "copying" (if this.sync_notice.is_success "done" "error")}} {{if this.appState.toast 'll-copy-drawer--above-toast'}}" data-test-sync-drawer={{this.sync_notice.status}}>
     {{#if this.sync_notice.is_syncing}}
       <div class="ll-copy-drawer__spinner md-loading-spinner" aria-hidden="true"></div>
       <div class="ll-copy-drawer__body">

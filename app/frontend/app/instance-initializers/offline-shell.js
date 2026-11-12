@@ -44,6 +44,10 @@ export default {
   name: 'offline-shell',
   initialize: function(appInstance) {
     if(typeof window === 'undefined') { return; }
-    start(appInstance, window);
+    var stop = start(appInstance, window);
+    // The watchers end with the instance that started them (a test's app, an Electron reload); a production
+    // instance lives as long as the page, so nothing changes there (final review of #1268).
+    if(stop) { registerDestructor(appInstance, stop); }
   }
 };
+import { registerDestructor } from '@ember/destroyable';

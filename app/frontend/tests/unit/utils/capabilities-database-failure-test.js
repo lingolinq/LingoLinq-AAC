@@ -64,6 +64,31 @@ module('Unit | Utility | capabilities database setup failure', function(hooks) {
     }, 0);
   });
 
+  test('a setup that answers after the watchdog gave up changes nothing', function(assert) {
+    // Final review of #1268: the late success used to connect the database, run the queued reads and resolve a
+    // promise already rejected, leaving capabilities.db false beside a live database.
+    assert.expect(6);
+    var setup = capabilities.mini_promise();
+    stub(capabilities.dbman, 'setup_database', function() { return setup; });
+    var connects = 0;
+    stub(stashes, 'db_connect', function() { connects++; return RSVP.resolve(); });
+    capabilities.db_setup_wait = 5;
+    var waiting = queued();
+    var done = assert.async();
+    var outcome = {};
+    capabilities.setup_database().then(function() { outcome.resolved = true; }, function(err) { outcome.rejected = err; });
+    setTimeout(function() { setup.resolve({}); }, 30);
+    setTimeout(function() {
+      assert.ok(outcome.rejected, 'rejected');
+      assert.strictEqual((outcome.rejected || {}).error, 'db setup timed out');
+      assert.notOk(outcome.resolved, 'not resolved after the rejection');
+      assert.false(capabilities.db);
+      assert.strictEqual(connects, 0, 'the late database is not connected');
+      assert.notOk(waiting.resolved, 'the queued read stays rejected');
+      done();
+    }, 80);
+  });
+
   test('a setup that never answers gives up, rather than leaving reads waiting', function(assert) {
     assert.expect(3);
     stub(capabilities.dbman, 'setup_database', function() { return capabilities.mini_promise(); });

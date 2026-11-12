@@ -467,6 +467,7 @@ class Api::BoardsController < ApplicationController
     pieces = []
     bytes = 0
     consumed = 0
+    sent = {}
     slice.each_slice(TREE_PAGE_CHUNK) do |chunk_ids|
       boards = []
       ApplicationRecord.using(:master) do
@@ -474,35 +475,31 @@ class Api::BoardsController < ApplicationController
       end
       by_id = {}
       boards.each { |b| by_id[b.global_id] ||= b; by_id[b.global_id(true)] ||= b }
+      # A sub-board id the user has replaced comes back as the replacement, under the replacement's own id
+      # (GlobalId.find_all_by_global_id); it is looked up through the requested id so it travels with the id
+      # that is counted as consumed, whichever board the budget stops on.
+      replacement_for = Board.sub_board_replacements(chunk_ids)
       visible = {}
       chunk_ids.each do |id|
-        b = by_id[id]
+        b = by_id[id] || (replacement_for[id] && by_id[replacement_for[id]])
         visible[id] = b if b && b.allows?(@api_user, 'view', scopes)
       end
-      # A sub-board id the viewer has replaced comes back as the replacement, under its own id
-      # (GlobalId.find_all_by_global_id): kept, after the ids of the chunk, so it is still sent as before paging.
-      replacements = boards.select { |b| !visible.value?(b) && b.allows?(@api_user, 'view', scopes) }
       # One image lookup for the chunk (#1219 unit A); under the same kill-switch as lite, so 'false' restores
       # the whole pre-fix path.
-      Board.preload_button_images(visible.values.uniq + replacements, @api_user) if lite
+      Board.preload_button_images(visible.values.uniq, @api_user) if lite
       stop = false
-      add_piece = lambda do |b|
-        piece = JsonApi::Board.as_json(b, wrapper: true, permissions: @api_user, skip_subs: true, as_lite: lite).to_json
-        pieces << piece
-        bytes += piece.bytesize
-        stop = true if bytes >= budget
-      end
       chunk_ids.each do |id|
         consumed += 1
         b = visible[id]
-        add_piece.call(b) if b
-        break if stop
-      end
-      if !stop
-        replacements.each do |b|
-          add_piece.call(b)
-          break if stop
+        # A board listed twice, or listed and also a replacement, is sent once per page.
+        if b && !sent[b.id]
+          sent[b.id] = true
+          piece = JsonApi::Board.as_json(b, wrapper: true, permissions: @api_user, skip_subs: true, as_lite: lite).to_json
+          pieces << piece
+          bytes += piece.bytesize
+          stop = true if bytes >= budget
         end
+        break if stop
       end
       # The page ends here; the ids not walked in this chunk and the chunks after it are the next page's.
       break if stop

@@ -3984,7 +3984,41 @@ describe Api::BoardsController, :type => :controller do
       root.save
       get :tree, params: { board_id: root.global_id, offset: 0 }
       json = assert_success_json
-      expect(json['descendants'].map { |d| d['board']['id'] }).to eq([mine.global_id, replacement.global_id])
+      # The replacement travels in the replaced id's list position.
+      expect(json['descendants'].map { |d| d['board']['id'] }).to eq([replacement.global_id, mine.global_id])
+      expect(json).to_not have_key('next_offset')
+    end
+
+    it "sends a replacement with the id that produced it, even when the budget stops the page there" do
+      token_user
+      source = User.create(user_name: 'lingolinq')
+      original = Board.process_new({name: 'Shared Folder', public: true}, {user: source, key: 'shared-folder'})
+      replacement = board_with_image(@user)
+      extra = UserExtra.find_or_create_by(user: @user)
+      extra.settings ||= {}
+      extra.settings['replaced_boards'] = { original.global_id => replacement.global_id }
+      extra.save!
+      mine1 = board_with_image(@user)
+      mine2 = board_with_image(@user)
+      root = tree_of(@user, [mine1])
+      root.settings['downstream_board_ids'] = ["#{original.global_id}-#{@user.global_id}", mine1.global_id, mine2.global_id]
+      root.save
+      stub_const("Api::BoardsController::TREE_PAGE_CHUNK", 2)
+      stub_const("Api::BoardsController::TREE_PAGE_BYTES", 1)
+      pages = walk_tree_pages(root)
+      expect(pages.map { |p| p['descendants'].map { |d| d['board']['id'] } }).to eq([[replacement.global_id], [mine1.global_id], [mine2.global_id]])
+    end
+
+    it "sends a board listed twice once per page" do
+      token_user
+      mine = board_with_image(@user)
+      other = board_with_image(@user)
+      root = tree_of(@user, [mine])
+      root.settings['downstream_board_ids'] = [mine.global_id, other.global_id, mine.global_id]
+      root.save
+      get :tree, params: { board_id: root.global_id, offset: 0 }
+      json = assert_success_json
+      expect(json['descendants'].map { |d| d['board']['id'] }).to eq([mine.global_id, other.global_id])
       expect(json).to_not have_key('next_offset')
     end
 

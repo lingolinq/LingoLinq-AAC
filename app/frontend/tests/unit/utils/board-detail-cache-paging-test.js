@@ -1,6 +1,6 @@
 import { module, test } from 'qunit';
 import RSVP from 'rsvp';
-import boardDetailCache, { TREE_WARM_MAX_PAGES, TREE_WARM_MAX_PAGES_MOBILE } from 'frontend/utils/board_detail_cache';
+import boardDetailCache, { TREE_WARM_MAX_PAGES, TREE_WARM_MAX_PAGES_MOBILE, MAX_ENTRIES } from 'frontend/utils/board_detail_cache';
 import capabilities from 'frontend/utils/capabilities';
 import LingoLinq from 'frontend/app';
 import { setupTest } from '../../helpers';
@@ -152,6 +152,16 @@ module('Unit | Utility | board-detail-cache paging', function(hooks) {
     assert.strictEqual(urls.length, 2);
     assert.true(second.partial, 'the second failure still ends the warm');
     assert.notOk(boardDetailCache.is_root_only('user/home'));
+  });
+
+  test('the cache holds at most MAX_ENTRIES boards, dropping the oldest, never the one just stored', function(assert) {
+    for (var i = 0; i < MAX_ENTRIES + 3; i++) {
+      boardDetailCache.set({ key: 'user/b' + i, id: '1_' + (1000 + i), buttons: [] });
+    }
+    assert.notOk(boardDetailCache.peek('user/b0'), 'the oldest is gone, for peek too');
+    assert.notOk(boardDetailCache.peek('user/b2'));
+    assert.ok(boardDetailCache.get('user/b3'), 'the bound is MAX_ENTRIES, not fewer');
+    assert.ok(boardDetailCache.get('user/b' + (MAX_ENTRIES + 2)), 'the newest stays');
   });
 
   test('later pages need no root; the first page does', async function(assert) {

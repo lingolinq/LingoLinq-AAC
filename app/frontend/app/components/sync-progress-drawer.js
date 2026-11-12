@@ -22,7 +22,6 @@ export default Component.extend({
   copy_progress: service('copy-progress'),
   persistence: service('persistence'),
   appState: service('app-state'),
-  app_state: service('app-state'),
   router: service('router'),
   tagName: '',
 

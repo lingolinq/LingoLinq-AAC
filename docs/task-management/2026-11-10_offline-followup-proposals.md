@@ -766,3 +766,31 @@ delayed jobs, which ruled out a separate like job that waits for the copy. Specs
 (`spec/models/user_starter_board_spec.rb`, 6, one for "no flag, no like"); mutations: no like on the new-copy path (the
 like spec red), no like on the existing-copy path (the home-copy spec red). The Spanish
 pick mismatch is follow-up issue #1303.
+
+## 17. Final review round, pass 1: `/review-pr` (2026-11-11)
+
+`REVIEWED=PR lingolinq/LingoLinq-AAC#1268 at e484fd0a67f76669e9e857a286e6b5ef0b086069`, PII preflight exit 0 (guard
+PASS, no data-bearing paths). The diff (162 files) was split into five slices reviewed in parallel, each reviewer
+reading only its slice of the preflight's diff file. Verdicts: backend approve with comments, frontend core request
+changes (two Highs to verify), frontend UI request changes (one confirmed High), tests approve with comments, docs
+approve with comments. No Critical.
+
+Verified and fixed: the tabs selector list in `app.scss` split by an inserted block (High, confirmed: board picker
+tabs lost their rules); a replaced sub-board dropped when the byte budget stopped a page before it (now looked up
+through the requested id, `Board.sub_board_replacements`, and sent in that id's position; a board listed twice is
+sent once per page; specs); a storage failure in a root sync for someone else published "Sync failed" as the
+signed-in person's result (the helper takes the #1230 gate); a database setup answering after the watchdog gave up
+connected a database reported as unavailable (settled once); device-copy pictures (data URIs) left in memory after
+an SPA sign-out (cleared in `clear_user_state`); the board cache unbounded (at most 400 entries, expired and oldest
+first); the shell watchers not ended with their app instance (`registerDestructor`); the drawer's duplicate
+app-state injection; status-doc contradictions. Each code fix has a test that a mutation turned red.
+
+Verified as not defects: `schedule_sync_board_step` is defined (`services/persistence.js:79`); `store()` counts failed
+writes on the service instance (`root = this`, `:707`); the imports in `trial-bar.js` and `switch-languages.js`
+exist; the Modern opener passes `device_copy`/`refresh_device_copy` to Switch Languages; `la-sync-details-muted-block`
+exists; the reconnect sync goes through `sync()`, whose base guards a running sync; the device idle-timeout change is
+Scot's reviewed round-2 decision (a trusted device's own limit applies to keys issued before trust; a shared or valet
+device keeps the organization's timeout). Not changed, noted: approval records for the test rewrites and the
+`.eslint-todo` re-anchoring are in the task logs and PR body of the sessions that made them; fixed sleeps and
+assignment-style stubs in older test files of this PR are left as they pass the leak check; the e2e order dependence
+is local-only; `:has()` on iOS below 15.4; the Spanish starter's sidebar name (#1303).

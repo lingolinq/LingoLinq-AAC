@@ -60054,13 +60054,13 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
    - Inner pills sit flush together (gap: 4px) and shed their
      individual borders, letting the active fill stand out against
      the shared track. */
-.board-picker__tabs,
 .ub-boards-page__offline-note {
   margin: 12px 0 0;
   color: var(--md-muted);
   font-size: 18px;
   line-height: 1.5;
 }
+.board-picker__tabs,
 .ub-boards-page__tabs {
   list-style: none;
   padding: 4px;

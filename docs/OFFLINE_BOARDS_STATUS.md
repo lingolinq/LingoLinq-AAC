@@ -48,7 +48,8 @@ memory ahead of time while online, so they open faster.
 
 ## Done on this branch
 
-Each item below has tests; the PR's "Fix status" table lists the exact spec for each.
+Each item below has tests, except where an item says otherwise (#1201's iPad wiring has none yet); the PR's "Fix
+status" table lists the exact spec for each.
 
 **Opening offline**
 - A Home Screen launch with no network opens the app (Scot's shell). On Wi-Fi with no internet it opens when
@@ -136,10 +137,11 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
 - In airplane mode with the server unreachable, a cold start opened the home board from the device, and all 102
   boards had a copy that opens.
 - Not checked on any device: iPad or iOS, staging, production, pictures and sounds offline, Basic view offline,
-  opening a folder by tapping it, and a liked board past the 25th through a real sync.
+  opening a folder by tapping it, and a liked board past the 25th through a sync on a real account (the Android
+  emulator run of 2026-11-10 against a local server saved all 50 liked boards).
 
 **Tests added for this work**
-- Unit tests for every change above.
+- Unit tests for every change above, except where an item says otherwise.
 - Browser tests (Playwright, against Rails with the shell on):
   - `e2e/offline-launch.spec.js`: launches, both views, pictures, not-saved boards, storage full, which boards
     sync, three "Wi-Fi with no internet" cases that open from the device (nothing answers, a 503 page, a 429),
@@ -362,11 +364,11 @@ Notes:
 |---|---|---|
 | #1201 | iPads detected as Macs | Partly fixed (`mobile`); `system` needs a device check |
 | #1205 | Failed database setup hangs storage | Fixed in unit tests; device check pending |
-| #1206 | iOS SQLite shim row | Open |
+| #1206 | iOS SQLite shim row | Fixed on this branch; device check pending |
 | #1209 | Not-saved board is a dead end | Fixed |
 | #1212 | Board requests time out under load | Client side done, including production pictures from the CDN; cause on staging not established; not measured on staging or production |
 | #1213 | Modern view never loads from the device | Fixed |
-| #1219 | `/tree` fails on large boards | Open |
+| #1219 | `/tree` fails on large boards | Built on this branch; closes after one signed-in `/tree` on dev or staging |
 | #1221 | First offline sync too slow | Code work done (board selection, duplicate writes, doubled button list, pictures written again); verification on production and real devices is item 10 |
 | #1229 | Retry gaps after a failed sync | Fixed on this branch |
 | #1230 | Modern "Sync failed" notice | Fixed on this branch |

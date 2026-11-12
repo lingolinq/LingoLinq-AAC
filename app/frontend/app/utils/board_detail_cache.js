@@ -538,7 +538,7 @@ export default {
       ordered_for: null,
       root_only: !!opts.root_only
     };
-    _index(entry);
+    _index(entry); _bound_entries(entry); // the cache keeps at most MAX_ENTRIES boards (end of this file)
     return entry;
   },
 
@@ -1259,3 +1259,21 @@ function _warm_tree_pages(cache, key) {
   return step();
 }
 import capabilities from './capabilities'; // at the end, like the imports above it, so the lint baseline rows keep their lines
+
+/* A BOUND ON WHAT THE CACHE HOLDS (final review of #1268). `get` keeps an expired entry so `peek` can serve it
+   offline, and nothing else evicted one, so every board seen in a session stayed in memory; with the paged warm
+   that is whole trees on a low-memory tablet. Past MAX_ENTRIES boards, the entries least worth keeping go
+   first: expired before fresh, oldest first; the entry just stored is never dropped. */
+export var MAX_ENTRIES = 400;
+function _bound_entries(keep) {
+  var keys = Object.keys(_by_key);
+  if (keys.length <= MAX_ENTRIES) { return; }
+  var seen = [];
+  keys.forEach(function(k) { var e = _by_key[k]; if (e && e !== keep && seen.indexOf(e) === -1) { seen.push(e); } });
+  seen.sort(function(a, b) {
+    var fa = _is_fresh(a) ? 1 : 0, fb = _is_fresh(b) ? 1 : 0;
+    return fa !== fb ? fa - fb : a.fetched_at - b.fetched_at;
+  });
+  var excess = keys.length - MAX_ENTRIES;
+  seen.slice(0, excess).forEach(function(e) { _drop(e); });
+}

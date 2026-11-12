@@ -2396,7 +2396,7 @@ var persistence = Service.extend({
           });
           _this_sync.set('sync_progress', null);
           var sync_message = null;
-          var storage_failed = end_sync_if_storage_failed(_this_sync, writes_before); if(storage_failed) { sync_message = _this_sync.get('sync_status_error'); } else if(errors.length > 0) {
+          var storage_failed = end_sync_if_storage_failed(_this_sync, writes_before, _this_sync.sync_status_is_for_signed_in_user(user_id)); if(storage_failed) { sync_message = storage_failed; } else if(errors.length > 0) {
             if(_this_sync.sync_status_is_for_signed_in_user(user_id)) { _this_sync.set('sync_status', 'finished'); }
             if(_this_sync.stashes && _this_sync.stashes.persist && _this_sync.sync_status_is_for_signed_in_user(user_id)) {
               _this_sync.stashes.persist('last_sync_status', 'finished');

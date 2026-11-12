@@ -2567,6 +2567,24 @@ class Board < ApplicationRecord
     super
   end
 
+  # For ids with a sub-user suffix ("<board>-<user>"), the replacement board id that find_all_by_global_id
+  # substitutes when that user has replaced the board (GlobalId.find_all_by_global_id reads
+  # user_extra.settings['replaced_boards']), keyed by the requested id. Used by the paged tree so a replacement
+  # travels with the id that produced it (#1219).
+  def self.sub_board_replacements(ids)
+    res = {}
+    with_sub = (ids || []).map { |id| [id, id_pieces(id)] }.select { |_, p| p[:sub_id] && p[:sub_id][:id] }
+    return res if with_sub.empty?
+    users = {}
+    User.where(id: with_sub.map { |_, p| p[:sub_id][:id] }.uniq).preload(:user_extra).each { |u| users[u.id.to_s] = u }
+    with_sub.each do |id, p|
+      u = users[p[:sub_id][:id].to_s]
+      replaced = u && u.user_extra && u.user_extra.settings && u.user_extra.settings['replaced_boards']
+      res[id] = replaced[p[:orig]] if replaced && replaced[p[:orig]]
+    end
+    res
+  end
+
   # ONE IMAGE LOOKUP FOR A SET OF BOARDS (#1219, PR #1268). JsonApi::Board serializes a tree or a bulk prefetch
   # board by board, and images_and_sounds_for loaded each board's button images with its own query (145 lookups
   # and 312 queries on one 145-board tree: the Rack::Timeout mode of the issue). This loads every board's images

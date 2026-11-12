@@ -27,13 +27,18 @@ export function writes_failed_since(root, before) {
 }
 
 // At the end of a sync: when a write failed since `before`, the sync ends as failed and says why, and
-// returns true. The boards are not all on the device, so it must not look ready offline.
-export function end_sync_if_storage_failed(persistence, before) {
+// returns the message (false when no write failed). The boards are not all on the device, so it must not
+// look ready offline. `publish` false (a root sync for someone else, #1230) keeps the device-wide status and
+// notice untouched: the result is not the signed-in person's; the caller still gets the message.
+export function end_sync_if_storage_failed(persistence, before, publish) {
   if(!writes_failed_since(persistence, before)) { return false; }
-  persistence.set('sync_status', 'failed');
-  if(persistence.stashes && persistence.stashes.persist) { persistence.stashes.persist('last_sync_status', 'failed'); }
-  persistence.set('sync_status_error', storage_failure_message(persistence, before));
-  return true;
+  var message = storage_failure_message(persistence, before);
+  if(publish !== false) {
+    persistence.set('sync_status', 'failed');
+    if(persistence.stashes && persistence.stashes.persist) { persistence.stashes.persist('last_sync_status', 'failed'); }
+    persistence.set('sync_status_error', message);
+  }
+  return message;
 }
 
 // What to tell the person: out of storage when any failure since `before` was, otherwise a general one.
