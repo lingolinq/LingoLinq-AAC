@@ -2037,9 +2037,9 @@ var persistence = Service.extend({
     if(!ignore_supervisees || !sync_id || this.get('sync_status.canceled')) {
       sync_id = "sync_for::" + user_name + "::" + (new Date()).getTime() + "::" + Math.random();
     }
-    this.set('last_sync_event_at', (new Date()).getTime());
+    this._this_call_sync_id = sync_id; if(!ignore_supervisees) { this._active_root_sync_id = sync_id; } this.set('last_sync_event_at', (new Date()).getTime());
 
-    this.set('sync_status', 'syncing'); var writes_before = failed_write_count(this); // writes that fail during this sync end it as failed (utils/storage_failures.js)
+    var status_user = this.get('sync_progress.root_user') || user_id; if(this.sync_status_is_for_signed_in_user(status_user)) { this.set('sync_status', 'syncing'); } var writes_before = failed_write_count(this); // writes that fail during this sync end it as failed (utils/storage_failures.js). A root sync for someone else must not set this, or the notice and drawer report their sync as yours (#1230).
     var synced_boards = [];
     // TODO: this could move to bg.js, that way it can run in the background
     // even if the app itself isn't running. whaaaat?! yeah.
@@ -2397,15 +2397,15 @@ var persistence = Service.extend({
           _this_sync.set('sync_progress', null);
           var sync_message = null;
           var storage_failed = end_sync_if_storage_failed(_this_sync, writes_before); if(storage_failed) { sync_message = _this_sync.get('sync_status_error'); } else if(errors.length > 0) {
-            _this_sync.set('sync_status', 'finished');
-            if(_this_sync.stashes && _this_sync.stashes.persist) {
+            if(_this_sync.sync_status_is_for_signed_in_user(user_id)) { _this_sync.set('sync_status', 'finished'); }
+            if(_this_sync.stashes && _this_sync.stashes.persist && _this_sync.sync_status_is_for_signed_in_user(user_id)) {
               _this_sync.stashes.persist('last_sync_status', 'finished');
             }
             _this_sync.set('sync_errors', errors.length);
             sync_message = i18n.t('finished_with_errors', "Finished syncing %{user_id} with %{n} error(s)", {user_id: user_name, n: errors.length});
           } else {
-            _this_sync.set('sync_status', 'succeeded');
-            if(_this_sync.stashes && _this_sync.stashes.persist) {
+            if(_this_sync.sync_status_is_for_signed_in_user(user_id)) { _this_sync.set('sync_status', 'succeeded'); }
+            if(_this_sync.stashes && _this_sync.stashes.persist && _this_sync.sync_status_is_for_signed_in_user(user_id)) {
               _this_sync.stashes.persist('last_sync_status', 'succeeded');
             }
             sync_message = i18n.t('finised_without_errors', "Finished syncing %{user_id} without errors", {user_id: user_name});
@@ -2439,24 +2439,24 @@ var persistence = Service.extend({
         var statuses = _this_sync.get('sync_progress.board_statuses') || [];
         var stamps = _this_sync.get('sync_progress.sync_stamps');
         _this_sync.set('sync_progress', null);
-        _this_sync.set('sync_status', 'failed');
+        if(_this_sync._canceled_sync_id === sync_id) { if(_this_sync._active_root_sync_id === sync_id) { _this_sync.set('sync_status', null); } } else if(_this_sync.sync_status_is_for_signed_in_user(user_id)) { _this_sync.set('sync_status', 'failed'); }
         // if last sync attempt ended in failure and this attempt also
-        // failed, then set last_sync_at to prevent repeated attempts to sync
-        if(_this_sync.stashes.get('last_sync_status') == 'failed' && _this_sync.sync_clock_advances_on_failure()) {
+        // failed, then set last_sync_at to prevent repeated attempts to sync. Someone else's failure must not move this person's clock (#1230).
+        if(_this_sync._canceled_sync_id !== sync_id && _this_sync.sync_status_is_for_signed_in_user(user_id) && _this_sync.stashes.get('last_sync_status') == 'failed' && _this_sync.sync_clock_advances_on_failure()) {
           var last_sync = (new Date()).getTime() / 1000;
           _this_sync.store('settings', {last_sync: last_sync, stamps: stamps}, 'lastSync').then(function(res) {
             _this_sync.set('last_sync_at', res.last_sync);
             _this_sync.set('sync_stamps', stamps);
           }, function() { });
         }
-        if(_this_sync.stashes && _this_sync.stashes.persist) {
+        if(_this_sync.stashes && _this_sync.stashes.persist && _this_sync._canceled_sync_id !== sync_id && _this_sync.sync_status_is_for_signed_in_user(user_id)) {
           _this_sync.stashes.persist('last_sync_status', 'failed');
         }
-        _this_sync.set('sync_status_error', capabilities.db ? null : i18n.t('device_storage_unavailable', "This device can't save boards right now. Try restarting the app."));
+        if(_this_sync._canceled_sync_id !== sync_id && _this_sync.sync_status_is_for_signed_in_user(user_id)) { _this_sync.set('sync_status_error', capabilities.db ? null : i18n.t('device_storage_unavailable', "This device can't save boards right now. Try restarting the app.")); }
         if(err.board_unauthorized) {
-          _this_sync.set('sync_status_error', i18n.t('board_unauthorized', "One or more boards are private"));
+          if(_this_sync._canceled_sync_id !== sync_id && _this_sync.sync_status_is_for_signed_in_user(user_id)) { _this_sync.set('sync_status_error', i18n.t('board_unauthorized', "One or more boards are private.")); }
         } else if(!_this_sync.get('online')) {
-          _this_sync.set('sync_status_error', i18n.t('online_required_to_sync', "Must be online to sync"));
+          if(_this_sync._canceled_sync_id !== sync_id && _this_sync.sync_status_is_for_signed_in_user(user_id)) { _this_sync.set('sync_status_error', i18n.t('online_required_to_sync', "Must be online to sync.")); }
         }
         var message = (err && err.error) || "unspecified sync error";
         statuses = Utils.uniq(statuses, function(s) { return s.id; });
@@ -4880,15 +4880,19 @@ persistence.reopen({
   sync: function(user_id, force, ignore_supervisees, sync_reason) {
     if(ignore_supervisees) { return this._super(...arguments); }
     this._root_sync_reason = sync_reason || 'manual_sync';
-    this.set('root_sync_canceled', false);
     // A cancelled sync ends in the failure branch, which stashes last_sync_status 'failed'. The user
     // stopped it, so put back the last real result (read after a reload by the Modern home notice,
-    // and by the two-failures pause).
+    // and by the two-failures pause). The cancel is the sync id, not one flag: the next root sync
+    // used to clear that flag before this rejection ran, so the stop was stored as a failure (#1230).
     var _this = this;
     var last_status = this.stashes && this.stashes.get('last_sync_status');
-    return this._super(...arguments).then(null, function(err) {
-      if(_this.get('root_sync_canceled') && !_this.isDestroyed && _this.stashes) {
+    var promise = this._super(...arguments);
+    var my_id = this._this_call_sync_id;
+    if(my_id && my_id !== this._canceled_sync_id) { this.set('root_sync_canceled', false); }
+    return promise.then(null, function(err) {
+      if(my_id && my_id === _this._canceled_sync_id && !_this.isDestroyed && _this.stashes) {
         _this.stashes.persist('last_sync_status', last_status);
+        if(_this.get('sync_progress.sync_id') === my_id) { _this.set('sync_progress', null); }
       } else if(_this.sync_is_automatic()) {
         _this._auto_sync_failure_at = (new Date()).getTime();
         _this._auto_sync_failure_network = _this.sync_failure_is_network(err);
@@ -4897,7 +4901,10 @@ persistence.reopen({
     });
   },
   cancel_sync: function() {
-    if(this.get('sync_progress')) { this.set('root_sync_canceled', true); }
+    if(this.get('sync_progress')) {
+      this._canceled_sync_id = this.get('sync_progress.sync_id');
+      this.set('root_sync_canceled', true);
+    }
     return this._super(...arguments);
   },
   // Only check_for_needs_sync starts a sync with these reasons. Every other sync came from something
@@ -4951,7 +4958,20 @@ persistence.reopen({
       this.set('auto_sync_failures', failures);
       this.set('auto_sync_backoff_until', (new Date()).getTime() + wait);
     }
-  })
+  }),
+  // The device has one sync_status and one stashed last_sync_status. Those belong to the
+  // signed-in person. A root sync for someone else (a supervisee's profile Sync button passes
+  // that person's global id, controllers/user/index.js) still runs and still clears
+  // sync_progress, but it must not publish a result. 'self', a null id, and a missing
+  // signed-in id keep the old behavior: tests and a sync that starts before login still
+  // publish. auth_settings.user_id (session token check) and the user record id are both
+  // the global id (session_controller.rb token_check, lib/json_api/user.rb). #1230.
+  sync_status_is_for_signed_in_user: function(user_id) {
+    if(user_id == null || user_id === 'self') { return true; }
+    var auth = this.stashes && this.stashes.get_object && this.stashes.get_object('auth_settings', true);
+    if(!auth || auth.user_id == null || auth.user_id === '') { return true; }
+    return String(user_id) === String(auth.user_id);
+  }
 });
 
 export default persistence;

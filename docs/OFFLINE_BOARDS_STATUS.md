@@ -1,6 +1,6 @@
 # Offline boards: status and what's left
 
-Last updated: 2026-11-10. Branch: `feat/scot-offline-app-shell-7a29ac97` (PR #1268, draft, targets `develop`).
+Last updated: 2026-11-11. Branch: `feat/scot-offline-app-shell-7a29ac97` (PR #1268, draft, targets `develop`).
 Detailed working log, with every review, decision and test run: `docs/task-management/2026-11-05_offline-boards-sync.md`.
 Scot's own log for the offline app shell: `docs/task-management/2026-11-03_offline-app-shell.md`.
 
@@ -114,6 +114,11 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
 - A device that has never finished a sync stays on the first-sync marker after a failed sync, including when the device could not save. The automatic retry is not pushed out 48 hours. A device that has already synced still waits 48 hours after two failures.
 - One reconnect starts the first sync for a device that has never finished one. A device that has already synced gets one stamp check instead. A failure that landed within a few seconds of going offline is included. The next reconnect in that same backoff waits.
 - Tested on an Android tablet emulator in Chrome on 2026-11-08. Syncing is working: a new account finished a sync, the tablet reported succeeded, and the board files downloaded. With the connection off, the synced boards still draw.
+
+**Sync failed notice (#1230)**
+- A sync started for someone else (a supervisee, from their profile) no longer changes the signed-in person's notice or the sync drawer. That sync still runs. A full disk can still show the storage failure, because the device itself cannot save.
+- Stopping a sync is not stored as a failure when another sync starts before the first one finishes. After a reload, the notice shows the last sync that actually finished.
+- Try Again moves focus to the dashboard. The failure sentence is the only part announced as a status, and the approval cards on that page work the same way. "Must be online to sync." and "One or more boards are private." now end with a period.
 
 **Sign-in and trust**
 - A Home Screen sign-in asks "Trust this Device" or "This is a Shared Device", only where the offline shell is on.
@@ -246,7 +251,7 @@ Each item below has tests; the PR's "Fix status" table lists the exact spec for 
    of 2026-10-12 had already replaced (the replacement saves a home board); its unused code is removed.
 4. **Picture data repair (operations):** some saved picture addresses fail; a one-time data cleanup.
 5. **#1229:** done. A new device that has never finished a sync keeps retrying after the backoff, and one reconnect can retry a dropped connection. See the task log.
-6. **#1230:** Modern view's "Sync failed" notice can show the wrong state.
+6. **#1230:** done on this branch. A sync for someone else no longer changes the signed-in person's notice, a cancelled sync is not stored as a failure when another sync starts, and the notice's sentence is the only live region. See the task log.
 7. **#1219:** the board tree request (`/tree`) fails on very large boards (Cloud Run response size cap). **Built
    2026-11-11:** one image lookup per tree or bulk page (the timeout mode); `/tree` pages descendants by a 1 MiB
    budget in the list's own order, older app builds get one answer stopped at 24 MiB (the cap mode); the Modern warm
@@ -364,7 +369,7 @@ Notes:
 | #1219 | `/tree` fails on large boards | Open |
 | #1221 | First offline sync too slow | Code work done (board selection, duplicate writes, doubled button list, pictures written again); verification on production and real devices is item 10 |
 | #1229 | Retry gaps after a failed sync | Fixed on this branch |
-| #1230 | Modern "Sync failed" notice | Open |
+| #1230 | Modern "Sync failed" notice | Fixed on this branch |
 | #1034 | "Pick for home" claims | Fixed on this branch |
 | #1234 | Translations for the 12 locales | Open (steps above) |
 | #1285 | Earlier trusted Home Screen iPads | Waiting on Scot |

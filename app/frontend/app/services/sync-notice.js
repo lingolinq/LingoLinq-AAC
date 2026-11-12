@@ -79,8 +79,8 @@ export default Service.extend({
     } else if(now === 'finished') {
       this.setProperties({ status: 'done', kind: 'finished' });
     } else if(now === 'failed' && !p.get('root_sync_canceled')) {
-      // A sync the user cancelled also ends as failed (cancel_sync sets root_sync_canceled first,
-      // services/persistence.js:4900); they stopped it, so it is not reported, as on the Modern home page.
+      // A cancelled sync does not end as failed (persistence remembers the cancelled sync id).
+      // This flag remains for a failure that was already on screen when the user cancelled.
       this.setProperties({ status: 'done', kind: 'failed' });
     } else {
       // Cancelled, or reset without a result: nothing to report.

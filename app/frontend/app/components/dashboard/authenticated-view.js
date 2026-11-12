@@ -1940,7 +1940,13 @@ AuthenticatedView.reopen({
   init: function() {
     this._super(...arguments);
     var _this = this;
-    this.onSync = function() { _this.send('sync'); };
+    this.onSync = function() {
+      _this.send('sync');
+      // Try Again removes this notice, so the button that had focus is gone. Leave focus on the
+      // dashboard, which is still on the page (#1230).
+      var main = typeof document !== 'undefined' && document.getElementById('dashboard-main');
+      if(main && typeof main.focus === 'function') { main.focus(); }
+    };
   },
   sync_failed_notice: computed('sync_able', 'persistence.{sync_status,root_sync_canceled}', 'stashes.last_sync_status', function() {
     if(!this.get('sync_able')) { return false; }

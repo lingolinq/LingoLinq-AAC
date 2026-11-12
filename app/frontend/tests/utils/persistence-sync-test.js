@@ -5572,9 +5572,10 @@ describe("persistence-sync", function() {
     });
   });
 
-  // Cancelling a sync ends in its failure branch, which stashes last_sync_status 'failed'. The user
-  // stopped it, so the device keeps the last real result: the Modern home notice reads it after a
-  // reload, and the two-failures pause counts it.
+  // Cancelling a sync used to leave sync_status 'failed' and only hide it with root_sync_canceled.
+  // A later root sync cleared that flag before the rejection ran, so the stop was stored as a
+  // failure. The rejection now leaves the status empty when this sync is still the active one,
+  // and does not touch a newer sync's status. The stash stays the last real result.
   it("should not remember a cancelled sync as a failed one", function() {
     db_wait(function() {
       cancelSyncTailWork();
@@ -5600,7 +5601,141 @@ describe("persistence-sync", function() {
       persistence.sync(1340).then(function() { done = true; }, function() { done = true; });
       waitsFor(function() { return done; });
       runs(function() {
+        expect(persistence.get('sync_status')).toEqual(null);
+        expect(stashes.get('last_sync_status')).toEqual('succeeded');
+        stashes.persist('last_sync_status', null);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+      });
+    });
+  });
+
+  // #1230. Every new root sync cleared root_sync_canceled. The cancelled sync rejects later, no
+  // longer sees that flag, and the failure branch has already stashed 'failed'. The notice stays
+  // up after a reload, and the two-failure clock counts a sync the user stopped.
+  it("should not remember a cancelled sync as failed when another sync starts before it stops", function() {
+    db_wait(function() {
+      cancelSyncTailWork();
+      unloadSyncStoreRecords();
+      persistence.set('sync_progress', null);
+      persistence.set('sync_status', null);
+      persistence.set('root_sync_canceled', false);
+      persistence._canceled_sync_id = null;
+      stashes.persist('last_sync_status', 'succeeded');
+      var errors = [];
+      stub(modal, 'error', function(msg) { errors.push(msg); });
+      var reject_first = null;
+      var gate = new RSVP.Promise(function(_resolve, reject) { reject_first = reject; });
+      var boards = 0;
+      stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+      stubOnPersistence('sync_user', function() { return RSVP.resolve(); });
+      stubOnPersistence('sync_boards', function() {
+        boards = boards + 1;
+        if(boards === 1) {
+          persistence.cancel_sync();
+          // The next root sync starts while this one is still stopping. It used to clear the
+          // cancel flag, so this rejection was stored as a failure.
+          persistence.sync(1340).then(function() { }, function() { });
+          return gate;
+        }
+        return RSVP.resolve({});
+      });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'user',
+        response: RSVP.resolve({user: {id: '1340', user_name: 'fred'}}),
+        id: "1340"
+      });
+      var first_done = false;
+      persistence.sync(1340).then(function() { first_done = true; }, function() { first_done = true; });
+      waitsFor(function() { return boards === 1; });
+      runs(function() { reject_first({error: 'canceled'}); });
+      waitsFor(function() { return first_done; });
+      runs(function() {
+        expect(stashes.get('last_sync_status')).toEqual('succeeded');
+        expect(persistence.get('sync_status') === 'failed').toEqual(false);
+        stashes.persist('last_sync_status', null);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+      });
+    });
+  });
+
+  // #1230. sync_status and last_sync_status are one result for the whole device. A supervisor
+  // syncing a supervisee from that person's page is a root sync for the other id
+  // (controllers/user/index.js). Its success or failure was written to the same place as the
+  // supervisor's own sync, so the Modern notice and the sync drawer reported the wrong person.
+  function stubSignedInUser(user_id) {
+    var real = stashes.get_object.bind(stashes);
+    stub(stashes, 'get_object', function(key, include_prefix) {
+      if(key === 'auth_settings') { return {user_id: user_id, user_name: 'supervisor'}; }
+      return real(key, include_prefix);
+    });
+  }
+  function prepareOtherUserSync(user_id) {
+    cancelSyncTailWork();
+    unloadSyncStoreRecords();
+    persistence.set('sync_progress', null);
+    persistence.set('sync_status', null);
+    persistence.set('root_sync_canceled', false);
+    stubSignedInUser('1_9');
+    stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+    stubOnPersistence('sync_user', function() { return RSVP.resolve(); });
+    queryLog.defineFixture({
+      method: 'GET',
+      type: 'user',
+      response: RSVP.resolve({user: {id: user_id, user_name: 'other'}}),
+      id: user_id
+    });
+  }
+
+  it("should not replace this person's sync result when someone else's sync succeeds", function() {
+    db_wait(function() {
+      prepareOtherUserSync('1_8');
+      persistence.set('sync_status', 'failed');
+      stashes.persist('last_sync_status', 'failed');
+      stubOnPersistence('sync_boards', function() { return RSVP.resolve({}); });
+      var done = false;
+      persistence.sync('1_8').then(function() { done = true; }, function() { done = true; });
+      waitsFor(function() { return done; });
+      runs(function() {
         expect(persistence.get('sync_status')).toEqual('failed');
+        expect(stashes.get('last_sync_status')).toEqual('failed');
+        stashes.persist('last_sync_status', null);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+      });
+    });
+  });
+
+  it("should not mark this person's sync as failed when someone else's sync fails", function() {
+    db_wait(function() {
+      prepareOtherUserSync('1_8');
+      stashes.persist('last_sync_status', 'succeeded');
+      stubOnPersistence('sync_boards', function() { return RSVP.reject({error: 'nope'}); });
+      var done = false;
+      persistence.sync('1_8').then(function() { done = true; }, function() { done = true; });
+      waitsFor(function() { return done; });
+      runs(function() {
+        expect(persistence.get('sync_status')).toEqual(null);
+        expect(stashes.get('last_sync_status')).toEqual('succeeded');
+        stashes.persist('last_sync_status', null);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+      });
+    });
+  });
+
+  it("should still record this person's sync result when the sync is for them", function() {
+    db_wait(function() {
+      prepareOtherUserSync('1_9');
+      stashes.persist('last_sync_status', 'failed');
+      stubOnPersistence('sync_boards', function() { return RSVP.resolve({}); });
+      var done = false;
+      persistence.sync('1_9').then(function() { done = true; }, function() { done = true; });
+      waitsFor(function() { return done; });
+      runs(function() {
+        expect(persistence.get('sync_status')).toEqual('succeeded');
         expect(stashes.get('last_sync_status')).toEqual('succeeded');
         stashes.persist('last_sync_status', null);
         cancelSyncTailWork();
