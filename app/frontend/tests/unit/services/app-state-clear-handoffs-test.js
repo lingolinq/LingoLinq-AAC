@@ -81,4 +81,26 @@ module('Unit | Service | app-state clear_user_state handoffs', function(hooks) {
     persistence.set('sync_status', saved.sync_status);
     persistence.set('root_sync_canceled', saved.root_sync_canceled);
   });
+
+  /* FOLLOW-UP SYNC (section 19 of docs/task-management/2026-11-10_offline-followup-proposals.md): a sync the signed-out
+     person asked for while another ran would start when that sync ends, in the next session. Sign-out drops it, and
+     the drawer it held does not come back. */
+  test('a pending follow-up sync is dropped and the drawer stays closed', function(assert) {
+    assert.expect(4);
+    var appState = this.owner.lookup('service:app-state');
+    var persistence = this.owner.lookup('service:persistence');
+    var notice = this.owner.lookup('service:sync-notice');
+    var saved = { sync_status: persistence.get('sync_status') };
+    persistence.set('sync_status', 'syncing');
+    var rejected = null;
+    persistence.queue_follow_up_sync('self', null, 'home_board_changed').then(null, function(err) { rejected = err; });
+    assert.true(persistence.get('follow_up_sync_pending'), 'a follow-up was waiting');
+    try { appState.clear_user_state(); } catch (e) { /* unrelated teardown in a bare test owner */ }
+    assert.false(persistence.get('follow_up_sync_pending'), 'the follow-up is gone');
+    assert.strictEqual(notice.get('status'), null, 'the drawer stays closed');
+    return Promise.resolve().then(function() {
+      assert.strictEqual((rejected || {}).error, 'signed out');
+      persistence.set('sync_status', saved.sync_status);
+    });
+  });
 });

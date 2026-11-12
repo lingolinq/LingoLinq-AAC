@@ -11,7 +11,7 @@ module('Unit | Service | sync-notice', function(hooks) {
 
   hooks.beforeEach(function() {
     this.persistence = this.owner.lookup('service:persistence');
-    this.saved = { sync_status: this.persistence.get('sync_status'), sync_errors: this.persistence.get('sync_errors'), sync_status_error: this.persistence.get('sync_status_error'), root_sync_canceled: this.persistence.get('root_sync_canceled') };
+    this.saved = { sync_status: this.persistence.get('sync_status'), sync_errors: this.persistence.get('sync_errors'), sync_status_error: this.persistence.get('sync_status_error'), root_sync_canceled: this.persistence.get('root_sync_canceled'), follow_up_sync_pending: this.persistence.get('follow_up_sync_pending') };
     this.notice = this.owner.lookup('service:sync-notice');
   });
 
@@ -22,6 +22,7 @@ module('Unit | Service | sync-notice', function(hooks) {
     this.persistence.set('sync_errors', this.saved.sync_errors);
     this.persistence.set('sync_status_error', this.saved.sync_status_error);
     this.persistence.set('root_sync_canceled', this.saved.root_sync_canceled);
+    this.persistence.set('follow_up_sync_pending', this.saved.follow_up_sync_pending);
   });
 
   // The sync writes its status first and the details after it (services/persistence.js: 'finished' then
@@ -101,6 +102,55 @@ module('Unit | Service | sync-notice', function(hooks) {
   test('a sync of another user\'s open database shows nothing', function(assert) {
     stub(this.persistence, 'local_db_is_current_user', function() { return false; });
     this.persistence.set('sync_status', 'syncing');
+    assert.strictEqual(this.notice.get('status'), null);
+  });
+
+  // A sync requested while one runs starts when it ends (services/persistence.js, the follow-up queue). The running
+  // sync's own result must not become the card while that follow-up is pending; persistence starts the follow-up
+  // (sync_status back to 'syncing') before it lowers the pending flag.
+  test('a settled status while a follow-up is pending keeps the drawer on syncing until the follow-up ends', function(assert) {
+    this.persistence.set('sync_status', 'syncing');
+    this.persistence.set('follow_up_sync_pending', true);
+    this.persistence.set('sync_status', 'succeeded');
+    assert.strictEqual(this.notice.get('status'), 'syncing');
+    this.persistence.set('sync_status', 'syncing');
+    this.persistence.set('follow_up_sync_pending', false);
+    assert.strictEqual(this.notice.get('status'), 'syncing');
+    this.persistence.set('sync_status', 'succeeded');
+    assert.strictEqual(this.notice.get('status'), 'done');
+    assert.strictEqual(this.notice.get('kind'), 'succeeded');
+  });
+
+  // Cancel drops the pending follow-up at once, while the cancelled sync is still stopping; its status then
+  // clears (services/persistence.js, the failure branch of a cancelled sync).
+  test('a cancel that drops a pending follow-up ends with no card', function(assert) {
+    this.persistence.set('sync_status', 'syncing');
+    this.persistence.set('follow_up_sync_pending', true);
+    this.persistence.set('root_sync_canceled', true);
+    this.persistence.set('follow_up_sync_pending', false);
+    this.persistence.set('sync_status', null);
+    assert.strictEqual(this.notice.get('status'), null);
+  });
+
+  test('a pending follow-up that is dropped after the running sync settled shows that result', function(assert) {
+    this.persistence.set('sync_status', 'syncing');
+    this.persistence.set('follow_up_sync_pending', true);
+    this.persistence.set('sync_status', 'failed');
+    assert.strictEqual(this.notice.get('status'), 'syncing');
+    this.persistence.set('follow_up_sync_pending', false);
+    assert.strictEqual(this.notice.get('status'), 'done');
+    assert.strictEqual(this.notice.get('kind'), 'failed');
+  });
+
+  // Someone else's root sync never writes sync_status, so the signed-in person's last result is still there. A request
+  // of theirs queued behind it and then dropped must not bring that old result back as "ready".
+  test('a dropped follow-up does not show an old result as the card', function(assert) {
+    this.persistence.set('sync_status', 'syncing');
+    this.persistence.set('sync_status', 'succeeded');
+    this.notice.dismiss();
+    this.persistence.set('follow_up_sync_pending', true);
+    assert.strictEqual(this.notice.get('status'), 'syncing');
+    this.persistence.set('follow_up_sync_pending', false);
     assert.strictEqual(this.notice.get('status'), null);
   });
 });

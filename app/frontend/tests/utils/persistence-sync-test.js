@@ -6840,6 +6840,346 @@ describe("persistence-sync", function() {
       });
     }); });
   });
+
+  // A root sync requested while another runs did nothing: check_first skipped its steps (another sync id) and its
+  // promise never settled, so a home board picked mid-sync waited for the next stamp check (5 to 10 minutes) while the
+  // drawer said "ready". It now queues one follow-up per person, started when the running sync ends (section 19 of
+  // docs/task-management/2026-11-10_offline-followup-proposals.md).
+  describe("a sync requested while another runs", function() {
+    var payload = null;
+    var calls = null;
+    var saved_auto_sync = null;
+    function prepareFollowUp(user_id) {
+      saved_auto_sync = persistence.get('auto_sync');
+      persistence.set('auto_sync', true);
+      cancelSyncTailWork();
+      unloadSyncStoreRecords();
+      persistence.set('sync_progress', null);
+      persistence.set('sync_status', null);
+      persistence.set('root_sync_canceled', false);
+      persistence._canceled_sync_id = null;
+      stub(modal, 'error', function() { });
+      stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+      stubOnPersistence('sync_user', function() { return RSVP.resolve(); });
+      calls = [];
+      payload = {user: {id: user_id, user_name: 'fred', preferences: {home_board: {id: '145'}}}};
+      queryLog.defineFixture({ method: 'GET', type: 'user', response: RSVP.resolve(payload), id: user_id });
+    }
+    // Records each board pass: whose sync, its seeds, force, and the reason the root sync runs for.
+    function recordPass(user, force) {
+      calls.push({ user_id: user.get('id'), seeds: offlineSyncSeeds.seeds(user).map(function(s) { return s.id || s.key; }), force: force, reason: persistenceTarget()._root_sync_reason, pending: persistenceTarget().get('follow_up_sync_pending') });
+    }
+    function settles(promise) {
+      var state = { done: false, ok: null, err: null };
+      promise.then(function() { state.done = true; state.ok = true; }, function(err) { state.done = true; state.ok = false; state.err = err; });
+      return state;
+    }
+    function finish() {
+      persistence.set('auto_sync', saved_auto_sync);
+      stashes.persist('last_sync_status', null);
+      cancelSyncTailWork();
+      persistence.set('sync_progress', null);
+    }
+
+    it("runs one follow-up whose seeds include a home board picked mid-sync", function() {
+      db_wait(function() {
+        prepareFollowUp('1350');
+        var follow = null;
+        stubOnPersistence('sync_boards', function(user, ids, synced, force) {
+          recordPass(user, force);
+          if(calls.length === 1) {
+            payload.user.preferences.home_board = {id: '200'};
+            follow = settles(persistence.sync('1350', null, null, 'home_board_changed'));
+          }
+          return RSVP.resolve({});
+        });
+        var first = settles(persistence.sync('1350'));
+        waitsFor(function() { return first.done && follow && follow.done && syncSettled(); });
+        runs(function() {
+          expect(first.ok).toEqual(true);
+          expect(follow.ok).toEqual(true);
+          expect(calls.length).toEqual(2);
+          expect(calls[0].seeds.indexOf('145') >= 0 && calls[0].seeds.indexOf('200') < 0).toEqual(true);
+          expect(calls[1].seeds.indexOf('200') >= 0).toEqual(true);
+          expect(calls[1].reason).toEqual('home_board_changed');
+          finish();
+        });
+      });
+    });
+
+    it("runs a single request once", function() {
+      db_wait(function() {
+        prepareFollowUp('1351');
+        stubOnPersistence('sync_boards', function(user, ids, synced, force) { recordPass(user, force); return RSVP.resolve({}); });
+        var first = settles(persistence.sync('1351'));
+        waitsFor(function() { return first.done && syncSettled(); });
+        runs(function() {
+          expect(first.ok).toEqual(true);
+          expect(calls.length).toEqual(1);
+          expect(persistenceTarget().get('follow_up_sync_pending')).toEqual(false);
+          finish();
+        });
+      });
+    });
+
+    it("folds two mid-sync requests for one person into one follow-up, keeping force and the latest reason", function() {
+      db_wait(function() {
+        prepareFollowUp('1352');
+        var a = null, b = null;
+        stubOnPersistence('sync_boards', function(user, ids, synced, force) {
+          if(calls.length === 0) {
+            a = settles(persistence.sync('1352', true, null, 'home_board_changed'));
+            b = settles(persistence.sync('1352', null, null, 'sidebar_update'));
+          }
+          recordPass(user, force);
+          return RSVP.resolve({});
+        });
+        var first = settles(persistence.sync('1352'));
+        waitsFor(function() { return first.done && a && a.done && b && b.done && syncSettled(); });
+        runs(function() {
+          expect(calls.length).toEqual(2);
+          expect(calls[0].pending).toEqual(true);
+          expect(calls[1].user_id).toEqual('1352');
+          expect(calls[1].force).toEqual(true);
+          expect(calls[1].reason).toEqual('sidebar_update');
+          expect(a.ok && b.ok).toEqual(true);
+          expect(persistence.get('sync_status') === 'syncing').toEqual(false);
+          finish();
+        });
+      });
+    });
+
+    it("keeps the request's promise pending until its follow-up ends, and rejects it when the follow-up fails", function() {
+      db_wait(function() {
+        prepareFollowUp('1353');
+        var follow = null;
+        var fail_second = null;
+        var gate = new RSVP.Promise(function(_resolve, reject) { fail_second = reject; });
+        stubOnPersistence('sync_boards', function(user, ids, synced, force) {
+          recordPass(user, force);
+          if(calls.length === 1) {
+            follow = settles(persistence.sync('1353', null, null, 'home_board_changed'));
+            return RSVP.resolve({});
+          }
+          return gate;
+        });
+        var first = settles(persistence.sync('1353'));
+        waitsFor(function() { return first.done && follow && calls.length === 2; });
+        runs(function() {
+          expect(follow.done).toEqual(false);
+          fail_second({error: 'boom'});
+          waitsFor(function() { return follow.done; });
+          runs(function() {
+            expect(follow.ok).toEqual(false);
+            finish();
+          });
+        });
+      });
+    });
+
+    // A cancel drops the follow-ups requested before it at once, whether the cancelled sync then rejects or resolves
+    // (the board walk resolves on cancel, services/persistence.js, startBoardSync and nextBoard).
+    [['rejects', function() { return RSVP.reject({error: 'canceled'}); }], ['resolves', function() { return RSVP.resolve({}); }]].forEach(function(variant) {
+      it("drops a request made before a cancel (the cancelled sync " + variant[0] + ")", function() {
+        db_wait(function() {
+          prepareFollowUp('1354');
+          var follow = null;
+          stubOnPersistence('sync_boards', function(user, ids, synced, force) {
+            recordPass(user, force);
+            if(calls.length === 1) {
+              follow = settles(persistence.sync('1354', null, null, 'home_board_changed'));
+              persistence.cancel_sync();
+              expect(persistenceTarget().get('follow_up_sync_pending')).toEqual(false);
+              return variant[1]();
+            }
+            return RSVP.resolve({});
+          });
+          var first = settles(persistence.sync('1354'));
+          waitsFor(function() { return first.done && follow && follow.done && syncSettled(); });
+          runs(function() {
+            expect(calls.length).toEqual(1);
+            expect(follow.ok).toEqual(false);
+            expect(persistence.get('sync_status') === 'syncing').toEqual(false);
+            finish();
+          });
+        });
+      });
+
+      it("runs a request made after a cancel (the cancelled sync " + variant[0] + ")", function() {
+        db_wait(function() {
+          prepareFollowUp('1355');
+          var follow = null;
+          stubOnPersistence('sync_boards', function(user, ids, synced, force) {
+            recordPass(user, force);
+            if(calls.length === 1) {
+              persistence.cancel_sync();
+              follow = settles(persistence.sync('1355', null, null, 'home_board_changed'));
+              return variant[1]();
+            }
+            return RSVP.resolve({});
+          });
+          var first = settles(persistence.sync('1355'));
+          waitsFor(function() { return first.done && follow && follow.done && syncSettled(); });
+          runs(function() {
+            expect(calls.length).toEqual(2);
+            expect(follow.ok).toEqual(true);
+            expect(persistence.get('sync_status') === 'syncing').toEqual(false);
+            finish();
+          });
+        });
+      });
+    });
+
+    it("does not queue an automatic reason, and does not overwrite the running sync's reason", function() {
+      db_wait(function() {
+        prepareFollowUp('1356');
+        var auto = null;
+        var reason_after = null;
+        stubOnPersistence('sync_boards', function(user, ids, synced, force) {
+          recordPass(user, force);
+          if(calls.length === 1) {
+            auto = settles(persistence.sync('1356', null, null, 'sync_stamp_changed:a:b'));
+            reason_after = persistenceTarget()._root_sync_reason;
+          }
+          return RSVP.resolve({});
+        });
+        var first = settles(persistence.sync('1356', null, null, 'home_board_changed'));
+        waitsFor(function() { return first.done && auto && auto.done && syncSettled(); });
+        runs(function() {
+          expect(reason_after).toEqual('home_board_changed');
+          expect(calls.length).toEqual(1);
+          expect(auto.ok).toEqual(true);
+          finish();
+        });
+      });
+    });
+
+    it("does not start the follow-up on a device that went offline, and rejects its request", function() {
+      db_wait(function() {
+        prepareFollowUp('1357');
+        var was_online = persistence.get('online');
+        var follow = null;
+        stubOnPersistence('sync_boards', function(user, ids, synced, force) {
+          recordPass(user, force);
+          if(calls.length === 1) {
+            follow = settles(persistence.sync('1357', null, null, 'home_board_changed'));
+            persistence.set('online', false);
+          }
+          return RSVP.resolve({});
+        });
+        var first = settles(persistence.sync('1357'));
+        waitsFor(function() { return first.done && follow && follow.done && syncSettled(); });
+        runs(function() {
+          persistence.set('online', was_online);
+          expect(calls.length).toEqual(1);
+          expect(follow.ok).toEqual(false);
+          expect((follow.err || {}).error).toEqual('not online');
+          finish();
+        });
+      });
+    });
+
+    // Picking a home board starts a sync only while automatic sync is on (utils/home_board.js and the pickers); one
+    // turned off mid-sync is respected when the follow-up would start.
+    it("does not start a home-board follow-up once automatic sync was turned off", function() {
+      db_wait(function() {
+        prepareFollowUp('1361');
+        var follow = null;
+        stubOnPersistence('sync_boards', function(user, ids, synced, force) {
+          recordPass(user, force);
+          if(calls.length === 1) {
+            follow = settles(persistence.sync('1361', null, null, 'home_board_changed'));
+            persistence.set('auto_sync', false);
+          }
+          return RSVP.resolve({});
+        });
+        var first = settles(persistence.sync('1361'));
+        waitsFor(function() { return first.done && follow && follow.done && syncSettled(); });
+        runs(function() {
+          expect(calls.length).toEqual(1);
+          expect(follow.ok).toEqual(false);
+          finish();
+        });
+      });
+    });
+
+    // After a web sign-in that skips the reload, the open database is still the previous person's
+    // (services/persistence.js local_db_is_current_user); a follow-up must not write the signed-in person's boards into it.
+    it("does not start a follow-up into a database that is not the signed-in person's", function() {
+      db_wait(function() {
+        prepareFollowUp('1362');
+        var follow = null;
+        stubOnPersistence('sync_boards', function(user, ids, synced, force) {
+          recordPass(user, force);
+          if(calls.length === 1) {
+            follow = settles(persistence.sync('1362', null, null, 'home_board_changed'));
+            stubOnPersistence('local_db_is_current_user', function() { return false; });
+          }
+          return RSVP.resolve({});
+        });
+        var first = settles(persistence.sync('1362'));
+        waitsFor(function() { return first.done && follow && follow.done && syncSettled(); });
+        runs(function() {
+          expect(calls.length).toEqual(1);
+          expect((follow.err || {}).error).toEqual('signed out');
+          finish();
+        });
+      });
+    });
+
+    // The base waits for extras and then calls sync() again (the wrapper). The outer call must not count as running,
+    // or the inner call would queue behind it forever.
+    it("does not queue the sync a not-ready call starts once extras are ready", function() {
+      db_wait(function() {
+        prepareFollowUp('1358');
+        var watchers = [];
+        window.lingoLinqExtras = lingoLinqExtras;
+        lingoLinqExtras.set('ready', false);
+        stub(lingoLinqExtras.advance, 'watch', function(kind, callback) { watchers.push(callback); });
+        stubOnPersistence('sync_boards', function(user, ids, synced, force) { recordPass(user, force); return RSVP.resolve({}); });
+        var first = settles(persistence.sync('1358'));
+        lingoLinqExtras.set('ready', true);
+        expect(watchers.length).toEqual(1);
+        watchers[0]();
+        waitsFor(function() { return first.done && syncSettled(); });
+        runs(function() {
+          expect(first.ok).toEqual(true);
+          expect(calls.length).toEqual(1);
+          finish();
+        });
+      });
+    });
+
+    // A follow-up for someone else (a supervisor's Sync on a communicator's page, controllers/user/index.js) never
+    // writes sync_status, so it must not hold the signed-in person's drawer.
+    it("runs a follow-up for another person without holding the drawer", function() {
+      db_wait(function() {
+        prepareFollowUp('1359');
+        stubSignedInUser('1360');
+        // The supervisor's own database is open; the stand-in's user name does not match the test database's name.
+        stubOnPersistence('local_db_is_current_user', function() { return true; });
+        queryLog.defineFixture({ method: 'GET', type: 'user', response: RSVP.resolve({user: {id: '1360', user_name: 'supervisor', preferences: {home_board: {id: '145'}}}}), id: '1360' });
+        var follow = null;
+        stubOnPersistence('sync_boards', function(user, ids, synced, force) {
+          recordPass(user, force);
+          if(calls.length === 1) {
+            follow = settles(persistence.sync('1359', 'all_reload'));
+          }
+          return RSVP.resolve({});
+        });
+        var first = settles(persistence.sync('1360'));
+        waitsFor(function() { return first.done && follow && follow.done && syncSettled(); });
+        runs(function() {
+          expect(calls.length).toEqual(2);
+          expect(calls[0].pending).toEqual(false);
+          expect(calls[1].user_id).toEqual('1359');
+          expect(calls[1].force).toEqual('all_reload');
+          expect(persistence.get('sync_status') === 'syncing').toEqual(false);
+          finish();
+        });
+      });
+    });
+  });
 });
 // Every sync also starts from Crisis Vocabulary (#1221, utils/offline_sync_seeds.js), so the tests that run a
 // real sync answer it. Placed last so the ESLint baseline rows above do not move; function declarations are hoisted.
@@ -6868,3 +7208,4 @@ function defineCrisisVocabularyFixture() {
 import boardRevocation from '../../utils/board_revocation';
 import * as emberDebug from '@ember/debug';
 import { BOARD_RELOAD_MS } from '../../utils/sync_board_fallback';
+import offlineSyncSeeds from '../../utils/offline_sync_seeds';

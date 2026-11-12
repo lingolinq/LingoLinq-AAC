@@ -4911,7 +4911,7 @@ persistence.reopen({
   // the user did (the Sync button, pushing to the cloud, changing the home board or the sidebar),
   // and supervisee syncs share their root sync's reason.
   sync_is_automatic: function() {
-    return /^(long_time_since_sync|sync_stamp_changed):/.test(this._root_sync_reason || '');
+    return reason_is_automatic(this._root_sync_reason);
   },
   // A failure may move last_sync_at only after a finished sync (a time greater than the
   // sentinel 1). That sentinel is a new device's only way into check_for_needs_sync's
@@ -4986,3 +4986,106 @@ import { on_uploads_cdn, is_web_page } from '../utils/direct_fetch';
 import { picture_kept_in_database, usable_database_copy } from '../utils/database_picture';
 import { BOARD_RELOAD_MS, keep_stored_board, claim_board_retry, BOARD_RETRY_DELAY_MS, note_device_boards, known_on_device } from '../utils/sync_board_fallback';
 import { usable_copy } from '../utils/board_device_copy';
+import { reason_is_automatic, merge_follow_up } from '../utils/sync_follow_up';
+
+// A root sync requested while another runs used to do nothing: the base gave it its own id, check_first (in sync
+// above) skipped every step because sync_progress kept the running sync's id, and its promise never settled. A home
+// board picked mid-sync then waited for the next stamp check while the drawer said "ready". Now each person gets one
+// pending follow-up, started when the running sync settles (section 19 of
+// docs/task-management/2026-11-10_offline-followup-proposals.md). This reopen wraps the root sync wrapper above, so
+// it decides before that wrapper writes _root_sync_reason. Placed last so the ESLint baseline rows above do not move.
+persistence.reopen({
+  // True while a follow-up for the signed-in person waits; the sync drawer stays on 'syncing' (services/sync-notice.js).
+  follow_up_sync_pending: false,
+  sync: function(user_id, force, ignore_supervisees, sync_reason) {
+    if(ignore_supervisees) { return this._super(...arguments); }
+    var running = this.running_root_sync();
+    if(running) {
+      if(reason_is_automatic(sync_reason)) { return running.promise; }
+      return this.queue_follow_up_sync(user_id, force, sync_reason);
+    }
+    // Entries left behind by a sync that stopped being tracked without settling: nothing will start them.
+    if(!this._starting_follow_up && this._follow_up_syncs && this._follow_up_syncs.length) { this.drop_follow_up_syncs({error: "sync stopped"}); }
+    var promise = this._super(...arguments);
+    var my_id = this._this_call_sync_id;
+    // Tracked only once the base passed its "extras not ready" wait and took sync_progress (sync above): the waiting
+    // call comes back through this method, and tracking the outer call would queue the inner one behind it forever.
+    if(my_id && this.get('sync_progress.sync_id') === my_id) {
+      var _this = this;
+      var mine = { id: my_id, promise: promise };
+      this._running_root_sync = mine;
+      var settled = function() {
+        if(_this._running_root_sync !== mine) { return; }
+        _this._running_root_sync = null;
+        _this.start_follow_up_sync();
+      };
+      promise.then(settled, settled);
+    }
+    return promise;
+  },
+  // The tracked root sync, while sync_progress still carries its id (sign-out and cleanup clear sync_progress).
+  running_root_sync: function() {
+    var running = this._running_root_sync;
+    return (running && running.id === this.get('sync_progress.sync_id')) ? running : null;
+  },
+  queue_follow_up_sync: function(user_id, force, sync_reason) {
+    var queue = this._follow_up_syncs = this._follow_up_syncs || [];
+    var entry = queue.find(function(e) { return String(e.user_id) === String(user_id); });
+    if(!entry) {
+      entry = { user_id: user_id };
+      entry.promise = new RSVP.Promise(function(resolve, reject) { entry.resolve = resolve; entry.reject = reject; });
+      // A caller without a rejection handler (components/push-to-cloud.js) must not raise an unhandled rejection
+      // when its follow-up is dropped; callers that listen still get the rejection.
+      entry.promise.then(null, function() { });
+      queue.push(entry);
+    }
+    merge_follow_up(entry, force, sync_reason);
+    this.note_follow_up_syncs();
+    return entry.promise;
+  },
+  start_follow_up_sync: function() {
+    var queue = this._follow_up_syncs || [];
+    if(!queue.length || this.isDestroyed || this.isDestroying) { return; }
+    // A device that went offline would only report "Sync failed"; a database that is not the signed-in person's must
+    // not receive their boards (check_for_needs_sync refuses the same).
+    if(!this.get('online')) { this.drop_follow_up_syncs({error: "not online"}); return; }
+    if(!this.local_db_is_current_user()) { this.drop_follow_up_syncs({error: "signed out"}); return; }
+    var entry = queue.shift();
+    if(entry.needs_auto_sync && !this.get('auto_sync')) {
+      entry.reject({error: "automatic sync is off"});
+      this.note_follow_up_syncs();
+      this.start_follow_up_sync();
+      return;
+    }
+    // Started before the drawer flag is recomputed, so sync_status is already 'syncing' when the hold lifts.
+    var promise;
+    this._starting_follow_up = true;
+    try {
+      promise = this.sync(entry.user_id, entry.force, null, entry.reason);
+    } finally {
+      this._starting_follow_up = false;
+    }
+    this.note_follow_up_syncs();
+    promise.then(entry.resolve, entry.reject);
+  },
+  // Rejects every pending follow-up at once: on cancel, at sign-out (services/app-state.js clear_user_state), and when
+  // a follow-up cannot start.
+  drop_follow_up_syncs: function(err) {
+    var queue = this._follow_up_syncs || [];
+    this._follow_up_syncs = [];
+    this.note_follow_up_syncs();
+    queue.forEach(function(entry) { entry.reject(err); });
+  },
+  // A follow-up for someone else (a supervisor's Sync on a communicator's page) never writes sync_status, so only the
+  // signed-in person's holds the drawer.
+  note_follow_up_syncs: function() {
+    var _this = this;
+    var mine = (this._follow_up_syncs || []).some(function(entry) { return _this.sync_status_is_for_signed_in_user(entry.user_id); });
+    if(this.get('follow_up_sync_pending') !== mine) { this.set('follow_up_sync_pending', mine); }
+  },
+  // Requests made before a cancel are dropped at once; one made after it queues and runs when the cancelled sync ends.
+  cancel_sync: function() {
+    this.drop_follow_up_syncs({error: "canceled"});
+    return this._super(...arguments);
+  }
+});

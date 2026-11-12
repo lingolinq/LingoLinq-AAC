@@ -882,3 +882,167 @@ requested mid-sync is followed by a cancel" (`tests/utils/persistence-sync-test.
 as on develop: a request made while a sync runs does nothing and its promise does not settle, so a home board chosen
 mid-sync is saved at the next sync (the sync stamp bump makes the next stamp check pick it up), while the running sync's
 card can still say "ready". The follow-up queue, with the review's seven conditions, is its own change.
+
+## 19. The follow-up queue, built (2026-11-11; Traci: on the #1268 branch itself)
+
+Handoff: `NEXT-SESSION-sync-follow-up-queue.md` (the seven conditions of section 18's review). Lines re-read at
+`f661e7e1c`.
+
+**Fact sheet.**
+
+(a) Where the decision is read.
+- CONFIRMED `services/persistence.js:2040`: the base marks a root request `absorbed` when `sync_progress.sync_id`
+  is another sync's, and `check_first` (`:2062-2064`) then skips every step. `sync_resolve` is reached only inside
+  the skipped callbacks (`:2192`, `:2350`), so the absorbed promise never settles.
+- CONFIRMED `:2042`: `sync_status` is set to 'syncing' synchronously in the call, for the signed-in user only.
+- CONFIRMED `:1998-2007`: before extras are ready the base returns a waiting promise and later calls
+  `_this_sync.sync` (the wrapper again); `sync_progress` is not touched on that path (it is first set at `:2051`).
+- CONFIRMED `:4880-4901`: the wrapper writes `_root_sync_reason` (`:4882`) before calling the base.
+- CONFIRMED `services/sync-notice.js:49,63-88`: the drawer reads only `sync_status`, synchronously.
+
+(b) Every shape of "a sync is running".
+- `sync_progress` null: no sync. Writers: the success branch `:2397`, the failure branch `:2438`, the wrapper's
+  cancel handler `:4895`, sign-out `utils/persistence.js:1978` (`clear_user_state`, which does NOT settle the running
+  sync: its `check_first` skips from then on and its promise never settles), test cleanup.
+- `sync_progress` with this sync's id; with `canceled: true` (cancel, `:1992`; sign-out `:1975`).
+- A wrapper-tracked promise whose `sync_progress` was cleared without a settle (sign-out). A "running" flag cleared
+  only on settle would stay set forever here and queue every later sync of the next session: so "running" must be
+  "the tracked id is still `sync_progress.sync_id`".
+
+(c) Cross-file claims.
+- CONFIRMED `utils/persistence.js:4569-4600`: the utils copy forwards `sync` to the service (Proxy, bound).
+- CONFIRMED callers that use the sync promise: `utils/home_board.js:78` (both outcomes resolve true);
+  `components/push-to-cloud.js:72` has no rejection handler (as today for a sync that fails).
+- CONFIRMED `force` values: `true` (sync-details), `'all_reload'` (`controllers/user/index.js:1454`), read as stronger
+  at `:3127`.
+- CONFIRMED automatic reasons are exactly `long_time_since_sync:` and `sync_stamp_changed:` (`:4914`), started at
+  `:3974`, `:3996`, `:4867` (and the utils copies, which forward).
+
+**Proposal (candidate A, recommended).** A second `persistence.reopen` at the end of `services/persistence.js` (no
+baseline rows move) wraps the existing wrapper:
+1. Supervisee calls pass through. If a tracked root sync is live (`_running_root_sync.id === sync_progress.sync_id`),
+   the request does not reach the existing wrapper (so `_root_sync_reason` is untouched): an automatic reason returns
+   the running sync's promise; anything else joins the one pending entry for its `user_id` (`force`: 'all_reload' >
+   true > falsy; latest reason) and gets a promise settled by that entry's follow-up.
+2. Otherwise it calls the existing wrapper and tracks the call only if the base passed readiness, observed as
+   `sync_progress.sync_id === _this_call_sync_id` after the call (condition 3: the not-ready outer call is not
+   tracked; its inner call is).
+3. When the tracked promise settles (either way) it clears the tracking and, if the service is alive, starts the
+   first pending entry: if offline, every pending entry is dropped and its callers reject `{error: "not online"}`
+   (condition 6). The next sync is started BEFORE the drawer flag is recomputed, so `sync_status` is already
+   'syncing' when the hold lifts (no flash of the result card). Remaining entries wait for that one.
+4. `cancel_sync` drops every pending entry at once (callers reject `{error: "canceled"}`) and recomputes the flag
+   synchronously; a request made after the cancel queues normally and runs (condition 1). Because drops happen at
+   cancel time, the settle handler starts whatever is pending whether the cancelled sync resolved or rejected
+   (condition 2's purpose; test with a resolving cancel).
+5. `follow_up_sync_pending` is true only while an entry is for the signed-in user (`sync_status_is_for_signed_in_user`,
+   condition 4). The drawer reads an effective status (`'syncing'` while that flag is true, else `sync_status`) and
+   observes both.
+6. Sign-out (`clear_user_state`) drops pending entries. A request that finds pending entries whose running sync is no
+   longer live drops them first (their sync will never settle).
+
+Disagreement with condition 6's "(and `auto_sync`)": the base runs manual syncs with automatic sync off, and only
+manual reasons queue, so checking `auto_sync` would drop a manual request that would have run had nothing been
+running. Online only.
+
+**Candidates not chosen.** B: let the absorbed call run its own pass (drop the `check_first` id test): two walks
+writing the same stores at once, double work on low-end devices. C: settle the absorbed promise with the running
+sync's result and rely on the stamp check: the home board still waits 5-10 minutes and the drawer still says ready.
+
+**Risks / open questions.** A pending entry is keyed by the literal `user_id`, so 'self' and the signed-in person's
+own global id (profile Sync on one's own page) make two follow-ups. A running sync that hangs (row-queue watchdog,
+out of scope) holds its follow-ups, as today it holds `sync_progress`. Push-to-cloud has no rejection handler.
+
+**Tests (red first).** Seeds (user fixture changed mid-sync gets exactly one follow-up whose seeds include it, plus a
+one-request control with one `sync_boards` pass); two requests make one follow-up (user, reason, force asserted);
+the absorbed promise is pending until the follow-up ends and rejects when it fails; a request before cancel is
+dropped, after cancel runs, with a resolving cancel too; automatic reason does not queue and does not overwrite
+`_root_sync_reason`; offline at settle drops; a not-ready outer call does not deadlock; drawer: stays 'syncing' while
+pending, cancel-while-pending and other-user both end not 'syncing'. Mutations: no follow-up; follow-up after cancel;
+drawer ignores the pending flag.
+
+**Correction to fact (b).** "A sync whose `sync_progress` was cleared never settles" is wrong for the running sync:
+`check_first` decides when the chain is BUILT (`services/persistence.js:2062`, called while building `:2097`, `:2103`),
+so steps already chosen still run, the board walk resolves once `sync_progress` is null, and the sync settles. The
+settle handler therefore acts only when the tracked sync is still its own.
+
+**Review of section 19 (`adversary`, 2026-11-11): build with changes.** Checked each finding in code; all applied:
+- Sign-out never reaches `utils/persistence.js` `clear_user_state` (CONFIRMED: `services/session.js:897` calls it on
+  the persistence service, which does not define it). Pending follow-ups are dropped in `services/app-state.js`
+  `clear_user_state`, BEFORE the drawer is dismissed (the flag falling after the dismiss would reopen it), and a
+  follow-up does not start when `local_db_is_current_user()` is false.
+- Settle handler identity check (above).
+- Drawer: when the flag drops without a follow-up starting, the drawer closes, unless the running sync wrote a failure
+  or problems during the wait. It no longer shows an old "ready" (someone else's root sync never writes `sync_status`).
+- `auto_sync`: the reviewer was right that the home-board and sidebar callers check it at request time
+  (`utils/home_board.js:77`, `controllers/board-picker.js:194` and others). A follow-up made only of those reasons
+  re-checks it at start; one that includes the Sync button, push-to-cloud or the first Home Screen sync does not.
+  `manual_sync` wins a merge (the base resets the storage check and refreshes caches only for it).
+- The follow-up starts through `this.sync`, and each pending promise carries its own no-op rejection handler, so a
+  dropped request of a caller without one (`components/push-to-cloud.js:72`) raises no unhandled rejection.
+- Existing test "should not remember a cancelled sync as failed when another sync starts before it stops" (its
+  post-cancel request now runs): passes timing-strict unchanged, so no test change was needed.
+
+**Built.** `utils/sync_follow_up.js` (merge rules), the last `persistence.reopen` in `services/persistence.js` (queue,
+start, drop, flag; `sync_is_automatic` now uses the shared reason check), `services/sync-notice.js` (effective status),
+`services/app-state.js` (drop at sign-out). Tests: `tests/utils/persistence-sync-test.js` "a sync requested while
+another runs" (13 cases), `tests/unit/services/sync-notice-test.js` (4), `tests/unit/utils/sync-follow-up-test.js` (4),
+`tests/unit/services/app-state-clear-handoffs-test.js` (1). 13 of the first red run's cases failed before the fix for
+the traced reason (the queued request's promise never settled; the drawer showed "done" while a follow-up waited).
+
+**Verified.** Targeted run, timing-strict (`--query timingStrict=1`, filter covering the new cases, the drawer, the
+merge unit, the sign-out tests and the three existing cancel tests): 39 of 39, no leak-check, late-read, queued-fetch
+or owner-gone lines. `node scripts/eslint-todo-gate.js`: no new findings. Mutations, each in a build with the
+committed fix otherwise intact:
+- A1, `start_follow_up_sync` returns at once (no follow-up): every case that needs a follow-up goes red (seeds, two
+  requests, pending-then-rejects, request after a cancel either way, offline, automatic sync off, other database,
+  another person). Two more reds in that build were late assertions from the hung test before them, not leaks.
+- A3, the drawer ignores the pending flag: the three drawer cases that hold or drop a follow-up go red.
+- B2, `cancel_sync` keeps pending follow-ups: both "drops a request made before a cancel" cases go red.
+- B4, sign-out keeps them: "a pending follow-up sync is dropped and the drawer stays closed" goes red.
+
+**UI check (2026-11-11, local dev stack, Playwright driving the Modern view as the seeded `example` user).**
+- Home board picked mid-sync through `/board-picker` ("Set as Home Board" on Quick Core 40) while a manual sync from
+  Extras > Sync ran: the request queued (flag up at 10.7 s), the first sync ended at 13.9 s and the follow-up started in
+  the same moment under a new sync id, and the drawer stayed on "syncing" until the follow-up ended at 54 s. Only the
+  follow-up's sync log lists the new home board set (`example/core-40-*`).
+- Cancel from Sync Details with a follow-up waiting: the follow-up was dropped at the click (flag down, nothing queued).
+- Found, pre-existing (not this change): (1) the profile page's "Change Home Board" (`components/available-boards-section.js`,
+  `copy_or_reuse_as_home`) requests no sync at all, so on that path the new home board waits for the stamp check; the
+  queue cannot help it. (2) A cancelled sync often never ends: the board walk stays in "syncing boards" and the drawer
+  stays on "syncing". On the #1268 head without this change it hung in 3 of 5 runs (2 of 2 cancelled 1.5 s in), with this
+  change 5 of 6; the samples are too small to compare rates. While it hangs, a request made after the cancel waits
+  behind it (on the head, the same request is absorbed and never runs either). (3) When a cancelled sync does end, it
+  ends as 'finished' and the drawer shows the result card (condition 2, as recorded above).
+
+**The hanging cancel (Traci, 2026-11-11: fix it in #1268). Diagnosis incomplete; no change made.**
+- Seen: 10 of 11 cancels hung (both builds) during one stretch of the session, all shortly after board sets had been
+  copied (Quick Core 40/84/112). The base's own log repeated "Sync waiting on [syncing boards for example]"; the cancel had
+  registered (`sync_progress.canceled` true, cancel id = running id); `sync_progress.root_user` was still 'self'.
+- Then: 8 cancels in a row ended 8.2-8.4 s after Cancel, same conditions (cancel 1.5 s in, no interception), with home
+  Crisis Vocabulary and with home Quick Core 40 again; Resque workers idle, queues empty. A probe that tracked the walk's
+  calls (`board_lookup`, `store_url`, `find`, ...) found only button-set `store_url` calls open after a clean end.
+- Ruled out by reading: `schedule_sync_board_step` (`services/persistence.js:79`) never drops a step; nothing in the
+  walk calls `sync`/`cancel_sync` or the new queue methods; the walk does not await progress polling directly.
+- Unverified hypothesis: a walk thread waits on server work for freshly copied boards and ignores the cancel.
+  Next step: copy a NEW board set, wait for its copy to finish and its sync to start, cancel within 1.5 s with the probe
+  on, and read which call stays open. The attempt with Vocal Flair 112 timed out before its sync started.
+- Next step run (Traci: hold the push until the hang is fixed). Fresh copies of Vocal Flair 112, 84 and 60, each followed
+  by a cancel of a sync over the new set, with call tracking and Resque queue sampling: one cancel took 58.1 s to land
+  (VF84; queues empty throughout, so pending server jobs are not the cause; only a `/api/v1/boards/lingolinq/core-112/tree`
+  request, from the previous home set, was open at the end), the others ended in 0.6-5.2 s. The long stall seen earlier
+  (minutes) did not recur. The pick's own sync for VF60 had not started 10 minutes after "Set as Home Board"; not followed up.
+  Status: not reproduced, cause unverified, no change made.
+
+**The pick whose sync never started (Traci, 2026-11-12: investigate with UI testing). Cause found, pre-existing, not fixed.**
+- UI traces of `/board-picker` "Set as Home Board": a REUSED copy (Vocal Flair 60) took the self branch of
+  `_finishPickForHome` (`components/board-preview-overlay.js`): board opened, `persistence.sync(self, null,
+  home_board_changed)` at 4.7 s. A FRESH copy (Vocal Flair 40, then 24) took the "picking for someone else" branch:
+  `/example/boards` with "Great! This is now the user's home board!", no sync; the only sync was the stamp check 10 min later.
+- Why: the copy job's end runs `refresh_session_user()` 100 ms later (`utils/edit_manager.js`, the
+  `copy_board_links` progress handler), which loads `findRecord('user', 'self')`; from then on `setup_user`, `currentUser`
+  and `sessionUser` report id `'self'` (traced every 100 ms: `1_3` until the job ended, `self` after). The branch test
+  `setupUser.get('id') != currentUser.get('id')` compares the click-time snapshot (`1_3`) with `'self'` and is true for the
+  person themself. Same comparison and same refresh on develop (`board-preview-overlay.js:388`, `edit_manager.js:2829`).
+- Also seen in the traces: the client's home-board key flips between the old and new value as the two user records
+  (`1_3` and `self`) carry different preferences.

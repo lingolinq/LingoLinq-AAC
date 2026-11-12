@@ -9,7 +9,8 @@ import i18n from '../utils/i18n';
  * transitions), modelled on the board-copy drawer (services/copy-progress.js). Item 8, PR #1268, Traci
  * 2026-11-11: a running sync shows a message bottom right on every page; when it ends, a result card.
  *
- * The sync itself runs in the persistence service; this service only follows its `sync_status`:
+ * The sync itself runs in the persistence service; this service only follows its `sync_status` (and its
+ * `follow_up_sync_pending`, which holds 'syncing' while a queued sync waits; see _effective_status):
  * 'syncing' opens the drawer, and the first settled status after it ('succeeded', 'finished' or 'failed')
  * turns the drawer into the result card. A sync of another user's database (an open database that is not
  * the signed-in user's) shows nothing, as the Modern home page's failed-sync notice does.
@@ -45,13 +46,15 @@ export default Service.extend({
 
   init() {
     this._super(...arguments);
-    this._last_sync_status = this.get('persistence.sync_status');
-    addObserver(this.get('persistence'), 'sync_status', this, this._sync_status_changed);
+    this._last_sync_status = this._effective_status();
+    addObserver(this.get('persistence'), 'sync_status', this, this._raw_status_changed);
+    addObserver(this.get('persistence'), 'follow_up_sync_pending', this, this._follow_up_changed);
     if(this._last_sync_status === 'syncing') { this._sync_status_changed(); }
   },
 
   willDestroy() {
-    removeObserver(this.get('persistence'), 'sync_status', this, this._sync_status_changed);
+    removeObserver(this.get('persistence'), 'sync_status', this, this._raw_status_changed);
+    removeObserver(this.get('persistence'), 'follow_up_sync_pending', this, this._follow_up_changed);
     this._clear_timer();
     this._super(...arguments);
   },
@@ -60,9 +63,44 @@ export default Service.extend({
   is_done: computed('status', function() { return this.get('status') === 'done'; }),
   is_success: computed('kind', function() { return this.get('kind') === 'succeeded'; }),
 
+  // A sync requested while one runs is queued and starts when it ends (services/persistence.js, the follow-up queue).
+  // While the signed-in person's follow-up waits, the running sync's result is not the end: the drawer stays on
+  // 'syncing'. The follow-up sets sync_status to 'syncing' before the flag drops, so a start shows no card in between.
+  _effective_status() {
+    var p = this.get('persistence');
+    return p.get('follow_up_sync_pending') ? 'syncing' : p.get('sync_status');
+  },
+
+  _raw_status_changed() {
+    if(this._holding) { this._written_in_hold = true; }
+    this._sync_status_changed();
+  },
+
+  _follow_up_changed() {
+    var p = this.get('persistence');
+    if(p.get('follow_up_sync_pending')) {
+      this._holding = true;
+      this._written_in_hold = false;
+      this._sync_status_changed();
+      return;
+    }
+    var written = this._written_in_hold;
+    this._holding = false;
+    var status = p.get('sync_status');
+    // Dropped without starting (a cancel, the device went offline, sign-out). The status left is the running sync's,
+    // or an older one when the running sync was someone else's. A failure or problems written during the wait still
+    // show; anything else closes the drawer rather than say boards are ready that the dropped follow-up never saved.
+    if(status !== 'syncing' && this.get('status') === 'syncing' && !(written && (status === 'failed' || status === 'finished'))) {
+      this._last_sync_status = status;
+      this.dismiss();
+      return;
+    }
+    this._sync_status_changed();
+  },
+
   _sync_status_changed() {
     var p = this.get('persistence');
-    var now = p.get('sync_status');
+    var now = this._effective_status();
     var before = this._last_sync_status;
     this._last_sync_status = now;
     if(now === 'syncing') {
