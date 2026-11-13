@@ -236,7 +236,11 @@ Run `/pr-preflight`. Then review, sized to what the PR touches:
   when the PR touches authentication or sessions, consent or account ownership, access to
   another user's or organization's data, billing, AI model routing or the AI client, infra
   or deploy config, or the `data-bearing-paths` gate.
-- **At most two review rounds.** A third round needs Scot's OK.
+- **Rounds.** Two formal review rounds are the default. The developer responsible for
+  the PR may start a third round without Scot's prior OK only when new changes touch an
+  area on the dual-review list above, or a serious review finding needs rechecking.
+  Record the reason in the PR. Any third round outside this exception, and every
+  further round, needs Scot's OK. Permission to run a review does not authorize merge.
 - A Critical or High finding from any review blocks the PR.
 
 The `/review-pr` pass ships the diff to an external model on an account with no BAA, so run

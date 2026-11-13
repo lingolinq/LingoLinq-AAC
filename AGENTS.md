@@ -96,7 +96,11 @@ contributor (a fork) also needs a human review from the core team. Dual review (
 pass and an adversarial red-team pass) applies only when the PR touches authentication or
 sessions, consent or account ownership, access to another user's or organization's data,
 billing, AI model routing or the AI client, infra or deploy config, or the
-`data-bearing-paths` gate. At most two review rounds; a third needs Scot's OK. A Critical
+`data-bearing-paths` gate. Two formal review rounds are the default. The developer
+responsible for the PR may start a third round without Scot's prior OK only when new
+changes touch an area on the dual-review list above, or a serious review finding needs
+rechecking. Record the reason in the PR. Any third round outside this exception, and
+every further round, needs Scot's OK. Permission to run a review does not authorize merge. A Critical
 or High finding from any review blocks the PR; this is a blocking gate, not advisory.
 Which passes you can run depends on which tool you are, and the three cases differ; do
 not compress them to "available" or "unavailable".
