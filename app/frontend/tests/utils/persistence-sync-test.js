@@ -7127,8 +7127,8 @@ describe("persistence-sync", function() {
       });
     });
 
-    // The base waits for extras and then calls sync() again (the wrapper). The outer call must not count as running,
-    // or the inner call would queue behind it forever.
+    // The base waits for extras and then calls sync() again (the wrapper). That inner call must run once and settle the
+    // outer promise, never wait behind the outer call (which has not taken sync_progress).
     it("does not queue the sync a not-ready call starts once extras are ready", function() {
       db_wait(function() {
         prepareFollowUp('1358');
@@ -7164,6 +7164,7 @@ describe("persistence-sync", function() {
           recordPass(user, force);
           if(calls.length === 1) {
             follow = settles(persistence.sync('1359', 'all_reload'));
+            calls[0].pending_after_request = persistenceTarget().get('follow_up_sync_pending');
           }
           return RSVP.resolve({});
         });
@@ -7171,10 +7172,41 @@ describe("persistence-sync", function() {
         waitsFor(function() { return first.done && follow && follow.done && syncSettled(); });
         runs(function() {
           expect(calls.length).toEqual(2);
-          expect(calls[0].pending).toEqual(false);
+          expect(calls[0].pending_after_request).toEqual(false);
           expect(calls[1].user_id).toEqual('1359');
           expect(calls[1].force).toEqual('all_reload');
           expect(persistence.get('sync_status') === 'syncing').toEqual(false);
+          finish();
+        });
+      });
+    });
+
+    // A request can arrive after sign-out (callbacks scheduled a second after a home copy, models/user.js and
+    // controllers/application.js). Sign-out drops what was queued (services/app-state.js clear_user_state), but this
+    // one is queued later; it must not start when the old sync settles, for nobody or for the next person.
+    it("does not start a follow-up queued for someone who has since signed out", function() {
+      db_wait(function() {
+        prepareFollowUp('1363');
+        var auth = { user_id: '1363', user_name: 'fred' };
+        var real = stashes.get_object.bind(stashes);
+        stub(stashes, 'get_object', function(key, include_prefix) {
+          if(key === 'auth_settings') { return auth; }
+          return real(key, include_prefix);
+        });
+        var follow = null;
+        stubOnPersistence('sync_boards', function(user, ids, synced, force) {
+          recordPass(user, force);
+          if(calls.length === 1) {
+            follow = settles(persistence.sync('1363', null, null, 'home_board_changed'));
+            auth = null;
+          }
+          return RSVP.resolve({});
+        });
+        var first = settles(persistence.sync('1363'));
+        waitsFor(function() { return first.done && follow && follow.done && syncSettled(); });
+        runs(function() {
+          expect(calls.length).toEqual(1);
+          expect((follow.err || {}).error).toEqual('signed out');
           finish();
         });
       });
@@ -7193,8 +7225,9 @@ describe("persistence-sync", function() {
         persistence.set('sync_status', null);
         persistence.set('root_sync_canceled', false);
         persistence._canceled_sync_id = null;
-        stashes.persist('last_sync_status', 'succeeded');
+        stashes.persist('last_sync_status', 'finished');
         var saved = { last_sync_at: persistence.get('last_sync_at'), last_sync_stamp: persistence.get('last_sync_stamp') };
+        var event_at_start = null;
         persistence.set('last_sync_at', 12345);
         persistence.set('last_sync_stamp', 'stamp-old');
         persistence.set('last_sync_event_at', 1);
@@ -7203,6 +7236,7 @@ describe("persistence-sync", function() {
         stubOnPersistence('sync_user', function() { return RSVP.resolve(); });
         stubOnPersistence('sync_boards', function() {
           persistence.set('sync_progress.last_sync_stamp', 'stamp-new');
+          event_at_start = persistence.get('last_sync_event_at');
           persistence.cancel_sync();
           return RSVP.resolve({});
         });
@@ -7213,15 +7247,45 @@ describe("persistence-sync", function() {
         runs(function() {
           var log = persistence.get('sync_log') || [];
           var last = log[log.length - 1] || {};
-          expect(persistence.get('sync_status') === 'succeeded' || persistence.get('sync_status') === 'finished').toEqual(false);
-          expect(stashes.get('last_sync_status')).toEqual('succeeded');
+          expect(persistence.get('sync_status')).toEqual(null);
+          expect(persistence.get('sync_progress')).toEqual(null);
+          expect(stashes.get('last_sync_status')).toEqual('finished');
           expect(persistence.get('last_sync_at')).toEqual(12345);
           expect(persistence.get('last_sync_stamp')).toEqual('stamp-old');
-          expect(persistence.get('last_sync_event_at') > 1).toEqual(true);
+          expect(persistence.get('last_sync_event_at') > event_at_start).toEqual(true);
           expect(last.canceled).toEqual(true);
           stashes.persist('last_sync_status', null);
           persistence.set('last_sync_at', saved.last_sync_at);
           persistence.set('last_sync_stamp', saved.last_sync_stamp);
+          cancelSyncTailWork();
+          persistence.set('sync_progress', null);
+        });
+      });
+    });
+
+    // The sync replaces sync_progress once it has the user (services/persistence.js, after "re-priming image cache"),
+    // and dropped `canceled` there: a cancel pressed while caches were priming never reached the board walk, which
+    // then saved every board while the sync was reported as cancelled.
+    it("keeps a cancel pressed while caches prime, so the board walk sees it", function() {
+      db_wait(function() {
+        cancelSyncTailWork();
+        unloadSyncStoreRecords();
+        persistence.set('sync_progress', null);
+        persistence.set('sync_status', null);
+        persistence._canceled_sync_id = null;
+        stub(modal, 'error', function() { });
+        stubOnPersistence('prime_caches', function() { persistence.cancel_sync(); return RSVP.resolve(); });
+        stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+        stubOnPersistence('sync_user', function() { return RSVP.resolve(); });
+        var seen = null;
+        stubOnPersistence('sync_boards', function() { seen = persistence.get('sync_progress.canceled'); return RSVP.resolve({}); });
+        queryLog.defineFixture({ method: 'GET', type: 'user', response: RSVP.resolve({user: {id: '1371', user_name: 'fred'}}), id: '1371' });
+        var done = false;
+        persistence.sync('1371').then(function() { done = true; }, function() { done = true; });
+        waitsFor(function() { return done && syncSettled(); });
+        runs(function() {
+          expect(seen).toEqual(true);
+          stashes.persist('last_sync_status', null);
           cancelSyncTailWork();
           persistence.set('sync_progress', null);
         });

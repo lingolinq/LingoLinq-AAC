@@ -9,9 +9,9 @@ export function reason_is_automatic(reason) {
 }
 
 // Callers that start these syncs only while automatic sync is on (controllers/board-picker.js, components/trial-bar.js,
-// components/tour-board-picker.js, controllers/setup.js, controllers/application.js, models/user.js,
-// components/add-to-sidebar.js, utils/home_board.js). A follow-up made only of them re-checks it before it starts.
-var AUTO_SYNC_GATED = ['home_board_changed', 'home_board_symbols_changed', 'sidebar_update'];
+// components/tour-board-picker.js, controllers/setup.js, controllers/application.js, models/user.js (a picked or copied
+// home board), components/add-to-sidebar.js, utils/home_board.js). A follow-up made only of them re-checks it first.
+var AUTO_SYNC_GATED = ['home_board_changed', 'home_board_copied', 'home_board_symbols_changed', 'sidebar_update'];
 
 // 'all_reload' reloads every board (services/persistence.js, "force == 'all_reload'"), so it outranks true.
 function stronger_force(a, b) {

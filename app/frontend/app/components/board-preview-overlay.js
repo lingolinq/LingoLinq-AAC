@@ -432,7 +432,7 @@ export default Component.extend({
           user.board-detail that runs. So it is very unlikely to be a wrong-branch
           bug. A 404 was logged in that run; the leading (UNCONFIRMED) hypothesis is
           that board-detail fails to load the just-created copy and something
-          redirects to /boards.
+          redirects to /boards. EXPLAINED 2026-11-12: the copy job's end refreshes the session user to the record keyed 'self', so pickingForOther WAS true; it now compares backend ids (section 20 of docs/task-management/2026-11-10_offline-followup-proposals.md).
        2. A separate run (a different communicator, same self-pick path) never
           reached a terminal state within 180s. Not investigated; may be nothing
           more than a slow dev-stack copy.

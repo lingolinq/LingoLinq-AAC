@@ -10,7 +10,7 @@
     <div class="la-sync-details-modal-body">
       <div class="la-sync-details-toolbar">
         <div class="la-sync-details-toolbar-actions">
-          {{#if (persistence-value 'syncing')}}
+          {{#if (persistence-value 'sync_cancelable')}}
             <button type="button" class="la-sync-details-secondary-btn" {{on "click" (this.ctrlAction "cancel_sync")}}>{{t "Cancel Sync" key="cancel_sync"}}</button>
           {{/if}}
           <button type="button" class="la-sync-details-primary-btn" {{on "click" (this.ctrlAction "sync")}}>
@@ -67,6 +67,8 @@
               <span class="text-danger">{{date_ago sync.finished}}</span>
             {{else if sync.issues}}
               <span class="text-warning">{{date_ago sync.finished}}</span>
+            {{else if sync.canceled}}
+              <span class="text-muted">{{date_ago sync.finished}}</span>
             {{else}}
               <span class="text-success">{{date_ago sync.finished}}</span>
             {{/if}}

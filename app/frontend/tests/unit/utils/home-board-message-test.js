@@ -87,6 +87,9 @@ module('Unit | Utility | home board message and sync', function(hooks) {
    * holds the real id. The pick's snapshot was taken before, under the real id. Comparing `id` read '1_3' != 'self'
    * as "picking for someone else": no board opened and no sync started. Stubs use the network-load shape
    * ({ id: 'self', global_id }), as LEARNINGS asks. */
+  // A key without a '/' takes the plain route change (no screen overlay, no timer); the self branch alone sets the
+  // speak-tour hand-off for it, so the two branches are told apart by more than "a route changed".
+  var KEY = 'picked-board';
   function pick_with_users(owner, snapshot, current) {
     var shown = [];
     var syncs = [];
@@ -96,20 +99,23 @@ module('Unit | Utility | home board message and sync', function(hooks) {
     stubOnPersistence('sync', function() { syncs.push(Array.prototype.slice.call(arguments)); return RSVP.resolve(); });
     var service = owner.lookup('service:persistence');
     var app = owner.lookup('service:app-state');
-    var prior = { online: service.get('online'), auto_sync: service.get('auto_sync'), currentUser: app.get('currentUser'), setup_user: app.get('setup_user') };
+    var prior = { online: service.get('online'), auto_sync: service.get('auto_sync'), currentUser: app.get('currentUser'), setup_user: app.get('setup_user'), tour: app.get('board_detail_tour_pending_speak') };
+    app.set('board_detail_tour_pending_speak', null);
     service.set('online', true);
     service.set('auto_sync', true);
     app.set('setup_user', null);
     app.set('currentUser', current);
     var overlay = owner.factoryFor('component:board-preview-overlay').create();
-    var board = EmberObject.create({ key: '' });
+    var board = EmberObject.create({ key: KEY });
     overlay._finishPickForHome(board, null, snapshot, { transitionTo: function() { moves.push(Array.prototype.slice.call(arguments)); } });
     return new RSVP.Promise(function(resolve) { RSVP.resolve().then(function() { RSVP.resolve().then(resolve); }); }).then(function() {
+      var tour = app.get('board_detail_tour_pending_speak');
+      app.set('board_detail_tour_pending_speak', prior.tour);
       service.set('online', prior.online);
       service.set('auto_sync', prior.auto_sync);
       app.set('currentUser', prior.currentUser);
       app.set('setup_user', prior.setup_user);
-      return { shown: shown, syncs: syncs, moves: moves };
+      return { shown: shown, syncs: syncs, moves: moves, tour: tour };
     });
   }
 
@@ -119,16 +125,34 @@ module('Unit | Utility | home board message and sync', function(hooks) {
     var result = await pick_with_users(this.owner, snapshot, current);
     assert.deepEqual(result.syncs, [['self', null, null, 'home_board_changed']], 'a sync was started');
     assert.deepEqual(result.shown, [home_board_set_message()], 'the message for your own home board');
-    assert.strictEqual(result.moves.length, 1, 'and the board opens');
+    assert.deepEqual(result.moves, [['board', KEY]], 'and the board opens');
+    assert.strictEqual(result.tour, KEY, 'with the speak tour handed to it');
+  });
+
+  // The same, with records shaped by the real serializer path: the session user pushed under 'self' with its real id in
+  // _actual_id (serializers/application.js), no global_id stubbed, so models/user.js#global_id does the work.
+  test('"Pick this Board" for yourself with real user records keyed self and by id', async function(assert) {
+    assert.expect(2);
+    var store = this.owner.lookup('service:store');
+    var me_self = store.push({ data: { type: 'user', id: 'self', attributes: { _actual_id: '1_3', user_name: 'example' } } });
+    var me_real = store.push({ data: { type: 'user', id: '1_3', attributes: { user_name: 'example' } } });
+    try {
+      var result = await pick_with_users(this.owner, me_real, me_self);
+      assert.deepEqual(result.syncs, [['self', null, null, 'home_board_changed']], 'a sync was started');
+      assert.deepEqual(result.moves, [['board', KEY]], 'and the board opens');
+    } finally {
+      me_self.unloadRecord();
+      me_real.unloadRecord();
+    }
   });
 
   test('"Pick this Board" for someone else still takes the other-person path', async function(assert) {
-    var snapshot = EmberObject.create({ id: '1_9', global_id: '1_9', user_name: '' });
+    var snapshot = EmberObject.create({ id: '1_9', global_id: '1_9', user_name: 'sam' });
     var current = EmberObject.create({ id: 'self', global_id: '1_3', user_name: 'example' });
-    stub(this.owner.lookup('service:app-state'), 'return_to_index', function() { });
     var result = await pick_with_users(this.owner, snapshot, current);
     assert.deepEqual(result.syncs, [], 'no sync of your own boards');
-    assert.deepEqual(result.moves, [], 'your board does not open');
-    assert.strictEqual(result.shown.length, 1, 'the other-person message');
+    assert.deepEqual(result.moves, [['user.boards', 'sam']], 'their boards list opens');
+    assert.deepEqual(result.shown, ["Great! This is now the user's home board!"], 'the other-person message');
+    assert.strictEqual(result.tour, null, 'no speak tour handed off');
   });
 });

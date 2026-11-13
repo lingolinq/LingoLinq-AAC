@@ -35,4 +35,8 @@ module('Unit | Utility | sync_follow_up', function() {
     assert.false(entry.needs_auto_sync);
     assert.false(merge_follow_up({}, null, null).needs_auto_sync);
   });
+
+  test('a copied home board is re-checked like a picked one (models/user.js starts it only with automatic sync on)', function(assert) {
+    assert.true(merge_follow_up({}, null, 'home_board_copied').needs_auto_sync);
+  });
 });

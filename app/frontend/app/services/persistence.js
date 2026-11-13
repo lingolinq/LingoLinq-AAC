@@ -2196,7 +2196,7 @@ var persistence = Service.extend({
           if(!_this_sync.get('sync_progress.root_user') || _this_sync.get('sync_progress.root_user') == old_user_id) {
             _this_sync.set('sync_progress', {
               root_user: user.get('id'),
-              sync_id: _this_sync.get('sync_progress.sync_id'),
+              sync_id: _this_sync.get('sync_progress.sync_id'), canceled: _this_sync.get('sync_progress.canceled'), // a cancel pressed while caches primed must reach the board walk
               progress_for: {
               }
             });
@@ -2236,7 +2236,7 @@ var persistence = Service.extend({
           var delay = spread_out.delay;
           var promise = new RSVP.Promise(function(resolve, reject) {
             runLater(function() {
-              var p = callback();
+              var p = (_this_sync.get('sync_progress.sync_id') && _this_sync.get('sync_progress.sync_id') !== sync_id) ? RSVP.resolve() : callback(); // a step of a sync that already ended (a failure settles at the first failed step) must not run under the next sync
               var userLabel = (user && typeof user.get === 'function') ? user.get('user_name') : user_id;
               promise.promise_name = (p.promise_name || promise.promise_name || 'unnamed') + " for " + userLabel;
               p.then(function(res) {
@@ -4997,6 +4997,16 @@ import { reason_is_automatic, merge_follow_up } from '../utils/sync_follow_up';
 persistence.reopen({
   // True while a follow-up for the signed-in person waits; the sync drawer stays on 'syncing' (services/sync-notice.js).
   follow_up_sync_pending: false,
+  // Sync Details offers Cancel while the person's own sync runs or waits behind another one (a supervisor's sync of a
+  // communicator never writes sync_status, yet the drawer says syncing through follow_up_sync_pending).
+  sync_cancelable: computed('sync_status', 'follow_up_sync_pending', function() {
+    return this.get('sync_status') === 'syncing' || !!this.get('follow_up_sync_pending');
+  }),
+  // The signed-in person's id from the session (auth_settings), or null when nobody is signed in.
+  signed_in_auth_user_id: function() {
+    var auth = this.stashes && this.stashes.get_object && this.stashes.get_object('auth_settings', true);
+    return (auth && auth.user_id) || null;
+  },
   sync: function(user_id, force, ignore_supervisees, sync_reason) {
     if(ignore_supervisees) { return this._super(...arguments); }
     var running = this.running_root_sync();
@@ -5032,7 +5042,7 @@ persistence.reopen({
     var queue = this._follow_up_syncs = this._follow_up_syncs || [];
     var entry = queue.find(function(e) { return String(e.user_id) === String(user_id); });
     if(!entry) {
-      entry = { user_id: user_id };
+      entry = { user_id: user_id, queued_for: this.signed_in_auth_user_id() }; // who was signed in when it was asked for
       entry.promise = new RSVP.Promise(function(resolve, reject) { entry.resolve = resolve; entry.reject = reject; });
       // A caller without a rejection handler (components/push-to-cloud.js) must not raise an unhandled rejection
       // when its follow-up is dropped; callers that listen still get the rejection.
@@ -5051,6 +5061,14 @@ persistence.reopen({
     if(!this.get('online')) { this.drop_follow_up_syncs({error: "not online"}); return; }
     if(!this.local_db_is_current_user()) { this.drop_follow_up_syncs({error: "signed out"}); return; }
     var entry = queue.shift();
+    // Asked for in a session that has since ended (a callback that ran after sign-out): never start it for the next
+    // person, or on the login page.
+    if(entry.queued_for !== this.signed_in_auth_user_id()) {
+      entry.reject({error: "signed out"});
+      this.note_follow_up_syncs();
+      this.start_follow_up_sync();
+      return;
+    }
     if(entry.needs_auto_sync && !this.get('auto_sync')) {
       entry.reject({error: "automatic sync is off"});
       this.note_follow_up_syncs();

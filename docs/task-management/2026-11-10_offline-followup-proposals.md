@@ -1278,3 +1278,54 @@ the success branch.
 - Not covered by a test: part 3 (a walk thread stops under a newer sync); proving it needs the real walk with a
   follow-up starting mid-walk. One worker stays counted 30 s after an empty queue (a download in flight; the residual
   `store_url_now` case), blocking nothing.
+
+## 23. Code review of the finished commits (2026-11-12; Traci: review the finished code)
+
+Three `adversary` passes on the code at `cff92d359`, one per commit. All three: ship with changes; no Critical or High.
+Spot-checked by hand: `last_sync_event_at` is written at every root sync's start (`services/persistence.js:2040`), so
+the cancelled-resolve test's `> 1` assertion is empty; the valet, not-a-browser and 28-idle-days examples in
+`spec/models/device_spec.rb` set `long_token` without `long_token_owner_choice`, so `trusted_browser`
+(`app/models/device.rb:297`) is false whatever they test (from `5d5f14234`); `RSVP.all_wait` rejects at the first
+failure outside tests (`utils/misc.js:154`); `'home_board_copied'` (`models/user.js:1062`) is not in `AUTO_SYNC_GATED`.
+
+**Follow-up queue (`65283750b`).** M: a sync that fails early settles while its later scheduled steps (spread_out,
+supervisee syncs reading the current sync id) still run, so they overlap the follow-up. M: queued behind another
+person's sync the drawer says syncing but Sync Details offers no Cancel (gated on `syncing`, which reads only
+`sync_status`). M: the other-person test records the flag before the request, so a "flag for anyone" mutant passes;
+the not-ready test cannot fail for the reason its comment gives. L: `home_board_copied` missing from the auto_sync
+re-check. L: a request queued after sign-out still starts when the old sync settles.
+
+**Home-board pick (`95b5dfd8b`).** No access issue: a different person is never treated as yourself; nulls unchanged.
+M: trial-bar "Use this board" compares `id` the same way (section 21 item 4). M: tests satisfied by fallbacks (empty
+board key, unspecific message count, stubbed `global_id` instead of a real 'self' record through the serializer).
+L: board-picker `for_self` disagrees with the overlay (section 21 item 3).
+
+**Cancel hang (`e0745bad5`, `8182fab8d`).** Queue and walk checks hold (harness: mixed items, rejections, sync switch:
+0 pending, 0 workers). M: a cancelled AUTOMATIC sync restarts about 5-6 minutes later (no clock moves, no backoff; before
+this commit the cancel usually landed in the success branch and moved the clocks, or hung). M: cancelled-resolve test
+gaps (`sync_progress`/`sync_status` not asserted, empty assertions). M: the three device_spec examples above. L: a cancel
+during priming or `sync_buttons` is lost on the walk (`:2196` replaces `sync_progress` without `canceled`) yet the
+finished sync is reported canceled. L: part 3 and two planned tests untested. L: Sync Details shows the canceled entry
+in success colour.
+
+**Fixed from the code review (Traci, 2026-11-12: "fix your bugs and defects").**
+- Follow-up queue: each queued request records who was signed in (`queued_for`, from auth_settings) and is dropped at
+  start if that changed (a request made after sign-out); `home_board_copied` is re-checked against automatic sync; a
+  delayed step of a sync that already ended (`spread_out`) does not run under the next sync; Sync Details offers Cancel
+  while the person's own sync runs OR waits (`sync_cancelable`).
+- Cancel: `sync_progress` keeps `canceled` when it is replaced after priming, so a cancel pressed then reaches the walk;
+  Sync Details shows a canceled entry muted, not in success green.
+- Tests strengthened (all are this branch's own): the other-person drawer test reads the flag after the request; the
+  cancelled-resolve test asserts `sync_progress` and `sync_status` null, seeds a result the bug would overwrite and
+  compares the event time with the one at the walk; the picker tests use a key, assert the route, the speak-tour hand-off
+  and the exact message, and one uses real store records keyed 'self' (no stubbed global_id). The not-ready test's
+  comment now says what it proves. New: signed-out request, priming cancel, `home_board_copied`, `sync_cancelable`.
+- Green, timing-strict: 182 tests, 174 pass, 1 skip (the existing `xit`), 7 fail, all seven the uncommitted
+  id-comparison red tests of section 21 (their fixes are not built). No leak lines. ESLint and template lint: clean.
+- Mutations (one build, seven mutants): each targeted test red, plus the after-cancel follow-up hung under the
+  "sync_progress not cleared" mutant (the lockout the review predicted).
+- UI: Quick Core 112 cancel ended 3.8 s after Cancel, queue drained; an ordinary sync finished as before (9.8 s).
+- Not covered by a test: the leftover-step check (needs production timing: tests run every step at once) and the
+  Sync Details colour. Also the comment above `_finishPickForHome`'s `go()` that called a self-pick landing on
+  /<user>/boards unexplained (2026-08-14) now points here.
+- Waiting on Traci: pause automatic syncing after a cancel; the three device_spec examples; the trial bar.
