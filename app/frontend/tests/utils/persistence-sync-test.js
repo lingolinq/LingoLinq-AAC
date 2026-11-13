@@ -5575,7 +5575,8 @@ describe("persistence-sync", function() {
   // Cancelling a sync used to leave sync_status 'failed' and only hide it with root_sync_canceled.
   // A later root sync cleared that flag before the rejection ran, so the stop was stored as a
   // failure. The rejection now leaves the status empty when this sync is still the active one,
-  // and does not touch a newer sync's status. The stash stays the last real result.
+  // and does not touch a newer sync's status. The stash stays the last real result. (#1230; the
+  // sync_status expectation changed from 'failed' to null in e842c958b, approved by Traci 2026-11-13.)
   it("should not remember a cancelled sync as a failed one", function() {
     db_wait(function() {
       cancelSyncTailWork();

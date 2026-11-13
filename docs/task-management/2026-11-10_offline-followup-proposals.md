@@ -1444,3 +1444,28 @@ speak-mode stash, the workbook id, the own-room listener, the remote-modeling ga
   (1912 tests, 1 fail). Passes alone (7/7 twice) and with the session plus id modules (307/307). An existing order
   dependency in this filtered run (a stray `reload('/')` from an earlier test's leftover work), not introduced here; CI's
   sharded order did not hit it. Not fixed in this branch.
+
+## 25. Full `/review-pr` of #1268 at 301d00bd5 (2026-11-13; Traci: run the full review regardless of the two-round guideline)
+
+Seven slice reviewers read only the preflight's diff file. The lead verified each Critical and High finding against that
+same file. Verdict: request changes. The report is kept outside the repo.
+
+- **E1, a changed assertion with no recorded approval.** "should not remember a cancelled sync as a failed one" expected
+  `sync_status` 'failed' before e842c958b (#1230) and expects `null` since then. Traci approved the change on 2026-11-13,
+  and that approval is now recorded in the test's comment.
+- **A-H1, the reconnect shortcut and someone else's database: refuted.** `check_for_needs_sync` returns at
+  `services/persistence.js:4845` (`local_db_is_current_user()`) before the shortcut at 4864. The diff hunk started at 4846,
+  so the diff-only review could not see that line. Lesson: a "missing guard" finding from a diff-only review is ASSUMED
+  until the full function is read.
+- **The UI check (Playwright, `scratchpad/ui/reconnect.js`, a fresh device each run):**
+  - Control run: an automatic sync fails, then a reconnect. `check_for_needs_sync(true, 'reconnect')` returned true and
+    started `sync('self', …, 'long_time_since_sync:1:…')` into example's database, so the scenario was armed.
+  - Account-switch run (default flags): `session.invalidate(true)` reloaded the page (the marker was gone). After
+    aiden_parker signed in, the database was `lingolinqStorage::aiden_parker===db`, the failure fields were empty, and the
+    reconnect synced aiden_parker's boards into aiden_parker's own database. The scenario does not hold.
+  - Not reached: the no-reload sign-out (`auth_spa_transition`, available but not in ENABLED_FRONTEND_FEATURES). Setting
+    the flag in the page did not take, because `app-state.feature_flags` is computed from `currentUser.feature_flags`.
+    The harness stopped there under Rule 13.
+  - On that path, `persistence` has no `clear_user_state` (session.js:897 checks for one), so `_auto_sync_failure_at`,
+    `_auto_sync_failure_network` and `_reconnect_skip_block_until` survive a sign-out. The guard at line 4845 still runs
+    first; the leftover fields are unverified and not a defect found.
