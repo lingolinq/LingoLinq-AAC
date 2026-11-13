@@ -4,8 +4,8 @@ require 'spec_helper'
 
 describe LingoLinq::AiConsentDisclosures do
   describe '::CURRENT_VERSION' do
-    it 'is 1' do
-      expect(described_class::CURRENT_VERSION).to eq(1)
+    it 'is 2' do
+      expect(described_class::CURRENT_VERSION).to eq(2)
     end
 
     it 'is a known version' do
@@ -193,7 +193,8 @@ describe LingoLinq::AiConsentDisclosures do
   describe '.known_version?' do
     it 'is true for CURRENT_VERSION and false for an unknown version' do
       expect(described_class.known_version?(1)).to eq(true)
-      expect(described_class.known_version?(2)).to eq(false)
+      expect(described_class.known_version?(2)).to eq(true)
+      expect(described_class.known_version?(3)).to eq(false)
       expect(described_class.known_version?(nil)).to eq(false)
     end
   end
