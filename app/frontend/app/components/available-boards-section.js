@@ -916,6 +916,9 @@ AvailableBoardsSection.reopen({
     var user = pageUser;
     var me = self.get('appState.currentUser');
     if (user && me && backend_user_id(user) === backend_user_id(me)) { user = me; }
+    // Once it is set, the new home board is saved on the device by a sync, as the picker starts one (utils/home_board.js,
+    // #1034). Only the signed-in person's own: a sync is always theirs ('self'), never the communicator's on this page.
+    var syncAfterHome = function() { if (me && user === me) { sync_after_home_change(self.get('persistence')); } };
     var key = board && (board.get ? board.get('key') : board.key);
     if (!key || !user) { return; }
     // Leave Set-Home mode SYNCHRONOUSLY on this first tap, before any await (adversary review
@@ -933,6 +936,7 @@ AvailableBoardsSection.reopen({
       user: user,
       copyAsHome: self.get('copyAsHome'),
       onDone: function() {
+        syncAfterHome();
         self._setAssigningHome(false);
         // copy_board reloads only the record it was given (utils/edit_manager.js, copy_board_links);
         // the page lists and sorts My Boards from its own record, so reload that one too.
@@ -966,6 +970,7 @@ AvailableBoardsSection.reopen({
       var settled = function() { self._settingOwnedHome = false; };
       return self.get('copyAsHome')(board, user).then(function(home) {
         settled();
+        syncAfterHome();
         self._setAssigningHome(false);
         modal.open('confirm-home-board-copy', Object.assign(dialog, { stage: 'done', copied: false, home: home || board }));
       }, function(err) {
@@ -1013,3 +1018,4 @@ import backend_user_id from '../utils/backend_user_id';
 import { snapshotTiles, playHomeMove, whenTile } from '../utils/home-move';
 import boardsPageListCache from '../utils/boards_page_list_cache';
 import { foldersLayout } from '../utils/folders_panel_state';
+import { sync_after_home_change } from '../utils/home_board';

@@ -12,6 +12,7 @@ import { showsAdminSlot } from '../../utils/admin_nav';
 import { has_caseload_access } from '../../utils/caseload_access';
 import { take_pending_index_nav, take_pending_open_extras, take_pending_open_supervisee } from '../../utils/basic_landing';
 import { assign_home_board_basic, basic_home_button_label, BASIC_HOME_CURSOR } from '../../utils/basic_home_assign';
+import { sync_after_home_change } from '../../utils/home_board';
 
 /**
  * Classic home page.
@@ -403,6 +404,9 @@ export default AuthenticatedView.extend({
       assigning = assign_home_board_basic(board, user, {
         copyAsHome: self.get('basicCopyAsHome'),
         onAssigned: function() {
+          // Once it is set, a sync saves the new home board on the device, as the board picker starts one
+          // (utils/home_board.js, #1034). `user` is appState.currentUser, the person the picker also syncs for.
+          if (!self.isDestroyed && !self.isDestroying) { sync_after_home_change(self.get('persistence')); }
           self._setBasicAssigning(false);
           // A new copy is listed under Mine only after the list is fetched again.
           if (!self.isDestroyed && !self.isDestroying) { self.update_selected(); }

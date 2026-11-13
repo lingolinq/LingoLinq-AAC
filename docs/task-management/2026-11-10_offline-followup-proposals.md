@@ -1505,3 +1505,29 @@ same split as TD Snap's edit passcode. It is a new feature (flag, own PR). There
 device's trust changes. Also for Scot: should `generate_token!` skip the organization timeout only when
 `long_token_owner_choice` is true, so a device trusted by a supervisor's save keeps it on new sign-ins too? The TD Snap
 quote was not re-checked after the review (the page refused the fetch).
+
+## 27. "Change Home Board" saves the new home board on the device, as the picker does (2026-11-13; Traci: make it work as intended)
+
+**Cause (CONFIRMED).** The board picker starts a sync once a home board is set, when online with automatic sync on
+(`components/board-preview-overlay.js` `_finishPickForHome`, `utils/home_board.js` `sync_after_home_change`, #1034).
+The Modern Boards page's set-home mode (`components/available-boards-section.js` `_assignHomeBoard`) and Basic's
+Assign / Change Home Board mode (`components/dashboard/classic-view.js` `_basicAssign`) set the home board through
+`utils/board-copy.js` `copy_or_reuse_as_home`, which never syncs. So the new home board reached the device only when
+the server's sync stamp (bumped by `User#track_boards`, `app/models/user.rb:2413-2415`) brought a sync, about five
+minutes or more later. With automatic sync off, nothing changes: no sync starts.
+
+**Fix.** Both components call `sync_after_home_change` once the home board is set: the owned-board save and the
+copy dialog's `onDone`. Modern only syncs when the page's user is the signed-in person (`user === me` after the
+backend-id match), as the picker skips other people. A first try put the call in `utils/basic_home_assign.js`, but its
+tests boot no app and the leak check caught the read of a destroyed `window.persistence`, so the call lives in the
+component, which has a live service. That also matches Modern.
+
+**Tests.** `tests/unit/components/set-home-mode-sync-test.js`, 7 cases.
+- Red before the fix: the 4 "starts the sync" cases failed with no sync.
+- Mutations: removing both calls fails those 4. Removing the own-person check fails the supervisor case.
+- Targeted run, timing-strict, of the set-home, basic home assign, home board message, classic-view, copy dialog and
+  board-copy tests: 71 of 71, no leak lines. Lint gate: no new findings.
+
+**UI check (Playwright).** As example on `/example`, set-home mode on an owned board: the home board changed and one
+`home_board_changed` sync started. The original home board was put back. Basic's mode was not driven in the browser;
+its tests use the real component.
