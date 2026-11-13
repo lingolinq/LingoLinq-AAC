@@ -347,6 +347,7 @@ describe Device, :type => :model do
         expect(d.settings['keys'][0]['needs_refresh']).to eq(true)
         d.settings['long_token'] = true
         d.settings['long_token_set'] = true
+        d.settings['long_token_owner_choice'] = true # the person's own answer, so the organization timeout is lifted (approved by Traci 2026-11-13)
         expect(d.valid_token?(token)).to eq(false)
       end
 
