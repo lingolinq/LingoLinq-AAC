@@ -8,6 +8,7 @@ import { copy_or_reuse_as_home, discard_cancelled_copy } from '../utils/board-co
 import { saveHomeBoard } from '../utils/home_board';
 import { basic_try_for, clear_basic_try, after_pick_for_other } from '../utils/board_picker_landing';
 import { preload_board_images } from '../utils/board_preview_warmer';
+import { same_person } from '../utils/backend_user_id';
 
 /**
  * THE TRIAL BAR (2026-10-12). Requested: "Trying a board shows a trial bar, and 'Use this board' opens
@@ -61,9 +62,12 @@ export default Component.extend({
   boardName: computed('board.name', 'trial.name', function() {
     return this.get('trial.name') || this.get('board.name') || '';
   }),
-  forUserName: computed('trial', 'appState.currentUser.id', function() {
+  forUserName: computed('trial', 'appState.currentUser.id', 'appState.sessionUser.id', function() {
     var trial = this.get('trial');
-    if(!trial || !trial.user_id || trial.user_id === this.get('appState.currentUser.id')) { return null; }
+    if(!trial || !trial.user_id) { return null; }
+    // same_person: trial.user_id may be 'self' (an older mark) or a backend id, and currentUser may be the
+    // 'self'-keyed or the real-id-keyed record of the same person (utils/backend_user_id.js).
+    if(same_person(trial.user_id, this.get('appState.currentUser'), this.get('appState.sessionUser'))) { return null; }
     return trial.user_name;
   }),
 

@@ -1337,3 +1337,64 @@ reset by a finished sync, gating only `check_for_needs_sync`; no failure time, s
 timing-strict: 141 tests, 140 pass, 1 skip. The three device_spec examples set the owner's choice (approved): each fails
 when its rule is removed from `Device#clean_old_keys`, 152064212. Trial bar: fix now. Id comparisons: option A (all of it
 in #1268).
+
+## 24. Option A: every user-id comparison (Traci, 2026-11-12). The sweep
+
+Three Explore sweeps (components; controllers, routes, helpers, templates; services, utils, models), every read of a
+user record's id classified FIX / SAFE / UNCLEAR. Key facts, re-checked by hand:
+- The server rewrites a TOP-LEVEL `id` / `*_id` param equal to 'self' to the signed-in user's global id
+  (`ApplicationController#replace_helper_params`, application_controller.rb ~245-262). So `/users/self/...` paths and
+  `?user_id=self` are safe. (This contradicts the curated LEARNINGS line "never put `self` in a /users/:id URL";
+  to correct.) Not rewritten: ids NESTED in a body (`log[user_id]`, `goal[user_id]`, `snapshot[user_id]`,
+  `integration[user_id]`, `events[].user_id`, `recipient_global_ids`) and params not named `*_id` (`exclude_starred`).
+- CONFIRMED data loss: speak-mode events take `user_id` from the stashed `speaking_user_id` (`services/stashes.js:801`),
+  set to `currentUser.id` on entering speak mode (`services/app-state.js:3147`); `LogSession.process_as_follow_on`
+  resolves event user ids with `find_all_by_global_id` and drops unresolved events, raising when none remain
+  (`app/models/log_session.rb:1437-1446`). With the 'self' record current, a person's usage log is lost.
+FIX list (by owner):
+- Core (sync, session, app-state, stashes, models/user, eval, tours): `utils/sync.js` (send, in_room, default_listen,
+  send_update :478/:486/:535/:565, pair_as :386 -> :858, :687, connect :190/:211); `services/session.js:325`;
+  `services/app-state.js` 3147-3148 (stash backend ids), 2347 set_speak_mode_user (+ own user_name), 1268, 1804, 1971,
+  4124/4143/4158 badges; `services/stashes.js:655`, `utils/_stashes.js:598`; `models/user.js` 501, 1285; `utils/eval.js`
+  185/206/214/293/396/210/284; `utils/tours/tour_offer.js` 51/58 + `components/tour-offer.js:28`.
+- Picker, trial, dashboard, boards, caches: `components/dashboard-user-boards.js` 22-23, 101-104; `controllers/user/index.js`
+  121, 243, 485/767/1038, 816/826, 1209/1257/1298/1696, 1672; `routes/user/boards.js` 80/85; `controllers/board-picker.js` 35;
+  `controllers/setup.js` 608; `controllers/application.js` 650; `routes/setup.js` 66; `components/trial-bar.js` 66 +
+  `components/board-preview-overlay.js` ~308/~315 + `utils/board_picker_landing.js` 32/60; cache clears in
+  `components/confirm-delete-board.js` 251, `copying-board.js` 254, `create-board-new.js` 1883-1887; `create-board-new.js`
+  738 (skin seed); `filterRootBoards` callers (consistency; output unchanged per section 21); `dashboard/authenticated-view.js`
+  589 (`exclude_starred`), 669-671; `helpers/remote-modeling-access.js` 18; `routes/user/logs.js` 82; re-point after save in
+  `controllers/user/stats.js` 458/470, `preferences.js` 1254, `board-detail.js` 8338 (reload the live record); 
+  `templates/user/index.hbs` 687; `utils/mine_board_grouping.js` 220; `utils/board_prefetch_planner.js` 65; `utils/obf.js` 186.
+- Logs and payloads: `components/record-note.js` 199/205, `quick-assessment.js` 157/173, `new-goal.js` 317/335,
+  `save-snapshot.js` 93, `add-tool.js` 104, `import-board-recipients.js` 50, `modeling-ideas.js` 53/145/279/293/306,
+  `focus-words.js` 98/190, `inbox.js` 133/136/178/181, `assessment-settings.js` 185; `controllers/profile.js` 20/114/120;
+  `routes/user/log.js` 17/27; `controllers/user/edit.js` 64/307/312; `controllers/user/logs.js` 161/163;
+  `controllers/user/log.js` 346.
+UNCLEAR (traced further while fixing): `routes/board.js` 99-100, `controllers/user/index.js` 1525/1531,
+`routes/user/log.js` 25, `controllers/user/log.js` 186/214/231, `button-suggestions.js` 155, persistence 3457.
+Separate, not 'self': `focus_words.user_id` is never written (`utils/sync.js:509` always false), so focus words never
+reach followers; `add-webhook`/`add-integration` modals may render nothing (not in modal-container's list).
+
+**Built (option A).** Shared helper `utils/backend_user_id.js`: `backend_id_of`, `same_person`, and
+`reload_live_user_if_other_record` (the after-save rule, used by stats, preferences and board-detail). Core slice by me
+(sync, session, app-state incl. the speak-mode stash and set_speak_mode_user with own id or user name, stashes, user model,
+eval, tour offer); picker/dashboard/cache slice and logs/payload slice by two agents on disjoint files, verified here.
+Also fixed, found by a new test: `models/user.js` `log_word_activity`'s inner callback used `this` (undefined), so the
+word log was never cached on the device and the call threw in the background. Curated LEARNINGS line on 'self' in URLs
+corrected (the server rewrites top-level 'self' ids since 2016; nested ids are the problem).
+- Tests: 17 new files (85 tests in the id modules). Green timing-strict, no leak lines. With every app change except
+  the helper reverted: 54 fail; the 27 still passing are guards (a genuinely different person, same record as before,
+  no session user), one back-compat case and older modules matched by the filter.
+- Broad run over every affected module (timing-strict, 1983 tests): first run 1 failure
+  (`session.invalidate auth_spa_transition` "invalidate(true) reloads": 2 reload calls), passes alone 7/7 twice and with
+  the session plus new modules (307/307); the identical broad run repeated: 1968 pass, 14 skip, 1 todo, 0 fail. Order and
+  timing, not a regression. 12 warning lines in both runs (owner-gone from the user/board-detail device copy tests, the
+  queued-fetch self-test), none failing.
+- UI, logs (speak mode via the sidebar Home Board, 3 button taps, push), session record put in the 'self' state the way
+  a copy does: LAST COMMIT: stash `speaking_user_id: self`, events posted with `user_id: self`, the job failed
+  `RuntimeError: no valid events to process out of 3 self` (Resque failed queue): the usage log was lost. WITH THE FIX:
+  stash `1_3`, events `1_3`, job done, log session 1_8824 written.
+- Not unit-tested (recorded by the slices): routes/setup.js editing_self, authenticated-view badge and exclude_starred,
+  the modern-trial id in board-preview-overlay, the three component cache clears, root-filter consistency sites, the
+  template line, the speak-mode stash itself (covered by the UI check), sync's own-room listener end to end.

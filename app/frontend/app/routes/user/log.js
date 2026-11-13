@@ -1,6 +1,7 @@
 import Route from '@ember/routing/route';
 import i18n from '../../utils/i18n';
 import { inject as service } from '@ember/service';
+import backend_user_id from '../../utils/backend_user_id';
 
 export default Route.extend({
   store: service('store'),
@@ -14,7 +15,8 @@ export default Route.extend({
       var log = this.store.createRecord('log', {});
       log.set('type', 'eval');
       log.set('author', {
-        id: this.appState.get('sessionUser.id'),
+        // The backend id: same_author (controllers/user/log.js) compares it with sessionUser.global_id, so 'self' hid Resume.
+        id: backend_user_id(this.appState.get('sessionUser')),
         user_name: this.appState.get('sessionUser.user_name')
       });
       log.set('eval_in_memory', true);
@@ -24,7 +26,8 @@ export default Route.extend({
       log.set('type', 'profile');
       log.set('user_id', user.get('id'));
       log.set('author', {
-        id: this.appState.get('sessionUser.id'),
+        // The backend id: same_author (controllers/user/log.js) compares it with sessionUser.global_id, so 'self' hid Resume.
+        id: backend_user_id(this.appState.get('sessionUser')),
         user_name: this.appState.get('sessionUser.user_name')
       });
       log.set('guid', params.log_id.replace(/^profile-/, ''));

@@ -1253,6 +1253,7 @@ export default Controller.extend({
         _this.set('status', null);
         if(user.get('id') == app_state.get('currentUser.id')) {
           app_state.set('currentUser', user);
+        } else { reload_live_user_if_other_record(user, app_state); // the same person under the other record ('self' vs the real id, utils/backend_user_id.js)
         }
         if(!skip_redirect) {
           _this.router.transitionTo('user', user.get('user_name'));
@@ -1500,3 +1501,5 @@ export default Controller.extend({
   }
 });
 import { record_trust_choice } from '../../utils/trust_choice'; // at the end so the lint baseline rows keep their lines
+
+import { reload_live_user_if_other_record } from '../../utils/backend_user_id';

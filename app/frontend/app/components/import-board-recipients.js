@@ -3,6 +3,7 @@ import { inject as service } from '@ember/service';
 import EmberObject from '@ember/object';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
+import backend_user_id from '../utils/backend_user_id';
 
 /**
  * Pre-import modal: choose which users receive the imported board set (multi-user board import).
@@ -47,7 +48,8 @@ export default Component.extend({
     const sess = this.get('appState.sessionUser');
     if(sess) {
       rows.push(EmberObject.create({
-        global_id: sess.get('id'),
+        // Sent as recipient_global_ids, which the server resolves with find_by_global_id: never 'self'.
+        global_id: backend_user_id(sess),
         user_name: sess.get('user_name'),
         selected: true,
         is_self: true

@@ -8,6 +8,7 @@ import LingoLinq from '../app';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 import { is_classic } from '../utils/view_style';
+import { same_person } from '../utils/backend_user_id';
 
 // Standalone home-board picker. Mirrors setup's `user_id` / `setup_user` resolution so
 // supervisors can pick a communicatee's home board without the setup wizard.
@@ -29,10 +30,12 @@ export default Controller.extend({
   other_user: null,
   assigning_home_board: false,
 
-  for_self: computed('appState.currentUser.id', 'setup_user.id', function() {
+  for_self: computed('appState.currentUser.id', 'appState.sessionUser.id', 'setup_user.id', 'setup_user.global_id', function() {
     var su = this.get('setup_user');
     if (!su || !this.appState) { return true; }
-    return su.get('id') == this.appState.get('currentUser.id');
+    // Backend ids: the session user can be held by a record keyed 'self' and one keyed by the real id
+    // (utils/backend_user_id.js), so an id comparison misreads the person themself as someone else.
+    return same_person(su, this.appState.get('currentUser'), this.appState.get('sessionUser'));
   }),
 
   /* Human display name for the communicator, never the raw handle when a real

@@ -1264,8 +1264,8 @@ export default Service.extend({
     return !!(this.get('manual_modeling') || this.get('modeling_for_user') ||
       this.get('modeling_for_self') || (referenced && !speaking_as_referenced));
   }),
-  modeling_for_user: computed('speak_mode', 'currentUser', 'referenced_speak_mode_user', 'modeling_for_self', function() {
-    var res = this.get('speak_mode') && this.get('currentUser') && this.get('referenced_speak_mode_user') && this.get('currentUser.id') != this.get('referenced_speak_mode_user.id');
+  modeling_for_user: computed('speak_mode', 'currentUser', 'referenced_speak_mode_user', 'modeling_for_self', 'sessionUser', function() {
+    var res = this.get('speak_mode') && this.get('currentUser') && this.get('referenced_speak_mode_user') && !same_person(this.get('currentUser'), this.get('referenced_speak_mode_user'), this.get('sessionUser'));
     res = res || this.get('modeling_for_self');
     var _this = this;
     // this is weird and hacky, but for some reason modeling wasn't reliably updating when modeling_for_user changed
@@ -1801,7 +1801,7 @@ export default Service.extend({
           this.stashes.persist('copy_on_save', this.get('currentBoardState.id'));
         }
       } else if(mode == 'speak') {
-        var already_speaking_as_someone_else = this.get('speakModeUser.id') && this.get('speakModeUser.id') != this.get('sessionUser.id');
+        var already_speaking_as_someone_else = this.get('speakModeUser.id') && !same_person(this.get('speakModeUser'), this.get('sessionUser'));
         if(this.get('currentBoardState')) { delete this.get('currentBoardState').reload_token }
         // when entering speak mode, if the user is expired,
         // or modeling-only w/o hany premium supervisees,
@@ -1968,7 +1968,7 @@ export default Service.extend({
         this.stashes.persist('referenced_speak_mode_user_id', null);
       }
       var msg;
-      if(speak_mode_user && this.get('sessionUser') && speak_mode_user.get('id') != this.get('sessionUser.id')) {
+      if(speak_mode_user && this.get('sessionUser') && !same_person(speak_mode_user, this.get('sessionUser'))) {
         msg = i18n.t('speak_mode_communicator_needs_home_board', "%{name} does not have a home board set yet. Set a home board for this communicator, then try Model for or Speak as again.", { name: speak_mode_user.get('user_name') || speak_mode_user.get('id') });
       } else {
         msg = i18n.t('no_home_board_yet', "You haven't selected a home board yet.");
@@ -2344,7 +2344,7 @@ export default Service.extend({
       this.stashes.persist('label_locale', null);
       this.stashes.persist('vocalization_locale', null);
     }
-    if(board_user_id == 'self' || (session_user_id && board_user_id == session_user_id)) {
+    if(board_user_id == 'self' || (session_user_id && (board_user_id == session_user_id || same_person(board_user_id, this.get('sessionUser'), this.get('sessionUser')) || board_user_id === this.get('sessionUser.user_name')))) { // your own real id or user name is you, also while the session record is keyed 'self'
       this.set('speakModeUser', null);
       this.set('referenced_speak_mode_user', null);
       this.stashes.persist('speak_mode_user_id', null);
@@ -3144,8 +3144,8 @@ export default Service.extend({
       if(this.get('speak_mode')) {
         this.stashes.set('logging_enabled', !!(this.get('speak_mode') && (this.get('currentUser.preferences.logging') || this.get('referenced_user.preferences.logging'))));
         this.stashes.set('geo_logging_enabled', !!(this.get('speak_mode') && this.get('currentUser.preferences.geo_logging')));
-        this.stashes.set('speaking_user_id', this.get('currentUser.id'));
-        this.stashes.set('session_user_id', this.get('sessionUser.id'));
+        this.stashes.set('speaking_user_id', backend_id_of(this.get('currentUser'), this.get('sessionUser')) || this.get('currentUser.id')); // logged events carry it; the server drops an event whose user is 'self' (log_session.rb process_as_follow_on)
+        this.stashes.set('session_user_id', backend_user_id(this.get('sessionUser')) || this.get('sessionUser.id'));
         this.stashes.set('session_preferred_symbols', this.get('referenced_user.preferences.preferred_symbols'));
 
         var voices = speecher.get('voices');
@@ -4121,7 +4121,7 @@ export default Service.extend({
       var _this = this;
       var user = this.get('referenced_user');
       // clear current badge if it doesn't match the referenced user info
-      if(!user || _this.get('user_badge.user_id') != user.get('id')) {
+      if(!user || !same_person(_this.get('user_badge.user_id'), user, _this.get('sessionUser'))) {
         _this.set('user_badge', null);
       }
 
@@ -4140,7 +4140,7 @@ export default Service.extend({
               return;
             }
             _this.set('user_badge_hash', badge_hash);
-            badges = badges.filter(function(b) { return b.get('user_id') == user.get('id'); });
+            badges = badges.filter(function(b) { return same_person(b.get('user_id'), user, _this.get('sessionUser')); });
             var badge = LingoLinq.Badge.best_earned_badge(badges);
             if(!badge || badge.get('dismissed')) {
               var next_badge = LingoLinq.Badge.best_next_badge(badges);
@@ -4155,7 +4155,7 @@ export default Service.extend({
           });
         });
       }
-    } else if(this.get('user_badge') && this.get('user_badge.user_id') != this.get('referenced_user.id')) {
+    } else if(this.get('user_badge') && !same_person(this.get('user_badge.user_id'), this.get('referenced_user'), this.get('sessionUser'))) {
       this.set('user_badge', null);
     }
   }),
@@ -5545,3 +5545,4 @@ export function logout_already_under_way(session) {
 }
 // Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
 import { board_saved_here, warn_board_not_saved } from '../utils/board_device_copy';
+import backend_user_id, { same_person, backend_id_of } from '../utils/backend_user_id';

@@ -498,7 +498,7 @@ LingoLinq.User = BaseModel.extend({
     return this.eval_ending(14) && !this.eval_ending(0);
   }),
   can_reset_eval: computed('subscription.eval_account', 'is_managed', 'supervisors', 'supervisors.length', 'permissions.supervise', 'permissions.user_id', function() {
-    return !!(this.get('subscription.eval_account') && (((this.get('supervisors') || []).length == 0) && !this.get('is_managed')) || (this.get('permissions.supervise') && this.get('permissions.user_id') != this.get('id')));
+    return !!(this.get('subscription.eval_account') && (((this.get('supervisors') || []).length == 0) && !this.get('is_managed')) || (this.get('permissions.supervise') && this.get('permissions.user_id') != backend_user_id(this)));
   }),
   joined_within_24_hours: computed('appState.refresh_stamp', 'joined', function() {
     var one_day_ago = window.moment().add(-1, 'day');
@@ -1282,14 +1282,14 @@ LingoLinq.User = BaseModel.extend({
   },
   log_word_activity: function(opts) {
     opts.timestamp = this.stashes.current_timestamp();
-    var user_id = this.get('id');
-    this.stashes.log_event(opts, user_id);
+    var user_id = this.get('id'); var _this = this; // the callback below runs without `this`: it threw, so the word log was never cached
+    this.stashes.log_event(opts, backend_user_id(this) || user_id); // the server drops an event whose user is 'self'; the local cache key below stays as it was
     this.stashes.push_log(true);
     this.persistence.find('dataCache', 'word_log/' + user_id).then(null, function() { return RSVP.resolve([]); }).then(function(list) {
       var cutoff = parseInt(window.moment().add(-2, 'week').format('X'), 10);
       list = (list || []).filter(function(e) { return e.timestamp > cutoff; });
       list.push(opts);
-      this.persistence.store('dataCache', list, 'word_log/' + user_id).then(null, function() { });
+      _this.persistence.store('dataCache', list, 'word_log/' + user_id).then(null, function() { });
     });
   }
 });
@@ -1435,3 +1435,4 @@ LingoLinq.User.devices = [
 
 
 export default LingoLinq.User;
+import backend_user_id from '../utils/backend_user_id';

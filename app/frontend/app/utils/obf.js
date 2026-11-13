@@ -12,6 +12,7 @@ import emergency from './obf-emergency';
 import { later as runLater } from '@ember/runloop';
 import app_state from './app_state';
 import i18n from './i18n';
+import backend_user_id from './backend_user_id';
 
 var handlers = {};
 var obf = EmberObject.extend({
@@ -184,7 +185,11 @@ obf.register("stars", function(key) {
   var board_id = parts[1];
   var user = obf.get_app_state().get('sessionUser');
   if(user_id && user_id != 'self') {
+    var session_user = user;
     user = LingoLinq.store.peekRecord('user', user_id);
+    // The session user may be held only by the record keyed 'self' (serializers/application.js), so its real id
+    // finds no record; that id is still the session user (utils/backend_user_id.js).
+    if(!user && session_user && user_id === backend_user_id(session_user)) { user = session_user; }
     if(!user || !user.get('permissions.supervise')) {
       // TODO: error message
     }

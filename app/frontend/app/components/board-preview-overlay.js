@@ -312,7 +312,7 @@ export default Component.extend({
         var tryFor = app_state.get('setup_user') || app_state.get('currentUser');
         // `name` so the bar names the tried board even inside one of its folders, and a fresh trail so the
         // trial's folders are recognised by it (controllers/user/board-detail.js#try_origin_board, 2026-10-13).
-        app_state.set('board_detail_try_origin', { key: key, name: board.get ? board.get('name') : board.name, from: 'board_picker', user_id: tryFor && tryFor.get('id'), user_name: tryFor && tryFor.get('user_name') });
+        app_state.set('board_detail_try_origin', { key: key, name: board.get ? board.get('name') : board.name, from: 'board_picker', user_id: backend_user_id(tryFor), user_name: tryFor && tryFor.get('user_name') });
         app_state.set('board_detail_nav_history', []);
       }
 

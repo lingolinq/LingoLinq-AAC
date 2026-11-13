@@ -8337,7 +8337,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
         _this.set('display_prefs_saving', false);
         if(saved && saved.get('id') === _this.get('app_state.currentUser.id')) {
           _this.set('app_state.currentUser', saved);
-        }
+        } else { reload_live_user_if_other_record(saved, _this.get('app_state')); } // the same person under the other record ('self' vs the real id, utils/backend_user_id.js)
         // Close without reverting — the user accepted the changes
         _this.set('display_prefs_open', false);
         _this.set('pending_display_prefs', null);
@@ -10518,3 +10518,5 @@ export default BoardDetailController;
 // Imported last so the .eslint-todo rows above keep their lines.
 import { set_word_prediction } from '../../utils/word_prediction_pref';
 import { save_listed_preferences } from '../../utils/preference_save';
+
+import { reload_live_user_if_other_record } from '../../utils/backend_user_id';
