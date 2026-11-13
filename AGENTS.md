@@ -139,6 +139,48 @@ confirm a PR actually got it rather than assuming. A
 `@codex review` comment requests one and posts under your GitHub account, so ask before
 posting. No repository rule requests Copilot code review.
 
+## Code Review Rules
+
+Every reviewer reads this section first: the Codex GitHub connector, a `review-pr` or
+adversary pass, and a human using an AI reviewer. It sorts findings so a PR is blocked
+only by what actually breaks the app or exposes people, and everything else becomes a
+follow-up issue (Scot, 2026-11-13).
+
+Current stage: beta; adults only (18+); testers are former CoughDrop professionals using fake test communicators; no shared devices until about 2027-01-01.
+
+Change that one line when the stage changes (for example when the first district or
+clinic brings real student or patient accounts). Judge every finding against it.
+
+### Fix before merge (the only findings that block)
+
+Only these may be Critical or High (P0 or P1 on the Codex connector):
+
+- The app breaks or misbehaves for current users: a crash, a feature that stops working,
+  a glitch that blocks communication, a sync or offline failure.
+- Data is lost or corrupted, or one account's data shows up in another account.
+- A real security hole that current users are exposed to now: broken access control, an
+  auth bypass, injection, a committed secret.
+- Real exposure of real people's personal data, at any stage. Use this only with concrete
+  evidence: a reachable code path, cited as `path:line`, that carries real people's
+  personal data to someone who should not see it (another account, an outside service, a
+  public page, a log that leaves the platform). "Could leak if someone later adds X" is
+  speculation, not evidence, and goes to follow-up. Past exposure flags here have mostly
+  been false alarms, so show the path or do not use this.
+
+### Follow-up (never blocks; rate Medium or Low, never P0 or P1)
+
+- Compliance and privacy items (FERPA, HIPAA, COPPA, GDPR, retention, consent wording,
+  audit-trail gaps, disclosures) that do not meet the exposure test above.
+- Shared-device and multi-user-device issues while the stage says no shared devices.
+- Under-13 and school-account issues while the stage says adults only.
+- Polish: naming, style, a missing i18n key or feature flag, extra tests for a low-risk
+  path, refactors.
+
+For each follow-up, write a ready-to-file GitHub issue draft: a title, then a body with
+what is wrong, where (`path:line`), why it can wait at the current stage, and the
+suggested fix. Do not file it yourself; the author or Scot does. A missing test blocks
+only when the untested path could break the app or lose data.
+
 ## Where things are
 
 Path-scoped rules that Claude loads by file path and Codex does not: before editing

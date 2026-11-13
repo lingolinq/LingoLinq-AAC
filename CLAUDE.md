@@ -238,6 +238,13 @@ Run `/pr-preflight`. Then review, sized to what the PR touches:
   or deploy config, or the `data-bearing-paths` gate.
 - **At most two review rounds.** A third round needs Scot's OK.
 - A Critical or High finding from any review blocks the PR.
+- **Every review sorts its findings into two buckets** using the `## Code Review Rules`
+  section of `AGENTS.md`, which also holds the `Current stage:` line (the one place to
+  change it). Only "fix before merge" findings (the app breaks, data is lost or mixed
+  between accounts, a real security hole for current users, or real personal-data exposure
+  shown by a reachable code path) may be Critical or High. Compliance, privacy,
+  shared-device and polish items are follow-ups: Medium or Low, each with a ready-to-file
+  GitHub issue draft, and they do not block.
 
 The `/review-pr` pass ships the diff to an external model on an account with no BAA, so run
 the PII pre-flight first and match the form to the argument: for a PR number,
