@@ -547,12 +547,21 @@ live `--check` was possible (no `aws`, `gcloud` or `jq` on this machine).
    seeds to a reserved domain.
 4. DONE 2026-11-12: Scot read the SES console. The account suppresses BOUNCE and COMPLAINT.
    Consequences: (a) the reset sent to a bounce-disabled user (decision 2) is dropped by SES, so
-   it costs no reputation and does not arrive; such a user recovers only through an admin
-   changing the address, which makes the admin clear action in item 5 the real recovery path;
+   it costs no reputation and does not arrive; such a user recovers by having the address changed to
+   a different mailbox, which clears the flag (`app/models/user.rb:2754`): by themselves while
+   signed in, by anyone with edit access (organization manager), or by an admin, on the profile
+   edit page (`templates/user/edit.hbs`); admins can also set a password through the support
+   action (`users_controller.rb:210`). (Corrected: an earlier version of this line called the
+   admin clear action the real recovery path; it is not, see item 5);
    (b) decision 1 (complaints counted only) holds for the complaint event itself, but the next
    mail to that address returns as an `OnAccountSuppressionList` bounce and turns email off
    (`app/models/ses_event.rb:12,17`).
-5. Still open from F2: an admin action to clear `email_disabled` (UI), a per-domain cap and a runtime
+5. Dropped 2026-11-12: the admin action to clear `email_disabled`. Changing the address already clears
+   it (item 4), and clearing it on the same address would also need the address removed from the SES
+   suppression list, an AWS step, so that rare case is handled by hand. The real gap is visibility:
+   nothing in the frontend or `lib/json_api/user.rb` shows the flag. Filed as #1307 (low priority,
+   optional).
+   Still open from F2: a per-domain cap and a runtime
    kill switch for the consumer; F9 (a deferred `update_setting` re-disabling after an email change);
    `aws-sdk-sqs` as a direct Gemfile entry (shared config: propose first).
 6. Move `prod-scheduler-liveness-alert.sh` onto `scripts/gcp/lib/alert-policy.sh` when its `--check`
