@@ -109,7 +109,7 @@ Fact-sheet corrections: the old `/create-board` flow (`generate-board.js`) is a 
 `generate_labels`; when the grid size was not chosen, `autoFitGrid` reshapes the grid to the labels,
 so a partial list gives a smaller full grid rather than empty cells.
 
-Verification: 17 new or rewritten specs went red first. Generator, boards controller, AiClient and
+Verification: 17 new or rewritten generator specs and 1 new controller spec went red first. Generator, boards controller, AiClient and
 AiApiLog spec files: 400 examples, 0 failures, 1 pending (pre-existing). Mutants each turn a spec red:
 whole-reply fallback, top-up errors not caught, cut-off item kept, NAME kept as a word, top-up tokens
 not counted, do-not-repeat list unscrubbed (the last one needed the email spec extended to a word the
@@ -131,3 +131,35 @@ NAME and DESCRIPTION were present in all 12, no item contained a comma, and no i
 slowest run was 5.4 s against the 15-16 s request limit.
 
 Still to do: a front-end note when cells are left empty (after PR #1309).
+
+## Review round 2: the code (2026-11-13, senior-dev and red team)
+
+Neither review found anything Critical or High. Fixed, each with a spec that went red first and a mutant
+that turns it red:
+- The audit notes (top-up, shortfall) came after the raw reply and were cut by the 500-character limit;
+  they now come first.
+- The top-up had no deadline of its own, so a slow Bedrock call could run into Rack::Timeout and lose the
+  first reply's words. It now gets what is left of a 12 s deadline and no SDK retries, so a slow call raises
+  `Anthropic::Errors::APITimeoutError`, which the top-up's own rescue catches. The failure spec raised a
+  Faraday error, which this SDK never raises; it now raises the real class.
+- A cut-off reply dropped its last item even when the cut came later, in DESCRIPTION; it now drops it only
+  when the reply ends on that item.
+- A numbered explanation or soft refusal ("1. The topic is not suitable for children.") became labels. A
+  reply that is mostly sentence-shaped lines is now `declined`; sentence-shaped lines are never labels.
+- A refusal led to a reworded top-up; a declined reply is no longer asked again.
+- NAME and DESCRIPTION swallowed numbered lines that followed them; each is now read from its own line.
+- The second scrub's PII hits were not recorded; they now set `pii_detected` and add their findings.
+- The new user-facing error string uses double quotes. Leading and trailing no-break spaces and
+  zero-width marks are trimmed from items.
+
+Not changed, by decision:
+- Rare number shapes ("3.14 pie", "12:30 snack", "1. 1. apple") are mis-read; not seen in real replies.
+- A second audit row can be written if Rack::Timeout lands during the success-path insert; the window is
+  one DB write.
+- Scrubbing the do-not-repeat list redacts name-like words (rose, joy, hope), which can grow a shortfall on
+  a themed board. Kept: it fails safe.
+- `locale` from the request reaches both prompts unscrubbed and unbounded. Older than this change; the fix
+  is to check it against the supported locales in the controller.
+
+Totals after round 2: generator, boards controller, AiClient and AiApiLog spec files, 408 examples,
+0 failures, 1 pending (pre-existing).

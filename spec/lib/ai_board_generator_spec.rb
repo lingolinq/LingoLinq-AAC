@@ -181,12 +181,64 @@ describe AiBoardGenerator do
       end
 
       it "drops the last item of a reply cut off at the token limit" do
+        # A real cut-off reply ends on the partial item: nothing comes after it.
         allow(described_class).to receive(:call_anthropic).and_return(
-          anthropic_response(numbered('apple', 'banana', 'carrot', 'dri'), stop_reason: 'max_tokens'),
+          anthropic_response("1. apple\n2. banana\n3. carrot\n4. dri", stop_reason: 'max_tokens'),
           anthropic_response(numbered('drink'))
         )
         result = described_class.generate_words(prompt: 'snacks', rows: 2, columns: 2)
         expect(result[:words]).to eq(%w[apple banana carrot drink])
+      end
+
+      it "keeps a complete list when the cut came later, in the description" do
+        allow(described_class).to receive(:call_anthropic).and_return(
+          anthropic_response("1. apple\n2. banana\n3. carrot\n4. drink\nNAME: Snacks\nDESCRIPTION: Snack wo", stop_reason: 'max_tokens')
+        )
+        result = described_class.generate_words(prompt: 'snacks', rows: 2, columns: 2)
+        expect(result[:words]).to eq(%w[apple banana carrot drink])
+        expect(described_class).to have_received(:call_anthropic).once
+      end
+
+      it "treats a numbered explanation or refusal as unreadable, not as labels" do
+        prose = "I can't make that board. Here is why:\n1. The topic is not suitable for children.\n2. Please try a different topic.\n3. Ask your teacher for help with it."
+        allow(described_class).to receive(:call_anthropic).and_return(anthropic_response(prose))
+        result = described_class.generate_words(prompt: 'snacks', rows: 2, columns: 2)
+        expect(result[:words]).to eq(nil)
+        expect(result[:error]).to be_present
+        expect(described_class).to have_received(:call_anthropic).once
+      end
+
+      it "does not ask again after the AI refuses" do
+        allow(described_class).to receive(:call_anthropic).and_return(
+          anthropic_response('', stop_reason: 'refusal'), anthropic_response(numbered('apple', 'banana', 'carrot', 'drink'))
+        )
+        result = described_class.generate_words(prompt: 'snacks', rows: 2, columns: 2)
+        expect(described_class).to have_received(:call_anthropic).once
+        expect(result[:words]).to eq(nil)
+      end
+
+      it "keeps NAME and DESCRIPTION to their own lines when they come before the list" do
+        raw = "NAME: Snacks\nDESCRIPTION: Snack words.\n1. apple\n2. banana\n3. carrot\n4. drink"
+        allow(described_class).to receive(:call_anthropic).and_return(anthropic_response(raw))
+        result = described_class.generate_words(prompt: 'snacks', rows: 2, columns: 2)
+        expect(result[:words]).to eq(%w[apple banana carrot drink])
+        expect(result[:name]).to eq('Snacks')
+        expect(result[:description]).to eq('Snack words.')
+
+        name_first = "NAME: Snacks\n1. apple\n2. banana\n3. carrot\n4. drink\nDESCRIPTION: Snack words."
+        allow(described_class).to receive(:call_anthropic).and_return(anthropic_response(name_first))
+        again = described_class.generate_words(prompt: 'snacks', rows: 2, columns: 2)
+        expect(again[:name]).to eq('Snacks')
+      end
+
+      it "treats a refusal as no words, even when it is numbered" do
+        refusal = anthropic_response(numbered('apple', 'banana', 'carrot', 'drink'), stop_reason: 'refusal')
+        allow(described_class).to receive(:call_anthropic).and_return(refusal, refusal)
+        result = described_class.generate_words(prompt: 'snacks', rows: 2, columns: 2)
+        expect(result[:words]).to eq(nil)
+        expect(result[:error]).to be_present
+        expect(result[:ai_generated]).to eq(nil)
+        expect(AiApiLog).to have_received(:log_ai_call).with(hash_including(success: false))
       end
 
       it "treats a reply with neither numbered lines nor a WORDS line as unreadable, not as words" do
@@ -222,7 +274,8 @@ describe AiBoardGenerator do
         calls = 0
         allow(described_class).to receive(:call_anthropic) do
           calls += 1
-          raise Faraday::TimeoutError, 'slow' if calls == 2
+          # The Anthropic SDK raises its own timeout, not a Faraday one.
+          raise Anthropic::Errors::APITimeoutError.new(url: URI('https://bedrock.example')) if calls == 2
           anthropic_response(numbered('apple', 'banana', 'carrot'))
         end
         result = described_class.generate_words(prompt: 'snacks', rows: 2, columns: 2)
@@ -230,6 +283,37 @@ describe AiBoardGenerator do
         expect(result[:shortfall]).to eq(1)
         expect(result[:error]).to eq(nil)
         expect(AiApiLog).to have_received(:log_ai_call).with(hash_including(success: true))
+      end
+
+      it "notes the top-up and the shortfall on the audit row, even for a long reply" do
+        logged = nil
+        allow(AiApiLog).to receive(:log_ai_call) { |**kw| logged = kw }
+        long_items = (1..40).map { |i| "vocabulary item number #{i}" }
+        allow(described_class).to receive(:call_anthropic).and_return(
+          anthropic_response(numbered(*long_items)), anthropic_response(numbered('extra one'))
+        )
+        described_class.generate_words(prompt: 'snacks', rows: 6, columns: 7)
+        expect(logged[:response_summary]).to include('top-up requested 2').and include('shortfall 1 of 42')
+      end
+
+      it "gives the top-up only the time that is left, with no automatic retries" do
+        options = []
+        replies = [anthropic_response(numbered('apple', 'banana')), anthropic_response(numbered('carrot', 'drink'))]
+        allow(described_class).to receive(:call_anthropic) { |**kw| options << kw[:request_options]; replies.shift }
+        described_class.generate_words(prompt: 'snacks', rows: 2, columns: 2)
+        expect(options.first).to eq(nil)
+        expect(options.last[:max_retries]).to eq(0)
+        expect(options.last[:timeout]).to be_between(1, 12)
+      end
+
+      it "records a PII hit in the do-not-repeat list on the audit row" do
+        logged = nil
+        allow(AiApiLog).to receive(:log_ai_call) { |**kw| logged = kw }
+        allow(described_class).to receive(:call_anthropic).and_return(
+          anthropic_response(numbered('apple', 'teacher@example.com')), anthropic_response(numbered('carrot', 'drink'))
+        )
+        described_class.generate_words(prompt: 'snacks', rows: 2, columns: 2)
+        expect(logged[:pii_detected]).to eq(true)
       end
 
       it "skips the top-up when the first call used up the time budget" do

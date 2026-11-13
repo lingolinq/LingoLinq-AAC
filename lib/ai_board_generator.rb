@@ -97,6 +97,7 @@ module AiBoardGenerator
       tokens_sent = 0
       tokens_received = 0
       topup_note = nil
+      pii_findings = Array(scrub_result[:findings])
 
       begin
         # A numbered list, one item per line. Asked for as one comma-separated line, the model
@@ -116,12 +117,22 @@ module AiBoardGenerator
         # gets the words already chosen as a do-not-repeat list. A failure here keeps the first
         # reply's words: the board is never refused for a shortfall.
         missing = cell_count - words.length
-        if missing.positive? && topup_time_left?(start_time)
+        # A refusal is not asked again in other words: on a children's product that would be
+        # working around the model's safety decision.
+        if missing.positive? && reply[:declined]
+          topup_note = "no top-up (declined), missing #{missing}"
+        elsif missing.positive? && topup_time_left?(start_time)
           begin
+            # The do-not-repeat list is model output from an already scrubbed prompt; it is scrubbed
+            # again before it goes out, and a hit there is recorded on the audit row too.
+            list_scrub = PiiScrubber.redact_for_ai(words.join(', '))
+            pii_detected ||= list_scrub[:pii_found]
+            pii_findings += Array(list_scrub[:findings])
             topup = call_anthropic(region: region, model: model,
                                    system_prompt: board_system_prompt(missing, topup: true),
-                                   user_prompt: topup_user_prompt(missing, scrubbed_prompt, locale, vocabulary_instruction, words),
-                                   cell_count: missing)
+                                   user_prompt: topup_user_prompt(missing, scrubbed_prompt, locale, vocabulary_instruction, list_scrub[:payload]),
+                                   cell_count: missing,
+                                   request_options: topup_request_options(start_time))
             tokens_sent += topup.usage&.input_tokens.to_i
             tokens_received += topup.usage&.output_tokens.to_i
             added = read_board_reply(topup, missing)[:items]
@@ -138,7 +149,8 @@ module AiBoardGenerator
         shortfall = cell_count - words.length
 
         duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
-        summary = [last_raw.to_s, topup_note, (shortfall.positive? ? "shortfall #{shortfall} of #{cell_count}" : nil)].compact.join(' | ')
+        # Notes first: the row keeps 500 characters and a numbered reply is longer than that.
+        summary = [topup_note, (shortfall.positive? ? "shortfall #{shortfall} of #{cell_count}" : nil), last_raw.to_s].compact.join(' | ')
         log_params = {
           provider: provider.to_s,
           model: model,
@@ -147,7 +159,7 @@ module AiBoardGenerator
           response_summary: summary.truncate(500),
           duration_ms: duration_ms,
           pii_detected: pii_detected,
-          pii_findings: scrub_result[:findings],
+          pii_findings: pii_findings,
           tokens_sent: tokens_sent,
           tokens_received: tokens_received,
           success: words.any?
@@ -157,7 +169,7 @@ module AiBoardGenerator
           Rails.logger.warn "AiBoardGenerator: no usable words (cells=#{cell_count}, raw_len=#{last_raw.to_s.length})"
           log_ai_call(**log_params)
           result = { words: nil, name: nil, description: nil,
-                     error: 'The AI did not return any usable words. Try Generate again.' }
+                     error: "The AI did not return any usable words. Try Generate again." }
           result.merge!(dev_diag(:parse_error, "No numbered or WORDS: lines. First 400 chars: #{last_raw.to_s.truncate(400).inspect}")) if Rails.env.development?
           return result
         end
@@ -193,7 +205,7 @@ module AiBoardGenerator
           user: user,
           request_summary: "Board generation: #{scrubbed_prompt.truncate(200)}",
           response_summary: nil, duration_ms: duration_ms,
-          pii_detected: pii_detected, pii_findings: scrub_result[:findings],
+          pii_detected: pii_detected, pii_findings: pii_findings,
           success: false, error_message: e.message
         )
         Rails.logger.error "AiBoardGenerator Claude API error: #{e.message}"
@@ -207,7 +219,7 @@ module AiBoardGenerator
           user: user,
           request_summary: "Board generation: #{scrubbed_prompt.truncate(200)}",
           response_summary: nil, duration_ms: duration_ms,
-          pii_detected: pii_detected, pii_findings: scrub_result[:findings],
+          pii_detected: pii_detected, pii_findings: pii_findings,
           success: false, error_message: e.message
         )
         Rails.logger.error "AiBoardGenerator API HTTP error: #{e.message}"
@@ -221,7 +233,7 @@ module AiBoardGenerator
           user: user,
           request_summary: "Board generation: #{scrubbed_prompt.truncate(200)}",
           response_summary: nil, duration_ms: duration_ms,
-          pii_detected: pii_detected, pii_findings: scrub_result[:findings],
+          pii_detected: pii_detected, pii_findings: pii_findings,
           success: false, error_message: "#{e.class}: #{e.message}"
         )
         Rails.logger.error "AiBoardGenerator error: #{e.class}: #{e.message}"
@@ -236,7 +248,7 @@ module AiBoardGenerator
           user: user,
           request_summary: "Board generation: #{scrubbed_prompt.truncate(200)}",
           response_summary: nil, duration_ms: duration_ms,
-          pii_detected: pii_detected, pii_findings: scrub_result[:findings],
+          pii_detected: pii_detected, pii_findings: pii_findings,
           tokens_sent: tokens_sent, tokens_received: tokens_received,
           success: false, error_message: e.class.to_s
         )
@@ -532,6 +544,7 @@ module AiBoardGenerator
     BOARD_ITEM_LINE = /\A\s*(?:[-*\u2022]\s*)?(?:\*\*)?\s*\p{Nd}+\s*(?:\*\*)?\s*[.)\u3001\uFF0E:\uFF1A]\s*(?:\*\*)?\s*(.+?)\s*\z/
     NAME_OR_DESCRIPTION = /\A\s*(?:name|description)\s*:/i
     TOPUP_TIME_BUDGET_SECONDS = 8
+    TOPUP_DEADLINE_SECONDS = 12.0
 
     def board_system_prompt(count, topup: false)
       what = topup ? "#{count} NEW vocabulary items, none of them already on the board" : "exactly #{count} different vocabulary items"
@@ -561,10 +574,8 @@ module AiBoardGenerator
       PROMPT
     end
 
-    # The do-not-repeat list is model output from an already scrubbed prompt; it is scrubbed again
-    # before it goes out, so no call in this flow sends unscrubbed text.
-    def topup_user_prompt(count, scrubbed_prompt, locale, vocabulary_instruction, existing)
-      already = PiiScrubber.redact_for_ai(existing.join(', '))[:payload]
+    # `already` is the scrubbed do-not-repeat list (see the top-up in generate_words).
+    def topup_user_prompt(count, scrubbed_prompt, locale, vocabulary_instruction, already)
       <<~PROMPT.strip
         Generate #{count} more words or short phrases for the same AAC board.
         Context: #{scrubbed_prompt}
@@ -582,24 +593,56 @@ module AiBoardGenerator
       (Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) < TOPUP_TIME_BUDGET_SECONDS
     end
 
+    # The top-up must finish inside the request limit (Rack::Timeout, 15-16 s), or the first
+    # reply's words are lost with the timeout. It gets what is left of a 12 s deadline and no
+    # automatic retries.
+    def topup_request_options(start_time)
+      left = TOPUP_DEADLINE_SECONDS - (Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time)
+      { timeout: [left, 1.0].max, max_retries: 0 }
+    end
+
     # Items, NAME and DESCRIPTION from one reply. Numbered lines first; failing that, an explicit
     # WORDS: line. Anything else yields no items, so an off-format reply (bullets, a refusal) is
-    # never turned into labels. A reply cut off at the token limit loses its last, partial item.
+    # never turned into labels. A reply cut off at the token limit loses its last item only when
+    # it ends on that item. A reply that is mostly numbered sentences is an explanation or a soft
+    # refusal, not vocabulary, and is `declined`.
     def read_board_reply(response, expected_count)
       raw = strip_markdown_code_fence(extract_content_anthropic(response).to_s.delete("\uFEFF").strip)
       stop = response.respond_to?(:stop_reason) ? response.stop_reason.to_s : ''
-      lines = raw.lines.map(&:strip).reject { |l| l.blank? || l.start_with?('```') }
+      lines = raw.lines.map { |l| tidy_item(l) }.reject { |l| l.blank? || l.start_with?('```') }
       items = lines.filter_map { |l| (m = BOARD_ITEM_LINE.match(l)) && m[1] }
       if items.empty? && raw =~ /^\s*words:/i
         items = structured_parse_payload(raw, expected_count)[:words]
       end
-      items = [] if stop == 'refusal'
-      items = items[0...-1] if stop == 'max_tokens' && items.any?
+      if stop == 'max_tokens' && items.any? && BOARD_ITEM_LINE.match?(lines.last.to_s)
+        items = items[0...-1]
+      end
       items = items.reject { |i| i =~ NAME_OR_DESCRIPTION }
                    .flat_map { |i| i.split(/[,;]/) }
-                   .map { |i| i.gsub(/\*\*|__|`/, '').strip }
-      meta = structured_parse_payload(raw, expected_count)
-      { items: unique_items(items), name: meta[:name].presence, description: meta[:description].presence, raw: raw }
+                   .map { |i| tidy_item(i.gsub(/\*\*|__|`/, '')) }
+                   .reject(&:blank?)
+      sentences = items.count { |i| sentence_like?(i) }
+      declined = stop == 'refusal' || (items.any? && sentences * 2 > items.length)
+      items = declined ? [] : items.reject { |i| sentence_like?(i) }
+      { items: unique_items(items), name: labelled_line(lines, 'name'),
+        description: labelled_line(lines, 'description'), raw: raw, declined: declined }
+    end
+
+    # Board items are words or short phrases. A long or sentence-shaped line is prose.
+    def sentence_like?(item)
+      item.length > 40 || item.split.length > 6 || (item.split.length > 3 && item.match?(/[.?!]\z/))
+    end
+
+    # One `NAME:` or `DESCRIPTION:` line, kept to that line so numbered items after it are not
+    # swallowed into it.
+    def labelled_line(lines, label)
+      line = lines.find { |l| l =~ /\A#{label}\s*:/i }
+      line && line.sub(/\A#{label}\s*:\s*/i, '').strip.presence
+    end
+
+    # strip only removes ASCII whitespace; no-break spaces and zero-width marks also end up here.
+    def tidy_item(text)
+      text.to_s.gsub(/\A[\p{Space}\p{Cf}]+|[\p{Space}\p{Cf}]+\z/, '')
     end
 
     def unique_items(items)
@@ -636,14 +679,16 @@ module AiBoardGenerator
       }
     end
 
-    def call_anthropic(region:, model:, system_prompt:, user_prompt:, cell_count:)
+    def call_anthropic(region:, model:, system_prompt:, user_prompt:, cell_count:, request_options: nil)
       client = AiClient.build!
-      client.messages.create(
+      params = {
         model: model,
         max_tokens: completion_max_tokens(cell_count),
         system: system_prompt,
         messages: [{ role: 'user', content: user_prompt }]
-      )
+      }
+      params[:request_options] = request_options if request_options
+      client.messages.create(**params)
     end
 
     def extract_content_anthropic(response)
