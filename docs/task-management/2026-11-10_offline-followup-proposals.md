@@ -1413,3 +1413,28 @@ person's own `ws_settings`.
   answered with 3 updates.
 - Not covered: the pairing handshake (request -> pair_request, accept, follow), which the real server rewrites; to be
   checked end to end on the dev environment with the real websocket server.
+
+**Review of 70d37318e (three `adversary` passes, 2026-11-12).** Verdicts: logs/payloads ship; core ship with changes;
+picker/pages/caches ship with changes. No Critical or High; no path makes a different person count as yourself; the
+server re-checks every changed id (logs, goals, snapshots, integrations, imports, utterances, alerts). Fixed:
+- M (regression from 70d37318e): `components/available-boards-section.js` Set Home "Not now" cleared the Mine list
+  under `model.id` ('self' on the dashboard) while the list is now kept under the real id: the new copy stayed off My
+  Boards for up to 10 minutes. Now cleared by the backend id; test with the page model keyed 'self'.
+- M: the main data-loss fix had no test. Added: the speak-mode stash (the observer's own function on a minimal app state),
+  `save_workbook`'s event ids, sync's own-room listener answering a query, and the remote-modeling gate.
+- L: `log_word_activity` (now that it writes) and `load_word_activities` cached under `'word_log/' + id`, i.e. 'self'
+  shared by every account on a device: both caches (`word_log`, `word_activities`) keyed by the backend id; the write is
+  awaited and asserted.
+- L: an eval in progress saved under 'self' before the update stayed on the device after sign-out: `purge_for_logout`
+  also removes `eval_progress_self`.
+- L: `repeat_profile` uses the user name only for the record keyed 'self'; other people go by id as before.
+- L: the obf stars test docblock now says what the code does (an unresolved id throws; pre-existing, not changed).
+- Test fragility found by the mutation build: two tests set `speak_mode` on the real app state and relied on an
+  earlier module having set up flash messages; they now set `last_speak_mode` first and stub `modal.flash`.
+Accepted, recorded: a 'self' record with no `_actual_id` resolves as 'self' in `backend_user_id` but null in
+`backend_id_of('self', ...)` (not reachable today: the serializer always parks `_actual_id`); a token check no longer
+reloads a stale record keyed 'self' (preferences can lag until the refresh_user poll, up to 15 minutes); the after-save
+reload can race a later preference edit (narrow; preferences already reloads in the background); the inbox read-receipt
+path has no test.
+Tests: id modules + set-home 103/103 timing-strict; mutation build (six mutants: the cache clear, the word-log key, the
+speak-mode stash, the workbook id, the own-room listener, the remote-modeling gate): each targeted test red.

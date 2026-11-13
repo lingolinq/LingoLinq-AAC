@@ -462,7 +462,7 @@ var evaluation = {
   purge_for_logout: function() {
     var puid = evaluation._get_pointer();
     var uid = evaluation._eval_user_id();
-    [puid, uid].forEach(function(id) {
+    [puid, uid, 'self'].forEach(function(id) { // 'self': a snapshot saved before progress was keyed by the real id
       if(!id) { return; }
       try {
         var p = evaluation.persistence.remove('settings', {id: evaluation.EVAL_PROGRESS_PREFIX + id}, evaluation.EVAL_PROGRESS_PREFIX + id);

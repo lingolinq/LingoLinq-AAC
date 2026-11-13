@@ -1,5 +1,6 @@
 import { module, test } from 'qunit';
 import EmberObject from '@ember/object';
+import RSVP from 'rsvp';
 import { waitUntil } from '@ember/test-helpers';
 import sync from 'frontend/utils/sync';
 import { stub, restoreStubs } from 'frontend/tests/helpers/jasmine';
@@ -48,5 +49,32 @@ module('Unit | Utility | sync rooms for the session user', function(hooks) {
     assert.true(sync.same_user('1_3', 'self'));
     assert.false(sync.same_user('self', '1_9'), 'a communicator is not you');
     assert.false(sync.same_user('1_9', '1_77'));
+  });
+
+  // A message in your own room carries the server's real id; with the session record keyed 'self' the listener did
+  // not recognise it, so a supporter's query got no answer (two-device simulation, section 24).
+  test('a query in your own room is answered while the session record is keyed self', function(assert) {
+    assert.expect(1);
+    var saved = sync.listeners;
+    var answered = [];
+    stub(sync, 'send_update', function(user_id) { answered.push(user_id); return RSVP.resolve(); });
+    stub(sync, 'check_following', function() { });
+    stub(sync, 'get_app_state', function() { return EmberObject.create({ sessionUser: EmberObject.create({ id: 'self', global_id: '1_3', preferences: {} }), sync_send_utterance: function() { } }); });
+    sync.listeners = {};
+    try {
+      sync.default_listen();
+      sync.listeners.default_listeners({ user_id: '1_3', type: 'query', data: { sender_id: 'x' } });
+      assert.deepEqual(answered, ['1_3']);
+    } finally {
+      sync.listeners = saved;
+    }
+  });
+
+  test('with remote modeling off, nothing is sent for your own room while the record is keyed self', async function(assert) {
+    assert.expect(1);
+    stub(sync, 'get_app_state', function() { return EmberObject.create({ sessionUser: EmberObject.create({ id: 'self', global_id: '1_3', preferences: { remote_modeling: false } }) }); });
+    var rejected = false;
+    await sync.send_update('1_3', {}).then(null, function() { rejected = true; });
+    assert.true(rejected);
   });
 });

@@ -7,7 +7,8 @@ import { stub, restoreStubs } from 'frontend/tests/helpers/jasmine';
 /* LIKED BOARDS BY YOUR REAL ID (section 24 of docs/task-management/2026-11-10_offline-followup-proposals.md). The
  * session user may be held only by the record keyed 'self' (serializers/application.js), so `peekRecord('user',
  * '<real id>')` finds nothing; a `stars-<real id>` board must still resolve to the session user. Someone else's id
- * that finds no record still renders "User Information Not Available". */
+ * that finds no record is never resolved to you. (It throws today: utils/obf.js reads user.get before its null check;
+ * that pre-existing defect is not changed here, so the test only asserts it is never named for you.) */
 module('Unit | Utility | obf stars board backend ids', function(hooks) {
   var peeked;
   hooks.beforeEach(function() {

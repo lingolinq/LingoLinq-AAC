@@ -945,7 +945,7 @@ AvailableBoardsSection.reopen({
         if (ctrl && dialog.copied !== false) {
           // A new copy: My Boards was loaded before it existed. Drop the cached list and re-query,
           // as removing a board does (controllers/user/index.js#remove_board, refreshMine).
-          boardsPageListCache.clear(ctrl.get('model.id'));
+          boardsPageListCache.clear(backend_user_id(ctrl.get('model')) || ctrl.get('model.id')); // the list is keyed by the real id (controllers/user/index.js); on the dashboard the model is the record keyed 'self'
           if (ctrl.get('mine_selected')) {
             ctrl.send('retry_board_list');
           } else {

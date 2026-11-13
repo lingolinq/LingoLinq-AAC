@@ -343,7 +343,7 @@ export default Controller.extend({
     },
     repeat_profile: function() {
       if(this.get('processed_profile.template.id')) {
-        this.router.transitionTo('profile', this.get('user.user_name') || user_backend_id(this.get('user')), this.get('processed_profile.template.id')); // as components/profiles.js does; never 'self'
+        this.router.transitionTo('profile', this.get('user.id') === 'self' ? (this.get('user.user_name') || user_backend_id(this.get('user'))) : this.get('user.id'), this.get('processed_profile.template.id')); // never 'self'; other people go by id as before
       }
     }
   }
