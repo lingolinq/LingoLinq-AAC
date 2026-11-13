@@ -17,7 +17,9 @@ describe 'deploy-cloudrun.yml offline app shell setting' do
     found.first
   end
 
-  def assemble(value)
+  # `env_name` and `ses` default to the staging run the offline-shell examples use; production needs the values it
+  # requires (UPLOADS_S3_CDN, REMOTE_EXTRA_DATA, MEDIACONVERT_QUEUE_ARN).
+  def assemble(value, env_name: 'staging', ses: nil)
     Dir.mktmpdir do |dir|
       File.write(File.join(dir, 'gcloud'), "#!/bin/bash\necho projects/p/secrets/x/versions/1\n")
       File.chmod(0o755, File.join(dir, 'gcloud'))
@@ -25,12 +27,16 @@ describe 'deploy-cloudrun.yml offline app shell setting' do
       File.write(github_env, '')
       env = {
         'PATH' => "#{dir}:#{ENV['PATH']}",
-        'GITHUB_ENV' => github_env, 'ENV_NAME' => 'staging', 'GCP_PROJECT_ID' => 'p',
+        'GITHUB_ENV' => github_env, 'ENV_NAME' => env_name, 'GCP_PROJECT_ID' => 'p',
         'BOOT_SECRETS' => 'A=a:latest', 'NON_BOOT_SECRETS' => 'B=b:latest',
         'APP_ENV_VARS_STATIC' => 'X=1',
         'V_UPLOADS_S3_BUCKET' => 'u', 'V_STATIC_S3_BUCKET' => 's', 'V_SENTRY_ENVIRONMENT' => 'e'
       }
       env['V_OFFLINE_APP_SHELL'] = value unless value.nil?
+      env['V_SES_EVENTS_QUEUE_URL'] = ses unless ses.nil?
+      if env_name == 'production'
+        env.merge!('V_UPLOADS_S3_CDN' => 'cdn.example.com', 'V_REMOTE_EXTRA_DATA' => 'true', 'V_MEDIACONVERT_QUEUE_ARN' => 'arn:aws:mediaconvert:us-west-2:000000000000:queues/example')
+      end
       out, status = Open3.capture2e(env, 'bash', '-c', assemble_step['run'])
       app_env = File.read(github_env).lines.map(&:chomp).find { |l| l.start_with?('APP_ENV_VARS=') }
       return [status.success?, out, app_env && app_env.delete_prefix('APP_ENV_VARS=').split(',')]
@@ -66,6 +72,27 @@ describe 'deploy-cloudrun.yml offline app shell setting' do
       ok, out, = assemble(value)
       expect(ok).to eq(false)
       expect(out).to include('APP_OFFLINE_APP_SHELL')
+    end
+  end
+
+  # Merged from develop with this file's step (2026-11-13): the SES events queue is consumed by the production scheduler
+  # only. Staging sends use the same SES configuration set and land on the same queue, so a second consumer there would
+  # drain it and write email_disabled into the nonprod database; the step refuses rather than skips. Both settings must
+  # survive the same assemble step together.
+  describe 'with the SES events queue (production only)' do
+    let(:queue) { 'https://sqs.us-west-2.amazonaws.com/000000000000/example-ses-events' }
+
+    it 'refuses the queue in any environment other than production' do
+      ok, out, = assemble('on', env_name: 'staging', ses: queue)
+      expect(ok).to eq(false)
+      expect(out).to include('APP_SES_EVENTS_QUEUE_URL')
+    end
+
+    it 'passes the queue and the offline shell setting together in production' do
+      ok, out, vars = assemble('on', env_name: 'production', ses: queue)
+      expect(ok).to eq(true), out
+      expect(vars).to include("SES_EVENTS_QUEUE_URL=#{queue}")
+      expect(vars).to include('OFFLINE_APP_SHELL=on')
     end
   end
 end
