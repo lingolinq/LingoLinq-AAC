@@ -271,3 +271,23 @@ Follow-ups, not in this PR:
   caller uses one today.
 - Production: whether Debian's 6.9.11 build is `--without-rsvg` (`config-Q16/configure.xml` in the
   production image); the Dockerfile and CI install `imagemagick` with its recommended coders package.
+
+### Production image check (2026-11-12, closes the senior-dev High)
+
+Run by Traci in Cloud Shell on the image `lingolinq-web` was serving, pulled into a throwaway
+container (nothing ran against the live service):
+
+- `ImageMagick 6.9.11-60 Q16 x86_64 2021-01-25`.
+- SVG is ImageMagick's own renderer: `MSVG ... ImageMagick's own SVG internal renderer`,
+  `SVG ... Scalable Vector Graphics (XML 2.9.14)`. `DELEGATES` has no `rsvg`; neither `rsvg-convert`
+  nor `inkscape` is installed. (`config-Q16/configure.xml` lists both `--without-rsvg` and
+  `--with-rsvg`; the loaded coders and delegates are what count.) So no outside renderer reads
+  `href` files past the policy.
+- With a hand-written policy of the shape `private_dir` writes (deny all, system config and font
+  directories, the input, the output, the private directory, the trailing `..` deny): an svg naming
+  another file directly, and one walking out of `/etc/ImageMagick-6` with `..`, were both refused.
+  On 6.9.11 a refused read aborts the whole render (no output file), where 6.9.12 renders the rest;
+  the leak examples accept either. A harmless svg rendered normally under the same policy, with or
+  without `/usr/lib/x86_64-linux-gnu/ImageMagick-6.9.11/*` readable, so the policy needs no change.
+- The image loads only `/etc/ImageMagick-6/policy.xml` and the built-in policy: `config/imagemagick`
+  (#1274) is not in production yet; it reaches staging through #1306.
