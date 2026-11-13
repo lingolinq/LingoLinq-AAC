@@ -4871,8 +4871,6 @@
   "paste_html": "Paste HTML",
   "import_json_bundle": "Import Board from Another Platform",
   "create_a_new_board_with_ai": "Create a New Board with AI",
-  "ai_intro_check_generate": "Generate this board's buttons from your description using AI",
-  "ai_intro_check_review": "You'll be able to review and edit everything before creating the board",
   "ai_mode_badge": "Generating with AI",
   "ai_mode_badge_caption_after_labels_save": "Click Save Board to complete generation",
   "ai_mode_badge_caption": "Describe the board below, then generate",

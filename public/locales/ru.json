@@ -7821,8 +7821,6 @@
   "invalid_json_bundle": "Выбранный файл не является допустимым JSON-файлом. [[ The selected file is not valid JSON.",
   "import_json_bundle": "Импорт JSON-пакета [[ Import JSON Bundle",
   "create_a_new_board_with_ai": "Создайте новую доску с помощью ИИ. [[ Create a New Board with AI",
-  "ai_intro_check_generate": "Создайте кнопки для этой доски на основе вашего описания с помощью искусственного интеллекта. [[ Generate this board's buttons from your description using AI",
-  "ai_intro_check_review": "Вы сможете просмотреть и отредактировать все элементы перед созданием доски. [[ You'll be able to review and edit everything before creating the board",
   "slp_hero_welcome": "Добро пожаловать, [[ Welcome back,",
   "slp_rooms": "0 комнат || 1 комната || %{n} комнаты [[ 0 rooms || 1 room || %{n} rooms",
   "slp_communicators": "0 коммуникаторов || 1 коммуникатор || %{n} коммуникаторы [[ 0 communicators || 1 communicator || %{n} communicators",

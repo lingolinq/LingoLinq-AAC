@@ -7820,8 +7820,6 @@
   "invalid_json_bundle": "Вибраний файл не є дійсним JSON. [[ The selected file is not valid JSON.",
   "import_json_bundle": "Імпортувати JSON Bundle [[ Import JSON Bundle",
   "create_a_new_board_with_ai": "Створіть нову дошку за допомогою штучного інтелекту [[ Create a New Board with AI",
-  "ai_intro_check_generate": "Згенеруйте кнопки цієї дошки на основі вашого опису за допомогою штучного інтелекту [[ Generate this board's buttons from your description using AI",
-  "ai_intro_check_review": "Ви зможете переглянути та відредагувати все перед створенням дошки [[ You'll be able to review and edit everything before creating the board",
   "slp_hero_welcome": "Ласкаво просимо назад, [[ Welcome back,",
   "slp_rooms": "0 кімнат || 1 кімната || %{n} кімнати [[ 0 rooms || 1 room || %{n} rooms",
   "slp_communicators": "0 комунікаторів || 1 комунікатор || комунікатори %{n} [[ 0 communicators || 1 communicator || %{n} communicators",

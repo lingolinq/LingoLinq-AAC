@@ -98,18 +98,6 @@
     <div class="modal-header md-modal-header nb-create-header">
       <div class="nb-create-header__intro">
         <h3>{{#if this.ai_mode}}{{t "Create a New Board with AI" key="create_a_new_board_with_ai"}}{{else if this.via_create_own}}{{t "Create My Own Board" key="create_my_own_board"}}{{else}}{{t "Create a New Board" key="create_a_new_board"}}{{/if}}</h3>
-        {{#if this.ai_mode}}
-          <ul class="la-checklist">
-            <li>
-              <span class="la-check" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
-              {{t "Generate this board's buttons from your description using AI" key="ai_intro_check_generate"}}
-            </li>
-            <li>
-              <span class="la-check" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
-              {{t "You'll be able to review and edit everything before creating the board" key="ai_intro_check_review"}}
-            </li>
-          </ul>
-        {{/if}}
       </div>
       <div class="create-board-actions">
         {{#if this.ai_mode}}

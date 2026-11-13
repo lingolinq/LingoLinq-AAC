@@ -7781,8 +7781,6 @@
   "invalid_json_bundle": "Le fichier sélectionné n'est pas un JSON valide. [[ The selected file is not valid JSON.",
   "import_json_bundle": "Importer un bundle JSON [[ Import JSON Bundle",
   "create_a_new_board_with_ai": "Créer un nouveau tableau avec l'IA [[ Create a New Board with AI",
-  "ai_intro_check_generate": "Générez les boutons de ce tableau à partir de votre description grâce à l'IA [[ Generate this board's buttons from your description using AI",
-  "ai_intro_check_review": "Vous pourrez tout relire et modifier avant de créer le tableau. [[ You'll be able to review and edit everything before creating the board",
   "slp_hero_welcome": "Content de te revoir, [[ Welcome back,",
   "slp_rooms": "0 chambres || 1 chambre || %{n} chambres [[ 0 rooms || 1 room || %{n} rooms",
   "slp_communicators": "0 communicateurs || 1 communicateur || %{n} communicateurs [[ 0 communicators || 1 communicator || %{n} communicators",

@@ -7781,8 +7781,6 @@
   "invalid_json_bundle": "選択されたファイルは有効なJSONではありません。 [[ The selected file is not valid JSON.",
   "import_json_bundle": "JSONバンドルをインポート [[ Import JSON Bundle",
   "create_a_new_board_with_ai": "AIで新しいボードを作成する [[ Create a New Board with AI",
-  "ai_intro_check_generate": "AIを使用して、あなたの説明からこのボードのボタンを生成します。 [[ Generate this board's buttons from your description using AI",
-  "ai_intro_check_review": "ボードを作成する前に、すべてを確認および編集できます。 [[ You'll be able to review and edit everything before creating the board",
   "slp_hero_welcome": "おかえり、 [[ Welcome back,",
   "slp_rooms": "0部屋 || 1部屋 || %{n}部屋 [[ 0 rooms || 1 room || %{n} rooms",
   "slp_communicators": "0 通信機 || 1 通信機 || %{n} 通信機 [[ 0 communicators || 1 communicator || %{n} communicators",

@@ -7819,8 +7819,6 @@
   "invalid_json_bundle": "Die ausgewählte Datei ist kein gültiges JSON. [[ The selected file is not valid JSON.",
   "import_json_bundle": "JSON-Bundle importieren [[ Import JSON Bundle",
   "create_a_new_board_with_ai": "Erstelle ein neues Board mit KI [[ Create a New Board with AI",
-  "ai_intro_check_generate": "Generieren Sie die Schaltflächen dieses Boards anhand Ihrer Beschreibung mithilfe von KI. [[ Generate this board's buttons from your description using AI",
-  "ai_intro_check_review": "Sie können alles überprüfen und bearbeiten, bevor Sie das Board erstellen. [[ You'll be able to review and edit everything before creating the board",
   "slp_hero_welcome": "Willkommen zurück, [[ Welcome back,",
   "slp_rooms": "0 Zimmer || 1 Zimmer || %{n} Zimmer [[ 0 rooms || 1 room || %{n} rooms",
   "slp_communicators": "0 Kommunikatoren || 1 Kommunikator || %{n} Kommunikatoren [[ 0 communicators || 1 communicator || %{n} communicators",

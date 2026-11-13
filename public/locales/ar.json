@@ -7781,8 +7781,6 @@
   "invalid_json_bundle": "الملف المحدد ليس ملف JSON صالحًا. [[ The selected file is not valid JSON.",
   "import_json_bundle": "استيراد حزمة JSON [[ Import JSON Bundle",
   "create_a_new_board_with_ai": "أنشئ لوحة جديدة باستخدام الذكاء الاصطناعي [[ Create a New Board with AI",
-  "ai_intro_check_generate": "قم بإنشاء أزرار هذه اللوحة من وصفك باستخدام الذكاء الاصطناعي [[ Generate this board's buttons from your description using AI",
-  "ai_intro_check_review": "ستتمكن من مراجعة كل شيء وتعديله قبل إنشاء اللوحة [[ You'll be able to review and edit everything before creating the board",
   "slp_hero_welcome": "مرحبًا بعودتك، [[ Welcome back,",
   "slp_rooms": "٠ غرف || غرفة واحدة || %{n} غرف [[ 0 rooms || 1 room || %{n} rooms",
   "slp_communicators": "0 أجهزة اتصال || جهاز اتصال واحد || %{n} أجهزة اتصال [[ 0 communicators || 1 communicator || %{n} communicators",

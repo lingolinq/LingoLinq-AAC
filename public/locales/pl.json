@@ -8041,8 +8041,6 @@
   "invalid_json_bundle": "Wybrany plik nie jest prawidłowym plikiem JSON. [[ The selected file is not valid JSON.",
   "import_json_bundle": "Importuj pakiet JSON [[ Import JSON Bundle",
   "create_a_new_board_with_ai": "Utwórz nową tablicę za pomocą sztucznej inteligencji [[ Create a New Board with AI",
-  "ai_intro_check_generate": "Wygeneruj przyciski tej tablicy na podstawie swojego opisu, korzystając ze sztucznej inteligencji [[ Generate this board's buttons from your description using AI",
-  "ai_intro_check_review": "Będziesz mieć możliwość przejrzenia i edycji wszystkiego przed utworzeniem tablicy [[ You'll be able to review and edit everything before creating the board",
   "slp_hero_welcome": "Witamy ponownie, [[ Welcome back,",
   "slp_rooms": "0 pokoi || 1 pokój || %{n} pokoi [[ 0 rooms || 1 room || %{n} rooms",
   "slp_communicators": "0 komunikatorów || 1 komunikator || %{n} komunikatorów [[ 0 communicators || 1 communicator || %{n} communicators",

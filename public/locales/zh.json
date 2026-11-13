@@ -8046,8 +8046,6 @@
   "invalid_json_bundle": "所选文件不是有效的JSON文件。 [[ The selected file is not valid JSON.",
   "import_json_bundle": "导入 JSON 包 [[ Import JSON Bundle",
   "create_a_new_board_with_ai": "使用人工智能创建新看板 [[ Create a New Board with AI",
-  "ai_intro_check_generate": "使用人工智能根据您的描述生成此面板的按钮。 [[ Generate this board's buttons from your description using AI",
-  "ai_intro_check_review": "在创建看板之前，您可以查看和编辑所有内容。 [[ You'll be able to review and edit everything before creating the board",
   "slp_hero_welcome": "欢迎回来， [[ Welcome back,",
   "slp_rooms": "0 间客房 || 1 间客房 || %{n} 间客房 [[ 0 rooms || 1 room || %{n} rooms",
   "slp_communicators": "0 个通讯器 || 1 个通讯器 || %{n} 通讯器 [[ 0 communicators || 1 communicator || %{n} communicators",
