@@ -377,6 +377,7 @@ describe Device, :type => :model do
         d = browser_device_with_org_timeout
         token = d.settings['keys'][0]['value']
         d.settings['long_token'] = true
+        d.settings['long_token_owner_choice'] = true # the person's own answer, so only the valet rule keeps the timeout
         d.settings['valet'] = true
         idle_for_21_minutes(d)
         expect(d.valid_token?(token)).to eq(false)
@@ -388,6 +389,7 @@ describe Device, :type => :model do
         d.settings.delete('browser')
         expect(d.token_type).not_to eq(:browser)
         d.settings['long_token'] = true
+        d.settings['long_token_owner_choice'] = true # so only the not-a-browser rule keeps the timeout
         idle_for_21_minutes(d)
         expect(d.valid_token?(token)).to eq(false)
       end
@@ -407,6 +409,7 @@ describe Device, :type => :model do
         d = browser_device_with_org_timeout
         token = d.settings['keys'][0]['value']
         d.settings['long_token'] = true
+        d.settings['long_token_owner_choice'] = true # a trusted browser, so only the 28-day cap ends it
         d.settings['keys'][0]['last_timestamp'] = 29.days.ago.to_i
         d.settings['keys'][0]['needs_refresh'] = nil
         expect(d.valid_token?(token)).to eq(false)
