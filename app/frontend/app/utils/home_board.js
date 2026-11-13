@@ -75,6 +75,9 @@ export function home_board_set_message() {
  * (its status and notices report it); it never fails the home-board change. Always resolves. */
 export function sync_after_home_change(persistence) {
   if(!persistence || !persistence.get || !persistence.get('online') || !persistence.get('auto_sync')) { return RSVP.resolve(false); }
+  // Never into a database that is not the signed-in person's (an in-app sign-out and sign-in while the home board was
+  // saving), as check_for_needs_sync refuses (services/persistence.js local_db_is_current_user).
+  if(typeof persistence.local_db_is_current_user === 'function' && !persistence.local_db_is_current_user()) { return RSVP.resolve(false); }
   return RSVP.resolve(persistence.sync('self', null, null, 'home_board_changed')).then(function() { return true; }, function() { return true; });
 }
 

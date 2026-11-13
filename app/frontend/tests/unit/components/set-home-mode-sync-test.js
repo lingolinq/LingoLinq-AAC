@@ -2,6 +2,7 @@ import { module, test } from 'qunit';
 import EmberObject from '@ember/object';
 import RSVP from 'rsvp';
 import { setupTest } from '../../helpers';
+import { settled } from '@ember/test-helpers';
 import modal from 'frontend/utils/modal';
 import { stub, restoreStubs } from 'frontend/tests/helpers/jasmine';
 import { stubOnPersistence } from 'frontend/tests/helpers/persistence-stub';
@@ -47,46 +48,76 @@ module('Unit | Component | set-home modes start the home-board sync', function(h
     comp._followHomeMove = function() { };
     return comp;
   }
-  function settle() { return RSVP.resolve().then(function() { return RSVP.resolve(); }); }
+  // The dialog runs its copy step (model.copyAsHome) and calls onDone only while it is still open
+  // (components/confirm-home-board-copy.js#confirm); these tests run the copy step and never call onDone, as when the
+  // dialog was closed during a long copy.
+  function runCopy(dialog, key) { return dialog.copyAsHome(board(key), dialog.user, null, { isCancelled: function() { return false; } }); }
 
   test('Modern, your own board: setting it as home starts the sync', async function(assert) {
     var opened = [];
     stub(modal, 'open', function(template, opts) { opened.push(opts); return RSVP.resolve(); });
     var comp = section(this.owner, EmberObject.create({ id: '1_3', user_name: 'example', preferences: {} }));
     comp.send('toggleSetHomeMode');
-    await comp.onOpenBoardInUserView(board('example/two'));
-    await settle();
+    comp.onOpenBoardInUserView(board('example/two'));
+    await settled();
     assert.strictEqual(opened.length, 1, 'the dialog asks whether to open it');
     assert.deepEqual(this.syncs, [HOME_SYNC], 'one home-board sync');
     comp.destroy();
   });
 
-  test("Modern, someone else's board copied as your home: the sync starts when the copy is done, not before", async function(assert) {
+  test('Modern, a failed save starts no sync', async function(assert) {
+    stub(modal, 'open', function() { return RSVP.resolve(); });
+    stub(modal, 'error', function() { });
+    var comp = section(this.owner, EmberObject.create({ id: '1_3', user_name: 'example', preferences: {} }));
+    comp.copyAsHome = function() { return RSVP.reject('nope'); };
+    comp.send('toggleSetHomeMode');
+    comp.onOpenBoardInUserView(board('example/two'));
+    await settled();
+    assert.deepEqual(this.syncs, []);
+    comp.destroy();
+  });
+
+  test("Modern, someone else's board copied as your home: the sync starts when the copy is done, even if the dialog was closed", async function(assert) {
     var opened = [];
     stub(modal, 'open', function(template, opts) { opened.push(opts); return RSVP.resolve(); });
     var comp = section(this.owner, EmberObject.create({ id: '1_3', user_name: 'example', preferences: {} }));
     comp.send('toggleSetHomeMode');
     comp.onOpenBoardInUserView(board('lingolinq/quick-core-24'));
-    await settle();
+    await settled();
     assert.deepEqual(this.syncs, [], 'no sync while the copy question is open');
-    opened[0].onDone(board('example/quick-core-24'));
-    await settle();
+    await runCopy(opened[0], 'lingolinq/quick-core-24');
+    await settled();
     assert.deepEqual(this.syncs, [HOME_SYNC], 'one home-board sync once the copy is the home board');
     comp.destroy();
   });
 
-  test("Modern, a supervisor setting a communicator's home board does not sync the supervisor's boards", async function(assert) {
+  test('Modern, a cancelled copy starts no sync', async function(assert) {
+    var opened = [];
+    stub(modal, 'open', function(template, opts) { opened.push(opts); return RSVP.resolve(); });
+    var comp = section(this.owner, EmberObject.create({ id: '1_3', user_name: 'example', preferences: {} }));
+    comp.copyAsHome = function() { return RSVP.reject({ cancelled: true }); };
+    comp.send('toggleSetHomeMode');
+    comp.onOpenBoardInUserView(board('lingolinq/quick-core-24'));
+    await settled();
+    await runCopy(opened[0], 'lingolinq/quick-core-24').then(null, function() { });
+    await settled();
+    assert.deepEqual(this.syncs, []);
+    comp.destroy();
+  });
+
+  // As the picker (board-preview-overlay.js, pickingForOther): another person's home board starts no sync here.
+  test("Modern, a supervisor setting a communicator's home board starts no sync, as the picker", async function(assert) {
     var opened = [];
     stub(modal, 'open', function(template, opts) { opened.push(opts); return RSVP.resolve(); });
     var comp = section(this.owner, EmberObject.create({ id: '1_8', user_name: 'sam', preferences: {} }));
     comp.send('toggleSetHomeMode');
-    await comp.onOpenBoardInUserView(board('sam/two'));
-    await settle();
+    comp.onOpenBoardInUserView(board('sam/two'));
+    await settled();
     comp.send('toggleSetHomeMode'); // the first tap ended the mode
     comp.onOpenBoardInUserView(board('lingolinq/quick-core-24'));
-    await settle();
-    opened[opened.length - 1].onDone(board('sam/quick-core-24'));
-    await settle();
+    await settled();
+    await runCopy(opened[opened.length - 1], 'lingolinq/quick-core-24');
+    await settled();
     assert.deepEqual(this.syncs, [], 'no sync');
     comp.destroy();
   });
@@ -96,8 +127,19 @@ module('Unit | Component | set-home modes start the home-board sync', function(h
     stub(modal, 'open', function() { return RSVP.resolve(); });
     var comp = section(this.owner, EmberObject.create({ id: '1_3', user_name: 'example', preferences: {} }));
     comp.send('toggleSetHomeMode');
-    await comp.onOpenBoardInUserView(board('example/two'));
-    await settle();
+    comp.onOpenBoardInUserView(board('example/two'));
+    await settled();
+    assert.deepEqual(this.syncs, []);
+    comp.destroy();
+  });
+
+  test("the home-board sync never starts into a database that is not the signed-in person's", async function(assert) {
+    stubOnPersistence('local_db_is_current_user', function() { return false; });
+    stub(modal, 'open', function() { return RSVP.resolve(); });
+    var comp = section(this.owner, EmberObject.create({ id: '1_3', user_name: 'example', preferences: {} }));
+    comp.send('toggleSetHomeMode');
+    comp.onOpenBoardInUserView(board('example/two'));
+    await settled();
     assert.deepEqual(this.syncs, []);
     comp.destroy();
   });
@@ -116,20 +158,20 @@ module('Unit | Component | set-home modes start the home-board sync', function(h
     stub(modal, 'open', function() { return RSVP.resolve(); });
     var comp = classic(this.owner);
     await comp._basicAssign(board('example/two'));
-    await settle();
+    await settled();
     assert.deepEqual(this.syncs, [HOME_SYNC]);
     comp.destroy();
   });
 
-  test("Basic, someone else's board: the sync starts when the copy is the home board", async function(assert) {
+  test("Basic, someone else's board: the sync starts when the copy is the home board, even if the dialog was closed", async function(assert) {
     var opts = null;
     stub(modal, 'open', function(template, o) { opts = o; return RSVP.resolve(); });
     var comp = classic(this.owner);
     await comp._basicAssign(board('lingolinq/quick-core-24'));
-    await settle();
+    await settled();
     assert.deepEqual(this.syncs, [], 'no sync while the copy question is open');
-    opts.onDone(board('example/quick-core-24'));
-    await settle();
+    await runCopy(opts, 'lingolinq/quick-core-24');
+    await settled();
     assert.deepEqual(this.syncs, [HOME_SYNC]);
     comp.destroy();
   });
@@ -139,7 +181,7 @@ module('Unit | Component | set-home modes start the home-board sync', function(h
     stub(modal, 'error', function() { });
     var comp = classic(this.owner, function() { return RSVP.reject('nope'); });
     await comp._basicAssign(board('example/two'));
-    await settle();
+    await settled();
     assert.deepEqual(this.syncs, []);
     comp.destroy();
   });

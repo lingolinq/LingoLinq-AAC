@@ -13,6 +13,7 @@ import { has_caseload_access } from '../../utils/caseload_access';
 import { take_pending_index_nav, take_pending_open_extras, take_pending_open_supervisee } from '../../utils/basic_landing';
 import { assign_home_board_basic, basic_home_button_label, BASIC_HOME_CURSOR } from '../../utils/basic_home_assign';
 import { sync_after_home_change } from '../../utils/home_board';
+import { copy_or_reuse_as_home } from '../../utils/board-copy';
 
 /**
  * Classic home page.
@@ -399,14 +400,19 @@ export default AuthenticatedView.extend({
       releaseTaps();
       if (!self.isDestroyed && !self.isDestroying) { self.set('basicSettingHome', false); }
     };
+    // Once it is set, a sync saves the new home board on the device, as the board picker starts one
+    // (utils/home_board.js, #1034). It starts when the save or copy itself resolves, not from the dialog (which skips
+    // onDone once closed during a long copy) or this component (which may be gone by then). `user` is
+    // appState.currentUser, the person the picker also syncs for.
+    var persistenceSvc = self.get('persistence');
+    var copyAsHome = self.get('basicCopyAsHome') || copy_or_reuse_as_home;
     var assigning;
     try {
       assigning = assign_home_board_basic(board, user, {
-        copyAsHome: self.get('basicCopyAsHome'),
+        copyAsHome: function(b, u, locale, opts) {
+          return copyAsHome(b, u, locale, opts).then(function(home) { sync_after_home_change(persistenceSvc); return home; });
+        },
         onAssigned: function() {
-          // Once it is set, a sync saves the new home board on the device, as the board picker starts one
-          // (utils/home_board.js, #1034). `user` is appState.currentUser, the person the picker also syncs for.
-          if (!self.isDestroyed && !self.isDestroying) { sync_after_home_change(self.get('persistence')); }
           self._setBasicAssigning(false);
           // A new copy is listed under Mine only after the list is fetched again.
           if (!self.isDestroyed && !self.isDestroying) { self.update_selected(); }

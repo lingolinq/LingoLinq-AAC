@@ -917,8 +917,16 @@ AvailableBoardsSection.reopen({
     var me = self.get('appState.currentUser');
     if (user && me && backend_user_id(user) === backend_user_id(me)) { user = me; }
     // Once it is set, the new home board is saved on the device by a sync, as the picker starts one (utils/home_board.js,
-    // #1034). Only the signed-in person's own: a sync is always theirs ('self'), never the communicator's on this page.
-    var syncAfterHome = function() { if (me && user === me) { sync_after_home_change(self.get('persistence')); } };
+    // #1034). The sync starts when the save or copy itself resolves, not from the dialog, which skips onDone once it has
+    // been closed during a long copy. Only for the signed-in person's own home board: the picker skips another person's
+    // too (board-preview-overlay.js, pickingForOther), although a root sync would also cover a supervisee's boards.
+    var persistenceSvc = self.get('persistence');
+    var copyAndSync = function(b, u, locale, opts) {
+      return self.get('copyAsHome')(b, u, locale, opts).then(function(home) {
+        if (me && user === me) { sync_after_home_change(persistenceSvc); }
+        return home;
+      });
+    };
     var key = board && (board.get ? board.get('key') : board.key);
     if (!key || !user) { return; }
     // Leave Set-Home mode SYNCHRONOUSLY on this first tap, before any await (adversary review
@@ -934,9 +942,8 @@ AvailableBoardsSection.reopen({
     var dialog = {
       board: board,
       user: user,
-      copyAsHome: self.get('copyAsHome'),
+      copyAsHome: copyAndSync,
       onDone: function() {
-        syncAfterHome();
         self._setAssigningHome(false);
         // copy_board reloads only the record it was given (utils/edit_manager.js, copy_board_links);
         // the page lists and sorts My Boards from its own record, so reload that one too.
@@ -968,9 +975,8 @@ AvailableBoardsSection.reopen({
       if (self._settingOwnedHome) { return Promise.resolve(); }
       self._settingOwnedHome = true;
       var settled = function() { self._settingOwnedHome = false; };
-      return self.get('copyAsHome')(board, user).then(function(home) {
+      return copyAndSync(board, user).then(function(home) {
         settled();
-        syncAfterHome();
         self._setAssigningHome(false);
         modal.open('confirm-home-board-copy', Object.assign(dialog, { stage: 'done', copied: false, home: home || board }));
       }, function(err) {

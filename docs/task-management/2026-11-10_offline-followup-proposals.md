@@ -1516,17 +1516,25 @@ Assign / Change Home Board mode (`components/dashboard/classic-view.js` `_basicA
 the server's sync stamp (bumped by `User#track_boards`, `app/models/user.rb:2413-2415`) brought a sync, about five
 minutes or more later. With automatic sync off, nothing changes: no sync starts.
 
-**Fix.** Both components call `sync_after_home_change` once the home board is set: the owned-board save and the
-copy dialog's `onDone`. Modern only syncs when the page's user is the signed-in person (`user === me` after the
-backend-id match), as the picker skips other people. A first try put the call in `utils/basic_home_assign.js`, but its
-tests boot no app and the leak check caught the read of a destroyed `window.persistence`, so the call lives in the
-component, which has a live service. That also matches Modern.
+**Fix.** Both components start `sync_after_home_change` when the save or copy itself resolves: they wrap the copy step
+they hand to `copy_or_reuse_as_home`'s callers (Modern `copyAndSync`; Basic's `copyAsHome` passed to
+`assign_home_board_basic`). Not from the dialog's `onDone`: `components/confirm-home-board-copy.js` `confirm` skips it
+once the dialog was closed during a long copy (possible after `slowAfter`, 120 s). A failed save or a cancelled copy
+rejects, so no sync starts. Modern only syncs for the signed-in person's own home board (`user === me` after the
+backend-id match). That matches the picker (`pickingForOther`), which also skips another person's; it is a choice, not
+a correctness rule, since a root sync would also cover a supervisee's boards. The shared `sync_after_home_change` now
+also refuses a database that is not the signed-in person's (`local_db_is_current_user`), as `check_for_needs_sync`
+does; that covers the picker too. A first try put the call in `utils/basic_home_assign.js`, but its tests boot no app
+and the leak check caught the read of a destroyed `window.persistence`, so the call lives in the components.
 
-**Tests.** `tests/unit/components/set-home-mode-sync-test.js`, 7 cases.
+**Tests.** `tests/unit/components/set-home-mode-sync-test.js`, 10 cases.
 - Red before the fix: the 4 "starts the sync" cases failed with no sync.
-- Mutations: removing both calls fails those 4. Removing the own-person check fails the supervisor case.
+- Mutations: no sync fails those 4; dropping the own-person check fails the supervisor case; dropping the database
+  check fails its case; starting the sync before the save resolves fails the failed-save and cancelled-copy cases.
 - Targeted run, timing-strict, of the set-home, basic home assign, home board message, classic-view, copy dialog and
-  board-copy tests: 71 of 71, no leak lines. Lint gate: no new findings.
+  board-copy tests: 74 of 74, no leak lines. Lint gate: no new findings.
+- Adversary review of 006161096 (2026-11-13): no Critical, High or Medium. Its four Lows are fixed here: the
+  closed-dialog case, the supervisor comment, the database check, and the missing Modern failed-save test.
 
 **UI check (Playwright).** As example on `/example`, set-home mode on an owned board: the home board changed and one
 `home_board_changed` sync started. The original home board was put back. Basic's mode was not driven in the browser;
