@@ -774,7 +774,7 @@ describe("persistence-sync", function() {
       capabilities.dbman.clear('deletion', function() {});
     }
     LingoLinq.all_wait = false;
-    LingoLinq.sync_testing_real_boards = false;
+    LingoLinq.sync_testing_real_boards = false; restoreSyncTestGlobals();
   });
 
   var board = null;
@@ -5971,7 +5971,7 @@ describe("persistence-sync", function() {
   it('should keep a new device on the first-sync marker after two failed syncs, then sync again once the back-off has passed', function() {
     db_wait(function() {
       var savedAuth = stashes.get('auth_settings');
-      var savedAuto = persistence.get('auto_sync');
+      var savedAuto = persistence.get('auto_sync'); var savedEventAt = persistence.get('last_sync_event_at');
       armFailingAutomaticSync();
       persistence.set('last_sync_at', 1);
       persistence.set('last_sync_stamp', null);
@@ -6010,7 +6010,7 @@ describe("persistence-sync", function() {
             stashes.persist('last_sync_status', null);
             stashes.set('auth_settings', savedAuth);
             persistence.set('auto_sync', savedAuto);
-            persistence.set('last_sync_at', null);
+            persistence.set('last_sync_at', null); persistence.set('last_sync_event_at', savedEventAt);
             persistence.set('auto_sync_backoff_until', null);
             persistence.set('auto_sync_failures', 0);
             cancelSyncTailWork();
@@ -7227,7 +7227,7 @@ describe("persistence-sync", function() {
         persistence.set('root_sync_canceled', false);
         persistence._canceled_sync_id = null;
         stashes.persist('last_sync_status', 'finished');
-        var saved = { last_sync_at: persistence.get('last_sync_at'), last_sync_stamp: persistence.get('last_sync_stamp') };
+        var saved = { last_sync_at: persistence.get('last_sync_at'), last_sync_stamp: persistence.get('last_sync_stamp'), last_sync_event_at: persistence.get('last_sync_event_at') };
         var event_at_start = null;
         persistence.set('last_sync_at', 12345);
         persistence.set('last_sync_stamp', 'stamp-old');
@@ -7257,7 +7257,7 @@ describe("persistence-sync", function() {
           expect(last.canceled).toEqual(true);
           stashes.persist('last_sync_status', null);
           persistence.set('last_sync_at', saved.last_sync_at);
-          persistence.set('last_sync_stamp', saved.last_sync_stamp);
+          persistence.set('last_sync_stamp', saved.last_sync_stamp); persistence.set('last_sync_event_at', saved.last_sync_event_at);
           cancelSyncTailWork();
           persistence.set('sync_progress', null);
         });
@@ -7348,6 +7348,7 @@ function isCrisisVocabularyRequest(url) {
 }
 // Hides the service's sync() so persistence.sync runs the utils/persistence.js copy (state stays on the service).
 function utilsSyncWindow(service) {
+  utilsSyncWindowService = service; // restoreSyncTestGlobals puts it back even when the sync never settles
   return new Proxy(service, {
     has: function(target, prop) { return prop === 'sync' ? false : (prop in target); },
     get: function(target, prop) {
@@ -7365,3 +7366,15 @@ import boardRevocation from '../../utils/board_revocation';
 import * as emberDebug from '@ember/debug';
 import { BOARD_RELOAD_MS } from '../../utils/sync_board_fallback';
 import offlineSyncSeeds from '../../utils/offline_sync_seeds';
+
+// Run by the top-level afterEach. Puts back what a test may leave on the running service when its own clean-up does
+// not run (a sync that never settles) or does not reach it: window.persistence while a utils-copy case ran
+// (utilsSyncWindow), the URL caches some tests write on the service directly, and the force_reload marker that a record
+// reload sets (models/base.js) and that a later test's board fetch would read.
+var utilsSyncWindowService = null;
+function restoreSyncTestGlobals() {
+  if(utilsSyncWindowService) { window.persistence = utilsSyncWindowService; utilsSyncWindowService = null; }
+  var target = persistenceTarget();
+  if(target) { target.url_cache = {}; target.url_uncache = {}; target.force_reload = null; }
+  persistence.force_reload = null;
+}

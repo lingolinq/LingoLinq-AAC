@@ -28,7 +28,7 @@ module('Unit | Utility | persistence saved pictures', function(hooks) {
       window_ready: window.lingoLinqExtras && window.lingoLinqExtras.ready, proxy_key: window.symbol_proxy_key,
       write_file: capabilities.storage.write_file, remove_file: capabilities.storage.remove_file
     };
-    this.stashes = this.owner.lookup('service:stashes');
+    this.stashes = this.owner.lookup('service:stashes'); this.prior.auth_settings = this.stashes.get('auth_settings'); // put back exactly in afterEach
     lingoLinqExtras.set('ready', true);
     if(window.lingoLinqExtras) { set(window.lingoLinqExtras, 'ready', true); } // tracked: plain assignment asserts
     this.stashes.set('auth_settings', {});
@@ -56,7 +56,7 @@ module('Unit | Utility | persistence saved pictures', function(hooks) {
     lingoLinqExtras.set('ready', this.prior.ready);
     if(window.lingoLinqExtras) { set(window.lingoLinqExtras, 'ready', this.prior.window_ready); }
     window.symbol_proxy_key = this.prior.proxy_key;
-    this.stashes.set('auth_settings', null);
+    this.stashes.set('auth_settings', this.prior.auth_settings);
   });
 
   test('a picture saved as a file counts as saved for the rest of the session', async function(assert) {
