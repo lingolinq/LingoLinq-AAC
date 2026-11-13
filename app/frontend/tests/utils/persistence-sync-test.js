@@ -7212,6 +7212,37 @@ describe("persistence-sync", function() {
         });
       });
     });
+
+    // The signed-in person is asked for as 'self' (home-board flows, the Sync button) and by their real id (the user
+    // page's reload, controllers/user/index.js `persistence.sync(model.id, 'all_reload')`). Both name one person, so
+    // they make one follow-up, not two syncs of the same boards in a row (review of #1268, 2026-11-13).
+    it("merges a request for 'self' and one for the signed-in person's id into one follow-up", function() {
+      db_wait(function() {
+        prepareFollowUp('1364');
+        queryLog.defineFixture({ method: 'GET', type: 'user', response: RSVP.resolve(payload), id: 'self' });
+        stubSignedInUser('1364');
+        stubOnPersistence('local_db_is_current_user', function() { return true; });
+        var by_self = null;
+        var by_id = null;
+        stubOnPersistence('sync_boards', function(user, ids, synced, force) {
+          recordPass(user, force);
+          if(calls.length === 1) {
+            by_self = settles(persistence.sync('self', null, null, 'home_board_changed'));
+            by_id = settles(persistence.sync('1364', 'all_reload'));
+          }
+          return RSVP.resolve({});
+        });
+        var first = settles(persistence.sync('1364'));
+        waitsFor(function() { return first.done && by_self && by_self.done && by_id && by_id.done && syncSettled(); });
+        runs(function() {
+          expect(by_self.ok).toEqual(true);
+          expect(by_id.ok).toEqual(true);
+          expect(calls.length).toEqual(2);
+          expect(calls[1].force).toEqual('all_reload');
+          finish();
+        });
+      });
+    });
   });
 
   // A cancelled sync whose board walk resolves (the walk resolves on cancel, services/persistence.js nextBoard) ended in

@@ -5040,7 +5040,11 @@ persistence.reopen({
   },
   queue_follow_up_sync: function(user_id, force, sync_reason) {
     var queue = this._follow_up_syncs = this._follow_up_syncs || [];
-    var entry = queue.find(function(e) { return String(e.user_id) === String(user_id); });
+    // One entry per person: 'self' and the signed-in person's own id name the same person (the user page reloads by
+    // model.id, controllers/user/index.js; the home-board flows and the Sync button ask for 'self').
+    var me = this.signed_in_auth_user_id();
+    var person = function(id) { return (id === 'self' || (me && String(id) === String(me))) ? 'self' : String(id); };
+    var entry = queue.find(function(e) { return person(e.user_id) === person(user_id); });
     if(!entry) {
       entry = { user_id: user_id, queued_for: this.signed_in_auth_user_id() }; // who was signed in when it was asked for
       entry.promise = new RSVP.Promise(function(resolve, reject) { entry.resolve = resolve; entry.reject = reject; });

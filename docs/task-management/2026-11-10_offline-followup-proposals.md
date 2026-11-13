@@ -1506,6 +1506,15 @@ device's trust changes. Also for Scot: should `generate_token!` skip the organiz
 `long_token_owner_choice` is true, so a device trusted by a supervisor's save keeps it on new sign-ins too? The TD Snap
 quote was not re-checked after the review (the page refused the fetch).
 
+**Limits kept (Traci, 2026-11-13).** A trusted browser device keeps its own limits: signed out after 28 days unused
+(`Device#inactivity_timeout`, `app/models/device.rb:257-259`) or 6 months in total (`Device#token_timeout`,
+`:38-43`). The native apps allow 14 months and 5 years. When either limit passes, the next token check at start-up
+signs the person out with no speak-mode exception (`services/session.js:302-304`, `:411-414`). Only the per-request
+check in `utils/extras.js:410` spares speak mode. So a student back from a summer break longer than 28 days, or on a
+device past 6 months, meets a sign-in screen and cannot speak until an adult signs in. This was decided as an
+accepted limit, not changed. Options considered and not taken: letting speak mode open the person's boards from the
+device without a session, or raising browser limits to the native apps'.
+
 ## 27. "Change Home Board" saves the new home board on the device, as the picker does (2026-11-13; Traci: make it work as intended)
 
 **Cause (CONFIRMED).** The board picker starts a sync once a home board is set, when online with automatic sync on
@@ -1539,3 +1548,26 @@ and the leak check caught the read of a destroyed `window.persistence`, so the c
 **UI check (Playwright).** As example on `/example`, set-home mode on an owned board: the home board changed and one
 `home_board_changed` sync started. The original home board was put back. Basic's mode was not driven in the browser;
 its tests use the real component.
+
+## 28. The full review's smaller fixes (2026-11-13; Traci: do the review's smaller fixes)
+
+Each claim from the `/review-pr` pass (section 25) was traced in the full code before any change:
+- **Stale `_this_call_sync_id` (A-M1) and a stalled follow-up queue (A-M2): unreachable.** Both need the base sync to
+  return before it takes an id. Its only such return is the "extras not ready" wait (`services/persistence.js:1999`).
+  Nothing in the app sets extras back to not ready, and both scenarios need a sync that already ran, which needed
+  extras ready. No change.
+- **A remove that does not wait for a pending write (A-M4): refuted.** `dbman.store` turns the record's id into its
+  store-prefixed form (`utils/dbman.js:146-151`) before `store_internal` builds its queue key. So the write and the
+  remove use the same key. No change.
+- **The remote-modeling check failing open (B-H1, downgraded): unreachable.** The session record is keyed 'self' only
+  through `serializers/application.js:52-59`, which always stores `_actual_id`. No change.
+- **Default text changed under existing keys (Low): partly real.** The service's new text matches `en.json`
+  ("One or more boards are private.", "Must be online to sync."). The legacy copy in `utils/persistence.js:2477-2479`
+  still had the old text, which gave two defaults per key; that blocks the i18n generator. Aligned.
+- **A manual cancel raising the back-off step (Low): by design.** Traci's decision (2026-11-12): pause 30 minutes,
+  doubling to 6 hours, reset by a finished sync. No change.
+- **Two follow-up entries for one person (Low): real, fixed.** `controllers/user/index.js:1454` reloads by `model.id`
+  (the real id), while the home-board flows and the Sync button ask for 'self'. `queue_follow_up_sync` matched raw ids,
+  so the same person was synced twice in a row. It now treats 'self' and the signed-in id as one person. Test "merges a
+  request for 'self' and one for the signed-in person's id into one follow-up" failed before the fix (3 board passes,
+  expected 2). Targeted run, timing-strict: 189 tests, 0 failures, no leak lines. Lint gate clean.

@@ -2474,9 +2474,9 @@ var persistence = EmberObject.extend({
         stashes.persist('last_sync_status', 'failed');
         safeSet(getPersistence(), 'sync_status_error', null);
         if(err.board_unauthorized) {
-          safeSet(getPersistence(), 'sync_status_error', i18n.t('board_unauthorized', "One or more boards are private"));
+          safeSet(getPersistence(), 'sync_status_error', i18n.t('board_unauthorized', "One or more boards are private."));
         } else if(!safeGet(getPersistence(), 'online')) {
-          safeSet(getPersistence(), 'sync_status_error', i18n.t('online_required_to_sync', "Must be online to sync"));
+          safeSet(getPersistence(), 'sync_status_error', i18n.t('online_required_to_sync', "Must be online to sync."));
         }
         var message = (err && err.error) || "unspecified sync error";
         statuses = Utils.uniq(statuses, function(s) { return s.id; });
