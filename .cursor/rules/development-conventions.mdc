@@ -18,6 +18,7 @@ alwaysApply: true
 ## Functionality
 
 - **Do not remove or change functionality when refactoring.**
+- **Stay in scope.** Fix only what the task or issue asks. Do not add unrelated hardening, compliance or privacy changes, refactors or cleanups to the PR, even in files you touch. Log anything else you notice as a follow-up issue draft (title and body) in the PR description. The one exception is a concrete, proven exposure of real people's personal data in code the PR touches, meeting the evidence bar in the `## Code Review Rules` section of `AGENTS.md`.
 - Preserve existing behavior. If a change would alter what the app does, do not make it without explicit user approval.
 
 ## Styling and class names

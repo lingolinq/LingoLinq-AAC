@@ -101,6 +101,13 @@ everything else in this file.
     `gh pr edit --add-label`), never post a `data-bearing-approval/*` status, and never
     ask for either to be done on your behalf. When a PR needs it, say so and let the
     reviewer add it after reading the data.
+16. **Stay in scope.** Fix only what the task or issue asks. Do not add unrelated
+    hardening, compliance or privacy changes, refactors or cleanups to the PR, even in
+    files you touch. Log anything else you notice as a follow-up issue draft (title and
+    body) in the PR description. The one exception is a concrete, proven exposure of real
+    people's personal data in code the PR touches, meeting the evidence bar in the
+    `## Code Review Rules` section of `AGENTS.md`. A change should do one self-contained
+    thing (Google's code review guide), so the fix ships without waiting on unrelated work.
 
 ## Branching (mandatory before any code change)
 
@@ -238,6 +245,13 @@ Run `/pr-preflight`. Then review, sized to what the PR touches:
   or deploy config, or the `data-bearing-paths` gate.
 - **At most two review rounds.** A third round needs Scot's OK.
 - A Critical or High finding from any review blocks the PR.
+- **Every review sorts its findings into two buckets** using the `## Code Review Rules`
+  section of `AGENTS.md`, which also holds the `Current stage:` line (the one place to
+  change it). Only "fix before merge" findings (the app breaks, data is lost or mixed
+  between accounts, a real security hole for current users, or real personal-data exposure
+  shown by a reachable code path) may be Critical or High. Compliance, privacy,
+  shared-device and polish items are follow-ups: Medium or Low, each with a ready-to-file
+  GitHub issue draft, and they do not block.
 
 The `/review-pr` pass ships the diff to an external model on an account with no BAA, so run
 the PII pre-flight first and match the form to the argument: for a PR number,
