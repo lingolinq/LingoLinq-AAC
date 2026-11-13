@@ -1571,3 +1571,30 @@ Each claim from the `/review-pr` pass (section 25) was traced in the full code b
   so the same person was synced twice in a row. It now treats 'self' and the signed-in id as one person. Test "merges a
   request for 'self' and one for the signed-in person's id into one follow-up" failed before the fix (3 board passes,
   expected 2). Targeted run, timing-strict: 189 tests, 0 failures, no leak lines. Lint gate clean.
+
+## 29. The full review's unchecked claims, checked with evidence (2026-11-13; Traci: check the claims with evidence)
+
+- **B-H2, offline `jump_to_board` can land on a stale board: CONFIRMED (race), REFUTED (rejection).**
+  - Race: `services/app-state.js:5489-5498`. Only the offline branch sets `_latest_jump`; the online branch (5491)
+    jumps synchronously without it. An offline tap whose device check is still running (up to `DEVICE_READ_WAIT_MS`,
+    5 s) and a second tap after the connection returns: the first check resolves with its token still latest and
+    jumps to the earlier board.
+  - Rejection: `device_has_board` turns a failed read into false and is bounded by `within`
+    (`utils/board_device_copy.js:54-58`), so `jump_to_board` never rejects.
+- **D1-H2, the 10-minute trust stamp depends on the client's clock: CONFIRMED.** The client stamps the Trust answer
+  with `Date.now()` (`utils/trust_choice.js:14`). The server accepts it as the person's own answer only within 10
+  minutes of server time (`app/models/user.rb:3874`). On a device more than 10 minutes off, `long_token` becomes true
+  but `long_token_owner_choice` stays false. So tokens issued before the answer keep the organization timeout: the
+  first-session sign-out fixed in f25478717 returns for that device. Later sign-ins are unaffected (no org timeout on
+  a `long_token` row, `Device#generate_token!`).
+- **E1 High 1, "a reconnect still waits out the back-off after a failure that was not a dropped connection" cannot
+  fail: CONFIRMED by mutation.** With `reconnect_may_skip_backoff` forced to return true, the test still passed
+  (`tests/unit/services/persistence-sync-startup-test.js`). It never sets `last_sync_at`, unlike its sibling, so no
+  stamp request is reachable either way.
+- **E1 High 2, the two device-copy wait tests cannot fail: REFUTED by mutation.** With `_session_user_loaded` waiting
+  for nothing, both failed. With the short wait always used, "after a server refusal, the session user gets longer
+  to arrive" failed.
+- **E2 High 3, board-revocation tests leave app-wide Speak Mode on: REFUTED.** `tests/unit/utils/board-revocation-test.js`
+  sets `speak_mode` on a stand-in `LingoLinq.appState` installed in `beforeEach` (line 45). `afterEach` restores the
+  real one and calls `reset_for_tests` (lines 49-57), which clears the deferred marks (`utils/board_revocation.js:711-716`).
+  That file has no `boardDetailCache.clear()`.
