@@ -1364,7 +1364,7 @@ FIX list (by owner):
   `components/confirm-delete-board.js` 251, `copying-board.js` 254, `create-board-new.js` 1883-1887; `create-board-new.js`
   738 (skin seed); `filterRootBoards` callers (consistency; output unchanged per section 21); `dashboard/authenticated-view.js`
   589 (`exclude_starred`), 669-671; `helpers/remote-modeling-access.js` 18; `routes/user/logs.js` 82; re-point after save in
-  `controllers/user/stats.js` 458/470, `preferences.js` 1254, `board-detail.js` 8338 (reload the live record); 
+  `controllers/user/stats.js` 458/470, `preferences.js` 1254, `board-detail.js` 8338 (reload the live record);
   `templates/user/index.hbs` 687; `utils/mine_board_grouping.js` 220; `utils/board_prefetch_planner.js` 65; `utils/obf.js` 186.
 - Logs and payloads: `components/record-note.js` 199/205, `quick-assessment.js` 157/173, `new-goal.js` 317/335,
   `save-snapshot.js` 93, `add-tool.js` 104, `import-board-recipients.js` 50, `modeling-ideas.js` 53/145/279/293/306,
