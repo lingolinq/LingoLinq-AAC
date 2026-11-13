@@ -12,9 +12,10 @@
 # - Permanent bounce, every subtype including OnAccountSuppressionList: disable.
 # - Complaint: counted, NOT acted on (owner decision, 2026-11-09). Disabling on a complaint
 #   would cut mail to every account sharing that address, and anyone can register an account
-#   with someone else's address. If the SES account-level
-#   suppression list covers complaints, the next send to that address comes back as an
-#   OnAccountSuppressionList bounce and is handled as a permanent bounce.
+#   with someone else's address. The SES account suppresses complaints (read 2026-11-12), and a
+#   later send to an address suppressed for a complaint is reported as a Complaint event with
+#   complaintSubType OnAccountSuppressionList (AWS API_Complaint), not as a bounce, so it is
+#   counted and ignored here too: such a user stays enabled while SES drops their mail.
 # - Transient and Undetermined bounces, Send, Delivery, DeliveryDelay, Reject and anything
 #   else: ignore.
 #

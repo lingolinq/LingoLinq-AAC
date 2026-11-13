@@ -320,12 +320,23 @@ head SHA and run URL with the rollout evidence.
    bounced address is a new hard bounce that counts toward `Reputation.BounceRate`; resets
    are capped at 6 per account per window (`Passwords#generate_password_reset`), but the
    owner decides whether that is acceptable before the code ships.
-   **Result (2026-11-12, read by Scot in the SES console):** the account suppresses both
-   bounces and complaints. Gate passed: a reset sent to a bounced address costs no
-   reputation, and it is not delivered. A bounce-disabled user therefore recovers through an
-   admin changing the address, not through the reset. A complaint does not turn email off by
-   itself, but SES suppresses the address, so the next mail to it comes back as an
-   `OnAccountSuppressionList` bounce, which does.
+   **Result (2026-11-12, read by Scot in the SES console):** the account-level setting
+   suppresses both bounces and complaints. Not yet read: whether the `lingolinq-transactional`
+   configuration set overrides it (SES console, Configuration sets, Suppression list options,
+   or `aws sesv2 get-configuration-set --configuration-set-name lingolinq-transactional --region us-west-2 --query SuppressionOptions`).
+   `scripts/gcp/phase5-ses-config-set-setup.sh` sets no override, so the account setting
+   applies unless one was added by hand; confirm before step 4. With the account setting in
+   force, a reset sent to a bounced address is accepted, not delivered, and does not count
+   toward `Reputation.BounceRate` (it still counts toward the daily sending quota). A
+   bounce-disabled user recovers when the address is changed to a different one, which clears
+   the flag: the user (while signed in), a supervisor with edit permission, a full
+   organization manager, or a site admin can change it on the profile edit page; full
+   organization managers and site admins can also set a password in Support Actions
+   (`app/models/user.rb:86,88`, `users_controller.rb:210`). A complaint does not turn email
+   off, and neither does later mail to that address: SES reports it as a Complaint event with
+   `complaintSubType` `OnAccountSuppressionList`, which the consumer counts and ignores
+   (`app/models/ses_event.rb` `classify_complaint`). Whether that subtype should turn email
+   off is an open owner decision.
 4. Merge and release the code to `main`. With the variable unset, the scheduler logs
    `process_ses_events ... skipped`.
 5. Drain the old queue's backlog once: set `APP_SES_EVENTS_QUEUE_URL` in the `production`

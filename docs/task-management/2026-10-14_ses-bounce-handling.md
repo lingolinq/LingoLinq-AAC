@@ -266,7 +266,8 @@ Each finding re-checked against the code before acting.
   Whether staging's `AWS_KEY` is the prod user: INFRASTRUCTURE.md says nonprod uses
   `lingolinq-app`; NOT verified live.
 - F9 (a `StaleObjectError` deferred `update_setting` can re-disable after an email change):
-  PLAUSIBLE, narrow (`processable.rb:85-90`). Follow-up.
+  PLAUSIBLE, narrow (`processable.rb:85-90`). Follow-up. CLOSED by `2de178eb6` (no deferred
+  replay in `update_settings_locked`); see open follow-up 5 for the race that replaced it.
 
 ## Verification
 
@@ -545,24 +546,39 @@ live `--check` was possible (no `aws`, `gcloud` or `jq` on this machine).
    the send-failure alert covers queued mail.
 3. Owner action: `demoschooldistrict.org` is unregistered (no DNS record). Register it or move the demo
    seeds to a reserved domain.
-4. DONE 2026-11-12: Scot read the SES console. The account suppresses BOUNCE and COMPLAINT.
-   Consequences: (a) the reset sent to a bounce-disabled user (decision 2) is dropped by SES, so
-   it costs no reputation and does not arrive; such a user recovers by having the address changed to
-   a different mailbox, which clears the flag (`app/models/user.rb:2754`): by themselves while
-   signed in, by anyone with edit access (organization manager), or by an admin, on the profile
-   edit page (`templates/user/edit.hbs`); admins can also set a password through the support
-   action (`users_controller.rb:210`). (Corrected: an earlier version of this line called the
-   admin clear action the real recovery path; it is not, see item 5);
-   (b) decision 1 (complaints counted only) holds for the complaint event itself, but the next
-   mail to that address returns as an `OnAccountSuppressionList` bounce and turns email off
-   (`app/models/ses_event.rb:12,17`).
+4. PARTLY DONE 2026-11-12: Scot read the SES console. The account-level setting suppresses BOUNCE
+   and COMPLAINT. Still to read: the `lingolinq-transactional` configuration set's suppression
+   override (a configuration set can cancel account suppression; phase5 sets none).
+   Consequences, with the account setting in force:
+   (a) the reset sent to a bounce-disabled user (decision 2) is accepted and not delivered; it does
+   not count toward `Reputation.BounceRate` but does count toward the sending quota. Such a user
+   recovers when the address is changed to a different one, which clears the flag
+   (`app/models/user.rb:2754`): the user (while signed in), a supervisor with edit permission
+   (`user.rb:61`, `supervising.rb:110-118`), a full organization manager (`organization.rb:966`), or a
+   site admin, on the profile edit page (`templates/user/edit.hbs`); full organization managers and
+   site admins can also set a password in Support Actions (`user.rb:86,88`,
+   `users_controller.rb:210`). (Corrected: an earlier version of this line called the admin clear
+   action the real recovery path; it is not, see item 5.)
+   (b) decision 1 (complaints counted only) holds fully, including later mail: SES reports a send to
+   an address suppressed for a complaint as a Complaint event with complaintSubType
+   `OnAccountSuppressionList` (AWS API_Complaint), which `classify_complaint` ignores. Such a user
+   stays enabled while SES drops their mail. (Corrected: an earlier version said that later mail
+   returns as a bounce and turns email off.) Open owner decision: should that subtype disable?
+   Source: adversary review of `2903e88a7..aa8f7899d`, 2026-11-12.
 5. Dropped 2026-11-12: the admin action to clear `email_disabled`. Changing the address already clears
    it (item 4), and clearing it on the same address would also need the address removed from the SES
-   suppression list, an AWS step, so that rare case is handled by hand. The real gap is visibility:
+   suppression list, an AWS step, so that case is handled by hand. ASSUMED rare: one district-wide
+   hard-bounce event would suppress many addresses at once, and no hand-recovery runbook exists yet
+   (audited `bin/audit_console` write of the three settings keys plus
+   `aws sesv2 delete-suppressed-destination`, exact case). The real gap is visibility:
    nothing in the frontend or `lib/json_api/user.rb` shows the flag. Filed as #1307 (low priority,
    optional).
    Still open from F2: a per-domain cap and a runtime
-   kill switch for the consumer; F9 (a deferred `update_setting` re-disabling after an email change);
+   kill switch for the consumer; (F9 closed by `2de178eb6`: `bounce_email` now uses
+   `User.update_settings_locked`, which has no deferred replay. In its place, a narrow race:
+   `bounce_email` collects user ids, then locks each row without re-checking the locked row's
+   `email_hash`, so an email change between the two could be disabled; counter-measure: skip when
+   the locked row's `email_hash` no longer matches);
    `aws-sdk-sqs` as a direct Gemfile entry (shared config: propose first).
 6. Move `prod-scheduler-liveness-alert.sh` onto `scripts/gcp/lib/alert-policy.sh` when its `--check`
    can be re-run live.
