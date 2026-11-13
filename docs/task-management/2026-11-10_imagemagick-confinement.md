@@ -1,6 +1,6 @@
 # ImageMagick runs only on the files it is given
 
-Base: `develop` at `db5cfcef1`. Branch `traci/security/svg-rasterize`.
+Base: `develop` at `db5cfcef1` (merge-base `02bed901f` after develop was merged in on 2026-11-12). Branch `traci/security/svg-rasterize`.
 
 ## What changed
 
@@ -80,9 +80,10 @@ with the system policy and with `config/imagemagick/policy.xml` loaded, two exam
   (`app/models/utterance.rb:348`); the stored data is encrypted, so Postgres never sees the bytes
   (red-team, CONFIRMED). The module's own comment (`:201-204`) still treats it as a case to survive.
 - **Version dependence.** The CI runner installs ImageMagick 7.1.2-18 (`.github/workflows/ci.yml`);
-  on `8ba643fe3` every real-ImageMagick example ran there and passed, `:53` and `:91` included. That
-  is consistent with 7.1.2 refusing the walk, and equally with 7.1.2 never drawing an `href` file at all
-  (ASSUMED either way until the unconfined controls below run on CI). On 6.9.12-98 (local) the walk is drawn. The earlier "Tests" section above says
+  on `8ba643fe3` every real-ImageMagick example ran there and passed, `:53` and `:91` included. On
+  `6365981ce` the unconfined twins below ran on CI and drew the file, walk included, so 7.1.2 does draw
+  `href` files unconfined. Together, the two runs show that on 7.1.2 the confined walk was refused
+  before the `..` deny existed (`8ba643fe3`), and is refused with it. On 6.9.12-98 (local) the walk is drawn. The earlier "Tests" section above says
   all examples passed on 6.9.11, but `:91` was not separately measured there, so whether the production
   image (6.9.11) refuses the walk is ASSUMED unknown, and so is whether its SVG coder is ImageMagick's
   own renderer or librsvg (librsvg would fetch `href` files itself, outside the policy).
@@ -135,10 +136,13 @@ the `*/..*` deny closes every walk that works unconfined (plain, `//..//`, `/./.
 suffix, `file://`, a nested `data:` svg, the private-directory walk), and the sentence_pic montage,
 `save_image` and `convert_image` renders are pixel-identical with and without it. Taken:
 
-- The version-independent policy example (the last rule is the deny) is the guard CI can enforce,
-  since the runner's ImageMagick 7.1.2 refuses the walk without it. Added a real-ImageMagick
+- The version-independent policy example (the last rule is the deny) is the guard CI can enforce:
+  on the runner's ImageMagick 7.1.2 the confined walk was refused even before the deny existed (see
+  the fact sheet), so a behavioural example there cannot show the deny missing. Added a real-ImageMagick
   private-directory walk example.
-- Added an invalid-UTF-8 output-path example, which is what exercises the `pattern_variants` guard.
+- Added an invalid-UTF-8 output-path example for the `pattern_variants` guard. Since `run` rescues
+  `ArgumentError` (`6365981ce`) it also asserts the policy was written, or a raise would pass as an
+  empty policy (final red-team, 2026-11-12).
 - Fact sheet corrected above (Rails, not Postgres; private-directory walk CONFIRMED).
 
 Not done here, as follow-ups:
@@ -232,7 +236,8 @@ to return nil or false, never raise: an exception escaping the sentence-preview 
 - **Fix 1, widened.** One unconfined twin per distinct render shape (runner, `xlink:href`, svg under a
   raster name, the system-directory walk, `save_image`'s svg and non-svg arguments, `convert_image`),
   each asserting the file is drawn (`mean_red > 0.1`, the complement of the leak checks). No `skip`
-  beyond the existing "ImageMagick not installed". If a twin fails on CI, that ImageMagick cannot show
+  beyond the existing "ImageMagick not installed" and, for the walk, "no ImageMagick config or font
+  directory found". If a twin fails on CI, that ImageMagick cannot show
   the leak examples failing; the answer is to run them against the production image's ImageMagick, not to
   remove the twin.
 
@@ -244,3 +249,25 @@ uploadable, utterance, button_image, converters, imagemagick_policy) went from 5
 Not taken, as follow-ups: the same loaded-policy check in the Dockerfile build and the CI verify step; a
 private `delegate` deny (inkscape is not installed today, but ImageMagick would hand an svg to it, and it
 reads `href` files itself).
+
+### Final review of the PR (2026-11-12)
+
+`/adversary-review` of the whole PR at `6365981ce`
+(`REVIEWED=PR lingolinq/LingoLinq-AAC#1300 at 6365981ce396b5b9da3d637f6ad55bcef4097145`): approve with
+conditions, no Critical or High. No way found for an image to read or write outside the policy on
+6.9.12 (absolute, relative, `..`, symlink, `/proc/self/cwd`, `/proc/self/root`, `//`, `/./`, coder
+prefixes, frame selectors, XML entities); text and fonts render pixel-identical confined; 16 of 18
+mutants killed. Taken: the output-path example now asserts the policy was written (it passed with its
+guard removed); the two directory examples compare only new directories, since the stale sweep can
+remove an older one mid-run (assertion change approved by Traci, Rule #0.14); four lines of this log
+corrected.
+
+Follow-ups, not in this PR:
+- An example that a harmless svg still rasterizes through `convert_image` (today's leak check passes
+  when no raster is made), and one that the temp directory is kept out of `system_read_dirs`.
+- `sweep_spawned` lists all of `Dir.tmpdir` on every call, and `lib/sentence_pic.rb` never deletes its
+  files (predates this PR); a dedicated parent directory would bound it.
+- ImageMagick binaries other than `convert`, `montage`, `identify` and `magick` run unconfined. No
+  caller uses one today.
+- Production: whether Debian's 6.9.11 build is `--without-rsvg` (`config-Q16/configure.xml` in the
+  production image); the Dockerfile and CI install `imagemagick` with its recommended coders package.

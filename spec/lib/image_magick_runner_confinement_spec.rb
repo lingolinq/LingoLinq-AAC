@@ -95,7 +95,8 @@ describe ImageMagickRunner, "confinement" do
       input = write_svg(@dir, '')
       before = Dir.glob(File.join(Dir.tmpdir, 'magick-confine*'))
       ImageMagickRunner.run('convert', input, File.join(@dir, 'out.jpg'))
-      expect(Dir.glob(File.join(Dir.tmpdir, 'magick-confine*'))).to match_array(before)
+      # Only new directories count: the sweep may remove an older stale one during the run.
+      expect(Dir.glob(File.join(Dir.tmpdir, 'magick-confine*')) - before).to eq([])
     end
 
     it "does not draw a file reached by walking up out of an allowed directory" do
@@ -115,7 +116,8 @@ describe ImageMagickRunner, "confinement" do
       Process.detach(ImageMagickRunner.spawn('convert', '-background', 'white', input, '-flatten', out)).join
       expect(!File.exist?(out) || mean_red(out) < 0.1).to eq(true)
       ImageMagickRunner.run('convert', write_svg(@dir, '', 'other.svg'), File.join(@dir, 'other.jpg'))
-      expect(Dir.glob(File.join(Dir.tmpdir, 'magick-confine*'))).to match_array(before)
+      # Only new directories count: the sweep may remove an older stale one during the run.
+      expect(Dir.glob(File.join(Dir.tmpdir, 'magick-confine*')) - before).to eq([])
     end
 
     it "removes a private directory a finished job left behind, once it is stale" do
@@ -329,6 +331,9 @@ describe ImageMagickRunner, "confinement" do
       out = File.join(@dir, "out\xE9.jpg".dup.force_encoding('UTF-8'))
       policy = nil
       expect { policy = policy_for('convert', input, out) }.not_to raise_error
+      # The policy was written (run's rescue would otherwise hide a raise as an empty policy).
+      expect(policy).to be_a(String)
+      expect(Nokogiri::XML(policy).xpath('/policymap/policy').map { |r| r['pattern'] }).to include(input)
       expect(Nokogiri::XML(policy).xpath('/policymap/policy[@rights="write"]').length).to eq(0)
     end
 
