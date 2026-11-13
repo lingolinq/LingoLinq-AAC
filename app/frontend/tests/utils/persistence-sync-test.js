@@ -759,7 +759,7 @@ describe("persistence-sync", function() {
     }
   });
   afterEach(function() {
-    cancelSyncTailWork();
+    restoreSyncTestGlobals(); cancelSyncTailWork();
     unloadSyncStoreRecords();
     clearLocalSyncDb();
     capabilities.dbman = dbman;
@@ -774,7 +774,7 @@ describe("persistence-sync", function() {
       capabilities.dbman.clear('deletion', function() {});
     }
     LingoLinq.all_wait = false;
-    LingoLinq.sync_testing_real_boards = false; restoreSyncTestGlobals();
+    LingoLinq.sync_testing_real_boards = false;
   });
 
   var board = null;
@@ -5576,7 +5576,7 @@ describe("persistence-sync", function() {
   // A later root sync cleared that flag before the rejection ran, so the stop was stored as a
   // failure. The rejection now leaves the status empty when this sync is still the active one,
   // and does not touch a newer sync's status. The stash stays the last real result. (#1230; the
-  // sync_status expectation changed from 'failed' to null in e842c958b, approved by Traci 2026-11-13.)
+  // sync_status expectation changed from 'failed' to null in "keep the Sync failed notice on this person's own sync", approved by Traci 2026-11-13.)
   it("should not remember a cancelled sync as a failed one", function() {
     db_wait(function() {
       cancelSyncTailWork();
@@ -7367,14 +7367,14 @@ import * as emberDebug from '@ember/debug';
 import { BOARD_RELOAD_MS } from '../../utils/sync_board_fallback';
 import offlineSyncSeeds from '../../utils/offline_sync_seeds';
 
-// Run by the top-level afterEach. Puts back what a test may leave on the running service when its own clean-up does
-// not run (a sync that never settles) or does not reach it: window.persistence while a utils-copy case ran
-// (utilsSyncWindow), the URL caches some tests write on the service directly, and the force_reload marker that a record
-// reload sets (models/base.js) and that a later test's board fetch would read.
+// Run first in the top-level afterEach. Puts back what a test may leave when its own clean-up does not run (a sync that
+// never settles): window.persistence while a utils-copy case ran (utilsSyncWindow), which a retry of the test would
+// otherwise run against; the URL caches some tests write on the running service directly; and the force_reload marker
+// that a record reload sets on this utils object (models/base.js) and a later board fetch reads.
 var utilsSyncWindowService = null;
 function restoreSyncTestGlobals() {
   if(utilsSyncWindowService) { window.persistence = utilsSyncWindowService; utilsSyncWindowService = null; }
   var target = persistenceTarget();
-  if(target) { target.url_cache = {}; target.url_uncache = {}; target.force_reload = null; }
+  if(target) { target.url_cache = {}; target.url_uncache = {}; }
   persistence.force_reload = null;
 }

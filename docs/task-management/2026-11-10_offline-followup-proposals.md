@@ -1285,7 +1285,7 @@ Three `adversary` passes on the code at `cff92d359`, one per commit. All three: 
 Spot-checked by hand: `last_sync_event_at` is written at every root sync's start (`services/persistence.js:2040`), so
 the cancelled-resolve test's `> 1` assertion is empty; the valet, not-a-browser and 28-idle-days examples in
 `spec/models/device_spec.rb` set `long_token` without `long_token_owner_choice`, so `trusted_browser`
-(`app/models/device.rb:297`) is false whatever they test (from `5d5f14234`); `RSVP.all_wait` rejects at the first
+(`app/models/device.rb:300`) is false whatever they test (from `5d5f14234`); `RSVP.all_wait` rejects at the first
 failure outside tests (`utils/misc.js:154`); `'home_board_copied'` (`models/user.js:1062`) is not in `AUTO_SYNC_GATED`.
 
 **Follow-up queue (`65283750b`).** M: a sync that fails early settles while its later scheduled steps (spread_out,
@@ -1475,9 +1475,11 @@ same file. Verdict: request changes. The report is kept outside the repo.
 **Decision (Traci).** A browser device that the person trusts themselves is not signed out by the organization's idle
 timeout (`Device#clean_old_keys`, `app/models/device.rb`). The reason: an AAC device is the person's voice, and the
 clinical standard is working AAC at all times. An idle sign-out leaves a student unable to speak until an adult enters
-a password. A student's AAC device is assigned to that student and is not passed around a classroom. Shared and valet
-devices, and devices marked trusted by anyone other than the person, keep the organization's timeout. The device's own
-idle limit and maximum token lifetime still apply.
+a password. A student's AAC device is assigned to that student and is not passed around a classroom. The device's own
+idle limit and maximum token lifetime still apply. Shared and valet devices keep the organization's timeout. A device
+marked trusted by anyone other than the person keeps it only on keys issued before the mark: every later sign-in on a
+row whose `long_token` is true gets no organization timeout (`device.rb:172` and `:206-210`, in place since 2019). So
+that limit is narrower than it reads in `clean_old_keys`. (Corrected after the adversary review of these commits.)
 
 **Sources (read 2026-11-13):**
 - NJC Communication Bill of Rights, 3rd edition (https://asha.org/njc/communication-bill-of-rights/): "The right to
@@ -1485,7 +1487,8 @@ idle limit and maximum token lifetime still apply.
   at all times."
 - ASHA, back-to-school AAC tips, August 2026 (https://www.asha.org/news/2026/back-to-school-aac-classroom-tips/): "AAC
   devices are not optional accessories. They serve as a child's voice, and we all need access to our voice at all
-  times." Also: "Where students go, their AACs go."
+  times [...]" (the sentence goes on: not just during a particular subject or a specific time window). Also: "Make sure
+  AAC is available at all times." and "Where the student goes, their AAC goes."
 - Industry practice: dedicated AAC apps lock editing, not speaking. TD Snap's training card
   (https://manuals.plus/tobii-dynavox/td-snap-basics-training-cards-manual): "If you need to prevent the user from
   editing the page set, settings, in-app purchase, or Sync, you can require a passcode to access these features."
@@ -1499,4 +1502,6 @@ idle limit and maximum token lifetime still apply.
 **Still open (Scot).** Data and editing screens (usage logs, reports, assessments, other people's data, board editing,
 settings) could ask for the password again after the organization's idle time, even on a trusted device. That is the
 same split as TD Snap's edit passcode. It is a new feature (flag, own PR). There is still no audit log entry when a
-device's trust changes.
+device's trust changes. Also for Scot: should `generate_token!` skip the organization timeout only when
+`long_token_owner_choice` is true, so a device trusted by a supervisor's save keeps it on new sign-ins too? The TD Snap
+quote was not re-checked after the review (the page refused the fetch).

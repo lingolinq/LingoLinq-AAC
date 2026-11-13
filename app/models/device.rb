@@ -292,8 +292,9 @@ class Device < ApplicationRecord
     new_keys = []
     # A key issued before the person answered "Trust this Device" carries the organization's idle timeout
     # (generate_token!). Once the person trusts the device themselves, its own idle limit applies to those keys too,
-    # as it does to every key issued afterwards; a shared or valet device keeps the organization's timeout, and so
-    # does a device marked trusted by anyone else (a supervisor's save, a replayed save: User#process_device).
+    # as it does to every key issued afterwards; a shared or valet device keeps the organization's timeout on these
+    # keys, and so does a device marked trusted by anyone else (a supervisor's save, a replayed save:
+    # User#process_device). New keys on a row with long_token set get no organization timeout (generate_token!).
     # Why: an AAC device is the person's voice, and the standard is working AAC "at all times" (NJC Communication Bill
     # of Rights; ASHA). Reasoning and sources: PR #1268 and docs/task-management/2026-11-10_offline-followup-proposals.md section 26.
     trusted_browser = self.token_type == :browser && self.settings['long_token'] == true && self.settings['long_token_owner_choice'] == true && !self.settings['valet']
