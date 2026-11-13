@@ -5118,9 +5118,21 @@ persistence.reopen({
     return true;
   },
   // Requests made before a cancel are dropped at once; one made after it queues and runs when the cancelled sync ends.
+  // Cancelling a running sync also pauses automatic syncing (Traci, 2026-11-12): otherwise the stamp check started it
+  // again about 5 minutes later, every time.
   cancel_sync: function() {
     this.drop_follow_up_syncs({error: "canceled"});
+    if(this.get('sync_progress') && !this.get('sync_progress.canceled')) { this.pause_automatic_sync(); }
     return this._super(...arguments);
+  },
+  // The back-off that follows a failed automatic sync (sync_backoff_watcher): 30 minutes, doubling to 6 hours, reset by a
+  // finished sync. It only gates check_for_needs_sync, so the Sync button and the syncs a person's own changes start
+  // still run. No failure time is recorded, so a reconnect does not skip it (reconnect_may_skip_backoff).
+  pause_automatic_sync: function() {
+    var count = (this.get('auto_sync_failures') || 0) + 1;
+    var wait = Math.min(AUTO_SYNC_BACKOFF_MS * Math.pow(2, count - 1), AUTO_SYNC_BACKOFF_MAX_MS);
+    this.set('auto_sync_failures', count);
+    this.set('auto_sync_backoff_until', (new Date()).getTime() + wait);
   }
 });
 import { is_stale_item, drop_stale_head } from '../utils/url_store_queue';

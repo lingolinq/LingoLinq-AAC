@@ -7263,6 +7263,49 @@ describe("persistence-sync", function() {
       });
     });
 
+    // Cancel pauses AUTOMATIC syncing (Traci, 2026-11-12): without it the stamp check started the cancelled sync again
+    // about 5 minutes later, every time. The existing back-off is reused (30 minutes, doubling to 6 hours, reset by a
+    // finished sync); a sync the person asks for is not held back by it.
+    it("pauses automatic sync after Cancel, longer each time, while a requested sync still runs", function() {
+      db_wait(function() {
+        cancelSyncTailWork();
+        unloadSyncStoreRecords();
+        persistence.set('sync_progress', null);
+        persistence.set('sync_status', null);
+        persistence._canceled_sync_id = null;
+        persistence.set('auto_sync_backoff_until', null);
+        persistence.set('auto_sync_failures', 0);
+        stub(modal, 'error', function() { });
+        stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+        stubOnPersistence('sync_user', function() { return RSVP.resolve(); });
+        var walks = 0;
+        stubOnPersistence('sync_boards', function() { walks++; persistence.cancel_sync(); return RSVP.resolve({}); });
+        queryLog.defineFixture({ method: 'GET', type: 'user', response: RSVP.resolve({user: {id: '1372', user_name: 'fred'}}), id: '1372' });
+        var first = false;
+        persistence.sync('1372').then(function() { first = true; }, function() { first = true; });
+        waitsFor(function() { return first && syncSettled(); });
+        runs(function() {
+          var now = (new Date()).getTime();
+          var until = persistence.get('auto_sync_backoff_until') || 0;
+          expect(until > now + 29 * 60 * 1000 && until < now + 31 * 60 * 1000).toEqual(true);
+          var second = false;
+          persistence.sync('1372').then(function() { second = true; }, function() { second = true; });
+          waitsFor(function() { return second && syncSettled(); });
+          runs(function() {
+            var now2 = (new Date()).getTime();
+            var until2 = persistence.get('auto_sync_backoff_until') || 0;
+            expect(walks).toEqual(2);
+            expect(until2 > now2 + 59 * 60 * 1000 && until2 < now2 + 61 * 60 * 1000).toEqual(true);
+            persistence.set('auto_sync_backoff_until', null);
+            persistence.set('auto_sync_failures', 0);
+            stashes.persist('last_sync_status', null);
+            cancelSyncTailWork();
+            persistence.set('sync_progress', null);
+          });
+        });
+      });
+    });
+
     // The sync replaces sync_progress once it has the user (services/persistence.js, after "re-priming image cache"),
     // and dropped `canceled` there: a cancel pressed while caches were priming never reached the board walk, which
     // then saved every board while the sync was reported as cancelled.

@@ -1329,3 +1329,11 @@ in success colour.
   Sync Details colour. Also the comment above `_finishPickForHome`'s `go()` that called a self-pick landing on
   /<user>/boards unexplained (2026-08-14) now points here.
 - Waiting on Traci: pause automatic syncing after a cancel; the three device_spec examples; the trial bar.
+
+**Decisions (Traci, 2026-11-12).** Pause automatic syncing after a cancel: built (`pause_automatic_sync`, called by
+`cancel_sync` when a sync is running and not already cancelled; the existing back-off: 30 minutes doubling to 6 hours,
+reset by a finished sync, gating only `check_for_needs_sync`; no failure time, so a reconnect does not skip it). Test
+"pauses automatic sync after Cancel, longer each time, while a requested sync still runs", red before. Sync modules
+timing-strict: 141 tests, 140 pass, 1 skip. The three device_spec examples set the owner's choice (approved): each fails
+when its rule is removed from `Device#clean_old_keys`, 152064212. Trial bar: fix now. Id comparisons: option A (all of it
+in #1268).
