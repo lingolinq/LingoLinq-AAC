@@ -1398,3 +1398,18 @@ corrected (the server rewrites top-level 'self' ids since 2016; nested ids are t
 - Not unit-tested (recorded by the slices): routes/setup.js editing_self, authenticated-view badge and exclude_starred,
   the modern-trial id in board-preview-overlay, the three component cache clears, root-filter consistency sites, the
   template line, the speak-mode stash itself (covered by the UI check), sync's own-room listener end to end.
+
+**Two-device simulation (Traci, 2026-11-12: option A).** No live-update server runs locally (no `ws_url`, no ActionCable;
+the server is separate, `LLWEBSOCKET_URL`, and its code is not on this machine). Two Playwright browser contexts as two
+devices: `aiden_parker` (communicator, 1_7) and his SLP `sarah_chen_slp` (1_4), with a stand-in ActionCable in each page
+that relays every message to all devices in the same room (and answers `users` with who is there), as the server does.
+Aiden's session record put in the 'self' state (`refresh_session_user`, as after a copy); remote modeling on for his
+loaded record only. Sarah's demo account set to "Therapist/Parent/Supporter Account" in Preferences (local dev data),
+because the server lists supervisee rooms only for supporter-role accounts and `connect(user)` always reads the signed-in
+person's own `ws_settings`.
+- BEFORE the id work (`a5593676a`): `in_room` false; 3 button taps sent 0 updates, Sarah received none; Sarah's `query` to
+  Aiden's room got no answer (his device did not recognise its own room).
+- WITH the fix (`70d37318e`): `in_room` true; 3 taps sent 4 updates to room 1_7 and Sarah received them; the `query` was
+  answered with 3 updates.
+- Not covered: the pairing handshake (request -> pair_request, accept, follow), which the real server rewrites; to be
+  checked end to end on the dev environment with the real websocket server.
