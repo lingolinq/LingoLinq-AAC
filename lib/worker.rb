@@ -1,6 +1,9 @@
+require_relative 'job_failure_log'
+
 module Worker
   @queue = :default
   extend BoyBand::WorkerMethods
+  extend JobFailureLog
 
   # Clears request-scoped Thread.current caches after each background job
   # so cached data doesn't persist across jobs in the same worker process.

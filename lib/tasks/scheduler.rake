@@ -136,6 +136,19 @@ task "scheduler:dispatch" => :environment do
     "#{count} advanced"
   end
 
+  # Permanent bounces and complaints from the SES events queue -> email_disabled. No-op
+  # unless SES_EVENTS_QUEUE_URL is set (production only; see app/workers/ses_events_worker.rb).
+  # The result is counts only, never an address.
+  run_task.call("process_ses_events") do
+    res = SesEventsWorker.perform
+    if res[:skipped]
+      "skipped (SES_EVENTS_QUEUE_URL unset)"
+    else
+      "received #{res[:received]}, disabled #{res[:disabled_addresses]} address(es), " \
+        "malformed #{res[:malformed]}, failed #{res[:failed]}"
+    end
+  end
+
   # --- Daily tasks (run once at 6 AM UTC) ---
   if hour == 6
     puts "--- Daily tasks (6 AM UTC) ---"
