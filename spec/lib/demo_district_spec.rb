@@ -650,6 +650,16 @@ describe DemoDistrict do
       expect(kid.settings['password_resets']).to eq([])
       expect(kid.valid_reset_token?('spec-token')).to eq(false)
     end
+
+    # A bounce lets password reset through (Api::UsersController#forgot_password); a shared demo
+    # login must never be resettable, whichever of the two wrote first.
+    it "marks the account as a demo account even when a bounce disabled it first" do
+      kid = User.create(user_name: 'aiden_parker', settings: { 'email' => 'aiden_parker@demoschooldistrict.org' })
+      UserMailer.bounce_email('aiden_parker@demoschooldistrict.org')
+      expect(kid.reload.settings['email_disabled_reason']).to eq('bounce')
+      expect(DemoDistrict::Seeder.disable_email!(kid)).to eq(:disabled)
+      expect(kid.reload.settings['email_disabled_reason']).to eq('demo')
+    end
   end
 
   describe "author_for" do

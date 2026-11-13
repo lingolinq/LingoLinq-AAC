@@ -125,6 +125,11 @@ describe 'scheduler:dispatch rake task' do
       Rake::Task['scheduler:dispatch'].invoke
     end
 
+    it 'drains the SES events queue on every hourly run' do
+      expect(SesEventsWorker).to receive(:perform).and_return({received: 0, disabled_addresses: 0, malformed: 0, failed: 0})
+      Rake::Task['scheduler:dispatch'].invoke
+    end
+
     it 'does not invoke DemoDistrict.refresh!' do
       expect(DemoDistrict).not_to receive(:refresh!)
       Rake::Task['scheduler:dispatch'].invoke

@@ -33,6 +33,57 @@ describe UserMailer, :type => :mailer do
       expect(u2.reload.settings['email_disabled']).to eq(true)
       expect(u3.reload.settings['email_disabled']).to eq(true)
     end
+
+    it "should record that a bounce disabled the address, and when" do
+      u = User.create(:settings => {'email' => 'bob.miller@example.com'})
+      UserMailer.bounce_email("bob.miller@example.com")
+      u.reload
+      expect(u.settings['email_disabled_reason']).to eq('bounce')
+      expect(Time.iso8601(u.settings['email_disabled_at'])).to be > 1.minute.ago
+    end
+
+    it "should keep the first bounce time and add no version on a repeat bounce" do
+      PaperTrail.request.whodunnit = 'system:spec'
+      u = User.create(:settings => {'email' => 'bob.miller@example.com'})
+      UserMailer.bounce_email("bob.miller@example.com")
+      first_at = u.reload.settings['email_disabled_at']
+      versions = u.versions.count
+      UserMailer.bounce_email("bob.miller@example.com")
+      expect(u.reload.settings['email_disabled_at']).to eq(first_at)
+      expect(u.versions.count).to eq(versions)
+    ensure
+      PaperTrail.request.whodunnit = nil
+    end
+
+    # SesEventsWorker deletes the event only when this returns; a write that did not land must
+    # leave it on the queue for the next run.
+    it "should raise when turning email off could not be saved" do
+      u = User.create(:settings => {'email' => 'bob.miller@example.com'})
+      allow_any_instance_of(User).to receive(:save).and_return(false)
+      expect { UserMailer.bounce_email("bob.miller@example.com") }.to raise_error(UserMailer::BounceNotSaved)
+      expect(User.find(u.id).settings['email_disabled']).to eq(nil)
+    end
+
+    # updated_at is the inactivity sweep's activity clock (Subscription): a bounce of the sweep's
+    # own warning must not count as use and push the account back 12 months.
+    it "should not move the account's activity time" do
+      u = User.create(:settings => {'email' => 'bob.miller@example.com'})
+      User.where(id: u.id).update_all(updated_at: 13.months.ago)
+      before = User.find(u.id).updated_at
+      UserMailer.bounce_email("bob.miller@example.com")
+      stored = User.find(u.id)
+      expect(stored.settings['email_disabled']).to eq(true)
+      expect(stored.updated_at.utc.iso8601(6)).to eq(before.utc.iso8601(6))
+    end
+
+    it "should leave an address disabled for another reason as it is" do
+      u = User.create(:settings => {'email' => 'bob.miller@example.com', 'email_disabled' => true})
+      UserMailer.bounce_email("bob.miller@example.com")
+      u.reload
+      expect(u.settings['email_disabled']).to eq(true)
+      expect(u.settings['email_disabled_reason']).to eq(nil)
+      expect(u.settings['email_disabled_at']).to eq(nil)
+    end
   end
 
   describe "deliver_message" do
