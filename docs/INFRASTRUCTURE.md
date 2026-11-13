@@ -320,6 +320,12 @@ head SHA and run URL with the rollout evidence.
    bounced address is a new hard bounce that counts toward `Reputation.BounceRate`; resets
    are capped at 6 per account per window (`Passwords#generate_password_reset`), but the
    owner decides whether that is acceptable before the code ships.
+   **Result (2026-11-12, read by Scot in the SES console):** the account suppresses both
+   bounces and complaints. Gate passed: a reset sent to a bounced address costs no
+   reputation, and it is not delivered. A bounce-disabled user therefore recovers through an
+   admin changing the address, not through the reset. A complaint does not turn email off by
+   itself, but SES suppresses the address, so the next mail to it comes back as an
+   `OnAccountSuppressionList` bounce, which does.
 4. Merge and release the code to `main`. With the variable unset, the scheduler logs
    `process_ses_events ... skipped`.
 5. Drain the old queue's backlog once: set `APP_SES_EVENTS_QUEUE_URL` in the `production`

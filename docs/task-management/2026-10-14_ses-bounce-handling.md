@@ -545,7 +545,13 @@ live `--check` was possible (no `aws`, `gcloud` or `jq` on this machine).
    the send-failure alert covers queued mail.
 3. Owner action: `demoschooldistrict.org` is unregistered (no DNS record). Register it or move the demo
    seeds to a reserved domain.
-4. Rollout step 3: read the SES suppression setting before relying on the reset for bounced users.
+4. DONE 2026-11-12: Scot read the SES console. The account suppresses BOUNCE and COMPLAINT.
+   Consequences: (a) the reset sent to a bounce-disabled user (decision 2) is dropped by SES, so
+   it costs no reputation and does not arrive; such a user recovers only through an admin
+   changing the address, which makes the admin clear action in item 5 the real recovery path;
+   (b) decision 1 (complaints counted only) holds for the complaint event itself, but the next
+   mail to that address returns as an `OnAccountSuppressionList` bounce and turns email off
+   (`app/models/ses_event.rb:12,17`).
 5. Still open from F2: an admin action to clear `email_disabled` (UI), a per-domain cap and a runtime
    kill switch for the consumer; F9 (a deferred `update_setting` re-disabling after an email change);
    `aws-sdk-sqs` as a direct Gemfile entry (shared config: propose first).
