@@ -1469,3 +1469,34 @@ same file. Verdict: request changes. The report is kept outside the repo.
   - On that path, `persistence` has no `clear_user_state` (session.js:897 checks for one), so `_auto_sync_failure_at`,
     `_auto_sync_failure_network` and `_reconnect_skip_block_until` survive a sign-out. The guard at line 4845 still runs
     first; the leftover fields are unverified and not a defect found.
+
+## 26. Why a trusted device stays signed in: the "at all times" standard (2026-11-13; Traci: record it as the reasoning)
+
+**Decision (Traci).** A browser device that the person trusts themselves is not signed out by the organization's idle
+timeout (`Device#clean_old_keys`, `app/models/device.rb`). The reason: an AAC device is the person's voice, and the
+clinical standard is working AAC at all times. An idle sign-out leaves a student unable to speak until an adult enters
+a password. A student's AAC device is assigned to that student and is not passed around a classroom. Shared and valet
+devices, and devices marked trusted by anyone other than the person, keep the organization's timeout. The device's own
+idle limit and maximum token lifetime still apply.
+
+**Sources (read 2026-11-13):**
+- NJC Communication Bill of Rights, 3rd edition (https://asha.org/njc/communication-bill-of-rights/): "The right to
+  individualized, working augmentative and alternative communication (AAC) systems and other assistive technology (AT)
+  at all times."
+- ASHA, back-to-school AAC tips, August 2026 (https://www.asha.org/news/2026/back-to-school-aac-classroom-tips/): "AAC
+  devices are not optional accessories. They serve as a child's voice, and we all need access to our voice at all
+  times." Also: "Where students go, their AACs go."
+- Industry practice: dedicated AAC apps lock editing, not speaking. TD Snap's training card
+  (https://manuals.plus/tobii-dynavox/td-snap-basics-training-cards-manual): "If you need to prevent the user from
+  editing the page set, settings, in-app purchase, or Sync, you can require a passcode to access these features."
+  School assistive-technology teams use Guided Access or school-managed single-app mode to keep the device on the AAC
+  app. No vendor documentation on idle sign-out of the speaking screen was found. That dedicated apps do not time it
+  out is inferred from how they work (no sign-in is needed to speak).
+- HIPAA automatic logoff (45 CFR 164.312(a)(2)(iii)) is an addressable specification. The organization sets the
+  length, or documents an equivalent alternative and why. A school's education records generally fall under FERPA,
+  which sets no timeout. This is background, not a legal opinion.
+
+**Still open (Scot).** Data and editing screens (usage logs, reports, assessments, other people's data, board editing,
+settings) could ask for the password again after the organization's idle time, even on a trusted device. That is the
+same split as TD Snap's edit passcode. It is a new feature (flag, own PR). There is still no audit log entry when a
+device's trust changes.
