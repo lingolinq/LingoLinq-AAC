@@ -495,6 +495,10 @@ body.ll-layout-focused #within_ember .md-card--attention .md-attention__all:focu
 /* After authenticated topbar rule — hidden header must not reserve space (beta onboarding, board layout). */
 #within_ember:has(> header.header--hidden) {
   --topbar-height: 0px;
+  /* No app-navbar either, so the account rail and the controls placed against it start at the
+     top of the window instead of 70px down (create-board-new hides the header). Read by every
+     `max(var(--topbar-height, 70px), var(--ll-navbar-floor, 70px))`; 70px elsewhere. */
+  --ll-navbar-floor: 0px;
 }
 /* App-navbar-only header (no speak row, no legacy #nav_header): bar is 70px; 16px left #content tucked under the fixed header (e.g. /offline-boards on narrow screens). */
 #within_ember:has(> header.header-index-with-dark-toggle:not(.header--unauthenticated):has(#inner_header .app-navbar):not(:has(#inner_header #speak)):not(:has(#inner_header #nav_header))) {
@@ -41283,7 +41287,7 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
      invalid `top` on a fixed element is not 0 -- it is `auto`, which drops the panel at its
      STATIC position, part-way down the page inside `.md-acct-top`. The fallback keeps the
      expression valid whatever the shell does. */
-  top: max(var(--topbar-height, 70px), 70px);
+  top: max(var(--topbar-height, 70px), var(--ll-navbar-floor, 70px));
   bottom: 0;
   left: 0;
   overflow-y: auto;
@@ -41834,7 +41838,7 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
   .md-acct-rail__toggle {
     display: inline-flex;
     position: fixed;
-    top: calc(max(var(--topbar-height, 70px), 70px) + 16px);
+    top: calc(max(var(--topbar-height, 70px), var(--ll-navbar-floor, 70px)) + 16px);
     left: calc(var(--ll-rail-width) - 16px);
     z-index: 61;
   }
@@ -41844,7 +41848,7 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
      top + 40px. The row's top is the panel's top + its top padding: 10px, or the tall-screen value
      less 12px (the media rule below). */
   .md-acct-rail:not(.md-acct-rail--collapsed) + .md-acct-rail__toggle {
-    top: calc(max(var(--topbar-height, 70px), 70px) + 10px + 40px);
+    top: calc(max(var(--topbar-height, 70px), var(--ll-navbar-floor, 70px)) + 10px + 40px);
   }
   /* The chevron points left to collapse and right to expand, keyed on the attribute that
      states the state, so the icon cannot disagree with what a screen reader hears. */
@@ -41889,20 +41893,20 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
    the expanded toggle follows. After the rule above so it wins at equal weight. */
 @media (min-width: 1201px) and (min-height: 860px) {
   .md-acct-rail:not(.md-acct-rail--collapsed) + .md-acct-rail__toggle {
-    top: calc(max(var(--topbar-height, 70px), 70px) + var(--dn-rail-pad-top-tall, 40px) - 12px + 40px);
+    top: calc(max(var(--topbar-height, 70px), var(--ll-navbar-floor, 70px)) + var(--dn-rail-pad-top-tall, 40px) - 12px + 40px);
   }
 }
 /* 901-1024px: the panel's top padding is 12px there ("NARROWER (<=1024px)"), not 10. */
 @media (min-width: 901px) and (max-width: 1024px) {
   .md-acct-rail:not(.md-acct-rail--collapsed) + .md-acct-rail__toggle {
-    top: calc(max(var(--topbar-height, 70px), 70px) + 12px + 36px);
+    top: calc(max(var(--topbar-height, 70px), var(--ll-navbar-floor, 70px)) + 12px + 36px);
   }
 }
 /* 1200px and below the divider sits 4px higher (half of a 4px-smaller space: row top + 52px, not 56),
    so the arrow does too: +36 rather than +40. 901-1024px is the rule above. */
 @media (min-width: 1025px) and (max-width: 1200px) {
   .md-acct-rail:not(.md-acct-rail--collapsed) + .md-acct-rail__toggle {
-    top: calc(max(var(--topbar-height, 70px), 70px) + 10px + 36px);
+    top: calc(max(var(--topbar-height, 70px), var(--ll-navbar-floor, 70px)) + 10px + 36px);
   }
 }
 /* COLLAPSED: THE ARROW SITS IN THE GAP UNDER HOME PAGE (requested 2026-10-10: "make the collapse arrow
@@ -41911,10 +41915,10 @@ body:not(.ll-density-compressed) .md-grid .md-card.md-card--rooms .md-rooms__gri
    under the navbar; the space below it is 8px where it has its divider (every page but the home
    page) and the 4px gap where it does not. The 32px button is centred in that space. */
 .md-acct-rail.md-acct-rail--collapsed + .md-acct-rail__toggle {
-  top: calc(max(var(--topbar-height, 70px), 70px) + 8px + 65px + 4px - 16px);
+  top: calc(max(var(--topbar-height, 70px), var(--ll-navbar-floor, 70px)) + 8px + 65px + 4px - 16px);
 }
 .md-acct-rail.md-acct-rail--collapsed:has(.md-acct-rail__row--home.is-active) + .md-acct-rail__toggle {
-  top: calc(max(var(--topbar-height, 70px), 70px) + 8px + 65px + 2px - 16px);
+  top: calc(max(var(--topbar-height, 70px), var(--ll-navbar-floor, 70px)) + 8px + 65px + 2px - 16px);
 }
 /* THE COLLAPSED MENU'S SPACING (requested 2026-10-10, in three steps: "no more than 8px, no matter
    the screen size", asked twice, then "on the buttons not home page and the bottom divider, make the
@@ -97388,7 +97392,7 @@ body.ll-layout-focused .ub-boards-page__set-home-btn:hover {
   position: sticky;
   /* NOT `top: 0`. Sticky resolves against `#content`, whose padding box starts at y=0
      BEHIND the fixed 70px app navbar, so `0` pinned the pills underneath it. This is the
-     same `max(var(--topbar-height, 70px), 70px)` the rail uses to sit below that bar, and
+     same `max(var(--topbar-height, 70px), var(--ll-navbar-floor, 70px))` the rail uses to sit below that bar, and
      for the same reason its comment gives: on an authenticated page `--topbar-height` is
      16px (it describes #content's padding, not the bar), and the fallback inside the
      var() matters because an unset variable would otherwise invalidate the whole max(). */
@@ -97400,7 +97404,7 @@ body.ll-layout-focused .ub-boards-page__set-home-btn:hover {
      extra comes from `--ll-content-pad-extra`, set beside the padding in each rule that wins it;
      a page that sets neither keeps its extra as a gap rather than sliding under the header.
      Named so the in-flow ordering at 900px and below can give the bar the same margin. */
-  --ll-navbar-sticky-top: calc(max(var(--topbar-height, 70px), 70px) - var(--topbar-height, 0px) - var(--ll-content-pad-extra, 0px));
+  --ll-navbar-sticky-top: calc(max(var(--topbar-height, 70px), var(--ll-navbar-floor, 70px)) - var(--topbar-height, 0px) - var(--ll-content-pad-extra, 0px));
   top: var(--ll-navbar-sticky-top);
   /* Above page content, below the app navbar and any modal. */
   z-index: 60;
@@ -97825,7 +97829,7 @@ body.ll-layout-focused #within_ember #content:has(.ll-appshell--org-tabs, :where
    the page's own top padding + 70. Each measurement above is exactly that sum.
 
    THE FIX IS THE RAIL'S. `.md-acct-rail` (~49712) has been `position: fixed; top:
-   max(var(--topbar-height, 70px), 70px); left: 0` since 2026-09-18, which is why the rail
+   max(var(--topbar-height, 70px), var(--ll-navbar-floor, 70px)); left: 0` since 2026-09-18, which is why the rail
    held still on all six pages while the nav wandered. Anchoring the nav to the same app frame
    makes the two halves of the chrome one thing. See that rule for why the offset is a `max()`
    with the fallback INSIDE the `var()`.
@@ -97847,7 +97851,7 @@ body.ll-layout-focused #within_ember #content:has(.ll-appshell--org-tabs, :where
        the two. The 16px did not disappear -- it moved from `top` into `padding-top`, so the
        BAND now starts at the navbar's underside while the pills inside it stay exactly where
        they were at y=86. Changing `top` alone would have moved the pills with it. */
-    top: max(var(--topbar-height, 70px), 70px);
+    top: max(var(--topbar-height, 70px), var(--ll-navbar-floor, 70px));
     padding-top: var(--dn-nav-pad-top, 16px);
     /* 0: THE BAND ENDS AT THE BOTTOM OF THE PILLS (requested 2026-10-10: "the blur underneath the
        main pill-nav menu stretches too far downward -> make it only stretch to the bottom of the
