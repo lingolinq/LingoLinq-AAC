@@ -36,6 +36,27 @@ Before push, a further local adversarial review of this branch, of the ImageMagi
 merged found no Critical or High issue; the related specs pass on the merge (642 examples, 0 failures).
 Noted: the raster-variant probe now follows checked redirects, so a variant that redirects counts as found.
 
+## Codex P2: non-default https ports (2026-11-12)
+
+- `Uploader.sanitize_url` kept a non-default port only for http (`lib/uploader.rb:198`), and `SafeHttp`
+  fetches the url it rebuilds, so `https://host:8443/a.png` was fetched from 443. Now any port other than
+  the scheme's default is kept. This is a shared helper: its callers are `SafeHttp.prepare_request`
+  (`lib/safe_http.rb:174`), webhook delivery (`app/models/webhook.rb:161`), uploaded-image fetches
+  (`app/models/concerns/uploadable.rb:273`), `boards_controller.rb:546` and JSON bundle import
+  (`lib/converters/api_json_bundle.rb:38`). Each now goes to the port its url names.
+- Red first: `spec/lib/uploader_spec.rb` "should keep a non-default https port" and
+  `spec/initializers/obf_get_url_hardening_spec.rb` "...non-default https port from that port" failed on the
+  old code (the fetch hit 443 and got the other body). `spec/lib/safe_http_spec.rb` "pins a non-default
+  https port on the same port as the fetched url" fails when the pin is built from `uri.default_port`.
+- Adversary review of `9d4db7f6f`: push; four Lows. Taken: the pin-port spec, and naming the shared-helper
+  change here and in the PR. Not taken here:
+  - An https url that names a wrong port (for example `:80`) used to be sent to 443 by accident and now
+    fails, like it does in a browser. Not counted: the stored-url count needs a database read that was
+    not available.
+  - https can now reach TLS services on any port of a public address (http already could; private
+    addresses are still refused). Follow-up: allow only 80, 443, 8080 and 8443 in `sanitize_url`.
+
 ## Not in this change
 
 - The hydra path follows a redirect synchronously inside the callback; slower for redirecting images only.
+- Real media fetches are untested (every spec fakes the network): manual export check in #1308.
