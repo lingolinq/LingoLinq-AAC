@@ -7176,6 +7176,7 @@
   "ai_generate_labels_lead": "Gin cnaipí an bhoird seo ó do thuairisc ag baint úsáide as hintleacht shaorga. Beidh tú in ann gach rud a athbhreithniú agus a chur in eagar sula gcruthóidh tú an bord. [[ Generate this board's buttons from your description using AI. You'll be able to review and edit everything before creating the board.",
   "ai_board_size_over_limit": "Tá méid do chláir (cnaipí %{n}) níos mó ná an 112 atá molta. Laghdaigh sraitheanna nó colúin chun giniúint AI a chumasú. [[ Your board size (%{n} buttons) is larger than the recommended 112. Reduce rows or columns to enable AI generation.",
   "ai_generating_labels": "Lipéid á nginiúint… [[ Generating Labels…",
+  "ai_generating_wait_hint": "*** This usually takes 10 to 30 seconds.",
   "ai_generate_labels_btn": "Gin Lipéid le hintleacht shaorga [[ Generate Labels with AI",
   "view_organizations": "Féach ar Eagraíochtaí [[ View Organizations",
   "comp_eyebrow": "Meastóireacht Chuimsitheach [[ Comprehensive Eval",

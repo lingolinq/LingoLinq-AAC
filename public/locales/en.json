@@ -4891,6 +4891,7 @@
   "select_who_for": "Select who this board is for",
   "ai_board_size_over_limit": "Your board size (%{n} buttons) is larger than the recommended 112. Reduce rows or columns to enable AI generation.",
   "ai_generating_labels": "Generating Labels…",
+  "ai_generating_wait_hint": "This usually takes 10 to 30 seconds.",
   "ai_generate_labels_btn": "Generate Labels with AI",
   "new_board_section_board_labels": "Board Labels",
   "labels": "Labels",

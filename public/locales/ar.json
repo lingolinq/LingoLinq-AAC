@@ -7134,6 +7134,7 @@
   "ai_generate_labels_lead": "أنشئ أزرار هذه اللوحة من وصفك باستخدام الذكاء الاصطناعي. ستتمكن من مراجعة كل شيء وتعديله قبل إنشاء اللوحة. [[ Generate this board's buttons from your description using AI. You'll be able to review and edit everything before creating the board.",
   "ai_board_size_over_limit": "حجم لوحتك (أزرار TR3B) أكبر من الحجم الموصى به وهو 112. قلل عدد الصفوف أو الأعمدة لتمكين توليد الذكاء الاصطناعي. [[ Your board size (%{n} buttons) is larger than the recommended 112. Reduce rows or columns to enable AI generation.",
   "ai_generating_labels": "إنشاء الملصقات... [[ Generating Labels…",
+  "ai_generating_wait_hint": "*** This usually takes 10 to 30 seconds.",
   "ai_generate_labels_btn": "إنشاء تصنيفات باستخدام الذكاء الاصطناعي [[ Generate Labels with AI",
   "view_organizations": "عرض المنظمات [[ View Organizations",
   "comp_eyebrow": "التقييم الشامل [[ Comprehensive Eval",

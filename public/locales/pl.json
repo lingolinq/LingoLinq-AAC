@@ -7348,6 +7348,7 @@
   "ai_generate_labels_lead": "Wygeneruj przyciski tej tablicy na podstawie swojego opisu za pomocą sztucznej inteligencji. Będziesz mógł przejrzeć i edytować wszystko przed utworzeniem tablicy. [[ Generate this board's buttons from your description using AI. You'll be able to review and edit everything before creating the board.",
   "ai_board_size_over_limit": "Rozmiar Twojej planszy (przyciski %{n}) jest większy niż zalecane 112. Zmniejsz wiersze lub kolumny, aby umożliwić generowanie sztucznej inteligencji. [[ Your board size (%{n} buttons) is larger than the recommended 112. Reduce rows or columns to enable AI generation.",
   "ai_generating_labels": "Generowanie etykiet… [[ Generating Labels…",
+  "ai_generating_wait_hint": "*** This usually takes 10 to 30 seconds.",
   "ai_generate_labels_btn": "Generuj etykiety za pomocą sztucznej inteligencji [[ Generate Labels with AI",
   "comp_eyebrow": "Kompleksowa ocena [[ Comprehensive Eval",
   "comp_da_counter": "Pozycja %{n} z %{total} [[ Item %{n} of %{total}",

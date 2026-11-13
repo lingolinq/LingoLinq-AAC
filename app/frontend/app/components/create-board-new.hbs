@@ -128,7 +128,7 @@
             <span class="nb-ai-mode-badge" role="status">
               <span class="nb-ai-mode-badge__row">
                 <span class="nb-ai-sparkle-badge" aria-hidden="true">
-                  <span class="nb-ai-sparkle {{if this.status.saving "nb-ai-sparkle--active"}}"></span>
+                  <span class="nb-ai-sparkle {{if (or this.status.saving this.ai_generating) "nb-ai-sparkle--active"}}"></span>
                 </span>
                 <span class="nb-ai-mode-badge__title">{{t "Generating with AI" key="ai_mode_badge"}}</span>
               </span>
@@ -194,7 +194,7 @@
             <span class="nb-ai-mode-badge" role="status">
               <span class="nb-ai-mode-badge__row">
                 <span class="nb-ai-sparkle-badge" aria-hidden="true">
-                  <span class="nb-ai-sparkle {{if this.status.saving "nb-ai-sparkle--active"}}"></span>
+                  <span class="nb-ai-sparkle {{if (or this.status.saving this.ai_generating) "nb-ai-sparkle--active"}}"></span>
                 </span>
                 <span class="nb-ai-mode-badge__title">{{t "Generating with AI" key="ai_mode_badge"}}</span>
               </span>
@@ -418,6 +418,10 @@
                       </div>
                     </div>
                   {{/if}}
+                  {{!-- Always in the DOM so the wait hint is announced when it appears. --}}
+                  <p class="nb-ai-generate__status" role="status" data-test-ai-generating-status={{this.ai_generating}}>
+                    {{#if this.ai_generating}}{{t "This usually takes 10 to 30 seconds." key="ai_generating_wait_hint"}}{{/if}}
+                  </p>
                   {{#if this.ai_generate_error}}
                     <div class="nb-alert nb-alert--warning" role="alert">
                       <span class="nb-alert__icon" aria-hidden="true">
@@ -438,7 +442,7 @@
 
             <div class="nb-wizard__nav">
               {{#unless (is_equal this.wizard_step 1)}}
-                <button type="button" class="btn btn-default nb-wizard__back" {{on "click" (this.ctrlAction "wizard_back")}}>
+                <button type="button" class="btn btn-default nb-wizard__back" disabled={{this.ai_generating}} {{on "click" (this.ctrlAction "wizard_back")}}>
                   {{t "Back" key="back"}}
                 </button>
               {{/unless}}
@@ -448,8 +452,10 @@
                           class="btn btn-primary nb-ai-generate__btn"
                           disabled={{this.ai_generate_disabled}}
                           aria-disabled={{if this.ai_generate_disabled "true" "false"}}
+                          aria-busy={{if this.ai_generating "true" "false"}}
                           {{on "click" (this.ctrlAction "wizard_generate")}}>
                     {{#if this.ai_generating}}
+                      <span class="nb-ai-sparkle nb-ai-sparkle--active nb-ai-sparkle--pulse nb-ai-generate__btn-sparkle" aria-hidden="true"></span>
                       {{t "Generating Labels…" key="ai_generating_labels"}}
                     {{else}}
                       {{t "Generate Labels with AI" key="ai_generate_labels_btn"}}

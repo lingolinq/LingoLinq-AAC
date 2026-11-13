@@ -49734,8 +49734,27 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     background-position: -30% 130%, 0 0;
   }
 }
+/* The busy Generate button's sparkle: the sheen above plus a soft breathing glow, so the
+   wait reads as work in progress. Opacity and glow only, no scale, for the same reason the
+   sheen keeps constant geometry. */
+.nb-ai-sparkle--pulse {
+  animation:
+    nb-ai-sparkle-sheen 3.4s ease-in-out infinite,
+    nb-ai-sparkle-pulse 1.4s ease-in-out infinite;
+}
+@keyframes nb-ai-sparkle-pulse {
+  0%, 100% {
+    opacity: 1;
+    filter: drop-shadow(0 0 2px rgba(124, 92, 246, 0.32));
+  }
+  50% {
+    opacity: 0.6;
+    filter: drop-shadow(0 0 8px rgba(124, 92, 246, 0.65));
+  }
+}
 @media (prefers-reduced-motion: reduce) {
-  .nb-ai-sparkle--active {
+  .nb-ai-sparkle--active,
+  .nb-ai-sparkle--pulse {
     animation: none;
     background-position: 50% 50%, 0 0;
   }
@@ -49812,12 +49831,34 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     0 8px 26px rgba(44, 183, 176, 0.38),
     0 2px 8px rgba(13, 36, 56, 0.12);
 }
-/* Disabled until a description is entered (or while generating). */
-.nb-ai-generate__btn.btn.btn-primary:disabled,
-.nb-ai-generate__btn.btn.btn-primary[aria-disabled="true"] {
+/* Disabled until a description is entered. While generating the button is also disabled,
+   but it is WORKING, not unavailable, so it keeps full colour and shows progress instead
+   (`aria-busy`, below). */
+.nb-ai-generate__btn.btn.btn-primary:disabled:not([aria-busy="true"]),
+.nb-ai-generate__btn.btn.btn-primary[aria-disabled="true"]:not([aria-busy="true"]) {
   opacity: 0.55;
   cursor: not-allowed;
   box-shadow: none;
+}
+/* Generating: the label reads "Generating Labels…" beside a pulsing sparkle, and the button
+   keeps a soft glow so the action looks in progress rather than switched off. */
+.nb-ai-generate__btn.btn.btn-primary[aria-busy="true"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  opacity: 1;
+  cursor: progress;
+  box-shadow:
+    0 0 0 5px rgba(124, 92, 246, 0.14),
+    0 6px 20px rgba(124, 92, 246, 0.26);
+}
+.nb-ai-generate__status {
+  margin: 0;
+  font-size: 16px;
+  color: var(--md-ink-muted, #52606d);
+}
+.nb-ai-generate__status:empty {
+  display: none;
 }
 
 /* Wizard step footer (every step of the create-board wizard shares this one nav).

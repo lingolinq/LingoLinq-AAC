@@ -2493,7 +2493,7 @@ export default Component.extend({
        existing generation action untouched, so the labels arrive into a section the user can
        already see rather than into one still hidden behind the wizard. */
     wizard_generate: function() {
-      this.set('wizard_done', true);
+      // No hand-off here: the step stays up, busy, until the labels arrive (set on success below).
       this.send('generate_labels_with_ai');
     },
 
@@ -2566,8 +2566,8 @@ export default Component.extend({
           if(res && res.ai_generated) {
             _this.set('model.ai_generated', res.ai_generated);
           }
-          _this.set('ai_generating', false);
-          _this.set('ai_labels_generated', true);
+          // Hand off to the labels page only now: until here the step showed the busy button.
+          _this.setProperties({ ai_generating: false, ai_labels_generated: true, wizard_done: true });
         }, function(err) {
           if(_this.isDestroyed || _this.isDestroying) { return; }
           var msg = i18n.t('generate_failed', "Generation failed");

@@ -7353,6 +7353,7 @@
   "ai_generate_labels_lead": "使用人工智慧根據您的描述產生此看板的按鈕。您可以在建立看板之前查看和編輯所有內容。 [[ Generate this board's buttons from your description using AI. You'll be able to review and edit everything before creating the board.",
   "ai_board_size_over_limit": "您的板尺寸（%{n} 按鈕）大於建議的 112。減少行或列以啟用 AI 生成。 [[ Your board size (%{n} buttons) is larger than the recommended 112. Reduce rows or columns to enable AI generation.",
   "ai_generating_labels": "正在產生標籤… [[ Generating Labels…",
+  "ai_generating_wait_hint": "*** This usually takes 10 to 30 seconds.",
   "ai_generate_labels_btn": "利用人工智慧生成標籤 [[ Generate Labels with AI",
   "comp_eyebrow": "綜合評估 [[ Comprehensive Eval",
   "comp_da_counter": "TR5B 中的項目 %{n} [[ Item %{n} of %{total}",

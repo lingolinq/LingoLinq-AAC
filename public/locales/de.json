@@ -7176,6 +7176,7 @@
   "ai_generate_labels_lead": "Generieren Sie die Schaltflächen für dieses Board mithilfe von KI aus Ihrer Beschreibung. Sie können alles vor der Erstellung des Boards überprüfen und bearbeiten. [[ Generate this board's buttons from your description using AI. You'll be able to review and edit everything before creating the board.",
   "ai_board_size_over_limit": "Ihre Tastaturgröße (%{n}-Tasten) ist größer als die empfohlenen 112. Reduzieren Sie die Anzahl der Zeilen oder Spalten, um die KI-Generierung zu aktivieren. [[ Your board size (%{n} buttons) is larger than the recommended 112. Reduce rows or columns to enable AI generation.",
   "ai_generating_labels": "Etiketten werden generiert… [[ Generating Labels…",
+  "ai_generating_wait_hint": "*** This usually takes 10 to 30 seconds.",
   "ai_generate_labels_btn": "KI-gestützte Etikettenerstellung [[ Generate Labels with AI",
   "view_organizations": "Organisationen anzeigen [[ View Organizations",
   "comp_eyebrow": "Umfassende Bewertung [[ Comprehensive Eval",

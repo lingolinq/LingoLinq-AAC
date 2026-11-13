@@ -7177,6 +7177,7 @@
   "ai_generate_labels_lead": "Gere os botões deste quadro a partir da sua descrição usando IA. Você poderá revisar e editar tudo antes de criar o quadro. [[ Generate this board's buttons from your description using AI. You'll be able to review and edit everything before creating the board.",
   "ai_board_size_over_limit": "O tamanho do seu tabuleiro (botões %{n}) é maior que o recomendado de 112. Reduza o número de linhas ou colunas para habilitar a geração de IA. [[ Your board size (%{n} buttons) is larger than the recommended 112. Reduce rows or columns to enable AI generation.",
   "ai_generating_labels": "Gerando rótulos… [[ Generating Labels…",
+  "ai_generating_wait_hint": "*** This usually takes 10 to 30 seconds.",
   "ai_generate_labels_btn": "Gere rótulos com IA [[ Generate Labels with AI",
   "view_organizations": "Ver organizações [[ View Organizations",
   "comp_eyebrow": "Avaliação abrangente [[ Comprehensive Eval",

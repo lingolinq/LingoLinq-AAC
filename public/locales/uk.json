@@ -7177,6 +7177,7 @@
   "ai_generate_labels_lead": "Згенеруйте кнопки цієї дошки на основі вашого опису за допомогою штучного інтелекту. Ви зможете переглянути та відредагувати все перед створенням дошки. [[ Generate this board's buttons from your description using AI. You'll be able to review and edit everything before creating the board.",
   "ai_board_size_over_limit": "Розмір вашої дошки (кнопки %{n}) більший за рекомендовані 112. Зменште кількість рядків або стовпців, щоб увімкнути генерацію ШІ. [[ Your board size (%{n} buttons) is larger than the recommended 112. Reduce rows or columns to enable AI generation.",
   "ai_generating_labels": "Генерування міток… [[ Generating Labels…",
+  "ai_generating_wait_hint": "*** This usually takes 10 to 30 seconds.",
   "ai_generate_labels_btn": "Генеруйте етикетки за допомогою штучного інтелекту [[ Generate Labels with AI",
   "view_organizations": "Переглянути організації [[ View Organizations",
   "comp_eyebrow": "Комплексна оцінка [[ Comprehensive Eval",

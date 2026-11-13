@@ -7134,6 +7134,7 @@
   "ai_generate_labels_lead": "AIを使って、あなたの説明に基づいてこのボードのボタンを生成します。ボードを作成する前に、すべてを確認・編集できます。 [[ Generate this board's buttons from your description using AI. You'll be able to review and edit everything before creating the board.",
   "ai_board_size_over_limit": "お使いのボードサイズ（%{n}ボタン）は、推奨値の112を超えています。AI生成を有効にするには、行数または列数を減らしてください。 [[ Your board size (%{n} buttons) is larger than the recommended 112. Reduce rows or columns to enable AI generation.",
   "ai_generating_labels": "ラベルを生成しています… [[ Generating Labels…",
+  "ai_generating_wait_hint": "*** This usually takes 10 to 30 seconds.",
   "ai_generate_labels_btn": "AIでラベルを生成 [[ Generate Labels with AI",
   "view_organizations": "組織一覧を見る [[ View Organizations",
   "comp_eyebrow": "総合評価 [[ Comprehensive Eval",

@@ -7178,6 +7178,7 @@
   "ai_generate_labels_lead": "Создайте кнопки для этой доски на основе вашего описания с помощью ИИ. Вы сможете просмотреть и отредактировать все перед созданием доски. [[ Generate this board's buttons from your description using AI. You'll be able to review and edit everything before creating the board.",
   "ai_board_size_over_limit": "Размер вашей доски (кнопки %{n}) превышает рекомендуемые 112. Уменьшите количество строк или столбцов, чтобы включить генерацию ИИ. [[ Your board size (%{n} buttons) is larger than the recommended 112. Reduce rows or columns to enable AI generation.",
   "ai_generating_labels": "Создание этикеток… [[ Generating Labels…",
+  "ai_generating_wait_hint": "*** This usually takes 10 to 30 seconds.",
   "ai_generate_labels_btn": "Создание меток с помощью ИИ [[ Generate Labels with AI",
   "view_organizations": "Просмотреть организации [[ View Organizations",
   "comp_eyebrow": "Комплексная оценка [[ Comprehensive Eval",
