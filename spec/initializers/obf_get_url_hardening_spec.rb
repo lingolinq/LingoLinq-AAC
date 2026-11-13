@@ -44,6 +44,15 @@ describe 'OBFGetUrlHardening' do
       expect(res['extension']).to eq('.png')
     end
 
+    it 'fetches a public url on a non-default https port from that port' do
+      on_port = stub_request(:get, 'https://media.example.com:8443/a.png').to_return(status: 200, body: png, headers: { 'Content-Type' => 'image/png' })
+      default_port = stub_request(:get, 'https://media.example.com/a.png').to_return(status: 200, body: 'other', headers: { 'Content-Type' => 'image/png' })
+      expect(OBF::Utils.get_url('https://media.example.com:8443/a.png')['data']).to eq(png)
+      expect(run_hydra(OBF::Utils.get_url('https://media.example.com:8443/a.png', true))['data']).to eq(png)
+      expect(on_port).to have_been_requested.twice
+      expect(default_port).not_to have_been_requested
+    end
+
     it 'fetches a public url through the hydra' do
       stub_request(:get, 'https://images.example.com/a.png').to_return(status: 200, body: png, headers: { 'Content-Type' => 'image/png' })
       res = run_hydra(OBF::Utils.get_url('https://images.example.com/a.png', true))
