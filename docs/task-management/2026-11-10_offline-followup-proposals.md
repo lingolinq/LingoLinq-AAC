@@ -1438,3 +1438,9 @@ reload can race a later preference edit (narrow; preferences already reloads in 
 path has no test.
 Tests: id modules + set-home 103/103 timing-strict; mutation build (six mutants: the cache clear, the word-log key, the
 speak-mode stash, the workbook id, the own-room listener, the remote-modeling gate): each targeted test red.
+- Broad run after the review fixes (timing-strict, 1999 tests): 1983 pass, 14 skip, 1 todo, 1 fail:
+  `session.invalidate auth_spa_transition` "invalidate(true) reloads" (2 reload calls, expected 1). Baseline: the
+  identical filter on `a5593676a` (before the id work, without its tests) fails the same test at the same position
+  (1912 tests, 1 fail). Passes alone (7/7 twice) and with the session plus id modules (307/307). An existing order
+  dependency in this filtered run (a stray `reload('/')` from an earlier test's leftover work), not introduced here; CI's
+  sharded order did not hit it. Not fixed in this branch.
