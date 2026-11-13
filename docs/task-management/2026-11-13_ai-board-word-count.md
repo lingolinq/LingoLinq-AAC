@@ -119,6 +119,15 @@ Specs changed because the behaviour was changed at Traci's request (Rule 14): "r
 incomplete-list error after both attempts are short" and "does not attach a marker to a shortfall"
 (both rewritten); the `anthropic_response` fixture gained an optional `stop_reason`.
 
-Still to do before merge: a real-model check of the new code at 64, 112 and 225 cells (duration,
-count, top-up rate, NAME and DESCRIPTION), and a front-end note when cells are left empty (after
-PR #1309).
+Real-model check of the new code (dev Bedrock credential, made-up prompts, 2026-11-13):
+
+| Cells | Boards | Words delivered | Calls | Time |
+|---|---|---|---|---|
+| 64 | 6 | 64 in all 6 | 1 each | 1.6-2.3 s |
+| 112 (client AI maximum) | 4 | 112 in all 4 | 1, one board 2 (top-up) | 2.3-3.7 s |
+| 225 | 2 | 225 and 221 (shortfall 4, delivered) | 2 each | 4.9-5.4 s |
+
+NAME and DESCRIPTION were present in all 12, no item contained a comma, and no item repeated. The
+slowest run was 5.4 s against the 15-16 s request limit.
+
+Still to do: a front-end note when cells are left empty (after PR #1309).
