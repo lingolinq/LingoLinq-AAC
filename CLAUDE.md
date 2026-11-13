@@ -101,6 +101,13 @@ everything else in this file.
     `gh pr edit --add-label`), never post a `data-bearing-approval/*` status, and never
     ask for either to be done on your behalf. When a PR needs it, say so and let the
     reviewer add it after reading the data.
+16. **Stay in scope.** Fix only what the task or issue asks. Do not add unrelated
+    hardening, compliance or privacy changes, refactors or cleanups to the PR, even in
+    files you touch. Log anything else you notice as a follow-up issue draft (title and
+    body) in the PR description. The one exception is a concrete, proven exposure of real
+    people's personal data in code the PR touches, meeting the evidence bar in the
+    `## Code Review Rules` section of `AGENTS.md`. A change should do one self-contained
+    thing (Google's code review guide), so the fix ships without waiting on unrelated work.
 
 ## Branching (mandatory before any code change)
 

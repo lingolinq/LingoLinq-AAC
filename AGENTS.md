@@ -18,6 +18,13 @@ include children and clinical patients; FERPA, HIPAA, GDPR and COPPA apply.
 - **Diagnose before fixing; never guess.** Trace the real code path, verify the root
   cause with evidence, and never break working behaviour. Label facts CONFIRMED
   (`file:line`) or ASSUMED; nothing ASSUMED may carry a fix.
+- **Stay in scope.** Fix only what the task or issue asks. Do not add unrelated hardening,
+  compliance or privacy changes, refactors or cleanups to the PR, even in files you touch.
+  Log anything else you notice as a follow-up issue draft (title and body) in the PR
+  description. The one exception: a concrete, proven exposure of real people's personal
+  data in code the PR touches, meeting the evidence bar in "Code Review Rules" below.
+  A change should do one self-contained thing (Google's code review guide), so the fix
+  ships without waiting on unrelated work.
 - **Branch first.** Never edit on `develop`, `staging` or `main`. Branch from `develop`
   with a developer handle and a type (fix, feat, chore, docs, perf, refactor, test,
   compliance, security). Scot's branches are always `<type>/scot-<kebab-slug>`, the
