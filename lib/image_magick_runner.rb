@@ -39,7 +39,14 @@ module ImageMagickRunner
     # montage/convert fall back to reading STDIN when handed an empty path and then block
     # forever, which would wedge the Resque worker; the backticks this replaced never had
     # that failure mode because the shell dropped the empty word.
-    result = confined(args) { |env| system(*env, *args, :in => File::NULL) }
+    result = begin
+      confined(args) { |env| system(*env, *args, :in => File::NULL) }
+    rescue SystemCallError, ArgumentError
+      # Setting up the private directory can fail (a full or unwritable temp directory), and an
+      # argument holding a NUL byte raises from File.file? and from system itself. Either is a
+      # render that did not happen, so it is reported like one; see below for why run never raises.
+      nil
+    end
     # nil means the process never started; false means it ran and exited non-zero. Do NOT raise
     # on nil. system collapses EVERY pre-exec failure to nil -- a missing binary, but equally
     # EACCES, EISDIR, ENAMETOOLONG and E2BIG -- so the errno cannot be recovered here, and
@@ -99,9 +106,12 @@ module ImageMagickRunner
   end
   private_class_method :imagemagick?
 
+  # ImageMagick also reads policy files under $HOME and $XDG_CONFIG_HOME after the private one, and
+  # the last matching rule wins, so a policy file there could re-allow any path. Both point at the
+  # private directory, which holds only the private policy.
   def self.confined_env(dir)
     configure = [dir, ENV['MAGICK_CONFIGURE_PATH']].compact.reject(&:empty?).join(':')
-    { 'MAGICK_CONFIGURE_PATH' => configure, 'MAGICK_TEMPORARY_PATH' => dir }
+    { 'MAGICK_CONFIGURE_PATH' => configure, 'MAGICK_TEMPORARY_PATH' => dir, 'HOME' => dir, 'XDG_CONFIG_HOME' => dir }
   end
   private_class_method :confined_env
 
@@ -113,6 +123,15 @@ module ImageMagickRunner
   # is skipped, because a Regexp on it raises ArgumentError: nothing is allowed for it.
   def self.private_dir(args)
     dir = Dir.mktmpdir('magick-confine')
+    write_policy(dir, args)
+    dir
+  rescue Exception # rubocop:disable Lint/RescueException -- remove the directory whatever stopped it
+    FileUtils.rm_rf(dir) if dir
+    raise
+  end
+  private_class_method :private_dir
+
+  def self.write_policy(dir, args)
     command, *rest = args
     rules = [['none', '*']]
     system_read_dirs.each { |d| rules += pattern_variants(d).map { |p| ['read', "#{p}/*"] } }
@@ -128,9 +147,8 @@ module ImageMagickRunner
     rules << ['none', '*/..*']
     xml = rules.map { |rights, pattern| %(  <policy domain="path" rights="#{rights}" pattern="#{pattern}"/>) }
     File.write(File.join(dir, 'policy.xml'), "<policymap>\n#{xml.join("\n")}\n</policymap>\n")
-    dir
   end
-  private_class_method :private_dir
+  private_class_method :write_policy
 
   # A path as given and resolved (macOS reaches its temp directory through /private), minus any
   # form the policy cannot hold literally or that is not valid UTF-8.

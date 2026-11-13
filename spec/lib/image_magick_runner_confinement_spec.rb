@@ -135,6 +135,115 @@ describe ImageMagickRunner, "confinement" do
       expect(attrs['width']).to eq(64)
       expect(attrs['content_type']).to eq('image/png')
     end
+
+    # ImageMagick reads policy files under $HOME and $XDG_CONFIG_HOME after the private one, and the
+    # last matching rule wins, so one there that allows every path would undo the confinement.
+    it "ignores a policy file under HOME or XDG_CONFIG_HOME that allows every path" do
+      home = File.join(@dir, 'home')
+      allow_all = "<policymap>\n  <policy domain=\"path\" rights=\"read|write\" pattern=\"*\"/>\n</policymap>\n"
+      [File.join(home, '.config', 'ImageMagick'), File.join(home, '.magick'), File.join(home, 'xdg', 'ImageMagick')].each do |d|
+        FileUtils.mkdir_p(d)
+        File.write(File.join(d, 'policy.xml'), allow_all)
+      end
+      saved = ENV.to_h.slice('HOME', 'XDG_CONFIG_HOME')
+      begin
+        ENV['HOME'] = home
+        ENV['XDG_CONFIG_HOME'] = File.join(home, 'xdg')
+        input = write_svg(@dir, "<image href=\"#{@victim}\" width=\"64\" height=\"64\"/>")
+        out = File.join(@dir, 'out.jpg')
+        ImageMagickRunner.run('convert', '-background', 'white', input, '-flatten', out)
+        expect(!File.exist?(out) || mean_red(out) < 0.1).to eq(true)
+      ensure
+        %w[HOME XDG_CONFIG_HOME].each { |k| saved.key?(k) ? ENV[k] = saved[k] : ENV.delete(k) }
+      end
+    end
+
+    # Every policy file ImageMagick loads after the private one (the app's config/imagemagick, the
+    # system's, any other) must not grant a path, or it would override the private policy.
+    it "loads no policy file, other than the private one, that grants a path" do
+      saved = ENV['MAGICK_CONFIGURE_PATH']
+      begin
+        ENV['MAGICK_CONFIGURE_PATH'] = Rails.root.join('config/imagemagick').to_s
+        listing = ImageMagickRunner.capture('convert', '-list', 'policy')
+      ensure
+        saved ? ENV['MAGICK_CONFIGURE_PATH'] = saved : ENV.delete('MAGICK_CONFIGURE_PATH')
+      end
+      sections = listing.split(/^Path: /).drop(1).map { |s| [s.lines.first.strip, s] }
+      expect(sections.map(&:first)).to include(Rails.root.join('config/imagemagick/policy.xml').to_s)
+      granting = sections.reject { |file, _| File.basename(File.dirname(file)).start_with?('magick-confine') }.flat_map do |file, body|
+        body.split(/^\s*Policy: /).select { |p| p.start_with?('Path') && p[/rights:\s*(.*)$/, 1].to_s.strip != 'None' }.map { |p| "#{file}: #{p.strip}" }
+      end
+      expect(granting).to eq([])
+    end
+  end
+
+  # The leak examples above pass when the forbidden file is not drawn. These run the same renders with
+  # no confinement and must draw it, so a pass above means the confinement stopped a read this
+  # ImageMagick would otherwise make.
+  describe "the same renders, unconfined" do
+    before(:each) do
+      skip('ImageMagick not installed') unless system('convert', '-version', :out => File::NULL, :err => File::NULL)
+      system('convert', '-size', '64x64', 'xc:red', @victim)
+    end
+
+    def unconfined(*args)
+      system(*args, :out => File::NULL, :err => File::NULL)
+    end
+
+    def drawn?(path)
+      File.exist?(path) && mean_red(path) > 0.1
+    end
+
+    let(:href) { "<image href=\"#{@victim}\" width=\"64\" height=\"64\"/>" }
+    let(:out) { File.join(@dir, 'out.jpg') }
+
+    it "draws a file named by absolute path (runner shape)" do
+      unconfined('convert', '-background', 'white', write_svg(@dir, href), '-flatten', out)
+      expect(drawn?(out)).to eq(true)
+    end
+
+    it "draws a file named through xlink:href" do
+      body = "<image xlink:href=\"#{@victim}\" width=\"64\" height=\"64\"/>"
+      input = File.join(@dir, 'in.svg')
+      File.write(input, "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" width=\"64\" height=\"64\"><rect width=\"64\" height=\"64\" fill=\"blue\"/>#{body}</svg>")
+      unconfined('convert', '-background', 'white', input, '-flatten', out)
+      expect(drawn?(out)).to eq(true)
+    end
+
+    it "draws a file named in an svg under a raster file name" do
+      unconfined('convert', write_svg(@dir, href, 'in.png'), '-flatten', out)
+      expect(drawn?(out)).to eq(true)
+    end
+
+    it "draws a file reached by walking up out of a system directory" do
+      allowed = Dir.glob(ImageMagickRunner::SYSTEM_READ_GLOBS).find { |d| File.directory?(d) }
+      skip('no ImageMagick config or font directory found') unless allowed
+      walk = File.join(File.realpath(allowed), *Array.new(File.realpath(allowed).count('/'), '..')) + @victim
+      unconfined('convert', '-background', 'white', write_svg(@dir, "<image href=\"#{walk}\" width=\"64\" height=\"64\"/>"), '-flatten', out)
+      expect(drawn?(out)).to eq(true)
+    end
+
+    it "draws a file named in an svg rendered as save_image renders an svg" do
+      input = write_svg(@dir, href)
+      unconfined('convert', '-background', 'white', '-density', '300', '-resize', '400x400', '-gravity', 'center',
+                 '-extent', '400x400', input, '-flatten', out)
+      expect(drawn?(out)).to eq(true)
+    end
+
+    it "draws a file named in an svg rendered as save_image renders a non-svg" do
+      input = write_svg(@dir, href, 'in.png')
+      unconfined('convert', input, '-density', '300', '-resize', '400x400', '-background', 'white', '-gravity', 'center',
+                 '-extent', '400x400', '-flatten', out)
+      expect(drawn?(out)).to eq(true)
+    end
+
+    it "draws a file named in an svg rendered as convert_image renders it" do
+      input = write_svg(@dir, href)
+      raster = "#{input}.raster.png"
+      unconfined('convert', '-background', 'none', '-density', '300', '-resize', '400x400', '-gravity', 'center',
+                 '-extent', '400x400', input, raster)
+      expect(drawn?(raster)).to eq(true)
+    end
   end
 
   describe "the policy handed to ImageMagick" do
@@ -221,6 +330,31 @@ describe ImageMagickRunner, "confinement" do
       policy = nil
       expect { policy = policy_for('convert', input, out) }.not_to raise_error
       expect(Nokogiri::XML(policy).xpath('/policymap/policy[@rights="write"]').length).to eq(0)
+    end
+
+    def confine_dirs
+      Dir.glob(File.join(Dir.tmpdir, 'magick-confine*'))
+    end
+
+    # run must not raise: an exception escaping the sentence preview job re-enqueues it on every save.
+    it "returns nil, runs nothing and leaves no directory when an argument holds a NUL byte" do
+      input = File.join(@dir, 'in.svg')
+      File.write(input, '<svg/>')
+      before = confine_dirs
+      expect(ImageMagickRunner).not_to receive(:system)
+      expect(ImageMagickRunner.run('montage', '-label', "/a\0", input, File.join(@dir, 'out.jpg'))).to eq(nil)
+      expect(confine_dirs - before).to eq([])
+    end
+
+    it "returns nil, runs nothing and leaves no directory when the policy cannot be written" do
+      input = File.join(@dir, 'in.svg')
+      File.write(input, '<svg/>')
+      allow(File).to receive(:write).and_call_original
+      allow(File).to receive(:write).with(end_with('policy.xml'), anything).and_raise(Errno::ENOSPC)
+      before = confine_dirs
+      expect(ImageMagickRunner).not_to receive(:system)
+      expect(ImageMagickRunner.run('convert', input, File.join(@dir, 'out.jpg'))).to eq(nil)
+      expect(confine_dirs - before).to eq([])
     end
 
     it "leaves commands other than ImageMagick alone" do

@@ -80,8 +80,9 @@ with the system policy and with `config/imagemagick/policy.xml` loaded, two exam
   (`app/models/utterance.rb:348`); the stored data is encrypted, so Postgres never sees the bytes
   (red-team, CONFIRMED). The module's own comment (`:201-204`) still treats it as a case to survive.
 - **Version dependence.** The CI runner installs ImageMagick 7.1.2-18 (`.github/workflows/ci.yml`);
-  on `8ba643fe3` every real-ImageMagick example ran there and passed, `:53` and `:91` included, so 7.1.2
-  refuses the walk itself. On 6.9.12-98 (local) the walk is drawn. The earlier "Tests" section above says
+  on `8ba643fe3` every real-ImageMagick example ran there and passed, `:53` and `:91` included. That
+  is consistent with 7.1.2 refusing the walk, and equally with 7.1.2 never drawing an `href` file at all
+  (ASSUMED either way until the unconfined controls below run on CI). On 6.9.12-98 (local) the walk is drawn. The earlier "Tests" section above says
   all examples passed on 6.9.11, but `:91` was not separately measured there, so whether the production
   image (6.9.11) refuses the walk is ASSUMED unknown, and so is whether its SVG coder is ImageMagick's
   own renderer or librsvg (librsvg would fetch `href` files itself, outside the policy).
@@ -150,3 +151,96 @@ Not done here, as follow-ups:
 
 `:53` changed with Traci's approval (Rule #0.14, 2026-11-12): the example now draws the blue rect the
 others use, and its assertion is unchanged.
+
+## 2026-11-12: fixes for the senior-dev review
+
+`/review-pr` at `1891694af` (`REVIEWED=PR lingolinq/LingoLinq-AAC#1300 at 1891694affb16b2dd04b4ac2c6d4aa0794e884ac`):
+Request changes. Its High is the unverified production image (open, needs someone with the image).
+Three of its findings are taken here; two Lows are not (below).
+
+### Fix 1: a positive control for the leak examples
+
+**Problem (CONFIRMED by reading the spec).** Every leak example asserts
+`!File.exist?(out) || mean_red(out) < 0.1` (`spec/lib/image_magick_runner_confinement_spec.rb:38-109`,
+`spec/initializers/obf_save_image_confinement_spec.rb`). That passes if this ImageMagick never draws an
+`<image href>` file even unconfined. On 6.9.12 the examples do bite (removing confinement turns 12 red).
+On CI's 7.1.2 whether the unconfined render draws the file is not measured, and CI is where these run.
+
+**Candidate A (chosen): one positive-control example that must pass.** In "with ImageMagick installed",
+an example renders the same svg-with-`href` through plain `system('convert', ...)`, unconfined, and
+asserts the result is red (`mean_red > 0.9`), with a message saying the leak examples prove nothing
+on this ImageMagick if it fails. If CI's 7.1.2 does not draw the file, CI goes red and we learn it,
+instead of staying green on examples that cannot fail.
+
+**Candidate B (rejected): a per-example baseline that skips.** Each leak example first renders
+unconfined and `skip`s when that is not red. Honest per example, but a skip in CI is easy to miss, and
+it adds a `skip` to existing examples (Rule #0.14).
+
+### Fix 2: a guard on the repo policy
+
+**Problem (CONFIRMED with `convert -list policy`, red-team).** `confined_env`
+(`lib/image_magick_runner.rb:102-105`) puts the private directory first on `MAGICK_CONFIGURE_PATH`, so
+`config/imagemagick/policy.xml` loads after the private policy, and the last matching rule wins. A
+`domain="path"` rule granting rights there would override the leading deny and the `..` deny. None
+exists today: the spec pins the path denies to `['@*']` (`spec/config/imagemagick_policy_spec.rb:18-21`)
+but nothing checks for path allows.
+
+**Change:** an example in `spec/config/imagemagick_policy_spec.rb`: no `domain="path"` rule has rights
+other than `none`. Mutation: add `<policy domain="path" rights="read" pattern="/tmp/*"/>` to the
+policy, red.
+
+### Fix 5: setup failure must not raise from `run` or leave a directory
+
+**Problem (CONFIRMED by reading).** `confined` calls `private_dir` before its `begin`
+(`lib/image_magick_runner.rb:88`), and `private_dir` creates the directory (`:113`) before writing the
+policy (`:130`). A `SystemCallError` there (ENOSPC on `/tmp`, EACCES, `File.realpath(Dir.tmpdir)` in
+`system_read_dirs`) escapes `run` and leaves the directory until the stale sweep. `run`'s contract is
+to return nil or false, never raise: an exception escaping the sentence-preview job leaves
+`large_image_url_attempted` unset and re-enqueues it on every later save (`:43-52`).
+
+**Change:**
+- `private_dir`: on any exception after `mktmpdir`, `rm_rf` the directory and re-raise.
+- `run`: rescue `SystemCallError` from the confined setup, log only the binary name (as `:53` does),
+  return nil. `capture` and `spawn` keep raising, as today (`capture`'s contract raises for a missing
+  binary, `:58-61`; `spawn` already re-raises after cleanup, `:77-80`).
+- Test: stub the policy `File.write` to raise `Errno::ENOSPC`; `run` returns nil, and no new
+  `magick-confine*` directory remains. Mutation: remove the `rescue` in `run` (raises), and remove the
+  cleanup in `private_dir` (directory left).
+
+### Not taken
+
+- `magick identify` gets a write rule on its last argument: no caller uses `magick` (every call site
+  uses `convert`, `montage` or `identify`; `git grep` over `app/`, `lib/`, `config/`).
+- Control characters in `UNSAFE_PATTERN_CHARS`: only server-chosen temp paths and existing absolute
+  file paths reach a pattern.
+
+### Review of this proposal, and what was applied
+
+`/adversary-review` of the proposal: apply with changes, no Critical or High. Applied:
+
+- **Fix 5, widened.** A label holding a NUL byte is valid UTF-8 and passes Rails, and raises
+  `ArgumentError` (from `File.file?` in `private_dir`, and from `system` itself, which develop does too),
+  not `SystemCallError`. `run` now rescues `SystemCallError` and `ArgumentError` around the confined call
+  only (`argv`'s arity error still raises) and returns nil; `private_dir` removes its directory on any
+  exception. Measured before: `"/a\0"` raised and left a directory with no `policy.xml`.
+- **Fix 2, replaced.** Checking one file's XML missed both the other policy files ImageMagick loads after
+  the private one (`$HOME/.config/ImageMagick`, `$HOME/.magick`, `$XDG_CONFIG_HOME/ImageMagick`; prod's
+  HOME is `/app`) and spellings ImageMagick honours (`domain="Path"`). Now `confined_env` sets `HOME` and
+  `XDG_CONFIG_HOME` to the private directory, an example plants allow-everything policy files there and
+  shows the leak still refused, and an example lists the policies ImageMagick actually loads
+  (`convert -list policy`, which normalizes spelling) and asserts none but the private one grants a path.
+- **Fix 1, widened.** One unconfined twin per distinct render shape (runner, `xlink:href`, svg under a
+  raster name, the system-directory walk, `save_image`'s svg and non-svg arguments, `convert_image`),
+  each asserting the file is drawn (`mean_red > 0.1`, the complement of the leak checks). No `skip`
+  beyond the existing "ImageMagick not installed". If a twin fails on CI, that ImageMagick cannot show
+  the leak examples failing; the answer is to run them against the production image's ImageMagick, not to
+  remove the twin.
+
+Regression check: the ImageMagick-related specs (runner, confinement, initializers, sentence_pic,
+uploadable, utterance, button_image, converters, imagemagick_policy) went from 577 examples, 0 failures,
+6 pending at `1891694af` to 588, 0 failures, 6 pending. A labelled montage renders pixel-identical
+(`compare -metric AE` = 0) with the committed runner and this one, at the same speed (about 0.05 s).
+
+Not taken, as follow-ups: the same loaded-policy check in the Dockerfile build and the CI verify step; a
+private `delegate` deny (inkscape is not installed today, but ImageMagick would hand an svg to it, and it
+reads `href` files itself).
