@@ -1652,6 +1652,22 @@ describe Api::BoardsController, :type => :controller do
       expect(captured[:user].global_id).to eq(@user.global_id)
     end
 
+    # 2026-11-13: a short list is no longer refused; the labels found are returned with the count
+    # left to fill, so the client can make the board and say so.
+    it "returns the labels found and the shortfall for a partial list" do
+      token_user
+      expect(FeatureFlags).to receive(:ai_feature_enabled_for?).with('ai_board_generation', anything).and_return(true)
+      allow(AiBoardGenerator).to receive(:generate_words).and_return(
+        { words: %w[apple banana carrot], shortfall: 1, name: 'Snacks', description: 'Snack words', error: nil }
+      )
+      request.headers['Content-Type'] = 'application/json'
+      post :generate_labels, params: {}, body: { prompt: 'snacks', rows: 2, columns: 2 }.to_json
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['labels']).to eq('apple, banana, carrot')
+      expect(json['shortfall']).to eq(1)
+    end
+
     it "should return 403 and skip generation when AI is disabled for the org" do
       token_user
       expect(FeatureFlags).to receive(:ai_feature_enabled_for?).with('ai_board_generation', anything).and_return(false)

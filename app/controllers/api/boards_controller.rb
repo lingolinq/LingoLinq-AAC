@@ -680,6 +680,8 @@ class Api::BoardsController < ApplicationController
     return api_error(400, { error: 'Could not generate words' }) if words.blank?
     labels_str = words.first(cell_count).join(', ')
     response = { labels: labels_str }
+    # Cells the AI could not fill after its top-up; the board is still made, with them left empty.
+    response[:shortfall] = result[:shortfall] if result[:shortfall].to_i.positive?
     ai_name = result[:name].to_s.strip
     response[:name] = if ai_name.present? && !name_looks_truncated?(ai_name)
       ai_name
