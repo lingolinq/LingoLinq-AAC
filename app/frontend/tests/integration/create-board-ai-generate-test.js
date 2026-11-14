@@ -98,7 +98,7 @@ QUnit.module('Integration | Component | create-board-new AI generate', function(
     await settled();
     assert.dom('[data-test-ai-shortfall-notice]').exists();
     assert.dom('[data-test-ai-shortfall-notice]').includesText('3 of 4');
-    assert.dom('[data-test-ai-shortfall-notice]').includesText('1 cell');
+    assert.dom('[data-test-ai-shortfall-notice]').includesText('Empty cells left for you to fill: 1');
   });
 
   QUnit.test('no note when the AI filled every cell', async function(assert) {
@@ -136,6 +136,59 @@ QUnit.module('Integration | Component | create-board-new AI generate', function(
     assert.strictEqual(seen.component.get('model.grid.labels'), 'typed by hand');
     assert.false(seen.component.get('wizard_done'));
     assert.false(seen.component.get('ai_generating'));
+  });
+
+  // Leaving and coming back must not revive the abandoned request: by then the person may have
+  // started a new one, and the old answer would replace its labels (senior-dev review, #1309).
+  QUnit.test('a late answer is ignored after leaving AI mode and coming back', async function(assert) {
+    await openLastAiStep();
+    await click('.nb-ai-generate__btn');
+    await waitUntil(() => seen.component.get('ai_generating'));
+    const abandoned = pending;
+    seen.component.send('set_create_mode', 'regular');
+    seen.component.send('set_create_mode', 'ai');
+    seen.component.set('model.grid.labels', 'typed by hand');
+    abandoned.resolve({ labels: 'slide swing' });
+    await settled();
+    assert.strictEqual(seen.component.get('model.grid.labels'), 'typed by hand');
+    assert.false(seen.component.get('wizard_done'));
+  });
+
+  QUnit.test('a late failure is not shown after leaving AI mode and coming back', async function(assert) {
+    await openLastAiStep();
+    await click('.nb-ai-generate__btn');
+    await waitUntil(() => seen.component.get('ai_generating'));
+    const abandoned = pending;
+    seen.component.send('set_create_mode', 'regular');
+    seen.component.send('set_create_mode', 'ai');
+    abandoned.reject({ responseJSON: { error: 'Old request failed' } });
+    await settled();
+    assert.notOk(seen.component.get('ai_generate_error'));
+  });
+
+  QUnit.test('leaving AI mode during the access check sends no request', async function(assert) {
+    await openLastAiStep();
+    const access = RSVP.defer();
+    seen.component._ensureAiBoardGenerationAccess = function() { return access.promise; };
+    pending = null;
+    await click('.nb-ai-generate__btn');
+    seen.component.send('set_create_mode', 'regular');
+    access.resolve({ proceed: true });
+    await settled();
+    assert.strictEqual(pending, null, 'no generate request was sent');
+    assert.false(seen.component.get('ai_generating'));
+  });
+
+  QUnit.test('the note counts more than one empty cell', async function(assert) {
+    await openLastAiStep();
+    seen.component.set('model.grid.rows', 2);
+    seen.component.set('model.grid.columns', 2);
+    await click('.nb-ai-generate__btn');
+    await waitUntil(() => seen.component.get('ai_generating'));
+    pending.resolve({ labels: 'slide, swing', shortfall: 2 });
+    await settled();
+    assert.dom('[data-test-ai-shortfall-notice]').includesText('2 of 4');
+    assert.dom('[data-test-ai-shortfall-notice]').includesText('Empty cells left for you to fill: 2');
   });
 
   QUnit.test('the labels page opens once the labels arrive', async function(assert) {

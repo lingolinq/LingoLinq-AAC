@@ -496,7 +496,7 @@
             {{#if this.ai_generate_shortfall}}
               <p class="nb-alert nb-alert--warning nb-ai-shortfall" role="status" data-test-ai-shortfall-notice>
                 {{t "The AI found %{found} of %{total} words." key="ai_shortfall_found" found=this.ai_generate_found total=this.ai_generate_cells}}
-                {{t "cell is left empty for you to fill" count=this.ai_generate_shortfall key="n_cells_left_to_fill"}}
+                {{t "Empty cells left for you to fill: %{n}" key="ai_shortfall_empty_cells" n=this.ai_generate_shortfall}}
               </p>
             {{/if}}
             {{#if this.show_full_size_section}}

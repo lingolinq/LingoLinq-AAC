@@ -7355,7 +7355,7 @@
   "ai_generating_labels": "正在生成标签… [[ Generating Labels…",
   "ai_generating_wait_hint": "*** This usually takes 10 to 30 seconds.",
   "ai_shortfall_found": "*** The AI found %{found} of %{total} words.",
-  "n_cells_left_to_fill": "*** 0 cells are left empty for you to fill. || 1 cell is left empty for you to fill. || %{n} cells are left empty for you to fill.",
+  "ai_shortfall_empty_cells": "*** Empty cells left for you to fill: %{n}",
   "ai_generate_labels_btn": "利用人工智能生成标签 [[ Generate Labels with AI",
   "comp_eyebrow": "综合评估 [[ Comprehensive Eval",
   "comp_da_counter": "TR5B 中的项目 %{n} [[ Item %{n} of %{total}",

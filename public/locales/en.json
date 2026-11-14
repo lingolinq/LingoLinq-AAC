@@ -4891,7 +4891,7 @@
   "ai_generating_labels": "Generating Labels…",
   "ai_generating_wait_hint": "This usually takes 10 to 30 seconds.",
   "ai_shortfall_found": "The AI found %{found} of %{total} words.",
-  "n_cells_left_to_fill": "0 cells are left empty for you to fill. || 1 cell is left empty for you to fill. || %{n} cells are left empty for you to fill.",
+  "ai_shortfall_empty_cells": "Empty cells left for you to fill: %{n}",
   "ai_generate_labels_btn": "Generate Labels with AI",
   "new_board_section_board_labels": "Board Labels",
   "labels": "Labels",
