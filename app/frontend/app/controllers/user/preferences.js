@@ -1056,10 +1056,11 @@ export default Controller.extend({
     });
   }),
   // "Keep me logged in on this private device" sets whether this device is trusted, which only the person may change
-  // (app/models/user.rb process_params drops it from anyone else's save). Shown in Advanced on your own preferences only.
-  show_session_timeout: computed('advanced', 'model', 'appState.sessionUser', function() {
+  // (app/models/user.rb process_params drops it from anyone else's save, an operator acting as them included). Shown in
+  // Advanced on your own preferences only, and not while someone acts as you (session.as_user_id).
+  show_session_timeout: computed('advanced', 'model', 'appState.sessionUser', 'session.as_user_id', function() {
     var me = this.get('appState.sessionUser');
-    return !!this.get('advanced') && same_person(this.get('model'), me, me);
+    return !!this.get('advanced') && !this.get('session.as_user_id') && same_person(this.get('model'), me, me);
   }),
   actions: {
     plus_minus: function(direction, attribute) {
@@ -1219,8 +1220,8 @@ export default Controller.extend({
               if(pending[key][dkey] != orig[key][dkey]) {
                 user.set('preferences.device.' + dkey, pending[key][dkey]);
                 // The person changed "Keep me logged in on this private device": stamp the explicit choice
-                // (utils/trust_choice.js). For a supervisor editing a communicator the server sets the value as
-                // before and does not count it as the owner's choice.
+                // (utils/trust_choice.js). The control is shown only on your own account; the server drops the
+                // value from anyone else's save.
                 if(dkey === 'long_token') { record_trust_choice(user, pending[key][dkey]); }
               }
             } else if(pending[key][dkey] == null) {

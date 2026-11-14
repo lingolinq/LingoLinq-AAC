@@ -6,8 +6,8 @@ import { setupTest } from '../../helpers';
  *
  * "Keep me logged in on this private device" sets whether a device is trusted. Only the person may change that: the
  * server drops it from a supervisor's or an operator's save (app/models/user.rb process_params), so the control is
- * shown only when the page is the signed-in person's own preferences, compared by backend id (the session user can be
- * the record keyed 'self', utils/backend_user_id.js). */
+ * shown only when the page is the signed-in person's own preferences and nobody is acting as them. People are
+ * compared by backend id (the session user can be the record keyed 'self', utils/backend_user_id.js). */
 module('Unit | Controller | user/preferences Session Timeout', function(hooks) {
   setupTest(hooks);
 
@@ -31,6 +31,20 @@ module('Unit | Controller | user/preferences Session Timeout', function(hooks) {
     this.controller.set('advanced', true);
     this.controller.set('model', EmberObject.create({ id: '1_8', user_name: 'sam' }));
     assert.false(this.controller.get('show_session_timeout'));
+  });
+
+  test('not shown while someone acts as you (the server would drop the value)', function(assert) {
+    assert.expect(1);
+    var session = this.owner.lookup('service:session');
+    var prior = session.get('as_user_id');
+    session.set('as_user_id', '1_3');
+    try {
+      this.controller.set('advanced', true);
+      this.controller.set('model', EmberObject.create({ id: '1_3', user_name: 'example' }));
+      assert.false(this.controller.get('show_session_timeout'));
+    } finally {
+      session.set('as_user_id', prior);
+    }
   });
 
   test('not shown outside Advanced', function(assert) {

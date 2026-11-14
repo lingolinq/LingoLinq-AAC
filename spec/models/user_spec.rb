@@ -1986,7 +1986,8 @@ describe User, :type => :model do
       end
 
       # Only the person may change whether their device is trusted (Traci, 2026-11-13; this example used to expect a
-      # supervisor's save to set long_token "as before", the 2026-11-11 decision it replaces). users#update writes a
+      # supervisor's save to set long_token "as before", the 2026-11-11 decision it replaces; the operator example's
+      # owner-choice assertion changed with it, from eq(false) to be_nil, since nothing is written). users#update writes a
       # supervisor's device preferences onto the person's most recent device, and a trusted row gets no organization
       # timeout on later sign-ins (Device#generate_token!), so the save drops the trust fields from anyone else.
       it "is not recorded for a supervisor's save, which leaves the device's trust unchanged" do
@@ -2030,7 +2031,7 @@ describe User, :type => :model do
         u, d = owner_and_device
         admin = User.create
         u.process_params({'preferences' => {'device' => {'long_token' => true, 'long_token_chosen_at' => Time.now.to_i}}}, {'device' => d, 'updater' => u, 'operator' => admin})
-        expect(d.reload.settings['long_token_owner_choice']).to_not eq(true)
+        expect(d.reload.settings['long_token_owner_choice']).to be_nil
         expect(d.settings['long_token']).to eq(nil), 'nor is the trust value written'
       end
 
@@ -2040,6 +2041,7 @@ describe User, :type => :model do
         theirs = Device.create(user: other, developer_key_id: 0, device_key: '1.234 Other', settings: {'browser' => true})
         u.process_params({'preferences' => {'device' => {'long_token' => true, 'long_token_chosen_at' => Time.now.to_i}}}, {'device' => theirs, 'updater' => u})
         expect(theirs.reload.settings['long_token_owner_choice']).to_not eq(true)
+        expect(theirs.settings['long_token']).to eq(nil), 'nor is the trust value written onto it'
       end
 
       # A tablet's clock can be wrong by more than 10 minutes (review of #1268, 2026-11-13). The answer counts when its
@@ -2098,7 +2100,7 @@ describe User, :type => :model do
         u, d = owner_and_device
         answer(u, d, false, Time.now.to_i)
         answer(u, d, true, Time.now.to_i - 60)
-        expect(d.settings['long_token']).to eq(true)
+        expect(d.settings['long_token']).to eq(true) # known limit: a stale own save still changes the value, only not the owner choice
         expect(d.settings['long_token_owner_choice']).to eq(false)
       end
 
@@ -2125,6 +2127,7 @@ describe User, :type => :model do
         prefs = u.settings['preferences'].to_json
         expect(prefs).to_not include('long_token_choice_stamp')
         expect(prefs).to_not include('long_token_chosen_at')
+        expect(JsonApi::Device.as_json(d, current_device: d).to_json).to_not include('long_token_choice_stamp')
       end
 
       it "is left as it is by a save that only echoes the unchanged value" do

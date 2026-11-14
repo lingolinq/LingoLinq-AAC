@@ -6,8 +6,8 @@
  * wrong clock still counts (and within 10 minutes of server time after a fast clock was corrected). Only then does a trusted browser device drop the
  * organization's idle timeout (app/models/device.rb clean_old_keys). Called by the "Trust this Device" question
  * (components/login-form.js) and by Preferences when the person changes "Keep me logged in on this private device"
- * (controllers/user/preferences.js). A supervisor's save sets the value as before; the server does not count it as
- * the owner's choice. The server strips the stamp from preferences; a retried or replayed older save carries a
+ * (controllers/user/preferences.js). A supervisor's or an operator's save leaves the device's trust unchanged
+ * (the server drops it; Preferences shows the control only on your own account). The server strips the stamp from preferences; a retried or replayed older save carries a
  * stamp older than the device's last recorded answer and is not counted either. Limits: the first stamped answer on a
  * device counts at any age, and a clock that went slow after an answer was recorded is refused.
  */

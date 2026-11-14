@@ -1653,3 +1653,20 @@ fix (5 failures). Mutations: dropping the operator check fails its case; keeping
 strengthening that case to check the stored preferences). `tests/unit/controllers/preferences-session-timeout-test.js`
 (3 cases); with the comparison removed, the other-person case fails. User, device, users controller and JSON specs:
 1043 examples, 0 failures.
+
+**Adversary review of 74f29c9d0 (2026-11-14): nothing blocking, seven Lows; acted on.** It confirmed the drop sits
+before every read of `long_token` and `asserted`, blocks only supervisor and operator saves, and leaves every own flow
+working (login follow-up, your own Preferences, `asserted` from the login form, integrations, sign-up, valet).
+- Fixed: four comments still said a supervisor's save sets the trust value (`app/models/user.rb`, `app/models/device.rb`,
+  `utils/trust_choice.js`, `controllers/user/preferences.js`).
+- Fixed: Session Timeout was shown while an admin acted as the person, and the server then dropped the value; it is now
+  hidden when `session.as_user_id` is set (new test case; mutation verified).
+- Fixed: the "device that is not theirs" clause is pinned (the example now also expects no trust value written;
+  removing the clause fails it). The JSON exposure line removed in bff43d5da is back; the operator example asserts
+  `be_nil`, and the approval note names it.
+- Documented in the code and pinned: after a fast-clock answer, a correct-clock answer in the 10 minutes before the
+  stored stamp is refused, and a second answer in the same second is refused (the value is written, not as the owner's
+  choice). A stale own save (another tab) still changes the value itself; the reorder spec marks that as a known limit.
+- Decided trade-offs, recorded: a supervisor or organization manager can no longer set Shared on a communicator's device
+  remotely (`hide_device` does not revoke keys), and a valet long-term sign-in with the trust box ticked still trusts the
+  row (`session_controller.rb` sign-in, pre-existing). Both are outside this PR's change.

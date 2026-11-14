@@ -3876,10 +3876,11 @@ class User < ApplicationRecord
         device.delete('asserted')
       end
       if non_user_params['device'] && device['long_token'] != nil
-        # Pass 2 of the final review of #1268 (Traci, 2026-11-11): every writer still sets long_token as before
-        # (a supervisor's save included); only the person's own explicit answer on their own device records
-        # long_token_owner_choice, which is what lets a trusted browser device drop the organization's idle timeout
-        # (Device#clean_old_keys). Any other change of the value clears it; an unchanged echo leaves it as it is.
+        # Only the person's own saves reach here (a supervisor's or an operator's save had long_token dropped above).
+        # Of those, only an explicit answer with a counted stamp records long_token_owner_choice, which is what lets a
+        # trusted browser device drop the organization's idle timeout (Device#clean_old_keys). Any other change of the
+        # value clears it; an unchanged echo leaves it as it is. Known limit: a stale own save (another tab still
+        # holding the old value) still changes the value itself, only not the owner choice.
         dev = non_user_params['device']
         value = !!device['long_token']
         updater = non_user_params['updater']
@@ -3889,7 +3890,9 @@ class User < ApplicationRecord
         # a retried or replayed one included, does not. One exception: when the stored stamp is ahead of server time by
         # more than 10 minutes (a fast clock since corrected), an answer within 10 minutes of server time counts.
         # Limits: the first stamped answer on a device counts at any age; a clock that went slow after an answer was
-        # recorded is refused until it passes that stamp. The stored stamp only moves forward.
+        # recorded is refused until it passes that stamp; after a fast-clock answer, a correct-clock answer in the 10
+        # minutes before the stored stamp is refused; a second answer in the same second is refused. A refusal leaves
+        # the value written but not as the owner's choice. The stored stamp only moves forward.
         stamped = chosen_at.to_s.match?(/\A\d+\z/)
         last_stamp = dev.settings['long_token_choice_stamp'].to_i
         corrected_clock = last_stamp > Time.now.to_i + 10.minutes.to_i && (Time.now.to_i - chosen_at.to_i).abs <= 10.minutes.to_i
