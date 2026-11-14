@@ -90,10 +90,10 @@ class AiApiLog < ApplicationRecord
     log.error_message = params[:error_message]
     log.ip_address = params[:ip_address]
     log.feature_flag = params[:feature_flag]
-    # EU AI Act Article 50 fields (all optional; default to a safe non-EU/unmarked state
-    # so existing callers are unaffected). jurisdiction gates the 50(1) disclosure only;
-    # ai_content_marked reflects the unconditional 50(2) marking of the output.
-    log.jurisdiction = params[:jurisdiction]
+    # EU AI Act Article 50 fields (all optional; default to an unmarked state so existing
+    # callers are unaffected). ai_content_marked reflects the unconditional 50(2) marking of
+    # the output. The jurisdiction column is no longer written: it existed only for the EU
+    # retention purge, which the single 12-month purge (purge_old_logs!) replaced.
     log.article_50_disclosure_shown = params[:article_50_disclosure_shown] || false
     log.ai_content_marked = params[:ai_content_marked] || false
     log.ai_generated_content_id = params[:ai_generated_content_id]
@@ -228,30 +228,35 @@ class AiApiLog < ApplicationRecord
       .update_all(ip_address: '[REDACTED]')
   end
 
-  # EU retention purge: AI-call logs for EU-jurisdiction users are retained for
-  # five years, then purged. The `jurisdiction = 'EU'` value is the canonical
-  # stamp written by the shared call-context helper (the partial index
-  # `index_ai_api_logs_on_jurisdiction_and_created_at` backs this scan).
-  # BASIS NOTE (2026-08-30, #888 retraction): this purge was previously
-  # justified as "EU AI Act Article 50 record-keeping". That was wrong;
-  # Article 50 is a transparency rule and imposes no record-keeping period.
-  # The basis and length of this window are under counsel review. The purge
-  # itself stays as-is pending that review.
+  # One retention window for every account: rows older than RETENTION_MONTHS are deleted.
+  # Basis: business need (debugging, safety review, usage and billing). Matches
+  # docs/legal/2026-09-22_data-retention.md and
+  # docs/legal/2026-08-25_ai-data-flow-classification.md section 6; keep them identical.
+  # Separately, redact_old_ip_addresses! removes IP addresses at 90 days, and
+  # Flusher.flush_user_logs (lib/flusher.rb) deletes an account's rows when the account is.
   #
-  # Scope is deliberately EU-only. There is no blanket ai_api_logs purge today,
-  # and one is out of scope here: these rows double as a HIPAA audit trail
-  # (the disclosed up-to-6-years window for healthcare-linked accounts; the
-  # earlier "45 CFR 164.316(b)(2) six-year floor" framing was retracted in the
-  # same pass), so a shorter default purge is a separate decision that must
-  # weigh that window, not a byproduct of this EU rule.
-  # `delete_all` is used (not destroy_all): these rows have no dependents and no
-  # destroy callbacks, and a bulk purge should not instantiate five years of rows.
+  # Batched like Flusher.delete_by_id_in_slices so a large backlog never becomes one long
+  # DELETE. `delete_all` (not destroy_all): these rows have no dependents, no destroy
+  # callbacks and no paper_trail. created_at never changes, so a row plucked as eligible is
+  # still eligible when deleted. The cutoff is computed once, so the loop always ends.
   #
   # Returns the number of records deleted.
-  def self.purge_old_eu_logs!(years: 5)
-    where(jurisdiction: 'EU')
-      .where('created_at < ?', years.years.ago)
-      .delete_all
+  RETENTION_MONTHS = 12
+
+  def self.purge_old_logs!(months: RETENTION_MONTHS, batch_size: 1000)
+    raise ArgumentError, 'batch_size must be a positive integer' unless batch_size.is_a?(Integer) && batch_size > 0
+    cutoff = months.months.ago
+    deleted = 0
+    loop do
+      ids = where('created_at < ?', cutoff).limit(batch_size).pluck(:id)
+      break if ids.empty?
+      batch = where(id: ids).delete_all
+      # Nothing deleted means every plucked row was removed meanwhile (created_at never
+      # moves); stop rather than re-plucking forever.
+      break if batch.zero?
+      deleted += batch
+    end
+    deleted
   end
 
   # Returns a hash representation suitable for audit log exports.

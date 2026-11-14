@@ -60,6 +60,10 @@ describe 'privacy locale English pins' do
   # restoring the retracted sentence in the template, en.json and every fallback
   # together would otherwise pass.
   PRIVACY_LOCALE_CONTENT_PINS = {
+    'privacy_security_retention_active' =>
+      'Active account data: retained until the account is deleted. An account can be deleted at your request, when a parent declines consent, after a verified parental deletion request, or through the inactivity process below. An organization that manages an account can also set a shorter retention period for its communication logs.',
+    'privacy_security_retention_inactive' =>
+      'Inactive accounts: when an account record has not been updated for 12 months, the account enters automatic deletion. If the account has a working email address, we try to send up to two warnings at least 3 weeks apart and then a final notice. The account is permanently deleted no sooner than 36 hours after that step unless it is used online first. An account on an expired trial or expired plan can enter the same process after about 4 weeks without an update. Some account settings exempt an account or delay this process.',
     'privacy_security_retention_children' =>
       'Children\'s data (users under 13): parent-controllable at any time; accounts and content are not automatically deleted solely because a user turns 18. Verified parental deletion requests are processed within 30 days.',
     'privacy_security_retention_ai_logs' =>
@@ -117,6 +121,26 @@ describe 'privacy locale English pins' do
   end
 
   keys_to_check = (PRIVACY_LOCALE_CONTENT_PINS.keys | WordData::ENGLISH_PINNED_LOCALE_KEYS).freeze
+
+  # GitHub #1050: the Terms repeated the withdrawn 10-day grace period. These keys
+  # live in terms.hbs, so the privacy.hbs checks below cannot reach them.
+  describe 'terms_termination_grace' do
+    terms_template = File.read(File.join(repo_root, 'app/frontend/app/templates/terms.hbs'))
+    reviewed = %q{You may terminate your account at any time via your account settings. If you terminate your account, it will be scheduled for permanent deletion no sooner than 36 hours later, unless the deletion is cancelled first. See our <a href="/privacy">Privacy Policy</a>.}
+
+    it 'reads exactly the reviewed English in en.json and in terms.hbs' do
+      expect(english.fetch('terms_termination_grace')).to eq(reviewed)
+      default = terms_template[/\{\{t\s+"((?:[^"\\]|\\.)*)"\s+key=['"]terms_termination_grace['"]/, 1]
+      expect(default.to_s.gsub('\\"', '"')).to eq(reviewed)
+    end
+
+    it 'stays the `*** ` English fallback in every non-English locale' do
+      offenders = other_locale_paths.reject do |path|
+        JSON.parse(File.read(path))['terms_termination_grace'] == "*** #{reviewed}"
+      end
+      expect(offenders.map { |path| File.basename(path) }).to be_empty
+    end
+  end
 
   keys_to_check.each do |key|
     describe key do

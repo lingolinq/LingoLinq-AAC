@@ -62,35 +62,6 @@ module EuJurisdiction
     status(user) == :eu
   end
 
-  # Retention stamp for AiApiLog.jurisdiction (not an Article 50 duty: that article
-  # imposes no record-keeping period; see ai_api_log.rb BASIS NOTE, #888). Deliberately the
-  # OPPOSITE fail-safe direction from disclosure_required?: only a user who resolves to
-  # :eu (an explicit signal or an EU locale hint) is stamped 'EU', because this column
-  # drives AiApiLog.purge_old_eu_logs! (5yr delete, which cannot be undone). Healthcare-
-  # linked accounts have a disclosed window of up to 6 years; that is a stated maximum,
-  # not a floor (the earlier "45 CFR 164.316(b)(2) six-year floor" framing was retracted
-  # 2026-08-30, #888; see ai_api_log.rb purge_old_eu_logs!), and whether any rule requires
-  # keeping these rows is an open question for counsel. The EU purge still needs an EU
-  # signal behind it, so both :non_eu AND :unknown map to nil. :unknown users still get
-  # the disclosure MODAL (disclosure_required? stays true for them); they simply are not
-  # marked for the EU purge. D-01 (load-bearing).
-  #
-  # Do NOT reference disclosure_required? here: the disclosure gate and the retention gate
-  # are intentionally decoupled and fail safe in OPPOSITE directions.
-  #
-  # ASSUMPTION the resolver leans on (adversary L1): a resolved :eu user who is ALSO
-  # healthcare-linked is deleted at 5yr, sooner than the disclosed 6-year maximum,
-  # because this resolver stamps them 'EU' and purge_old_eu_logs! (already wired in
-  # scheduler:dispatch) filters only on jurisdiction and age. There is no healthcare
-  # carve-out today: ai_api_logs has no per-row marker to build one from, and the
-  # mutual-exclusivity (EU-school vs US-hospital) is an ASSUMPTION not enforced here.
-  # No row can reach the 5-year cutoff before ~2031 (see scheduler.rake). Whether a
-  # carve-out is needed at all is open: the five-year EU window and the six-year
-  # healthcare window are both under counsel review.
-  def retention_stamp(user)
-    status(user) == :eu ? 'EU' : nil
-  end
-
   # --- internals ---
 
   # Authoritative signals from both the org/DPA record AND the explicit user setting.

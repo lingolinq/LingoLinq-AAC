@@ -306,7 +306,7 @@ module EvalNarrator
                        pii_detected: false, pii_findings: [], success: true, error_message: nil,
                        ai_content_marked: false, ai_generated_content_id: nil)
     return unless defined?(AiApiLog)
-    # EU AI Act Article 50: resolve the jurisdiction + disclosure-shown call context from the
+    # EU AI Act Article 50: resolve the disclosure-shown call context from the
     # in-scope data-subject `user` (the supervised STUDENT, D-02) via the ONE shared helper
     # (ENF-01). The helper owns the guarded reads + scrubbed logged fallback, so it never
     # raises into this wrapper.
@@ -328,7 +328,6 @@ module EvalNarrator
       feature_flag: 'comprehensive_eval_ai',
       ai_content_marked: ai_content_marked,
       ai_generated_content_id: ai_generated_content_id,
-      jurisdiction: art50_ctx[:jurisdiction],
       article_50_disclosure_shown: art50_ctx[:article_50_disclosure_shown]
     )
   rescue StandardError => e

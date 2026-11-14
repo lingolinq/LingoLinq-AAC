@@ -120,29 +120,12 @@ module LingoLinq
             'AWS-operated accounts the model provider cannot access. AWS states the data is not ' \
             'used to train any model, and may retain it for a limited period for safety and ' \
             'abuse-prevention purposes. No zero-data-retention guarantee is claimed for this path.',
-          'lingolinq_general' => {
-            'window_months' => 24,
-            'enforced' => false,
-            'note' => 'Decided but NOT yet in effect for accounts outside the EU that are not ' \
-              'flagged as a child under 13. Today these records are removed when the account ' \
-              'is deleted, and not before.'
-          },
-          'lingolinq_children' => {
+          'lingolinq_window' => {
             'window_months' => 12,
-            'enforced' => false,
-            'note' => 'Decided but NOT yet in effect: a rolling 12 month window, independent of ' \
-              'account status, for accounts flagged as under 13. Today these records are removed ' \
-              'when the account is deleted, and not before.'
-          },
-          'lingolinq_eu' => {
-            'window_years' => 5,
-            'enforced' => false,
-            'note' => 'A purge at 5 years (AiApiLog.purge_old_eu_logs!) is scheduled and running ' \
-              'for accounts confirmed in the EU jurisdiction, but no record is yet old enough for ' \
-              'it to have removed anything. An earlier revision of this entry said "enforced ' \
-              'today" and gave EU AI Act Article 50 as the basis; that was wrong, because ' \
-              'Article 50 is a transparency rule and imposes no record-keeping period. The basis ' \
-              'for this window is under review with counsel.'
+            'enforced' => true,
+            'basis' => 'Business need: debugging, safety review, usage and billing.',
+            'note' => "LingoLinq's own record of each AI request is deleted 12 months after it " \
+              'is created, for every account, by a daily job (AiApiLog.purge_old_logs!).'
           },
           'ip_address' => {
             'window_days' => 90,

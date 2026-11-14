@@ -99,7 +99,7 @@ task "scheduler:dispatch" => :environment do
   # StandardError is not enough for the stated promise. A ScriptError (e.g. a LoadError from a
   # `require_relative` inside a task body) is NOT a StandardError, so a bare `rescue` would let
   # it escape the Proc and kill the dispatch, skipping every later task -- including
-  # purge_old_eu_ai_api_logs and expire_offboarding_coppa_consents. SignalException and
+  # purge_old_ai_api_logs and expire_offboarding_coppa_consents. SignalException and
   # SystemExit are deliberately NOT caught: those mean "stop now", and `abort` below is itself
   # a SystemExit.
   rescue StandardError, ScriptError => e
@@ -201,49 +201,22 @@ task "scheduler:dispatch" => :environment do
       "#{count} AI log IPs redacted"
     end
 
-    # AiApiLog tiered retention (reconciled with docs/legal/2026-09-22_data-retention.md
-    # and docs/legal/2026-08-25_ai-data-flow-classification.md section 6; keep these
-    # three surfaces identical). Windows: 24 months general, 12 months rolling children (under-13),
-    # up to 5 years EU-jurisdiction, up to 6 years for healthcare-linked accounts
-    # (disclosed window; the earlier "45 CFR 164.316(b)(2) six-year floor" framing
-    # was retracted 2026-08-30, #888). NOT a flat 24-month purge. Both windows are
-    # open for counsel.
-    #
-    # WIRED here today (per-item status below; the EU purge currently matches zero rows):
-    #   - EU 5-year purge (purge_old_eu_ai_api_logs below): scans jurisdiction = 'EU'
-    #     rows, which the Art50 Phase 4 shared call-context helper stamps at the three
-    #     AI call sites. CORRECTED 2026-08-25: this said the purge is "functional
-    #     wherever Phase 4 is deployed (staged on staging; effective in production only
-    #     after the Phase 4/5 prod deploy)". Phase 4 IS in production. The purge is
-    #     WIRED but currently deletes NOTHING: the stamp writes 'EU' only for a
-    #     user resolving to :eu, production had none as of the 2026-08-23 audited read,
-    #     and the filter is
-    #     created_at < 5.years.ago while the jurisdiction column dates from
-    #     2026-06-21 -- so a write-time-stamped row cannot match before ~2031-06
-    #     (the ai_api_logs table itself dates from 2026-02-21, so ~2031-02 is the
-    #     earliest conceivable match at all). This is an absence of eligible DATA,
-    #     not a broken control: the mechanism is verified end to end by
-    #     spec/models/ai_api_log_spec.rb:550-586, which drives a real EU user
-    #     through EuJurisdiction.retention_stamp and sees the row purged while an
-    #     :unknown row is spared. See
-    #     docs/legal/2026-08-23_article-50-production-flag-verification.md.
-    #   - 90-day IP redaction (redact_old_ai_api_log_ips above).
-    #   - Row-lifecycle deletion when the owning account is deleted (Flusher cascade).
-    #
-    # DECIDED, NOT YET ENFORCED (no task here on purpose): the 24-month general and
-    # 12-month children tiers. ai_api_logs carries no per-row child-subject or
-    # HIPAA-covered marker (only jurisdiction / user_global_id / organization_global_id),
-    # so a purge cannot safely tell child or healthcare-linked rows from the rest without
-    # first stamping those classes at write time (a schema + call-site change). A blanket
-    # 24-month delete is not shipped: it would cut the disclosed up-to-6-years healthcare
-    # window to 24 months. That window is a stated maximum, not a floor, but ai_api_log.rb
-    # says a shorter default is a separate decision that must weigh it, and the window is
-    # open for counsel. Tracked in
-    # docs/legal/2026-09-22_data-retention.md and
-    # docs/legal/2026-08-25_ai-data-flow-classification.md section 6.
-    run_task.call("purge_old_eu_ai_api_logs") do
-      count = AiApiLog.purge_old_eu_logs!
-      "#{count} EU AI logs purged (5-year retention)"
+    # AiApiLog retention (reconciled with docs/legal/2026-09-22_data-retention.md and
+    # docs/legal/2026-08-25_ai-data-flow-classification.md section 6; keep these three
+    # surfaces identical). One window for every account: rows older than 12 months are
+    # deleted (business need: debugging, safety review, usage and billing). IP addresses on
+    # those rows are redacted at 90 days (redact_old_ai_api_log_ips above), and an account's
+    # rows are deleted with the account (Flusher.flush_user_logs, lib/flusher.rb).
+    run_task.call("purge_old_ai_api_logs") do
+      count = AiApiLog.purge_old_logs!
+      "#{count} AI logs purged (12-month retention)"
+    end
+
+    # ClusterLocation retention: clusters not used for 12 months are deleted, measured on
+    # updated_at (moves each time a session joins the cluster). See ClusterLocation.purge_unused!.
+    run_task.call("purge_unused_cluster_locations") do
+      count = ClusterLocation.purge_unused!
+      "#{count} location clusters purged (12 months unused)"
     end
 
     run_task.call("expire_stale_supervisor_consent_requests") do

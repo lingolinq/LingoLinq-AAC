@@ -123,8 +123,9 @@ include Replicate
           self.data['last_session_id'] = [self.data['last_session_id'] || 0, session.id].max
           self.data['total_sessions'] += 1
           if session.data['stats']
-            self.data['total_utterances'] += session.data['stats']['utterances']
-            session.data['stats']['all_button_counts'].each do |ref, button|
+            # Assessment sessions store stats without these counters (log_session.rb:621).
+            self.data['total_utterances'] += (session.data['stats']['utterances'] || 0)
+            (session.data['stats']['all_button_counts'] || {}).each do |ref, button|
               self.data['total_buttons'] += button['count']
               # if button_counts[ref]
               #   button_counts[ref]['count'] += button['count']
@@ -132,7 +133,7 @@ include Replicate
               #   button_counts[ref] = button.merge({})
               # end
             end
-            session.data['stats']['all_board_counts'].each do |ref, board|
+            (session.data['stats']['all_board_counts'] || {}).each do |ref, board|
               self.data['total_boards'] = board['count']
               # if board_counts[ref]
               #   board_counts[ref]['count'] += board['count']
@@ -258,6 +259,41 @@ include Replicate
   
   def self.clusterize_cutoff
     1.month.ago
+  end
+
+  # Deletes clusters not used for RETENTION_MONTHS. Measured on updated_at, not created_at:
+  # when a session joins a cluster, the scheduled generate_stats(true) adds it to the
+  # cluster's counters and saves, which moves updated_at. A cluster a user keeps returning
+  # to is never deleted. Sessions keep their geo_cluster_id / ip_cluster_id. Readers show
+  # no location for a missing cluster (api/logs_controller.rb, lib/exporter.rb,
+  # lib/json_api/log.rb); a stats request filtered by that location raises StatsError
+  # "cluster not found" (lib/stats.rb), which the stats endpoints handle. This does not
+  # remove the IP address or coordinates stored on the sessions themselves, nor the
+  # copies in WeeklyStatsSummary `locations` (Stats.location_use_for_sessions).
+  #
+  # Batched like Flusher.delete_by_id_in_slices. The DELETE repeats the updated_at test so
+  # a cluster whose stats job ran between the pluck and the delete is kept. A join alone
+  # does not move updated_at; only the queued generate_stats(true) does, so a cluster
+  # rejoined while its job is still queued at purge time can still be deleted.
+  # delete_all: no dependents and no paper_trail on this model.
+  #
+  # Returns the number of records deleted.
+  RETENTION_MONTHS = 12
+
+  def self.purge_unused!(months: RETENTION_MONTHS, batch_size: 1000)
+    raise ArgumentError, 'batch_size must be a positive integer' unless batch_size.is_a?(Integer) && batch_size > 0
+    cutoff = months.months.ago
+    deleted = 0
+    loop do
+      ids = where('updated_at < ?', cutoff).limit(batch_size).pluck(:id)
+      break if ids.empty?
+      batch = where(id: ids).where('updated_at < ?', cutoff).delete_all
+      # Nothing deleted means every plucked row was refreshed or removed meanwhile; stop
+      # rather than re-plucking forever. Anything left is picked up by the next run.
+      break if batch.zero?
+      deleted += batch
+    end
+    deleted
   end
   
   def self.clusterize(user_id)

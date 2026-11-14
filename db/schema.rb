@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_10_18_120000) do
+ActiveRecord::Schema[7.2].define(version: 2026_11_08_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "plpgsql"
@@ -275,6 +275,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_10_18_120000) do
     t.string "cluster_type"
     t.string "cluster_hash"
     t.index ["cluster_type", "cluster_hash"], name: "index_cluster_locations_on_cluster_type_and_cluster_hash", unique: true
+    t.index ["updated_at"], name: "index_cluster_locations_on_updated_at"
   end
 
   create_table "contact_messages", id: :serial, force: :cascade do |t|

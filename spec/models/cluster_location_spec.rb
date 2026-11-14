@@ -211,6 +211,25 @@ describe ClusterLocation, :type => :model do
       expect(c.data['total_boards']).to eq(1)
     end
     
+    # An assessment session stores stats without utterance or button counters
+    # (LogSession sets data['stats'] = {} for assessments). Raising on it stopped the cluster's
+    # stats for good, which also froze updated_at, the field the 12-month purge reads.
+    it "should count an assessment session that has no utterance or button counters" do
+      u = User.create
+      d = Device.create(:user => u)
+      s = LogSession.process_new({'assessment' => {'totals' => {'correct' => 1, 'incorrect' => 0}, 'tallies' => []},
+        'events' => [{'timestamp' => Time.now.to_i, 'type' => 'button', 'button' => {'label' => 'x', 'board' => {'id' => '1_1'}}}]},
+        {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
+      expect(s.log_type).to eq('assessment')
+      c = ClusterLocation.create(:user => u, :cluster_type => 'ip_address', :data => {'ip_address' => s.data['ip_address']})
+      LogSession.where(id: s.id).update_all(ip_cluster_id: c.id)
+
+      expect { ClusterLocation.find(c.id).generate_stats(true) }.not_to raise_error
+      c.reload
+      expect(c.data['total_sessions']).to eq(1)
+      expect(c.data['last_session_id']).to eq(s.id)
+    end
+
     it "should calculate geo as median of all sessions" do
       u = User.create
       d = Device.create(:user => u)
@@ -273,4 +292,70 @@ describe ClusterLocation, :type => :model do
   end
   
   it "should intelligently lump ip addresses into geo clusters when a level of confidence is reached"
+
+  # Clusters older than 12 months are deleted, measured from last use (updated_at), not
+  # creation: a cluster a user keeps returning to is refreshed every time a session joins it.
+  describe "purge_unused!" do
+    include ActiveSupport::Testing::TimeHelpers
+    let(:base) { Time.utc(2026, 6, 17, 12, 0, 0) }
+
+    def cluster_used_at(user, ip, used_at, created_at: used_at)
+      c = ClusterLocation.create(:user => user, :cluster_type => 'ip_address', :data => {'ip_address' => ip})
+      c.update_columns(updated_at: used_at, created_at: created_at)
+      c
+    end
+
+    it "deletes a cluster last used just outside 12 months and keeps one just inside" do
+      u = User.create
+      travel_to(base) do
+        outside = cluster_used_at(u, '10.0.0.1', base - 12.months - 1.day)
+        inside = cluster_used_at(u, '10.0.0.2', base - 12.months + 1.day)
+
+        expect(ClusterLocation.purge_unused!).to eq(1)
+        expect(ClusterLocation.where(id: outside.id)).to be_empty
+        expect(inside.reload).to be_present
+      end
+    end
+
+    it "keeps an old cluster that is still in use" do
+      u = User.create
+      travel_to(base) do
+        in_use = cluster_used_at(u, '10.0.0.3', base - 1.week, created_at: base - 3.years)
+
+        expect(ClusterLocation.purge_unused!).to eq(0)
+        expect(in_use.reload).to be_present
+      end
+    end
+
+    it "deletes every eligible cluster when they span several batches" do
+      u = User.create
+      travel_to(base) do
+        old = 3.times.map { |i| cluster_used_at(u, "10.0.1.#{i}", base - 2.years) }
+
+        expect(ClusterLocation.purge_unused!(batch_size: 1)).to eq(3)
+        expect(ClusterLocation.where(id: old.map(&:id))).to be_empty
+      end
+    end
+
+    # The field choice rests on this: a session joining a cluster moves updated_at.
+    it "moves updated_at forward when a new session joins the cluster" do
+      u = User.create
+      d = Device.create(:user => u)
+      # Sessions store the IP in the normalized IPv6 form; the cluster must match it.
+      c = ClusterLocation.create(:user => u, :cluster_type => 'ip_address', :data => {'ip_address' => '0000:0000:0000:0000:0000:ffff:0102:0304'})
+      # First run seeds the total_* counters, so only the joining session can change data below.
+      ClusterLocation.find(c.id).generate_stats(true)
+      stale = 13.months.ago
+      c.update_column(:updated_at, stale)
+      s1 = LogSession.process_new({'events' => [{'timestamp' => Time.now.to_i, 'type' => 'utterance', 'utterance' => {'text' => 'hi', 'buttons' => []}}]}, {:user => u, :author => u, :device => d, :ip_address => '1.2.3.4'})
+      Worker.flush_queues
+      # The real join path: the session joins, the cluster's after_save queues
+      # generate_stats(true), and the queued job is what moves updated_at.
+      expect(ClusterLocation.add_to_ip_cluster(s1, ClusterLocation.where(user_id: u.id))).to eq(true)
+      expect(c.reload.updated_at).to be_within(1.second).of(stale)
+      Worker.process_queues
+
+      expect(c.reload.updated_at).to be > stale + 1.month
+    end
+  end
 end
