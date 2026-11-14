@@ -498,7 +498,7 @@ LingoLinq.User = BaseModel.extend({
     return this.eval_ending(14) && !this.eval_ending(0);
   }),
   can_reset_eval: computed('subscription.eval_account', 'is_managed', 'supervisors', 'supervisors.length', 'permissions.supervise', 'permissions.user_id', function() {
-    return !!(this.get('subscription.eval_account') && (((this.get('supervisors') || []).length == 0) && !this.get('is_managed')) || (this.get('permissions.supervise') && this.get('permissions.user_id') != this.get('id')));
+    return !!(this.get('subscription.eval_account') && (((this.get('supervisors') || []).length == 0) && !this.get('is_managed')) || (this.get('permissions.supervise') && this.get('permissions.user_id') != backend_user_id(this)));
   }),
   joined_within_24_hours: computed('appState.refresh_stamp', 'joined', function() {
     var one_day_ago = window.moment().add(-1, 'day');
@@ -1262,16 +1262,16 @@ LingoLinq.User = BaseModel.extend({
     // if not possible or errored, check for a local copy in the dataCache
     var try_local = try_online.then(function(res) {
       // persist to dataCache
-      _this.persistence.store('dataCache', res, 'word_activities/' + _this.get('id')).then(null, function() { });
+      _this.persistence.store('dataCache', res, 'word_activities/' + (backend_user_id(_this) || _this.get('id'))).then(null, function() { }); // keyed by the real id: under 'self' every account on the device shared it
       _this.set('word_activities', res);
       return RSVP.resolve(res);
     }, function() {
-      return _this.persistence.find('dataCache', 'word_activities/' + _this.get('id'));
+      return _this.persistence.find('dataCache', 'word_activities/' + (backend_user_id(_this) || _this.get('id')));
       // look up a local copy
     });
     var promise_result = try_local.then(function(res) {
       res.local_log = [];
-      return _this.persistence.find('dataCache', 'word_log/' + _this.get('id')).then(function(list) {
+      return _this.persistence.find('dataCache', 'word_log/' + (backend_user_id(_this) || _this.get('id'))).then(function(list) {
         res.local_log = list;
         return res;
       }, function() { return RSVP.resolve(res); });
@@ -1282,14 +1282,14 @@ LingoLinq.User = BaseModel.extend({
   },
   log_word_activity: function(opts) {
     opts.timestamp = this.stashes.current_timestamp();
-    var user_id = this.get('id');
-    this.stashes.log_event(opts, user_id);
+    var user_id = backend_user_id(this) || this.get('id'); var _this = this; // the real id: the server drops an event whose user is 'self', and a cache under 'self' is shared by every account on the device
+    this.stashes.log_event(opts, user_id); // the callback below runs without `this` (_this): it threw, so the word log was never cached
     this.stashes.push_log(true);
     this.persistence.find('dataCache', 'word_log/' + user_id).then(null, function() { return RSVP.resolve([]); }).then(function(list) {
       var cutoff = parseInt(window.moment().add(-2, 'week').format('X'), 10);
       list = (list || []).filter(function(e) { return e.timestamp > cutoff; });
       list.push(opts);
-      this.persistence.store('dataCache', list, 'word_log/' + user_id).then(null, function() { });
+      _this.persistence.store('dataCache', list, 'word_log/' + user_id).then(null, function() { });
     });
   }
 });
@@ -1435,3 +1435,4 @@ LingoLinq.User.devices = [
 
 
 export default LingoLinq.User;
+import backend_user_id from '../utils/backend_user_id';

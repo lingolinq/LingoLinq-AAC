@@ -297,6 +297,16 @@ module('Unit | Route | board views and revoked offline copies', function(hooks) 
     assert.strictEqual(res.model.boardname, 'shared');
   });
 
+  test('Modern view device copy: a marked board is refused in Speak Mode, which the page forces on', async function(assert) {
+    storedBoard(this.db, '1_7', 'owner/shared');
+    await boardRevocation.apply_revocations(['1_7']);
+    var board = EmberObject.create({id: '1_7', key: 'owner/shared'});
+    this.moved = setup(this, board, {view: 'modern', speak_mode: true});
+    var state = this.owner.lookup('service:app-state');
+    assert.true(await boardRevocation.blocks_view_route(board, state, false, {ignore_speak_mode: true}), 'on the device-copy path');
+    assert.false(await boardRevocation.blocks_view_route(board, state, false), 'the Basic view and cache-hit rule is unchanged');
+  });
+
   test('Modern view: the never-block cases, an unmarked board and online still open from memory', async function(assert) {
     storedBoard(this.db, '1_7', 'owner/shared');
     storedBoard(this.db, '1_8', 'owner/other');

@@ -60054,6 +60054,12 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
    - Inner pills sit flush together (gap: 4px) and shed their
      individual borders, letting the active fill stand out against
      the shared track. */
+.ub-boards-page__offline-note {
+  margin: 12px 0 0;
+  color: var(--md-muted);
+  font-size: 18px;
+  line-height: 1.5;
+}
 .board-picker__tabs,
 .ub-boards-page__tabs {
   list-style: none;
@@ -64935,6 +64941,25 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
   min-height: 240px;
   padding: 48px 24px;
   text-align: center;
+}
+/* The board on screen is the copy saved on the device, not the server's (#1213). The grid gives up
+   the notice's height, so its last row stays on screen. */
+.md-board-detail-main:has(> .md-board-detail-device-copy) {
+  --bd-device-copy-h: 46px;
+}
+.md-board-detail-device-copy {
+  margin: 0 0 8px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: #1f2937;
+  color: #fff;
+  font-size: 1.25rem;
+  line-height: 1.3;
+  text-align: center;
+  /* One line always: the grid reserves one line's height, and a wrap would clip its last row. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 /* The error is presented as a discrete CARD on the board canvas rather than bare
    centred text, so it reads as a considered state instead of a failure dump. */
@@ -72289,7 +72314,7 @@ span.md-board-detail-modeling-btn--badge {
      ~30px of surrounding padding), tuned for the full-height MEDIUM sentence
      bar. On short/narrow viewports the bar shrinks (see the matching offset
      override below), so 120 would over-reserve and leave a dead gap. */
-  height: calc(100dvh - 120px);
+  height: calc(100dvh - 120px - var(--bd-device-copy-h, 0px));
 }
 
 /* ── Fitzgerald category grouping (flag: board_category_grouping) ─────────────
@@ -73711,7 +73736,7 @@ span.md-board-detail-modeling-btn--badge {
      trays overflow their own frames. Added to BOTH short-viewport blocks so their relative
      order — the =<400 one must still beat this — is unchanged. */
   .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-grid-sidebar-wrap .md-board-detail-grid:not(.md-board-detail-grid--compact-scroll) {
-    height: calc(100dvh - 93px);
+    height: calc(100dvh - 93px - var(--bd-device-copy-h, 0px));
   }
 }
 /* EVEN SHORTER viewports (≤400px tall): the sentence bar shrinks a SECOND step
@@ -73724,7 +73749,7 @@ span.md-board-detail-modeling-btn--badge {
    scroll a few px. Speak mode only. */
 @media (max-height: 400px) {
   .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-grid-sidebar-wrap .md-board-detail-grid:not(.md-board-detail-grid--compact-scroll) {
-    height: calc(100dvh - 72px);
+    height: calc(100dvh - 72px - var(--bd-device-copy-h, 0px));
   }
 }
 /* SHORT viewports (≤700px tall): compact the board so a short screen isn't

@@ -195,4 +195,22 @@ module('Unit | Component | available-boards-section set-home mode', function(hoo
     assert.deepEqual(opened, ['confirm-home-board-copy'], 'one dialog');
     t.comp.destroy();
   });
+
+  // On the dashboard (and after any copy) the page model is the session user's record keyed 'self'; the list is kept
+  // under the real id (controllers/user/index.js), so the clear must use it too (code review of 70d37318e).
+  test('Not now after a copy clears the list under the real id when the page model is the record keyed self', function(assert) {
+    var t = section(this.owner);
+    t.comp.get('boardsCtrl').model = EmberObject.create({ id: 'self', global_id: '1_1', user_name: 'example', preferences: {} });
+    var cleared = [];
+    boardsPageListCache.clear = function(id) { cleared.push(id); };
+    t.comp._followHomeMove = function() {};
+    var opts;
+    modal.open = function(template, o) { opts = o; return RSVP.resolve(); };
+    t.comp.get('boardsCtrl').mine_selected = true;
+    t.comp.send('toggleSetHomeMode');
+    t.comp.onOpenBoardInUserView(board('lingolinq/quick-core-24'));
+    opts.onNotNow(EmberObject.create({ key: 'example/quick-core-24' }));
+    assert.deepEqual(cleared, ['1_1']);
+    t.comp.destroy();
+  });
 });

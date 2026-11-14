@@ -7,6 +7,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 // import $ from 'jquery';
 import stashes from './_stashes';
+import { detect_platform } from './platform_detect';
 import tts_voices from './tts_voices';
 import dbman from './dbman';
 import useStandaloneIdbShim from './standalone_idb_shim';
@@ -179,74 +180,7 @@ var capabilities;
   ];
   // TODO: maybe https://github.com/VJAI/simple-crypto
   capabilities.encryption_enabled = !!window.CryptoJS;
-  if(!capabilities.system) {
-    capabilities.system = "Desktop";
-    capabilities.browser = "Web browser";
-    capabilities.mobile = false;
-    if(navigator.userAgent.match(/ipod|ipad|iphone/i)) {
-      capabilities.mobile = true;
-      capabilities.system = "iOS";
-      var match = (navigator.appVersion || '').match(/OS (\d+)_(\d+)_?(\d+)?/), version, primary_version;
-            
-      if (match !== undefined && match !== null) {
-          version = [
-              parseInt(match[1], 10),
-              parseInt(match[2], 10),
-              parseInt(match[3] || 0, 10)
-          ];
-          capabilities.ios_version = version[0];
-      }
-
-      if(capabilities.installed_app) {
-        capabilities.browser = "App";
-      } else if(navigator.userAgent.match(/crios/i)) {
-        capabilities.browser = "Chrome";
-      } else if(navigator.userAgent.match(/safari/i)) {
-        capabilities.browser = "Safari";
-      }
-      var version = navigator.userAgent.match(/OS\s+([\d_]+)\s+like/)[1];
-      version = parseInt(version && version.split(/_/)[0], 10);
-      if(version && isFinite(version)) {
-        capabilities.system_version = version;
-      }
-    } else if(navigator.userAgent.match(/android/i)) {
-      capabilities.mobile = true;
-      capabilities.system = "Android";
-      capabilities.system_version = (navigator.userAgent.match(/Android (\d+(?:\.\d+)*)/) || [])[1];
-      if(capabilities.installed_app) {
-        capabilities.browser = "App";
-        if(window.device && window.device.platform && window.device.platform.match(/fireos/i)) {
-          capabilities.subsystem = "Kindle";
-        }
-      } else if(navigator.userAgent.match(/chrome/i)) {
-        capabilities.browser = "Chrome";
-      }
-    } else if(navigator.userAgent.match(/windows phone/i)) {
-      capabilities.mobile = true;
-      capabilities.system = "Windows Phone";
-    } else {
-      if(navigator.userAgent.match(/macintosh/i)) {
-        capabilities.system = "Mac";
-      } else if(navigator.userAgent.match(/windows\snt/i)) {
-        capabilities.system = "Windows";
-      } else if(navigator.userAgent.match(/LingoLinq Desktop App/)) {
-        capabilities.system = "Windows";
-        capabilities.browser = "App";
-      }
-      if(navigator.userAgent.match(/chrome/i)) {
-        capabilities.browser = "Chrome";
-      } else if(navigator.userAgent.match(/firefox/i)) {
-        capabilities.browser = "Firefox";
-      } else if(navigator.userAgent.match(/msie/i)) {
-        capabilities.browser = "IE";
-      } else if(navigator.userAgent.match(/edge/i)) {
-        capabilities.browser = "Edge";
-      } else if(navigator.userAgent.match(/safari/i)) {
-        capabilities.browser = "Safari";
-      }
-    }
-    capabilities.readable_device_name = capabilities.readable_device_name || (capabilities.browser + " for " + capabilities.system);
-  }
+  if(!capabilities.system) { detect_platform(capabilities, navigator, window); }
   if(capabilities.encryption_enabled) {
     console_debug("LINGOLINQ: indexedDB encryption is enabled");
   }
@@ -2526,6 +2460,25 @@ var capabilities;
   };
   capabilities.sensor_listen();
 
+  // With no database, storage calls queued in dbman.not_ready would wait forever (#1205): settle them,
+  // and later calls fail at once. A native setup call can also simply never return.
+  capabilities.db_setup_wait = 30000;
+  capabilities.database_unavailable = function(err, promise) {
+    capabilities.db = false;
+    (capabilities.queued_db_actions || []).forEach(function(m) { m[2].reject({error: 'db not initialized'}); });
+    capabilities.queued_db_actions = [];
+    promise.reject(err);
+  };
+  capabilities.run_queued_db_actions = function() {
+    (capabilities.queued_db_actions || []).forEach(function(m) {
+      m[0](m[1]).then(function(res) {
+        m[2].resolve(res);
+      }, function(err) {
+        m[2].reject(err);
+      });
+    });
+    capabilities.queued_db_actions = [];
+  };
   capabilities.setup_database = function() {
     delete capabilities['db'];
     var promise = capabilities.mini_promise();
@@ -2541,30 +2494,31 @@ var capabilities;
   
   
       var setup = capabilities.dbman.setup_database(key, capabilities.dbman.dbversion);
-      setup.then(function(db) {
+      // Settled once: after the watchdog gave up (capabilities.db false, the caller and the queued reads told),
+      // a late answer from setup changes nothing, so the app never holds a database it reported as unavailable.
+      var settled = false;
+      var setup_failed = function(err) { if(settled) { return; } settled = true; capabilities.database_unavailable(err, promise); };
+      var setup_timer = setTimeout(function() { setup_failed({error: 'db setup timed out'}); }, capabilities.db_setup_wait);
+      setup.then(function(db) { clearTimeout(setup_timer); if(settled) { return; } settled = true;
         // Don't proceed with app initialization until db_connect completes, ensuring
         // stashes is populated with whatever data is available.
         var connect = stashes.db_connect(capabilities);
         connect.then(function() {
-          (capabilities.queued_db_actions || []).forEach(function(m) {
-            m[0](m[1]).then(function(res) {
-              m[2].resolve(res);
-            }, function(err) {
-              m[2].reject(err);
-            });
-          });
-          capabilities.queued_db_actions = [];
+          capabilities.run_queued_db_actions();
           promise.resolve();
         }, function(err) {
+          // The database itself is open, only the stash read failed, so what was waiting can still run.
+          capabilities.run_queued_db_actions();
           promise.reject(err);
         });
       }, function(err) {
-        promise.reject(err);
+        clearTimeout(setup_timer);
+        setup_failed(err);
       });
   
 
     }, function(err) {
-      promise.reject({error: err});
+      capabilities.database_unavailable({error: err}, promise);
     });
 
     return promise;

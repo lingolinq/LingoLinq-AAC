@@ -1100,7 +1100,7 @@ export default Service.extend({
       this.set('vocalization_locale', label);
     }
   },
-  jump_to_board: function(new_state, old_state) {
+  _jump_to_board: function(new_state, old_state) {
     buttonTracker.transitioning = true;
     if(new_state && old_state && new_state.id && (new_state.id == old_state.id || new_state.key == old_state.key)) {
       // transition was getting stuck when staying on the same board
@@ -1264,8 +1264,8 @@ export default Service.extend({
     return !!(this.get('manual_modeling') || this.get('modeling_for_user') ||
       this.get('modeling_for_self') || (referenced && !speaking_as_referenced));
   }),
-  modeling_for_user: computed('speak_mode', 'currentUser', 'referenced_speak_mode_user', 'modeling_for_self', function() {
-    var res = this.get('speak_mode') && this.get('currentUser') && this.get('referenced_speak_mode_user') && this.get('currentUser.id') != this.get('referenced_speak_mode_user.id');
+  modeling_for_user: computed('speak_mode', 'currentUser', 'referenced_speak_mode_user', 'modeling_for_self', 'sessionUser', function() {
+    var res = this.get('speak_mode') && this.get('currentUser') && this.get('referenced_speak_mode_user') && !same_person(this.get('currentUser'), this.get('referenced_speak_mode_user'), this.get('sessionUser'));
     res = res || this.get('modeling_for_self');
     var _this = this;
     // this is weird and hacky, but for some reason modeling wasn't reliably updating when modeling_for_user changed
@@ -1801,7 +1801,7 @@ export default Service.extend({
           this.stashes.persist('copy_on_save', this.get('currentBoardState.id'));
         }
       } else if(mode == 'speak') {
-        var already_speaking_as_someone_else = this.get('speakModeUser.id') && this.get('speakModeUser.id') != this.get('sessionUser.id');
+        var already_speaking_as_someone_else = this.get('speakModeUser.id') && !same_person(this.get('speakModeUser'), this.get('sessionUser'));
         if(this.get('currentBoardState')) { delete this.get('currentBoardState').reload_token }
         // when entering speak mode, if the user is expired,
         // or modeling-only w/o hany premium supervisees,
@@ -1968,7 +1968,7 @@ export default Service.extend({
         this.stashes.persist('referenced_speak_mode_user_id', null);
       }
       var msg;
-      if(speak_mode_user && this.get('sessionUser') && speak_mode_user.get('id') != this.get('sessionUser.id')) {
+      if(speak_mode_user && this.get('sessionUser') && !same_person(speak_mode_user, this.get('sessionUser'))) {
         msg = i18n.t('speak_mode_communicator_needs_home_board', "%{name} does not have a home board set yet. Set a home board for this communicator, then try Model for or Speak as again.", { name: speak_mode_user.get('user_name') || speak_mode_user.get('id') });
       } else {
         msg = i18n.t('no_home_board_yet', "You haven't selected a home board yet.");
@@ -2251,7 +2251,7 @@ export default Service.extend({
 
     // In-memory board JSON / ordered_buttons / image-warm state must not
     // leak across users on SPA sign-out (full reload clears module state).
-    try { boardDetailCache.clear(); } catch(e) { /* non-critical */ }
+    try { boardDetailCache.clear(); } catch(e) { /* non-critical */ } this.set('device_copy_server_silent_at', null); var p = this.get('persistence'); if(p && typeof p.drop_follow_up_syncs === 'function') { p.drop_follow_up_syncs({error: "signed out"}); } var sync_notice = getOwner(this).lookup('service:sync-notice'); if(sync_notice) { sync_notice.dismiss(); } if(p) { p.set('copy_image_urls', []); p.set('url_cache', {}); } // a sync the previous person queued must not start in the next session (dropped before the drawer is dismissed, so the flag falling cannot reopen it; services/persistence.js drop_follow_up_syncs); the previous person's pictures held in memory for device copies (utils/board_device_copy.js load_images); the shortened device-copy wait (utils/board_device_copy.js), and the sync drawer's card: its Sync Details opens the signed-out person's log (services/sync-notice.js)
     // Dashboard Boards-card preview cache (names + image urls) is module-scoped and survives the
     // component; drop it so it does not linger in memory on a shared device after sign-out.
     try { previewBoardCache.reset(); } catch(e) { /* non-critical */ }
@@ -2344,7 +2344,7 @@ export default Service.extend({
       this.stashes.persist('label_locale', null);
       this.stashes.persist('vocalization_locale', null);
     }
-    if(board_user_id == 'self' || (session_user_id && board_user_id == session_user_id)) {
+    if(board_user_id == 'self' || (session_user_id && (board_user_id == session_user_id || same_person(board_user_id, this.get('sessionUser'), this.get('sessionUser')) || board_user_id === this.get('sessionUser.user_name')))) { // your own real id or user name is you, also while the session record is keyed 'self'
       this.set('speakModeUser', null);
       this.set('referenced_speak_mode_user', null);
       this.stashes.persist('speak_mode_user_id', null);
@@ -3144,8 +3144,8 @@ export default Service.extend({
       if(this.get('speak_mode')) {
         this.stashes.set('logging_enabled', !!(this.get('speak_mode') && (this.get('currentUser.preferences.logging') || this.get('referenced_user.preferences.logging'))));
         this.stashes.set('geo_logging_enabled', !!(this.get('speak_mode') && this.get('currentUser.preferences.geo_logging')));
-        this.stashes.set('speaking_user_id', this.get('currentUser.id'));
-        this.stashes.set('session_user_id', this.get('sessionUser.id'));
+        this.stashes.set('speaking_user_id', backend_id_of(this.get('currentUser'), this.get('sessionUser')) || this.get('currentUser.id')); // logged events carry it; the server drops an event whose user is 'self' (log_session.rb process_as_follow_on)
+        this.stashes.set('session_user_id', backend_user_id(this.get('sessionUser')) || this.get('sessionUser.id'));
         this.stashes.set('session_preferred_symbols', this.get('referenced_user.preferences.preferred_symbols'));
 
         var voices = speecher.get('voices');
@@ -4121,7 +4121,7 @@ export default Service.extend({
       var _this = this;
       var user = this.get('referenced_user');
       // clear current badge if it doesn't match the referenced user info
-      if(!user || _this.get('user_badge.user_id') != user.get('id')) {
+      if(!user || !same_person(_this.get('user_badge.user_id'), user, _this.get('sessionUser'))) {
         _this.set('user_badge', null);
       }
 
@@ -4140,7 +4140,7 @@ export default Service.extend({
               return;
             }
             _this.set('user_badge_hash', badge_hash);
-            badges = badges.filter(function(b) { return b.get('user_id') == user.get('id'); });
+            badges = badges.filter(function(b) { return same_person(b.get('user_id'), user, _this.get('sessionUser')); });
             var badge = LingoLinq.Badge.best_earned_badge(badges);
             if(!badge || badge.get('dismissed')) {
               var next_badge = LingoLinq.Badge.best_next_badge(badges);
@@ -4155,7 +4155,7 @@ export default Service.extend({
           });
         });
       }
-    } else if(this.get('user_badge') && this.get('user_badge.user_id') != this.get('referenced_user.id')) {
+    } else if(this.get('user_badge') && !same_person(this.get('user_badge.user_id'), this.get('referenced_user'), this.get('sessionUser'))) {
       this.set('user_badge', null);
     }
   }),
@@ -5484,6 +5484,19 @@ export default Service.extend({
     if(/^login(\.|$)/.test(to_route) || ['forgot_login', 'forgot_password', 'register', 'offline_boards'].indexOf(to_route) !== -1) { return false; }
     return !!(modal.is_open('force-logout') && this.session && this.session.logout_under_way());
   },
+  // Offline, a board that is not on the device answers at once, and the board and the sentence stay
+  // (#1209). Online this is the same synchronous jump as ever.
+  jump_to_board: function(new_state, old_state) {
+    var persistence = this.persistence;
+    if(!new_state || !persistence || persistence.get('online') !== false) { this._latest_jump = {}; return this._jump_to_board(new_state, old_state); } // an online jump is the latest tap too, so an offline check still running cannot open its board after it
+    var _this = this;
+    var jump = this._latest_jump = {}; // the check is async, so only the latest tap may go ahead
+    return board_saved_here(persistence, boardDetailCache, new_state.key, this).then(function(saved) {
+      if(jump !== _this._latest_jump) { return; }
+      if(saved) { return _this._jump_to_board(new_state, old_state); }
+      warn_board_not_saved();
+    });
+  },
   // sync_send_utterance's helpers live here, below the rows .eslint-todo anchors by line.
   release_sentence_record: function(record) {
     var list = record.get('button_list');
@@ -5530,3 +5543,6 @@ import boardRevocation from '../utils/board_revocation';
 export function logout_already_under_way(session) {
   return !!(session && typeof session.logout_under_way === 'function' && session.logout_under_way());
 }
+// Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
+import { board_saved_here, warn_board_not_saved } from '../utils/board_device_copy';
+import backend_user_id, { same_person, backend_id_of } from '../utils/backend_user_id';

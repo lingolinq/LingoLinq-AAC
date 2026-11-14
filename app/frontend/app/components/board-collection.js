@@ -280,7 +280,7 @@ export default Component.extend({
        CommuniKate "alcohol") often have NO copy_id, so filterBrandRoots
        drops those by key-pattern too — the same roots-only classifier the
        Find Boards grouping + brand sections below use. */
-    boards = filterBrandRoots(filterRootBoards(boards || [], this._subjectUserId()));
+    boards = filterBrandRoots(filterRootBoards(boards || [], backend_id_of(this._subjectUserId(), this.appState.get('sessionUser')))); // backend id, not 'self' (utils/backend_user_id.js)
     var homeKey = this._subjectHomeKey();
     var home = null;
     var starred = [];
@@ -624,3 +624,5 @@ this.ctrlActionEventValue = function(actionName, targetProp) {
   },
 
 });
+
+import { backend_id_of } from '../utils/backend_user_id';

@@ -319,10 +319,11 @@ describe Api::SearchController, :type => :controller do
     class ProxyFakeRequest
       attr_reader :url
 
-      def initialize(content_type: 'image/png', body: '12345', url: 'http://www.example.com/pic.png')
+      def initialize(content_type: 'image/png', body: '12345', url: 'http://www.example.com/pic.png', return_code: nil)
         @content_type = content_type
         @body = body
         @url = url
+        @return_code = return_code
       end
 
       def headers
@@ -345,12 +346,15 @@ describe Api::SearchController, :type => :controller do
         res = OpenStruct.new(success?: true, code: 200, headers: { 'Content-Type' => @content_type })
         @header_block.call(res)
         @body_block.call(@body)
-        @complete_block.call(res)
+        # A real Typhoeus response reports how the transfer ended; success? is false unless it is :ok
+        # (typhoeus 1.5.0, response/status.rb:49).
+        done = @return_code ? OpenStruct.new(success?: @return_code == :ok, code: 200, return_code: @return_code, headers: res.headers) : res
+        @complete_block.call(done)
       end
     end
 
-    def stub_proxy_request(content_type: 'image/png', body: '12345', url: 'http://www.example.com/pic.png')
-      req = ProxyFakeRequest.new(content_type: content_type, body: body, url: url)
+    def stub_proxy_request(content_type: 'image/png', body: '12345', url: 'http://www.example.com/pic.png', return_code: nil)
+      req = ProxyFakeRequest.new(content_type: content_type, body: body, url: url, return_code: return_code)
       allow(SafeHttp).to receive(:build_typhoeus_request).and_return(req)
       req
     end
@@ -370,6 +374,34 @@ describe Api::SearchController, :type => :controller do
       expect(json['data']).to eq('data:image/png;base64,MTIzNDU=')
     end
     
+    # A download cut off part way still reports HTTP 200, with return_code :partial_file (or :recv_error).
+    # The proxy accepted it, so the app saved a broken picture; with no file storage an iPad then keeps
+    # reusing that copy (#1221).
+    it "should reject a download that did not finish" do
+      token_user
+      stub_proxy_request(body: '0123456789', return_code: :partial_file)
+      get :proxy, params: {:url => 'http://www.example.com/pic.png'}
+      expect(response).not_to be_successful
+      json = JSON.parse(response.body)
+      expect(json['error']).to match(/did not finish/)
+    end
+
+    it "should reject a download whose connection failed part way" do
+      token_user
+      stub_proxy_request(body: '0123456789', return_code: :recv_error)
+      get :proxy, params: {:url => 'http://www.example.com/pic.png'}
+      expect(response).not_to be_successful
+      expect(JSON.parse(response.body)['error']).to eq('Download did not finish (recv_error)')
+    end
+
+    it "should accept a download that finished" do
+      token_user
+      stub_proxy_request(return_code: :ok)
+      get :proxy, params: {:url => 'http://www.example.com/pic.png'}
+      expect(response).to be_successful
+      expect(JSON.parse(response.body)['data']).to eq('data:image/png;base64,MTIzNDU=')
+    end
+
     it "should return error response if there are unexpected problems" do
       token_user
       expect(controller).to receive(:get_url_in_chunks).and_raise(Api::SearchController::BadFileError, 'something bad')

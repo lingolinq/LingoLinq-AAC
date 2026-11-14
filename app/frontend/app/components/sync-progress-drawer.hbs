@@ -1,0 +1,35 @@
+{{#if this.shown}}
+  {{!-- The copy drawer's classes and slot (styles: .ll-copy-drawer); the status modifier picks the colour. --}}
+  <div class="ll-copy-drawer ll-copy-drawer--{{if this.sync_notice.is_syncing "copying" (if this.sync_notice.is_success "done" "error")}} {{if this.appState.toast 'll-copy-drawer--above-toast'}}" data-test-sync-drawer={{this.sync_notice.status}}>
+    {{#if this.sync_notice.is_syncing}}
+      <div class="ll-copy-drawer__spinner md-loading-spinner" aria-hidden="true"></div>
+      <div class="ll-copy-drawer__body">
+        {{!-- Only the sentence is a live region: the count changes every few seconds. --}}
+        <p class="ll-copy-drawer__title" role="status">{{t "Syncing your boards for offline use..." key="sync_drawer_syncing"}}</p>
+        <p class="ll-copy-drawer__hint" data-test-sync-drawer-progress>{{this.progress_line}}</p>
+        <p class="ll-copy-drawer__hint">{{t "Keep working. We'll let you know when it's done." key="sync_drawer_keep_working"}}</p>
+      </div>
+    {{else}}
+      <span class="ll-copy-drawer__icon" aria-hidden="true">
+        {{#if this.sync_notice.is_success}}
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        {{else}}
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        {{/if}}
+      </span>
+      <div class="ll-copy-drawer__body" role="status">
+        <p class="ll-copy-drawer__title">{{this.sync_notice.message}}</p>
+        {{#if this.sync_notice.detail}}
+          <p class="ll-copy-drawer__hint">{{this.sync_notice.detail}}</p>
+        {{/if}}
+        <div class="ll-copy-drawer__actions">
+          <button type="button" class="ll-copy-drawer__btn ll-copy-drawer__btn--primary" {{on "click" this.onDetails}}>{{t "Sync Details" key="sync_details"}}</button>
+          <button type="button" class="ll-copy-drawer__btn" {{on "click" this.onDismiss}}>{{t "Dismiss" key="dismiss"}}</button>
+        </div>
+      </div>
+      <button type="button" class="ll-copy-drawer__close" aria-label={{t "Dismiss" key="dismiss"}} {{on "click" this.onDismiss}}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    {{/if}}
+  </div>
+{{/if}}

@@ -27,7 +27,7 @@
         </button>
         <button type="button" {{on "click" this.loginFollowupFalse}} class="login-btn login-btn--outline login-btn--device">
           <span class="login-btn__title">{{t "This is a Shared Device" key="not_trust_this_device"}}</span>
-          <span class="login-btn__sub">{{t "Log me out after a period of inactivity" key="log_me_out_when_inactive"}}</span>
+          <span class="login-btn__sub">{{t "Log me out after a period of inactivity. Won't open without internet." key="log_me_out_no_offline"}}</span>
         </button>
       </div>
     {{else if this.login_single_assertion}}

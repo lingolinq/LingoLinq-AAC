@@ -1949,6 +1949,198 @@ describe User, :type => :model do
       expect(u.settings['authored_organization_id']).to eq(nil)
     end
 
+    # PASS 2 OF THE FINAL REVIEW OF #1268 (Traci, 2026-11-11). A trusted browser device lifts the organization's idle
+    # timeout from keys issued before trust (Device#clean_old_keys). Only the person's own explicit answer, on their
+    # own device, may do that. Since 2026-11-13 (Traci) only the person may change long_token at all: a supervisor's or
+    # an operator's save leaves the device's trust as it is.
+    # The app says how many liked boards a sync keeps from its own constant (app/frontend/app/utils/like_limit.js
+    # LIKED_BOARDS_KEPT); it must match the number the server actually lists.
+    it "keeps the app's liked-boards limit equal to LIKED_BOARD_REFS_LIMIT" do
+      js = File.read(Rails.root.join('app/frontend/app/utils/like_limit.js'))
+      expect(js[/export var LIKED_BOARDS_KEPT = (\d+);/, 1].to_i).to eq(User::LIKED_BOARD_REFS_LIMIT)
+    end
+
+    describe "the owner's own trust answer" do
+      def owner_and_device
+        u = User.create
+        d = Device.create(user: u, developer_key_id: 0, device_key: '1.234 Classroom iPad', settings: {'browser' => true})
+        [u, d]
+      end
+
+      it "is recorded when the person answers Trust on their own device, with a fresh choice stamp" do
+        u, d = owner_and_device
+        u.process_params({'preferences' => {'device' => {'long_token' => true, 'long_token_chosen_at' => Time.now.to_i}}}, {'device' => d, 'updater' => u})
+        expect(d.reload.settings['long_token']).to eq(true)
+        expect(d.settings['long_token_owner_choice']).to eq(true)
+        expect(u.settings['preferences']['devices'].values.map { |v| v['long_token_chosen_at'] }.compact).to eq([])
+      end
+
+      it "is cleared when the person answers Shared" do
+        u, d = owner_and_device
+        d.settings['long_token'] = true
+        d.settings['long_token_owner_choice'] = true
+        d.save
+        u.process_params({'preferences' => {'device' => {'long_token' => false, 'long_token_chosen_at' => Time.now.to_i}}}, {'device' => d, 'updater' => u})
+        expect(d.reload.settings['long_token']).to eq(false)
+        expect(d.settings['long_token_owner_choice']).to eq(false)
+      end
+
+      # Only the person may change whether their device is trusted (Traci, 2026-11-13; this example used to expect a
+      # supervisor's save to set long_token "as before", the 2026-11-11 decision it replaces; the operator example's
+      # owner-choice assertion changed with it, from eq(false) to be_nil, since nothing is written). users#update writes a
+      # supervisor's device preferences onto the person's most recent device, and a trusted row gets no organization
+      # timeout on later sign-ins (Device#generate_token!), so the save drops the trust fields from anyone else.
+      it "is not recorded for a supervisor's save, which leaves the device's trust unchanged" do
+        u, d = owner_and_device
+        supervisor = User.create
+        u.process_params({'preferences' => {'device' => {'long_token' => true, 'long_token_chosen_at' => Time.now.to_i}}}, {'device' => d, 'updater' => supervisor})
+        expect(d.reload.settings['long_token']).to eq(nil)
+        expect(d.settings['long_token_owner_choice']).to_not eq(true)
+      end
+
+      it "leaves a trusted device trusted when a supervisor's save says Shared" do
+        u, d = owner_and_device
+        d.settings['long_token'] = true
+        d.settings['long_token_owner_choice'] = true
+        d.save
+        supervisor = User.create
+        u.process_params({'preferences' => {'device' => {'long_token' => false}}}, {'device' => d, 'updater' => supervisor})
+        expect(d.reload.settings['long_token']).to eq(true)
+        expect(d.settings['long_token_owner_choice']).to eq(true)
+      end
+
+      it "does not take a supervisor's asserted flag, which would clear a temporary device" do
+        u, d = owner_and_device
+        d.settings['temporary_device'] = true
+        d.save
+        supervisor = User.create
+        u.process_params({'preferences' => {'device' => {'long_token' => true, 'asserted' => true}}}, {'device' => d, 'updater' => supervisor})
+        expect(d.reload.settings['temporary_device']).to eq(true)
+        expect(u.settings['preferences']['devices'].values.map { |v| v['asserted'] }.compact).to eq([]), 'nor stored with the preferences'
+      end
+
+      it "still saves a supervisor's other device preferences" do
+        u, d = owner_and_device
+        supervisor = User.create
+        u.process_params({'preferences' => {'device' => {'long_token' => true, 'something' => 'kept'}}}, {'device' => d, 'updater' => supervisor})
+        expect(u.settings['preferences']['devices'].values.map { |v| v['something'] }).to include('kept')
+        expect(u.settings['preferences']['devices'].values.map { |v| v['long_token'] }.compact).to eq([])
+      end
+
+      it "is not recorded when someone acts for the person" do
+        u, d = owner_and_device
+        admin = User.create
+        u.process_params({'preferences' => {'device' => {'long_token' => true, 'long_token_chosen_at' => Time.now.to_i}}}, {'device' => d, 'updater' => u, 'operator' => admin})
+        expect(d.reload.settings['long_token_owner_choice']).to be_nil
+        expect(d.settings['long_token']).to eq(nil), 'nor is the trust value written'
+      end
+
+      it "is not recorded on a device that is not the person's" do
+        u, _d = owner_and_device
+        other = User.create
+        theirs = Device.create(user: other, developer_key_id: 0, device_key: '1.234 Other', settings: {'browser' => true})
+        u.process_params({'preferences' => {'device' => {'long_token' => true, 'long_token_chosen_at' => Time.now.to_i}}}, {'device' => theirs, 'updater' => u})
+        expect(theirs.reload.settings['long_token_owner_choice']).to_not eq(true)
+        expect(theirs.settings['long_token']).to eq(nil), 'nor is the trust value written onto it'
+      end
+
+      # A tablet's clock can be wrong by more than 10 minutes (review of #1268, 2026-11-13). The answer counts when its
+      # stamp is newer than the last answer this device recorded (Device settings['long_token_choice_stamp'], never
+      # sent to clients), or, when that stored stamp is more than 10 minutes ahead of server time, within 10 minutes
+      # of server time (a corrected clock). This replaces the example "is not
+      # recorded for a stale or future stamp (a replayed old save, or a fast clock), nor without one"; the spec
+      # change was approved by Traci on 2026-11-13.
+      def answer(u, d, value, stamp)
+        dev = {'long_token' => value}
+        dev['long_token_chosen_at'] = stamp if stamp
+        u.process_params({'preferences' => {'device' => dev}}, {'device' => d, 'updater' => u})
+        d.reload
+      end
+
+      it "is recorded for a clock that is slow or fast by more than 10 minutes, on a device with no earlier answer" do
+        [Time.now.to_i - 11.minutes.to_i, Time.now.to_i + 11.minutes.to_i, Time.now.to_i + 2.days.to_i].each do |stamp|
+          u, d = owner_and_device
+          answer(u, d, true, stamp)
+          expect(d.settings['long_token']).to eq(true)
+          expect(d.settings['long_token_owner_choice']).to eq(true), "stamp #{stamp}"
+        end
+      end
+
+      it "is not recorded for a replayed old save, whose stamp is older than the device's last recorded answer" do
+        u, d = owner_and_device
+        answer(u, d, false, Time.now.to_i)
+        expect(d.settings['long_token_owner_choice']).to eq(false)
+        answer(u, d, true, Time.now.to_i - 20.minutes.to_i)
+        expect(d.settings['long_token']).to eq(true)
+        expect(d.settings['long_token_owner_choice']).to eq(false)
+      end
+
+      it "is recorded after the device's clock was corrected, while a replay of the fast-clock answer still is not" do
+        u, d = owner_and_device
+        fast = Time.now.to_i + 1.day.to_i
+        answer(u, d, true, fast)
+        expect(d.settings['long_token_owner_choice']).to eq(true), 'the fast-clock Trust answer counts'
+        answer(u, d, false, Time.now.to_i)
+        expect(d.settings['long_token']).to eq(false)
+        expect(d.settings['long_token_owner_choice']).to eq(false), 'the corrected clock answers Shared within the window'
+        answer(u, d, true, fast)
+        expect(d.settings['long_token']).to eq(true)
+        expect(d.settings['long_token_owner_choice']).to eq(false), 'a replay of the fast-clock Trust answer is not the person\'s choice'
+      end
+
+      it "is recorded within 10 minutes of server time even when the device stored a later, fast-clock answer" do
+        u, d = owner_and_device
+        answer(u, d, false, Time.now.to_i + 1.day.to_i)
+        answer(u, d, true, Time.now.to_i)
+        expect(d.settings['long_token']).to eq(true)
+        expect(d.settings['long_token_owner_choice']).to eq(true)
+      end
+
+      it "is not recorded for an older save that arrives within 10 minutes after a newer answer (a retry or reorder)" do
+        u, d = owner_and_device
+        answer(u, d, false, Time.now.to_i)
+        answer(u, d, true, Time.now.to_i - 60)
+        expect(d.settings['long_token']).to eq(true) # known limit: a stale own save still changes the value, only not the owner choice
+        expect(d.settings['long_token_owner_choice']).to eq(false)
+      end
+
+      # Known limit, pinned so a change is deliberate: a clock that went slow after an answer was recorded is refused
+      # until it passes that stamp. The organization timeout then stays on that session's keys.
+      it "is not recorded for a clock that went slow after an answer was recorded" do
+        u, d = owner_and_device
+        answer(u, d, false, Time.now.to_i)
+        answer(u, d, true, Time.now.to_i - 30.days.to_i)
+        expect(d.settings['long_token_owner_choice']).to eq(false)
+      end
+
+      it "is not recorded without a stamp" do
+        u, d = owner_and_device
+        answer(u, d, true, nil)
+        expect(d.settings['long_token']).to eq(true)
+        expect(d.settings['long_token_owner_choice']).to eq(false)
+      end
+
+      it "keeps the recorded stamp on the device only, never in the user's preferences or the device JSON" do
+        u, d = owner_and_device
+        answer(u, d, true, Time.now.to_i + 2.days.to_i)
+        expect(d.settings['long_token_choice_stamp']).to be > Time.now.to_i
+        prefs = u.settings['preferences'].to_json
+        expect(prefs).to_not include('long_token_choice_stamp')
+        expect(prefs).to_not include('long_token_chosen_at')
+        expect(JsonApi::Device.as_json(d, current_device: d).to_json).to_not include('long_token_choice_stamp')
+      end
+
+      it "is left as it is by a save that only echoes the unchanged value" do
+        u, d = owner_and_device
+        d.settings['long_token'] = true
+        d.settings['long_token_owner_choice'] = true
+        d.save
+        u.process_params({'preferences' => {'device' => {'long_token' => true}}}, {'device' => d, 'updater' => u})
+        expect(d.reload.settings['long_token_owner_choice']).to eq(true)
+        expect(d.settings['long_token_set']).to eq(true)
+      end
+    end
+
     it "should set the device as long_token_set if long_token is set" do
       u = User.create
       d = Device.create(:user => u, :developer_key_id => 0, :device_key => '1.234 Other One')
@@ -3477,12 +3669,13 @@ describe User, :type => :model do
       expect(keys).not_to include(SystemBoardSources.board_key('vocal-flair-60'))
     end
 
-    it "should include vocal-flair-84 and senner-baud in the signup sidebar list" do
+    # The library entry is the starter, Vocal Flair 60 (Traci, 2026-11-11, PR #1268); it was Vocal Flair 84.
+    it "should include the starter (vocal-flair-60) and senner-baud in the signup sidebar list" do
       keys = User.signup_sidebar_boards.map { |b| b['key'] }.compact
-      expect(keys).to include(SystemBoardSources.board_key('vocal-flair-84'))
+      expect(keys).to include(SystemBoardSources.board_key('vocal-flair-60'))
       expect(keys).to include(SystemBoardSources.board_key(SystemBoardSources::SENNER_BAUD_SLUG))
       expect(keys).to include(SystemBoardSources.board_key('inflections'))
-      expect(keys).not_to include(SystemBoardSources.board_key('vocal-flair-60'))
+      expect(keys).not_to include(SystemBoardSources.board_key('vocal-flair-84'))
       expect(keys).not_to include('mbaud12/senner-baud-greetings')
     end
 
@@ -3492,12 +3685,24 @@ describe User, :type => :model do
       keys = User.signup_sidebar_boards(u).map { |b| b['key'] }.compact
       expect(keys).to include(SystemBoardSources.board_key('inflections-es'))
       expect(keys).not_to include(SystemBoardSources.board_key('inflections'))
-      expect(keys).to include(SystemBoardSources.board_key('vocal-flair-84'))
+      # The starter follows the Spanish copy jobs' gate, not the locale alone: the Spanish set is only on an
+      # environment where that flag is on, and a stored sidebar entry for a missing board stays stored.
+      expect(keys).to include(SystemBoardSources.board_key('vocal-flair-60'))
+      expect(keys).not_to include(SystemBoardSources.board_key('vocal-flair-60-es'))
     end
 
-    it "should not auto-add vocal-flair-84 or senner-baud into an older saved sidebar" do
+    it "should put the Spanish starter in the signup sidebar only when the Spanish library sign-up is enabled" do
       u = User.new
-      vf84_key = SystemBoardSources.board_key('vocal-flair-84')
+      u.settings = {'preferences' => {'locale' => 'es'}}
+      allow(FeatureFlags).to receive(:signup_spanish_library_boards_enabled?).with(u).and_return(true)
+      keys = User.signup_sidebar_boards(u).map { |b| b['key'] }.compact
+      expect(keys).to include(SystemBoardSources.board_key('vocal-flair-60-es'))
+      expect(keys).not_to include(SystemBoardSources.board_key('vocal-flair-60'))
+    end
+
+    it "should not auto-add the starter (vocal-flair-60) or senner-baud into an older saved sidebar" do
+      u = User.new
+      vf84_key = SystemBoardSources.board_key('vocal-flair-60')
       senner_key = SystemBoardSources.board_key(SystemBoardSources::SENNER_BAUD_SLUG)
       crisis_key = SystemBoardSources.board_key('crisis-vocabulary')
       saved = User.default_sidebar_boards.reject do |b|
@@ -3536,7 +3741,7 @@ describe User, :type => :model do
       yesno = Board.process_new({name: 'Yes/No', public: true}, {user: source, key: 'yesno'})
       inflections = Board.process_new({name: 'Inflections', public: true}, {user: source, key: 'inflections'})
       crisis = Board.process_new({name: 'Crisis Vocabulary', public: true}, {user: source, key: 'crisis-vocabulary'})
-      vf84 = Board.process_new({name: 'Vocal Flair 84', public: true}, {user: source, key: 'vocal-flair-84'})
+      vf84 = Board.process_new({name: 'Vocal Flair 60', public: true}, {user: source, key: 'vocal-flair-60'})
       senner = Board.process_new({name: SystemBoardSources::SENNER_BAUD_NAME, public: true}, {user: source, key: 'senner-baud'})
       yesno.copy_for(u)
       inflections.copy_for(u)
@@ -6351,6 +6556,65 @@ describe User, :type => :model do
       viewer = User.create
 
       expect(User.find_by(id: u.id).effective_logging_cutoff_for(viewer, nil)).to eq(1)
+    end
+  end
+
+  # The liked list feeds the offline sync (app/frontend/app/utils/offline_sync_seeds.js): a liked board
+  # that is not in it is never saved on the device. Up to 50 liked boards are kept, the first ones liked.
+  describe "starred_board_refs limit" do
+    def like_boards(user, count)
+      owner = User.create
+      boards = count.times.map { Board.create(user: owner, public: true) }
+      user.settings['starred_board_ids'] = boards.map(&:global_id)
+      user.settings['starred_boards'] = boards.length
+      user.save
+      boards
+    end
+
+    it "lists every liked board past the first 25, in the order they were liked" do
+      u = User.create
+      # Liked newest board first, so the liked order is not the order the boards were created in.
+      boards = like_boards(u, 30).reverse
+      u.settings['starred_board_ids'] = boards.map(&:global_id)
+      u.save
+      refs = u.reload.starred_board_refs.reject { |r| r['suggested'] }
+      expect(refs.map { |r| r['id'] }).to eq(boards.map(&:global_id))
+    end
+
+    it "lists at most the first 50 liked boards, and looks up no more than those" do
+      u = User.create
+      boards = like_boards(u, 51)
+      u.reload
+      looked_up = nil
+      allow(Board).to receive(:find_all_by_global_id).and_wrap_original do |original, ids|
+        looked_up = ids
+        original.call(ids)
+      end
+      refs = u.starred_board_refs.reject { |r| r['suggested'] }
+      expect(looked_up.length).to eq(50)
+      expect(refs.length).to eq(50)
+      expect(refs.map { |r| r['id'] }).to eq(boards[0, 50].map(&:global_id))
+    end
+
+    it "skips a liked board that was deleted, and still lists the ones after it" do
+      u = User.create
+      boards = like_boards(u, 30)
+      gone = boards[4]
+      gone.destroy
+      refs = u.reload.starred_board_refs.reject { |r| r['suggested'] }
+      expect(refs.map { |r| r['id'] }).to eq((boards - [gone]).map(&:global_id))
+    end
+
+    it "lists a liked copy-by-reference board past the first 25 under its own id" do
+      u = User.create
+      boards = like_boards(u, 30)
+      clone_id = "#{boards[29].global_id}-#{u.global_id}"
+      u.settings['starred_board_ids'][29] = clone_id
+      u.save
+      refs = u.reload.starred_board_refs.reject { |r| r['suggested'] }
+      expect(refs.length).to eq(30)
+      expect(refs[29]['id']).to eq(clone_id)
+      expect(refs[29]['key']).to eq("#{u.user_name}/my:#{boards[29].key.sub(/\//, ':')}")
     end
   end
 end

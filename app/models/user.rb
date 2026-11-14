@@ -2462,15 +2462,20 @@ class User < ApplicationRecord
     end
   end
 
+  # How many liked boards are listed, counted from the first one liked. The offline sync saves the listed
+  # boards (app/frontend/app/utils/offline_sync_seeds.js), so a liked board past this is not kept offline.
+  LIKED_BOARD_REFS_LIMIT = 50
+
   def starred_board_refs
     refs = []
     user = self
     brds = {}
-    Board.find_all_by_global_id((user.settings['starred_board_ids'] || [])[0, 25]).each do |b|
+    listed_ids = (user.settings['starred_board_ids'] || [])[0, LIKED_BOARD_REFS_LIMIT]
+    Board.find_all_by_global_id(listed_ids).each do |b|
       brds[b.global_id] = b
       brds[b.global_id(true)] = b
     end
-    (user.settings['starred_board_ids'] || []).each do |id|
+    listed_ids.each do |id|
       brd = brds[id]
       if brd
         id = brd.global_id
@@ -3856,9 +3861,51 @@ class User < ApplicationRecord
         device['voice']['voice_uris'] = voice_uris.uniq[0, 10]
         device['voice'].delete('voice_uri')
       end
+      # The client's stamp of an explicit Trust/Shared answer is a request marker: never stored in preferences or echoed
+      # (the device row keeps the newest accepted one, below).
+      chosen_at = device.delete('long_token_chosen_at')
+      # Only the person may change whether their device is trusted (Traci, 2026-11-13). users#update writes a
+      # supervisor's device preferences onto the person's most recent device (Api::UsersController#update), and a
+      # trusted row gets no organization idle timeout on later sign-ins (Device#generate_token!). So a save from anyone
+      # else (another updater, an operator acting for the person, or a device that is not theirs) drops the trust
+      # fields; their other device preferences are still saved. A call with no updater is server code, unchanged.
+      trust_updater = non_user_params['updater']
+      trust_device = non_user_params['device']
+      if (trust_updater && trust_updater.id != self.id) || non_user_params['operator'] || (trust_device && trust_device.user_id != self.id)
+        device.delete('long_token')
+        device.delete('asserted')
+      end
       if non_user_params['device'] && device['long_token'] != nil
-        non_user_params['device'].settings['long_token'] = !!device['long_token']
-        non_user_params['device'].settings['long_token_set'] = true
+        # Only the person's own saves reach here (a supervisor's or an operator's save had long_token dropped above).
+        # Of those, only an explicit answer with a counted stamp records long_token_owner_choice, which is what lets a
+        # trusted browser device drop the organization's idle timeout (Device#clean_old_keys). Any other change of the
+        # value clears it; an unchanged echo leaves it as it is. Known limit: a stale own save (another tab still
+        # holding the old value) still changes the value itself, only not the owner choice.
+        dev = non_user_params['device']
+        value = !!device['long_token']
+        updater = non_user_params['updater']
+        # The stamp is the device's clock, which on a tablet can be off by more than 10 minutes (review of #1268,
+        # 2026-11-13). It counts when it is newer than the last answer this device recorded (kept server-side in
+        # long_token_choice_stamp; JsonApi::Device does not expose it), so a save older than the last recorded answer,
+        # a retried or replayed one included, does not. One exception: when the stored stamp is ahead of server time by
+        # more than 10 minutes (a fast clock since corrected), an answer within 10 minutes of server time counts.
+        # Limits: the first stamped answer on a device counts at any age; a clock that went slow after an answer was
+        # recorded is refused until it passes that stamp; after a fast-clock answer, a correct-clock answer in the 10
+        # minutes before the stored stamp is refused; a second answer in the same second is refused. A refusal leaves
+        # the value written but not as the owner's choice. The stored stamp only moves forward.
+        stamped = chosen_at.to_s.match?(/\A\d+\z/)
+        last_stamp = dev.settings['long_token_choice_stamp'].to_i
+        corrected_clock = last_stamp > Time.now.to_i + 10.minutes.to_i && (Time.now.to_i - chosen_at.to_i).abs <= 10.minutes.to_i
+        fresh_stamp = stamped && (chosen_at.to_i > last_stamp || corrected_clock)
+        own_answer = fresh_stamp && updater && updater.id == self.id && !non_user_params['operator'] && dev.user_id == self.id
+        if own_answer
+          dev.settings['long_token_owner_choice'] = value
+          dev.settings['long_token_choice_stamp'] = [chosen_at.to_i, last_stamp].max
+        elsif dev.settings['long_token'] != value
+          dev.settings['long_token_owner_choice'] = false
+        end
+        dev.settings['long_token'] = value
+        dev.settings['long_token_set'] = true
         if device['asserted']
           non_user_params['device'].settings.delete('temporary_device')
           # Eval accounts are only allowed to be logged into one device at a time
@@ -3908,6 +3955,10 @@ class User < ApplicationRecord
     end
   end
 
+  # `library_board['like_copy']` (the sign-up starter, lib/user_board_provisioner.rb): after the copy, like
+  # this account's copy as well, so the offline sync keeps one core board from the first sync. The flag rides on
+  # this job rather than a job of its own so that a worker still on older code during a deploy copies the
+  # starter as before and only skips the like; nothing it does not know is scheduled (review of fe22582ea).
   def copy_board_to_library(library_board, updater_id, symbol_library=nil)
     original = library_board && Board.find_by_path(library_board['id'])
     updater = User.find_by_path(updater_id)
@@ -3916,6 +3967,7 @@ class User < ApplicationRecord
     existing = self.boards.where(parent_board: original).order('id DESC').first
     if existing && ((existing.settings['swapped_library'] || 'original') == (symbol_library || 'original'))
       retry_incomplete_library_swap(existing, symbol_library)
+      like_library_copy!(original) if library_board['like_copy']
       return true
     end
 
@@ -3929,6 +3981,27 @@ class User < ApplicationRecord
       copier_id: updater.global_id,
       swap_library: symbol_library
     )
+    like_library_copy!(original) if library_board['like_copy']
+    true
+  end
+
+  # SIGN-UP LIKES THE STARTER BOARD (Traci, 2026-11-11; PR #1268, proposals doc section 16): like this
+  # account's copy of `original` (User#starred_board_refs feeds app/frontend/app/utils/offline_sync_seeds.js).
+  # The person can unlike it. The copy liked is the home board when the person already made a copy of this
+  # board their home (the welcome card can copy while the job runs, and a second copy liked would be a second
+  # tree on every device), otherwise the newest copy.
+  #
+  # Nothing here saves `self`: this row was loaded when the job started (Progress.perform_action), and a save
+  # after a copy that takes seconds would write over anything saved meanwhile (a home board chosen on the
+  # welcome card); the home board is read from a fresh row for the same reason. Board#star schedules
+  # remember_starred_board! in a job of its own, which loads the user fresh.
+  def like_library_copy!(original)
+    fresh = User.find_by(id: self.id) || self
+    prefs = (fresh.settings || {})['preferences'] || {}
+    home = prefs['home_board'] && prefs['home_board']['id'] && Board.find_by_global_id(prefs['home_board']['id'])
+    copy = (home && home.user_id == self.id && home.parent_board_id == original.id) ? home : self.boards.where(parent_board: original).order('id DESC').first
+    return false unless copy
+    copy.star!(self, true) unless copy.starred_by?(self)
     true
   end
 
@@ -4368,13 +4441,18 @@ class User < ApplicationRecord
   end
 
   # Written onto the user at signup only. Existing accounts with an empty stored
-  # sidebar keep default_active_sidebar_boards (no VF84 / Senner) so a deploy
+  # sidebar keep default_active_sidebar_boards (no starter / Senner) so a deploy
   # does not change live speak-mode sidebars or enqueue those trees as sync roots.
+  # The library entry is the starter (Vocal Flair 60; Traci, 2026-11-11, it was Vocal Flair 84), the same
+  # board sign-up copies and likes, so the entry resolves to that one copy (resolve_sidebar_boards_for). The
+  # Spanish starter only under the same gate as the Spanish copy jobs (lib/user_board_provisioner.rb): a
+  # stored entry for a board that is not there stays stored and fails on every sync (review of fe22582ea).
   def self.signup_sidebar_boards(user = nil)
-    vf84 = {
-      'name' => "Vocal Flair 84",
-      'key' => SystemBoardSources.board_key('vocal-flair-84'),
-      'image' => '/images/vocal-flair-84.png',
+    starter_slug = FeatureFlags.signup_spanish_library_boards_enabled?(user) ? SystemBoardSources::SPANISH_STARTER_BOARD_SLUG : SystemBoardSources::STARTER_BOARD_SLUG
+    starter = {
+      'name' => "Vocal Flair 60",
+      'key' => SystemBoardSources.board_key(starter_slug),
+      'image' => '/images/vocal-flair-60.png',
       'home_lock' => false
     }
     senner_key = SystemBoardSources.board_key(SystemBoardSources::SENNER_BAUD_SLUG)
@@ -4383,7 +4461,7 @@ class User < ApplicationRecord
       key = entry['key']
       if key == SystemBoardSources.board_key('keyboard')
         result << localize_signup_sidebar_entry(entry, user)
-        result << vf84
+        result << starter
       elsif key == senner_key
         result << localize_signup_sidebar_entry(entry, user)
       elsif inactive_by_default_sidebar_keys.include?(key)

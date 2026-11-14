@@ -5,15 +5,42 @@ import modal from './modal';
 import editManager from './edit_manager';
 import { findExistingUserCopy } from './board-copy';
 import { saveHomeBoard } from './home_board';
+import { STARTER_BOARD_KEY, STARTER_BOARD_NAME, STARTER_BOARD_SLUG } from './starter_board';
 
-function pickVocalFlair84(list) {
+/* From a catalog search by name: the starter's root first, a sub-board of it only when no root came back,
+   then whatever the search returned (as before: the search is the fallback for a catalog whose owner is not
+   `lingolinq`, where the exact key does not exist). */
+export function pickStarterBoard(list) {
   var pick = function(re) {
     for (var i = 0; i < list.length; i++) {
       if (re.test((list[i].get('key') || ''))) { return list[i]; }
     }
     return null;
   };
-  return pick(/(^|\/)vocal-flair-84$/) || pick(/vocal-flair-84/) || list[0];
+  return pick(new RegExp('(^|/)' + STARTER_BOARD_SLUG + '$')) || pick(new RegExp(STARTER_BOARD_SLUG)) || list[0];
+}
+
+/* A lookup that found nothing, as the server answers it ({error: "Record not found"}, a 404) or the local
+   store does ("record not found: board <key>", utils/persistence.js). Any other failure (offline, a timeout,
+   a server error) is not a reason to search instead. */
+function is_not_found(err) {
+  var text = (err && (err.error || err.message)) || (typeof err === 'string' ? err : '');
+  var status = err && (err.status || (err.errors && err.errors[0] && err.errors[0].status));
+  return /not found/i.test(String(text)) || String(status) === '404';
+}
+
+/* The exact catalog key first, the same lookup the welcome card makes (tours/start_talking.js), so the pick
+   cannot land on another account's public copy or a sub-board; the name search only when that key is not
+   there (a dev seed whose catalog owner is not `lingolinq`). Review of fe22582ea: a search on every failure
+   ran on offline and server errors too, and its loosest match is any public board. */
+function findStarterBoard() {
+  return RSVP.resolve(LingoLinq.store.findRecord('board', STARTER_BOARD_KEY)).then(null, function(err) {
+    if (!is_not_found(err)) { return RSVP.reject(err); }
+    return LingoLinq.store.query('board', { q: STARTER_BOARD_NAME, public: true, per_page: 10 }).then(function(results) {
+      var list = (results && results.slice) ? results.slice() : (results || []);
+      return pickStarterBoard(list) || null;
+    });
+  });
 }
 
 function copyLibraryForUser(user) {
@@ -60,9 +87,10 @@ function copyBoardAndSaveHome(board, user, lib, locale, onSuccess, onError) {
   });
 }
 
-/* Find the public Vocal Flair 84 catalog board and set the user's owned copy
-   (reusing the signup sync copy when present) as home board. */
-export function assignVocalFlair84AsHome(user, options) {
+/* Find the starter board (utils/starter_board.js: Vocal Flair 60, the same one the welcome card sets up) and
+   set the user's owned copy (reusing the sign-up copy when present) as home board. Quick Assign in the board
+   picker, the setup page and the tour picker share this. */
+export function assignStarterBoardAsHome(user, options) {
   options = options || {};
   if (!user || !user.save) {
     modal.error(i18n.t('set_as_home_failed', "Home board update failed unexpectedly"));
@@ -78,9 +106,7 @@ export function assignVocalFlair84AsHome(user, options) {
     modal.error(i18n.t('home_board_assign_not_found', "We couldn't find the recommended home board. Please pick one below."));
   };
 
-  return LingoLinq.store.query('board', { q: 'Vocal Flair 84', public: true, per_page: 10 }).then(function(results) {
-    var list = (results && results.slice) ? results.slice() : (results || []);
-    var board = pickVocalFlair84(list);
+  return findStarterBoard().then(function(board) {
     if (!board) {
       onNotFound();
       return RSVP.reject('not found');
@@ -110,4 +136,4 @@ export function assignVocalFlair84AsHome(user, options) {
   });
 }
 
-export default assignVocalFlair84AsHome;
+export default assignStarterBoardAsHome;

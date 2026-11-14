@@ -85,6 +85,34 @@ module.exports = defineConfig({
       testMatch: /goal-chart-labels\.spec\.js/,
       use: { ...devices['Desktop Chrome'] },
     },
+    // Offline app shell (lib/offline_shell.rb). Against RAILS, not ember serve: E2E_BASE_URL must
+    // point at a Rails server started with OFFLINE_APP_SHELL=on (then =off for the kill switch).
+    // Signs in as its own synthetic users (e2e/support/offline-launch.rb) in persistent profiles
+    // (e2e/support/offline-shell.js); see the header of each spec for the run order.
+    {
+      name: 'offline-launch',
+      testMatch: /offline-launch\.spec\.js/,
+      timeout: 600_000,
+    },
+    // The worker's slow-page, failed-update and update paths, run for real (same server as offline-launch).
+    {
+      name: 'offline-worker-lifecycle',
+      testMatch: /offline-worker-lifecycle\.spec\.js/,
+      timeout: 300_000,
+    },
+    // WebKit (Safari's engine) as an iPad, offline through an unreachable server (offline-webkit.spec.js
+    // has why). Same server as offline-launch; needs `npx playwright install webkit` and its system
+    // libraries.
+    {
+      name: 'offline-webkit',
+      testMatch: /offline-webkit\.spec\.js/,
+      timeout: 600_000,
+    },
+    {
+      name: 'offline-kill-switch',
+      testMatch: /offline-kill-switch\.spec\.js/,
+      timeout: 180_000,
+    },
     // The Modern top menu's height across pages, layouts and widths (2026-11-09). Signs in as its
     // own synthetic users (e2e/support/users-org-nav.rb), so it needs no setup project.
     {

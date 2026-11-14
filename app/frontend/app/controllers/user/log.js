@@ -183,7 +183,7 @@ export default Controller.extend({
         // belongs to a different user (defense on top of the observer's reset).
         if(!(assessment && (assessment.events || assessment.started)) &&
            this.get('eval_memory_fallback') &&
-           String(this.get('eval_memory_fallback.user_id')) == String(this.get('user.id'))) {
+           String(this.get('eval_memory_fallback.user_id')) == String(user_backend_id(this.get('user')))) { // the snapshot holds the backend id; user may be keyed 'self'. A stored 'self' never matches (eval-workbook isAuthor)
           assessment = this.get('eval_memory_fallback');
         }
       }
@@ -211,7 +211,7 @@ export default Controller.extend({
   load_eval_fallback: observer('model.type', 'model.eval_in_memory', 'user.id', function() {
     var _this = this;
     if(this.get('model.type') != 'eval' || !this.get('model.eval_in_memory')) { return; }
-    var uid = this.get('user.id');
+    var uid = user_backend_id(this.get('user')); // utils/eval.js keys and stamps snapshots with the backend id
     if(!uid) { return; }
     // Singleton controller: viewing a different communicator must drop the prior
     // user's fallback + attempt flag, or it would (a) render on the new user's
@@ -228,7 +228,7 @@ export default Controller.extend({
     evaluation.load_progress(uid).then(function(snap) {
       // Defensive: only adopt a snapshot that belongs to this user, and only if
       // we're still viewing that user (guards against a mid-flight navigation).
-      if(snap && (!snap.user_id || String(snap.user_id) == String(uid)) && String(_this.get('user.id')) == String(uid)) {
+      if(snap && (!snap.user_id || String(snap.user_id) == String(uid)) && String(user_backend_id(_this.get('user'))) == String(uid)) {
         _this.set('eval_memory_fallback', snap);
       }
     });
@@ -343,8 +343,14 @@ export default Controller.extend({
     },
     repeat_profile: function() {
       if(this.get('processed_profile.template.id')) {
-        this.router.transitionTo('profile', this.get('user.id'), this.get('processed_profile.template.id'));
+        this.router.transitionTo('profile', this.get('user.id') === 'self' ? (this.get('user.user_name') || user_backend_id(this.get('user'))) : this.get('user.id'), this.get('processed_profile.template.id')); // never 'self'; other people go by id as before
       }
     }
   }
 });
+import backend_user_id, { backend_id_of } from '../../utils/backend_user_id';
+
+/* The backend id of a user record that may be the session user's record keyed 'self' (serializers/application.js). */
+function user_backend_id(user) {
+  return backend_id_of(backend_user_id(user), app_state.get('sessionUser')) || (user && user.get && user.get('id'));
+}

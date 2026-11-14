@@ -85,7 +85,7 @@ export default Controller.extend({
     // copies that rode along inside a copied set. filterRootBoards drops those
     // (keys on copy_id), keeping only the visible root tiles — same cleanup the
     // board-collection drawer and boards page apply to My Boards.
-    var boards = filterRootBoards(this.get('personal_results.results') || [], app_state.get('currentUser.id'));
+    var boards = filterRootBoards(this.get('personal_results.results') || [], backend_user_id(app_state.get('currentUser'))); // backend id, not 'self' (utils/backend_user_id.js)
     return sortBySearchQuery(this._filter_boards(boards), this.get('_filter_query'));
   }),
 
@@ -124,7 +124,7 @@ export default Controller.extend({
     i18n.t('other_boards', "Other Boards");
   },
   jump_sections: computed('online_results', '_filter_query', function() {
-    var userId = app_state.get('currentUser.id');
+    var userId = backend_user_id(app_state.get('currentUser')); // backend id, not 'self' (utils/backend_user_id.js)
     var online = this.get('online_results');
     var preferOwners = boardsPagePreferUserNames(app_state);
     var q = this.get('_filter_query');
@@ -426,3 +426,4 @@ export default Controller.extend({
   }
 });
 
+import backend_user_id from '../utils/backend_user_id';

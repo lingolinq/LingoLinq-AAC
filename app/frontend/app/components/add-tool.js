@@ -5,6 +5,7 @@ import EmberObject from '@ember/object';
 import $ from 'jquery';
 import modal from '../utils/modal';
 import Utils from '../utils/misc';
+import backend_user_id from '../utils/backend_user_id';
 
 /**
  * Add Tool / Browse Tools modal component.
@@ -101,7 +102,8 @@ export default Component.extend({
       _this.set('selected_tool.installing', true);
       _this.set('selected_tool.error', null);
       const integration = _this.get('store').createRecord('integration');
-      integration.set('user_id', _this.get('model.user.id'));
+      // A nested integration[user_id] is not rewritten from 'self' by the server, so send the backend id.
+      integration.set('user_id', backend_user_id(_this.get('model.user')));
       integration.set('integration_key', _this.get('selected_tool.integration_key'));
       const params = [];
       _this.get('user_parameters').forEach(function(param) {

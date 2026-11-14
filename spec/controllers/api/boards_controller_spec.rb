@@ -712,13 +712,14 @@ describe Api::BoardsController, :type => :controller do
       expect(response).to be_successful
       expect(b.reload.settings['starred_user_ids']).to eq(["en:" + @user.global_id])
       json = JSON.parse(response.body)
-      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id})
+      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id, 'liked_boards' => 1, 'liked_limit' => 50, 'kept_offline' => true})
 
       post :star, params: {:board_id => "#{b.global_id}-#{@user.global_id}"}
       expect(response).to be_successful
       expect(b.reload.settings['starred_user_ids']).to eq(["en:" + @user.global_id])
       json = JSON.parse(response.body)
-      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id})
+      # liked_boards counts the stored list plus this like; the first like's list update is a queued job here.
+      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id, 'liked_boards' => 1, 'liked_limit' => 50, 'kept_offline' => true})
       Worker.process_queues
       expect(@user.reload.settings['starred_board_ids']).to eq([b.global_id, "#{b.global_id}-#{@user.global_id}"])
 
@@ -742,13 +743,14 @@ describe Api::BoardsController, :type => :controller do
       expect(response).to be_successful
       expect(b.reload.settings['starred_user_ids']).to eq(["en:" + @user.global_id])
       json = JSON.parse(response.body)
-      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id})
+      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id, 'liked_boards' => 1, 'liked_limit' => 50, 'kept_offline' => true})
 
       post :star, params: {:board_id => "#{b.global_id}-#{@user.global_id}"}
       expect(response).to be_successful
       expect(b.reload.settings['starred_user_ids']).to eq(["en:" + @user.global_id])
       json = JSON.parse(response.body)
-      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id})
+      # liked_boards counts the stored list plus this like; the first like's list update is a queued job here.
+      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id, 'liked_boards' => 1, 'liked_limit' => 50, 'kept_offline' => true})
       Worker.process_queues
       expect(@user.reload.settings['starred_board_ids']).to eq([b.global_id, "#{b.global_id}-#{@user.global_id}"])
 
@@ -776,13 +778,14 @@ describe Api::BoardsController, :type => :controller do
       expect(response).to be_successful
       expect(b.reload.settings['starred_user_ids']).to eq(["en:" + @user.global_id])
       json = JSON.parse(response.body)
-      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id})
+      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id, 'liked_boards' => 1, 'liked_limit' => 50, 'kept_offline' => true})
 
       post :star, params: {:board_id => "#{b.global_id}-#{@user.global_id}"}
       expect(response).to be_successful
       expect(b.reload.settings['starred_user_ids']).to eq(["en:" + @user.global_id])
       json = JSON.parse(response.body)
-      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id})
+      # liked_boards counts the stored list plus this like; the first like's list update is a queued job here.
+      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id, 'liked_boards' => 1, 'liked_limit' => 50, 'kept_offline' => true})
       Worker.process_queues
       expect(@user.reload.settings['starred_board_ids']).to eq([b.global_id, "#{b.global_id}-#{@user.global_id}"])
 
@@ -884,13 +887,14 @@ describe Api::BoardsController, :type => :controller do
       expect(response).to be_successful
       expect(b.reload.settings['starred_user_ids']).to eq(["en:" + @user.global_id])
       json = JSON.parse(response.body)
-      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id})
+      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id, 'liked_boards' => 1, 'liked_limit' => 50, 'kept_offline' => true})
 
       post :star, params: {:board_id => "#{b.global_id}-#{@user.global_id}"}
       expect(response).to be_successful
       expect(b.reload.settings['starred_user_ids']).to eq(["en:" + @user.global_id])
       json = JSON.parse(response.body)
-      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id})
+      # liked_boards counts the stored list plus this like; the first like's list update is a queued job here.
+      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id, 'liked_boards' => 1, 'liked_limit' => 50, 'kept_offline' => true})
       Worker.process_queues
       expect(@user.reload.settings['starred_board_ids']).to eq([b.global_id, "#{b.global_id}-#{@user.global_id}"])
 
@@ -954,13 +958,14 @@ describe Api::BoardsController, :type => :controller do
       expect(response).to be_successful
       expect(b.reload.settings['starred_user_ids']).to eq(["en:" + @user.global_id])
       json = JSON.parse(response.body)
-      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id})
+      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id, 'liked_boards' => 1, 'liked_limit' => 50, 'kept_offline' => true})
 
       post :star, params: {:board_id => "#{b.global_id}-#{@user.global_id}"}
       expect(response).to be_successful
       expect(b.reload.settings['starred_user_ids']).to eq(["en:" + @user.global_id])
       json = JSON.parse(response.body)
-      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id})
+      # liked_boards counts the stored list plus this like; the first like's list update is a queued job here.
+      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id, 'liked_boards' => 1, 'liked_limit' => 50, 'kept_offline' => true})
       Worker.process_queues
       expect(@user.reload.settings['starred_board_ids']).to eq([b.global_id, "#{b.global_id}-#{@user.global_id}"])
 
@@ -2321,7 +2326,38 @@ describe Api::BoardsController, :type => :controller do
       expect(response).to be_successful
       expect(b.reload.settings['starred_user_ids']).to eq(["en:" + @user.global_id])
       json = JSON.parse(response.body)
-      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id})
+      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id, 'liked_boards' => 1, 'liked_limit' => 50, 'kept_offline' => true})
+    end
+
+    # Only the first LIKED_BOARD_REFS_LIMIT liked boards are kept offline (User#starred_board_refs). The answer
+    # carries the person's count after this like and whether this board is kept, so the app can say when a
+    # like is past the limit (Traci, 2026-11-10).
+    it "should say a like past the limit is not kept offline, and count the liked boards" do
+      token_user
+      owner = User.create
+      earlier = User::LIKED_BOARD_REFS_LIMIT.times.map { Board.create(:user => owner, :public => true) }
+      @user.settings['starred_board_ids'] = earlier.map(&:global_id)
+      @user.settings['starred_boards'] = earlier.length
+      @user.save
+      b = Board.create(:user => owner, :public => true)
+      post :star, params: {:board_id => b.global_id}
+      json = JSON.parse(response.body)
+      expect(json['starred']).to eq(true)
+      expect(json['liked_boards']).to eq(User::LIKED_BOARD_REFS_LIMIT + 1)
+      expect(json['liked_limit']).to eq(User::LIKED_BOARD_REFS_LIMIT)
+      expect(json['kept_offline']).to eq(false)
+      Worker.process_queues
+      # Liking one of the first ones again changes nothing: it keeps its place and is still kept.
+      post :star, params: {:board_id => earlier[0].global_id}
+      json = JSON.parse(response.body)
+      expect(json['liked_boards']).to eq(User::LIKED_BOARD_REFS_LIMIT + 1)
+      expect(json['kept_offline']).to eq(true)
+      Worker.process_queues
+      delete :unstar, params: {:board_id => b.global_id}
+      json = JSON.parse(response.body)
+      expect(json['starred']).to eq(false)
+      expect(json['liked_boards']).to eq(User::LIKED_BOARD_REFS_LIMIT)
+      expect(json['kept_offline']).to eq(false)
     end
   end
   
@@ -2344,7 +2380,7 @@ describe Api::BoardsController, :type => :controller do
       expect(response).to be_successful
       expect(b.reload.settings['starred_user_ids']).to eq([])
       json = JSON.parse(response.body)
-      expect(json).to eq({'starred' => false, 'stars' => 0, 'user_id' => @user.global_id})
+      expect(json).to eq({'starred' => false, 'stars' => 0, 'user_id' => @user.global_id, 'liked_boards' => 0, 'liked_limit' => 50, 'kept_offline' => false})
     end
 
     it "should unstar a starred shallow clone" do
@@ -2360,7 +2396,7 @@ describe Api::BoardsController, :type => :controller do
       expect(b.reload.settings['starred_user_ids']).to eq(["en:" + @user.global_id])
       expect(@user.reload.settings['starred_board_ids']).to eq(["#{b.global_id}-#{@user.global_id}"])
       json = JSON.parse(response.body)
-      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id})
+      expect(json).to eq({'starred' => true, 'stars' => 1, 'user_id' => @user.global_id, 'liked_boards' => 1, 'liked_limit' => 50, 'kept_offline' => true})
 
       delete :unstar, params: {:board_id => "#{b.global_id}-#{@user.global_id}"}
       expect(response).to be_successful
@@ -2369,7 +2405,7 @@ describe Api::BoardsController, :type => :controller do
       Worker.process_queues
       expect(@user.reload.settings['starred_board_ids']).to eq([])
       json = JSON.parse(response.body)
-      expect(json).to eq({'starred' => false, 'stars' => 0, 'user_id' => @user.global_id})
+      expect(json).to eq({'starred' => false, 'stars' => 0, 'user_id' => @user.global_id, 'liked_boards' => 0, 'liked_limit' => 50, 'kept_offline' => false})
     end
 
   end
@@ -3681,6 +3717,28 @@ describe Api::BoardsController, :type => :controller do
     board.reload
   end
 
+  # An owned board whose buttons reference the given image ids (#1219 preload specs).
+  def board_with_image_ids(owner, image_ids)
+    board = Board.create(user: owner)
+    board.settings['buttons'] = image_ids.each_with_index.map { |id, i| { 'id' => i + 1, 'label' => "b#{i}", 'image_id' => id } }
+    board.settings['grid'] = { 'rows' => 1, 'columns' => image_ids.length, 'order' => [image_ids.each_index.map { |i| i + 1 }] }
+    board.instance_variable_set('@buttons_changed', true)
+    board.save
+    board.reload
+  end
+
+  # The image ids a lite-serialized board carries: its image_urls keys without the <id>-<library> alternates.
+  def own_image_ids(wrapped)
+    (wrapped['board']['image_urls'] || {}).keys.reject { |k| k.include?('-') }
+  end
+
+  def tree_of(owner, children)
+    root = Board.create(user: owner)
+    root.settings['downstream_board_ids'] = children.map(&:global_id)
+    root.save
+    root.reload
+  end
+
   # Builds a root with +count+ owned, image-bearing descendants and wires
   # downstream_board_ids directly (the controller reads it straight from
   # settings; no linking machinery needed).
@@ -3831,9 +3889,308 @@ describe Api::BoardsController, :type => :controller do
         "(~2/board ceiling).\nlarge-tree SQL:\n#{large_q.join("\n")}"
       })
     end
+
+    # #1219 (PR #1268): the button images of the whole tree are loaded once (Board.preload_button_images), so the
+    # number of button_images queries does not grow with the number of boards. Before, images_and_sounds_for ran
+    # ButtonImage.find_all_by_global_id once per image-bearing board: 145 lookups and 312 queries on one 145-board
+    # tree, the cause of the Rack::Timeout mode of the issue.
+    it "loads the tree's button images in one lookup, however many boards there are" do
+      token_user
+      small_root, _small = build_owned_tree(@user, 3)
+      large_root, _large = build_owned_tree(@user, 18)
+      get :tree, params: { board_id: small_root.global_id }
+      get :tree, params: { board_id: large_root.global_id }
+      image_queries = lambda { |queries| queries.select { |sql| sql =~ /FROM "button_images"/ } }
+      user_queries = lambda { |queries| queries.select { |sql| sql =~ /FROM "users"/ } }
+      expect(ButtonImage).to_not receive(:find_all_by_global_id)
+      small_all = count_board_sql { get :tree, params: { board_id: small_root.global_id } }
+      large_all = count_board_sql { get :tree, params: { board_id: large_root.global_id } }
+      json = assert_success_json
+      small_q = image_queries.call(small_all)
+      large_q = image_queries.call(large_all)
+      expect(small_q.length).to be >= 1
+      expect(large_q.length).to(eq(small_q.length), lambda {
+        "button_images queries grew from #{small_q.length} to #{large_q.length} for 15 extra image boards:\n#{large_q.join("\n")}"
+      })
+      expect(user_queries.call(large_all).length).to eq(user_queries.call(small_all).length)
+      # Each board gets its own images, not the tree's, and not none.
+      expect(json['descendants'].length).to eq(18)
+      json['descendants'].each do |d|
+        expect(own_image_ids(d)).to eq(d['board']['buttons'].map { |b| b['image_id'] }.compact)
+      end
+    end
+
+    # #1219 unit B (PR #1268): descendants come in pages. `offset` indexes the capped id list; a page loads at most
+    # TREE_PAGE_IDS ids and stops adding boards once their JSON passes TREE_PAGE_BYTES (always at least one);
+    # `next_offset` is present while ids remain. A page can never reach Cloud Run's 32 MiB cap unless one board
+    # is that large by itself, whatever the data holds (inline pictures included).
+    def walk_tree_pages(root, extra = {})
+      pages = []
+      offset = 0
+      20.times do
+        params = { board_id: root.global_id }.merge(extra)
+        params[:offset] = offset
+        get :tree, params: params
+        json = assert_success_json
+        pages << json
+        offset = json['next_offset']
+        break if offset.nil?
+      end
+      pages
+    end
+
+    it "pages descendants by a byte budget and walks the whole set in the list's own order with next_offset" do
+      token_user
+      root, children = build_owned_tree(@user, 4)
+      # The list's order is not the database's: find_all_by_global_id answers in database order, and a page that
+      # followed that order with a positional next_offset would skip boards.
+      root.settings['downstream_board_ids'] = children.reverse.map(&:global_id)
+      root.save
+      stub_const("Api::BoardsController::TREE_PAGE_BYTES", 1)
+      pages = walk_tree_pages(root)
+      expect(pages.map { |p| p['descendants'].length }).to eq([1, 1, 1, 1])
+      expect(pages.map { |p| p['next_offset'] }).to eq([1, 2, 3, nil])
+      expect(pages.flat_map { |p| p['descendants'].map { |d| d['board']['id'] } }).to eq(children.reverse.map(&:global_id))
+      expect(pages[0]['root']['board']['id']).to eq(root.global_id)
+      expect(pages[1..].map { |p| p['root'] }.uniq).to eq([nil]) # the root travels with the first page only
+    end
+
+    it "ends the page at the chunk where the budget trips, so no id of that chunk is skipped" do
+      # A page loads ids in chunks; when the budget trips inside a chunk the page must end there, or the ids after
+      # the stop in that chunk would be counted as consumed and never sent.
+      token_user
+      root, children = build_owned_tree(@user, 5)
+      stub_const("Api::BoardsController::TREE_PAGE_CHUNK", 2)
+      stub_const("Api::BoardsController::TREE_PAGE_BYTES", 1)
+      pages = walk_tree_pages(root)
+      expect(pages.flat_map { |p| p['descendants'].map { |d| d['board']['id'] } }).to eq(children.map(&:global_id))
+      expect(pages.map { |p| p['next_offset'] }).to eq([1, 2, 3, 4, nil])
+      expect(pages[0]['root']['board']['id']).to eq(root.global_id)
+      expect(pages[1]['root']).to eq(nil)
+    end
+
+    it "keeps a sub-board the viewer has replaced, under the replacement's own id" do
+      token_user
+      source = User.create(user_name: 'lingolinq')
+      original = Board.process_new({name: 'Shared Folder', public: true}, {user: source, key: 'shared-folder'})
+      replacement = board_with_image(@user)
+      extra = UserExtra.find_or_create_by(user: @user)
+      extra.settings ||= {}
+      extra.settings['replaced_boards'] = { original.global_id => replacement.global_id }
+      extra.save!
+      mine = board_with_image(@user)
+      root = tree_of(@user, [mine])
+      root.settings['downstream_board_ids'] = ["#{original.global_id}-#{@user.global_id}", mine.global_id]
+      root.save
+      get :tree, params: { board_id: root.global_id, offset: 0 }
+      json = assert_success_json
+      # The replacement travels in the replaced id's list position.
+      expect(json['descendants'].map { |d| d['board']['id'] }).to eq([replacement.global_id, mine.global_id])
+      expect(json).to_not have_key('next_offset')
+    end
+
+    it "sends a replacement with the id that produced it, even when the budget stops the page there" do
+      token_user
+      source = User.create(user_name: 'lingolinq')
+      original = Board.process_new({name: 'Shared Folder', public: true}, {user: source, key: 'shared-folder'})
+      replacement = board_with_image(@user)
+      extra = UserExtra.find_or_create_by(user: @user)
+      extra.settings ||= {}
+      extra.settings['replaced_boards'] = { original.global_id => replacement.global_id }
+      extra.save!
+      mine1 = board_with_image(@user)
+      mine2 = board_with_image(@user)
+      root = tree_of(@user, [mine1])
+      root.settings['downstream_board_ids'] = ["#{original.global_id}-#{@user.global_id}", mine1.global_id, mine2.global_id]
+      root.save
+      stub_const("Api::BoardsController::TREE_PAGE_CHUNK", 2)
+      stub_const("Api::BoardsController::TREE_PAGE_BYTES", 1)
+      pages = walk_tree_pages(root)
+      expect(pages.map { |p| p['descendants'].map { |d| d['board']['id'] } }).to eq([[replacement.global_id], [mine1.global_id], [mine2.global_id]])
+    end
+
+    it "sends a board listed twice once per page" do
+      token_user
+      mine = board_with_image(@user)
+      other = board_with_image(@user)
+      root = tree_of(@user, [mine])
+      root.settings['downstream_board_ids'] = [mine.global_id, other.global_id, mine.global_id]
+      root.save
+      get :tree, params: { board_id: root.global_id, offset: 0 }
+      json = assert_success_json
+      expect(json['descendants'].map { |d| d['board']['id'] }).to eq([mine.global_id, other.global_id])
+      expect(json).to_not have_key('next_offset')
+    end
+
+    it "treats an offset that is not a number as the first page" do
+      token_user
+      root, children = build_owned_tree(@user, 2)
+      get :tree, params: { board_id: root.global_id, offset: ['1'] }
+      expect(assert_success_json['descendants'].length).to eq(2)
+    end
+
+    it "loads at most TREE_PAGE_IDS ids per page" do
+      token_user
+      root, children = build_owned_tree(@user, 5)
+      stub_const("Api::BoardsController::TREE_PAGE_IDS", 2)
+      pages = walk_tree_pages(root)
+      expect(pages.map { |p| p['descendants'].length }).to eq([2, 2, 1])
+      expect(pages.map { |p| p['next_offset'] }).to eq([2, 4, nil])
+      expect(pages.flat_map { |p| p['descendants'].map { |d| d['board']['id'] } }).to eq(children.map(&:global_id))
+    end
+
+    it "counts a board the viewer may not see as consumed, so no visible board is skipped or repeated" do
+      token_user
+      other = User.create
+      mine1 = board_with_image(@user)
+      theirs = Board.create(user: other)
+      mine2 = board_with_image(@user)
+      mine3 = board_with_image(@user)
+      root = tree_of(@user, [mine1, theirs, mine2, mine3])
+      stub_const("Api::BoardsController::TREE_PAGE_IDS", 2)
+      pages = walk_tree_pages(root)
+      expect(pages.map { |p| p['descendants'].map { |d| d['board']['id'] } }).to eq([[mine1.global_id], [mine2.global_id, mine3.global_id]])
+      expect(pages.map { |p| p['next_offset'] }).to eq([2, nil])
+    end
+
+    it "advances past a page whose boards are all hidden from the viewer" do
+      token_user
+      other = User.create
+      theirs1 = Board.create(user: other)
+      theirs2 = Board.create(user: other)
+      mine = board_with_image(@user)
+      root = tree_of(@user, [theirs1, theirs2, mine])
+      stub_const("Api::BoardsController::TREE_PAGE_IDS", 2)
+      pages = walk_tree_pages(root)
+      expect(pages.map { |p| p['descendants'].map { |d| d['board']['id'] } }).to eq([[], [mine.global_id]])
+      expect(pages.map { |p| p['next_offset'] }).to eq([2, nil])
+    end
+
+    it "answers a request without offset (an older app build) in one response stopped at the legacy budget" do
+      token_user
+      root, children = build_owned_tree(@user, 4)
+      get :tree, params: { board_id: root.global_id }
+      json = assert_success_json
+      expect(json['descendants'].length).to eq(4)
+      expect(json).to_not have_key('next_offset')
+      stub_const("Api::BoardsController::TREE_LEGACY_BYTES", 1)
+      stub_const("Api::BoardsController::TREE_PAGE_BYTES", 1_000_000)
+      get :tree, params: { board_id: root.global_id }
+      json = assert_success_json
+      expect(json['descendants'].length).to eq(1)
+      expect(json['descendants'][0]['board']['id']).to eq(children[0].global_id)
+      get :tree, params: { board_id: root.global_id, offset: 0 }
+      expect(assert_success_json['descendants'].length).to eq(4)
+    end
+
+    it "clamps offset to the list" do
+      token_user
+      root, children = build_owned_tree(@user, 3)
+      get :tree, params: { board_id: root.global_id, offset: '-5' }
+      expect(assert_success_json['descendants'].length).to eq(3)
+      get :tree, params: { board_id: root.global_id, offset: '99999999999999999999' }
+      json = assert_success_json
+      expect(json['descendants']).to eq([])
+      expect(json).to_not have_key('next_offset')
+    end
+
+    it "sends every descendant in one page when they fit, with no next_offset, and a root_only answer never pages" do
+      token_user
+      root, children = build_owned_tree(@user, 18)
+      get :tree, params: { board_id: root.global_id, offset: 0 }
+      json = assert_success_json
+      expect(json['descendants'].length).to eq(children.length)
+      expect(json).to_not have_key('next_offset')
+      expect(response.body.bytesize).to be < Api::BoardsController::TREE_PAGE_BYTES
+      stub_const("Api::BoardsController::TREE_PAGE_BYTES", 1)
+      get :tree, params: { board_id: root.global_id, root_only: '1' }
+      json = assert_success_json
+      expect(json['descendants']).to eq([])
+      expect(json).to_not have_key('next_offset')
+    end
+
+    it "gives each board only the images its own ids name, by find_all_by_global_id's nonce rule" do
+      # A lookup over the whole tree's ids would keep or drop a record by the FIRST id that names it; a board
+      # referencing an image with a stale nonce must not get it, and must not take it from a board whose id is right.
+      token_user
+      img = ButtonImage.create(url: 'http://example.com/shared.png')
+      good_id = img.global_id
+      stale_id = "#{img.global_id.split('_')[0, 2].join('_')}_notthenonce"
+      expect(stale_id).to_not eq(good_id)
+      stale_first = board_with_image_ids(@user, [stale_id])
+      good = board_with_image_ids(@user, [good_id])
+      root = tree_of(@user, [stale_first, good])
+      get :tree, params: { board_id: root.global_id }
+      json = assert_success_json
+      by_key = {}
+      json['descendants'].each { |d| by_key[d['board']['key']] = d }
+      expect(own_image_ids(by_key[stale_first.key])).to eq([])
+      expect(own_image_ids(by_key[good.key])).to eq([good_id])
+    end
+
+    it "serializes a protected image shared by two boards exactly as the per-board lookup did, licensed or not" do
+      token_user
+      protected_url = 'http://localhost:3000/api/v1/users/1_1/protected_image/lessonpix/30983'
+      fallback_url = 'https://lessonpix.com/drawings/30983/100x100/30983.png'
+      img = ButtonImage.create(url: protected_url, settings: { 'protected' => true, 'protected_source' => 'lessonpix', 'fallback' => { 'url' => fallback_url }, 'license' => { 'type' => 'private', 'source_url' => 'https://lessonpix.com/pictures/30983/cat' } })
+      expect(img.protected?).to eq(true)
+      a = board_with_image_ids(@user, [img.global_id])
+      b = board_with_image_ids(@user, [img.global_id])
+      root = tree_of(@user, [a, b])
+      descendants = lambda { |preload|
+        if preload
+          allow(Board).to receive(:preload_button_images).and_call_original
+        else
+          allow(Board).to receive(:preload_button_images) { |boards, _user| boards }
+        end
+        get :tree, params: { board_id: root.global_id }
+        assert_success_json['descendants']
+      }
+      # Unlicensed viewer: both boards get the fallback, and the preload changes nothing.
+      allow_any_instance_of(User).to receive(:enabled_protected_sources).and_return([])
+      with_fb = descendants.call(true)
+      without_fb = descendants.call(false)
+      expect(with_fb.length).to eq(2)
+      expect(with_fb).to eq(without_fb)
+      with_fb.each do |d|
+        expect(d['board']['has_fallbacks']).to eq(true)
+        expect(d['board']['image_urls'][img.global_id]).to eq(fallback_url)
+      end
+      # Licensed viewer: both boards get the protected image, and the preload changes nothing.
+      allow_any_instance_of(User).to receive(:enabled_protected_sources).and_return(['lessonpix'])
+      with_lic = descendants.call(true)
+      without_lic = descendants.call(false)
+      expect(with_lic).to eq(without_lic)
+      with_lic.each do |d|
+        expect(d['board']['has_fallbacks']).to_not eq(true)
+        expect(d['board']['image_urls'][img.global_id]).to start_with(protected_url)
+      end
+    end
   end
 
   describe "#bulk" do
+    # #1219 (PR #1268): the same one-lookup rule for the bulk prefetch.
+    it "loads the requested boards' button images in one lookup, however many boards there are" do
+      token_user
+      _small_root, small = build_owned_tree(@user, 3)
+      _large_root, large = build_owned_tree(@user, 18)
+      post :bulk, params: { keys: small.map(&:global_id) }
+      post :bulk, params: { keys: large.map(&:global_id) }
+      image_queries = lambda { |queries| queries.select { |sql| sql =~ /FROM "button_images"/ } }
+      expect(ButtonImage).to_not receive(:find_all_by_global_id)
+      small_q = image_queries.call(count_board_sql { post :bulk, params: { keys: small.map(&:global_id) } })
+      large_q = image_queries.call(count_board_sql { post :bulk, params: { keys: large.map(&:global_id) } })
+      json = assert_success_json
+      expect(small_q.length).to be >= 1
+      expect(large_q.length).to(eq(small_q.length), lambda {
+        "button_images queries grew from #{small_q.length} to #{large_q.length} for 15 extra image boards:\n#{large_q.join("\n")}"
+      })
+      expect(json['boards'].length).to eq(18)
+      json['boards'].each do |d|
+        expect(own_image_ids(d)).to eq(d['board']['buttons'].map { |b| b['image_id'] }.compact)
+      end
+    end
+
     it "returns the requested boards, permission-filtered" do
       token_user
       other = User.create

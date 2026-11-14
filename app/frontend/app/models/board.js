@@ -979,7 +979,7 @@ LingoLinq.Board = BaseModel.extend({
       }
     }).then(function(data) {
       _this.set('starred', data.starred);
-      _this.set('stars', data.stars);
+      _this.set('stars', data.stars); if(star && data.starred) { var said = like_message(data); modal[said.kind](said.text); } // utils/like_limit.js
     }, function() {
       modal.warning(i18n.t('star_failed', "Like action failed"));
     });
@@ -2223,3 +2223,6 @@ LingoLinq.Board.skin_image_map = function(image_map, skin, opts) {
 };
 
 export default LingoLinq.Board;
+
+// Imported last so the .eslint-todo rows above keep their lines.
+import { like_message } from '../utils/like_limit';

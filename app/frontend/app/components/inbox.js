@@ -130,10 +130,10 @@ export default Component.extend({
         stashes.log_event({
           alert: {
             alert_id: emberGet(a, 'id'),
-            user_id: app_state.get('referenced_user.id'),
+            user_id: referenced_backend_id(), // LogSession.handle_alert reads this with find_by_global_id: never 'self'
             cleared: true
           }
-        }, app_state.get('referenced_user.id'));
+        }, referenced_backend_id());
         emberSet(a, 'cleared', true);
         clears.push(emberGet(a, 'id'));
       });
@@ -175,10 +175,10 @@ export default Component.extend({
         stashes.log_event({
           alert: {
             alert_id: emberGet(alert, 'id'),
-            user_id: app_state.get('referenced_user.id'),
+            user_id: referenced_backend_id(), // LogSession.handle_alert reads this with find_by_global_id: never 'self'
             read: true
           }
-        }, app_state.get('referenced_user.id'));
+        }, referenced_backend_id());
         this.update_inbox({ reads: [emberGet(alert, 'id')] });
       }
     },
@@ -252,3 +252,11 @@ export default Component.extend({
 },
 
 });
+import backend_user_id, { backend_id_of } from '../utils/backend_user_id';
+
+/* The referenced user can be the session user's record keyed 'self' (serializers/application.js). Alert events carry
+ * the id in the event body, which the server never rewrites, so send the backend id. */
+function referenced_backend_id() {
+  const user = app_state.get('referenced_user');
+  return backend_id_of(backend_user_id(user), app_state.get('sessionUser')) || app_state.get('referenced_user.id');
+}

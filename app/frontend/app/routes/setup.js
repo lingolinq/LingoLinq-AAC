@@ -63,7 +63,7 @@ export default Route.extend({
     // Only set intro_watched when editing self (no user_id or same as currentUser).
     // Defer save to next run loop so setup_user is set first and observers don't re-trigger saves.
     var user_id = controller.get('user_id');
-    var editing_self = !user_id || (user && user.get('id') === user_id);
+    var editing_self = !user_id || (user && same_person(user, user_id, this.appState.get('sessionUser'))); // 'self' vs real id (utils/backend_user_id.js)
     if(user && editing_self && !user.get('preferences.progress.intro_watched')) {
       var preferences = user.get('preferences') || {};
       var progress = preferences.progress || {};
@@ -82,3 +82,5 @@ export default Route.extend({
     this.appState.controller.set('hide_header_force', false);
   }
 });
+
+import { same_person } from '../utils/backend_user_id';

@@ -10,7 +10,7 @@
     <div class="la-sync-details-modal-body">
       <div class="la-sync-details-toolbar">
         <div class="la-sync-details-toolbar-actions">
-          {{#if (persistence-value 'syncing')}}
+          {{#if (persistence-value 'sync_cancelable')}}
             <button type="button" class="la-sync-details-secondary-btn" {{on "click" (this.ctrlAction "cancel_sync")}}>{{t "Cancel Sync" key="cancel_sync"}}</button>
           {{/if}}
           <button type="button" class="la-sync-details-primary-btn" {{on "click" (this.ctrlAction "sync")}}>
@@ -43,14 +43,7 @@
           {{else}}
             {{#if (persistence-value 'syncing')}}
               {{t "Syncing..." key="syncing_ellipsis"}}
-              {{#if (persistence-value 'sync_progress')}}
-                {{#if (persistence-value 'sync_progress.total')}}
-                  {{persistence-value 'sync_progress.visited'}} /
-                  {{t "board" key="communication_set_board" count=(persistence-value 'sync_progress.total')}}
-                {{else}}
-                  {{t "initializing..." key="initializing_lower"}}
-                {{/if}}
-              {{/if}}
+              {{this.sync_progress_line}}
             {{else}}
               {{#if this.needs_sync}}
                 {{#if this.appState.installed_app}}
@@ -65,6 +58,7 @@
           {{/if}}
         {{/if}}
       </p>
+      <p class="la-sync-details-muted-block">{{t "Kept on this device for offline use: your home board and its folders, your sidebar boards, up to %{limit} liked boards, and Crisis Vocabulary." key="sync_offline_scope_limit" limit=(liked-boards-kept)}}</p>
 
       {{#if this.details}}
         {{#each this.details as |sync|}}
@@ -73,6 +67,8 @@
               <span class="text-danger">{{date_ago sync.finished}}</span>
             {{else if sync.issues}}
               <span class="text-warning">{{date_ago sync.finished}}</span>
+            {{else if sync.canceled}}
+              <span class="text-muted">{{date_ago sync.finished}}</span>
             {{else}}
               <span class="text-success">{{date_ago sync.finished}}</span>
             {{/if}}

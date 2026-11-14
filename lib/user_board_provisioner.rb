@@ -16,12 +16,13 @@ class UserBoardProvisioner
       return schedule_slugs(
         user,
         source_user,
-        SystemBoardSources::SPANISH_LIBRARY_SLUGS + SystemBoardSources::SPANISH_SIDEBAR_COPY_SLUGS
+        SystemBoardSources::SPANISH_LIBRARY_SLUGS + SystemBoardSources::SPANISH_SIDEBAR_COPY_SLUGS,
+        SystemBoardSources::SPANISH_STARTER_BOARD_SLUG
       )
     end
 
     sync_slugs(user, source_user, SystemBoardSources::SIGNUP_SYNC_SLUGS)
-    schedule_slugs(user, source_user, SystemBoardSources::SIGNUP_ASYNC_SLUGS)
+    schedule_slugs(user, source_user, SystemBoardSources::SIGNUP_ASYNC_SLUGS, SystemBoardSources::STARTER_BOARD_SLUG)
   end
 
   # Persist the signup sidebar once. Empty stored prefs keep using
@@ -50,16 +51,22 @@ class UserBoardProvisioner
     end
   end
 
-  def self.schedule_slugs(user, source_user, slugs)
+  # The starter's copy job also likes the copy (`like_copy`, User#copy_board_to_library), so the offline sync
+  # keeps one core board from the first sync (Traci, 2026-11-11; PR #1268). The same job for both: two jobs on
+  # parallel workers can run in either order, and a worker still on older code during a deploy ignores the flag
+  # and copies as before.
+  def self.schedule_slugs(user, source_user, slugs, starter_slug = nil)
     progresses = []
     slugs.each do |slug|
       board = public_system_board(slug)
       next unless board
 
+      library_board = {'id' => board.global_id}
+      library_board['like_copy'] = true if slug == starter_slug
       progress = Progress.schedule(
         user,
         :copy_board_to_library,
-        {'id' => board.global_id},
+        library_board,
         source_user.global_id,
         nil,
         for_user: user

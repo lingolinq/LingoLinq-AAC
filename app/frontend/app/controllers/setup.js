@@ -7,7 +7,7 @@ import $ from 'jquery';
 import i18n from '../utils/i18n';
 import LingoLinq from '../app';
 import modal from '../utils/modal';
-import { assignVocalFlair84AsHome } from '../utils/assign-vocal-flair-home';
+import { assignStarterBoardAsHome } from '../utils/assign-vocal-flair-home';
 import speecher from '../utils/speecher';
 import utterance from '../utils/utterance';
 import Utils from '../utils/misc';
@@ -602,10 +602,10 @@ export default Controller.extend({
       return result;
     }
   ),
-  for_self: computed('appState.currentUser.id', 'setup_user.id', function() {
+  for_self: computed('appState.currentUser.id', 'appState.sessionUser.id', 'setup_user.id', 'setup_user.global_id', function() {
     var _this = this;
     if(!_this.appState) { return false; }
-    return this.get('setup_user') && this.get('setup_user.id') == _this.appState.get('currentUser.id');
+    return this.get('setup_user') && same_person(this.get('setup_user'), _this.appState.get('currentUser'), _this.appState.get('sessionUser')); // 'self' vs real-id records (utils/backend_user_id.js)
   }),
   _update_on_page_change_last_keys: null,
   update_on_page_change: observer('page', 'user_id', 'appState.currentUser', 'setup_user', function() {
@@ -1007,8 +1007,8 @@ export default Controller.extend({
       }
     },
     // One-tap convenience on the Board Category page: find the public
-    // "Vocal Flair 84" catalog board and set it as the user's home board.
-    // Resolved by name search (not a hardcoded key) so it works whether
+    // starter board (Vocal Flair 60) and set it as the user's home board.
+    // Resolved by its key, then by name search, so it works whether
     // the catalog is owned by `lingolinq` (prod) or
     // `sampleorganization_user_1` (dev seed). Prefers the exact root slug
     // over the `-with-keyboard` / `-categories-*` sub-board variants.
@@ -1020,7 +1020,7 @@ export default Controller.extend({
         return;
       }
       this.set('assigning_home_board', true);
-      assignVocalFlair84AsHome(user, {
+      assignStarterBoardAsHome(user, {
         locale: _this.appState.get('label_locale'),
         onSuccess: function() {
           if(_this.get('persistence') && _this.get('persistence').get('online') && _this.get('persistence').get('auto_sync')) {
@@ -1049,3 +1049,5 @@ export default Controller.extend({
     }
   }
 });
+
+import { same_person } from '../utils/backend_user_id';

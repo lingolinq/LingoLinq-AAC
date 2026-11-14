@@ -353,9 +353,25 @@ function spared(refs, rec) {
 // are marked (deferred while Speak Mode is on), every other marked board, and
 // any home or sidebar board, is cleared. With a decision (settled_decision),
 // a mark is not written over anything newer than it (superseded).
+// Who wants to know which boards the server says are revoked, before anything is written (item 9C, PR #1268):
+// the memory cache (utils/board_detail_cache.js) drops those boards so an online tap asks the server. Told
+// here, ahead of the Speak Mode hold-back below and of the device-row walk, so it reaches boards held only in
+// memory and boards whose mark is deferred. A listener that throws never fails the sync.
+var marked_listeners = [];
+export function on_marked(fn) {
+  marked_listeners.push(fn);
+  return function() { marked_listeners = marked_listeners.filter(function(f) { return f !== fn; }); };
+}
+export function has_marked_listener(fn) { return marked_listeners.indexOf(fn) !== -1; }
+export function notify_marked(ids) {
+  var list = (ids || []).slice();
+  marked_listeners.forEach(function(fn) { try { fn(list); } catch(e) { /* a listener's problem, not the sync's */ } });
+}
+
 export function apply_revocations(revoked_ids, decision) {
   var lookup = {};
   (revoked_ids || []).forEach(function(id) { lookup[id] = true; });
+  if(revoked_ids && revoked_ids.length) { notify_marked(revoked_ids); }
   return RSVP.all([local_boards(), load_index(), decision_guard(decision)]).then(function(res) {
     var list = res[0];
     var index = Object.assign({}, res[1]);
@@ -569,12 +585,12 @@ function user_board_refs(user, refs) {
 // never the board already on screen, and never a protected home or sidebar
 // board. Online, the route asks the server instead. The board routes call it
 // through blocks_view_route, which adds the session guards.
-export function blocks_route(board, appState, online) {
+export function blocks_route(board, appState, online, options) {
   if(online) { return RSVP.resolve(false); }
   var id = board && typeof board.get === 'function' ? board.get('id') : null;
   var key = board && typeof board.get === 'function' ? board.get('key') : null;
   if(!id || !appState || typeof appState.get !== 'function') { return RSVP.resolve(false); }
-  if(appState.get('speak_mode')) { return RSVP.resolve(false); }
+  if(appState.get('speak_mode') && !(options && options.ignore_speak_mode)) { return RSVP.resolve(false); }
   var current = appState.get('currentBoardState.id');
   if(current && current == id) { return RSVP.resolve(false); }
   var refs = protected_board_refs(appState);
@@ -608,16 +624,21 @@ export function real_denial(err) {
 // acting as themselves: the server's denial for that user already counts
 // supervisee access (board_caching update_available_boards). Anything less
 // certain keeps today's fallback to the local copy.
-export function route_refuses_local(err, appState, board) {
+export function route_refuses_local(err, appState, board, options) {
   if(!real_denial(err)) { return false; }
   // A home or sidebar board keeps its local copy, as blocks_route spares it.
+  if(is_protected_board(board, appState)) { return false; }
+  // Speak Mode keeps the local copy, as before: the communicator keeps a voice. The Modern board page
+  // passes ignore_speak_mode, because it turns Speak Mode on for everyone.
+  if(!(options && options.ignore_speak_mode) && appState && typeof appState.get === 'function' && appState.get('speak_mode')) { return false; }
+  return acting_as_self(appState);
+}
+
+export function is_protected_board(board, appState) {
   var id = board && typeof board.get === 'function' ? board.get('id') : null;
   var key = board && typeof board.get === 'function' ? board.get('key') : null;
   var refs = protected_board_refs(appState);
-  if((id && refs[id]) || (key && refs[key])) { return false; }
-  // Speak Mode keeps the local copy, as before: the communicator keeps a voice.
-  if(appState && typeof appState.get === 'function' && appState.get('speak_mode')) { return false; }
-  return acting_as_self(appState);
+  return !!((id && refs[id]) || (key && refs[key]));
 }
 
 // The signed-in user is loaded and is acting as themselves. Before the session
@@ -633,9 +654,9 @@ function acting_as_self(appState) {
 // blocks_route for every board route (routes/board.js and the Basic and Modern
 // views under routes/user/), with the guards route_refuses_local applies: never
 // while acting as another user, and never before the session user is loaded.
-export function blocks_view_route(board, appState, online) {
+export function blocks_view_route(board, appState, online, options) {
   if(online || !acting_as_self(appState)) { return RSVP.resolve(false); }
-  return blocks_route(board, appState, online);
+  return blocks_route(board, appState, online, options);
 }
 
 // The unavailable-board record a blocked board route resolves with: its error
@@ -719,5 +740,8 @@ export default {
   unavailable_record: unavailable_record,
   reload_from_server: reload_from_server,
   local_copy_unless_denied: local_copy_unless_denied,
-  reset_for_tests: reset_for_tests
+  reset_for_tests: reset_for_tests,
+  on_marked: on_marked,
+  has_marked_listener: has_marked_listener,
+  notify_marked: notify_marked
 };

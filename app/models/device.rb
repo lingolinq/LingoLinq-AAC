@@ -290,11 +290,21 @@ class Device < ApplicationRecord
     @expired_keys ||= {}
     @refreshable_keys ||= {}
     new_keys = []
+    # A key issued before the person answered "Trust this Device" carries the organization's idle timeout
+    # (generate_token!). Once the person trusts the device themselves, its own idle limit applies to those keys too,
+    # as it does to every key issued afterwards; a shared or valet device keeps the organization's timeout on these
+    # keys, and so does a device trusted without the person's own counted answer (User#process_params; since
+    # 2026-11-13 a supervisor's or an operator's save cannot change long_token at all). New keys on a row with
+    # long_token set get no organization timeout (generate_token!).
+    # Why: an AAC device is the person's voice, and the standard is working AAC "at all times" (NJC Communication Bill
+    # of Rights; ASHA). Reasoning and sources: PR #1268 and docs/task-management/2026-11-10_offline-followup-proposals.md section 26.
+    trusted_browser = self.token_type == :browser && self.settings['long_token'] == true && self.settings['long_token_owner_choice'] == true && !self.settings['valet']
     keys.each do |k|
       # tokens that haven't been inactive for too long, 
       # AND tokens that were created too long ago (or were
       # scheduled for expiry due to refresh request)
-      inactive_too_long = self.token_type != :integration && k['last_timestamp'] <= Time.now.to_i - (k['timeout'] || self.inactivity_timeout)
+      idle_limit = (trusted_browser ? nil : k['timeout']) || self.inactivity_timeout
+      inactive_too_long = self.token_type != :integration && k['last_timestamp'] <= Time.now.to_i - idle_limit
       needs_refresh = self.token_type == :integration && (Time.now.to_i - (k['timestamp'] || k['last_timestamp']) > (k['timeout'] || self.inactivity_timeout))
       created_too_long_ago = (Time.now.to_i - (k['timestamp'] || k['last_timestamp']) > self.token_timeout) || (k['expire_at'] && k['expire_at'] < Time.now.to_i)
       if created_too_long_ago

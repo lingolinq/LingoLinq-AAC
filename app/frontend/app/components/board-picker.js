@@ -357,7 +357,7 @@ const BoardPicker = Component.extend({
      filter so a public home-board keyboard such as `vocal-flair-112-keyboard`
      can appear in Keyboards even though it is not a brand-set root. */
   _preparePickerBoardList: function(boards, options) {
-    var subjectId = this._subjectBoardUserId();
+    var subjectId = backend_id_of(this._subjectBoardUserId(), this.appState.get('sessionUser')); // backend id, not 'self' (utils/backend_user_id.js)
     var list = (options && options.keepCategoryTagged)
       ? filterRootBoards(boards || [], subjectId)
       : filterBoardsPageTopLevelRoots(boards || [], subjectId);
@@ -731,3 +731,5 @@ BoardPicker.reopen({
 });
 
 export default BoardPicker;
+
+import { backend_id_of } from '../utils/backend_user_id';

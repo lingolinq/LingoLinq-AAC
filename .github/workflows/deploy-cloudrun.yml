@@ -635,7 +635,8 @@ jobs:
         # OPTIONAL (omitted entirely when blank, never set to ""): UPLOADS_S3_CDN,
         # REDIS_NAMESPACE_SUFFIX, REMOTE_EXTRA_DATA, STRIPE_PUBLIC_KEY, NEW_REGISTRATION_EMAIL,
         # MEDIACONVERT_ROLE_ARN, MEDIACONVERT_QUEUE_ARN, MEDIACONVERT_ENDPOINT,
-        # SNS_ARNS, SNS_REGION, SES_EVENTS_QUEUE_URL.
+        # SNS_ARNS, SNS_REGION, OFFLINE_APP_SHELL (the offline app shell's on/off setting,
+        # lib/offline_shell.rb; unset means off; flip it per environment and redeploy), SES_EVENTS_QUEUE_URL.
         # SES_EVENTS_QUEUE_URL (GitHub var APP_SES_EVENTS_QUEUE_URL) turns on SesEventsWorker in
         # the scheduler Job. Set it in the production environment ONLY: staging sends use the same
         # SES configuration set and land on the same queue, and two consumers would split it.
@@ -656,6 +657,7 @@ jobs:
           V_MEDIACONVERT_ENDPOINT: ${{ vars.APP_MEDIACONVERT_ENDPOINT }}
           V_SNS_ARNS: ${{ vars.APP_SNS_ARNS }}
           V_SNS_REGION: ${{ vars.APP_SNS_REGION }}
+          V_OFFLINE_APP_SHELL: ${{ vars.APP_OFFLINE_APP_SHELL }}
           V_SES_EVENTS_QUEUE_URL: ${{ vars.APP_SES_EVENTS_QUEUE_URL }}
         run: |
           set -euo pipefail
@@ -713,6 +715,7 @@ jobs:
                       "APP_MEDIACONVERT_ROLE_ARN=${V_MEDIACONVERT_ROLE_ARN:-}" "APP_MEDIACONVERT_QUEUE_ARN=${V_MEDIACONVERT_QUEUE_ARN:-}" \
                       "APP_MEDIACONVERT_ENDPOINT=${V_MEDIACONVERT_ENDPOINT:-}" \
                       "APP_SNS_ARNS=${V_SNS_ARNS:-}" "APP_SNS_REGION=${V_SNS_REGION:-}" \
+                      "APP_OFFLINE_APP_SHELL=${V_OFFLINE_APP_SHELL:-}" \
                       "APP_SES_EVENTS_QUEUE_URL=${V_SES_EVENTS_QUEUE_URL:-}"; do
             val="${pair#*=}"
             # Shell pattern, not grep: grep is line-oriented and a value containing a newline would
@@ -737,6 +740,7 @@ jobs:
           [ -n "${V_MEDIACONVERT_ENDPOINT:-}" ]  && ev="$ev,MEDIACONVERT_ENDPOINT=$V_MEDIACONVERT_ENDPOINT"
           [ -n "${V_SNS_ARNS:-}" ]               && ev="$ev,SNS_ARNS=$V_SNS_ARNS"
           [ -n "${V_SNS_REGION:-}" ]             && ev="$ev,SNS_REGION=$V_SNS_REGION"
+          [ -n "${V_OFFLINE_APP_SHELL:-}" ]      && ev="$ev,OFFLINE_APP_SHELL=$V_OFFLINE_APP_SHELL"
           # Production only. A repository-level APP_SES_EVENTS_QUEUE_URL would be the FALLBACK for
           # staging and dev (see the header), giving them a second consumer that drains the shared
           # queue and writes email_disabled into the nonprod database. Refuse rather than skip, so

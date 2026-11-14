@@ -735,7 +735,7 @@ export default Component.extend({
 
   // Composes and persists a mix / mix_only / mix_prefer skin string.
   _rebuild_compound_skin: function(id) {
-    var user_id = this.appState.get('sessionUser.id');
+    var user_id = backend_user_id(this.appState.get('sessionUser')); // the real id, not 'self' (utils/backend_user_id.js)
     var skin = id + (user_id ? '::' + user_id : '');
     if(id === 'mix_only' || id === 'mix_prefer') {
       skin = skin + '::limit-';
@@ -1880,11 +1880,11 @@ export default Component.extend({
       /* Invalidate Mine-list snapshot so /boards re-queries after create. */
       try {
         var ownerId = _this.get('model.for_user_id') ||
-          (_this.appState.get('currentUser.id')) ||
+          (backend_user_id(_this.appState.get('currentUser'))) || // backend id, as controllers/user/index.js writes it
           (_this.appState.get('currentUser._actual_id'));
         if (ownerId && ownerId !== 'self') { boardsPageListCache.clear(ownerId); }
-        var selfId = _this.appState.get('currentUser.id') || _this.appState.get('currentUser._actual_id');
-        if (selfId) { boardsPageListCache.clear(selfId); }
+        var selfId = backend_user_id(_this.appState.get('currentUser')); // and 'self', where writes before that keyed it
+        [selfId, 'self'].filter(function(id, i, all) { return id && all.indexOf(id) === i; }).forEach(function(id) { boardsPageListCache.clear(id); });
       } catch (e) { /* non-critical */ }
       modalUtil.close(true);
       editManager.auto_edit(board.get('id'));
@@ -3700,3 +3700,5 @@ export default Component.extend({
     this.set('_uploading_labels', next_map);
   }
 });
+
+import backend_user_id from '../utils/backend_user_id';

@@ -3,6 +3,7 @@
 <AppLoadingOverlay />
 <AppToast />
 <CopyProgressDrawer />
+<SyncProgressDrawer />
 {{!-- The global header is not rendered on board-detail. It used to render on every route and
      board-detail merely translated it off screen, which left its controls in the tab order:
      walking the tab order landed on three of them, all at negative rectTop, so focus moved
@@ -550,7 +551,7 @@
               {{/if}}
               {{#unless this.board.model.uncopyable}}
                 {{#if this.app_state.currentUser}}
-                  <a class='btn btn-default medium_skinny not_really_skinny ll-like-btn' href="#" {{on "click" (this.ctrlAction "star")}}>
+                  <a class='btn btn-default medium_skinny not_really_skinny ll-like-btn' href="#" title={{t "Like this board to keep it on this device for offline use (up to %{limit} liked boards)" key="like_offline_hint_limit" limit=(liked-boards-kept)}} {{on "click" (this.ctrlAction "star")}}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="{{if this.board.model.starred 'currentColor' 'none'}}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top: -3px; vertical-align: middle; color: #e74c6f;"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
                     <span class="wide">{{t "Like" key="star"}}</span>{{#if this.board.model.stars}} <span class="badge">{{this.board.model.stars}}</span>{{/if}}
                   </a>
@@ -607,7 +608,7 @@
               {{/if}}
               {{#unless this.board.model.uncopyable}}
                 {{#if this.app_state.currentUser}}
-                  <button type="button" class="la-board-mobile-menu__item" {{on "click" (this.ctrlAction "star")}}>
+                  <button type="button" class="la-board-mobile-menu__item" title={{t "Like this board to keep it on this device for offline use (up to %{limit} liked boards)" key="like_offline_hint_limit" limit=(liked-boards-kept)}} {{on "click" (this.ctrlAction "star")}}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="{{if this.board.model.starred 'currentColor' 'none'}}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #e74c6f;"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
                     {{t "Like" key="star"}}
                   </button>

@@ -9,7 +9,6 @@ import { is_classic } from '../utils/view_style';
 import { placementForElement, setIdentityDropdownOpen, scrollIntoViewSettled } from '../utils/tours/shared';
 import modal from '../utils/modal';
 import article50Gate from '../utils/article50_gate';
-import boardDetailCache from '../utils/board_detail_cache';
 
 // Tracks which in-body tour-action buttons already have their click handler, so
 // re-shows of the SAME element don't double-bind. A WeakSet (keyed on the element,
@@ -869,106 +868,6 @@ const GuidedTour = Component.extend({
   // _startTour) skip and we route to the board instead.
   _speakHandoffActive: false,
 
-  // Home-tour "I'd like to start speaking / Pick a board (page-set) for me" hand-off.
-  // Routes the user to THEIR OWN copy of Vocal Flair 84 — copied into their library
-  // at registration, at the predictable key `<user_name>/vocal-flair-84` — opened on
-  // board-detail in SPEAK mode, with the speak tour auto-opening there.
-  //
-  // Option B — CHECK + WAIT, never initiate: the copy is scheduled asynchronously at
-  // registration, so it may not exist yet. We poll the board's /tree by key (a plain
-  // read — no copy is triggered here) until it resolves, then route. All runtime (no
-  // build-time state), so it behaves identically on deployment.
-  //
-  // The poll uses the SAME /tree endpoint the board-detail route uses, and ingests
-  // the response (root + descendants) into boardDetailCache + the Ember Data store.
-  // So the poll IS the board load: when we then route, the model hook is a pure cache
-  // HIT — no redundant second network fetch — and every folder tap is already warm.
-  // /tree doubles as the existence check: until the copy materializes it 404s (→
-  // ingest_tree returns false / the request rejects) and we keep polling.
-  _startSpeakingHandoff: function() {
-    var _this = this;
-    var appState = _this.get('appState');
-    var user = appState.get('currentUser');
-    var userName = user && user.get('user_name');
-    if (!userName) { return; }
-    var boardname = 'vocal-flair-84';
-    var key = userName + '/' + boardname;
-    var warm_opts = {
-      skin: user.get('preferences.skin'),
-      preferred_symbols: user.get('preferences.preferred_symbols')
-    };
-    // Take over the tour end (suppress the default board-picker hand-off), then
-    // close the tour.
-    _this.set('_speakHandoffActive', true);
-    try {
-      var to = _this.get('tour.tourObject');
-      if (to && typeof to.cancel === 'function') { to.cancel(); }
-    } catch (e) { /* best-effort */ }
-    appState.show_loading_overlay(i18n.t('loading_your_board', "Loading your board..."));
-    var attempts = 0;
-    var MAX_ATTEMPTS = 15; // ~15s at 1s intervals, then fall back to the board-picker
-    var go = function() {
-      if (_this.isDestroyed || _this.isDestroying) { return; }
-      // Flag the board-detail SPEAK tour to auto-open once we land on THIS board
-      // (runtime hand-off flag; the board-detail route hides the overlay on load).
-      // Clear the manual-replay companion explicitly: a "Take a tour" request that
-      // was never consumed (user navigated away first) would otherwise still be
-      // set here and make this AUTO open skip its once-per-user bookkeeping,
-      // re-creating the every-pick re-fire this flag pair exists to prevent.
-      appState.set('board_detail_tour_speak_manual', false);
-      appState.set('board_detail_tour_pending_speak', key);
-      var t = _this.get('router').transitionTo('user.board-detail', userName, boardname);
-      if (t && typeof t.catch === 'function') {
-        t.catch(function() {
-          // Transition failed: clear the pending flag so the speak tour doesn't
-          // auto-open on an unrelated future board-detail visit.
-          appState.set('board_detail_tour_pending_speak', false);
-          appState.hide_loading_overlay();
-        });
-      }
-    };
-    var retry = function() {
-      attempts++;
-      if (attempts >= MAX_ATTEMPTS) {
-        // The owned VF84 copy never materialized within the window — most likely
-        // the backend copy gate (signup_default_library_boards) is off on this
-        // deployment, or the copy is unusually slow. Don't dead-end the user on an
-        // error modal: fall back to the standalone board-picker (the same "pick a
-        // board" destination the rest of the tour uses), where the copy will show
-        // up once it lands. The board-picker route hides the overlay on load.
-        var t = _this.get('router').transitionTo('board-picker');
-        if (t && typeof t.catch === 'function') {
-          t.catch(function() { appState.hide_loading_overlay(); });
-        }
-        return;
-      }
-      runLater(_this, check, 1000);
-    };
-    var check = function() {
-      if (_this.isDestroyed || _this.isDestroying) { return; }
-      // CHECK + PRIME — a plain GET of the owned copy's /tree by key. Does NOT
-      // initiate a copy. On success, prime the board-detail cache so the route
-      // is a cache hit; if the copy hasn't materialized, ingest_tree returns
-      // false (no usable root) and we keep polling.
-      // Encode the user-supplied user_name segment (boardname is a safe literal);
-      // the '/' separator stays literal since the board key is `username/boardname`.
-      _this.get('persistence').ajax('/api/v1/boards/' + encodeURIComponent(userName) + '/' + boardname + '/tree', { type: 'GET' }).then(function(data) {
-        // The poll can settle after the component is torn down (tour closed /
-        // route left) — bail so go()/retry() don't run on a destroyed component.
-        if (_this.isDestroyed || _this.isDestroying) { return; }
-        if (boardDetailCache.ingest_tree(data, warm_opts, { force: true })) {
-          go();
-        } else {
-          retry();
-        }
-      }, function() {
-        if (_this.isDestroyed || _this.isDestroying) { return; }
-        retry();
-      });
-    };
-    check();
-  },
-
   // Board-detail edit auto-open. Unlike the home auto-open there's NO handoff —
   // the user stays here editing. The edit grid loads asynchronously after the
   // route transition, so wait (poll briefly) until a button cell is on screen so
@@ -1263,8 +1162,8 @@ const GuidedTour = Component.extend({
       }
       // ONE GUARD, SHARED BY BOTH HANDOFF BRANCHES BELOW — it was written out twice,
       // identically, and a third copy was about to be added for the arming listener.
-      // Refuse the handoff when the "start speaking" body button took over (it routes to
-      // the user's board in speak mode instead of the board picker; _startSpeakingHandoff
+      // Refuse the handoff when a welcome button took over (it routes to the user's board
+      // in speak mode or to the picker itself instead of this handoff; _welcomeAction
       // sets _speakHandoffActive before cancelling the tour), and once the user is already
       // on board-detail: a stale home-tour cancel/complete must never yank them back to
       // /board-picker after "Pick this Board" (Skip/X on the speak tour).

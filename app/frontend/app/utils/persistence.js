@@ -17,7 +17,6 @@ import contentGrabbers from './content_grabbers';
 import Utils from './misc';
 import modal from './modal';
 import capabilities from './capabilities';
-import boardPrefetchPlanner from './board_prefetch_planner';
 import rewriteBrokenSymbolUrl from './symbol-url';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
@@ -649,7 +648,7 @@ var persistence = EmberObject.extend({
       return persistence.store(store, obj, key);
     }
     persistence.eventual_store = persistence.eventual_store || [];
-    persistence.eventual_store.push([store, obj, key, true]);
+    queue_eventual_store(persistence.eventual_store, store, obj, key); // one waiting save per record
     if(!persistence.eventual_store_timer) {
       persistence.eventual_store_timer = runLater(persistence, persistence.next_eventual_store, sync_test_delay(100));
     }
@@ -1518,9 +1517,9 @@ var persistence = EmberObject.extend({
     if(!persistence.storing_urls) {
       persistence.storing_url_watchers = 0;
       persistence.storing_urls = function() {
-        if(persistence.urls_to_store && persistence.urls_to_store.length > 0) {
+        if(drop_stale_head(persistence.urls_to_store, safeGet(getPersistence(), 'sync_progress')) > 0) { // items of a sync that is no longer running are resolved first, in a loop (utils/url_store_queue.js)
           var opts = persistence.urls_to_store.shift();
-          var part_of_canceled = opts.sync_id && (!safeGet(getPersistence(), 'sync_progress') || safeGet(getPersistence(), 'sync_progress.canceled'));
+          var part_of_canceled = is_stale_item(opts, safeGet(getPersistence(), 'sync_progress'));
           if(!part_of_canceled) {
             persistence.store_url_now(opts.url, opts.type, opts.keep_big, opts.force_reload).then(function(res) {
               opts.defer.resolve(res);
@@ -1530,7 +1529,7 @@ var persistence = EmberObject.extend({
               if(persistence.storing_urls) { persistence.storing_urls(); }
             });
           } else {
-            opts.defer.resolve({});
+            opts.defer.resolve({}); if(persistence.storing_urls) { persistence.storing_urls(); } // a worker must never stop here: stopping froze the queue after a cancel
           }
         } else {
           persistence.storing_url_watchers--;
@@ -1586,12 +1585,12 @@ var persistence = EmberObject.extend({
                   url.match(/d18vdu4p71yql0.cloudfront.net/) || url.match(/dc5pvf6xvgi7y.cloudfront.net/);
       var uploads_bucket = url.match(/lingolinq[^/]*-uploads\.s3\.amazonaws\.com/) ||
         url.match(/s3\.amazonaws\.com\/lingolinq[^/]*-uploads/);
-      var cors_match = trusted_not_to_change || uploads_bucket ||
+      var cors_match = trusted_not_to_change || uploads_bucket || on_uploads_cdn(url, type) ||
         url.match(/api\/v\d+\/users\/.+\/protected_image/) || url.match(/api\/v\d+\/lang/);
       if(trusted_not_to_change && url.match(/usercontent/) && url.match(/\/extras\//)) {
         trusted_not_to_change = false;
       }
-      var check_for_local = !!trusted_not_to_change;
+      trusted_not_to_change = trusted_not_to_change || ((type == 'image' || type == 'sound') && is_permanent_upload_url(url)); var check_for_local = !!trusted_not_to_change; // after cors_match: the fetch route is unchanged (utils/permanent_upload.js)
 
       if(capabilities.installed_app) { check_for_local = true; }
       if(check_for_local) {
@@ -1619,7 +1618,7 @@ var persistence = EmberObject.extend({
           return new RSVP.Promise(function(xhr_resolve, xhr_reject) {
             var xhr = new XMLHttpRequest();
             xhr.addEventListener('load', function(r) {
-              if(xhr.status == 200) {
+              if(xhr.status == 200 && !is_web_page(xhr.getResponseHeader('Content-Type'))) {
                 contentGrabbers.read_file(xhr.response).then(function(s) {
                   xhr_resolve({
                     url: url,
@@ -1689,17 +1688,17 @@ var persistence = EmberObject.extend({
         if(encryption_settings && (object.content_type || '').match(/json/)) {
           var str = object.data_uri && object.data_uri.match(/,/) && atob(object.data_uri.split(/,/)[1]);
           if(str && str.match(/^aes256-/)) {
-            // if it's encrypted, try decrypting it and generating a
-            // new data-uri before continuing
+            // if it's encrypted, decrypt it and keep only the parsed list
+            // before continuing
             return persistence.decrypt_json(str, encryption_settings).then(function(res) {
               parsed_json_payload = res;
               object.json_payload = res;
-              try {
-                var json_str = JSON.stringify(res);
-                object.data_uri = "data:application/json;base64," + btoa(unescape(encodeURIComponent(json_str)));
-              } catch(e) {
-                object.data_uri = null;
-              }
+              // Saved once (#1221): neither the encrypted original nor a re-encoded
+              // base64 copy of the same list is kept (a 1.73 MB list made a 4.2 MB
+              // row). Every reader returns json_payload first (find_url, find_json,
+              // store_json); JSON that is not encrypted still keeps its data URI.
+              // Rows saved before this change keep both until they are replaced.
+              object.data_uri = null;
               return object;
             });
           } else {
@@ -1732,7 +1731,7 @@ var persistence = EmberObject.extend({
         if(safeGet(getPersistence(), 'local_system.available') && safeGet(getPersistence(), 'local_system.allowed') && safeGet(getStashes(), 'auth_settings')) {
           // Encrypted extra_data JSON (button sets, etc.): IndexedDB dataCache
           // is sufficient. FileSystem writes for large JSON blobs often fail
-          // (quota / Chrome PERSISTENT FS limits); find_json reads data_uri.
+          // (quota / Chrome PERSISTENT FS limits); readers take json_payload, else data_uri.
           if(type == 'json' && (object.data_uri || object.json_payload)) {
             if(!object.persisted) {
               object.persisted = true;
@@ -2475,9 +2474,9 @@ var persistence = EmberObject.extend({
         stashes.persist('last_sync_status', 'failed');
         safeSet(getPersistence(), 'sync_status_error', null);
         if(err.board_unauthorized) {
-          safeSet(getPersistence(), 'sync_status_error', i18n.t('board_unauthorized', "One or more boards are private"));
+          safeSet(getPersistence(), 'sync_status_error', i18n.t('board_unauthorized', "One or more boards are private."));
         } else if(!safeGet(getPersistence(), 'online')) {
-          safeSet(getPersistence(), 'sync_status_error', i18n.t('online_required_to_sync', "Must be online to sync"));
+          safeSet(getPersistence(), 'sync_status_error', i18n.t('online_required_to_sync', "Must be online to sync."));
         }
         var message = (err && err.error) || "unspecified sync error";
         statuses = Utils.uniq(statuses, function(s) { return s.id; });
@@ -3073,7 +3072,7 @@ var persistence = EmberObject.extend({
     });
 
     var sync_all_boards = get_sounds.then(function() {
-      var startBoardSync = function(listData) {
+      var startBoardSync = function() {
         return new RSVP.Promise(function(resolve, reject) {
         var persist = getPersistence();
         if(!persist || persist.isDestroyed || persist.isDestroying || !safeGet(persist, 'sync_progress') || safeGet(persist, 'sync_progress.canceled')) {
@@ -3084,53 +3083,9 @@ var persistence = EmberObject.extend({
           resolve();
           return;
         }
-        var to_visit_boards = [];
-        var backgroundPrefetch = user && boardPrefetchPlanner.backgroundBoardPrefetchEnabled(user);
-        if(user.get('preferences.home_board.id')) {
-          var board = user.get('preferences.home_board');
-          board.depth = 0;
-          board.visit_source = "home board";
-          to_visit_boards.push(board);
-        }
-        if(user.get('preferences.sidebar_boards')) {
-          user.get('preferences.sidebar_boards').forEach(function(b) {
-            if(b.key) {
-              to_visit_boards.push({key: b.key, depth: 1, image: b.image, visit_source: "sidebar board"});
-            }
-          });
-        }
-        if(backgroundPrefetch) {
-          var phased = boardPrefetchPlanner.buildPhasedLookups(user, {
-            ownedBoards: listData && listData.ownedBoards,
-            catalogBoards: listData && listData.catalogBoards,
-            globalBoards: listData && listData.globalBoards,
-            includeLiked: true
-          });
-          to_visit_boards = to_visit_boards.concat(
-            boardPrefetchPlanner.lookupsToSyncSeeds(phased.phase2, 'starred board', 0)
-          );
-          to_visit_boards = to_visit_boards.concat(
-            boardPrefetchPlanner.lookupsToSyncSeeds(phased.phase3, 'owned root', 0)
-          );
-          if(boardPrefetchPlanner.publicPrefetchEnabled(user)) {
-            to_visit_boards = to_visit_boards.concat(
-              boardPrefetchPlanner.lookupsToSyncSeeds(phased.phase4, 'public root', 0)
-            );
-          }
-        } else if(user.get('preferences.sync_starred_boards') === true || (!user.get('preferences.home_board.id') && user.get('preferences.sync_starred_boards') !== false)) {
-          var sync_all = user.get('preferences.sync_starred_boards') === true;
-          user.get('stats.starred_board_refs').forEach(function(ref) {
-            if(sync_all || !ref.suggested) {
-              if(ref.style && ref.style.options) {
-                ref.style.options.forEach(function(opt) {
-                  to_visit_boards.push({key: opt.key, depth: 1, image: opt.url || ref.image_url, visit_source: "suggested board"});
-                })
-              } else {
-                to_visit_boards.push({key: ref.key, depth: 1, image: ref.image_url, visit_source: ref.suggested ? "suggested board" : "starred board"});
-              }
-            }
-          });
-        }
+        // Home, sidebar, starred and Crisis Vocabulary (#1221; utils/offline_sync_seeds.js). Not the person's
+        // other boards, the starter copies made at sign-up, or public boards: to have a board on the device, star it.
+        var to_visit_boards = offlineSyncSeeds.seeds(user);
         var safely_cached_boards = {};
         var checked_linked_boards = {};
 
@@ -3179,7 +3134,7 @@ var persistence = EmberObject.extend({
               var content_promises = 0;
               var safely_cached = !!safely_cached_boards[board.id];
               // force a reload of the buttonset if the board changed
-              if((next.depth == 0 && next.visit_source == 'home board') || (next.depth == 1 && next.visit_source == 'sidebar board') || (next.depth == 0 && next.visit_source == 'starred board') || (next.depth == 0 && next.visit_source == 'owned root') || (next.depth == 0 && next.visit_source == 'public root')) {
+              if(offlineSyncSeeds.gets_button_set(next)) { // every board the sync starts from (utils/offline_sync_seeds.js)
                 // Confirm if the button set is stored locally
                 persistence.find('buttonset', board.get('id')).then(function(bs) {
                   if(bs.full_set_revision != local_full_set_revision && !bs.buttons && !safely_cached) {
@@ -3513,20 +3468,6 @@ var persistence = EmberObject.extend({
       });
       };
 
-      if(user && boardPrefetchPlanner.backgroundBoardPrefetchEnabled(user)) {
-        return boardPrefetchPlanner.fetchBoardListsForPrefetch(
-          persistence.ajax.bind(persistence),
-          user,
-          {
-            includeOwned: true,
-            includePublic: boardPrefetchPlanner.publicPrefetchEnabled(user)
-          }
-        ).then(function(listData) {
-          return startBoardSync(listData);
-        }, function() {
-          return startBoardSync(null);
-        });
-      }
       return startBoardSync(null);
     });
 
@@ -4693,3 +4634,8 @@ export default persistenceProxy;
 // Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
 import boardRevocation from './board_revocation';
 import { keep_queued_keys, replay_save_options } from './preference_save';
+import offlineSyncSeeds from './offline_sync_seeds';
+import { queue_eventual_store } from './eventual_store_queue';
+import { is_permanent_upload_url } from './permanent_upload';
+import { on_uploads_cdn, is_web_page } from './direct_fetch';
+import { is_stale_item, drop_stale_head } from './url_store_queue';

@@ -20,7 +20,8 @@ import modal from '../modal';
 import { copy_or_reuse_as_home } from '../board-copy';
 import { arm_board_tour, mark_tour_offered } from './tour_offer';
 
-export const STARTER_BOARD_KEY = 'lingolinq/vocal-flair-60';
+import { STARTER_BOARD_KEY } from '../starter_board';
+export { STARTER_BOARD_KEY };
 
 export function start_talking_now(opts) {
   var appState = opts.appState;

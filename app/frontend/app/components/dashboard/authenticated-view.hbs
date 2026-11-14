@@ -32,7 +32,7 @@
     <DashboardUserBoards @user={{this.boardsEmbedUser}} @isActive={{true}} @dashboardDelegate={{this}} />
   </main>
   {{else}}
-  <main class="md-main">
+  <main class="md-main" id="dashboard-main" tabindex="-1">
     <header class="md-hero md-hero--dashboard" style={{this.heroHideStyle}}>
       {{#if (is-equal this.activeTab "extras")}}
         <h1 class="md-hero__title"><span class="md-hero__title--from-left">{{t "More Tools & Resources" key="more_tools"}}</span></h1>
@@ -63,12 +63,12 @@
          Home tab only. --}}
     {{#if (is-equal this.activeTab "home")}}
       {{#if this.appState.currentUser.pending_org}}
-      <section class="md-pending-notice" role="status">
+      <section class="md-pending-notice" aria-labelledby="pending-org-notice">
         <span class="md-pending-notice__icon" aria-hidden="true">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4M10 10h4M10 14h4"/></svg>
         </span>
         <div class="md-pending-notice__body">
-          <p class="md-pending-notice__text">{{t "%{org} wants to support this user as part of their organization. This addition must be approved before it is complete. If approved, the organization will have access to profile information for this user." key="confirm_pending_org2" org=this.appState.currentUser.pending_org.name}}{{#if this.appState.currentUser.pending_org.sponsored}} {{t "The organization will also sponsor this account, meaning it will be free as long as the organization remains a sponsor." key="org_sponsored"}}{{/if}}</p>
+          <p id="pending-org-notice" class="md-pending-notice__text" role="status">{{t "%{org} wants to support this user as part of their organization. This addition must be approved before it is complete. If approved, the organization will have access to profile information for this user." key="confirm_pending_org2" org=this.appState.currentUser.pending_org.name}}{{#if this.appState.currentUser.pending_org.sponsored}} {{t "The organization will also sponsor this account, meaning it will be free as long as the organization remains a sponsor." key="org_sponsored"}}{{/if}}</p>
           <div class="md-pending-notice__actions">
             <button type="button" class="md-btn md-btn--primary" {{on "click" (fn this.onApproveOrRejectOrg "user_approve")}}>{{t "Approve %{org}" key="approve_org" org=this.appState.currentUser.pending_org.name}}</button>
             <button type="button" class="md-btn md-btn--ghost md-pending-notice__deny" {{on "click" (fn this.onApproveOrRejectOrg "user_reject")}}>{{t "Deny Access" key="deny_access"}}</button>
@@ -76,12 +76,12 @@
         </div>
       </section>
       {{else if this.appState.currentUser.pending_supervision_org}}
-      <section class="md-pending-notice" role="status">
+      <section class="md-pending-notice" aria-labelledby="pending-supervision-notice">
         <span class="md-pending-notice__icon" aria-hidden="true">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         </span>
         <div class="md-pending-notice__body">
-          <p class="md-pending-notice__text">{{t "%{org} wants to add you as a supervisor to their organization. Organization admins will be able to see your basic profile information, including the communicators in the organization that you are currently supervising." key="confirm_pending_supervision_org" org=this.appState.currentUser.pending_supervision_org.name}}</p>
+          <p id="pending-supervision-notice" class="md-pending-notice__text" role="status">{{t "%{org} wants to add you as a supervisor to their organization. Organization admins will be able to see your basic profile information, including the communicators in the organization that you are currently supervising." key="confirm_pending_supervision_org" org=this.appState.currentUser.pending_supervision_org.name}}</p>
           <div class="md-pending-notice__actions">
             <button type="button" class="md-btn md-btn--primary" {{on "click" (fn this.onApproveOrRejectOrg "supervisor_approve")}}>{{t "Approve %{org}" key="approve_org" org=this.appState.currentUser.pending_supervision_org.name}}</button>
             <button type="button" class="md-btn md-btn--ghost md-pending-notice__deny" {{on "click" (fn this.onApproveOrRejectOrg "supervisor_reject")}}>{{t "Deny Access" key="deny_access"}}</button>
@@ -92,12 +92,12 @@
       {{!-- Sync failed. Automatic syncs fail without a popup, so this is the Modern view's
            only sign that the boards may not be ready offline (sync_failed_notice). --}}
       {{#if this.sync_failed_notice}}
-      <section class="md-pending-notice" role="status" data-test-sync-failed-notice>
+      <section class="md-pending-notice" aria-labelledby="sync-failed-notice-text" data-test-sync-failed-notice>
         <span class="md-pending-notice__icon" aria-hidden="true">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 14.3-4.8"/><polyline points="18 2 18 8 12 8"/><path d="M20 12a8 8 0 0 1-14.3 4.8"/><polyline points="6 22 6 16 12 16"/></svg>
         </span>
         <div class="md-pending-notice__body">
-          <p class="md-pending-notice__text">{{t "Sync failed. Some boards may not be ready to use offline." key="sync_failed_notice"}}{{#if (persistence-value 'sync_status_error')}} {{persistence-value 'sync_status_error'}}{{/if}}</p>
+          <p id="sync-failed-notice-text" class="md-pending-notice__text" role="status">{{t "Sync failed. Some boards may not be ready to use offline." key="sync_failed_notice"}}{{#if (persistence-value 'sync_status_error')}} {{persistence-value 'sync_status_error'}}{{/if}}</p>
           <div class="md-pending-notice__actions">
             {{#if (persistence-online)}}
               <button type="button" class="md-btn md-btn--primary" {{on "click" this.onSync}}>{{t "Try Again" key="try_again"}}</button>

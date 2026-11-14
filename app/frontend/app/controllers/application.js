@@ -646,8 +646,8 @@ export default Controller.extend({
       return this.appState.get('domain_settings.full_domain') || session.get('isAuthenticated');
     }
   ),
-  setup_for_other: computed('appState.currentUser.id', 'setup_user_id', function() {
-    if(this.get('setup_user_id') && this.get('setup_user_id') != this.appState.get('currentUser.id')) {
+  setup_for_other: computed('appState.currentUser.id', 'appState.sessionUser.id', 'setup_user_id', function() {
+    if(this.get('setup_user_id') && !same_person(this.get('setup_user_id'), this.appState.get('currentUser'), this.appState.get('sessionUser'))) { // 'self' vs real-id (utils/backend_user_id.js)
       return LingoLinq.store.peekRecord('user', this.get('setup_user_id'));
     } else {
       return null;
@@ -2612,3 +2612,5 @@ export default Controller.extend({
 
 // Imported last so the .eslint-todo rows above keep their lines.
 import { set_word_prediction } from '../utils/word_prediction_pref';
+
+import { same_person } from '../utils/backend_user_id';

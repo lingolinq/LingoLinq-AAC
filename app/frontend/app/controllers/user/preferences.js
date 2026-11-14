@@ -1055,6 +1055,13 @@ export default Controller.extend({
       _this.set('can_record_tags', false);
     });
   }),
+  // "Keep me logged in on this private device" sets whether this device is trusted, which only the person may change
+  // (app/models/user.rb process_params drops it from anyone else's save, an operator acting as them included). Shown in
+  // Advanced on your own preferences only, and not while someone acts as you (session.as_user_id).
+  show_session_timeout: computed('advanced', 'model', 'appState.sessionUser', 'session.as_user_id', function() {
+    var me = this.get('appState.sessionUser');
+    return !!this.get('advanced') && !this.get('session.as_user_id') && same_person(this.get('model'), me, me);
+  }),
   actions: {
     plus_minus: function(direction, attribute) {
       if(attribute && attribute.indexOf('this.') === 0) {
@@ -1212,6 +1219,10 @@ export default Controller.extend({
             if(['string', 'boolean', 'number'].indexOf(typeof(pending[key][dkey])) != -1) {
               if(pending[key][dkey] != orig[key][dkey]) {
                 user.set('preferences.device.' + dkey, pending[key][dkey]);
+                // The person changed "Keep me logged in on this private device": stamp the explicit choice
+                // (utils/trust_choice.js). The control is shown only on your own account; the server drops the
+                // value from anyone else's save.
+                if(dkey === 'long_token') { record_trust_choice(user, pending[key][dkey]); }
               }
             } else if(pending[key][dkey] == null) {
               if(orig[key][dkey] == null) { } else {
@@ -1249,6 +1260,7 @@ export default Controller.extend({
         _this.set('status', null);
         if(user.get('id') == app_state.get('currentUser.id')) {
           app_state.set('currentUser', user);
+        } else { reload_live_user_if_other_record(user, app_state); // the same person under the other record ('self' vs the real id, utils/backend_user_id.js)
         }
         if(!skip_redirect) {
           _this.router.transitionTo('user', user.get('user_name'));
@@ -1495,3 +1507,6 @@ export default Controller.extend({
     }
   }
 });
+import { record_trust_choice } from '../../utils/trust_choice'; // at the end so the lint baseline rows keep their lines
+
+import { reload_live_user_if_other_record, same_person } from '../../utils/backend_user_id';

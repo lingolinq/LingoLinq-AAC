@@ -25,7 +25,7 @@ export default Component.extend({
   visible: computed('appState.{tour_offer_visible,speak_mode,tour_offer_user}', 'appState.currentUser.id', function() {
     var appState = this.get('appState');
     return !!(appState.get('tour_offer_visible') && appState.get('speak_mode') &&
-      appState.get('currentUser.id') === appState.get('tour_offer_user'));
+      same_person(appState.get('currentUser'), appState.get('tour_offer_user'), appState.get('sessionUser')));
   }),
 
   _speakModeWatcher: observer('appState.speak_mode', function() {
@@ -37,3 +37,4 @@ export default Component.extend({
     }, LEFT_SPEAK_MODE_MS);
   })
 });
+import { same_person } from '../utils/backend_user_id';

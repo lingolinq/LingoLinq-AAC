@@ -5,6 +5,7 @@ import { htmlSafe } from '@ember/template';
 import modal from '../utils/modal';
 import stashes from '../utils/_stashes';
 import i18n from '../utils/i18n';
+import backend_user_id from '../utils/backend_user_id';
 
 /**
  * Record Note modal (Phase 2).
@@ -196,13 +197,14 @@ export default Component.extend({
           goal_id: _this.get('goal_id'),
           goal_status: _this.get('goal_status'),
           notify: notify
-        }, _this.get('model.id'));
+        }, backend_user_id(_this.get('model')));
         stashes.push_log(true);
         _this.get('modal').close(true);
       };
       if (this.get('persistence').get('online')) {
         const log = _this.get('store').createRecord('log', {
-          user_id: _this.get('model.id'),
+          // A nested log[user_id] is not rewritten from 'self' by the server, so send the backend id.
+          user_id: backend_user_id(_this.get('model')),
           note: note,
           timestamp: Date.now() / 1000,
           notify: notify,
