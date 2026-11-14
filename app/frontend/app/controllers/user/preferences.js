@@ -1055,6 +1055,12 @@ export default Controller.extend({
       _this.set('can_record_tags', false);
     });
   }),
+  // "Keep me logged in on this private device" sets whether this device is trusted, which only the person may change
+  // (app/models/user.rb process_params drops it from anyone else's save). Shown in Advanced on your own preferences only.
+  show_session_timeout: computed('advanced', 'model', 'appState.sessionUser', function() {
+    var me = this.get('appState.sessionUser');
+    return !!this.get('advanced') && same_person(this.get('model'), me, me);
+  }),
   actions: {
     plus_minus: function(direction, attribute) {
       if(attribute && attribute.indexOf('this.') === 0) {
@@ -1502,4 +1508,4 @@ export default Controller.extend({
 });
 import { record_trust_choice } from '../../utils/trust_choice'; // at the end so the lint baseline rows keep their lines
 
-import { reload_live_user_if_other_record } from '../../utils/backend_user_id';
+import { reload_live_user_if_other_record, same_person } from '../../utils/backend_user_id';

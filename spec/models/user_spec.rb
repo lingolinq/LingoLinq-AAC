@@ -1951,8 +1951,8 @@ describe User, :type => :model do
 
     # PASS 2 OF THE FINAL REVIEW OF #1268 (Traci, 2026-11-11). A trusted browser device lifts the organization's idle
     # timeout from keys issued before trust (Device#clean_old_keys). Only the person's own explicit answer, on their
-    # own device, may do that: a supervisor's save and a replayed old save still set long_token as they always have,
-    # but do not record an owner choice, so the organization timeout keeps applying.
+    # own device, may do that. Since 2026-11-13 (Traci) only the person may change long_token at all: a supervisor's or
+    # an operator's save leaves the device's trust as it is.
     # The app says how many liked boards a sync keeps from its own constant (app/frontend/app/utils/like_limit.js
     # LIKED_BOARDS_KEPT); it must match the number the server actually lists.
     it "keeps the app's liked-boards limit equal to LIKED_BOARD_REFS_LIMIT" do
@@ -1985,19 +1985,53 @@ describe User, :type => :model do
         expect(d.settings['long_token_owner_choice']).to eq(false)
       end
 
-      it "is not recorded for a supervisor's save, which still sets long_token as before" do
+      # Only the person may change whether their device is trusted (Traci, 2026-11-13; this example used to expect a
+      # supervisor's save to set long_token "as before", the 2026-11-11 decision it replaces). users#update writes a
+      # supervisor's device preferences onto the person's most recent device, and a trusted row gets no organization
+      # timeout on later sign-ins (Device#generate_token!), so the save drops the trust fields from anyone else.
+      it "is not recorded for a supervisor's save, which leaves the device's trust unchanged" do
         u, d = owner_and_device
         supervisor = User.create
         u.process_params({'preferences' => {'device' => {'long_token' => true, 'long_token_chosen_at' => Time.now.to_i}}}, {'device' => d, 'updater' => supervisor})
+        expect(d.reload.settings['long_token']).to eq(nil)
+        expect(d.settings['long_token_owner_choice']).to_not eq(true)
+      end
+
+      it "leaves a trusted device trusted when a supervisor's save says Shared" do
+        u, d = owner_and_device
+        d.settings['long_token'] = true
+        d.settings['long_token_owner_choice'] = true
+        d.save
+        supervisor = User.create
+        u.process_params({'preferences' => {'device' => {'long_token' => false}}}, {'device' => d, 'updater' => supervisor})
         expect(d.reload.settings['long_token']).to eq(true)
-        expect(d.settings['long_token_owner_choice']).to eq(false)
+        expect(d.settings['long_token_owner_choice']).to eq(true)
+      end
+
+      it "does not take a supervisor's asserted flag, which would clear a temporary device" do
+        u, d = owner_and_device
+        d.settings['temporary_device'] = true
+        d.save
+        supervisor = User.create
+        u.process_params({'preferences' => {'device' => {'long_token' => true, 'asserted' => true}}}, {'device' => d, 'updater' => supervisor})
+        expect(d.reload.settings['temporary_device']).to eq(true)
+        expect(u.settings['preferences']['devices'].values.map { |v| v['asserted'] }.compact).to eq([]), 'nor stored with the preferences'
+      end
+
+      it "still saves a supervisor's other device preferences" do
+        u, d = owner_and_device
+        supervisor = User.create
+        u.process_params({'preferences' => {'device' => {'long_token' => true, 'something' => 'kept'}}}, {'device' => d, 'updater' => supervisor})
+        expect(u.settings['preferences']['devices'].values.map { |v| v['something'] }).to include('kept')
+        expect(u.settings['preferences']['devices'].values.map { |v| v['long_token'] }.compact).to eq([])
       end
 
       it "is not recorded when someone acts for the person" do
         u, d = owner_and_device
         admin = User.create
         u.process_params({'preferences' => {'device' => {'long_token' => true, 'long_token_chosen_at' => Time.now.to_i}}}, {'device' => d, 'updater' => u, 'operator' => admin})
-        expect(d.reload.settings['long_token_owner_choice']).to eq(false)
+        expect(d.reload.settings['long_token_owner_choice']).to_not eq(true)
+        expect(d.settings['long_token']).to eq(nil), 'nor is the trust value written'
       end
 
       it "is not recorded on a device that is not the person's" do

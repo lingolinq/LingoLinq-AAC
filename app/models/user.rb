@@ -3864,6 +3864,17 @@ class User < ApplicationRecord
       # The client's stamp of an explicit Trust/Shared answer is a request marker: never stored in preferences or echoed
       # (the device row keeps the newest accepted one, below).
       chosen_at = device.delete('long_token_chosen_at')
+      # Only the person may change whether their device is trusted (Traci, 2026-11-13). users#update writes a
+      # supervisor's device preferences onto the person's most recent device (Api::UsersController#update), and a
+      # trusted row gets no organization idle timeout on later sign-ins (Device#generate_token!). So a save from anyone
+      # else (another updater, an operator acting for the person, or a device that is not theirs) drops the trust
+      # fields; their other device preferences are still saved. A call with no updater is server code, unchanged.
+      trust_updater = non_user_params['updater']
+      trust_device = non_user_params['device']
+      if (trust_updater && trust_updater.id != self.id) || non_user_params['operator'] || (trust_device && trust_device.user_id != self.id)
+        device.delete('long_token')
+        device.delete('asserted')
+      end
       if non_user_params['device'] && device['long_token'] != nil
         # Pass 2 of the final review of #1268 (Traci, 2026-11-11): every writer still sets long_token as before
         # (a supervisor's save included); only the person's own explicit answer on their own device records

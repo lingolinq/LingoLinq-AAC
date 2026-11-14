@@ -1628,3 +1628,28 @@ earlier copy (`Device#valid_token?`, two answers from two tabs), so a lost updat
 to the person's own row. The spec line that reloaded the user (which `process_params` never saves) now checks the
 in-memory preferences for both key names. New cases: the in-window reorder, the slow clock. Mutations: the 072eca71b
 rule fails the reorder case; dropping the corrected-clock exception fails its case. 14 trust cases pass.
+
+## 31. Only the person may change whether their device is trusted (2026-11-13; Traci: fix it in this PR)
+
+**Cause (CONFIRMED).** `Api::UsersController#update` (`app/controllers/api/users_controller.rb:226-240`): when a
+supervisor saves a communicator's preferences with device settings, the device is the communicator's most recently used
+one, and `User#process_params` wrote the posted `long_token` (and `asserted`) onto it. The Preferences page offered
+"Session Timeout: Keep me logged in on this private device" on anyone's preferences. A row with `long_token` true gets no
+organization idle timeout on later sign-ins (`Device#generate_token!`), so a supervisor's routine save could turn off a
+classroom device's idle sign-out without anyone at that device choosing it. Open item 3 in the PR body (adversary and
+Codex reviews).
+
+**Fix.** `process_params` drops `long_token` and `asserted` from a save by anyone else (an updater who is not the person,
+an operator acting for them, or a device that is not theirs); their other device preferences are still saved. A call
+with no updater is server code and unchanged (`users#update` always passes one). This replaces the 2026-11-11 decision
+that a supervisor's save still sets `long_token`; that spec now expects the trust unchanged (approved by Traci). The
+Preferences page shows Session Timeout only on your own preferences (`controllers/user/preferences.js`
+`show_session_timeout`, compared by backend id).
+
+**Tests.** `spec/models/user_spec.rb` "the owner's own trust answer": a supervisor's Trust leaves the device as it was; a
+supervisor's Shared leaves a trusted device trusted; a supervisor's `asserted` neither clears a temporary device nor is
+stored; a supervisor's other device preferences are still saved; an operator's save writes no trust. Red before the
+fix (5 failures). Mutations: dropping the operator check fails its case; keeping `asserted` fails its case (after
+strengthening that case to check the stored preferences). `tests/unit/controllers/preferences-session-timeout-test.js`
+(3 cases); with the comparison removed, the other-person case fails. User, device, users controller and JSON specs:
+1043 examples, 0 failures.
