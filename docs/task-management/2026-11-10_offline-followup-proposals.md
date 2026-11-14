@@ -1598,3 +1598,22 @@ Each claim from the `/review-pr` pass (section 25) was traced in the full code b
   sets `speak_mode` on a stand-in `LingoLinq.appState` installed in `beforeEach` (line 45). `afterEach` restores the
   real one and calls `reset_for_tests` (lines 49-57), which clears the deferred marks (`utils/board_revocation.js:711-716`).
   That file has no `boardDetailCache.clear()`.
+
+## 30. The three confirmed items from section 29, fixed (2026-11-13; Traci: fix the board jump, the clock problem and the weak test)
+
+- **Weak test (approved).** "a reconnect still waits out the back-off after a failure that was not a dropped
+  connection" now sets `last_sync_at` as its sibling does. It fails with `reconnect_may_skip_backoff` forced true; its
+  module passes 19 of 19, timing-strict.
+- **Board jump.** `jump_to_board`'s online branch now sets `_latest_jump` too (`services/app-state.js`). Test
+  `tests/unit/services/app-state-jump-race-test.js` failed before the fix (`me/two, me/one`) and fails with it reverted.
+  It uses a stand-in persistence: a first version toggled the real service's `online`, whose observers (board
+  prefetch, image retries) left work that timed out 11 later app-state tests. The app-state, device-copy and
+  board_device_copy set: 128 of 128 with the fix; 11 `[owner-gone]` lines either way (pre-existing).
+- **Clock (design and spec change approved).** `User#process_params` counts the person's own Trust/Shared answer when
+  its stamp is within 10 minutes of server time or newer than the last answer that device recorded. The device row
+  keeps the newest accepted stamp in `long_token_choice_stamp`; it only moves forward, and `JsonApi::Device` does not
+  expose it. The spec "is not recorded for a stale or future stamp (a replayed old save, or a fast clock), nor without
+  one" was replaced by five cases: a skewed clock counts; a replay older than the stored stamp does not; a corrected
+  clock counts within the window; a replay of the fast-clock answer after that does not; no stamp does not; plus where
+  the stamp is kept. Mutations: dropping the window, storing the latest rather than the highest stamp, and the old
+  code each fail at least one case. User, device, users controller and JSON specs: 1037 examples, 0 failures.

@@ -3861,7 +3861,8 @@ class User < ApplicationRecord
         device['voice']['voice_uris'] = voice_uris.uniq[0, 10]
         device['voice'].delete('voice_uri')
       end
-      # The client's stamp of an explicit Trust/Shared answer is a request marker, never stored or echoed.
+      # The client's stamp of an explicit Trust/Shared answer is a request marker: never stored in preferences or echoed
+      # (the device row keeps the newest accepted one, below).
       chosen_at = device.delete('long_token_chosen_at')
       if non_user_params['device'] && device['long_token'] != nil
         # Pass 2 of the final review of #1268 (Traci, 2026-11-11): every writer still sets long_token as before
@@ -3871,10 +3872,18 @@ class User < ApplicationRecord
         dev = non_user_params['device']
         value = !!device['long_token']
         updater = non_user_params['updater']
-        own_answer = chosen_at.to_s.match?(/\A\d+\z/) && (Time.now.to_i - chosen_at.to_i).abs <= 10.minutes.to_i &&
-          updater && updater.id == self.id && !non_user_params['operator'] && dev.user_id == self.id
+        # The stamp is the device's clock, which on a tablet can be off by more than the window (review of #1268,
+        # 2026-11-13). It counts when it is within 10 minutes of server time, or newer than the last answer this device
+        # recorded (kept server-side in long_token_choice_stamp; JsonApi::Device does not expose it). A replayed old save
+        # is older than that stored stamp and not within the window, so it does not count; a corrected clock answers
+        # within the window. The stored stamp only moves forward.
+        stamped = chosen_at.to_s.match?(/\A\d+\z/)
+        last_stamp = dev.settings['long_token_choice_stamp'].to_i
+        fresh_stamp = stamped && ((Time.now.to_i - chosen_at.to_i).abs <= 10.minutes.to_i || chosen_at.to_i > last_stamp)
+        own_answer = fresh_stamp && updater && updater.id == self.id && !non_user_params['operator'] && dev.user_id == self.id
         if own_answer
           dev.settings['long_token_owner_choice'] = value
+          dev.settings['long_token_choice_stamp'] = [chosen_at.to_i, last_stamp].max
         elsif dev.settings['long_token'] != value
           dev.settings['long_token_owner_choice'] = false
         end

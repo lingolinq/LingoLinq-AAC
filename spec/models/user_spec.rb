@@ -2008,15 +2008,70 @@ describe User, :type => :model do
         expect(theirs.reload.settings['long_token_owner_choice']).to_not eq(true)
       end
 
-      it "is not recorded for a stale or future stamp (a replayed old save, or a fast clock), nor without one" do
-        [Time.now.to_i - 11.minutes.to_i, Time.now.to_i + 11.minutes.to_i, nil].each do |stamp|
+      # A tablet's clock can be wrong by more than the 10-minute window (review of #1268, 2026-11-13). The answer
+      # counts when its stamp is within 10 minutes of server time OR newer than the last answer this device recorded
+      # (Device settings['long_token_choice_stamp'], never sent to clients). This replaces the example "is not
+      # recorded for a stale or future stamp (a replayed old save, or a fast clock), nor without one"; the spec
+      # change was approved by Traci on 2026-11-13.
+      def answer(u, d, value, stamp)
+        dev = {'long_token' => value}
+        dev['long_token_chosen_at'] = stamp if stamp
+        u.process_params({'preferences' => {'device' => dev}}, {'device' => d, 'updater' => u})
+        d.reload
+      end
+
+      it "is recorded for a clock that is slow or fast by more than 10 minutes, on a device with no earlier answer" do
+        [Time.now.to_i - 11.minutes.to_i, Time.now.to_i + 11.minutes.to_i, Time.now.to_i + 2.days.to_i].each do |stamp|
           u, d = owner_and_device
-          dev = {'long_token' => true}
-          dev['long_token_chosen_at'] = stamp if stamp
-          u.process_params({'preferences' => {'device' => dev}}, {'device' => d, 'updater' => u})
-          expect(d.reload.settings['long_token']).to eq(true)
-          expect(d.settings['long_token_owner_choice']).to eq(false), "stamp #{stamp.inspect}"
+          answer(u, d, true, stamp)
+          expect(d.settings['long_token']).to eq(true)
+          expect(d.settings['long_token_owner_choice']).to eq(true), "stamp #{stamp}"
         end
+      end
+
+      it "is not recorded for a replayed old save, whose stamp is older than the device's last recorded answer" do
+        u, d = owner_and_device
+        answer(u, d, false, Time.now.to_i)
+        expect(d.settings['long_token_owner_choice']).to eq(false)
+        answer(u, d, true, Time.now.to_i - 20.minutes.to_i)
+        expect(d.settings['long_token']).to eq(true)
+        expect(d.settings['long_token_owner_choice']).to eq(false)
+      end
+
+      it "is recorded after the device's clock was corrected, while a replay of the fast-clock answer still is not" do
+        u, d = owner_and_device
+        fast = Time.now.to_i + 1.day.to_i
+        answer(u, d, true, fast)
+        expect(d.settings['long_token_owner_choice']).to eq(true), 'the fast-clock Trust answer counts'
+        answer(u, d, false, Time.now.to_i)
+        expect(d.settings['long_token']).to eq(false)
+        expect(d.settings['long_token_owner_choice']).to eq(false), 'the corrected clock answers Shared within the window'
+        answer(u, d, true, fast)
+        expect(d.settings['long_token']).to eq(true)
+        expect(d.settings['long_token_owner_choice']).to eq(false), 'a replay of the fast-clock Trust answer is not the person\'s choice'
+      end
+
+      it "is recorded within 10 minutes of server time even when the device stored a later, fast-clock answer" do
+        u, d = owner_and_device
+        answer(u, d, false, Time.now.to_i + 1.day.to_i)
+        answer(u, d, true, Time.now.to_i)
+        expect(d.settings['long_token']).to eq(true)
+        expect(d.settings['long_token_owner_choice']).to eq(true)
+      end
+
+      it "is not recorded without a stamp" do
+        u, d = owner_and_device
+        answer(u, d, true, nil)
+        expect(d.settings['long_token']).to eq(true)
+        expect(d.settings['long_token_owner_choice']).to eq(false)
+      end
+
+      it "keeps the recorded stamp on the device only, never in the user's preferences or the device JSON" do
+        u, d = owner_and_device
+        answer(u, d, true, Time.now.to_i + 2.days.to_i)
+        expect(d.settings['long_token_choice_stamp']).to be > Time.now.to_i
+        expect(u.reload.settings['preferences'].to_json).to_not include('long_token_choice_stamp')
+        expect(JsonApi::Device.as_json(d, current_device: d).to_json).to_not include('long_token_choice_stamp')
       end
 
       it "is left as it is by a save that only echoes the unchanged value" do
