@@ -3636,6 +3636,8 @@
   "female_ukranian_internet_required": "Ukranian Female *Internet Required*",
   "english_female_internet_required": "English Female (Internet Required)",
   "low_quality_male_voice": " Low-Quality Male Voice",
+  "piper_voice_name": "%{name} (Open Voice, %{size} MB download)",
+  "piper_voice_downloading": "Downloading the %{name} voice (%{size} MB). Your device voice will speak until it is ready.",
   "cloud_tts_failed_trying_fallback": "Cloud-Based Speech Failed, Trying Fallback...",
   "to": "to",
   "sunday_abbrev": "Su",

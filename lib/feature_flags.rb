@@ -77,7 +77,7 @@ module FeatureFlags
               # the upper-left of any page that isn't the supporter's own. Read by
               # app-state#supervising_context; with it OFF the computed returns
               # null and the component renders nothing at all.
-              'supervising_context_banner',
+              'supervising_context_banner', 'piper_voices', # piper_voices: on-device Piper voices in the voice picker (app/frontend/app/utils/piper_tts.js). AVAILABLE-only and in DISABLED_CANARY_FEATURES, so OFF for everyone, canary users included, until a person turns it on for themselves (beta opt-in) or for a scope (system feature settings). Kept on this line so later lines keep the numbers other files cite.
               # EU launch (GDPR Art. 8): make the registration parental-consent
               # age gate jurisdiction-aware (EU under-16 vs default under-13).
               # AVAILABLE-only => OFF for everyone by default; with it OFF the
@@ -159,7 +159,7 @@ module FeatureFlags
               # 'compressed_view' was forced ON here for evaluation until 2026-10-10, when the feature was removed (see the note in AVAILABLE_FRONTEND_FEATURES). Kept as a line so the numbers below do not move.
               'session_resume', # TEMPORARY (2026-08-09): forced ON for everyone to validate per-user session resume in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'updates_pill'] # TEMPORARY (2026-09-14): forced ON for everyone so the Card-view Updates pill (primary nav -> the user's notes log, with the unread counter classic already shows on its Updates tab) is visible without a per-user opt-in. TURN THIS OFF BEFORE PRODUCTION GO-LIVE — remove from this list, returning to AVAILABLE-only (beta opt-in per user), per the rollout policy above AVAILABLE_FRONTEND_FEATURES. With it removed the pill stops rendering, the nav returns to its current item set, and `?nav=home` on the logs page no longer marks a rail row as current, which is the pre-existing behaviour. Read by components/user-pill-nav.hbs, the one primary nav (the home dashboard's own nav was retired 2026-09-21), and by the account rail's current-row logic (components/account-rail.js:232, controllers/application.js:2338).
-  DISABLED_CANARY_FEATURES = ['location_maps']
+  DISABLED_CANARY_FEATURES = ['location_maps', 'piper_voices']
   FEATURE_DATES = {
     'word_suggestion_images' => 'Jan 21, 2017',
     'hidden_buttons' => 'Feb 2, 2017',
