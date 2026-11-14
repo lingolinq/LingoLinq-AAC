@@ -1580,10 +1580,10 @@ Each claim from the `/review-pr` pass (section 25) was traced in the full code b
     5 s) and a second tap after the connection returns: the first check resolves with its token still latest and
     jumps to the earlier board.
   - Rejection: `device_has_board` turns a failed read into false and is bounded by `within`
-    (`utils/board_device_copy.js:54-58`), so `jump_to_board` never rejects.
+    (`utils/board_device_copy.js:54-58`), so the check never rejects (a throw inside `_jump_to_board` itself still would).
 - **D1-H2, the 10-minute trust stamp depends on the client's clock: CONFIRMED.** The client stamps the Trust answer
-  with `Date.now()` (`utils/trust_choice.js:14`). The server accepts it as the person's own answer only within 10
-  minutes of server time (`app/models/user.rb:3874`). On a device more than 10 minutes off, `long_token` becomes true
+  with `Date.now()` (`utils/trust_choice.js:14` at 19c65972e). The server accepts it as the person's own answer only within 10
+  minutes of server time (`app/models/user.rb:3874` at 19c65972e). On a device more than 10 minutes off, `long_token` becomes true
   but `long_token_owner_choice` stays false. So tokens issued before the answer keep the organization timeout: the
   first-session sign-out fixed in f25478717 returns for that device. Later sign-ins are unaffected (no org timeout on
   a `long_token` row, `Device#generate_token!`).
@@ -1617,3 +1617,14 @@ Each claim from the `/review-pr` pass (section 25) was traced in the full code b
   clock counts within the window; a replay of the fast-clock answer after that does not; no stamp does not; plus where
   the stamp is kept. Mutations: dropping the window, storing the latest rather than the highest stamp, and the old
   code each fail at least one case. User, device, users controller and JSON specs: 1037 examples, 0 failures.
+
+**Adversary review of the three fixes (2026-11-13): nothing blocking, five Lows; acted on.** The clock rule is now
+stricter than in 072eca71b: an answer counts when its stamp is newer than the device's stored stamp, or, only when that
+stored stamp is more than 10 minutes ahead of server time (a fast clock since corrected), within 10 minutes of server
+time. That closes an older save (a retry or reorder) arriving inside the window after a newer answer. Limits kept and
+pinned by specs: the first stamped answer on a device counts at any age; a clock that went slow after an answer was
+recorded is refused. Also noted, not fixed: the stamp lives in the device's settings, which other paths rewrite from an
+earlier copy (`Device#valid_token?`, two answers from two tabs), so a lost update can move it back; narrow and limited
+to the person's own row. The spec line that reloaded the user (which `process_params` never saves) now checks the
+in-memory preferences for both key names. New cases: the in-window reorder, the slow clock. Mutations: the 072eca71b
+rule fails the reorder case; dropping the corrected-clock exception fails its case. 14 trust cases pass.

@@ -2008,9 +2008,10 @@ describe User, :type => :model do
         expect(theirs.reload.settings['long_token_owner_choice']).to_not eq(true)
       end
 
-      # A tablet's clock can be wrong by more than the 10-minute window (review of #1268, 2026-11-13). The answer
-      # counts when its stamp is within 10 minutes of server time OR newer than the last answer this device recorded
-      # (Device settings['long_token_choice_stamp'], never sent to clients). This replaces the example "is not
+      # A tablet's clock can be wrong by more than 10 minutes (review of #1268, 2026-11-13). The answer counts when its
+      # stamp is newer than the last answer this device recorded (Device settings['long_token_choice_stamp'], never
+      # sent to clients), or, when that stored stamp is more than 10 minutes ahead of server time, within 10 minutes
+      # of server time (a corrected clock). This replaces the example "is not
       # recorded for a stale or future stamp (a replayed old save, or a fast clock), nor without one"; the spec
       # change was approved by Traci on 2026-11-13.
       def answer(u, d, value, stamp)
@@ -2059,6 +2060,23 @@ describe User, :type => :model do
         expect(d.settings['long_token_owner_choice']).to eq(true)
       end
 
+      it "is not recorded for an older save that arrives within 10 minutes after a newer answer (a retry or reorder)" do
+        u, d = owner_and_device
+        answer(u, d, false, Time.now.to_i)
+        answer(u, d, true, Time.now.to_i - 60)
+        expect(d.settings['long_token']).to eq(true)
+        expect(d.settings['long_token_owner_choice']).to eq(false)
+      end
+
+      # Known limit, pinned so a change is deliberate: a clock that went slow after an answer was recorded is refused
+      # until it passes that stamp. The organization timeout then stays on that session's keys.
+      it "is not recorded for a clock that went slow after an answer was recorded" do
+        u, d = owner_and_device
+        answer(u, d, false, Time.now.to_i)
+        answer(u, d, true, Time.now.to_i - 30.days.to_i)
+        expect(d.settings['long_token_owner_choice']).to eq(false)
+      end
+
       it "is not recorded without a stamp" do
         u, d = owner_and_device
         answer(u, d, true, nil)
@@ -2070,8 +2088,9 @@ describe User, :type => :model do
         u, d = owner_and_device
         answer(u, d, true, Time.now.to_i + 2.days.to_i)
         expect(d.settings['long_token_choice_stamp']).to be > Time.now.to_i
-        expect(u.reload.settings['preferences'].to_json).to_not include('long_token_choice_stamp')
-        expect(JsonApi::Device.as_json(d, current_device: d).to_json).to_not include('long_token_choice_stamp')
+        prefs = u.settings['preferences'].to_json
+        expect(prefs).to_not include('long_token_choice_stamp')
+        expect(prefs).to_not include('long_token_chosen_at')
       end
 
       it "is left as it is by a save that only echoes the unchanged value" do

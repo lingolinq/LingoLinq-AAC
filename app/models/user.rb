@@ -3872,14 +3872,17 @@ class User < ApplicationRecord
         dev = non_user_params['device']
         value = !!device['long_token']
         updater = non_user_params['updater']
-        # The stamp is the device's clock, which on a tablet can be off by more than the window (review of #1268,
-        # 2026-11-13). It counts when it is within 10 minutes of server time, or newer than the last answer this device
-        # recorded (kept server-side in long_token_choice_stamp; JsonApi::Device does not expose it). A replayed old save
-        # is older than that stored stamp and not within the window, so it does not count; a corrected clock answers
-        # within the window. The stored stamp only moves forward.
+        # The stamp is the device's clock, which on a tablet can be off by more than 10 minutes (review of #1268,
+        # 2026-11-13). It counts when it is newer than the last answer this device recorded (kept server-side in
+        # long_token_choice_stamp; JsonApi::Device does not expose it), so a save older than the last recorded answer,
+        # a retried or replayed one included, does not. One exception: when the stored stamp is ahead of server time by
+        # more than 10 minutes (a fast clock since corrected), an answer within 10 minutes of server time counts.
+        # Limits: the first stamped answer on a device counts at any age; a clock that went slow after an answer was
+        # recorded is refused until it passes that stamp. The stored stamp only moves forward.
         stamped = chosen_at.to_s.match?(/\A\d+\z/)
         last_stamp = dev.settings['long_token_choice_stamp'].to_i
-        fresh_stamp = stamped && ((Time.now.to_i - chosen_at.to_i).abs <= 10.minutes.to_i || chosen_at.to_i > last_stamp)
+        corrected_clock = last_stamp > Time.now.to_i + 10.minutes.to_i && (Time.now.to_i - chosen_at.to_i).abs <= 10.minutes.to_i
+        fresh_stamp = stamped && (chosen_at.to_i > last_stamp || corrected_clock)
         own_answer = fresh_stamp && updater && updater.id == self.id && !non_user_params['operator'] && dev.user_id == self.id
         if own_answer
           dev.settings['long_token_owner_choice'] = value
