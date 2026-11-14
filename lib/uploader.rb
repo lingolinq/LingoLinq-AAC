@@ -194,8 +194,10 @@ module Uploader
       literal = (IPAddr.new(uri.host.sub(/^\[/, '').sub(/\]$/, '')) rescue nil)
       return nil if literal && SafeHttp.blocked_address?(literal)
     end
+    # Keep any port that is not the scheme's default (80 for http, 443 for https): SafeHttp fetches and
+    # pins this rebuilt url, so a dropped port would fetch a different endpoint.
     port_suffix = ""
-    port_suffix = ":#{uri.port}" if (uri.scheme == 'http' && uri.port != 80)
+    port_suffix = ":#{uri.port}" if uri.port != uri.default_port
     "#{uri.scheme}://#{uri.host}#{port_suffix}#{uri.path}#{uri.query && "?#{uri.query}"}"
   end
 

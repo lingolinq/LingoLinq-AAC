@@ -635,7 +635,10 @@ jobs:
         # OPTIONAL (omitted entirely when blank, never set to ""): UPLOADS_S3_CDN,
         # REDIS_NAMESPACE_SUFFIX, REMOTE_EXTRA_DATA, STRIPE_PUBLIC_KEY, NEW_REGISTRATION_EMAIL,
         # MEDIACONVERT_ROLE_ARN, MEDIACONVERT_QUEUE_ARN, MEDIACONVERT_ENDPOINT,
-        # SNS_ARNS, SNS_REGION.
+        # SNS_ARNS, SNS_REGION, SES_EVENTS_QUEUE_URL.
+        # SES_EVENTS_QUEUE_URL (GitHub var APP_SES_EVENTS_QUEUE_URL) turns on SesEventsWorker in
+        # the scheduler Job. Set it in the production environment ONLY: staging sends use the same
+        # SES configuration set and land on the same queue, and two consumers would split it.
         # Omission matters: REMOTE_EXTRA_DATA is a presence check in Ruby, and
         # config/initializers/resque.rb only falls through to its default namespace when
         # REDIS_NAMESPACE_SUFFIX is UNSET, not when it is empty.
@@ -653,6 +656,7 @@ jobs:
           V_MEDIACONVERT_ENDPOINT: ${{ vars.APP_MEDIACONVERT_ENDPOINT }}
           V_SNS_ARNS: ${{ vars.APP_SNS_ARNS }}
           V_SNS_REGION: ${{ vars.APP_SNS_REGION }}
+          V_SES_EVENTS_QUEUE_URL: ${{ vars.APP_SES_EVENTS_QUEUE_URL }}
         run: |
           set -euo pipefail
           missing=""
@@ -708,7 +712,8 @@ jobs:
                       "STRIPE_PUBLIC_KEY=${V_STRIPE_PUBLIC_KEY:-}" "NEW_REGISTRATION_EMAIL=${V_NEW_REGISTRATION_EMAIL:-}" \
                       "APP_MEDIACONVERT_ROLE_ARN=${V_MEDIACONVERT_ROLE_ARN:-}" "APP_MEDIACONVERT_QUEUE_ARN=${V_MEDIACONVERT_QUEUE_ARN:-}" \
                       "APP_MEDIACONVERT_ENDPOINT=${V_MEDIACONVERT_ENDPOINT:-}" \
-                      "APP_SNS_ARNS=${V_SNS_ARNS:-}" "APP_SNS_REGION=${V_SNS_REGION:-}"; do
+                      "APP_SNS_ARNS=${V_SNS_ARNS:-}" "APP_SNS_REGION=${V_SNS_REGION:-}" \
+                      "APP_SES_EVENTS_QUEUE_URL=${V_SES_EVENTS_QUEUE_URL:-}"; do
             val="${pair#*=}"
             # Shell pattern, not grep: grep is line-oriented and a value containing a newline would
             # pass it. `[:space:]` here includes newline, tab, and carriage return.
@@ -732,6 +737,17 @@ jobs:
           [ -n "${V_MEDIACONVERT_ENDPOINT:-}" ]  && ev="$ev,MEDIACONVERT_ENDPOINT=$V_MEDIACONVERT_ENDPOINT"
           [ -n "${V_SNS_ARNS:-}" ]               && ev="$ev,SNS_ARNS=$V_SNS_ARNS"
           [ -n "${V_SNS_REGION:-}" ]             && ev="$ev,SNS_REGION=$V_SNS_REGION"
+          # Production only. A repository-level APP_SES_EVENTS_QUEUE_URL would be the FALLBACK for
+          # staging and dev (see the header), giving them a second consumer that drains the shared
+          # queue and writes email_disabled into the nonprod database. Refuse rather than skip, so
+          # a misplaced variable is visible.
+          if [ -n "${V_SES_EVENTS_QUEUE_URL:-}" ]; then
+            if [ "$ENV_NAME" != "production" ]; then
+              echo "::error::APP_SES_EVENTS_QUEUE_URL resolved to a value in environment '$ENV_NAME'. It must be set in the production environment only (never at repository scope)."
+              exit 1
+            fi
+            ev="$ev,SES_EVENTS_QUEUE_URL=$V_SES_EVENTS_QUEUE_URL"
+          fi
           echo "APP_ENV_VARS=$ev" >> "$GITHUB_ENV"
           # The migrate Job keeps its boot-only env, plus the workers' namespace suffix: operators
           # run one-off rake tasks through it, and without the suffix every job they enqueued in

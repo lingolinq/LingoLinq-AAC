@@ -3,6 +3,44 @@ require 'tmpdir'
 require 'open3'
 
 describe ImageMagickRunner do
+  # The examples that ask the real ImageMagick whether a label reached its file read depend on a
+  # policy that refuses the read. Pinning the repo's own (the one production adds, Dockerfile:57)
+  # makes them observe the same thing on every host, whatever its stock policy.
+  let(:repo_policy) { {'MAGICK_CONFIGURE_PATH' => Rails.root.join('config', 'imagemagick').to_s} }
+  # What a refused read of x.txt looks like. ImageMagick 6 reports it from
+  # property.c/InterpretImageProperties and 7.1.2 from string.c/FileToString, so the function
+  # name is not a usable marker; both say: not allowed by the security policy, then the quoted
+  # path. The quote character differs between messages, hence the dot.
+  let(:file_read_refused) { /security policy .@x\.txt/ }
+
+  # What montage prints for one label, run on dir/in.png under the repo policy.
+  def montage_output(dir, label)
+    out, _status = Open3.capture2e(repo_policy, 'montage', '-label', label, File.join(dir, 'in.png'),
+                                   '-tile', '1x1', '-pointsize', '16', '-geometry', '40x40+3+10',
+                                   File.join(dir, 'o.png'), :chdir => dir)
+    out
+  end
+
+  # Yields a directory holding in.png and x.txt, after a positive control: for each prefix, the
+  # UNESCAPED label must be refused on this host. Without that, the absence of a refusal for an
+  # escaped label proves nothing, which is how these examples passed on ImageMagick 7 while
+  # unable to observe a read at all.
+  def with_observable_file_read(prefixes)
+    Dir.mktmpdir do |dir|
+      input = File.join(dir, 'in.png')
+      system(repo_policy, 'convert', '-size', '40x40', 'xc:skyblue', input)
+      File.write(File.join(dir, 'x.txt'), 'SECRET')
+      expect(File.exist?(input)).to eq(true), 'convert did not create the input image'
+      prefixes.each do |prefix|
+        expect(montage_output(dir, "#{prefix}@x.txt")).to match(file_read_refused),
+          "an unescaped #{prefix.inspect} + @x.txt was not refused, so this example cannot observe a " \
+          'file read here: ImageMagick did not skip that byte, did not enter the read branch, ' \
+          'loaded no path @* policy, or words the refusal differently'
+      end
+      yield dir
+    end
+  end
+
   describe "run" do
     it "does not pass arguments through a shell" do
       Dir.mktmpdir do |dir|
@@ -76,16 +114,13 @@ describe ImageMagickRunner do
 
     it "leaves no prefix byte able to walk ImageMagick to a file read" do
       skip('ImageMagick not installed') unless system('montage', '-version', :out => File::NULL, :err => File::NULL)
-      Dir.mktmpdir do |dir|
-        input = File.join(dir, 'in.png')
-        system('convert', '-size', '40x40', 'xc:skyblue', input)
-        File.write(File.join(dir, 'x.txt'), 'SECRET')
+      # Every byte ImageMagick 6.9.12 skips before testing for the at-sign, written out here and
+      # not read from LEADING_SPACE_BYTES, so narrowing that constant cannot narrow the control.
+      # If one of these goes red on the CI runner, CI cannot observe that byte there. Do not remove
+      # it: production's ImageMagick may still skip it. Report it instead.
+      with_observable_file_read(["\t", "\n", "\v", "\f", "\r", ' ']) do |dir|
         reached = (1..127).select do |byte|
-          label = ImageMagickRunner.escape_label(byte.chr + '@x.txt')
-          out, _s = Open3.capture2e('montage', '-label', label, input, '-tile', '1x1',
-                                    '-pointsize', '16', '-geometry', '40x40+3+10',
-                                    File.join(dir, 'o.png'), :chdir => dir)
-          out.include?('InterpretImageProperties')
+          montage_output(dir, ImageMagickRunner.escape_label(byte.chr + '@x.txt')).match?(file_read_refused)
         end
         expect(reached).to eq([]), "bytes #{reached.inspect} still reach the file-read branch"
       end
@@ -175,21 +210,16 @@ describe ImageMagickRunner do
 
     it "stops montage reaching a file read for a whitespace-prefixed at-sign" do
       # Asks ImageMagick rather than encoding my own idea of which bytes count as space.
-      # Oracle: the stock Debian policy (path rights=none pattern=@*) turns a REACHED file
-      # read into an InterpretImageProperties error, so its absence means the read branch
-      # was never entered. On a host without that policy this arm cannot observe the read;
-      # the string assertion above is what covers that case.
+      # Oracle: the repo policy (config/imagemagick/policy.xml, path rights=none pattern=@*),
+      # pinned through repo_policy so every host runs under it, turns a REACHED file read into
+      # refusal (file_read_refused), so its absence means the read branch was never
+      # entered. The positive control proves the oracle works on this host's ImageMagick.
       skip('ImageMagick not installed') unless system('montage', '-version', :out => File::NULL, :err => File::NULL)
-      Dir.mktmpdir do |dir|
-        input = File.join(dir, 'in.png')
-        system('convert', '-size', '40x40', 'xc:skyblue', input)
-        File.write(File.join(dir, 'x.txt'), 'SECRET')
-        [' ', "\t", "\n"].each do |prefix|
-          out, _status = Open3.capture2e('montage', '-label',
-            ImageMagickRunner.escape_label("#{prefix}@x.txt"), input, '-tile', '1x1',
-            '-pointsize', '16', '-geometry', '40x40+3+10', File.join(dir, 'o.png'),
-            :chdir => dir)
-          expect(out).not_to include('InterpretImageProperties'),
+      prefixes = [' ', "\t", "\n"]
+      with_observable_file_read(prefixes) do |dir|
+        prefixes.each do |prefix|
+          out = montage_output(dir, ImageMagickRunner.escape_label("#{prefix}@x.txt"))
+          expect(out).not_to match(file_read_refused),
             "prefix #{prefix.inspect} reached ImageMagick's file-read branch"
         end
       end

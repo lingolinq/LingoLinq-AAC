@@ -75,6 +75,41 @@ jobs:
           ruby-version: "3.4"
           bundler-cache: true
 
+      # The runner image has no ImageMagick, so specs that need the real binary skipped here. Production
+      # installs the distribution's package and adds config/imagemagick/policy.xml on top of the
+      # distribution's own policy (Dockerfile:57); this does the same on the runner. It is not production's
+      # build: the runner gets whatever ubuntu-latest packages (ImageMagick 7.1.2-18 on ubuntu-26.04 when
+      # this was added). If this step or the next fails, fix the install; do not skip or soften it.
+      - name: Install ImageMagick
+        run: |
+          sudo apt-get update -qq -o Acquire::Retries=3
+          sudo apt-get install -y -qq -o Acquire::Retries=3 imagemagick
+          echo "MAGICK_CONFIGURE_PATH=$GITHUB_WORKSPACE/config/imagemagick" >> "$GITHUB_ENV"
+
+      # A separate step because a value written to GITHUB_ENV reaches only later steps. The specs skip
+      # when montage is missing (the two "ImageMagick not installed" guards in
+      # spec/lib/image_magick_runner_spec.rb), so without this a broken install goes back to skipping
+      # and CI stays green. The policy checks are the production image's (Dockerfile:66-70). No check is
+      # written as a pipe, so a failing command cannot hide behind a later one; the one command that is
+      # MEANT to fail, convert being refused, writes to a file that is then checked. Each policy check
+      # names itself and prints what ImageMagick said (messages only: the text: read goes to null:). The
+      # PCL and TEXT checks read the whole loaded policy, so the distribution's own file could satisfy
+      # them; the listing is printed so the log shows which file carries each rule.
+      - name: Verify ImageMagick and its policy
+        run: |
+          fail() { echo "::error::ImageMagick check failed: $1"; cat "$2"; exit 1; }
+          policy="$RUNNER_TEMP/im-policy.txt"
+          refusal="$RUNNER_TEMP/im-refusal.txt"
+          for bin in montage convert identify; do "$bin" -version > /dev/null; done
+          convert -version > "$RUNNER_TEMP/im-version.txt"
+          head -1 "$RUNNER_TEMP/im-version.txt"
+          convert -list policy > "$policy"
+          echo '::group::ImageMagick policy as loaded'; cat "$policy"; echo '::endgroup::'
+          grep -qF "Path: $GITHUB_WORKSPACE/config/imagemagick/policy.xml" "$policy" || fail 'the repo policy file is not loaded' "$policy"
+          grep -qi 'pattern: PCL' "$policy" || fail 'the policy was not read through its last coder rule' "$policy"
+          convert text:/etc/passwd null: > "$refusal" 2>&1 || true
+          grep -q 'security policy .TEXT' "$refusal" || fail 'the TEXT coder was not refused' "$refusal"
+
       - name: Setup assets (vendor.css, frontend.css symlinks)
         run: bundle exec rails extras:assert_js
 
