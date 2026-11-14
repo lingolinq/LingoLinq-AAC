@@ -5850,6 +5850,7 @@
   "keep_me_logged_in": "Keep me logged in",
   "not_trust_this_device": "This is a Shared Device",
   "log_me_out_when_inactive": "Log me out after a period of inactivity",
+  "log_me_out_no_offline": "Log me out after a period of inactivity. Won't open without internet.",
   "confirm_device_force_logout": "This account is only allowed to log in to one dedicated device at a time. If you log in on this device it will force a log out on your other device. How would you like to proceed?",
   "log_in_on_this_device": "Log In on this Device",
   "other_device_logged_out": "Any other device will be logged out",
