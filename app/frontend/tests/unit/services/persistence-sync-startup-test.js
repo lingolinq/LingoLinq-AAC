@@ -349,6 +349,7 @@ module('Unit | Service | persistence sync startup', function(hooks) {
       svc._auto_sync_failure_at = (new Date()).getTime() - 60000;
       svc._offline_at = null;
       svc._reconnect_skip_block_until = null;
+      svc.set('last_sync_at', 50); // as its dropped-connection sibling: with it, a skipped back-off would reach the stamp request this counts (approved by Traci 2026-11-13)
       svc.set('auto_sync_backoff_until', (new Date()).getTime() + 60000);
 
       svc.set('online', false);
@@ -361,6 +362,7 @@ module('Unit | Service | persistence sync startup', function(hooks) {
       assert.strictEqual(this.requests.length, 0, 'a server error does not skip the back-off');
       svc._auto_sync_failure_at = null;
       svc._reconnect_skip_block_until = null;
+      svc.set('last_sync_at', null);
       svc.set('auto_sync_backoff_until', null);
     });
 
