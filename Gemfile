@@ -125,8 +125,10 @@ gem 'clowne', '~> 1.4' # Declarative model cloning DSL for board copy optimizati
 
 gem 'sinatra', '~> 4.2'
 # GHSA-wgw9-qhqg-8hv5 (CSS nesting bypasses the property and protocol allowlists in <style>,
-# which Processable#process_html allows through Sanitize::Config::RELAXED); ensure >= 7.0.1
-gem 'sanitize', '>= 7.0.1'
+# which Processable#process_html allows through Sanitize::Config::RELAXED); ensure >= 7.0.1.
+# GHSA-599p-54q3-ff89 and GHSA-mg79-gw37-jxx7 (both custom-config only; DEFAULT and RELAXED,
+# the configs Processable uses, are not affected) are fixed in 7.0.2, the bundler-audit minimum.
+gem 'sanitize', '>= 7.0.2'
 gem 'anthropic', '~> 1.36'
 gem 'ruby-openai', '~> 7.0'  # Used for Gemini fallback (OpenAI-compatible endpoint)
 
