@@ -2529,7 +2529,7 @@ export default Component.extend({
         this.set('ai_generate_error', i18n.t('ai_description_required', "Add a description above — it's what the AI uses to generate labels."));
         return;
       }
-      this.set('ai_generate_error', null);
+      this.setProperties({ ai_generate_error: null, ai_generate_shortfall: 0 });
       return this._ensureAiBoardGenerationAccess().then(function(access) {
         if(_this.isDestroyed || _this.isDestroying) { return; }
         if(!access || !access.proceed) { return; }
@@ -2567,7 +2567,7 @@ export default Component.extend({
             _this.set('model.ai_generated', res.ai_generated);
           }
           // Hand off to the labels page only now: until here the step showed the busy button.
-          _this.setProperties({ ai_generating: false, ai_labels_generated: true, wizard_done: true });
+          _this.setProperties({ ai_generating: false, ai_labels_generated: true, wizard_done: true, ai_generate_shortfall: (res && res.shortfall) || 0, ai_generate_cells: payload.rows * payload.columns, ai_generate_found: payload.rows * payload.columns - ((res && res.shortfall) || 0) });
         }, function(err) {
           if(_this.isDestroyed || _this.isDestroying) { return; }
           var msg = i18n.t('generate_failed', "Generation failed");

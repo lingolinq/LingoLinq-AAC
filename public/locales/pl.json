@@ -7349,6 +7349,8 @@
   "ai_board_size_over_limit": "Rozmiar Twojej planszy (przyciski %{n}) jest większy niż zalecane 112. Zmniejsz wiersze lub kolumny, aby umożliwić generowanie sztucznej inteligencji. [[ Your board size (%{n} buttons) is larger than the recommended 112. Reduce rows or columns to enable AI generation.",
   "ai_generating_labels": "Generowanie etykiet… [[ Generating Labels…",
   "ai_generating_wait_hint": "*** This usually takes 10 to 30 seconds.",
+  "ai_shortfall_found": "*** The AI found %{found} of %{total} words.",
+  "n_cells_left_to_fill": "*** 0 cells are left empty for you to fill. || 1 cell is left empty for you to fill. || %{n} cells are left empty for you to fill.",
   "ai_generate_labels_btn": "Generuj etykiety za pomocą sztucznej inteligencji [[ Generate Labels with AI",
   "comp_eyebrow": "Kompleksowa ocena [[ Comprehensive Eval",
   "comp_da_counter": "Pozycja %{n} z %{total} [[ Item %{n} of %{total}",

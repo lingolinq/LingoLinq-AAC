@@ -491,6 +491,14 @@
             <h4 class="nb-section__title">{{t "Board Labels" key="new_board_section_board_labels"}}</h4>
           </div>
           <div class="nb-section__body">
+            {{!-- The AI still came back short after its top-up (`shortfall`, from generate_labels):
+                 the board is made anyway, and this says which cells are left to fill. --}}
+            {{#if this.ai_generate_shortfall}}
+              <p class="nb-alert nb-alert--warning nb-ai-shortfall" role="status" data-test-ai-shortfall-notice>
+                {{t "The AI found %{found} of %{total} words." key="ai_shortfall_found" found=this.ai_generate_found total=this.ai_generate_cells}}
+                {{t "cell is left empty for you to fill" count=this.ai_generate_shortfall key="n_cells_left_to_fill"}}
+              </p>
+            {{/if}}
             {{#if this.show_full_size_section}}
             <div class="nb-words-grid">
               <div class="nb-basics-grid__col nb-words-grid__col--labels">
