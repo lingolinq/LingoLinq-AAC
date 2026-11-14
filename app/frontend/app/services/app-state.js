@@ -5488,7 +5488,7 @@ export default Service.extend({
   // (#1209). Online this is the same synchronous jump as ever.
   jump_to_board: function(new_state, old_state) {
     var persistence = this.persistence;
-    if(!new_state || !persistence || persistence.get('online') !== false) { return this._jump_to_board(new_state, old_state); }
+    if(!new_state || !persistence || persistence.get('online') !== false) { this._latest_jump = {}; return this._jump_to_board(new_state, old_state); } // an online jump is the latest tap too, so an offline check still running cannot open its board after it
     var _this = this;
     var jump = this._latest_jump = {}; // the check is async, so only the latest tap may go ahead
     return board_saved_here(persistence, boardDetailCache, new_state.key, this).then(function(saved) {
