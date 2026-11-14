@@ -2092,11 +2092,18 @@ body.ll-layout-focused {
   // STATUS UNDER THE USERNAME at every width (requested 2026-09-29). Between 641 and 1300px the
   // shared layout (_caseload.scss) puts it in a third track beside the role; these tokens keep it
   // in the name's track on the row below instead, as it already is above 1300px.
+  // The username and the status below it read as one pair centred on the avatar (requested
+  // 2026-11-13: "closer to the username", and the name and role "down a bit"): a 4px row gap, the
+  // name hugging the bottom of its row and the status the top of its row. With the 9px gap and
+  // both centred in their rows they sat at the avatar's top and bottom edges, 18-20px apart.
   .md-shell--caseload {
     --dn-cl-trigger-cols: auto minmax(0, 1fr);
     --dn-cl-identity-row: auto;
     --dn-cl-status-col: 2;
     --dn-cl-status-row: auto;
+    --dn-cl-row-gap: 4px;
+    --dn-cl-identity-align: end;
+    --dn-cl-status-align: start;
   }
 
   // No status on this row: the username and role span both of the avatar's rows and centre on it,

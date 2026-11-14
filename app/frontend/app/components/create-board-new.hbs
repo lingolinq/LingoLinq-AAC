@@ -98,18 +98,6 @@
     <div class="modal-header md-modal-header nb-create-header">
       <div class="nb-create-header__intro">
         <h3>{{#if this.ai_mode}}{{t "Create a New Board with AI" key="create_a_new_board_with_ai"}}{{else if this.via_create_own}}{{t "Create My Own Board" key="create_my_own_board"}}{{else}}{{t "Create a New Board" key="create_a_new_board"}}{{/if}}</h3>
-        {{#if this.ai_mode}}
-          <ul class="la-checklist">
-            <li>
-              <span class="la-check" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
-              {{t "Generate this board's buttons from your description using AI" key="ai_intro_check_generate"}}
-            </li>
-            <li>
-              <span class="la-check" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
-              {{t "You'll be able to review and edit everything before creating the board" key="ai_intro_check_review"}}
-            </li>
-          </ul>
-        {{/if}}
       </div>
       <div class="create-board-actions">
         {{#if this.ai_mode}}
@@ -128,7 +116,7 @@
             <span class="nb-ai-mode-badge" role="status">
               <span class="nb-ai-mode-badge__row">
                 <span class="nb-ai-sparkle-badge" aria-hidden="true">
-                  <span class="nb-ai-sparkle {{if this.status.saving "nb-ai-sparkle--active"}}"></span>
+                  <span class="nb-ai-sparkle {{if (or this.status.saving this.ai_generating) "nb-ai-sparkle--active"}}"></span>
                 </span>
                 <span class="nb-ai-mode-badge__title">{{t "Generating with AI" key="ai_mode_badge"}}</span>
               </span>
@@ -148,7 +136,7 @@
                  `{{#unless}}` rather than a CSS hide so it leaves the accessibility tree and the
                  tab order too, not just the layout. --}}
             {{#unless this.wizard_done}}
-              <button type="button" class="nb-ai-mode-other nb-other-methods-btn" {{on "click" (this.ctrlAction "open_create_chooser")}}>
+              <button type="button" class="nb-ai-mode-other nb-other-methods-btn" disabled={{this.ai_generating}} {{on "click" (this.ctrlAction "open_create_chooser")}}>
                 {{t "Other Create Board Methods" key="other_create_methods"}}
               </button>
             {{/unless}}
@@ -169,7 +157,7 @@
           {{!-- Hidden after the wizard hands off, for the reason given on the AI-mode copy
                of this button above. --}}
           {{#unless this.wizard_done}}
-            <button type="button" class="nb-ai-mode-other nb-other-methods-btn" {{on "click" (this.ctrlAction "open_create_chooser")}}>
+            <button type="button" class="nb-ai-mode-other nb-other-methods-btn" disabled={{this.ai_generating}} {{on "click" (this.ctrlAction "open_create_chooser")}}>
               {{t "Other Create Board Methods" key="other_create_methods"}}
             </button>
           {{/unless}}
@@ -194,7 +182,7 @@
             <span class="nb-ai-mode-badge" role="status">
               <span class="nb-ai-mode-badge__row">
                 <span class="nb-ai-sparkle-badge" aria-hidden="true">
-                  <span class="nb-ai-sparkle {{if this.status.saving "nb-ai-sparkle--active"}}"></span>
+                  <span class="nb-ai-sparkle {{if (or this.status.saving this.ai_generating) "nb-ai-sparkle--active"}}"></span>
                 </span>
                 <span class="nb-ai-mode-badge__title">{{t "Generating with AI" key="ai_mode_badge"}}</span>
               </span>
@@ -418,6 +406,10 @@
                       </div>
                     </div>
                   {{/if}}
+                  {{!-- Always in the DOM so the wait hint is announced when it appears. --}}
+                  <p class="nb-ai-generate__status" role="status" data-test-ai-generating-status={{this.ai_generating}}>
+                    {{#if this.ai_generating}}{{t "This usually takes 10 to 30 seconds." key="ai_generating_wait_hint"}}{{/if}}
+                  </p>
                   {{#if this.ai_generate_error}}
                     <div class="nb-alert nb-alert--warning" role="alert">
                       <span class="nb-alert__icon" aria-hidden="true">
@@ -438,7 +430,7 @@
 
             <div class="nb-wizard__nav">
               {{#unless (is_equal this.wizard_step 1)}}
-                <button type="button" class="btn btn-default nb-wizard__back" {{on "click" (this.ctrlAction "wizard_back")}}>
+                <button type="button" class="btn btn-default nb-wizard__back" disabled={{this.ai_generating}} {{on "click" (this.ctrlAction "wizard_back")}}>
                   {{t "Back" key="back"}}
                 </button>
               {{/unless}}
@@ -448,8 +440,10 @@
                           class="btn btn-primary nb-ai-generate__btn"
                           disabled={{this.ai_generate_disabled}}
                           aria-disabled={{if this.ai_generate_disabled "true" "false"}}
+                          aria-busy={{if this.ai_generating "true" "false"}}
                           {{on "click" (this.ctrlAction "wizard_generate")}}>
                     {{#if this.ai_generating}}
+                      <span class="nb-ai-sparkle nb-ai-sparkle--active nb-ai-sparkle--pulse nb-ai-generate__btn-sparkle" aria-hidden="true"></span>
                       {{t "Generating Labels…" key="ai_generating_labels"}}
                     {{else}}
                       {{t "Generate Labels with AI" key="ai_generate_labels_btn"}}
@@ -497,6 +491,14 @@
             <h4 class="nb-section__title">{{t "Board Labels" key="new_board_section_board_labels"}}</h4>
           </div>
           <div class="nb-section__body">
+            {{!-- The AI still came back short after its top-up (`shortfall`, from generate_labels):
+                 the board is made anyway, and this says which cells are left to fill. --}}
+            {{#if this.ai_generate_shortfall}}
+              <p class="nb-alert nb-alert--warning nb-ai-shortfall" role="status" data-test-ai-shortfall-notice>
+                {{t "The AI found %{found} of %{total} words." key="ai_shortfall_found" found=this.ai_generate_found total=this.ai_generate_cells}}
+                {{t "Empty cells left for you to fill: %{n}" key="ai_shortfall_empty_cells" n=this.ai_generate_shortfall}}
+              </p>
+            {{/if}}
             {{#if this.show_full_size_section}}
             <div class="nb-words-grid">
               <div class="nb-basics-grid__col nb-words-grid__col--labels">
