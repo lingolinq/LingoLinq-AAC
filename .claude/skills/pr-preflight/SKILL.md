@@ -125,10 +125,9 @@ Size the review to what the PR touches (root `CLAUDE.md`, "Before a PR"):
   authentication or sessions, consent or account ownership, access to another user's or
   organization's data, billing, AI model routing or the AI client, infra or deploy config,
   or the `data-bearing-paths` gate.
-- **Rounds.** Two formal review rounds are the default. The developer responsible for
-  the PR may start a third round without Scot's prior OK only when new changes touch an
-  area on the dual-review list above, or a serious review finding needs rechecking.
-  Record the reason in the PR. Any third round outside this exception, and every
-  further round, needs Scot's OK. Permission to run a review does not authorize merge.
+- **Rounds.** Two formal review rounds are the default. The responsible senior developer
+  may run additional rounds when needed, recording the reason in the PR. Additional reviews
+  do not authorize merging; existing privacy checks, review requirements, Critical/High
+  blockers, GitHub checks, and merge approvals still apply.
 
 A Critical or High finding from any review blocks the PR until addressed.
