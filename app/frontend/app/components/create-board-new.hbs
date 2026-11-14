@@ -136,7 +136,7 @@
                  `{{#unless}}` rather than a CSS hide so it leaves the accessibility tree and the
                  tab order too, not just the layout. --}}
             {{#unless this.wizard_done}}
-              <button type="button" class="nb-ai-mode-other nb-other-methods-btn" {{on "click" (this.ctrlAction "open_create_chooser")}}>
+              <button type="button" class="nb-ai-mode-other nb-other-methods-btn" disabled={{this.ai_generating}} {{on "click" (this.ctrlAction "open_create_chooser")}}>
                 {{t "Other Create Board Methods" key="other_create_methods"}}
               </button>
             {{/unless}}
@@ -157,7 +157,7 @@
           {{!-- Hidden after the wizard hands off, for the reason given on the AI-mode copy
                of this button above. --}}
           {{#unless this.wizard_done}}
-            <button type="button" class="nb-ai-mode-other nb-other-methods-btn" {{on "click" (this.ctrlAction "open_create_chooser")}}>
+            <button type="button" class="nb-ai-mode-other nb-other-methods-btn" disabled={{this.ai_generating}} {{on "click" (this.ctrlAction "open_create_chooser")}}>
               {{t "Other Create Board Methods" key="other_create_methods"}}
             </button>
           {{/unless}}

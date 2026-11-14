@@ -2510,7 +2510,7 @@ export default Component.extend({
         if(this.get('model')) { this.set('model.ai_generated', null); }
       }
       this.set('ai_mode', to_ai);
-      this.set('ai_generate_error', null);
+      this.setProperties({ ai_generate_error: null, ai_generating: false });
     },
 
     /** AI label generation, in-page. Uses the (required) board
@@ -2555,7 +2555,7 @@ export default Component.extend({
           dataType: 'json',
           data: JSON.stringify(payload)
         }).then(function(res) {
-          if(_this.isDestroyed || _this.isDestroying) { return; }
+          if(_this.isDestroyed || _this.isDestroying || !_this.get('ai_mode')) { return; }
           var labels = (res && res.labels) || '';
           _this.set('model.grid.labels', labels);
           if(res && res.name && !(_this.get('model.name') || '').trim().length) {
@@ -2569,7 +2569,7 @@ export default Component.extend({
           // Hand off to the labels page only now: until here the step showed the busy button.
           _this.setProperties({ ai_generating: false, ai_labels_generated: true, wizard_done: true, ai_generate_shortfall: (res && res.shortfall) || 0, ai_generate_cells: payload.rows * payload.columns, ai_generate_found: payload.rows * payload.columns - ((res && res.shortfall) || 0) });
         }, function(err) {
-          if(_this.isDestroyed || _this.isDestroying) { return; }
+          if(_this.isDestroyed || _this.isDestroying || !_this.get('ai_mode')) { return; }
           var msg = i18n.t('generate_failed', "Generation failed");
           var resp = (err && err.fakeXHR && err.fakeXHR.responseJSON) || (err && err.responseJSON) || null;
           if(resp && resp.error) {

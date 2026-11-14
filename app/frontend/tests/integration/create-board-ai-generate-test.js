@@ -110,6 +110,34 @@ QUnit.module('Integration | Component | create-board-new AI generate', function(
     assert.dom('[data-test-ai-shortfall-notice]').doesNotExist();
   });
 
+  // While the step stays on screen, its way out to the other creation methods must be held too,
+  // or a late answer would land on top of a flow the person chose instead (Codex review, #1309).
+  QUnit.test('Other Create Board Methods is held while the labels are generated', async function(assert) {
+    // The header holding that button is only drawn on the full page (`@standalone`, as the route renders it).
+    await render(hbs`<CreateBoardNew @standalone={{true}} />`);
+    seen.component.setProperties({ ai_mode: true, wizard_step: 3 });
+    seen.component.set('model.description', 'Playground words');
+    await settled();
+    await click('.nb-ai-generate__btn');
+    await waitUntil(() => seen.component.get('ai_generating'));
+    assert.dom('.nb-other-methods-btn').isDisabled();
+    pending.resolve({ labels: 'slide swing' });
+    await settled();
+  });
+
+  QUnit.test('a late answer is ignored once the person has left AI mode', async function(assert) {
+    await openLastAiStep();
+    await click('.nb-ai-generate__btn');
+    await waitUntil(() => seen.component.get('ai_generating'));
+    seen.component.send('set_create_mode', 'regular');
+    seen.component.set('model.grid.labels', 'typed by hand');
+    pending.resolve({ labels: 'slide swing' });
+    await settled();
+    assert.strictEqual(seen.component.get('model.grid.labels'), 'typed by hand');
+    assert.false(seen.component.get('wizard_done'));
+    assert.false(seen.component.get('ai_generating'));
+  });
+
   QUnit.test('the labels page opens once the labels arrive', async function(assert) {
     await openLastAiStep();
     await click('.nb-ai-generate__btn');
