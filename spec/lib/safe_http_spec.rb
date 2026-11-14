@@ -112,6 +112,16 @@ describe SafeHttp, own_resolver: true do
 
       expect(pins).to eq(['example.com:443:93.184.216.34,[2606:2800:220:1:248:1893:25c8:1946]'])
     end
+
+    # libcurl looks a pin up by host AND port; a pin on another port than the url is ignored and curl
+    # does its own DNS lookup, which reopens rebinding.
+    it 'pins a non-default https port on the same port as the fetched url' do
+      allow(SafeHttp).to receive(:resolve_addresses).with('media.example.com').and_return(['93.184.216.34'])
+      prepared = SafeHttp.send(:prepare_request, 'https://media.example.com:8443/a.png')
+
+      expect(prepared[:effective_url]).to eq('https://media.example.com:8443/a.png')
+      expect(prepared[:pins]).to eq(['media.example.com:8443:93.184.216.34'])
+    end
   end
 
   describe 'Ethon resolve slist' do

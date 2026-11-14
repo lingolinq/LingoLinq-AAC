@@ -2469,6 +2469,13 @@ describe Uploader do
       expect(Uploader.sanitize_url("http://username:password@example.com")).to eq("http://example.com")
     end
 
+    it 'should keep a non-default https port' do
+      # SafeHttp fetches the sanitized url, so a dropped port fetches a different endpoint (port 443).
+      expect(Uploader.sanitize_url("https://media.example.com:8443/a.png?x=1")).to eq("https://media.example.com:8443/a.png?x=1")
+      expect(Uploader.sanitize_url("https://media.example.com:80/a.png")).to eq("https://media.example.com:80/a.png")
+      expect(Uploader.sanitize_url("http://media.example.com:443/a.png")).to eq("http://media.example.com:443/a.png")
+    end
+
     it 'should block IP-literal SSRF targets (cloud metadata, link-local, private ranges)' do
       # Cloud metadata endpoint — the canonical SSRF target.
       expect(Uploader.sanitize_url("http://169.254.169.254/latest/meta-data/iam/security-credentials/")).to eq(nil)

@@ -210,9 +210,9 @@ describe Lesson, :type => :model do
     it "should make a remote call if frd" do
       l = Lesson.create
       l.settings['url'] = 'http://example.com/lesson'
-      o = OpenStruct.new(code: 200, headers: {})
-      expect(Typhoeus).to receive(:head).with('http://example.com/lesson', followlocation: true).and_return(o)
+      head = stub_request(:head, 'http://example.com/lesson').to_return(status: 200, headers: {})
       expect(l.check_url(true)).to eq(true)
+      expect(head).to have_been_requested
       l.reload
       expect(l.settings['checked_url'].except('ts')).to eq({'url' => 'http://example.com/lesson'})
     end
@@ -220,9 +220,9 @@ describe Lesson, :type => :model do
     it "should mark deny or sameorigin responses as problematic" do
       l = Lesson.create
       l.settings['url'] = 'http://example.com/lesson'
-      o = OpenStruct.new(code: 200, headers: {'X-Frame-Options' => 'deny'})
-      expect(Typhoeus).to receive(:head).with('http://example.com/lesson', followlocation: true).and_return(o)
+      head = stub_request(:head, 'http://example.com/lesson').to_return(status: 200, headers: {'X-Frame-Options' => 'deny'})
       expect(l.check_url(true)).to eq(true)
+      expect(head).to have_been_requested
       l.reload
       expect(l.settings['checked_url'].except('ts')).to eq({'url' => 'http://example.com/lesson', 'noframe' => true})
     end
@@ -230,9 +230,9 @@ describe Lesson, :type => :model do
     it "should mark csp issues as problematic" do
       l = Lesson.create
       l.settings['url'] = 'http://example.com/lesson'
-      o = OpenStruct.new(code: 200, headers: {'Content-Security-Policy' => 'a;b;  frame-ancestors: asdf'})
-      expect(Typhoeus).to receive(:head).with('http://example.com/lesson', followlocation: true).and_return(o)
+      head = stub_request(:head, 'http://example.com/lesson').to_return(status: 200, headers: {'Content-Security-Policy' => 'a;b;  frame-ancestors: asdf'})
       expect(l.check_url(true)).to eq(true)
+      expect(head).to have_been_requested
       l.reload
       expect(l.settings['checked_url'].except('ts')).to eq({'url' => 'http://example.com/lesson', 'noframe' => true})
     end
@@ -240,11 +240,38 @@ describe Lesson, :type => :model do
     it "should remember checked_url" do
       l = Lesson.create
       l.settings['url'] = 'http://example.com/lesson'
-      o = OpenStruct.new(code: 200, headers: {})
-      expect(Typhoeus).to receive(:head).with('http://example.com/lesson', followlocation: true).and_return(o)
+      head = stub_request(:head, 'http://example.com/lesson').to_return(status: 200, headers: {})
       expect(l.check_url(true)).to eq(true)
+      expect(head).to have_been_requested
       l.reload
       expect(l.settings['checked_url'].except('ts')).to eq({'url' => 'http://example.com/lesson'})
+    end
+
+    it "should not reach an internal address" do
+      l = Lesson.create
+      l.settings['url'] = 'http://10.0.0.5/admin'
+      expect(Typhoeus).not_to receive(:head)
+      expect(l.check_url(true)).to eq(true)
+      expect(l.settings['checked_url']['noframe']).to eq(nil)
+    end
+
+    it "should not follow a redirect to an internal address" do
+      l = Lesson.create
+      l.settings['url'] = 'https://lessons.example.com/start'
+      stub_request(:head, 'https://lessons.example.com/start').to_return(status: 302, headers: {'Location' => 'http://10.0.0.5/admin'})
+      internal = stub_request(:head, 'http://10.0.0.5/admin').to_return(status: 200, headers: {'X-Frame-Options' => 'deny'})
+      expect(l.check_url(true)).to eq(true)
+      expect(internal).not_to have_been_requested
+      expect(l.settings['checked_url']['noframe']).to eq(nil)
+    end
+
+    it "should follow a redirect between public hosts" do
+      l = Lesson.create
+      l.settings['url'] = 'https://lessons.example.com/start'
+      stub_request(:head, 'https://lessons.example.com/start').to_return(status: 301, headers: {'Location' => 'https://www.example.com/lesson'})
+      stub_request(:head, 'https://www.example.com/lesson').to_return(status: 200, headers: {'X-Frame-Options' => 'sameorigin'})
+      expect(l.check_url(true)).to eq(true)
+      expect(l.settings['checked_url']['noframe']).to eq(true)
     end
   end
 

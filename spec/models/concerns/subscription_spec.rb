@@ -2273,6 +2273,71 @@ describe Subscription, :type => :model do
         u
       end
 
+      # A notice the mailer skips (General#mail_message: no address, or email turned off) raises
+      # nothing, so the step stands as for a sent one; the skip is audited with its reason.
+      describe "notices that are not sent" do
+        def not_sent_events(u)
+          AuditEvent.where(user_key: 'system').to_a.select { |e| e.data['type'] == 'inactivity_notice_not_sent' && e.data['user_id'] == u.global_id }
+        end
+
+        it "audits a warning skipped because email is turned off, and keeps the step" do
+          u = User.create(settings: {'email' => 'gone@example.com'})
+          UserMailer.bounce_email('gone@example.com')
+          User.where(id: u.id).update_all(updated_at: 13.months.ago)
+
+          User.check_for_subscription_updates
+
+          expect(User.find(u.id).settings['subscription']['last_deletion_attempts']).to eq(1)
+          ev = not_sent_events(u)
+          expect(ev.length).to eq(1)
+          expect(ev[0].data).to eq({'type' => 'inactivity_notice_not_sent', 'user_id' => u.global_id, 'step' => 'deletion_warning', 'reason' => 'email_disabled'})
+        end
+
+        it "audits a deletion notice skipped because there is no address, and keeps the schedule" do
+          u = inactive_account_on_final_warning
+
+          User.check_for_subscription_updates
+
+          expect(User.find(u.id).schedule_deletion_at).not_to eq(nil)
+          ev = not_sent_events(u)
+          expect(ev.map { |e| [e.data['step'], e.data['reason']] }).to eq([['account_deleted', 'no_address']])
+        end
+
+        it "audits nothing for a notice that goes out" do
+          u = User.create(settings: {'email' => 'here@example.com'})
+          User.where(id: u.id).update_all(updated_at: 13.months.ago)
+
+          User.check_for_subscription_updates
+
+          expect(User.find(u.id).settings['subscription']['last_deletion_attempts']).to eq(1)
+          expect(not_sent_events(u)).to eq([])
+        end
+
+        # The reason comes from the row as the sweep locked it, not the batch copy loaded earlier.
+        it "reads whether email is turned off from the locked row" do
+          first = User.create(settings: {'email' => 'first@example.com'})
+          late = User.create(settings: {'email' => 'late@example.com'})
+          User.where(id: [first.id, late.id]).update_all(updated_at: 13.months.ago)
+          allow(SubscriptionMailer).to receive(:deliver_message).and_wrap_original do |orig, message, id, *rest|
+            if id == first.global_id
+              # turned off after the batch loaded `late`, keeping its activity time
+              at = User.find(late.id).updated_at
+              row = User.find(late.id)
+              row.settings['email_disabled'] = true
+              row.settings['email_disabled_reason'] = 'bounce'
+              row.save
+              User.where(id: late.id).update_all(updated_at: at)
+            end
+            orig.call(message, id, *rest)
+          end
+
+          User.check_for_subscription_updates
+
+          expect(not_sent_events(first)).to eq([])
+          expect(not_sent_events(late).map { |e| e.data['reason'] }).to eq(['email_disabled'])
+        end
+      end
+
       it "records a deletion warning without reverting settings saved after the batch was loaded" do
         first = inactive_account_to_warn
         second = inactive_account_to_warn
@@ -2838,7 +2903,9 @@ describe Subscription, :type => :model do
           end
 
           it "counts rejections once a message in the run was accepted" do
-            accepted = inactive_account_to_warn
+            # an address, so its notice is actually sent (one with none is skipped, see below)
+            accepted = User.create(settings: {'email' => 'accepted@example.com'})
+            User.where(id: accepted.id).update_all(updated_at: 13.months.ago)
             accounts = 3.times.map { inactive_account_to_warn }
             rejecting_all(accounts, [accepted.global_id])
 
@@ -2846,6 +2913,19 @@ describe Subscription, :type => :model do
 
             expect(User.find(accepted.id).settings['subscription']['last_deletion_attempts']).to eq(1)
             accounts.each { |a| expect(User.find(a.id).settings['subscription']['inactivity_mail_failures']['count']).to eq(1) }
+          end
+
+          # A notice the mailer skips (no address, email turned off) never reached SES, so it says
+          # nothing about whether SES accepts mail.
+          it "does not take a notice that was not sent as an accepted message" do
+            skipped = inactive_account_to_warn
+            accounts = 3.times.map { inactive_account_to_warn }
+            rejecting_all(accounts, [skipped.global_id])
+
+            User.check_for_subscription_updates
+
+            accounts.each { |a| expect((User.find(a.id).settings['subscription'] || {})['inactivity_mail_failures']).to eq(nil) }
+            expect(Rails.logger).to have_received(:error).with(/mail stopped for this run: setup error .*3 messages rejected and none accepted/).once
           end
         end
 
