@@ -163,3 +163,9 @@ Not changed, by decision:
 
 Totals after round 2: generator, boards controller, AiClient and AiApiLog spec files, 408 examples,
 0 failures, 1 pending (pre-existing).
+
+Real-model check after round 2 (same probe, 2026-11-13 17:46): all 12 boards complete (64 x6, 112 x4,
+225 x2), no shortfall, no repeats, no commas, NAME and DESCRIPTION in every one, 1.6-5.2 s. The
+"feelings and asking for help" board needed the top-up at 64 and 112 cells where it did not before round 2,
+most likely because the sentence-shape filter dropped some long phrases; the top-up filled both boards.
+Worth watching if real feelings boards often take two calls.
