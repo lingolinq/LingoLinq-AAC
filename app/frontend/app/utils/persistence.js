@@ -4362,15 +4362,15 @@ persistence.DSExtend = {
               error.skip = true;
               error({error: 'timeout'});
             }, find_limits.caller_ms); // utils/board_download.js
-            var id_or_key = id;
+            var id_or_key = id; var late_started = { at: (new Date()).getTime(), token: capabilities.access_token || null }; // for store_late_board (utils/board_download.js)
             if(persistence.force_reload == full_id && type.modelName == 'board' && local_data && local_data.board && local_data.board.key) {
               id_or_key = local_data.board.key;
             }
-            return _super.call(_this, store, type, id_or_key).then(function(record) {
+            return (type.modelName == 'board' ? join_download('board_' + id_or_key, function() { return _this.ajax(_this.buildURL('board', id_or_key, null, 'findRecord'), 'GET', board_transport_options()); }) : _super.call(_this, store, type, id_or_key)).then(function(record) { // a board: one long attempt, joined by a second request (utils/board_download.js)
               // DEBUGGER HERE, when wifi is off this still gets
               // called a couple times, but eats the promise for some reason
               // TODO: maybe check if it's a problem in persistence.ajax
-              if(error.skip) { return; }
+              if(error.skip) { if(type.modelName == 'board') { store_late_board(record, id, late_started, late_deps(persistence, function() { return capabilities.access_token || null; })); } return; } // answered already: a board that arrived late is still kept
               error.skip = true;
               // mark the retrieved timestamp for freshness checks
               if(record[type.modelName]) {
@@ -4639,4 +4639,4 @@ import { queue_eventual_store } from './eventual_store_queue';
 import { is_permanent_upload_url } from './permanent_upload';
 import { on_uploads_cdn, is_web_page } from './direct_fetch';
 import { is_stale_item, drop_stale_head } from './url_store_queue';
-import { find_limits } from './board_download'; // at the end so no baselined lint row shifts (see .eslint-todo)
+import { find_limits, board_transport_options, join_download, late_deps, store_late_board } from './board_download'; // at the end so no baselined lint row shifts (see .eslint-todo)
