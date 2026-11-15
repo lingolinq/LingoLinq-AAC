@@ -1,0 +1,145 @@
+#!/usr/bin/env bash
+# fake-gcloud - stand-in for `gcloud` used by phase5-armor-test.sh. It records argv and answers
+# the reads phase5-frontend-lb.sh makes. It never contacts Google Cloud.
+#
+# It must be invoked as `gcloud` from a PATH where it is the first `gcloud`, with STUB_LOG and
+# STUB_STATE set; otherwise it refuses (exit 97), so it cannot be mistaken for, or shadowed by, the
+# real CLI. The driver links it into a private bin directory as `gcloud`.
+#
+# Knobs (all optional):
+#   STUB_POLICY=present|missing|error|noisy   the Cloud Armor policy: exists / 404 until created /
+#                                       non-404 read error / non-404 read error preceded by a WARNING
+#                                       line that contains "was not found"
+#   STUB_MISSING_RULES="1003 ..."       rules that 404 until created (policy present)
+#   STUB_RULE_READ_ERROR="1004 ..."     rules whose describe fails with a non-404 error
+#   STUB_RULE_NOISY_ERROR="1003 ..."    rules whose describe fails with a non-404 error preceded by a
+#                                       WARNING line that contains "was not found"
+#   STUB_RULE_MISSING_MSG=notfound|nocontain|specified   wording of a missing-rule error (see below)
+#   STUB_NOTFOUND_OTHER=1               not-found errors name a DIFFERENT policy's path
+#   STUB_LOG_LEVEL_READ_FAIL=1          the policy's logLevel readback fails (non-404)
+#   STUB_ATTACHED=<url or empty>        backend's attached policy (default: lingolinq-armor)
+#   STUB_BACKEND_READ_FAIL=1            the backend's securityPolicy read fails
+#   STUB_LOG_LEVEL, STUB_JSON, STUB_PREVIEW   values returned for the policy/rule readbacks
+#
+# Error text: gcloud's compute client prints "Could not fetch resource:" followed by the server's
+# error message (googlecloudsdk/api_lib/compute/client_adapter.py MakeRequests, utils.RaiseException).
+# For a missing global resource the server message is "The resource '<path>' was not found". The
+# missing-rule wordings "does not contain a rule with the specified priority" and "The specified
+# security policy rule was not found" are assumptions about the server, kept as further styles so
+# the script is tested against each.
+set -u
+
+self_dir="$(cd "$(dirname "$0")" && pwd)"
+self="$self_dir/$(basename "$0")"
+first="$(command -v gcloud 2>/dev/null || true)"
+if [ "$(basename "$0")" != "gcloud" ] || [ "$first" != "$self" ]; then
+  echo "fake-gcloud: refusing to run: it must be the first 'gcloud' on PATH (first is '${first:-none}')." >&2
+  exit 97
+fi
+if [ -z "${STUB_LOG:-}" ] || [ -z "${STUB_STATE:-}" ]; then
+  echo "fake-gcloud: refusing to run: STUB_LOG and STUB_STATE must be set." >&2
+  exit 97
+fi
+
+printf '%s\n' "$*" >> "$STUB_LOG"
+args="$*"
+proj=""; fmt=""
+for a in "$@"; do
+  case "$a" in
+    --project=*) proj="${a#--project=}" ;;
+    --format=*) fmt="${a#--format=}" ;;
+  esac
+done
+state="$STUB_STATE"; mkdir -p "$state"
+
+policy_name="lingolinq-armor"
+for a in "$@"; do case "$a" in --security-policy=*) policy_name="${a#--security-policy=}" ;; esac; done
+
+not_found() { # $1 = command path for the prefix, $2 = resource path
+  [ "${STUB_NOTFOUND_OTHER:-0}" = "1" ] && set -- "$1" "projects/$proj/global/securityPolicies/some-other-policy"
+  printf 'ERROR: (gcloud.%s) Could not fetch resource:\n - The resource '"'"'%s'"'"' was not found\n\n' "$1" "$2" >&2
+  exit 1
+}
+read_error() { # non-404 failure: a permission error
+  printf 'ERROR: (gcloud.%s) Could not fetch resource:\n - Required '"'"'compute.securityPolicies.get'"'"' permission for '"'"'projects/%s/global/securityPolicies/%s'"'"'\n\n' "$1" "$proj" "$policy_name" >&2
+  exit 1
+}
+noisy_error() { # a WARNING line mentioning "was not found", then a non-404 error
+  printf 'WARNING: Property validation for compute/zone was not found in the active configuration.\n' >&2
+  read_error "$1"
+}
+in_list() { local x; for x in $2; do [ "$x" = "$1" ] && return 0; done; return 1; }
+
+policy_present() {
+  case "${STUB_POLICY:-present}" in
+    present) return 0 ;;
+    *) [ -e "$state/policy" ] ;;
+  esac
+}
+
+case "$args" in
+  "auth list"*) echo "operator@example.com"; exit 0 ;;
+  "billing projects describe"*) echo "True"; exit 0 ;;
+
+  "compute security-policies rules "*)
+    verb="$4"; prio="$5"
+    if [ "$verb" = "create" ]; then touch "$state/rule-$prio"; exit 0; fi
+    if [ "$verb" = "describe" ]; then
+      [ "${STUB_POLICY:-present}" = "error" ] && read_error "compute.security-policies.rules.describe"
+      in_list "$prio" "${STUB_RULE_READ_ERROR:-}" && read_error "compute.security-policies.rules.describe"
+      in_list "$prio" "${STUB_RULE_NOISY_ERROR:-}" && noisy_error "compute.security-policies.rules.describe"
+      policy_present || not_found "compute.security-policies.rules.describe" "projects/$proj/global/securityPolicies/$policy_name"
+      exists=0
+      if [ -e "$state/rule-$prio" ]; then exists=1
+      elif [ "${STUB_POLICY:-present}" = "present" ] && ! in_list "$prio" "${STUB_MISSING_RULES:-}"; then exists=1
+      fi
+      if [ "$exists" != "1" ]; then
+        if [ "${STUB_RULE_MISSING_MSG:-notfound}" = "nocontain" ]; then
+          printf 'ERROR: (gcloud.compute.security-policies.rules.describe) Could not fetch resource:\n - Invalid value for field '"'"'priority'"'"': '"'"'%s'"'"'. The security policy does not contain a rule with the specified priority.\n\n' "$prio" >&2
+          exit 1
+        fi
+        if [ "${STUB_RULE_MISSING_MSG:-notfound}" = "specified" ]; then
+          printf 'ERROR: (gcloud.compute.security-policies.rules.describe) Could not fetch resource:\n - The specified security policy rule was not found.\n\n' >&2
+          exit 1
+        fi
+        not_found "compute.security-policies.rules.describe" "projects/$proj/global/securityPolicies/$policy_name/rules/$prio"
+      fi
+      case "$fmt" in
+        'value(preview)') echo "${STUB_PREVIEW:-True}" ;;
+        'value(action)') echo "deny(403)" ;;
+        *rateLimitThreshold*) printf '600\t60\n' ;;
+      esac
+      exit 0
+    fi
+    exit 0 ;;
+
+  "compute security-policies "*)
+    verb="$3"; name="$4"; policy_name="$name"
+    if [ "$verb" = "create" ]; then touch "$state/policy"; exit 0; fi
+    if [ "$verb" = "describe" ]; then
+      [ "${STUB_POLICY:-present}" = "error" ] && read_error "compute.security-policies.describe"
+      [ "${STUB_POLICY:-present}" = "noisy" ] && noisy_error "compute.security-policies.describe"
+      policy_present || not_found "compute.security-policies.describe" "projects/$proj/global/securityPolicies/$name"
+      case "$fmt" in
+        *logLevel*) [ "${STUB_LOG_LEVEL_READ_FAIL:-0}" = "1" ] && read_error "compute.security-policies.describe"
+                    echo "${STUB_LOG_LEVEL-NORMAL}" ;;
+        *jsonParsing*) echo "${STUB_JSON-STANDARD}" ;;
+      esac
+      exit 0
+    fi
+    exit 0 ;;
+
+  "compute addresses describe"*) [ -n "$fmt" ] && echo "203.0.113.10"; exit 0 ;;
+  "compute backend-services describe"*)
+    if [ "$fmt" = 'value(securityPolicy)' ]; then
+      if [ "${STUB_BACKEND_READ_FAIL:-0}" = "1" ]; then
+        echo "ERROR: (gcloud.compute.backend-services.describe) simulated read failure" >&2; exit 1
+      fi
+      echo "${STUB_ATTACHED-https://www.googleapis.com/compute/v1/projects/$proj/global/securityPolicies/lingolinq-armor}"
+      exit 0
+    fi
+    [ -n "$fmt" ] && echo "https://www.googleapis.com/compute/v1/projects/$proj/regions/us-central1/networkEndpointGroups/lingolinq-web-neg"
+    exit 0 ;;
+  # Every other read (project, run service, LB resources) reports present, so step 1 only skips.
+  *) exit 0 ;;
+esac
