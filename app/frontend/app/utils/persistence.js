@@ -4361,7 +4361,7 @@ persistence.DSExtend = {
               if(error.skip) { return; }
               error.skip = true;
               error({error: 'timeout'});
-            }, 15000);
+            }, find_limits.caller_ms); // utils/board_download.js
             var id_or_key = id;
             if(persistence.force_reload == full_id && type.modelName == 'board' && local_data && local_data.board && local_data.board.key) {
               id_or_key = local_data.board.key;
@@ -4639,3 +4639,4 @@ import { queue_eventual_store } from './eventual_store_queue';
 import { is_permanent_upload_url } from './permanent_upload';
 import { on_uploads_cdn, is_web_page } from './direct_fetch';
 import { is_stale_item, drop_stale_head } from './url_store_queue';
+import { find_limits } from './board_download'; // at the end so no baselined lint row shifts (see .eslint-todo)
