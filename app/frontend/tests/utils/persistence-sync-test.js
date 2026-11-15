@@ -6528,13 +6528,13 @@ describe("persistence-sync", function() {
       });
     });
 
-    it("should try a timed-out board only once more, then report it", function() {
+    it("should try a timed-out board three more times, then report it", function() { // was "once more"; changed with Traci's approval 2026-11-14 (utils/board_retry.js)
       db_wait(function() {
         var response = answers([{ reject: { error: 'timeout' } }]);
         var state = syncWithBoard167(response);
         waitsFor(function() { return waitForSyncDoneAndSettled(state.result) && state.tailDone; });
         runs(function() {
-          expect(response.calls).toEqual(2);
+          expect(response.calls).toEqual(4);
           expect(statusFor167().error).toEqual('board 167 failed retrieval for syncing, linked from 145');
           cancelSyncTailWork();
           persistence.set('sync_progress', null);
@@ -6543,13 +6543,13 @@ describe("persistence-sync", function() {
       });
     });
 
-    it("should ask for a board linked from two places at most twice", function() {
+    it("should ask for a board linked from two places at most four times", function() {
       db_wait(function() {
         var response = answers([{ reject: { error: 'timeout' } }]);
         var state = syncWithBoard167(response, true);
         waitsFor(function() { return waitForSyncDoneAndSettled(state.result) && state.tailDone; });
         runs(function() {
-          expect(response.calls).toEqual(2);
+          expect(response.calls).toEqual(4);
           cancelSyncTailWork();
           persistence.set('sync_progress', null);
           LingoLinq.sync_testing_real_boards = false;
@@ -6568,7 +6568,7 @@ describe("persistence-sync", function() {
         runs(function() {
           var log = persistence.get('sync_log') || [];
           var rows = ((log[0] && log[0].statuses) || []).filter(function(s) { return s.id == '167'; });
-          expect(response.calls).toEqual(2);
+          expect(response.calls).toEqual(4);
           expect(rows.length).toEqual(1);
           expect(rows[0] && rows[0].error).toEqual('board fred/slow failed retrieval for syncing, linked from 145');
           expect(logById(queryLog, '160')).toNotEqual(undefined);

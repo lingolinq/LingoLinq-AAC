@@ -13,11 +13,13 @@ export var BOARD_RELOAD_MS = 20000;
 
 // A failure that says nothing about the board itself: a timeout (the adapter's or the sync's), no connection, a server
 // error or too many requests. Errors arrive as {error: 'timeout'} from the adapter, {error: 'promise timed out:...'}
-// from time_promise, or {fakeXHR: {status}, message, result} from the transport (utils/extras.js). Anything else,
-// including a refusal (400 "Not authorized"), a missing or deleted board (404), or an unknown shape, is not passing.
+// from time_promise, {fakeXHR: {status}, message, result} from the transport (utils/extras.js), or
+// {offline: true, error: 'not online'} from the adapter while the device is offline (utils/persistence.js DSExtend
+// findRecord). Anything else, including a refusal (400 "Not authorized"), a missing or deleted board (404), or an
+// unknown shape, is not passing.
 export function passing_failure(err) {
   if(!err || typeof err !== 'object') { return false; }
-  if(err.error === 'timeout') { return true; }
+  if(err.error === 'timeout' || err.offline === true) { return true; }
   if(typeof err.error === 'string' && err.error.indexOf('promise timed out') === 0) { return true; }
   var xhr = err.fakeXHR;
   if(!xhr || typeof xhr.status !== 'number') { return false; }
@@ -84,18 +86,19 @@ export function known_on_device(sync_progress, record) {
 }
 
 // A first sync has no stored copy to keep, so a board whose lookup failed was lost with its folders. When the failure
-// is passing, the sync tries the board once more, later in the same sync (services/persistence.js nextBoard). The
-// claim is per board for the whole sync (`sync_progress.retried_lookups`), not per queue entry, so a board linked
-// from two places or synced for a supervisee is still asked for at most twice. The failed lookup cached in
-// `sync_progress.key_lookups` (board_lookup) is dropped, or the retry would get the same rejection back.
+// is passing, the sync tries the board again later in the same sync, up to MAX_BOARD_RETRIES more times, after the
+// waits in utils/board_retry.js (services/persistence.js nextBoard). Resolves the retry number (1 to
+// MAX_BOARD_RETRIES), or 0 for none. The count is per board for the whole sync (`sync_progress.retried_lookups`), not
+// per queue entry, so a board linked from two places or synced for a supervisee is still asked for at most
+// MAX_BOARD_RETRIES + 1 times. The failed lookup cached in `sync_progress.key_lookups` (board_lookup) is dropped, or
+// the retry would get the same rejection back. Three more tries since the Android sync fix (2026-11-14); was one.
+export var MAX_BOARD_RETRIES = 3;
 export function claim_board_retry(sync_progress, id, err) {
-  if(!sync_progress || !id || !passing_failure(err)) { return false; }
+  if(!sync_progress || !id || !passing_failure(err)) { return 0; }
   sync_progress.retried_lookups = sync_progress.retried_lookups || {};
-  if(sync_progress.retried_lookups[id]) { return false; }
-  sync_progress.retried_lookups[id] = true;
+  var done = sync_progress.retried_lookups[id] || 0;
+  if(done >= MAX_BOARD_RETRIES) { return 0; }
+  sync_progress.retried_lookups[id] = done + 1;
   if(sync_progress.key_lookups) { delete sync_progress.key_lookups[id]; }
-  return true;
+  return done + 1;
 }
-
-// How long the sync waits before that second try, so the server's load can drop.
-export var BOARD_RETRY_DELAY_MS = 10000;

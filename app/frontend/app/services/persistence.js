@@ -1989,7 +1989,7 @@ var persistence = Service.extend({
   },
   cancel_sync: function() {
     if(this.get('sync_progress')) {
-      this.set('sync_progress.canceled', true);
+      this.set('sync_progress.canceled', true); wake_parked(this.get('sync_progress')); // a thread waiting to retry a board resumes now and stops (utils/board_retry.js)
     }
   },
   time_promise: time_promise,
@@ -3059,7 +3059,7 @@ var persistence = Service.extend({
         // other boards, the starter copies made at sign-up, or public boards: to have a board on the device, star it.
         var to_visit_boards = offlineSyncSeeds.seeds(user);
         var safely_cached_boards = {};
-        var checked_linked_boards = {}; var unreachable_boards = {}; // boards this sync could not get: reported once, not queued again by a board that links to them (#1212)
+        var checked_linked_boards = {}; var unreachable_boards = {}; var parking = create_parking(schedule_sync_board_step); register_parking(_sync.get('sync_progress'), parking); // boards this sync could not get: reported once, not queued again by a board that links to them (#1212); parked ones are tried again later (utils/board_retry.js)
 
         var visited_boards = [];
         if(!_sync.get('sync_progress.progress_for')) {
@@ -3083,7 +3083,7 @@ var persistence = Service.extend({
           if(p_for) {
             p_for[user.get('id')] = {
               visited: visited_boards.length,
-              to_visit: to_visit_boards.length,
+              to_visit: to_visit_boards.length + parking.size(), // a parked board is still to do
               board_errors: board_errors
             };
           }
@@ -3361,7 +3361,7 @@ var persistence = Service.extend({
                   nextBoard(defer);
                 }, 75);
               });
-            }, function(err) { if(claim_board_retry(_sync.get('sync_progress'), id, err)) { unreachable_boards[id] = true; if(key) { unreachable_boards[key] = true; } schedule_sync_board_step(function() { to_visit_boards.unshift(next); nextBoard(defer); }, BOARD_RETRY_DELAY_MS); return; } // #1212: once more, later (utils/sync_board_fallback.js)
+            }, function(err) { var retry = claim_board_retry(_sync.get('sync_progress'), id, err); if(retry) { unreachable_boards[id] = true; if(key) { unreachable_boards[key] = true; } parking.park(next, retry); schedule_sync_board_step(function() { nextBoard(defer); }, 75); return; } // a passing failure: parked, and tried again after a growing wait, up to 3 more times; this thread walks on (utils/board_retry.js)
               var board_unauthorized = (err && err.error == "Not authorized");
               if(next.link_disabled && board_unauthorized) {
                 // TODO: if a link is disabled, can we get away with ignoring an unauthorized board?
@@ -3388,7 +3388,7 @@ var persistence = Service.extend({
             // TODO: mark this defer's promise as waiting (needs to be unmarked at each
             // nextBoard call), then set a longer timeout before calling nextBoard,
             // and only resolve when *all* the promises are waiting.
-            defer.resolve();
+            if(!parking.wait(retry_delay, function() { _this.active_board_threads--; }, function(back) { _this.active_board_threads++; to_visit_boards.unshift.apply(to_visit_boards, back); nextBoard(defer); })) { defer.resolve(); } // parked boards: one thread waits for them, its slot given back (utils/board_retry.js); otherwise this thread ends
           } else {
             schedule_sync_board_step(function() {
               nextBoard(defer);
@@ -4984,7 +4984,7 @@ import { queue_eventual_store } from '../utils/eventual_store_queue';
 import { is_permanent_upload_url } from '../utils/permanent_upload';
 import { on_uploads_cdn, is_web_page } from '../utils/direct_fetch';
 import { picture_kept_in_database, usable_database_copy } from '../utils/database_picture';
-import { BOARD_RELOAD_MS, keep_stored_board, claim_board_retry, BOARD_RETRY_DELAY_MS, note_device_boards, known_on_device } from '../utils/sync_board_fallback';
+import { BOARD_RELOAD_MS, keep_stored_board, claim_board_retry, note_device_boards, known_on_device } from '../utils/sync_board_fallback'; import { create_parking, register_parking, wake_parked, retry_delay } from '../utils/board_retry';
 import { usable_copy } from '../utils/board_device_copy';
 import { reason_is_automatic, merge_follow_up } from '../utils/sync_follow_up';
 
