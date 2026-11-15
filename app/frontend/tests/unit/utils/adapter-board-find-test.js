@@ -187,11 +187,15 @@ module('Unit | Utility | adapter board find', function(hooks) {
      take the device fallback and resolve with the OLD copy, reported as re-downloaded. Green on today's code (its
      15 s timer also answers first); it fails if the caller limit is ever set above the transport's. */
   test('a refresh whose download fails after the caller limit is a "timeout", never the old copy', async function(assert) {
-    this.rows['1_905'] = { id: '1_905', key: 'fetcher/board-1_905', name: 'OLD', updated: '2026-11-13T10:00:00Z' };
+    this.rows['1_905'] = board_payload('1_905', { name: 'OLD', updated: '2026-11-13T10:00:00Z' }).board; // a whole board, so it loads if returned
     var d = held(this);
     stub($, 'realAjax', function(options) { return BOARD_URL.test(options.url) ? d.promise() : timed_out(); });
     persistence.force_reload = 'board_1_905';
-    var res = await outcome(this.store.findRecord('board', '1_905'));
+    var res = { done: false, error: {}, value: null };
+    this.store.findRecord('board', '1_905').then(function(r) { res.done = true; res.value = r; }, function(e) { res.done = true; res.error = e || {}; });
+    // The caller limit (30 ms here) answers first. Not settled(): Ember Data's waiter holds it while the request is
+    // open, so a build without the caller limit would only time out; this lets it answer from the transport instead.
+    await waitUntil(function() { return res.done; }, { timeout: 500 }).catch(function() { });
     d.reject({ status: 0, readyState: 0 }, 'timeout', 'timeout');
     await settled();
     assert.true(res.done, 'answered');
