@@ -62,7 +62,8 @@ everything else in this file.
     the Testing section below (RSpec).
 12. **For a bug fix or behaviour change in data handling, auth, sync and offline, or any
     area on the dual-review list in "Before a PR": establish the three facts, write the red
-    test first, and review the proposal before editing.** The full discipline is the
+    test first, and (for auth, account isolation or billing) review the proposal before
+    editing.** The full discipline is the
     `/fix-proposal` skill. In one line each: where is the value READ; what are ALL the
     shapes it can hold; is each cross-file claim TRUE. Label every fact CONFIRMED
     (`file:line`) or ASSUMED, and let nothing ASSUMED carry a fix. "This one is obvious" is
