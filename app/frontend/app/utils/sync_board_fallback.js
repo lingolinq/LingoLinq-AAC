@@ -11,6 +11,12 @@ import RSVP from 'rsvp';
 // lookup (time_promise's default).
 export var BOARD_RELOAD_MS = 20000;
 
+// How long a sync waits for the signed-in user's refresh, its first step (services/persistence.js sync, "reloading
+// root user"). By the same rule: longer than the adapter's own limit, so a slow answer is not cut off by the sync.
+// Was 5 s, which failed every sync started on a busy slow link ("failed to retrieve user details"; Android emulator,
+// 2026-11-15). A real failure still fails the sync.
+export var USER_RELOAD_MS = 20000;
+
 // A failure that says nothing about the board itself: a timeout (the adapter's or the sync's), no connection, a server
 // error or too many requests. Errors arrive as {error: 'timeout'} from the adapter, {error: 'promise timed out:...'}
 // from time_promise, {fakeXHR: {status}, message, result} from the transport (utils/extras.js), or

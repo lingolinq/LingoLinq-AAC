@@ -2106,7 +2106,7 @@ var persistence = Service.extend({
             // already reloaded in sync_supervisees
             return user;
           } else {
-            return _this_sync.time_promise(user.reload(), 'reloading root user', 5000).then(null, function(reloadErr) {
+            return _this_sync.time_promise(user.reload(), 'reloading root user', USER_RELOAD_MS).then(null, function(reloadErr) { // utils/sync_board_fallback.js
               sync_reject({error: "failed to retrieve user details", network: sync_error_is_network(reloadErr)});
             });
           }
@@ -4984,7 +4984,7 @@ import { queue_eventual_store } from '../utils/eventual_store_queue';
 import { is_permanent_upload_url } from '../utils/permanent_upload';
 import { on_uploads_cdn, is_web_page } from '../utils/direct_fetch';
 import { picture_kept_in_database, usable_database_copy } from '../utils/database_picture';
-import { BOARD_RELOAD_MS, keep_stored_board, claim_board_retry, note_device_boards, known_on_device } from '../utils/sync_board_fallback'; import { create_parking, register_parking, wake_parked, retry_delay } from '../utils/board_retry';
+import { BOARD_RELOAD_MS, USER_RELOAD_MS, keep_stored_board, claim_board_retry, note_device_boards, known_on_device } from '../utils/sync_board_fallback'; import { create_parking, register_parking, wake_parked, retry_delay } from '../utils/board_retry';
 import { usable_copy } from '../utils/board_device_copy';
 import { reason_is_automatic, merge_follow_up } from '../utils/sync_follow_up';
 
