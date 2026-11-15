@@ -76,14 +76,16 @@
           <dd>{{var.description}}</dd>
         {{/each}}
       </dl>
-    {{else}}
-      <h3 class="la-system-settings__vars-heading">{{t "Template variables" key="system_settings_email_template_vars"}}</h3>
-      <ul class="la-system-settings__vars">
-        {{#each this.template.variables as |var|}}
-          <li><code>{{var}}</code></li>
-        {{/each}}
-      </ul>
-      <p class="la-system-settings__hint">{{t "Templates use <%= ... %> output tags only (no Ruby code blocks). Use variables like @user, app_name, and support_url in your template body." key="system_settings_email_vars_hint"}}</p>
+    {{/if}}
+    <h3 class="la-system-settings__vars-heading">{{t "Placeholders for the HTML and plain-text bodies" key="system_settings_email_placeholder_list"}}</h3>
+    <ul class="la-system-settings__vars">
+      {{#each this.template.placeholders as |ph|}}
+        <li><code>{{concat "<%= " ph " %>"}}</code></li>
+      {{/each}}
+    </ul>
+    <p class="la-system-settings__hint">{{t "The HTML and plain-text bodies can only fill in the placeholders listed here, each written inside <%= %>. The longer forms are copied from this email's default text: message blocks (mailer_t), dates (long_ordinal_date) and a value with a fallback (.presence ||). A body that uses anything else cannot be saved." key="system_settings_email_placeholder_hint"}}</p>
+    {{#if this.template.required_placeholders.length}}
+      <p class="la-system-settings__hint">{{t "This email does not work without these, so an edited body must keep them:" key="system_settings_email_required_placeholders"}} {{#each this.template.required_placeholders as |ph|}}<code>{{concat "<%= " ph " %>"}}</code> {{/each}}</p>
     {{/if}}
   {{/if}}
 
