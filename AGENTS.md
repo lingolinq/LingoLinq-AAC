@@ -156,8 +156,9 @@ follow-up issue (Scot, 2026-11-13).
 Current stage: beta; adults only (18+); testers are former CoughDrop professionals using fake test communicators; no shared devices until about 2027-01-01.
 
 Change that one line when the stage changes (for example when the first district or
-clinic brings real student or patient accounts). Only Scot changes it, in a PR that
-changes nothing else. Reviewers judge against the copy on the PR's base branch, and a
+clinic brings real student or patient accounts). Anyone on the team may propose a change, in a PR that
+changes nothing else, and it merges only with approval from a senior dev (Scot, Traci or
+Melissa) who did not write it. An agent may draft that PR but never approves or merges it. Reviewers judge against the copy on the PR's base branch, and a
 dated condition ("until about 2027-01-01") ends on its date. These rules sort PR review
 findings only; they do not change `/audit-run` or the findings register.
 
