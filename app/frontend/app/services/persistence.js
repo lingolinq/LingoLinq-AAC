@@ -1973,14 +1973,14 @@ var persistence = Service.extend({
     var progresses = (this.get('sync_progress') || {}).progress_for || {};
     var visited = 0;
     var to_visit = 0;
-    var errors = [];
+    var errors = []; var parked = 0; // boards waiting to be tried again (utils/board_retry.js): the drawer's "waiting for a better connection"
     for(var idx in progresses) {
       visited = visited + progresses[idx].visited;
       to_visit = to_visit + progresses[idx].to_visit;
-      errors = errors.concat(progresses[idx].board_errors || []);
+      errors = errors.concat(progresses[idx].board_errors || []); parked = parked + (progresses[idx].parked || 0);
     }
     if(this.get('sync_progress')) {
-      this.set('sync_progress.visited', visited);
+      this.set('sync_progress.visited', visited); this.set('sync_progress.parked', parked);
       this.set('sync_progress.to_visit', to_visit);
       this.set('sync_progress.total', to_visit + visited);
       this.set('sync_progress.errored', errors.length);
@@ -2374,7 +2374,7 @@ var persistence = Service.extend({
       var complete_sync = track_buttons.then(function() {
         var last_sync = (new Date()).getTime() / 1000;
         if(_this_sync.get('sync_progress.root_user') == user_id && !_this_sync.end_canceled_sync(sync_id, user_id, user_name, force)) { // a cancelled sync whose walk resolved ends as cancelled, before anything below moves the stamps or the clock
-          var sync_stamps = _this_sync.get('sync_progress.sync_stamps');
+          var sync_stamps = _this_sync.get('sync_progress.sync_stamps'); var board_roots = _this_sync.get('sync_progress.board_roots') || {}; // which board each one was reached from, for Sync Details (utils/sync_rollup.js)
           var statuses = _this_sync.get('sync_progress.board_statuses') || [];
           if(_this_sync.get('sync_progress.last_sync_stamp')) {
             _this_sync.set('last_sync_stamp', _this_sync.get('sync_progress.last_sync_stamp'));
@@ -2425,7 +2425,7 @@ var persistence = Service.extend({
             manual: force,
             issues: errors.length > 0,
             finished: new Date(),
-            statuses: statuses,
+            statuses: statuses, roots: board_roots,
             summary: sync_message
           });
           _this_sync.set('sync_log', log);
@@ -3084,7 +3084,7 @@ var persistence = Service.extend({
             p_for[user.get('id')] = {
               visited: visited_boards.length,
               to_visit: to_visit_boards.length + parking.size(), // a parked board is still to do
-              board_errors: board_errors
+              board_errors: board_errors, parked: parking.size()
             };
           }
           _sync.update_sync_progress();
@@ -3128,7 +3128,7 @@ var persistence = Service.extend({
               if(safely_cached) {
                 console.log("this board (" + board.get('key') + ") has already been cached locally");
               }
-              synced_boards.push(board);
+              synced_boards.push(board); note_board_root(_sync.get('sync_progress'), next, {id: board.get('id'), key: board.get('key'), name: board.get('name')}); // utils/sync_rollup.js
               visited_boards.push(id);
 
               if(LingoLinq.remote_url(board.get('icon_url_with_fallback')) && !_sync.store_url_quick_check(board.get('icon_url_with_fallback'), 'image')) {
@@ -3248,7 +3248,7 @@ var persistence = Service.extend({
                 }
 
                 if(!already_visited && !already_going_to_visit && !unreachable_boards[board.id] && !unreachable_boards[board.key]) {
-                  to_visit_boards.push({id: board.id, key: board.key, depth: next.depth + 1, link_disabled: board.link_disabled, visit_source: (emberGet(prior_board, 'key') || emberGet(prior_board, 'id'))});
+                  to_visit_boards.push(Object.assign({id: board.id, key: board.key, depth: next.depth + 1, link_disabled: board.link_disabled, visit_source: (emberGet(prior_board, 'key') || emberGet(prior_board, 'id'))}, root_for_link(next))); // a folder carries its board's root (utils/sync_rollup.js)
                 }
                 var force_cache_check = true;
                 if(safely_cached || force_cache_check) {
@@ -3370,7 +3370,7 @@ var persistence = Service.extend({
                   nextBoard(defer);
                 }, 75);
               } else {
-                unreachable_boards[id] = true; if(key) { unreachable_boards[key] = true; } // TODO: if a board has been deleted
+                unreachable_boards[id] = true; if(key) { unreachable_boards[key] = true; } note_board_root(_sync.get('sync_progress'), next, {id: id, key: key}); // TODO: if a board has been deleted
                 if(err.error && err.error.error) {
                   err = err.error;
                 }
@@ -4984,7 +4984,7 @@ import { queue_eventual_store } from '../utils/eventual_store_queue';
 import { is_permanent_upload_url } from '../utils/permanent_upload';
 import { on_uploads_cdn, is_web_page } from '../utils/direct_fetch';
 import { picture_kept_in_database, usable_database_copy } from '../utils/database_picture';
-import { BOARD_RELOAD_MS, USER_RELOAD_MS, keep_stored_board, claim_board_retry, note_device_boards, known_on_device } from '../utils/sync_board_fallback'; import { create_parking, register_parking, wake_parked, retry_delay } from '../utils/board_retry';
+import { BOARD_RELOAD_MS, USER_RELOAD_MS, keep_stored_board, claim_board_retry, note_device_boards, known_on_device } from '../utils/sync_board_fallback'; import { create_parking, register_parking, wake_parked, retry_delay } from '../utils/board_retry'; import { note_board_root, root_for_link } from '../utils/sync_rollup';
 import { usable_copy } from '../utils/board_device_copy';
 import { reason_is_automatic, merge_follow_up } from '../utils/sync_follow_up';
 
