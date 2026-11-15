@@ -33214,7 +33214,8 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 /* ── Sync Details modal (matches record-note modal shell) ── */
 .modal .modal-dialog:has(.la-sync-details-modal-wrap) {
   margin-top: 15px;
-  max-width: min(920px, 94vw);
+  width: 920px; /* Bootstrap fixes .modal-dialog at 600px from 768px up; set it here as the sibling modals do */
+  max-width: 94vw;
 }
 .la-sync-details-modal-wrap {
   color: var(--md-ink);
@@ -33584,7 +33585,9 @@ $la-sync-ready-tint: #e3f4f1;
 .la-sync-card--attention .la-sync-details-bar-fill {
   background: #c98a1b;
 }
-@media (max-width: 640px) {
+/* The one-row card needs about 750px of dialog (fixed columns 40 + 220 + 160 + 20 plus gaps and a readable title);
+   the dialog is 94vw below 980px, so stack the progress and pill under the title below 820px. */
+@media (max-width: 820px) {
   .la-sync-card-head {
     grid-template-columns: 40px minmax(0, 1fr) 20px;
   }
