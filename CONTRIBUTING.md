@@ -232,7 +232,7 @@ adversary, red-team, review) before merge if it touches any of:
 
 Every review first sorts findings into "fix before merge" and "follow-up" per the
 `## Code Review Rules` section of `AGENTS.md`. Only fix-before-merge findings may be
-Critical or High; follow-ups are Medium or Low with a ready-to-file issue draft.
+Critical or High; follow-ups are Medium or Low, listed one line each.
 
 - **Critical** or **High** finding from any review: blocks merge. Fix it in the
   PR, or get explicit sign-off to defer with a tracked follow-up issue.

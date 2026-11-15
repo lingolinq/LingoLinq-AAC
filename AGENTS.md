@@ -193,9 +193,12 @@ Only these may be Critical or High (P0 or P1 on the Codex connector):
 - Under-13 and school-account issues while the stage says adults only.
 - Polish: naming, style, a missing i18n key, extra tests for a low-risk path, refactors.
 
-For each follow-up, write a ready-to-file GitHub issue draft: a title, then a body with
-what is wrong, where (`path:line`), why it can wait at the current stage, and the
-suggested fix. Do not file it yourself; the author or Scot does. This repo is public:
+List follow-ups as one line each. Write a full ready-to-file GitHub issue draft (a title,
+then what is wrong, where (`path:line`), why it can wait at the current stage, and the
+suggested fix) only for one a current tester or customer could hit, or one a law or
+signed contract requires, and at most 3 per review. Never draft an issue for a PLAUSIBLE
+or unverified finding: check it or drop it. Do not file it yourself; the author or Scot
+does. This repo is public:
 for a security follow-up, keep the PR comment and issue draft at the level of the claim
 (what kind of weakness, which area) and send the details to Scot privately. A missing test blocks
 only when the untested path could break the app or lose data.

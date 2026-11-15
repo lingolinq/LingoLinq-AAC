@@ -250,8 +250,8 @@ Run `/pr-preflight`. Then review, sized to what the PR touches:
   change it). Only "fix before merge" findings (the app breaks, data is lost or mixed
   between accounts, a real security hole for current users, or real personal-data exposure
   shown by a reachable code path) may be Critical or High. Compliance, privacy,
-  shared-device and polish items are follow-ups: Medium or Low, each with a ready-to-file
-  GitHub issue draft, and they do not block.
+  shared-device and polish items are follow-ups: Medium or Low, listed one line each (a full
+  issue draft only where `AGENTS.md` allows), and they do not block.
 
 The `/review-pr` pass ships the diff to an external model on an account with no BAA, so run
 the PII pre-flight first and match the form to the argument: for a PR number,
