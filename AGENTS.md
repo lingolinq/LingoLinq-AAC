@@ -18,7 +18,7 @@ include children and clinical patients; FERPA, HIPAA, GDPR and COPPA apply.
 - **Diagnose before fixing; never guess.** Trace the real code path, verify the root
   cause with evidence, and never break working behaviour. Label facts CONFIRMED
   (`file:line`) or ASSUMED; nothing ASSUMED may carry a fix.
-- **Stay in scope.** Fix only what the task or issue asks. Do not add unrelated hardening,
+- **Stay in scope.** Fix only what the task or issue asks. Fixing the verified root cause is in scope, including shared callers and other defects with that same root cause. Do not add unrelated hardening,
   compliance or privacy changes, refactors or cleanups to the PR, even in files you touch.
   Log anything else you notice as a follow-up issue draft (title and body) in the PR
   description. The one exception: a concrete, proven exposure of real people's personal
@@ -156,7 +156,17 @@ follow-up issue (Scot, 2026-11-13).
 Current stage: beta; adults only (18+); testers are former CoughDrop professionals using fake test communicators; no shared devices until about 2027-01-01.
 
 Change that one line when the stage changes (for example when the first district or
-clinic brings real student or patient accounts). Judge every finding against it.
+clinic brings real student or patient accounts). Only Scot changes it, in a PR that
+changes nothing else. Reviewers judge against the copy on the PR's base branch, and a
+dated condition ("until about 2027-01-01") ends on its date. These rules sort PR review
+findings only; they do not change `/audit-run` or the findings register.
+
+Judge what this diff changes. The stage line rates issues that were already there. A
+defect the diff itself introduces is fix-before-merge at every stage when it breaks or
+bypasses an existing safeguard: `lib/pii_scrubber.rb` use, `secure_serialize`,
+`allowed?` or organization scoping, the under-13 or EU consent gates, `AuditEvent` or
+PaperTrail writes, a retention purge, a feature flag on a new user-facing feature, or a
+promise in the public privacy notice.
 
 ### Fix before merge (the only findings that block)
 
@@ -180,12 +190,13 @@ Only these may be Critical or High (P0 or P1 on the Codex connector):
   audit-trail gaps, disclosures) that do not meet the exposure test above.
 - Shared-device and multi-user-device issues while the stage says no shared devices.
 - Under-13 and school-account issues while the stage says adults only.
-- Polish: naming, style, a missing i18n key or feature flag, extra tests for a low-risk
-  path, refactors.
+- Polish: naming, style, a missing i18n key, extra tests for a low-risk path, refactors.
 
 For each follow-up, write a ready-to-file GitHub issue draft: a title, then a body with
 what is wrong, where (`path:line`), why it can wait at the current stage, and the
-suggested fix. Do not file it yourself; the author or Scot does. A missing test blocks
+suggested fix. Do not file it yourself; the author or Scot does. This repo is public:
+for a security follow-up, keep the PR comment and issue draft at the level of the claim
+(what kind of weakness, which area) and send the details to Scot privately. A missing test blocks
 only when the untested path could break the app or lose data.
 
 ## Where things are
