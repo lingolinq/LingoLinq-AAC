@@ -1,5 +1,6 @@
 import { module, test } from 'qunit';
-import { note_board_root, root_for_link, rollup, with_errors } from 'frontend/utils/sync_rollup';
+import EmberObject from '@ember/object';
+import { note_board_root, root_for_link, rollup, with_errors, summary_for, current_root_name, only_parked_left } from 'frontend/utils/sync_rollup';
 
 /* Sync results grouped by the boards a person knows (utils/sync_rollup.js): one row per home, sidebar or liked
  * board, with its folders underneath, instead of every folder on its own line (Traci, 2026-11-14). */
@@ -79,5 +80,34 @@ module('Unit | Utility | sync rollup', function() {
   test('errors kept during a sync are merged as the finished sync merges them', function(assert) {
     var rows = with_errors([{ key: 'me/a', status: 'downloaded' }], [{ board_key: 'me/b', board_id: '1_2', error: 'failed' }, { error: 'no board' }]);
     assert.deepEqual(rows, [{ key: 'me/a', status: 'downloaded' }, { id: '1_2', key: 'me/b', error: 'failed' }]);
+  });
+
+  test('the summary is the running sync while one runs, otherwise the last finished one', function(assert) {
+    var w = walk();
+    var p = EmberObject.create({ syncing: false, sync_progress: null, sync_log: [
+      { statuses: [{ key: 'old/a', status: 'cached' }] },
+      { statuses: w.statuses, roots: w.sp.board_roots }
+    ] });
+    assert.deepEqual(summary_for(p).groups.map(function(g) { return g.name; }), ['Quick Core 60', 'Keyboard'], 'the latest log entry');
+    p.setProperties({ syncing: true, sync_progress: { board_statuses: [{ id: '1_1', key: 'me/core', status: 'downloaded' }], errors: [{ board_key: 'me/core-go', board_id: '1_12', error: 'failed' }], board_roots: w.sp.board_roots } });
+    var running = summary_for(p);
+    assert.strictEqual(running.groups.length, 1, 'only what the running sync has reached');
+    assert.deepEqual(running.groups[0].folders_missing, ['Go'], 'with the failures it recorded');
+    assert.strictEqual(summary_for(EmberObject.create({ sync_log: [] })), null, 'nothing before a first sync');
+    assert.strictEqual(summary_for(null), null);
+  });
+
+  test('the board being saved now is named by its top board', function(assert) {
+    var w = walk();
+    assert.strictEqual(current_root_name([{ id: '1_10', key: 'me/core-feel' }], w.sp.board_roots), 'Quick Core 60');
+    assert.strictEqual(current_root_name([], w.sp.board_roots), null);
+    assert.strictEqual(current_root_name([{ key: 'me/unknown' }], w.sp.board_roots), null);
+  });
+
+  test('waiting for a better connection only when parked boards are all that is left', function(assert) {
+    assert.true(only_parked_left({ parked: 2, to_visit: 2 }));
+    assert.false(only_parked_left({ parked: 2, to_visit: 5 }), 'other boards are still downloading');
+    assert.false(only_parked_left({ parked: 0, to_visit: 0 }));
+    assert.false(only_parked_left(null));
   });
 });

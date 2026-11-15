@@ -33214,7 +33214,7 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 /* ── Sync Details modal (matches record-note modal shell) ── */
 .modal .modal-dialog:has(.la-sync-details-modal-wrap) {
   margin-top: 15px;
-  max-width: min(720px, 94vw);
+  max-width: min(920px, 94vw);
 }
 .la-sync-details-modal-wrap {
   color: var(--md-ink);
@@ -33231,8 +33231,8 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 }
 .la-sync-details-modal-wrap .la-modal-header-label {
   margin: 0;
-  font-weight: 900;
-  font-size: 14px;
+  font-weight: 800;
+  font-size: 20px;
   letter-spacing: -0.2px;
   color: var(--md-ink);
   flex: 1 1 auto;
@@ -33263,22 +33263,67 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   flex-shrink: 0;
 }
 .la-sync-details-modal-body {
-  padding: 20px 24px;
+  padding: 20px 28px;
   text-align: left;
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.55;
 }
-.la-sync-details-toolbar {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 18px;
-}
-.la-sync-details-toolbar-actions {
-  display: flex;
-  flex-wrap: wrap;
+/* Summary band (Traci's combined design, 2026-11-14): how much is saved, the status line, the one action. */
+.la-sync-details-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 28px;
   align-items: center;
+  padding: 24px 28px;
+  background: rgba($brand-teal, 0.05);
+  border-bottom: 1px solid var(--md-line);
+  text-align: left;
+}
+.la-sync-details-summary-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
   gap: 10px;
-  justify-content: flex-end;
+  min-width: 220px;
+}
+@media (max-width: 640px) {
+  .la-sync-details-summary {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+    padding: 20px 16px;
+  }
+}
+.la-sync-details-summary-pct {
+  margin: 0 0 12px;
+  font-size: 20px;
+  font-weight: 700;
+}
+.la-sync-details-summary-num {
+  font-size: 40px;
+  font-weight: 800;
+  color: $brand-verdigris-ink;
+  font-variant-numeric: tabular-nums;
+  margin-right: 6px;
+}
+.la-sync-details-summary-line {
+  margin: 12px 0 6px;
+  font-size: 16px;
+  color: $brand-slate-blue;
+}
+.la-sync-details-bar {
+  display: flex;
+  height: 10px;
+  border-radius: 999px;
+  background: #e3e8ef;
+  overflow: hidden;
+}
+.la-sync-details-bar--thin {
+  height: 6px;
+}
+.la-sync-details-bar-fill {
+  display: block;
+  background: $brand-teal;
+  transition: width 0.3s ease;
 }
 .la-sync-details-primary-btn {
   display: inline-flex;
@@ -33322,9 +33367,9 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   animation: spinningAnimation 2s infinite linear;
 }
 .la-sync-details-lead {
-  margin: 0 0 18px;
-  font-size: 14px;
-  font-weight: 700;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
   line-height: 1.5;
   color: var(--md-ink);
 }
@@ -33342,8 +33387,8 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 .la-sync-details-muted-block {
   margin-top: 20px;
   margin-bottom: 0;
-  color: var(--md-muted);
-  font-size: 14px;
+  color: $brand-slate-blue;
+  font-size: 15px;
   line-height: 1.5;
 }
 .la-sync-details-see-link {
@@ -33378,8 +33423,264 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   border-top: 1px solid var(--md-line);
 }
 .la-sync-details-modal-footer .la-record-note-cancel-btn {
-  font-size: 14px;
+  font-size: 16px;
   padding: 11px 26px;
+}
+.la-sync-details-technical-toggle {
+  margin-right: auto;
+}
+.la-sync-details-technical {
+  margin-top: 20px;
+  padding-top: 4px;
+  border-top: 1px solid var(--md-line);
+}
+
+/* Sync Details: tabs, one card per board, the folders inside it. Amber marks "needs attention" next to its words
+   (status is never colour alone); 7.0:1 on its tint. */
+$la-sync-attention-ink: #8a5300;
+$la-sync-attention-tint: #fff4df;
+$la-sync-ready-tint: #e3f4f1;
+.la-sync-link-btn {
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: $brand-verdigris-ink;
+  font-size: 16px;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.la-sync-tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 16px;
+  border-radius: 14px;
+  background: var(--md-bg, #eef1f6);
+}
+.la-sync-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: $brand-slate-blue;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.la-sync-tab--selected {
+  background: #fff;
+  color: var(--md-ink);
+  box-shadow: 0 1px 2px rgba($brand-blue-black, 0.08), 0 4px 12px rgba($brand-blue-black, 0.08);
+}
+.la-sync-tab-count {
+  min-width: 26px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: #e3e8ef;
+  color: #3d4a60;
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.la-sync-tab-count--attention {
+  background: $la-sync-attention-tint;
+  color: $la-sync-attention-ink;
+}
+.la-sync-tab-count--ready {
+  background: $la-sync-ready-tint;
+  color: $brand-verdigris-ink;
+}
+.la-sync-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.la-sync-card {
+  border: 1px solid var(--md-line);
+  border-radius: 14px;
+  overflow: hidden;
+  background: #fff;
+}
+.la-sync-card--attention {
+  border-color: #f0d9a8;
+}
+.la-sync-card-head {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 220px 160px 20px;
+  gap: 16px;
+  align-items: center;
+  width: 100%;
+  padding: 14px 18px;
+  border: 0;
+  background: #fff;
+  color: var(--md-ink);
+  text-align: left;
+  cursor: pointer;
+}
+.la-sync-card--attention .la-sync-card-head {
+  background: #fffcf5;
+}
+.la-sync-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: $la-sync-ready-tint;
+  color: $brand-verdigris-ink;
+}
+.la-sync-card-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.la-sync-card-name {
+  font-size: 18px;
+  font-weight: 600;
+}
+.la-sync-card-role,
+.la-sync-card-count {
+  font-size: 15px;
+  color: $brand-slate-blue;
+  font-variant-numeric: tabular-nums;
+}
+.la-sync-card-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.la-sync-card-pill {
+  justify-self: end;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: $la-sync-ready-tint;
+  color: $brand-verdigris-ink;
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.la-sync-card-chevron {
+  color: $brand-slate-blue;
+  transition: transform 0.2s ease;
+}
+.la-sync-card-head[aria-expanded="true"] .la-sync-card-chevron {
+  transform: rotate(180deg);
+}
+.la-sync-card--attention .la-sync-card-icon,
+.la-sync-card--attention .la-sync-card-pill {
+  background: $la-sync-attention-tint;
+  color: $la-sync-attention-ink;
+}
+.la-sync-card--attention .la-sync-details-bar-fill {
+  background: #c98a1b;
+}
+@media (max-width: 640px) {
+  .la-sync-card-head {
+    grid-template-columns: 40px minmax(0, 1fr) 20px;
+  }
+  .la-sync-card-progress,
+  .la-sync-card-pill {
+    grid-column: 2 / 4;
+    justify-self: start;
+  }
+}
+.la-sync-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 18px;
+  border-top: 1px solid var(--md-line);
+  background: #f8fafc;
+}
+.la-sync-folders-intro {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--md-line);
+  background: #fff;
+}
+.la-sync-folders-intro-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: var(--md-bg, #eef1f6);
+  color: $brand-slate-blue;
+}
+.la-sync-folders-intro-title {
+  display: block;
+  font-size: 16px;
+  font-weight: 600;
+}
+.la-sync-folders-intro-text,
+.la-sync-folder-group-note {
+  display: block;
+  margin: 0;
+  font-size: 15px;
+  color: $brand-slate-blue;
+}
+.la-sync-folder-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.la-sync-folder-group-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+}
+.la-sync-folder-group-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: $brand-verdigris-ink;
+}
+.la-sync-folder-group--missing .la-sync-folder-group-title {
+  color: $la-sync-attention-ink;
+}
+.la-sync-folder-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+@media (max-width: 640px) {
+  .la-sync-folder-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.la-sync-folder-tile {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: $la-sync-ready-tint;
+  color: $brand-verdigris-ink;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+.la-sync-folder-group--missing .la-sync-folder-tile {
+  background: $la-sync-attention-tint;
+  color: $la-sync-attention-ink;
 }
 
 /* ── Assign Lesson modal (matches sync / record-note shell) ── */
@@ -86394,6 +86695,33 @@ span.md-board-detail-modeling-btn--badge {
   border-left-color: $brand-danger;
 }
 .ll-copy-drawer--error .ll-copy-drawer__icon { color: $brand-danger; }
+/* The sync drawer's "needs attention" result (components/sync-progress-drawer.hbs): amber, as in Sync Details. */
+.ll-copy-drawer--attention {
+  border-left-color: #c98a1b;
+}
+.ll-copy-drawer--attention .ll-copy-drawer__icon { color: #8a5300; }
+/* The sync drawer's moving bar: no percentage, because the total grows as the sync finds folders. */
+.ll-sync-drawer__bar {
+  position: relative;
+  height: 6px;
+  margin: 8px 0 4px;
+  border-radius: 999px;
+  background: #e3e8ef;
+  overflow: hidden;
+}
+.ll-sync-drawer__bar-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 35%;
+  border-radius: 999px;
+  background: $brand-teal;
+  animation: ll-sync-drawer-bar 1.6s ease-in-out infinite;
+}
+@keyframes ll-sync-drawer-bar {
+  from { left: -35%; }
+  to   { left: 100%; }
+}
 
 @keyframes ll-copy-drawer-slide-in {
   from { opacity: 0; transform: translateY(12px); }
@@ -86402,6 +86730,7 @@ span.md-board-detail-modeling-btn--badge {
 @media (prefers-reduced-motion: reduce) {
   .ll-copy-drawer { animation: none; }
   .ll-copy-drawer__spinner { animation: none; }
+  .ll-sync-drawer__bar-fill { animation: none; left: 0; width: 100%; opacity: 0.5; }
 }
 @media (max-width: 480px) {
   .ll-copy-drawer {

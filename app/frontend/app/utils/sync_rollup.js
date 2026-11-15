@@ -121,3 +121,36 @@ export function with_errors(statuses, errors) {
   });
   return rows;
 }
+
+// The summary Sync Details and the sync drawer show: the running sync while one runs (its rows so far, with the
+// failures it has recorded), otherwise the last finished sync on this device. Null when there is nothing to group
+// (no sync yet, or a log entry with no rows).
+export function summary_for(persistence) {
+  if(!persistence || typeof persistence.get !== 'function') { return null; }
+  if(persistence.get('syncing') && persistence.get('sync_progress')) {
+    return rollup(with_errors(persistence.get('sync_progress.board_statuses'), persistence.get('sync_progress.errors')), persistence.get('sync_progress.board_roots'));
+  }
+  var log = persistence.get('sync_log') || [];
+  var last = log[log.length - 1];
+  return (last && last.statuses && last.statuses.length) ? rollup(last.statuses, last.roots) : null;
+}
+
+// The name of the board the sync is working under right now: the top board of the last row it wrote. Null before
+// the first row, or when that board's name is not known yet.
+export function current_root_name(statuses, roots) {
+  var rows = statuses || [];
+  var last = rows[rows.length - 1];
+  if(!last || !roots) { return null; }
+  var info = roots[last.id] || roots[last.key];
+  if(!info) { return null; }
+  var top = roots[info.root] || info;
+  return top.name || null;
+}
+
+// True while a sync has nothing left to do but boards waiting to be tried again (utils/board_retry.js): the drawer's
+// "Waiting for a better connection".
+export function only_parked_left(sync_progress) {
+  if(!sync_progress) { return false; }
+  var parked = sync_progress.parked || 0;
+  return parked > 0 && (sync_progress.to_visit || 0) <= parked;
+}
