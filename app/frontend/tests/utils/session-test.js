@@ -29,18 +29,18 @@ function tokenCheckPrefix(access_token, as_user_id) {
   return prefix;
 }
 
-function urlStartsWithTokenCheck(url, access_token, as_user_id) {
-  if (!url) {
+function urlStartsWithTokenCheck(url, access_token, as_user_id, opts) {
+  // Query must not carry the bearer token. The header does.
+  if (!url || url.indexOf('/api/v1/token_check?rnd=') !== 0) {
     return false;
   }
-  var base = '/api/v1/token_check?access_token=' + access_token;
-  if (url.indexOf(base) !== 0) {
+  if (url.indexOf('access_token=') !== -1) {
     return false;
   }
-  if (!as_user_id) {
-    return true;
+  if (as_user_id && url.indexOf('&as_user_id=' + as_user_id) < 0) {
+    return false;
   }
-  return url.indexOf('&as_user_id=' + as_user_id) > 0;
+  return tokenCheckHeaderOk(access_token, opts);
 }
 
 describe('session', function() {
@@ -267,7 +267,7 @@ describe('session', function() {
       });
       var queried = false;
       stub(persistenceTarget(), 'ajax', function(url, opts) {
-        if(urlStartsWithTokenCheck(url, '12345')) {
+        if(urlStartsWithTokenCheck(url, '12345', null, opts)) {
           queried = true;
         }
         return RSVP.resolve({authenticated: true});
@@ -294,7 +294,7 @@ describe('session', function() {
       });
       var queried = false;
       stub(persistenceTarget(), 'ajax', function(url, opts) {
-        if(urlStartsWithTokenCheck(url, '12345')) {
+        if(urlStartsWithTokenCheck(url, '12345', null, opts)) {
           queried = true;
         }
         return RSVP.reject({});
@@ -346,7 +346,7 @@ describe('session', function() {
       });
       var queried = false;
       stub(persistenceTarget(), 'ajax', function(url, opts) {
-        if(urlStartsWithTokenCheck(url, '12345')) {
+        if(urlStartsWithTokenCheck(url, '12345', null, opts)) {
           queried = true;
         }
         return RSVP.resolve({authenticated: false});
@@ -381,7 +381,7 @@ describe('session', function() {
       });
       var queried = false;
       stub(persistTarget, 'ajax', function(url, opts) {
-        if(urlStartsWithTokenCheck(url, '12345')) {
+        if(urlStartsWithTokenCheck(url, '12345', null, opts)) {
           later(function() {
             queried = true;
           }, 50);
@@ -420,7 +420,7 @@ describe('session', function() {
       });
       var queried = false;
       stub(persistenceTarget(), 'ajax', function(url, opts) {
-        if(urlStartsWithTokenCheck(url, '12345')) {
+        if(urlStartsWithTokenCheck(url, '12345', null, opts)) {
           queried = true;
         }
         return RSVP.resolve({authenticated: true, meta: {fakeXHR: { browserToken: '11111'}}});
@@ -454,7 +454,7 @@ describe('session', function() {
       });
       var queried = false;
       stub(persistenceTarget(), 'ajax', function(url, opts) {
-        if(urlStartsWithTokenCheck(url, '12345')) {
+        if(urlStartsWithTokenCheck(url, '12345', null, opts)) {
           queried = true;
         }
         return RSVP.reject({fakeXHR: { browserToken: '11111'}});
@@ -596,7 +596,7 @@ describe('session', function() {
       var called = false;
       var opts = {};
       stub(persistenceTarget(), 'ajax', function(url, o) {
-        expect(urlStartsWithTokenCheck(url, 'none')).toEqual(true);
+        expect(urlStartsWithTokenCheck(url, 'none', null, o)).toEqual(true);
         called = true;
         opts = o;
         return RSVP.reject({});
@@ -615,7 +615,7 @@ describe('session', function() {
       var called = false;
       var opts = {};
       stub(persistenceTarget(), 'ajax', function(url, o) {
-        expect(urlStartsWithTokenCheck(url, 'happy_token', 'whatever')).toEqual(true);
+        expect(urlStartsWithTokenCheck(url, 'happy_token', 'whatever', o)).toEqual(true);
         called = true;
         opts = o;
         return RSVP.reject({});
@@ -678,7 +678,7 @@ describe('session', function() {
       var called = false;
       var opts = {};
       stub(persistenceTarget(), 'ajax', function(url, o) {
-        expect(urlStartsWithTokenCheck(url, 'happy_token')).toEqual(true);
+        expect(urlStartsWithTokenCheck(url, 'happy_token', null, o)).toEqual(true);
         called = true;
         opts = o;
         return RSVP.resolve({authenticated: false});
@@ -697,7 +697,7 @@ describe('session', function() {
       var called = false;
       var opts = {};
       stub(persistenceTarget(), 'ajax', function(url, o) {
-        expect(urlStartsWithTokenCheck(url, 'happy_token')).toEqual(true);
+        expect(urlStartsWithTokenCheck(url, 'happy_token', null, o)).toEqual(true);
         called = true;
         opts = o;
         return RSVP.resolve({authenticated: false, meta: {fakeXHR: {browserToken: 'jorb'}}});
@@ -723,7 +723,7 @@ describe('session', function() {
       var called = false;
       var opts = {};
       stub(persistenceTarget(), 'ajax', function(url, o) {
-        expect(urlStartsWithTokenCheck(url, 'happy_token')).toEqual(true);
+        expect(urlStartsWithTokenCheck(url, 'happy_token', null, o)).toEqual(true);
         called = true;
         opts = o;
         return RSVP.resolve({authenticated: false, meta: {fakeXHR: {browserToken: 'jorb'}}});
@@ -858,7 +858,7 @@ describe('session', function() {
       var called = false;
       var opts = {};
       stub(persistenceTarget(), 'ajax', function(url, o) {
-        expect(urlStartsWithTokenCheck(url, 'happy_token')).toEqual(true);
+        expect(urlStartsWithTokenCheck(url, 'happy_token', null, o)).toEqual(true);
         called = true;
         opts = o;
         return RSVP.resolve({authenticated: false, meta: {fakeXHR: {browserToken: 'jorb'}}});
@@ -1006,3 +1006,12 @@ describe('session', function() {
 
 // Imported last so the `.eslint-todo` rows above keep their lines.
 import capabilities from '../../utils/capabilities';
+
+function tokenCheckHeaderOk(access_token, opts) {
+  var headers = opts && opts.headers;
+  var header = headers && (headers.Authorization || headers.authorization);
+  if(!access_token || access_token === 'none') {
+    return !header;
+  }
+  return header === ('Bearer ' + access_token);
+}

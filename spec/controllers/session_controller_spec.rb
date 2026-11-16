@@ -1220,6 +1220,17 @@ describe SessionController, :type => :controller do
       expect(device.settings['keys'][0]['value']).to eq(@device.tokens[0])
     end
 
+    it "authenticates from the Authorization header when the query has no access_token" do
+      token_user
+      request.headers['Authorization'] = "Bearer #{@device.tokens[0]}"
+      get :token_check, params: { rnd: '1' }
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['authenticated']).to eq(true)
+      expect(json['user_name']).to eq(@user.user_name)
+      expect(json['user_id']).to eq(@user.global_id)
+    end
+
     it "should error correctly (honor skip_on_token_check) on expired or invalid tokens" do
       token_user
       d = @user.devices[0]

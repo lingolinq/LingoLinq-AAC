@@ -239,7 +239,7 @@ export default Service.extend({
     // Confirmed tokens[key]=true is set only after the server accepts, below.
 
     var access_token = store_data.access_token || "none";
-    var url = '/api/v1/token_check?access_token=' + access_token + "&rnd=" + Math.round(Math.random() * 999999);
+    var url = '/api/v1/token_check?rnd=' + Math.round(Math.random() * 999999);
     if(store_data.as_user_id) {
       url = url + "&as_user_id=" + store_data.as_user_id;
     }
@@ -261,7 +261,7 @@ export default Service.extend({
       return RSVP.resolve({ success: false });
     }
     return this.persistence.ajax(url, {
-      type: 'GET'
+      type: 'GET', headers: this._token_check_headers(access_token)
     }).then(function(data) {
       /* `!_this` alone never fired — `_this` is the service, always truthy. The case that
          actually happens is the service being DESTROYED while this token-check request is
@@ -979,6 +979,14 @@ export default Service.extend({
       _this.persistence.ajax('/api/v1/token', {type: 'DELETE'}).then(done, done);
     });
     return this.sign_out_promise;
+  },
+  // token_check reads Authorization. Pass the token this call already has,
+  // because the shared ajax helper may not have a stored session yet.
+  _token_check_headers: function(access_token) {
+    if(!access_token || access_token === 'none') {
+      return {};
+    }
+    return { 'Authorization': 'Bearer ' + access_token };
   }
 });
 import { same_person } from '../utils/backend_user_id';
