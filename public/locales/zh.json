@@ -9711,7 +9711,7 @@
   "sync_offline_scope_limit": "保留在此设备上以供离线使用的内容：您的主页及其文件夹、您的侧边栏板、最多 %{limit} 个您喜欢的板以及危机词汇。 [[ Kept on this device for offline use: your home board and its folders, your sidebar boards, up to %{limit} liked boards, and Crisis Vocabulary.",
   "sync_drawer_syncing": "同步您的看板以供离线使用…… [[ Syncing your boards for offline use...",
   "sync_drawer_keep_working": "继续努力。完成后我们会通知你。 [[ Keep working. We'll let you know when it's done.",
-  "sync_role_home_board": "首页 [[ Home board",
+  "sync_role_home_board": "主沟通板 [[ Home board",
   "sync_role_sidebar_board": "侧边栏 [[ Sidebar board",
   "sync_role_liked_board": "喜欢这个板块 [[ Liked board",
   "sync_role_always_kept": "始终保持 [[ Always kept",

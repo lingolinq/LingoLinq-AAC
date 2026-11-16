@@ -9259,7 +9259,7 @@
   "sync_offline_scope_limit": "Auf diesem Gerät werden zur Offline-Nutzung gespeichert: Ihr Startbildschirm und seine Ordner, Ihre Seitenleisten-Boards, bis zu %{limit} als „Gefällt mir“ markierte Boards sowie das Krisenvokabular. [[ Kept on this device for offline use: your home board and its folders, your sidebar boards, up to %{limit} liked boards, and Crisis Vocabulary.",
   "sync_drawer_syncing": "Synchronisieren Ihrer Boards für die Offline-Nutzung... [[ Syncing your boards for offline use...",
   "sync_drawer_keep_working": "Arbeiten Sie weiter. Wir geben Ihnen Bescheid, wenn es fertig ist. [[ Keep working. We'll let you know when it's done.",
-  "sync_role_home_board": "Startseite [[ Home board",
+  "sync_role_home_board": "Home-Board [[ Home board",
   "sync_role_sidebar_board": "Seitenleiste [[ Sidebar board",
   "sync_role_liked_board": "Mir gefiel das Board [[ Liked board",
   "sync_role_always_kept": "Immer aufbewahrt [[ Always kept",

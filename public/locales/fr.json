@@ -9221,7 +9221,7 @@
   "sync_offline_scope_limit": "Conservés sur cet appareil pour une utilisation hors ligne : votre tableau d’accueil et ses dossiers, vos tableaux de la barre latérale, jusqu’à %{limit} tableaux aimés et le vocabulaire de crise. [[ Kept on this device for offline use: your home board and its folders, your sidebar boards, up to %{limit} liked boards, and Crisis Vocabulary.",
   "sync_drawer_syncing": "Synchronisation de vos tableaux pour une utilisation hors ligne... [[ Syncing your boards for offline use...",
   "sync_drawer_keep_working": "Continuez à travailler. Nous vous tiendrons au courant dès que ce sera terminé. [[ Keep working. We'll let you know when it's done.",
-  "sync_role_home_board": "Accueil [[ Home board",
+  "sync_role_home_board": "Tableau d'accueil [[ Home board",
   "sync_role_sidebar_board": "panneau latéral [[ Sidebar board",
   "sync_role_liked_board": "Tableau aimé [[ Liked board",
   "sync_role_always_kept": "Toujours gardé [[ Always kept",

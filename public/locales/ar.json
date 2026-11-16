@@ -9221,7 +9221,7 @@
   "sync_offline_scope_limit": "يتم الاحتفاظ على هذا الجهاز للاستخدام دون اتصال بالإنترنت: لوحة الرئيسية ومجلداتها، ولوحات الشريط الجانبي، وما يصل إلى %{limit} من اللوحات التي أعجبتك، ومفردات الأزمات. [[ Kept on this device for offline use: your home board and its folders, your sidebar boards, up to %{limit} liked boards, and Crisis Vocabulary.",
   "sync_drawer_syncing": "مزامنة لوحاتك للاستخدام دون اتصال بالإنترنت... [[ Syncing your boards for offline use...",
   "sync_drawer_keep_working": "استمر في العمل. سنخبرك عندما ينتهي. [[ Keep working. We'll let you know when it's done.",
-  "sync_role_home_board": "الصفحة الرئيسية [[ Home board",
+  "sync_role_home_board": "اللوحة الرئيسية [[ Home board",
   "sync_role_sidebar_board": "لوحة الشريط الجانبي [[ Sidebar board",
   "sync_role_liked_board": "أعجبتني اللوحة [[ Liked board",
   "sync_role_always_kept": "احرص دائمًا على [[ Always kept",

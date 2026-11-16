@@ -9260,7 +9260,7 @@
   "sync_offline_scope_limit": "Mantidos neste dispositivo para uso offline: seu quadro inicial e suas pastas, seus quadros da barra lateral, até %{limit} quadros curtidos e o Vocabulário de Crise. [[ Kept on this device for offline use: your home board and its folders, your sidebar boards, up to %{limit} liked boards, and Crisis Vocabulary.",
   "sync_drawer_syncing": "Sincronizando seus quadros para uso offline... [[ Syncing your boards for offline use...",
   "sync_drawer_keep_working": "Continue trabalhando. Avisaremos quando estiver pronto. [[ Keep working. We'll let you know when it's done.",
-  "sync_role_home_board": "Página inicial [[ Home board",
+  "sync_role_home_board": "Prancha inicial [[ Home board",
   "sync_role_sidebar_board": "Painel lateral [[ Sidebar board",
   "sync_role_liked_board": "Quadro de curtidas [[ Liked board",
   "sync_role_always_kept": "Sempre mantido [[ Always kept",
