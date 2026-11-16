@@ -241,6 +241,28 @@ if selected R3b_3d_rule_notfound_names_other_policy; then run R3b_3d_rule_notfou
   expect_exit 1; expect_calls < /dev/null; expect_out 'could not read'; done_case; fi
 if selected R3b_3e_missing_rule_specified_wording; then run R3b_3e_missing_rule_specified_wording "${ARMOR[@]}" STUB_MISSING_RULES=1003 STUB_RULE_MISSING_MSG=specified
   expect_exit 0; waf_create 1003 lfi-v422-stable | expect_calls; done_case; fi
+# ---------------------------------------------------------------- review round 4 (senior-dev pass on #1319)
+# 1. Enforcing needs the policy attached: a flip on a detached policy filters nothing, yet the
+#    readback would show preview=false. Refused before any change unless the attach is confirmed.
+if selected R4_1a_enforce_detached; then run R4_1a_enforce_detached "${ARMOR[@]}" STUB_ATTACHED= ARMOR_ENFORCE_RULES=1002 CONFIRM_ARMOR_ENFORCE=1002
+  expect_exit 1; expect_calls < /dev/null; expect_out 'not attached'; done_case; fi
+if selected R4_1b_rl_enforce_detached; then run R4_1b_rl_enforce_detached "${ARMOR[@]}" STUB_ATTACHED= RATE_LIMIT_ENFORCE=1 CONFIRM_RATE_LIMIT_ENFORCE=1
+  expect_exit 1; expect_calls < /dev/null; expect_out 'not attached'; done_case; fi
+if selected R4_1c_enforce_detached_confirmed; then run R4_1c_enforce_detached_confirmed "${ARMOR[@]}" STUB_ATTACHED= CONFIRM_ARMOR_ATTACH=$P ARMOR_ENFORCE_RULES=1002 CONFIRM_ARMOR_ENFORCE=1002
+  expect_exit 0; { flip 1002; attach; } | expect_calls; done_case; fi
+if selected R4_1d_readback_names_attached; then run R4_1d_readback_names_attached "${ARMOR[@]}"
+  expect_exit 0; expect_calls < /dev/null; expect_out "^    attached policy: $P\$"; done_case; fi
+if selected R4_1e_readback_names_none; then run R4_1e_readback_names_none "${ARMOR[@]}" STUB_ATTACHED=
+  expect_exit 0; expect_calls < /dev/null; expect_out '^    attached policy: NONE \(rules filter nothing\)$'; done_case; fi
+# 2. A failed log-level / JSON-parsing update right after create stops the run (fail closed).
+if selected R4_2_update_fail_after_create; then run R4_2_update_fail_after_create "${ARMOR[@]}" STUB_POLICY=missing STUB_ATTACHED= STUB_UPDATE_FAIL=1
+  expect_exit 1; new_policy_calls NORMAL | head -2 | expect_calls; expect_out 'could not set log level'; done_case; fi
+# 3. The batch error title ("Some requests did not succeed:") still reads as not-found.
+if selected R4_3_batch_title_notfound; then run R4_3_batch_title_notfound "${ARMOR[@]}" STUB_POLICY=missing STUB_ATTACHED= STUB_ERROR_STYLE=batch
+  expect_exit 0; new_policy_calls NORMAL | expect_calls; done_case; fi
+# 4. A not-found that names another project is not "missing" here.
+if selected R4_4_notfound_other_project; then run R4_4_notfound_other_project "${ARMOR[@]}" STUB_POLICY=missing STUB_ATTACHED= STUB_NOTFOUND_PROJECT=some-other-project
+  expect_exit 1; expect_calls < /dev/null; expect_out 'could not read'; done_case; fi
 # 6. An unreadable live log level is flagged, like unreadable JSON parsing.
 if selected R3b_6_log_level_unreadable; then run R3b_6_log_level_unreadable "${ARMOR[@]}" STUB_LOG_LEVEL_READ_FAIL=1
   expect_exit 0; expect_calls < /dev/null; expect_out 'GATE.*log level could not be read'; done_case; fi

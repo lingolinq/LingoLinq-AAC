@@ -16,6 +16,9 @@
 #                                       WARNING line that contains "was not found"
 #   STUB_RULE_MISSING_MSG=notfound|nocontain|specified   wording of a missing-rule error (see below)
 #   STUB_NOTFOUND_OTHER=1               not-found errors name a DIFFERENT policy's path
+#   STUB_NOTFOUND_PROJECT=<id>          not-found errors name this project instead of --project
+#   STUB_ERROR_STYLE=batch              error blocks use the "Some requests did not succeed:" title
+#   STUB_UPDATE_FAIL=1                  `security-policies update` (log level / JSON parsing) fails
 #   STUB_LOG_LEVEL_READ_FAIL=1          the policy's logLevel readback fails (non-404)
 #   STUB_ATTACHED=<url or empty>        backend's attached policy (default: lingolinq-armor)
 #   STUB_BACKEND_READ_FAIL=1            the backend's securityPolicy read fails
@@ -57,7 +60,10 @@ for a in "$@"; do case "$a" in --security-policy=*) policy_name="${a#--security-
 
 not_found() { # $1 = command path for the prefix, $2 = resource path
   [ "${STUB_NOTFOUND_OTHER:-0}" = "1" ] && set -- "$1" "projects/$proj/global/securityPolicies/some-other-policy"
-  printf 'ERROR: (gcloud.%s) Could not fetch resource:\n - The resource '"'"'%s'"'"' was not found\n\n' "$1" "$2" >&2
+  [ -n "${STUB_NOTFOUND_PROJECT:-}" ] && set -- "$1" "${2/projects\/$proj\//projects/$STUB_NOTFOUND_PROJECT/}"
+  local title='Could not fetch resource:'
+  [ "${STUB_ERROR_STYLE:-}" = "batch" ] && title='Some requests did not succeed:'
+  printf 'ERROR: (gcloud.%s) %s\n - The resource '"'"'%s'"'"' was not found\n\n' "$1" "$title" "$2" >&2
   exit 1
 }
 read_error() { # non-404 failure: a permission error
@@ -116,6 +122,9 @@ case "$args" in
   "compute security-policies "*)
     verb="$3"; name="$4"; policy_name="$name"
     if [ "$verb" = "create" ]; then touch "$state/policy"; exit 0; fi
+    if [ "$verb" = "update" ] && [ "${STUB_UPDATE_FAIL:-0}" = "1" ]; then
+      echo "ERROR: (gcloud.compute.security-policies.update) simulated update failure" >&2; exit 1
+    fi
     if [ "$verb" = "describe" ]; then
       [ "${STUB_POLICY:-present}" = "error" ] && read_error "compute.security-policies.describe"
       [ "${STUB_POLICY:-present}" = "noisy" ] && noisy_error "compute.security-policies.describe"

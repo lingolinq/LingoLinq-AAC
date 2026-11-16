@@ -318,14 +318,14 @@ rule_enforce_requested() { [ -n "$ENFORCE_RULE" ] && [ "$1" = "$ENFORCE_RULE" ];
 # not-found for some other resource, an error shape this does not know) is NOT "missing".
 # Not-found message for the policy itself (path from the server, so any project prefix is accepted).
 armor_policy_nf_re() {
-  printf '%s' "^The resource '[^']*/securityPolicies/$ARMOR_POLICY' was not found\$"
+  printf '%s' "^The resource 'projects/$PROJECT_ID/global/securityPolicies/$ARMOR_POLICY' was not found\$"
 }
 # Not-found message for rule PRIO of the policy. Rule-level wording is ASSUMED, not confirmed against
 # the live API: the resource-path form, "The specified security policy rule was not found", and
 # "Invalid value for field 'priority': '<prio>'. The security policy does not contain a rule with the
 # specified priority." An unknown wording fails closed (the run stops and prints gcloud's error).
 armor_rule_nf_re() {
-  printf '%s' "^(The resource '[^']*/securityPolicies/$ARMOR_POLICY/rules/$1' was not found|The specified security policy rule was not found\.?|(Invalid value for field 'priority': '$1'\. )?The security policy does not contain a rule with the specified priority\.?)\$"
+  printf '%s' "^(The resource 'projects/$PROJECT_ID/global/securityPolicies/$ARMOR_POLICY/rules/$1' was not found|The specified security policy rule was not found\.?|(Invalid value for field 'priority': '$1'\. )?The security policy does not contain a rule with the specified priority\.?)\$"
 }
 # armor_error_is_not_found ERR_TEXT NF_RE - 0 when ERR_TEXT is a gcloud error block whose every
 # problem line matches NF_RE.
@@ -665,6 +665,16 @@ if [ "$CONFIRM_ARMOR" = "1" ]; then
       exit 1
     fi
   fi
+  # An enforce flip filters traffic only while the policy is attached to the backend. On a detached
+  # policy (an incident detach, or a first run interrupted before Step 2d) the flip would succeed and
+  # the Step 2e readback would show preview=false while nothing is filtered. Refuse it here, before
+  # any change, unless this run also attaches the policy (CONFIRM_ARMOR_ATTACH).
+  if { [ -n "$ENFORCE_RULE" ] || [ "$RL_ENFORCING" = "1" ]; } && [ -z "$ATTACHED_POLICY" ] \
+      && [ "$ATTACH_CONFIRMED" != "1" ]; then
+    echo "ERROR: $ARMOR_POLICY is not attached to $BACKEND_NAME, so enforcing a rule now would filter nothing." >&2
+    echo "       Attach it in the same run with CONFIRM_ARMOR_ATTACH=$ARMOR_POLICY (inline), or attach it first." >&2
+    exit 1
+  fi
 
   log "Step 2a: Cloud Armor policy $ARMOR_POLICY (create-only; an existing policy keeps its settings)"
   if [ "$POLICY_EXISTS" = "1" ]; then
@@ -798,13 +808,18 @@ if [ "$CONFIRM_ARMOR" = "1" ]; then
     gcloud compute backend-services update "$BACKEND_NAME" \
       --project="$PROJECT_ID" --global --security-policy="$ARMOR_POLICY"
   else
-    gate "$BACKEND_NAME has NO security policy attached and $ARMOR_POLICY already existed, so it may have been detached on purpose. NOT re-attaching. To attach it, re-run with CONFIRM_ARMOR_ATTACH=$ARMOR_POLICY."
+    gate "$BACKEND_NAME has NO security policy attached and $ARMOR_POLICY already existed: it may have been detached on purpose, or an earlier run stopped before attaching it. NOT re-attaching. To attach it, re-run with CONFIRM_ARMOR_ATTACH=$ARMOR_POLICY."
   fi
 
   # Read back and print the ACTUAL preview state of every rule (preview=true => log-only,
   # preview=false => enforcing), so the operator never trusts the intended MODE banner over the
   # real policy state before proceeding to lockdown / DNS. (dual-review PR #476)
   log "Step 2e: actual WAF rule modes (preview=true is log-only, false is enforcing)"
+  # Rules filter nothing unless the policy is attached, so print what is attached now.
+  ATTACHED_NOW_URL="$(gcloud compute backend-services describe "$BACKEND_NAME" --global \
+    --project="$PROJECT_ID" --format='value(securityPolicy)' 2>/dev/null || echo '?')"
+  ATTACHED_NOW="${ATTACHED_NOW_URL##*/}"
+  echo "    attached policy: ${ATTACHED_NOW:-NONE (rules filter nothing)}"
   for PRIO in "${WAF_PRIOS[@]}" 2000; do
     ACTUAL_PREVIEW="$(gcloud compute security-policies rules describe "$PRIO" \
       --security-policy="$ARMOR_POLICY" --project="$PROJECT_ID" --format='value(preview)' 2>/dev/null || echo '?')"
