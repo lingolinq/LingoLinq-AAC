@@ -155,6 +155,7 @@ describe Api::VideosController, type: :controller do
       expect(v.settings['pending_url']).to eq(nil)
       expect(v.settings['pending']).to eq(false)
       expect(json['confirmed']).to eq(true)
+      expect(Worker.scheduled?(UserVideo, 'perform_action', {'id' => v.id, 'method' => 'upload_to_remote', 'arguments' => [data]})).to eq(false)
     end
   end
 

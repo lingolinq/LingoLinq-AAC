@@ -69,20 +69,24 @@ in line: keep `http(s)` urls and `data:video/*` URIs, drop everything else.
 
 `spec/models/user_video_spec.rb`, `process_params` / `url scheme`: drops a non-video `data:` URI,
 drops a `javascript:` url, keeps a `data:video/webm` URI pending, keeps an `https` url pending,
-drops a non-video url sent on update.
+drops a non-video url sent on update. Three more were added after review (8 in all): drops a url
+whose allowed scheme only appears later in the string, drops a non-String url without raising,
+keeps an upper-case `HTTPS` url. Each part of the check (the anchor, the case flag, the type check)
+was removed in turn and the matching example went red.
 
 - Red before the fix: 10 examples, 3 failures (the three "drops" cases; the two "keeps" cases
   pass, confirming the legitimate shapes behave as before).
 - Baseline at 0d50497, develop versions of `spec/models/user_video_spec.rb` and
   `spec/controllers/api/videos_controller_spec.rb`: 24 examples, 0 failures.
-- After the fix, same two files: 29 examples, 0 failures.
+- After the fix, same two files: 29 examples, 0 failures (before the three later cases; the
+  upload specs listed under the finding below are the current count).
 - Neighbouring specs that touch `UserVideo` (log_session, user_goal, button_sound, uploadable,
   media_object, flusher, transcoder, uploader, json_api goal/video/log, units controller):
   840 examples, 0 failures, 9 pending, both with and without the fix.
 - Falsification: guard removed (back to `if params['url']`) gives 3 failures; allowlist loosened
   to any `data:` gives 2 failures (the non-video `data:` cases). Restored from a saved copy; green.
 
-## Finding: server-stored `data:video` url breaks the video upload (not fixed here)
+## Finding: server-stored `data:video` url breaks the video upload (fixed 2026-11-15, below)
 
 Path for a recorded or picked video with S3 configured:
 
