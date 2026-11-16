@@ -272,6 +272,10 @@ Items 1 and 4 change server behaviour for every installed build, so each is buil
    - the proxy route decided deliberately;
    - both native apps tested on devices;
    - CPU measured.
+6. **A failed avatar download no longer fails the whole sync** (found by the sync UI suite, 2026-11-16).
+   - **The bug:** `sync_user` rejects when saving the person's avatar picture fails, so a connection that drops at that moment ends the entire sync as failed ("failed to save user avatar", `services/persistence.js:3496-3500`).
+   - **The fix:** treat a passing (network) failure of the avatar as non-fatal and retry it on the next sync. A full-storage failure still fails the sync.
+   - **Tests:** the e2e scenario "the link drops during a sync and comes back" is red on #1322 until this lands, plus a unit test.
 5. **Storage:**
    - request `navigator.storage.persist()` at the first sync on a **trusted** device only. The `device_trust` gate (`utils/offline_shell.js:263-266`) stays: a shared device's data should be evictable.
    - show `estimate()`;
