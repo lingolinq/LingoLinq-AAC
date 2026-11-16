@@ -49,7 +49,8 @@ module('Unit | Service | persistence sync pictures', function(hooks) {
   test('a full device still fails it, as before', async function(assert) {
     var p = service(this.owner, function() { return RSVP.reject({ quota_maxed: true }); });
     var err = await rejects(p.sync_user(user({ avatar_url: 'https://example.com/avatar.png' }), []));
-    assert.strictEqual(err && err.error, 'failed to save user avatar, storage is full');
+    assert.ok(err, 'it failed');
+    assert.strictEqual(err.error, 'failed to save user avatar, storage is full');
   });
 
   test('the user details failing to load still fails it', async function(assert) {
@@ -57,7 +58,8 @@ module('Unit | Service | persistence sync pictures', function(hooks) {
     var u = user({ fresh: false, avatar_url: 'https://example.com/avatar.png' });
     u.reload = function() { return RSVP.reject({ error: 'offline' }); };
     var err = await rejects(p.sync_user(u, []));
-    assert.strictEqual(err && err.error, 'failed to retrieve latest user details');
+    assert.ok(err, 'it failed');
+    assert.strictEqual(err.error, 'failed to retrieve latest user details');
   });
 
   test('supervisors\' and contacts\' pictures are saved, and their failure does not fail the sync', async function(assert) {
@@ -76,7 +78,8 @@ module('Unit | Service | persistence sync pictures', function(hooks) {
   test('a full device still fails the contacts step', async function(assert) {
     var p = service(this.owner, function() { return RSVP.reject({ quota_maxed: true }); });
     var err = await rejects(p.sync_contacts(user({ supervisors: [{ avatar_url: 'https://example.com/sup.png' }] })));
-    assert.true(!!(err && err.quota_maxed));
+    assert.ok(err, 'it failed');
+    assert.true(!!err.quota_maxed);
   });
 
   test('a tag\'s button picture is saved (the tags step no longer throws)', async function(assert) {
