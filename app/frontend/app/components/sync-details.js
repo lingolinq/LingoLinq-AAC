@@ -7,6 +7,7 @@ import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 import { sync_progress_line } from '../utils/sync_progress';
 import { summary_for } from '../utils/sync_rollup';
+import { restored_lead_kind } from '../utils/sync_log_store';
 
 // How many saved folders a card shows before "Show all".
 var SAVED_SHOWN = 8;
@@ -47,6 +48,18 @@ export default Component.extend({
 
   summary: computed('persistence.{syncing,sync_log_rand}', 'persistence.sync_log.length', 'persistence.sync_progress.{visited,errored}', function() {
     return summary_for(this.get('persistence'));
+  }),
+  // After an app restart no sync has run yet, so sync_status is null and the status line would say "Synced and ready
+  // for offline" even when the restored log ends in a cancel, a failure or problems (utils/sync_log_store.js). This is
+  // the line for those; null keeps the usual one.
+  restored_lead: computed('persistence.{sync_status,syncing,sync_log_rand}', 'persistence.sync_log.length', function() {
+    var p = this.get('persistence');
+    if(!p || typeof p.get !== 'function' || p.get('sync_status') || p.get('syncing')) { return null; }
+    var kind = restored_lead_kind(p.get('sync_log'));
+    if(kind === 'canceled') { return i18n.t('sync_lead_last_canceled', "The last sync was canceled."); }
+    if(kind === 'errored') { return i18n.t('sync_lead_last_failed', "The last sync didn't finish. Some boards may not be ready offline."); }
+    if(kind === 'issues') { return i18n.t('sync_lead_last_issues', "The last sync finished, but some boards didn't save."); }
+    return null;
   }),
   summary_pct: computed('summary', function() { var s = this.get('summary'); return s ? s.overall.pct : 0; }),
   summary_bar_style: computed('summary_pct', function() { return htmlSafe('width: ' + this.get('summary_pct') + '%;'); }),

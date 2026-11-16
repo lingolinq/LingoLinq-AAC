@@ -15,6 +15,9 @@
           <p class="la-sync-details-summary-pct"><span class="la-sync-details-summary-num">{{this.summary_pct}}%</span> {{t "ready offline" key="sync_ready_offline_lower"}}</p>
           <div class="la-sync-details-bar" role="img" aria-label={{this.summary_line}}><span class="la-sync-details-bar-fill" style={{this.summary_bar_style}}></span></div>
           <p class="la-sync-details-summary-line">{{this.summary_line}}</p>
+          {{#if this.summary.from_earlier}}
+            <p class="la-sync-details-summary-line">{{t "These results are from an earlier sync," key="sync_results_from_earlier"}} {{date_ago this.summary.finished}}.</p>
+          {{/if}}
         {{/if}}
         <p class="la-sync-details-lead">
           {{#if (persistence-value 'sync_succeeded')}}
@@ -36,6 +39,8 @@
               {{#if (persistence-value 'syncing')}}
                 {{t "Syncing..." key="syncing_ellipsis"}}
                 {{this.sync_progress_line}}
+              {{else if this.restored_lead}}
+                {{this.restored_lead}}
               {{else}}
                 {{#if this.needs_sync}}
                   {{#if this.appState.installed_app}}

@@ -64,7 +64,7 @@ export default Component.extend({
   }),
 
   summary: computed('sync_notice.{status,kind}', 'persistence.{syncing,sync_log_rand}', 'persistence.sync_log.length', 'persistence.sync_progress.{visited,errored}', function() {
-    return summary_for(this.get('persistence'));
+    return summary_for(this.get('persistence'), { latest_only: true }); // the sync that just ended, never an earlier one
   }),
 
   stage: computed('sync_notice.{status,kind}', 'persistence.sync_progress.{parked,to_visit}', 'summary', function() {

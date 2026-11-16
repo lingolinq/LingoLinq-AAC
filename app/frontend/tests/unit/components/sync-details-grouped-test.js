@@ -82,4 +82,20 @@ module('Unit | Component | sync-details grouped view', function(hooks) {
     c.send('toggle_technical');
     assert.true(c.get('show_technical'));
   });
+
+  /* docs/task-management/2026-11-15_persist-sync-log.md: a cancelled sync has no rows; the cards stay on the last
+   * sync that checked the boards, and say it is an earlier one. */
+  test('a cancelled last sync keeps the earlier result on the cards', function(assert) {
+    var c = build(this, [{ statuses: statuses, roots: roots, finished: new Date(1700000000000) }, { canceled: true, statuses: [], finished: new Date(1700000100000) }]);
+    assert.deepEqual(c.get('cards').map(function(card) { return card.name; }), ['Quick Core 60']);
+    assert.true(c.get('summary.from_earlier'));
+    assert.strictEqual(c.get('summary.finished').getTime(), 1700000000000);
+  });
+
+  test('after a restart the status line says how the last sync ended', function(assert) {
+    assert.strictEqual(build(this, [{ statuses: statuses, roots: roots, canceled: true }]).get('restored_lead'), 'The last sync was canceled.');
+    assert.strictEqual(build(this, [{ statuses: statuses, roots: roots, errored: true }]).get('restored_lead'), "The last sync didn't finish. Some boards may not be ready offline.");
+    assert.strictEqual(build(this, [{ statuses: statuses, roots: roots, issues: true }]).get('restored_lead'), "The last sync finished, but some boards didn't save.");
+    assert.strictEqual(build(this, [{ statuses: statuses, roots: roots }]).get('restored_lead'), null, 'a clean sync keeps the usual line');
+  });
 });

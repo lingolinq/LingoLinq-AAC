@@ -7367,6 +7367,137 @@ describe("persistence-sync", function() {
       });
     });
   });
+
+  it("should keep only the newest 5 entries in the sync log (docs/task-management/2026-11-15_persist-sync-log.md)", function() {
+    db_wait(function() {
+      cancelSyncTailWork();
+      unloadSyncStoreRecords();
+      clearLocalSyncDb();
+      resetSyncTestCaches();
+      if (typeof app_state.set === 'function') {
+        app_state.set('refresh_stamp', null);
+        app_state.set('short_refresh_stamp', null);
+        app_state.set('medium_refresh_stamp', null);
+      }
+      var tailDone = false;
+      enableRealSyncBoards(stubOnPersistence, function() { tailDone = true; });
+      persistence.set('sync_log', [{a: 1}, {a: 2}, {a: 3}, {a: 4}, {a: 5}]);
+      persistence.set('sync_progress', null);
+      persistence.set('sync_status', null);
+      var stores = [];
+      stubStoreUrl( function(url, type) {
+        stores.push(url);
+        console.log(url);
+        return RSVP.resolve({url: url});
+      });
+      stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'user',
+        response: RSVP.resolve({user: {
+          id: '1340',
+          user_name: 'fred',
+          avatar_url: 'http://example.com/pic.png',
+          preferences: {home_board: {id: '145'}}
+        }}),
+        id: "1340"
+      });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'board',
+        response: RSVP.resolve({board: {
+          id: '145',
+          image_url: 'http://example.com/board.png',
+          buttons: [
+            {id: '1', image_id: '2', sound_id: '3', load_board: {id: '167'}}
+          ],
+          grid: {
+            rows: 1,
+            columns: 1,
+            order: [['1']]
+          }
+        },
+          image: [
+            {id: '2', url: 'http://example.com/image.png'}
+          ],
+          sound: [
+            {id: '3', url: 'http://example.com/sound.mp3'}
+          ]
+        }),
+        id: '145'
+      });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'board',
+        response: RSVP.resolve({board: {
+          id: '167',
+          image_url: 'http://example.com/board.png',
+          buttons: [
+            {id: '1', image_id: '2', load_board: {id: '145'}},
+            {id: '2', image_id: '2', load_board: {id: '178'}}
+          ],
+          grid: {
+            rows: 1,
+            columns: 1,
+            order: [['1']]
+          }
+        },
+          image: [
+            {id: '2', url: 'http://example.com/image2.png'}
+          ]
+        }),
+        id: '167'
+      });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'board',
+        response: RSVP.resolve({board: {
+          id: '178',
+          image_url: 'http://example.com/board.png',
+          buttons: [
+            {id: '1', image_id: '2', load_board: {id: '145'}},
+            {id: '2', image_id: '2', load_board: {id: '167'}},
+            {id: '3', image_id: '2', load_board: {id: '178'}}
+          ],
+          grid: {
+            rows: 1,
+            columns: 1,
+            order: [['1']]
+          }
+        },
+          image: [
+            {id: '2', url: 'http://example.com/image2.png'}
+          ]
+        }),
+        id: '178'
+      });
+      var done = false;
+      setTimeout(function() { // not the runloop's later (ember/no-runloop): a plain delay before the sync starts
+        cancelSyncTailWork();
+        persistence.set('sync_status', null);
+        persistence.set('sync_progress', null);
+        persistence.sync(1340).then(function() {
+          done = true;
+        }, function() { done = true; });
+      }, 50);
+      waitsFor(function() { return waitForSyncDoneAndSettled(done) && tailDone; });
+      runs(function() {
+        var logs = queryLog;
+        expect(logById(logs, '1340')).toNotEqual(undefined);
+        expect(logById(logs, '145')).toNotEqual(undefined);
+        expect(logById(logs, '167')).toNotEqual(undefined);
+        expect(logById(logs, '178')).toNotEqual(undefined);
+        var log = persistence.get('sync_log');
+        expect(log.length).toEqual(5);
+        expect(log[0].a).toEqual(2);
+        expect(log[4].user_id).toEqual('fred');
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+        persistence.set('sync_status', null);
+        LingoLinq.sync_testing_real_boards = false;
+      });
+    });
+  });
 });
 // Every sync also starts from Crisis Vocabulary (#1221, utils/offline_sync_seeds.js), so the tests that run a
 // real sync answer it. Placed last so the ESLint baseline rows above do not move; function declarations are hoisted.

@@ -1,3 +1,5 @@
+import { last_result } from './sync_log_store';
+
 // Sync results grouped by the boards a person knows (Traci, 2026-11-14; mockups "Sync Status Mockups", the combined
 // design). A sync saves the home board, the sidebar boards, the liked boards and Crisis Vocabulary, and each one's
 // folders (utils/offline_sync_seeds.js). Its log lists every board on its own line, which reads as dozens of boards
@@ -123,16 +125,22 @@ export function with_errors(statuses, errors) {
 }
 
 // The summary Sync Details and the sync drawer show: the running sync while one runs (its rows so far, with the
-// failures it has recorded), otherwise the last finished sync on this device. Null when there is nothing to group
-// (no sync yet, or a log entry with no rows).
-export function summary_for(persistence) {
+// failures it has recorded), otherwise a finished sync on this device. Sync Details takes the newest one with rows
+// (utils/sync_log_store.js last_result), so a cancelled sync does not empty it, and marks it `from_earlier` when a
+// later sync had no rows. The drawer reports the sync that just ended, so it passes `latest_only`. Null when there is
+// nothing to group.
+export function summary_for(persistence, opts) {
   if(!persistence || typeof persistence.get !== 'function') { return null; }
   if(persistence.get('syncing') && persistence.get('sync_progress')) {
     return rollup(with_errors(persistence.get('sync_progress.board_statuses'), persistence.get('sync_progress.errors')), persistence.get('sync_progress.board_roots'));
   }
   var log = persistence.get('sync_log') || [];
-  var last = log[log.length - 1];
-  return (last && last.statuses && last.statuses.length) ? rollup(last.statuses, last.roots) : null;
+  var found = last_result(log);
+  if(!found || (found.from_earlier && opts && opts.latest_only)) { return null; }
+  var summary = rollup(found.entry.statuses, found.entry.roots);
+  summary.from_earlier = found.from_earlier;
+  summary.finished = found.entry.finished || null;
+  return summary;
 }
 
 // The name of the board the sync is working under right now: the top board of the last row it wrote. Null before

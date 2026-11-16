@@ -2450,7 +2450,7 @@ var persistence = EmberObject.extend({
             statuses: statuses,
             summary: sync_message
           });
-          safeSet(getPersistence(), 'sync_log', log);
+          safeSet(getPersistence(), 'sync_log', record_sync_log(getPersistence(), log)); // utils/sync_log_store.js
           safeSet(getPersistence(), 'sync_log_rand', Math.random());
         }
         return RSVP.resolve(last_sync);
@@ -2490,7 +2490,7 @@ var persistence = EmberObject.extend({
           summary: i18n.t('error_syncing_user', "Error syncing %{user_id}: ", {user_id: user_name}) + message
         });
         safeSet(getPersistence(), 'last_sync_event_at', (new Date()).getTime());
-        safeSet(getPersistence(), 'sync_log', log);
+        safeSet(getPersistence(), 'sync_log', record_sync_log(getPersistence(), log)); // utils/sync_log_store.js
         if(err && err.error) {
           modal.error(err.error);
         }
@@ -4639,4 +4639,4 @@ import { queue_eventual_store } from './eventual_store_queue';
 import { is_permanent_upload_url } from './permanent_upload';
 import { on_uploads_cdn, is_web_page } from './direct_fetch';
 import { is_stale_item, drop_stale_head } from './url_store_queue';
-import { find_limits, board_transport_options, join_download, late_deps, store_late_board } from './board_download'; // at the end so no baselined lint row shifts (see .eslint-todo)
+import { find_limits, board_transport_options, join_download, late_deps, store_late_board } from './board_download'; import { record_sync_log } from './sync_log_store'; // at the end so no baselined lint row shifts (see .eslint-todo)

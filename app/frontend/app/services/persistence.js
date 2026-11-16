@@ -253,7 +253,7 @@ var persistence = Service.extend({
           return;
         }
         if (extras.get && typeof extras.get === 'function' && extras.get('ready')) {
-          _this.find('settings', 'lastSync').then(function(res) {
+          restore_sync_log(_this); _this.find('settings', 'lastSync').then(function(res) {
             if (_this && _this.set) {
               _this.set('last_sync_at', res.last_sync);
               _this.set('sync_stamps', res.stamps);
@@ -269,7 +269,7 @@ var persistence = Service.extend({
             if (!service || !service.find || !service.set) {
               return;
             }
-            service.find('settings', 'lastSync').then(function(res) {
+            restore_sync_log(service); service.find('settings', 'lastSync').then(function(res) { // the sync log is read on its own (utils/sync_log_store.js), never chained onto lastSync
               service.set('last_sync_at', res.last_sync);
               service.set('sync_stamps', res.stamps);
             }, function() {
@@ -2428,7 +2428,7 @@ var persistence = Service.extend({
             statuses: statuses, roots: board_roots,
             summary: sync_message
           });
-          _this_sync.set('sync_log', log);
+          _this_sync.set('sync_log', record_sync_log(_this_sync, log)); // newest 5, saved for the owner (utils/sync_log_store.js)
           _this_sync.set('sync_log_rand', Math.random());
         }
         return RSVP.resolve(last_sync);
@@ -2470,7 +2470,7 @@ var persistence = Service.extend({
           summary: i18n.t('error_syncing_user', "Error syncing %{user_id}: ", {user_id: user_name}) + message
         });
         _this_sync.set('last_sync_event_at', (new Date()).getTime());
-        _this_sync.set('sync_log', log);
+        _this_sync.set('sync_log', record_sync_log(_this_sync, log)); _this_sync.set('sync_log_rand', Math.random()); // utils/sync_log_store.js
         if(err && err.error && !_this_sync.sync_is_automatic()) {
           modal.error(err.error);
         }
@@ -4984,7 +4984,7 @@ import { queue_eventual_store } from '../utils/eventual_store_queue';
 import { is_permanent_upload_url } from '../utils/permanent_upload';
 import { on_uploads_cdn, is_web_page } from '../utils/direct_fetch';
 import { picture_kept_in_database, usable_database_copy } from '../utils/database_picture';
-import { BOARD_RELOAD_MS, USER_RELOAD_MS, keep_stored_board, claim_board_retry, note_device_boards, known_on_device } from '../utils/sync_board_fallback'; import { create_parking, register_parking, wake_parked, retry_delay } from '../utils/board_retry'; import { note_board_root, root_for_link } from '../utils/sync_rollup';
+import { BOARD_RELOAD_MS, USER_RELOAD_MS, keep_stored_board, claim_board_retry, note_device_boards, known_on_device } from '../utils/sync_board_fallback'; import { create_parking, register_parking, wake_parked, retry_delay } from '../utils/board_retry'; import { note_board_root, root_for_link } from '../utils/sync_rollup'; import { record_sync_log, restore_sync_log } from '../utils/sync_log_store';
 import { usable_copy } from '../utils/board_device_copy';
 import { reason_is_automatic, merge_follow_up } from '../utils/sync_follow_up';
 
@@ -5116,7 +5116,7 @@ persistence.reopen({
     if(this._active_root_sync_id === sync_id && this.sync_status_is_for_signed_in_user(user_id)) { this.set('sync_status', null); }
     var log = [].concat(this.get('sync_log') || []);
     log.push({ user_id: user_name, manual: force, canceled: true, finished: new Date(), statuses: [], summary: i18n.t('sync_canceled_summary', "Sync canceled") });
-    this.set('sync_log', log);
+    this.set('sync_log', record_sync_log(this, log)); // utils/sync_log_store.js
     this.set('sync_log_rand', Math.random());
     this.set('last_sync_event_at', (new Date()).getTime());
     return true;
