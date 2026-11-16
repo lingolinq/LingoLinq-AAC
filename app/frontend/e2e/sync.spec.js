@@ -119,6 +119,11 @@ test('a link that stays down: the drawer and Sync Details say what needs attenti
   const end = await waitForSyncEnd(page, 600_000);
   expect(['finished', 'failed']).toContain(end.status);
   if (end.status === 'finished') {
+    // The drawer stays out of Speak Mode on a board page (a Basic user signs in onto their board), so read it where it
+    // shows: the dashboard. It waits there until dismissed.
+    await page.evaluate(() => { window.appState.get('router').transitionTo('index'); });
+    await page.waitForFunction(() => window.appState.get('router.currentRouteName') !== 'user.board-alt.index', null, { timeout: 30_000 });
+    await expect(page.locator('.ll-copy-drawer')).toBeVisible({ timeout: 30_000 });
     const card = await drawer(page);
     expect(card.shown).toBe(true);
     expect(card.title).toMatch(/of \d+ boards are ready offline/);
