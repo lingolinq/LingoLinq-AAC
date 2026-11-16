@@ -279,6 +279,26 @@ describe Api::SystemEmailTemplatesController, type: :controller do
       expect(placeholders).not_to include('@user')
     end
 
+    # A stored body that no longer fits (saved before the list existed, or before a value became
+    # required) is not used at send; the editor must say so instead of showing it as live.
+    it 'show reports a stored body that can no longer be used, per format' do
+      make_site_admin
+      Setting.set(SystemEmailTemplates::DEFAULT_KEY, {'user_mailer/confirm_registration' => {
+        'text_body' => 'Welcome <%= @user.user_name %>',
+        'html_body' => '<p><%= @user.user_name %> <%= @user.registration_code %></p>'
+      }}, true)
+      get :show, params: {id: 'user_mailer.confirm_registration', org_id: 'default'}
+      errors = JSON.parse(response.body)['template']['override_errors']
+      expect(errors['text']).to include('does not work without')
+      expect(errors).not_to have_key('html')
+    end
+
+    it 'show reports no override errors for the shipped default bodies' do
+      make_site_admin
+      get :show, params: {id: 'user_mailer.confirm_registration', org_id: 'default'}
+      expect(JSON.parse(response.body)['template']['override_errors']).to eq({})
+    end
+
     # Every placeholder the Variables tab lists must also fill in a preview, for every email.
     it 'preview renders every listed placeholder of every email' do
       make_site_admin

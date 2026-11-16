@@ -130,7 +130,8 @@ class Api::SystemEmailTemplatesController < ApplicationController
       branding_variables: branding_variables_payload(branding, scope_id),
       dynamic_variables: entry[:dynamic_variables] || [],
       placeholders: SystemEmailPlaceholders.allowed_for(entry[:key]),
-      required_placeholders: SystemEmailPlaceholders.required_for(entry[:key])
+      required_placeholders: SystemEmailPlaceholders.required_for(entry[:key]),
+      override_errors: stored_body_errors(entry[:key], content)
     )
     if entry[:i18n_blocks].present?
       payload[:i18n_blocks] = SystemEmailI18n.blocks_for(entry[:key], org, entry)
@@ -139,6 +140,20 @@ class Api::SystemEmailTemplatesController < ApplicationController
       payload[:has_i18n_blocks] = false
     end
     payload
+  end
+
+  # A stored body that no longer validates is not used at send (SystemEmailOverride falls back to
+  # the default view), so the editor reports it per format instead of showing it as live.
+  def stored_body_errors(key, content)
+    %w[html text].each_with_object({}) do |format, errors|
+      next if content[:"#{format}_is_default"]
+
+      begin
+        SystemEmailPlaceholders.validate!(content[:"#{format}_body"], key)
+      rescue SystemEmailPlaceholders::InvalidTemplate => e
+        errors[format] = e.message
+      end
+    end
   end
 
   def branding_variables_payload(branding, scope_id)
