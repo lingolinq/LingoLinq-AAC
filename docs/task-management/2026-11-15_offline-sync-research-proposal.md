@@ -1,6 +1,6 @@
 # Offline board sync: research and proposal (2026-11-15)
 
-Author: Traci Day, with Claude (opus-5.5). Status: proposal, revised after review round 1 (2026-11-16; section 9).
+Author: Traci Day, with Claude (opus-5.5). Status: proposal, revised after review rounds 1 and 2 (2026-11-16; sections 9 and 10). Phases 0 and 1 are ready to implement with the corrections below; phases 2 and 3 need rework, and a further review round needs Scot's OK.
 Nothing here is built. Follows #1322, which fixed the specific failures on Traci's Android phone without changing the
 sync design. #1322 is not yet in develop: statements about `board_download.js`, the 60 s board attempt, parked
 retries and the saved sync log describe #1322's branch, not develop 9728d6bd1.
@@ -249,31 +249,35 @@ Effort figures are rough planning estimates.
   These decide the scope of phases 2 and 3.
 - **Find out why dev's pictures are inline** before changing anything there. Dev and staging share one database, so any re-save touches staging too. Infra (Scot).
 
-### Phase 1: quick wins (about 4 to 6 days)
+### Phase 1: quick wins (about 5 to 7 days; corrected after review round 2)
 
-1. **Make the batched fetch serial, then lift the cap:**
-   - change `next_batch()` to run once per response, not once per stored board;
-   - only then remove the 100-board cut-off and send stale boards in pages of 25;
-   - include starred boards in `board_revisions` so the client's seeds and the server agree;
-   - test: a whole-sync test asserting the request count and the peak concurrency for 150 stale boards.
+Items 1 and 4 change server behaviour for every installed build, so each is built to be safe for old clients.
+
+1. **Batches: one at a time per device, then lift the cap.**
+   - **One batch slot per device:** supervisee syncs start in parallel (`services/persistence.js:2594-2621`), so a per-user loop is not enough.
+   - **When the next batch starts:** `next_batch()` runs once per response, after the boards are pushed to the store, not after the device writes. A device write that never settles must not hold the sync.
+   - **Each batch checks:** the cancel flag and its sync id.
+   - **A time budget:** after it, the walk starts anyway.
+   - **Then:** remove the 100-board cut-off.
+   - **Tests:** two supervisees; a store write that never settles; 150 stale boards (request count and peak concurrency).
+   - **Starred boards in `board_revisions`:** deferred. The client seeds only the first 50 liked boards (`User::LIKED_BOARD_REFS_LIMIT`, *Verified*), while `starred_board_ids` is uncapped. Adding them as-is would store likes 51 and up as board JSON with no pictures. If done later: the same cap and suggested-board filter on the server, from one shared constant, with a 60-likes spec.
 2. **Platform-aware stall timeouts:**
-   - **Web and Android:** abort a board or picture download only after N seconds with no bytes (XHR `onprogress`), with an overall ceiling. This replaces #1322's single 60 s attempt.
-   - **iOS Capacitor app:** CapacitorHttp gives the WebView no progress until the response is complete, so there it keeps a total-time ceiling only.
-   - **Test:** an iPad or iPhone device check.
-3. **Android picture concurrency:**
-   - first find out why Android uses one worker. It is not picture shrinking, which never runs for downloads (*Verified*). Measure how fast the native bridge writes files: each picture crosses the bridge as base64 through `capacitor_filesystem_shim.js`.
-   - then raise the worker count, measured on a low-end device.
-4. **Compress JSON API responses** (`Rack::Deflater` with `:include` for JSON). Proposed to Scot, not pushed: it is shared app config. Before shipping:
-   - **Base64 proxy responses:** decide deliberately whether these are compressed. They are JSON too and would be included.
-   - **Request timeout:** compression runs outside `Rack::Timeout`, so the 16 s timeout does not cover it.
-   - **Both native apps:** test on devices. On iOS the bridge passes the server's `Content-Encoding` header through alongside bytes URLSession has already decoded.
-   - **Server cost:** measure CPU per request on Cloud Run.
+   - **Web and Android:** the no-bytes clock starts when headers arrive (readyState 2), with a separate header deadline above `Rack::Timeout`'s 16 s, since a healthy batch can send nothing for longer than N seconds.
+   - **iOS Capacitor app:** detected with `window.Capacitor.getPlatform() === 'ios'` (`utils/ipad_detect.js`); keeps a total-time ceiling only.
+   - **Tests:** through the real transport (the test helper replaces the adapter's `ajax`), plus a device check.
+3. **Android picture concurrency:** measure the native bridge write speed first (pictures cross it as base64), then raise the worker count, on a low-end device.
+4. **Compression (proposed to Scot):**
+   - only when the request carries a header that new clients send, so installed builds keep uncompressed answers;
+   - with an ENV off switch;
+   - the proxy route decided deliberately;
+   - both native apps tested on devices;
+   - CPU measured.
 5. **Storage:**
-   - request `navigator.storage.persist()` at the first sync;
-   - show `estimate()` in Sync Details;
-   - detect a missing device database and say so instead of failing quietly.
+   - request `navigator.storage.persist()` at the first sync on a **trusted** device only. The `device_trust` gate (`utils/offline_shell.js:263-266`) stays: a shared device's data should be evictable.
+   - show `estimate()`;
+   - detect a missing device database.
 
-### Phase 2: pictures (about 2 to 4 weeks; scope set by phase 0)
+### Phase 2: pictures (NEEDS REWORK after review round 2; see section 10)
 
 1. **Display-sized lossless WebP renditions:**
    - **Separate field:** returned in a separate, additive field (for example `image_renditions`), **never inside `image_urls`**. Clients read every `image_urls` key matching `<id>-` as a symbol-set alternate (`utils/button.js:627-633`), so an added key would show up as a new symbol library on old builds and cached app shells.
@@ -292,7 +296,7 @@ Effort figures are rough planning estimates.
    - long-lived `Cache-Control` only for verified non-SVG pictures;
    - SVGs can be rewritten in place at the same URL after sanitising (`uploadable.rb:584, 605-619`), so they get a short lifetime or a new key on sanitise.
 
-### Phase 3: one manifest per sync (about 3 to 4 weeks; scope set by phase 0)
+### Phase 3: one manifest per sync (NEEDS REWORK after review round 2; see section 10)
 
 1. **Picture lists precomputed per board when the board is saved.** Picture URLs depend on the viewer (licences, preferred symbols, supporter role: `board.rb:2539-2544`, `json_api/board.rb:258-294`), and their cache is commented out (`board.rb:2561`). Without precomputing, a manifest for a supervisor's caseload would be the heaviest call in the app.
 2. **New endpoint**, `GET /users/:id/sync_manifest`:
@@ -415,3 +419,25 @@ An `adversary` review at 38cad5029 returned "needs rework" with 12 findings. Eac
 - **Re-encoding:** a random sample of 150 PNGs, with ImageMagick 6.9.12: `-resize 400x400> -quality 80` (WebP), `-define webp:lossless=true`, `-quality 60` (AVIF).
 - **Dev compression check:** `https://dev.lingolinq.com/api/v1/boards?public=true&per_page=5` fetched with and without `Accept-Encoding: gzip`. Identical 10,045 bytes, no `Content-Encoding`.
 - **Data retention:** nothing downloaded was kept in the repository. The copies were in a session scratch folder, deleted afterwards.
+
+## 10. Review round 2 (2026-11-16)
+
+An `adversary` review at 07bd4f5f1 found 13 issues.
+- **Verdict:** phases 0 and 1 are ready with named corrections; phases 2 and 3 still need rework.
+- **Checked here (*Verified*):** the database-delete path (`utils/dbman.js:684-688`) and the 50-liked-board cap.
+
+| Finding | Rating | Disposition |
+|---|---|---|
+| Serial batching per user is not enough (supervisees run in parallel); waiting on device writes can stall a sync | High | Accepted into phase 1.1 |
+| Starred roots in `board_revisions` would not match the 50-board seed cap | High | Accepted: deferred out of phase 1 |
+| A separate rendition field leaves most picture readers, button sets and older app builds unaware of renditions | High | Phase 2 rework: store rendition bytes under the original URL's device key, so every reader and every build finds them |
+| A device database version bump can delete a person's offline boards (an older shell gets a VersionError, and the second failed open deletes the database) | High | Phase 2 rework: no version bump (new fields inside existing rows), or make a VersionError non-destructive a release earlier |
+| Picture lists precomputed at board save cannot follow per-viewer licences (subscriptions, supervisees, variant rewrites do not save the board) | High | Phase 3 rework: key by board revision plus viewer variant; invalidate on subscription, supervision and image changes; licence-expiry spec |
+| The stall timer ignores time to first byte | Medium | Accepted into phase 1.2 |
+| Compression has no opt-in or off switch for installed builds | Medium | Accepted into phase 1.4 |
+| `persist()` at the first sync would remove the shared-device trust gate | Medium | Accepted into phase 1.5 |
+| Device-side de-duplication by hash crosses users (one picture folder per device) and skin variants | Medium | Phase 2 rework: de-duplicate within a person's own rows, per variant as served; never delete a shared file without reference counts |
+| Erasure must use the prefix sweep (`remote_remove_thumbnail_family`), not `remote_remove` | Medium | Phase 2 rework |
+| A backfill on the `slow` queue can trigger queue-pressure mode (over 20,000 jobs) | Medium | Phase 2 rework: a self-rescheduling batch job with a queue-depth ceiling; estimate S3 and CPU cost from the `ButtonImage` count |
+| Section 6 request counts inconsistent after phase 1 batching; the 4-worker gain not yet justified | Low | Noted: section 6 is an upper bound to re-estimate from phase 0 measurements |
+| Phase 0: name the measurement environment (staging shares dev's database); a client byte counter sees decoded sizes | Low | Accepted: phase 0 runs on a private local e2e database with synthetic accounts; transfer bytes are taken from the server side or the test link (`e2e/support/sync-link.js`) |
