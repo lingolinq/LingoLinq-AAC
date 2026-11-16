@@ -21,8 +21,8 @@
 #
 # Trust boundary: only platform staff reach the editor (site admins and managers of the admin
 # organization, Api::SystemSettingsAccess#require_system_settings_access). This file stops stored
-# text from running code. It does not limit where an editor places a link or code an email
-# carries, including inside HTML that loads from another site; editors are trusted with those.
+# text from running code. It does not limit where in a body an editor places a link or code the
+# email carries; editors are trusted with those.
 module SystemEmailPlaceholders
   class InvalidTemplate < SystemEmailTemplates::InvalidOverride; end
   # A value a link needs is missing at send time; the send falls back to the default view.

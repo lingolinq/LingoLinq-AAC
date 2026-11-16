@@ -350,8 +350,8 @@ locale files parse.
 
 ## Review round 3 follow-up (2026-11-15)
 
-1. Decision (Traci, option A): an editor can still place a link or code inside HTML that loads from
-   another site, which would send it there when the email is opened. Only platform staff can edit
+1. Decision (Traci, option A): the placeholder list does not limit where in a body an editor places
+   a link or code the email carries. Only platform staff can edit
    templates (`require_system_settings_access`, `app/controllers/concerns/api/system_settings_access.rb:14-20`:
    site admins and managers of the admin organization; an ordinary organization manager is
    refused before the write-scope check). Accepted as an insider risk and stated in the header of

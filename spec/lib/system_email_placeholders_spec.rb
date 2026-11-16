@@ -95,6 +95,7 @@ describe SystemEmailPlaceholders do
         described_class.validate!('<%= @user.user_name.presence || @user.registration_code %>', key)
       }.to raise_error(SystemEmailPlaceholders::InvalidTemplate, /does not work without/)
       expect { described_class.validate!('<%= @user.registration_code %>', key) }.not_to raise_error
+      expect { described_class.validate!('<%= @user.registration_code.presence || @user.user_name %>', key) }.not_to raise_error
     end
 
     it 'treats @message as plain text in utterance_share and as a record in admin emails' do
