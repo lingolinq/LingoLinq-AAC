@@ -95,6 +95,7 @@ describe UserVideo, type: :model do
       it "drops a url that is not a string, without raising" do
         [{'a' => 1}, ['https://www.example.com/video.mp4']].each do |url|
           v = UserVideo.process_new({'url' => url, 'content_type' => 'video/mp4'}, non_user_params)
+          expect(v.errored?).to eq(false)
           expect(v.url).to eq(nil)
           expect(v.settings['pending_url']).to eq(nil)
         end
@@ -118,6 +119,17 @@ describe UserVideo, type: :model do
         expect(v.url).to eq(nil)
         expect(v.settings['pending_url']).to eq('https://www.example.com/video.mp4')
         expect(v.settings['pending']).to eq(true)
+      end
+
+      # Only a create can hand the bytes to a client upload (remote_upload_possible); on update a
+      # data:video URI would be copied into url by check_for_pending and overflow the column.
+      it "drops a data:video url sent on update, without failing the save" do
+        v = UserVideo.create(:user => user, :url => 'https://www.example.com/video.mp4', :settings => {'content_type' => 'video/mp4'})
+        data = 'data:video/webm;base64,' + Base64.strict_encode64('v' * 6000)
+        expect(v.process({'url' => data}, {:user => user})).to eq(true)
+        v.reload
+        expect(v.url).to eq('https://www.example.com/video.mp4')
+        expect(v.settings['pending_url']).to eq(nil)
       end
 
       it "drops a non-video url sent on update" do

@@ -28,10 +28,12 @@ module RemoteUploader
         end
         record.url = url
         record.settings['pending'] = false
-        # A data: URI kept as pending_url (a recorded or picked video) would be copied back over url
-        # by check_for_pending (uploadable.rb:111-116) on this save. A web address is left, so the
-        # server still fetches and sanitizes the source (upload_to_remote).
-        record.settings['pending_url'] = nil if record.settings['pending_url'].to_s.match?(/\Adata:/i)
+        # A data:video URI kept as pending_url (a recorded or picked video) would be copied back over
+        # url by check_for_pending (uploadable.rb:111-116) on this save. A web address is left, so the
+        # server still fetches and sanitizes the source (upload_to_remote). Images and sounds never
+        # hold a data: pending_url (they call process_url only for http, button_image.rb:230,
+        # button_sound.rb:305).
+        record.settings['pending_url'] = nil if record.settings['pending_url'].to_s.match?(/\Adata:video\//i)
         record.settings['data_uri'] = nil
         record.data = nil if record.respond_to?(:data=)
         record.save

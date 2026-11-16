@@ -137,6 +137,19 @@ describe Api::VideosController, type: :controller do
       expect(json).to eq({'confirmed' => true, 'url' => v.url})
     end
 
+    it "should keep the S3 url when the pending data URI is written in upper case" do
+      token_user
+      data = 'DATA:video/webm;base64,' + Base64.strict_encode64('v' * 6000)
+      v = UserVideo.process_new({'url' => data, 'content_type' => 'video/webm'}, {:user => @user, :remote_upload_possible => true})
+      expect(v.settings['pending_url']).to eq(data)
+      config = Uploader.remote_upload_config
+      expect(Uploader).to receive(:remote_upload_exists?).with(config[:upload_url] + v.full_filename).and_return(true)
+      get :upload_success, params: {:video_id => v.global_id, :confirmation => v.confirmation_key}
+      expect(response).to be_successful
+      expect(v.reload.url).to eq(config[:upload_url] + v.full_filename)
+      expect(v.settings['pending_url']).to eq(nil)
+    end
+
     # A recorded or picked video is created with its data:video URI kept as pending_url while the
     # client uploads the bytes itself. Once the upload is confirmed, that stale pending_url must
     # not be copied back over the S3 url by check_for_pending (uploadable.rb:111-116).

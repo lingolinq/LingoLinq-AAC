@@ -132,3 +132,36 @@ example fails with `ActiveRecord::ValueTooLong` again; restored.
 Seen, not fixed (pre-existing): any other save of a still-pending record on a fresh instance (an
 update before the client confirms) takes the server-upload branch of `check_for_pending` and copies
 pending_url into url; for a video that is the same too-long failure (`uploadable.rb:106-116`).
+
+## Canonical review of PR #1317 (2026-11-15)
+
+`REVIEWED=PR lingolinq/LingoLinq-AAC#1317 at 4cdc99e5bee89ecafe72528714d2f6e1d1b961ff`, after the PII
+preflight (`review-preflight.sh pr 1317`, exit 0). Both passes read only the preflight diff.
+`/review-pr`: request changes (one High). `/adversary-review`: ship with conditions (no Critical or
+High).
+
+1. High (senior-dev) / Medium (red team): the `data:` clear in `upload_success` would change images
+   and sounds created from a `data:image` or `data:audio` URI. REFUTED outside the diff:
+   `Uploadable#process_url` (`uploadable.rb:96`) is the only writer of `pending_url`, and
+   `ButtonImage` and `ButtonSound` call it only for a url matching `/^http/`
+   (`button_image.rb:230`, `button_sound.rb:305`); their `data:` content goes to
+   `settings['data_uri']`. Both reviewers recommended narrowing anyway; the clear now matches
+   `\Adata:video/` only, which keeps the change visibly inside the video bug.
+2. Medium (both): a `data:video` url sent on update still reached `url` and raised `ValueTooLong`.
+   `UserVideo#process_params` now keeps a `data:` url only when `remote_upload_possible` is set
+   (create, `videos_controller.rb:8`, the only other caller being update at `:30`); on update it is
+   dropped and the save succeeds. Red first: "drops a data:video url sent on update, without
+   failing the save" raised `ValueTooLong`; green after; red again with the previous
+   `user_video.rb`.
+3. Medium (senior-dev): confirm-time edge cases. Added "should keep the S3 url when the pending data
+   URI is written in upper case" (passes; pins the `/i`). A nil `pending_url` at confirm is the
+   existing "should succeed for valid confirmation key that is found on server".
+4. Low (senior-dev): the non-String example now also asserts `errored?` is false.
+5. Seen, not fixed (pre-existing, red team): until the client confirms, the whole `data:video`
+   payload sits in `settings['pending_url']`, with no expiry for an abandoned upload. The client
+   already holds the bytes, so storing a marker instead would remove it; a separate change.
+6. Seen, not fixed (pre-existing, both): an `http(s)` video url still reaches the server-side fetch,
+   the same as images.
+
+Upload specs after: 246 examples, 0 failures.
+
