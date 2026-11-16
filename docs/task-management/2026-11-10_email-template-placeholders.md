@@ -383,6 +383,31 @@ locale files parse.
    `app/views`). The every-default-validates spec does not show this: it skips default bodies
    with code blocks, which covers five of the nine emails with required values.
 
+## Senior-dev pass on PR #1320 (2026-11-15)
+
+`REVIEWED=PR lingolinq/LingoLinq-AAC#1320 at fd035c31fd7ca38904ad4e6fd2020f04f747b84e`, after the
+PII preflight (`review-preflight.sh pr 1320`, exit 0). Verdict: approve with comments; no Critical or
+High. Traci asked for this pass and for the fixes.
+
+1. Medium, CONFIRMED: a stored body that no longer validates falls back to the default view at send
+   with only a log line; the editor showed it as live. The controller's `template_payload` now
+   returns `override_errors` (per format, the validation message) for each stored body, and the
+   editor shows it above that body's field (`role="alert"`, two new strings in all 13 locales by
+   the `*** ` convention). Red first: "show reports a stored body that can no longer be used, per
+   format" and "show reports no override errors for the shipped default bodies" failed (no
+   `override_errors`); green after; with the error assignment removed the first fails again.
+2. Low: no spec for the bulk-gift fallback. Added "sends the default view for a bulk gift even
+   when a gift_created body is stored"; it passes, and fails with the gift entry removed from
+   `OVERRIDE_CONDITIONS`.
+3. Low: could an override escape markup the default view prints raw? Checked: none of the 58
+   message blocks the default views use has markup in its shipped text, and
+   `SystemEmailI18n.resolve` returns a plain String (not `html_safe`), so the default HTML views
+   escape it as the placeholder renderer does. No difference; nothing changed.
+4. Not changed: memoising `default_usage` (a per-send cost, not a defect), a frontend rendering test
+   for the lists, the indentation nit, and English-only server messages (as before).
+
+Email specs after: 213 examples, 0 failures, 3 pending.
+
 ## Log
 
 - Baseline 151 examples, 0 failures, 3 pending.

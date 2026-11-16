@@ -184,4 +184,22 @@ describe SystemEmailOverride, type: :mailer do
     text = message_body(m, :text)
     expect(text).to include("Code #{gift.code} or #{JsonApi::Json.absolute_host}/redeem/#{gift.code}::#{gift.code_verifier}")
   end
+
+  # A bulk purchase's email lists licenses and details one edited body cannot carry
+  # (SystemEmailPlaceholders::OVERRIDE_CONDITIONS), so it always goes out as the default view.
+  it 'sends the default view for a bulk gift even when a gift_created body is stored' do
+    gift = GiftPurchase.process_new({
+      'licenses' => 4, 'amount' => '1234', 'organization' => 'Test Org', 'email' => 'test-buyer@example.com'
+    }, {'giver' => user})
+    expect(gift.bulk_purchase?).to eq(true)
+    allow_any_instance_of(SubscriptionMailer).to receive(:full_domain_enabled).and_return(true)
+    store_default_override('subscription_mailer/gift_created', {
+      'html_body' => '<p>Edited <%= @gift.code %> <%= @gift_redeem_url %></p>',
+      'text_body' => 'Edited <%= @gift.code %> <%= @gift_redeem_url %>'
+    })
+    m = SubscriptionMailer.gift_created(gift.global_id)
+    html = message_body(m, :html)
+    expect(html).to match(/Below are the details of your purchase:/)
+    expect(html).not_to include('Edited')
+  end
 end
