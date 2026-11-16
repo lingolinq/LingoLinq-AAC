@@ -62,8 +62,11 @@ describe UserMailer, :type => :mailer do
     end
   end
 
-  # There is no in-app consent step for these accounts yet, so the notice says how to arrange it.
-  it 'points the family to the contact page to arrange consent, in both parts' do
+  # There is no consent route for these accounts yet (no in-app step and no staff procedure), so
+  # the notice offers the contact page for questions and does not promise a way to arrange consent.
+  # Changed in the review of eb136f283 (finding 3), on Scot's decision to hold that copy until the
+  # adult account-holder flow exists.
+  it 'points the family to the contact page for questions without promising a consent route, in both parts' do
     o = Organization.create(settings: {'name' => 'Riverside District'})
     u = handed_back_user(email: 'family_handoff_contact@example.com')
 
@@ -71,8 +74,9 @@ describe UserMailer, :type => :mailer do
 
     m.body.parts.each do |part|
       body = CGI.unescapeHTML(part.body.to_s)
-      expect(body).to include('To arrange consent, contact us using the link below.')
+      expect(body).to include('If you have questions, contact us.')
       expect(body).to include("#{JsonApi::Json.absolute_host}/contact")
+      expect(body).not_to include('arrange consent')
     end
   end
 
