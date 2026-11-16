@@ -313,8 +313,13 @@ class UserMailer < ActionMailer::Base
     @contact_url = "#{JsonApi::Json.absolute_host}/contact"
     # This notice stands in for organization_unassigned (skipped above after a hand-back), so it
     # carries that mail's warning about when premium access runs out. Read at send time, after the
-    # seat release has set the trial or grace period (Subscription concern).
-    @premium_ends_at = @user.expires_at if @user && @user.expires_at && @user.expires_at > Time.now
+    # seat release has set the trial or grace period (Subscription concern). Built here as one
+    # plain value, blank when there is no future date, so an edited body can carry it with an
+    # output tag (lib/system_email_placeholders.rb SCALAR_VARS; edited bodies allow no <% if %>).
+    @premium_ends_notice = if @user && @user.expires_at && @user.expires_at > Time.now
+      SystemEmailI18n.resolve('user_mailer/school_handoff_notice', 'school_handoff_mailer.premium_ends',
+                              'date' => view_context.long_ordinal_date(@user.expires_at))
+    end
     subject = SystemEmailI18n.resolve('user_mailer/school_handoff_notice', 'school_handoff_mailer.subject')
     mail_message(@user, subject) if @user
   end

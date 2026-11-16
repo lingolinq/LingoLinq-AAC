@@ -45,8 +45,8 @@ module SystemEmailPlaceholders
     @action_type @approve_url @attempt @author_name @child_name @child_username @consent_age
     @consent_url @contact_url @decline_url @deletion_at @deny_url @email @export_url @for_self
     @full_domain @granted_at @location @log_duration @log_period @old_email @parent_email
-    @permission_description @privacy_url @reason @registered_at @reply_url @revoke_url
-    @revoked_at @revoker_type @sender
+    @permission_description @premium_ends_notice @privacy_url @reason @registered_at @reply_url
+    @revoke_url @revoked_at @revoker_type @sender
   ].freeze
 
   RECORD_VARS = {
