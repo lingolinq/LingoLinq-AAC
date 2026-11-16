@@ -3388,7 +3388,7 @@ var persistence = Service.extend({
             // TODO: mark this defer's promise as waiting (needs to be unmarked at each
             // nextBoard call), then set a longer timeout before calling nextBoard,
             // and only resolve when *all* the promises are waiting.
-            if(!parking.wait(retry_delay, function() { _this.active_board_threads--; }, function(back) { to_visit_boards.unshift.apply(to_visit_boards, back); when_slot_free(function() { return _this.active_board_threads > n_threads; }, schedule_sync_board_step, function() { _this.active_board_threads++; nextBoard(defer); }); })) { defer.resolve(); } // parked boards: one thread waits for them, its slot given back (utils/board_retry.js); otherwise this thread ends
+            if(!parking.wait(retry_delay, function() { _this.active_board_threads--; }, function(back, kept_slot) { to_visit_boards.unshift.apply(to_visit_boards, back); if(kept_slot) { nextBoard(defer); return; } when_slot_free(function() { return _this.active_board_threads > n_threads; }, schedule_sync_board_step, function() { _this.active_board_threads++; nextBoard(defer); }); })) { defer.resolve(); } // parked boards: one thread waits for them, its slot given back (utils/board_retry.js); otherwise this thread ends
           } else {
             schedule_sync_board_step(function() {
               nextBoard(defer);

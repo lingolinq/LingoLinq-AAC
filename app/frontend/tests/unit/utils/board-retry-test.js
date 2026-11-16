@@ -104,33 +104,87 @@ module('Unit | Utility | board retry', function() {
     assert.strictEqual(second, 1);
   });
 
-  // Codex re-review of #1322 (P2): the wait used the earliest retry and then brought back every parked board, so a
-  // board on its third retry (about 90 s) came back after a newer board's first wait (about 10 s).
+  // Codex re-review of #1322 (P2), and the review of the first fix: each parked board keeps its own wait, counted from
+  // when it was parked. The clock is passed in, so every wait is exact.
+  function clock_at(start) {
+    var c = { t: start || 0 };
+    c.now = function() { return c.t; };
+    return c;
+  }
+  var WAITS = { 1: 10000, 2: 30000, 3: 90000 };
+  function delay_for(attempt) { return WAITS[attempt]; }
+
   test('a board on a later retry keeps its own longer wait', function(assert) {
     var schedule = fake_scheduler();
-    var parking = create_parking(schedule);
-    var waits = { 1: 1000, 3: 90000 };
+    var c = clock_at(0);
+    var parking = create_parking(schedule, c.now);
     var back = [];
     parking.park('A', 1);
     parking.park('B', 3);
-    assert.true(parking.wait(function(attempt) { return waits[attempt]; }, function() { }, function(boards) { back.push(boards); }));
-    assert.strictEqual(schedule.steps[0].ms, 1000, 'the first wait is the earliest');
+    assert.true(parking.wait(delay_for, function() { }, function(boards) { back.push(boards); }));
+    assert.strictEqual(schedule.steps[0].ms, 10000, 'armed for the earliest board');
+    c.t = 10000;
     schedule.run(0);
     assert.deepEqual(back, [['A']], 'only the board whose wait is over comes back');
     assert.strictEqual(parking.size(), 1, 'the other stays parked');
-    assert.true(parking.wait(function(attempt) { return waits[attempt]; }, function() { }, function(boards) { back.push(boards); }));
-    var second = schedule.steps[1].ms;
-    assert.true(second > 85000 && second <= 90000, 'then the rest of its own wait (' + second + ' ms)');
+    assert.true(parking.wait(delay_for, function() { }, function(boards) { back.push(boards); }));
+    assert.strictEqual(schedule.steps[1].ms, 80000, 'then the rest of its own 90 s wait');
+    c.t = 90000;
     schedule.run(1);
     assert.deepEqual(back, [['A'], ['B']]);
   });
 
+  test('a wait counts from when the board was parked, not from when a thread started waiting', function(assert) {
+    var schedule = fake_scheduler();
+    var c = clock_at(0);
+    var parking = create_parking(schedule, c.now);
+    parking.park('A', 1);
+    c.t = 6000; // the walk had other boards to do first
+    parking.wait(delay_for, function() { }, function() { });
+    assert.strictEqual(schedule.steps[0].ms, 4000, '10 s from the park, 6 s of it already gone');
+  });
+
+  test('a board parked during a wait gets its own wait: sooner re-arms the timer, later waits its turn', function(assert) {
+    var schedule = fake_scheduler();
+    var c = clock_at(0);
+    var parking = create_parking(schedule, c.now);
+    var back = [];
+    parking.park('A', 3); // due at 90 s
+    parking.wait(delay_for, function() { }, function(boards) { back.push(boards); });
+    c.t = 1000;
+    parking.park('B', 1); // due at 11 s: sooner than the pending wait
+    assert.strictEqual(schedule.steps.length, 2, 're-armed');
+    assert.strictEqual(schedule.steps[1].ms, 10000);
+    c.t = 11000;
+    schedule.run(1);
+    assert.deepEqual(back, [['B']], 'B after its own 10 s, A still waiting for its 90 s');
+    schedule.run(0); // the first timer, superseded
+    assert.deepEqual(back, [['B']], 'the superseded timer does nothing');
+    assert.strictEqual(parking.size(), 1);
+  });
+
+  test('boards already due come back together, and the thread keeps its download slot', function(assert) {
+    var schedule = fake_scheduler();
+    var c = clock_at(0);
+    var parking = create_parking(schedule, c.now);
+    var released = 0;
+    var back = null;
+    var kept = null;
+    ['A', 'B', 'C'].forEach(function(b) { parking.park(b, 1); });
+    c.t = 15000; // all three are overdue
+    assert.true(parking.wait(delay_for, function() { released++; }, function(boards, kept_slot) { back = boards; kept = kept_slot; }));
+    assert.deepEqual(back, ['A', 'B', 'C'], 'all at once, in order');
+    assert.strictEqual(kept, true, 'the thread keeps its slot');
+    assert.strictEqual(released, 0, 'no slot given back');
+    assert.strictEqual(schedule.steps.length, 0, 'no timer');
+  });
+
   test('cancel still brings back every parked board at once', function(assert) {
-    var parking = create_parking(fake_scheduler());
+    var parking = create_parking(fake_scheduler(), clock_at(0).now);
     var back = null;
     parking.park('A', 1);
     parking.park('B', 3);
-    parking.wait(function(attempt) { return attempt * 30000; }, function() { }, function(boards) { back = boards; });
+    parking.wait(delay_for, function() { }, function(boards) { back = boards; });
     parking.wake();
     assert.deepEqual(back, ['A', 'B']);
   });

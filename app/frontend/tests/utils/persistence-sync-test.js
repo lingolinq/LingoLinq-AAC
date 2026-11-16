@@ -6579,6 +6579,37 @@ describe("persistence-sync", function() {
       });
     });
 
+    // Codex re-review of #1322 (P2): a thread coming back from a retry wait took a download slot directly, past the
+    // limit on concurrent downloads. Here the limit is full when the board is parked (as when other walks hold every
+    // slot): the retry must not start until a slot frees.
+    it("should start a retried board only when a download slot is free", function() {
+      db_wait(function() {
+        var target = persistenceTarget() || persistence;
+        var held = 10;
+        var response = answers([{ reject: { error: 'timeout' } }, { resolve: board167 }]);
+        var first = response.then;
+        response.then = function(ok, fail) {
+          if(response.calls === 0) { target.active_board_threads = (target.active_board_threads || 0) + held; } // every slot taken
+          return first.call(response, ok, fail);
+        };
+        var state = syncWithBoard167(response);
+        var parked_at = null;
+        waitsFor(function() { if(response.calls >= 1 && (persistence.get('sync_progress.parked') || 0) > 0) { parked_at = parked_at || Date.now(); } return parked_at && Date.now() - parked_at > 300; });
+        runs(function() {
+          expect(response.calls).toEqual(1); // the retry waits for a slot, though its 1 ms test wait is long over
+          target.active_board_threads = target.active_board_threads - held; // the slots free up
+          waitsFor(function() { return waitForSyncDoneAndSettled(state.result) && state.tailDone; });
+          runs(function() {
+            expect(response.calls).toEqual(3); // the failed request, then find and reload (the harness asks twice; see "should try a board that timed out once more")
+            expect(statusFor167().error).toEqual(undefined);
+            cancelSyncTailWork();
+            persistence.set('sync_progress', null);
+            LingoLinq.sync_testing_real_boards = false;
+          });
+        });
+      });
+    });
+
     it("should not try a board again when the server refused it", function() {
       db_wait(function() {
         var response = answers([{ reject: { error: 'Not authorized' } }, { resolve: board167 }]);
