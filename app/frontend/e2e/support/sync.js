@@ -133,6 +133,9 @@ async function syncState(page) {
     return {
       syncing: !!p.get('syncing'),
       status: p.get('sync_status') || null,
+      error: p.get('sync_status_error') || null,
+      summary: last ? last.summary : null,
+      failed: last ? (last.statuses || []).filter((st) => st.error).map((st) => st.key + ': ' + st.error).slice(0, 5) : [],
       parked: p.get('sync_progress.parked') || 0,
       log: log.length,
       last: last && { canceled: !!last.canceled, errored: !!last.errored, issues: !!last.issues, rows: (last.statuses || []).length,
@@ -141,9 +144,9 @@ async function syncState(page) {
   });
 }
 
-// Keys of the boards in the device database.
+// Keys of the boards in the device database. find_all answers rows as {store, data: {id, raw}}.
 async function deviceBoardKeys(page) {
-  return page.evaluate(() => window.lingoLinqExtras.storage.find_all('board').then((rows) => rows.map((r) => (r.raw || r).key).filter(Boolean)));
+  return page.evaluate(() => window.lingoLinqExtras.storage.find_all('board').then((rows) => rows.map((r) => { const d = r.data || r; return (d.raw || d).key; }).filter(Boolean)));
 }
 
 // Pictures from the e2e picture host kept on the device (the dataCache rows, keyed by URL).
@@ -156,13 +159,16 @@ async function devicePictureCount(page) {
 // reload, so the next sync downloads them instead of finding them in memory or on the device.
 async function dropDeviceBoards(page, prefix, keep) {
   await page.evaluate(([pre, keepKey]) => window.lingoLinqExtras.storage.find_all('board').then((rows) => Promise.all(rows
-    .filter((r) => { const k = (r.raw || r).key || ''; return k.indexOf(pre) === 0 && k !== keepKey; })
-    .map((r) => window.lingoLinqExtras.storage.remove('board', r.id)))), [prefix, keep || '']);
+    .map((r) => r.data || r)
+    .filter((d) => { const k = (d.raw || d).key || ''; return k.indexOf(pre) === 0 && k !== keepKey; })
+    .map((d) => window.lingoLinqExtras.storage.remove('board', d.id)))), [prefix, keep || '']);
   await page.reload();
   await waitForApp(page);
 }
 
 async function openSyncDetails(page) {
+  // After a reload the modal service is set up by the application route a moment after the app answers.
+  await page.waitForFunction(() => !!window.require('frontend/utils/modal').default.route, null, { timeout: 60_000 });
   await page.evaluate(() => { window.require('frontend/utils/modal').default.open('sync-details', {}); });
   await expect(page.locator('.la-sync-details-modal-wrap')).toBeVisible();
 }
@@ -210,9 +216,9 @@ async function openBoard(page, key) {
   await page.waitForFunction((k) => location.pathname.endsWith('/' + k.split('/')[1]) && document.querySelectorAll('.md-board-detail-grid__cell').length > 1, key, { timeout: 120_000 });
 }
 
+// A board button by its accessible name (the label), as a person using a screen reader would find it.
 async function tapCell(page, label) {
-  const cell = page.locator('.md-board-detail-grid__cell').filter({ hasText: new RegExp('^\\s*' + label + '\\s*$', 'i') }).first();
-  await cell.click();
+  await page.locator('.md-board-detail-grid').getByRole('button', { name: label, exact: true }).first().click();
 }
 
 async function sentence(page) {
