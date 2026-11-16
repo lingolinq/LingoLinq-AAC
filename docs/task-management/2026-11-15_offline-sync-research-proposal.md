@@ -1,7 +1,9 @@
 # Offline board sync: research and proposal (2026-11-15)
 
-Author: Traci Day, with Claude (opus-5.5). Status: proposal for review; nothing here is built.
-Follows #1322, which fixed the specific failures on Traci's Android phone without changing the sync design.
+Author: Traci Day, with Claude (opus-5.5). Status: proposal, revised after review round 1 (2026-11-16; section 9).
+Nothing here is built. Follows #1322, which fixed the specific failures on Traci's Android phone without changing the
+sync design. #1322 is not yet in develop: statements about `board_download.js`, the 60 s board attempt, parked
+retries and the saved sync log describe #1322's branch, not develop 9728d6bd1.
 
 **How to read the evidence labels.**
 - *Measured*: run on 2026-11-15; the method is in Appendix B.
@@ -21,37 +23,44 @@ The sync is the original CoughDrop-era design. It walks the board tree and downl
 *Measured.*
 
 **Finding 2: dev is not representative.**
-- **Dev:** Quick Core 60 folders are 1 to 2 MB each, because dev's upload bucket refuses uploads and pictures fall back to inline base64 inside the board JSON.
-- **Production:** the median board is 27 KB.
+- **Dev:** Quick Core 60 folders are about 1.52 MB each, with pictures inline as base64 inside the board JSON.
+- **Production:** the median board is 27 KB, about 56 times smaller.
 
-The phone failure that #1322 fixed was amplified by this. *Measured and verified.*
+The phone failure that #1322 fixed was amplified by this. Sizes *Measured*.
+- **Why dev has inline pictures is not established.** The code stores a picture inline when an upload to S3 fails (`uploadable.rb` fallbacks), but which failure happened on dev was not proven.
+- **Dev and staging share one database** (`.claude/rules/deploy.md`), so re-saving boards on dev also changes staging.
+
+**Finding 1 understates real syncs.** The measurement used anonymous requests, which return no symbol-set alternates, skin variants or high-contrast pictures. A real sync downloads every skin and symbol set of the person and of every supervisee (`services/persistence.js:3172-3181`, `models/board.js:335-366`, *Traced* by review). Sounds, private boards, later syncs and supervisor caseloads were not measured. Phase 0 measures them before phase 2 is scoped.
 
 **Finding 3: against current best practice, the gaps are:**
 - no response compression;
 - one request per picture, and only one picture download at a time on Android;
+- batched board fetches that fan out instead of running one after another;
 - full-size PNGs where a display-sized WebP is a quarter of the size;
 - no de-duplication of identical pictures;
-- total-time timeouts that throw away a slow download in progress;
+- total-time timeouts that throw away a slow download in progress (except in the iOS app, where the WebView sees no progress until a response is complete);
 - no way to resume a download;
 - a discovery walk instead of a single change manifest;
 - nothing that continues in the background.
 
 **Recommendation:** fix it in phases, inside the current data model. Do not replace the sync with an off-the-shelf sync engine.
+0. **Phase 0:** measure real sync shapes (supervisors, skins, symbol sets, sounds) and count every sync, before scoping phases 2 and 3.
 1. **Phase 1 (small, low risk):**
-   - compress API responses;
-   - use stall timeouts instead of total-time ones;
-   - raise picture download concurrency on Android;
-   - fix the batching gaps;
-   - make dev representative.
+   - serial batches, then no 100-board cut-off;
+   - platform-aware stall timeouts;
+   - more picture downloads at once on Android;
+   - compressed API responses;
+   - storage persistence.
 2. **Phase 2 (largest byte savings):**
-   - serve display-sized WebP pictures;
-   - de-duplicate pictures by content;
-   - store pictures as binary on Safari;
-   - stop routing pictures through the base64 proxy.
+   - lossless WebP renditions in a separate field;
+   - de-duplication by a private content hash;
+   - erasure of renditions;
+   - binary storage on Safari;
+   - button sets without the base64 proxy.
 3. **Phase 3:** one change manifest per sync, then compressed batched fetches.
 4. **Phase 4:** decide only after measuring phases 1 to 3. Either a per-board-set bundle file, or native background download in the Capacitor app.
 
-Modelled on a 4 Mbps Android connection, a production Core 60 first sync goes from roughly 5 to 8 minutes today to about 1.5 minutes after phases 1 and 2 (*estimate*, section 6).
+Modelled on a 4 Mbps Android connection, a production Core 60 first sync goes from roughly 5 to 8 minutes today to about 1.7 minutes after phases 1 and 2 (*estimate*, section 6). Most of the time saved comes from concurrency; WebP saves bytes and storage.
 
 ## 1. What a Core 60 sync downloads today
 
@@ -120,7 +129,9 @@ Each item is *Verified* where marked; the rest is *Traced* (the server agent's f
   6. store the settings and `lastSync`.
 - **The board walk:**
   - **Revision check:** it first calls `board_revisions` and marks matching boards "cached".
-  - **Batched fetch:** stale boards are fetched in batches of 25, one batch after another, **only when fewer than 100 are stale** (*Verified*, the `< 100` check), falling back to one request per board.
+  - **Batched fetch:** stale boards are fetched in batches of 25, **only when fewer than 100 are stale** (*Verified*, the `< 100` check), falling back to one request per board.
+    - The batches are **not** sequential: `next_batch()` runs once per board stored from a response, not once per response (*Verified*, `services/persistence.js:2966-2975`). So one 25-board answer can start up to 25 more batch requests.
+    - Removing the 100 cut-off without fixing this would let one device fire many concurrent 25-board requests. Each runs the full serializer (one `ButtonImage` lookup per picture, uncached `images_and_sounds_for`) under the 16 s `Rack::Timeout`.
   - **Seeds:** home, sidebar, starred and Crisis Vocabulary. Starred boards are seeded but are not in `board_revisions` unless the flag is set, so they never batch.
   - **Link following:** breadth-first, 6 threads on mobile and 10 otherwise.
   - **Board state:**
@@ -129,14 +140,17 @@ Each item is *Verified* where marked; the rest is *Traced* (the server agent's f
     - otherwise reloaded.
 - **Pictures:**
   - **Queue:** every button picture and sound goes through one global queue: 3 workers, 2 on mobile, **1 on Android** (*Verified*, `max_watchers`, S:1502-1507).
-  - **Fetch:** CORS XHR as a blob, 45 s, falling back to the base64 proxy. Android shrinks pictures after download.
+  - **Fetch:** CORS XHR as a blob, 45 s, falling back to the base64 proxy.
+    - The production picture CDN already sends `access-control-allow-origin: *`, and develop already fetches it directly (`utils/direct_fetch.js`, #1268), so the proxy is the fallback, not the usual path (review, *Measured*).
+    - Android does **not** shrink pictures: `size_image` returns at once for an `http` URL (*Verified*, `services/content-grabbers.js:740`). Why Android uses one worker is unknown.
   - **Storage:** native apps and Chrome write a file plus a `dataCache` row. On Safari the picture is a data URI inside the IndexedDB `dataCache` row, about a third larger (stored in `dataCache` *Verified*, data-URI form *Traced*).
   - **De-duplication:** by URL only, which misses the 12% stored under different URLs.
 - **Timeouts:**
   - every limit is total time (a jQuery `timeout` or `setTimeout`);
   - a GET's first attempt gets 8 s, later ones 20 s, up to 3 attempts, each from zero;
   - boards now get one 60 s attempt (#1322);
-  - nothing resumes (no `Range`) and nothing detects a stall.
+  - nothing resumes (no `Range`) and nothing detects a stall;
+  - **in the iOS Capacitor app, the WebView receives no progress at all until a response is complete.** CapacitorHttp on iOS buffers the whole body in a `URLSession.dataTask` completion handler (*Verified*, `lingolinq_mobile/node_modules/@capacitor/ios/Capacitor/Capacitor/WebViewAssetHandler.swift:154`). Android streams it. A stall timeout there would abort every slow but healthy download.
 - **Storage:**
   - IndexedDB, or SQLite in the Capacitor app;
   - one database per user (`lingolinqStorage::<user>===db`);
@@ -164,11 +178,11 @@ Each item is *Verified* where marked; the rest is *Traced* (the server agent's f
 | Compress API responses (gzip everywhere, brotli about 97% of browsers); Cloud Run does not do it for you | *Sourced*: caniuse, Google Cloud docs, Rack source | None | Large for speed; small for bytes (JSON is 1% of a sync) |
 | Keep media out of documents; store as Blobs, not base64 (+33%) | *Sourced*: web.dev, MDN | Production: separate files. Dev: inline. Safari: base64 rows. Button sets: base64 through the proxy | Partial |
 | Content-addressed, de-duplicated media | general practice (*Sourced*: no single canonical source) | One file per button-picture record | 12% waste in Core 60 alone; more across boards and supervisees |
-| Serve images at display size, in modern formats | general practice; WebP supported since iOS 14 | Full PNGs, median 250 px, max 500 px | About 74% of picture bytes (*Measured*, lossy WebP) |
-| One change manifest per sync (cursor or version map), then fetch only what changed | *Sourced*: Replicache, RxDB, CouchDB docs | `board_revisions` exists but skips starred boards; batching stops at 100 stale | Partial: the right idea, with gaps |
+| Serve images at display size, in modern formats | general practice; WebP supported since iOS 14 | Full PNGs, median 250 px, max 500 px | 46% of PNG bytes with lossless WebP, 74% with lossy (*Measured*) |
+| One change manifest per sync (cursor or version map), then fetch only what changed | *Sourced*: Replicache, RxDB, CouchDB docs | `board_revisions` exists but skips starred boards; batches fan out and stop at 100 stale | Partial: the right idea, with gaps |
 | Batch requests; "fewer, larger transfers" | *Sourced*: Apple URLSession guidance | Batches of 25 for some boards; pictures one per request | Large for pictures |
 | Conditional requests (ETag, 304) | *Sourced*: MDN, Rails guide | Weak ETag sent, never used | Small: a manifest makes it mostly unnecessary |
-| Stall timeouts, not total-time; capped retries with jitter | *Sourced*: MDN XHR timeout, AWS | Total-time only; retries from zero; parked retries with jitter (#1322) | Large: the root cause of the phone failure |
+| Stall timeouts, not total-time; capped retries with jitter | *Sourced*: MDN XHR timeout, AWS | Total-time only; retries from zero; parked retries with jitter (#1322) | Large: the root cause of the phone failure. Not possible in the iOS app (no progress through CapacitorHttp) |
 | Resumable downloads (`Range`, `If-Range`) | *Sourced*: MDN | None | Matters only for large files (bundles) |
 | Background download | *Sourced*: web-features, caniuse, Apple, Capacitor docs | None | iOS web apps cannot do it at all; native apps can (bundles only) |
 | Persistent storage and eviction awareness | *Sourced*: WebKit storage policy, web.dev | `persist()` late; no eviction detection | Medium: Home Screen apps are exempt from Safari's 7-day deletion |
@@ -217,87 +231,110 @@ Each phase touches sync and offline, so each change follows `/fix-proposal`:
 - adversarial review of the proposal;
 - falsification after the fix lands.
 
-Effort figures are rough estimates for planning, not commitments.
+Traci decided (2026-11-16):
+- **No feature flags:** these fix outdated behaviour.
+- **Best-practice choices where the proposal left one open:** lossless WebP for symbols.
+- **One PR per phase, stacked on #1322.** Each PR replaces what it supersedes in #1322 rather than adding beside it.
 
-### Phase 0: measure first (about 1 day)
+Effort figures are rough planning estimates.
 
-- **Count each sync.** Record bytes, requests, duration and failures per sync in the sync log entry (client only, no new data leaving the device). Show them in "Technical details". This is how each later phase proves its gain.
-- **Make dev representative.** Fix dev's upload bucket so pictures are files, as in production, and re-save the affected dev boards. Otherwise every dev test overstates board sizes about 20 times. Infra (Scot).
+### Phase 0: measure first (about 2 days)
 
-### Phase 1: quick, low-risk wins (about 3 to 5 days)
+- **Count each sync.** Record bytes, requests, duration, peak concurrent requests and failures per sync in the sync log entry. Client only; nothing new leaves the device. Show them in "Technical details".
+- **Measure real shapes, not just the public template:**
+  - a synthetic supervisor with three supervisees on different skins and symbol sets;
+  - sounds;
+  - a second sync with nothing changed;
+  - a large synthetic caseload.
+  These decide the scope of phases 2 and 3.
+- **Find out why dev's pictures are inline** before changing anything there. Dev and staging share one database, so any re-save touches staging too. Infra (Scot).
 
-1. **Compress JSON API responses:**
-   - `Rack::Deflater`, limited to `application/json` with `:include`;
-   - JSON measured at 3.8 to 4× smaller.
-   - Checks before shipping:
-     - Cloud Run CPU per request;
-     - nothing on the client depends on `Content-Length`, which Deflater removes;
-     - `Rack::Timeout` (16 s) still holds for the largest responses.
-2. **Stall timeouts.** Replace the total-time limits on board and picture downloads with a stall timeout: abort only after N seconds with no bytes, using XHR `onprogress`, the most reliable option on Safari. Keep an overall ceiling. This removes the root cause #1322 worked around with a 60 s limit.
-3. **Picture concurrency on Android:**
-   - find out first why Android uses one worker (it shrinks pictures after download, which may be memory-bound);
-   - then raise it, measured on a low-end device;
-   - with 1 worker, round trips dominate (section 2.3).
-4. **Batching gaps:**
-   - include starred boards in `board_revisions`, so the seeds and the server agree;
-   - send stale boards in pages of 25 with no 100-board cut-off.
+### Phase 1: quick wins (about 4 to 6 days)
+
+1. **Make the batched fetch serial, then lift the cap:**
+   - change `next_batch()` to run once per response, not once per stored board;
+   - only then remove the 100-board cut-off and send stale boards in pages of 25;
+   - include starred boards in `board_revisions` so the client's seeds and the server agree;
+   - test: a whole-sync test asserting the request count and the peak concurrency for 150 stale boards.
+2. **Platform-aware stall timeouts:**
+   - **Web and Android:** abort a board or picture download only after N seconds with no bytes (XHR `onprogress`), with an overall ceiling. This replaces #1322's single 60 s attempt.
+   - **iOS Capacitor app:** CapacitorHttp gives the WebView no progress until the response is complete, so there it keeps a total-time ceiling only.
+   - **Test:** an iPad or iPhone device check.
+3. **Android picture concurrency:**
+   - first find out why Android uses one worker. It is not picture shrinking, which never runs for downloads (*Verified*). Measure how fast the native bridge writes files: each picture crosses the bridge as base64 through `capacitor_filesystem_shim.js`.
+   - then raise the worker count, measured on a low-end device.
+4. **Compress JSON API responses** (`Rack::Deflater` with `:include` for JSON). Proposed to Scot, not pushed: it is shared app config. Before shipping:
+   - **Base64 proxy responses:** decide deliberately whether these are compressed. They are JSON too and would be included.
+   - **Request timeout:** compression runs outside `Rack::Timeout`, so the 16 s timeout does not cover it.
+   - **Both native apps:** test on devices. On iOS the bridge passes the server's `Content-Encoding` header through alongside bytes URLSession has already decoded.
+   - **Server cost:** measure CPU per request on Cloud Run.
 5. **Storage:**
-   - request `navigator.storage.persist()` at the first sync, not after it;
+   - request `navigator.storage.persist()` at the first sync;
    - show `estimate()` in Sync Details;
-   - detect a missing database (eviction) and say so instead of failing quietly.
+   - detect a missing device database and say so instead of failing quietly.
 
-### Phase 2: pictures, which are the bytes (about 1.5 to 3 weeks)
+### Phase 2: pictures (about 2 to 4 weeks; scope set by phase 0)
 
-1. **Display-sized WebP renditions:**
-   - generate a WebP rendition (longest side capped at about 400 px) when a picture is uploaded or imported, and backfill existing ones in a background job;
-   - add it to `image_urls` as an alternate the client prefers; keep the PNG original for editing and export;
-   - *Measured:* lossy WebP is 26% of PNG bytes, lossless 54%.
-   - **Decision for Traci and SLP reviewers:** lossy or lossless for symbols. Lossy needs a visual check on high-contrast and fine-line symbol sets before it is chosen.
+1. **Display-sized lossless WebP renditions:**
+   - **Separate field:** returned in a separate, additive field (for example `image_renditions`), **never inside `image_urls`**. Clients read every `image_urls` key matching `<id>-` as a symbol-set alternate (`utils/button.js:627-633`), so an added key would show up as a new symbol library on old builds and cached app shells.
+   - **Skins:** every skin variant needs its own rendition (skins rewrite the URL, `models/board.js:2108-2151`). The skin tone is chosen from the original URL, never from the rendition's.
+   - **Test:** with an old-client fixture.
+   - *Measured:* lossless WebP is 54% of PNG bytes.
 2. **De-duplicate by content:**
-   - store a content hash per picture file, sent alongside each URL;
-   - the client stores pictures by hash and skips any it has;
-   - *Measured:* 12% within Core 60. More across liked boards, copies and supervisees (*estimate*, not measured).
-3. **Binary on Safari:** store picture Blobs in IndexedDB instead of base64 data URIs (33% of picture storage).
-4. **No base64 proxy for pictures:** add CORS headers on the CloudFront and S3 picture origin so the direct fetch always works. Fetch button sets directly by signed URL, not as base64 JSON through `/search/proxy`. Infra (Scot).
-5. **Caching headers:** serve pictures with long-lived `Cache-Control` (the URLs are already unique per file), so the browser cache and the sync agree.
+   - a content hash per picture file, used only as a de-duplication key inside authenticated JSON;
+   - picture storage keys stay secret-derived (`uploadable.rb:73-76`), never hash-named;
+   - on a public-read bucket a hash-named URL would let anyone holding a picture (for example a photo of a child) check whether LingoLinq stores it.
+   - The client stores pictures by hash and skips any it has. *Measured:* 12% of Core 60 picture bytes; more across skins, liked boards and supervisees is expected but not measured.
+3. **Erasure:** renditions live under the original key prefix and are deleted with it (`remote_remove`), with a spec. Account deletion must remove them (GDPR, COPPA, FERPA).
+4. **Binary on Safari:** store picture Blobs in IndexedDB instead of base64 data URIs (33% of picture storage).
+5. **Button sets without the base64 proxy:** fetch them directly by signed URL. Pictures already go direct; the CDN already sends CORS.
+6. **Caching headers:**
+   - long-lived `Cache-Control` only for verified non-SVG pictures;
+   - SVGs can be rewritten in place at the same URL after sanitising (`uploadable.rb:584, 605-619`), so they get a short lifetime or a new key on sanitise.
 
-### Phase 3: one manifest per sync (about 2 to 3 weeks)
+### Phase 3: one manifest per sync (about 3 to 4 weeks; scope set by phase 0)
 
-1. **New endpoint**, `GET /users/:id/sync_manifest`. One compressed response listing every board the device should hold (home, sidebar, starred and liked, Crisis Vocabulary, all their folders), each with:
-   - id, key and `current_revision`;
-   - the picture content hashes and URLs it needs;
-   - the button-set revision for seed boards;
-   - revoked ids.
-   It extends `board_revisions` and reuses `BoardRevisionsAccess` for permissions. Its permission rule is decided once and documented (caller or target user; see 2.1).
-2. **Client:**
-   - **Compare:** diff the manifest against the database, not memory. Removes the 5-minute "fresh" shortcut and the warm-up overlap for sync purposes.
-   - **Fetch:** changed boards in compressed batches of 25 to 50, then missing pictures by hash, several at a time.
-   - **Delete:** remove what the manifest no longer lists (with the existing revocation handling).
-3. **Safety:**
-   - the old walk stays as the fallback when the manifest call fails;
-   - the manifest must be streamed or paged to stay under Cloud Run's 32 MiB non-streamed cap and `Rack::Timeout`'s 16 s for very large caseloads.
+1. **Picture lists precomputed per board when the board is saved.** Picture URLs depend on the viewer (licences, preferred symbols, supporter role: `board.rb:2539-2544`, `json_api/board.rb:258-294`), and their cache is commented out (`board.rb:2561`). Without precomputing, a manifest for a supervisor's caseload would be the heaviest call in the app.
+2. **New endpoint**, `GET /users/:id/sync_manifest`:
+   - **Paging:** per root board, compressed.
+   - **Contents:** every board the device should hold, with id, key and `current_revision`; the picture hashes and URLs for this viewer; the button-set revision; and revoked ids.
+   - **Permissions:** the manifest and the batched board fetch use **one permission rule**, both reading current shares (`BoardRevisionsAccess`). Today `board_revisions` reads current shares while `users#boards` uses a 30-minute permission cache, so a just-shared board would be listed but not delivered, and a just-unshared one served for up to 30 minutes.
+   - **Test:** a spec that shares and then unshares within that window.
+3. **Client:**
+   - **Compare:** diff the manifest against the database, not memory.
+   - **Fetch:** changed boards in serial, compressed batches, then missing pictures by hash, several at a time.
+   - **Delete:** remove what the manifest no longer lists (with revocation handling).
+   - **Fallback:** the old walk stays when the manifest call fails.
+4. **Size limits:** the manifest stays under Cloud Run's 32 MiB non-streamed cap and the 16 s `Rack::Timeout` for the largest caseload measured in phase 0.
 
 ### Phase 4: decide after measuring (not scheduled)
 
-- **Bundles (option C)** if phase 3 still leaves first syncs too slow on the slowest real links. Most likely for the native app, paired with background `URLSession` and WorkManager downloads.
-- **Native background sync** in the Capacitor app for bundle files only. iOS web apps stay foreground-only, which is a platform limit.
+- **Bundles:**
+  - only if phase 3 still leaves first syncs too slow;
+  - keyed by viewer variant (skins, symbol sets, licences), per user, with short-lived signed URLs;
+  - never a shared public bundle, which would leak licensed symbols or lose a person's chosen symbol set.
+- **Native background download** of bundle files in the Capacitor app. iOS web apps stay foreground-only.
 
 ## 6. Expected effect (*estimate*)
 
 **Assumptions:**
-- a production Quick Core 60 first sync on Android;
+- a production Quick Core 60 first sync on Android, as measured anonymously (so without alternates or skins);
 - 4 Mbps (500 KB/s) and 150 ms per request round trip;
-- requests overlap only as far as the worker counts allow;
-- server time is not modelled.
+- server and on-device processing not modelled.
+
+On-device processing is real: each picture is read and crosses the Capacitor bridge as base64. Phase 0 measures it.
 
 | Stage | Bytes moved | Requests | Rough time |
 |---|---|---|---|
 | Today | about 34 MB (1.35 MB JSON, 33 MB pictures) | about 2,150 (pictures 1 at a time) | about 5 to 8 min |
-| After phase 1 (gzip, 4 picture workers) | about 33 MB | about 2,150 (4 at a time) | about 2.5 min |
-| After phase 2 (lossy WebP, de-duplication) | about 8 MB | about 1,900 | about 1.5 min |
-| After phase 3 (manifest, batches) | about 8 MB | about 1,860 (boards in batches) | about 1.3 min; a later sync with nothing changed is 1 request |
+| After phase 1 (4 picture workers, gzip) | about 33 MB | about 2,150 (4 at a time) | about 2.5 min: 78 s of round trips, 66 s of transfer |
+| After phase 2 (lossless WebP for PNGs, de-duplication) | about 30.2×0.88×0.54 + 2.6×0.88 + 0.36 ≈ 17 MB | about 1,900 | about 1.7 min |
+| After phase 3 (manifest, batches) | about 17 MB | about 1,860 | about 1.6 min |
 
-Later syncs are where phase 3 pays most: today, a sync with nothing changed still walks the tree and checks every picture against the device.
+**Reading the table:**
+- Concurrency buys most of the time; smaller pictures buy bytes and storage.
+- Lossy WebP (26%) would bring phase 2 to about 9.6 MB. Not chosen (section 5).
+- When nothing changed, automatic sync already makes one `sync_stamp` request. Phase 3 pays off for syncs where something did change, and for the many per-picture checks a sync does today.
 
 ## 7. Risks and invariants
 
@@ -308,22 +345,47 @@ Every phase must keep:
 - **Speak Mode:** never interrupted. The drawer stays hidden; the sync is never cancelled by using the board.
 - **Old clients keep working:** new fields are additive; old endpoints stay until every client in use has moved.
 - **No production data in non-production environments:** measurements use public templates and synthetic accounts.
+- **Erasure:** every derived file (renditions, hashes) is deleted with its original and with the account.
+- **Pictures stay unguessable:** storage keys stay secret-derived. A content hash is never part of a public URL.
+- **Personalisation is preserved:** skins, symbol sets, licensed symbols and high-contrast pictures resolve exactly as today, per viewer.
 
 Specific risks:
-- **Compression costs CPU** on Cloud Run. Measure before and after; include only JSON.
-- **Lossy WebP may soften fine symbol lines.** It needs a visual review; lossless is the safe fallback.
+- **Compression costs CPU** on Cloud Run and runs outside `Rack::Timeout`. Measure before and after; decide the proxy route deliberately; test both native apps.
+- **WebP and skins:** a rendition is missing for some skin variant, so a skinned picture 404s. Renditions are rendered for every variant and checked before the field is sent.
 - **The backfill job** for renditions and hashes touches every picture: run it in batches on the `slow` queue.
 - **The manifest permission rule:** the existing endpoints disagree. Choosing wrongly could hide shared boards or expose them. Adversarial review is required (it touches access to another user's data).
 
-## 8. Decisions needed
+## 8. Decisions
 
-1. **Traci:** proceed in this order (0, 1, 2, 3, then decide 4)?
-2. **Traci with SLP reviewers:** lossy or lossless WebP for symbols, after a visual check.
-3. **Traci:** feature flags. #1322 shipped without one because it was a fix. Phases 1 and 2 are fixes in the same sense. Phase 3 changes the sync protocol, and a flag would let it roll out to a few accounts first.
-4. **Scot (infra):**
-   - fix dev's upload bucket;
-   - CORS and `Cache-Control` on the picture CDN;
-   - review of the CPU cost of compression on Cloud Run.
+**Decided by Traci (2026-11-16):**
+- **Order:** phases 0, 1, 2 and 3; phase 4 decided after measuring.
+- **Best-practice choices:** lossless WebP for symbols. Lossy would save more but risks fine lines, and is left for later.
+- **No feature flags.**
+- **One PR per phase, stacked on #1322.**
+
+**Needed from Scot (infra):**
+- why dev's pictures are inline, and what a fix touches on staging (they share one database);
+- compression on Cloud Run: CPU cost, and whether the proxy route is included;
+- `Cache-Control` for pictures on the CDN (non-SVG only). CORS is already in place.
+
+## 9. Review round 1 (2026-11-16)
+
+An `adversary` review at 38cad5029 returned "needs rework" with 12 findings. Each was checked in the code before this revision; the four that changed the plan most were re-read here (*Verified*).
+
+| Finding | Rating | Disposition |
+|---|---|---|
+| Batches fan out (`next_batch` per stored board), so lifting the 100 cut-off multiplies concurrent heavy requests | High | Accepted. *Verified* `services/persistence.js:2966-2975`. Phase 1.1 makes batches serial first |
+| A stall timeout aborts healthy downloads in the iOS app (no progress through CapacitorHttp) | High | Accepted. *Verified* `WebViewAssetHandler.swift:154`. Phase 1.2 is platform-aware |
+| WebP or hash URLs inside `image_urls` collide with symbol-set alternates and skin rewriting | High | Accepted. *Verified* `utils/button.js:627-633`. Renditions go in a separate field; skins covered |
+| Content-hash URLs on a public bucket leak whether a picture exists and break erasure | High | Accepted. The hash stays private; keys stay secret-derived; erasure invariant added |
+| Picture lists are per viewer and uncached, so a manifest with them is expensive | High | Accepted. Precompute per board; page the manifest per root; measure a caseload first |
+| The manifest and the batched fetch use different permission rules | Medium | Accepted. One rule; share/unshare spec |
+| The measurement understates real syncs (anonymous: no alternates or skins) | Medium | Accepted. Phase 0 measures supervisor-shaped syncs |
+| Section 6 arithmetic overstated (SVGs, round trips dominate, the no-change case, the dev ratio) | Medium | Accepted. Table recomputed for lossless WebP; ratio is 56×, not 20× |
+| Android's single worker is not explained by shrinking (`size_image` returns at once for URLs) | Medium | Accepted. *Verified* `content-grabbers.js:740`. Phase 1.3 measures the bridge |
+| SVG bytes can change at the same URL after sanitising, so long caching is unsafe for them | Medium | Accepted. Long caching only for non-SVG |
+| Baseline drift: CORS is already on the CDN; #1322 is not in develop; the dev cause is unproven | Medium | Accepted. Labels corrected; 2.4 narrowed to button sets; dev cause is an open question |
+| Deflater details: the proxy is JSON too; compression runs outside `Rack::Timeout`; iOS header passthrough | Low | Accepted. Phase 1.4 checks |
 
 ## Appendix A: sources
 
