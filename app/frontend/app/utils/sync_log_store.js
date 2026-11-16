@@ -117,13 +117,13 @@ export function restore_sync_log(persistence, deps) {
   }, function() { });
 }
 
-// The result the grouped view shows: the newest entry with rows. A cancelled sync (and a failure before any board)
-// has none, so the cards stay on the sync before it, marked as an earlier one.
+// The result the grouped view shows: the newest sync that FINISHED (with or without problems) and has rows. A failed
+// or cancelled sync stopped part way, so its rows are partial; the cards stay on the sync before it, marked earlier.
 export function last_result(log) {
   var list = Array.isArray(log) ? log : [];
   for(var i = list.length - 1; i >= 0; i--) {
     var e = list[i];
-    if(e && e.statuses && e.statuses.length) {
+    if(e && !e.errored && !e.canceled && e.statuses && e.statuses.length) {
       return { entry: e, from_earlier: i < list.length - 1 };
     }
   }

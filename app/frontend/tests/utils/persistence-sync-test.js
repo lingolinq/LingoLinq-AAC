@@ -7295,6 +7295,40 @@ describe("persistence-sync", function() {
       });
     });
 
+    // docs/task-management/2026-11-15_persist-sync-log.md: a sync cancelled at a point where its walk REJECTS (seen on
+    // the iOS WebKit run, cancel 2.5 s in) ends through the failure branch. It is still a cancel: logged as canceled,
+    // not errored, so Sync Details neither says "didn't finish" nor shows its partial rows as the result.
+    it("logs a cancelled sync whose walk rejects as canceled, not errored", function() {
+      db_wait(function() {
+        cancelSyncTailWork();
+        unloadSyncStoreRecords();
+        persistence.set('sync_progress', null);
+        persistence.set('sync_status', null);
+        persistence.set('root_sync_canceled', false);
+        persistence._canceled_sync_id = null;
+        stub(modal, 'error', function() { });
+        stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+        stubOnPersistence('sync_user', function() { return RSVP.resolve(); });
+        stubOnPersistence('sync_boards', function() {
+          persistence.cancel_sync();
+          return RSVP.reject({error: 'canceled'});
+        });
+        queryLog.defineFixture({ method: 'GET', type: 'user', response: RSVP.resolve({user: {id: '1371', user_name: 'fred'}}), id: '1371' });
+        var done = null;
+        persistence.sync('1371').then(function() { done = 'resolved'; }, function() { done = 'rejected'; });
+        waitsFor(function() { return done && syncSettled(); });
+        runs(function() {
+          var log = persistence.get('sync_log') || [];
+          var last = log[log.length - 1] || {};
+          expect(last.canceled).toEqual(true);
+          expect(!!last.errored).toEqual(false);
+          cancelSyncTailWork();
+          persistence.set('sync_progress', null);
+          persistence.set('sync_status', null);
+        });
+      });
+    });
+
     // Cancel pauses AUTOMATIC syncing (Traci, 2026-11-12): without it the stamp check started the cancelled sync again
     // about 5 minutes later, every time. The existing back-off is reused (30 minutes, doubling to 6 hours, reset by a
     // finished sync); a sync the person asks for is not held back by it.

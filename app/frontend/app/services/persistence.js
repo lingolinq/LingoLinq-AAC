@@ -2464,10 +2464,10 @@ var persistence = Service.extend({
         log.push({
           user_id: user_name,
           manual: force,
-          errored: true,
+          errored: _this_sync._canceled_sync_id !== sync_id, canceled: _this_sync._canceled_sync_id === sync_id || undefined, // a cancel that ended through this branch is still a cancel (docs/task-management/2026-11-15_persist-sync-log.md)
           finished: new Date(),
           statuses: statuses,
-          summary: i18n.t('error_syncing_user', "Error syncing %{user_id}: ", {user_id: user_name}) + message
+          summary: _this_sync._canceled_sync_id === sync_id ? i18n.t('sync_canceled_summary', "Sync canceled") : i18n.t('error_syncing_user', "Error syncing %{user_id}: ", {user_id: user_name}) + message
         });
         _this_sync.set('last_sync_event_at', (new Date()).getTime());
         _this_sync.set('sync_log', record_sync_log(_this_sync, log)); _this_sync.set('sync_log_rand', Math.random()); // utils/sync_log_store.js

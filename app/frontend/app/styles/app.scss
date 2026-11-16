@@ -33307,7 +33307,7 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   margin-right: 6px;
 }
 .la-sync-details-summary-line {
-  margin: 12px 0 6px;
+  margin: 6px 0 0;
   font-size: 16px;
   color: $brand-slate-blue;
 }
@@ -33320,6 +33320,10 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 }
 .la-sync-details-bar--thin {
   height: 6px;
+}
+/* The summary band's bar: the status line follows it, then the grey details. */
+.la-sync-details-bar--summary {
+  margin-bottom: 14px;
 }
 .la-sync-details-bar-fill {
   display: block;

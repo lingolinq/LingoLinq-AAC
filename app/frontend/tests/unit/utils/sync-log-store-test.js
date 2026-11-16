@@ -132,6 +132,16 @@ module('Unit | Utility | sync log store', function() {
     assert.strictEqual(last_result(null), null);
   });
 
+  // The iOS WebKit run (2026-11-15): a sync that failed or was cancelled part way has SOME rows; shown as the result
+  // they read "100% ready offline, 1 of 1". Only a sync that finished counts.
+  test('a failed or cancelled sync with some rows is not the result', function(assert) {
+    var r = last_result([entry(1), entry(2, { errored: true }), entry(3, { canceled: true })]);
+    assert.strictEqual(r.entry.summary, 'sync 1');
+    assert.true(r.from_earlier);
+    assert.strictEqual(last_result([entry(1, { errored: true })]), null, 'no finished sync yet');
+    assert.strictEqual(last_result([entry(1, { issues: true })]).entry.summary, 'sync 1', 'a sync with problems did finish');
+  });
+
   test('what the status line says about the last sync after a restart', function(assert) {
     assert.strictEqual(restored_lead_kind([entry(1), entry(2, { canceled: true })]), 'canceled');
     assert.strictEqual(restored_lead_kind([entry(1, { errored: true })]), 'errored');

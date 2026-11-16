@@ -13,11 +13,7 @@
       <div class="la-sync-details-summary-main">
         {{#if this.summary}}
           <p class="la-sync-details-summary-pct"><span class="la-sync-details-summary-num">{{this.summary_pct}}%</span> {{t "ready offline" key="sync_ready_offline_lower"}}</p>
-          <div class="la-sync-details-bar" role="img" aria-label={{this.summary_line}}><span class="la-sync-details-bar-fill" style={{this.summary_bar_style}}></span></div>
-          <p class="la-sync-details-summary-line">{{this.summary_line}}</p>
-          {{#if this.summary.from_earlier}}
-            <p class="la-sync-details-summary-line">{{t "These results are from an earlier sync," key="sync_results_from_earlier"}} {{date_ago this.summary.finished}}.</p>
-          {{/if}}
+          <div class="la-sync-details-bar la-sync-details-bar--summary" role="img" aria-label={{this.summary_line}}><span class="la-sync-details-bar-fill" style={{this.summary_bar_style}}></span></div>
         {{/if}}
         <p class="la-sync-details-lead">
           {{#if (persistence-value 'sync_succeeded')}}
@@ -55,6 +51,13 @@
             {{/if}}
           {{/if}}
         </p>
+        {{!-- The details under the status line: how many are saved, and whether the cards are from an earlier sync. --}}
+        {{#if this.summary}}
+          <p class="la-sync-details-summary-line">{{this.summary_line}}</p>
+          {{#if this.summary.from_earlier}}
+            <p class="la-sync-details-summary-line">{{t "These results are from an earlier sync," key="sync_results_from_earlier"}} {{date_ago this.summary.finished}}.</p>
+          {{/if}}
+        {{/if}}
       </div>
       <div class="la-sync-details-summary-actions">
         <button type="button" class="la-sync-details-primary-btn" {{on "click" (this.ctrlAction "sync")}}>
