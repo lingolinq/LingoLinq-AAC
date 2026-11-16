@@ -1,5 +1,5 @@
 import { module, test } from 'qunit';
-import { BOARD_RETRY_DELAYS_MS, retry_delay, create_parking } from 'frontend/utils/board_retry';
+import { BOARD_RETRY_DELAYS_MS, retry_delay, create_parking, when_slot_free } from 'frontend/utils/board_retry';
 import { claim_board_retry, passing_failure } from 'frontend/utils/sync_board_fallback';
 
 /* RETRYING A BOARD THE SYNC COULD NOT GET (Android sync fix, 2026-11-14;
@@ -102,6 +102,51 @@ module('Unit | Utility | board retry', function() {
     assert.strictEqual(second, 0, 'and does not wake the second wait early');
     schedule.run(1);
     assert.strictEqual(second, 1);
+  });
+
+  // Codex re-review of #1322 (P2): the wait used the earliest retry and then brought back every parked board, so a
+  // board on its third retry (about 90 s) came back after a newer board's first wait (about 10 s).
+  test('a board on a later retry keeps its own longer wait', function(assert) {
+    var schedule = fake_scheduler();
+    var parking = create_parking(schedule);
+    var waits = { 1: 1000, 3: 90000 };
+    var back = [];
+    parking.park('A', 1);
+    parking.park('B', 3);
+    assert.true(parking.wait(function(attempt) { return waits[attempt]; }, function() { }, function(boards) { back.push(boards); }));
+    assert.strictEqual(schedule.steps[0].ms, 1000, 'the first wait is the earliest');
+    schedule.run(0);
+    assert.deepEqual(back, [['A']], 'only the board whose wait is over comes back');
+    assert.strictEqual(parking.size(), 1, 'the other stays parked');
+    assert.true(parking.wait(function(attempt) { return waits[attempt]; }, function() { }, function(boards) { back.push(boards); }));
+    var second = schedule.steps[1].ms;
+    assert.true(second > 85000 && second <= 90000, 'then the rest of its own wait (' + second + ' ms)');
+    schedule.run(1);
+    assert.deepEqual(back, [['A'], ['B']]);
+  });
+
+  test('cancel still brings back every parked board at once', function(assert) {
+    var parking = create_parking(fake_scheduler());
+    var back = null;
+    parking.park('A', 1);
+    parking.park('B', 3);
+    parking.wait(function(attempt) { return attempt * 30000; }, function() { }, function(boards) { back = boards; });
+    parking.wake();
+    assert.deepEqual(back, ['A', 'B']);
+  });
+
+  // Codex re-review of #1322 (P2): a resumed thread took a download slot directly, so several walks' waiters could
+  // resume above the limit on concurrent downloads.
+  test('a resumed thread waits for a free download slot', function(assert) {
+    var schedule = fake_scheduler();
+    var full = true;
+    var started = 0;
+    when_slot_free(function() { return full; }, schedule, function() { started++; });
+    assert.strictEqual(started, 0, 'not while the limit is reached');
+    assert.strictEqual(schedule.steps.length, 1, 'it checks again later');
+    full = false;
+    schedule.run(0);
+    assert.strictEqual(started, 1, 'started once a slot is free');
   });
 
   test('wake with nobody waiting does nothing', function(assert) {
