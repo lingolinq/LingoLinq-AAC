@@ -825,9 +825,12 @@ condition is met:
      echo "saved: $BEFORE $EXPORT"
    ```
    **Then flip it**, in the same shell. `CONFIRM_ARMOR_ENFORCE` repeats the rule number; the old
-   `CONFIRM_ARMOR_ENFORCE=1` form is refused. The flip runs only if both saved files are non-empty.
+   `CONFIRM_ARMOR_ENFORCE=1` form is refused. The flip runs only if both saved files are non-empty
+   and were saved for this `RULE` (a copy left from another rule in the same shell is refused).
    ```bash
    : "${RULE:?set RULE to the one rule, 1001-1004}" && \
+     case "${BEFORE:-}" in */"$RULE"-before-*) ;; *) echo "BEFORE is not a copy of rule $RULE; save it again"; false;; esac && \
+     case "${EXPORT:-}" in *-before-"$RULE"-*) ;; *) echo "EXPORT was not saved for rule $RULE; save it again"; false;; esac && \
      [ -s "${BEFORE:-}" ] && [ -s "${EXPORT:-}" ] && \
      CONFIRM_LB=1 CONFIRM_ARMOR=1 ARMOR_ENFORCE_RULES="$RULE" CONFIRM_ARMOR_ENFORCE="$RULE" \
        DOMAIN=app.lingolinq.com ./scripts/gcp/phase5-frontend-lb.sh
@@ -838,7 +841,10 @@ condition is met:
    missing or naming a different rule, or set with no rule named; `ARMOR_ENFORCE_RULES` together
    with `RATE_LIMIT_ENFORCE=1`; and `ARMOR_ENFORCE_RULES` or `RATE_LIMIT_ENFORCE=1` without
    `CONFIRM_LB=1 CONFIRM_ARMOR=1`. It also refuses, before changing anything, to enforce a rule (or
-   in a policy) that does not exist yet: a new rule always starts in preview. A describe that fails
+   in a policy) that does not exist yet: a new rule always starts in preview. It refuses to enforce
+   anything while `lingolinq-armor` is not attached to the backend, since a rule on a detached policy
+   filters nothing, unless the same run attaches it (`CONFIRM_ARMOR_ATTACH=lingolinq-armor`). The
+   closing readback prints the attached policy. A describe that fails
    with anything other than not-found stops the run instead of being read as "missing". Separately,
    the Armor step stops if the backend already has a DIFFERENT security policy attached, or shows
    `lingolinq-armor` attached while the policy reads as not found, and does not re-attach an
@@ -878,6 +884,7 @@ condition is met:
    rule back to preview (below) and restore the tuning from the "before" file before trying again.
    ```bash
    : "${RULE:?set RULE to the one rule, 1001-1004}" && \
+     case "${BEFORE:-}" in */"$RULE"-before-*) ;; *) echo "BEFORE is not a copy of rule $RULE"; false;; esac && \
      [ -s "${BEFORE:-}" ] && \
      gcloud compute security-policies rules describe "$RULE" \
        --security-policy=lingolinq-armor --project=lingolinq-prod \

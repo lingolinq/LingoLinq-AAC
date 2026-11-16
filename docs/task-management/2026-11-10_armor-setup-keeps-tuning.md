@@ -177,7 +177,7 @@ Senior-dev review:
 |---|---|---|
 | High: the piped `... \| expect_calls` checks in the driver ran `expect_calls` in a subshell, so a failure it recorded was lost and every piped check passed | `shopt -s lastpipe` in the driver, plus a self-check case that pipes a deliberately wrong expectation and must record a failure. Falsified: with `lastpipe` removed, the self-check fails. (Fixed before this round's other items.) | `Z_selfcheck_piped_mismatch_fails` |
 | Medium: `RATE_LIMIT_ENFORCE=1` against a missing policy or missing rule 2000 created rule 2000 straight in enforce | Step 2-pre refuses `RATE_LIMIT_ENFORCE=1` when the policy or rule 2000 does not exist, before any change, as for the WAF rules. The create branch now always passes `--preview` (`RL_PREVIEW_FLAG` removed). | `R3b_2a_rl_enforce_missing_policy`, `R3b_2b_rl_enforce_missing_rule2000` |
-| Lows L1-L5 | The texts of L1-L5 were not restated to this fix pass. The fixes made this round are the items in the red-team table below plus the rule 2000 header, handoff and runbook wording; any L item not covered by those is still open and should be checked against the review text. | as below |
+| Lows L1-L5 | The texts of L1-L5 were not restated to this fix pass. The fixes made this round are the items in the red-team table below plus the rule 2000 header, handoff and runbook wording. The senior-dev pass on PR #1319 (round 4, below) re-read the whole diff and reported its Lows afresh; an earlier L item it did not raise again is treated as closed. | as below |
 
 Red team:
 
@@ -214,3 +214,27 @@ shows the threshold, not the exceed action.
   removes no line from the learnings file.
 - This round of fixes was verified by the driver, not by a fourth review round.
 - No run against a real policy or the real gcloud.
+
+## Review round 4: senior-dev pass on PR #1319 (2026-11-15)
+
+`REVIEWED=PR lingolinq/LingoLinq-AAC#1319 at c9f23b8c861c09f34a20482f7b03e1985cb10bf9`, after the
+PII preflight (`review-preflight.sh pr 1319`, exit 0). Verdict: approve with comments; no Critical or
+High. Traci asked for this pass and for the fixes. Each new case was run first against the script
+before these fixes (saved copy): R4_1a, R4_1b, R4_1d, R4_1e and R4_4 failed; R4_1c, R4_2 and R4_3
+passed, pinning behaviour that was already right but untested.
+
+| Finding | Fix | Cases |
+|---|---|---|
+| Medium: an enforce flip went ahead on an existing policy attached to nothing (an incident detach, or a first run interrupted before Step 2d); Step 2d only printed a gate, the run exited 0 and the Step 2e readback showed preview=false while nothing was filtered. Same for `RATE_LIMIT_ENFORCE=1`. CONFIRMED by reading Step 2-pre and 2d. | Step 2-pre refuses `ARMOR_ENFORCE_RULES` or `RATE_LIMIT_ENFORCE=1` when no policy is attached, before any change, unless the same run attaches it (`CONFIRM_ARMOR_ATTACH`). Step 2e prints the attached policy (or NONE). The Step 2d gate also names an interrupted first run as a cause. | `R4_1a_enforce_detached`, `R4_1b_rl_enforce_detached`, `R4_1c_enforce_detached_confirmed`, `R4_1d_readback_names_attached`, `R4_1e_readback_names_none` |
+| Medium: untested fail-closed paths | Fake knobs `STUB_UPDATE_FAIL`, `STUB_ERROR_STYLE=batch`, `STUB_NOTFOUND_PROJECT`. | `R4_2_update_fail_after_create`, `R4_3_batch_title_notfound` |
+| Low: the not-found patterns accepted any project before `/securityPolicies/` | Both patterns name `projects/$PROJECT_ID/global/securityPolicies/...`; a not-found for another project stops the run. | `R4_4_notfound_other_project` |
+| Low: runbook 9c flip did not tie `BEFORE` to the current `RULE` | The flip block refuses a `BEFORE` or `EXPORT` saved for another rule; the compare block refuses a `BEFORE` for another rule. Checked by hand in zsh with a 1003 copy and `RULE=1002`. | n/a (runbook) |
+| Low: this log left L1-L5 open without listing them | The row above now says how they were closed. | n/a |
+| Low (nit): two describes for log level and JSON parsing | Not changed. | n/a |
+
+The first version of the Step 2e attached-policy line printed the name followed by the whole URL
+(`${X:-...}` also expands when X is set); R4_1d only checked a prefix and passed. Both readback cases
+now match the whole line; the buggy line fails R4_1d.
+
+Driver after the fixes, in `ruby:3.4.4-slim` (bash 5) with `--network none`: 76 passed, 0 failed,
+1 skipped.
