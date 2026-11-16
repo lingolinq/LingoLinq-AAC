@@ -184,3 +184,63 @@ Not covered by a test, stated:
 - the utils-copy writers and the service error/cancel writers: wired by the same one-line change, only the service
   success writer is pinned by a sync test.
 - the status line's look: NOT seen on screen yet (Traci's condition). Same element and style as "Sync Done!".
+
+## Android and iOS emulator runs (2026-11-15, after the fix)
+
+Traci could not test on a device before a merge to develop, so both platforms were emulated against a local server on
+the private e2e database, behind the throttle proxy (4 Mbps shared, 100 ms), user synth_big (home board with 56
+1.5 MB folders). Served bundle checked each time (process cwd on 5077, digest, a string from the change).
+- Android: Chrome on the ll_trace emulator (Android 15), 1280 px wide.
+- iOS: Playwright WebKit (Safari's engine) with the iPhone 15 profile (393 px, touch, iPhone UA). NOT the iOS
+  Simulator, which needs macOS; a real iPhone or a Mac simulator is the full check.
+Scenario (scratchpad emu/synclog-scenario.js): sync, open Sync Details; reload, open it; start a sync and cancel at
+2.5 s, open it; reload, open it.
+
+Results, both platforms, final build: the log comes back after a reload (1, then 2 entries, `finished` a Date again,
+restore ran once); the status line after a reload says "Synced and ready for offline" after a clean sync and "The last
+sync was canceled." after a cancel; the cards stay on the last full sync with "These results are from an earlier
+sync, a few seconds ago."
+
+Found by the runs and fixed (each committed, red test first where it is behaviour):
+- 08842a82a: on iOS the cancel landed earlier and the walk REJECTED; the failure branch logged it as errored
+  ("Error syncing ...: canceled") although it knows it was cancelled (_canceled_sync_id), and the grouped view showed
+  that sync's one partial row as the result ("100% ready offline, 1 of 1"). Now logged as canceled, and only a sync
+  that finished becomes the result. Tests: persistence-sync "logs a cancelled sync whose walk rejects as canceled";
+  sync-log-store "a failed or cancelled sync with some rows is not the result". Both red before, both killed by their
+  mutant. Same commit: the status line moved above the grey details (Traci: "improve it").
+- f91fd0edf: at 393 px the three tabs wrapped and the selected pill no longer matched the track; below 560 px they
+  are equal full-width rows.
+Green after: 207 tests, 206 pass, 1 pre-existing xit, timing-strict on.
+
+## "XMLHttpRequest cannot load ... due to access control checks" on iOS (investigated 2026-11-15)
+
+Probe (scratchpad emu/xhr-probe.js): fresh iPhone 15 profile, sign in, watch 150 s; every failed request with its
+reason and how long it ran, every uncaught page error with its stack.
+
+| Run | Failed requests | Reason | When they failed | "access control" errors |
+|---|---|---|---|---|
+| WebKit, throttled | 68 | Load request cancelled | 22 at 7.5-8.6 s, 44 at 15.6-59 s, 2 under 1 s | 11 |
+| WebKit, direct (no throttle) | 2 | Load request cancelled | 2 under 1 s | 1 (/sw.js) |
+| WebKit, throttled, worker blocked | 25 | Load request cancelled | 19 at 7.5-8.6 s, 5 at 15.6-59 s, 1 under 1 s | 1 |
+| Chromium, throttled | 27 | net::ERR_ABORTED | 22 at 7.5-8.6 s, 5 at 15.6-59 s | 0 |
+
+CONFIRMED:
+- Not cross-origin: every failure is a request the page CANCELLED ("Load request cancelled" in WebKit,
+  net::ERR_ABORTED in Chromium), all same origin.
+- The many 8 s cancellations are the app's own first-try timeout on board downloads (then retried patiently; the
+  U1/U2 design). Chromium shows the same aborts. They do NOT produce the error: 19 of them in the worker-blocked run
+  gave one error.
+- The errors come at sign-in: token_check and /tree?root_only=1 cancelled 28 ms and 0 ms after starting, about 1.1 s
+  after the Sign In click, when the page navigates away. Requests the app starts while the page is unloading are
+  refused by WebKit inside xhr.send (the stack ends in `send`; no synchronous XHR exists in app/) and never become
+  requests, hence 11 errors from 2 failed requests. Direct, without the throttle, it is one error (/sw.js).
+- The offline worker is not the cause: it never answers /api/ requests (service_worker.js.erb fetch handler, no
+  respondWith for /api/), and blocking it left the sign-in error in place.
+- What happens to them: window.onerror (app.js:20) -> LingoLinq.track_error (app.js:116): console.error plus an
+  in-memory list. Nothing is shown to the person; nothing reaches the server unless window._trackJs is loaded.
+- Three full iOS scenario runs (sync, reload, cancel, reload): zero other page errors; the counter stayed at its
+  sign-in value through every sync.
+NOT KNOWN: the throttled WebKit probe's 8 other page errors (the probe printed only the first 6 errors, all access
+control). PLAUSIBLE, not checked against WebKit's source: WebKit words a cancelled same-origin XHR this way.
+Verdict: harmless console noise from requests cancelled by the sign-in navigation, not a failure. Possible tidy-up
+(not done, not in scope): do not start token_check / the tree warm-up in the moment the sign-in navigation begins.
