@@ -103,6 +103,7 @@ module('Unit | Controller | user/index offline Mine list', function(hooks) {
     var release = null;
     var c = page(this.owner, { find_all: function() { return new RSVP.Promise((r) => { release = r; }); } });
     c.update_selected();
+    await tick(); // the read starts inside the promise chain (utils/offline_board_list.js)
     assert.strictEqual(typeof release, 'function', 'the device was read');
     c.set('list_id', 'newer'); // back online: update_selected started a newer list
     release(rows());
