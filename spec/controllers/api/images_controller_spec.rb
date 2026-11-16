@@ -85,8 +85,26 @@ describe Api::ImagesController, :type => :controller do
       expect(s.settings['pending']).to eq(false)
       expect(json).to eq({'confirmed' => true, 'url' => s.url})
     end
+
+    # An image picked by web address keeps that address as pending_url. Confirming the client
+    # upload still schedules the server fetch of the source (upload_to_remote), which sanitizes
+    # the file and records source_url and size (uploadable.rb:272-302).
+    it "should still schedule the server fetch for an image picked by web address" do
+      token_user
+      s = ButtonImage.process_new({'url' => 'http://www.example.com/pic.png', 'content_type' => 'image/png'}, {:user => @user, :remote_upload_possible => true})
+      expect(s.settings['pending_url']).to eq('http://www.example.com/pic.png')
+      config = Uploader.remote_upload_config
+      expect(Uploader).to receive(:remote_upload_exists?).with(config[:upload_url] + s.full_filename).and_return(true)
+      expect(Typhoeus).to receive(:get).with(
+        config[:upload_url] + s.full_filename,
+        headers: { 'Range' => "bytes=0-#{SvgSanitizer::SNIFF_BYTES - 1}" }
+      ).and_return(OpenStruct.new(code: 206, body: "\x89PNG\r\n\x1a\n"))
+      get :upload_success, params: {:image_id => s.global_id, :confirmation => s.confirmation_key}
+      expect(response).to be_successful
+      expect(Worker.scheduled?(ButtonImage, 'perform_action', {'id' => s.id, 'method' => 'upload_to_remote', 'arguments' => ['http://www.example.com/pic.png']})).to eq(true)
+    end
   end
-  
+
   describe "show" do
     it "should require api token" do
       get :show, params: {:id => 1}

@@ -31,7 +31,11 @@ class UserVideo < ApplicationRecord
       'url' => self.url
     }
   end
-  
+
+  def self.acceptable_url?(url)
+    url.is_a?(String) && url.match?(/\A(https?:\/\/|data:video\/)/i)
+  end
+
   def generate_defaults
     self.settings ||= {}
     self.settings['license'] ||= {
@@ -46,7 +50,14 @@ class UserVideo < ApplicationRecord
     self.user ||= non_user_params[:user] if non_user_params[:user]
     @download_url = false if non_user_params[:download] == false
     self.settings ||= {}
-    process_url(params['url'], non_user_params) if params['url']
+    # A video url is an http(s) url or a data:video/* URI (recorded and picked videos,
+    # app/frontend/app/models/video.js:77-79); any other scheme or data: MIME is dropped,
+    # as ButtonImage#process_params drops a data: URI whose MIME is not image/*. A data:video URI
+    # is kept only when a client upload can take the bytes (create, remote_upload_possible); on
+    # update check_for_pending would copy it into url, which cannot hold a recording.
+    url = params['url']
+    url = nil if url.to_s.match?(/\Adata:/i) && !non_user_params[:remote_upload_possible]
+    process_url(url, non_user_params) if UserVideo.acceptable_url?(url)
     self.settings['content_type'] = params['content_type'] if params['content_type']
     self.settings['duration'] = params['duration'].to_i if params['duration']
     process_license(params['license']) if params['license']
