@@ -514,3 +514,104 @@ plus `button_sound_transcription_ai_switch_spec.rb`, 61 examples, 0 failures, 1 
 merge brings `User.ai_features_opted_out?`, which stops voice transcription after an explicit
 "off" of `ai_features_enabled`. The hand-back's AI reset writes that "off", so a handed-back
 account's transcription also stays off until the family turns AI back on.
+
+## 11. Traci's re-review of `eb136f283` (2026-10-28) and the fixes (2026-11-16)
+
+Traci requested changes, conditional on sequencing: either land the adult (18+) account-holder
+flow with this PR, or close finding 1 in code and hold disclosure v2 and the consent-route copy
+until a consent route exists. Scot chose the second path on 2026-11-16 ("Fix now, hold v2"), and
+approved pushing the fixes to this branch. Scot had already given business approval of the
+hand-back wording; that is not counsel approval.
+
+Merged `origin/develop` `e13291c88` first (no conflicts). It brings #1320, which fills edited
+email bodies from an allowlist; the hand-back notice's default view uses code blocks, so it is not
+an output-only view and the allowlist check skips it.
+
+### Fact sheet
+
+- **(a) Where the AI block is read.** CONFIRMED: `User#school_handoff_blocks_ai?`
+  (`app/models/user.rb:428`) reads `settings['school_authorization_ended']`. Every reader goes
+  through it: `FeatureFlags.coppa_blocks_ai_for?` (`lib/feature_flags.rb:316`),
+  `config/initializers/sentry.rb:133`, `User#process_params` (`handoff_ai_forced`),
+  `User#force_blocked_ai_prefs_off`, and the JSON flag (`lib/json_api/user.rb:540`).
+- **(b) Shapes at release.** CONFIRMED in `begin_family_offboarding_consents!`: the block record
+  was written only when `school_authorization` was on file. An attested under-13 without it (an
+  organization account from before the stamping, or a signup that claimed 13 or older) reached
+  the method from `Organization#remove_user` and from `License.expire_stale_licenses!` with a birth
+  date on file, got one AI reset, and could turn AI back on (finding 1). An assumed under-13
+  (`force_under_13`) is passed only when `school_authorization` is on file (`app/models/license.rb`).
+- **(c) Cross-file claims.** CONFIRMED: `recent_school_handoff_notice_for?` reads
+  `ended_org_id` and `handoff_notice_at`, so a record without `handoff_notice_at` does not
+  suppress the legacy `organization_unassigned` mail. CONFIRMED: `organization_unassigned`
+  returns early after a hand-back notice (`app/mailers/user_mailer.rb`), so its premium-expiry
+  warning was lost (finding 5). CONFIRMED: `security-scan` was green at `87deee047` after the
+  2026-11-12 develop merge (finding 6).
+
+### Changes
+
+- **Finding 5 (`89cece34f`).** The hand-back notice gives the premium end date when
+  `expires_at` is still ahead (`school_handoff_mailer.premium_ends`). Red test first: "says when
+  premium access ends, in both parts" failed before the fix; the two guards (no date on file, a
+  date already passed) passed. Mutation: setting `@premium_ends_at` to nil turns it red.
+- **Finding 1 (`36bda3c28`).** An attested under-13 released with no `school_authorization`
+  gets the same block record, with `basis` `none_on_file` and no `handoff_notice_at`. It is not a
+  hand-back: no hand-back event, no hand-back notice. Red test first: "keeps AI off when the
+  family turns AI back on" failed (`coppa_blocks_ai_for?` false); three guards passed (not a
+  hand-back, a 13-to-15-year-old can still turn AI on, an existing parental consent is not
+  blocked). Mutation: disabling the new branch turns it red.
+  Alternative considered: a separate settings key read by the predicate. Rejected because every
+  reader already goes through `school_handoff_blocks_ai?` and the record shape already carries
+  what is needed; a second key would mean a second place to keep in step.
+- **Findings 3 and 4 (`22bccc3da`), on Scot's decision.** Disclosure version 2 is dropped
+  (`CURRENT_VERSION` back to 1, view and locale block removed, the three disclosure spec hunks
+  back to develop), and the privacy page links to version 1 again. The hand-back email no longer
+  says to contact us to arrange consent, and the preferences link reads "Questions? Contact us."
+  The mailer test for the contact route was rewritten to the changed specification (it now also
+  asserts the email does not promise a consent route); it failed before the copy change.
+  The privacy page keeps the hand-back sentence, which matches the code.
+
+### Internal review of the three commits (security-reviewer agent, read-only)
+
+Each point was checked against the code before acting on it.
+- **Fixed (`65f6c1fc9`), Medium:** an edited hand-back notice could not keep the premium line,
+  because edited bodies allow only output tags and the line sat in a `<% if %>`. The mailer now
+  builds it as one value, `@premium_ends_notice`, allowed in `SCALAR_VARS` and the registry.
+  New test in `system_email_override_spec.rb`; removing the name from `SCALAR_VARS` turns it red.
+- **Not changed, Low:** the `none_on_file` block writes no event of its own (the AI reset event
+  `eu_ai_parental_consent_offboarding_reset` is written for the same release); a re-claim does not
+  lift the block (decision 3 in section 8); a domain with `coppa_parental_consent_enabled?` off
+  gets no block (by design of that flag); the family's own removal of an organization does not run
+  the release path (existing behaviour, not checked further); an already-lapsed account gets no
+  premium line; the notice is queued just before the seat release in `remove_user`, so a dispatch
+  in that window would read `expires_at` before the grace period is set (dispatch is hourly).
+
+### Results (Ruby 3.4.4 container, local Postgres 16 and Redis 7)
+
+- Full RSpec suite at `22bccc3da`: 8983 examples, 32 failures, 51 pending. The 32 are in 6 files
+  (`deploy_cloudrun_migrate_env_spec.rb`, `outside_services_spec.rb`,
+  `obf_fix_color_hardening_spec.rb`, `converters/lingo_linq_spec.rb`, `converters/pdf_spec.rb`,
+  `exporter_spec.rb`) that need tools this container lacks. The same 6 files at the pre-change
+  merge `4c1571461`: 151 examples, 32 failures, so none is from this change. CI is the record.
+- After `65f6c1fc9`, the hand-back, offboarding, all mailer, system email, feature flag, Sentry,
+  disclosure, privacy pin and prediction specs: 538 examples, 0 failures, 3 pending.
+- `ember-template-lint` on `privacy.hbs` and `user/preferences.hbs`: clean. No JavaScript changed.
+  The Ember suite was not run locally; the CI shards are the record.
+- Not run: the `/review-pr` and `/adversary-review` passes. Traci's re-review is the review for
+  this round.
+
+### Corrections to earlier sections
+
+- Section 10's last line is out of date: since the review-round block, a handed-back account's AI
+  preferences are stored off until a parent or guardian consents, so voice transcription also
+  stays off until then, not until the family turns AI back on.
+
+### Still open after this round
+
+- No consent route exists for a US family after a hand-back; that is the adult account-holder
+  follow-up. Disclosure v2, and any copy describing a consent route, wait for it.
+- Disclosure v1 is served with "continued family use follows the applicable parent or guardian
+  authorization process". For AI that matches the block; it is part of the counsel packet.
+- Pre-existing privacy sentences Traci cited (verifiable parental consent for family-managed
+  under-13 accounts, "delete it promptly", the FERPA bullet) and the "Last Updated" date are left
+  for counsel and for Scot at release.
+- Traci's medium and optional items were not changed in this round.
