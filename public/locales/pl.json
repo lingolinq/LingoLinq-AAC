@@ -9758,5 +9758,6 @@
   "sync_drawer_saving": "Zapisywanie tablic do użytku offline [[ Saving your boards for offline use",
   "sync_drawer_waiting": "Czekam na lepsze połączenie [[ Waiting for a better connection",
   "try_now": "Spróbuj teraz [[ Try now",
-  "sync_see_details": "Zobacz szczegóły [[ See details"
+  "sync_see_details": "Zobacz szczegóły [[ See details",
+  "gif_search_no_results": "*** No GIFs found. Try different words in your sentence and search again."
 }

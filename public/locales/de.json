@@ -9312,6 +9312,7 @@
   "sync_drawer_waiting": "Ich warte auf eine bessere Verbindung. [[ Waiting for a better connection",
   "try_now": "Jetzt ausprobieren [[ Try now",
   "sync_see_details": "Details anzeigen [[ See details",
+  "gif_search_no_results": "*** No GIFs found. Try different words in your sentence and search again.",
   "==== lvl8 ============": "Below are all words for priority level 8 (this string does not need to be translated)",
   "on_the_date": "Am Datum [[ On the Date",
   "after_time": "Nach der Zeit [[ After Time",

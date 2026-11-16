@@ -9763,5 +9763,6 @@
   "sync_drawer_saving": "儲存您的電路板以供離線使用 [[ Saving your boards for offline use",
   "sync_drawer_waiting": "等待更好的連接 [[ Waiting for a better connection",
   "try_now": "立即嘗試 [[ Try now",
-  "sync_see_details": "看詳情 [[ See details"
+  "sync_see_details": "看詳情 [[ See details",
+  "gif_search_no_results": "*** No GIFs found. Try different words in your sentence and search again."
 }

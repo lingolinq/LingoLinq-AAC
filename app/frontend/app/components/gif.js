@@ -1,5 +1,6 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
+import { computed } from '@ember/object';
 import contentGrabbers from '../utils/content_grabbers';
 import app_state from '../utils/app_state';
 import stashes from '../utils/_stashes';
@@ -59,6 +60,14 @@ export default Component.extend({
     this.onOpening = function() { self.send('opening'); };
     this.onClosing = function() { self.send('closing'); };
   },
+
+  // A finished search with nothing to show: no answers, or none with a picture (the grid skips those in
+  // components/gif.hbs). The template shows the no-results message for it instead of an empty grid.
+  results_empty: computed('results.{loading,error}', 'results.list.@each.image_url', function() {
+    const results = this.get('results');
+    if (!results || results.loading || results.error) { return false; }
+    return !(results.list || []).some(function(img) { return img && img.image_url; });
+  }),
 
   searchGifs() {
     this.set('selected_gif', null);
