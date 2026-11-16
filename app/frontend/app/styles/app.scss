@@ -33480,6 +33480,18 @@ $la-sync-ready-tint: #e3f4f1;
   cursor: pointer;
   transition: background 0.15s ease, box-shadow 0.15s ease;
 }
+/* At phone width the three tabs do not fit on one row; wrapped, the selected pill no longer matches the track.
+   Stack them as equal full-width rows instead, the count at the end of each. */
+@media (max-width: 560px) {
+  .la-sync-tabs {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+  }
+  .la-sync-tab {
+    justify-content: space-between;
+  }
+}
 .la-sync-tab--selected {
   background: #fff;
   color: var(--md-ink);
