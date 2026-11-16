@@ -1911,7 +1911,9 @@ import backend_user_id, { same_person } from '../../utils/backend_user_id';
    used to return before loading anything, so after the 10-minute snapshot expired the boards page said "You don't
    have any boards yet" though a sync had saved the boards. Now the Mine list is the boards saved on this device
    (utils/offline_board_list.js), only:
-   - on the boards page or account page (this controller is a singleton; a drop on another page reads nothing);
+   - on the boards page only (this controller is a singleton; a drop on another page reads nothing). The page's own
+     flag (routes/user/boards.js activate, boardsPageListCache.isBoardsPageActive) is read, not the router's
+     currentRouteName, which still names the previous page while this page's setupController runs;
    - when the open device database is the signed-in person's, and the page is theirs or one they may model for;
    - when no finished list is already on screen (a short drop never swaps a full server list for a shorter one);
    - for the newest request (list_id), so a read that ends after the page is back online is dropped. */
@@ -1923,8 +1925,7 @@ UserIndexController.reopen({
   show_device_boards: function(list_id) {
     var _this = this;
     var model = this.get('model');
-    var route = this.get('router.currentRouteName');
-    if(!model || model.isDestroyed || (route !== 'user.boards' && route !== 'user.index')) { return; }
+    if(!model || model.isDestroyed || !boardsPageListCache.isBoardsPageActive()) { return; }
     var mine = this.get('selected') ? this.get('selected') === 'mine' : !!model.get('permissions.supervise');
     var user_name = model.get('user_name');
     if(!mine || !user_name) { return; }

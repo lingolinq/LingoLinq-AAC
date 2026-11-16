@@ -66,3 +66,25 @@ offline. Rejected: the adapter has no offline answer for a list query; it reject
 `store.query` call. Red on develop (list never set). Mutations: drop the offline branch (red); drop the prefix filter
 (red); drop the revoked filter (red). Second test: a `from_device` list plus a fresh snapshot back online still queries
 the server (mutation: drop the `from_device` guard, red).
+
+## Review (adversary, 2026-11-16) and implementation
+
+Verdict: proceed with changes. All five conditions applied in `controllers/user/index.js` show_device_boards
+(reopen at the end of the file, line-neutral above it) and `utils/offline_board_list.js`: the device database must be
+the signed-in person's (unknown is no, unlike `local_db_is_current_user`); boards page only; a finished list on screen
+is never replaced; a read that ends after a newer `list_id` is dropped; the cold-boot default tab (`permissions.supervise`)
+counts as Mine. Existing records are found by id or key (`serializers/application.js:85-94` re-keys by-key fetches).
+Falsified: each guard removed in turn turns its own test red (two mutation builds).
+
+## The browser check caught what the unit tests could not (2026-11-16)
+
+Built branch served on 5081, Chrome with a Pixel 7 profile: sync, airplane mode, My Boards still said "You don't have any
+boards yet". In the page, every guard input was right but the read never started: the "boards page only" guard read
+`router.currentRouteName`, and while `routes/user/boards.js` setupController runs `update_selected`, the router still
+names the PREVIOUS route (the transition has not finished). The unit test stubbed the route name, so it could not see the
+ordering. Fixed by reading the page's own flag, set in the route's `activate` (which runs before setupController):
+`boardsPageListCache.isBoardsPageActive()`; the tests now set that flag as the route does. The account page
+(`user.index`) is no longer covered (it has no such flag); the report was the boards page.
+
+Lesson: a guard keyed on the current route, read from a route's setupController, sees the route being left. Use a flag
+the route sets in `activate`, and confirm any route-dependent guard in a browser on a built branch.

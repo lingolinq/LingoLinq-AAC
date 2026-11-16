@@ -1,7 +1,6 @@
 import { module, test } from 'qunit';
 import { setupTest } from 'frontend/tests/helpers';
 import EmberObject from '@ember/object';
-import Service from '@ember/service';
 import RSVP from 'rsvp';
 import boardsPageListCache from 'frontend/utils/boards_page_list_cache';
 
@@ -14,6 +13,7 @@ module('Unit | Controller | user/index offline Mine list', function(hooks) {
 
   hooks.afterEach(function() {
     boardsPageListCache.clear('9911_9');
+    boardsPageListCache.setBoardsPageActive(false);
   });
 
   function rows() {
@@ -24,7 +24,8 @@ module('Unit | Controller | user/index offline Mine list', function(hooks) {
   }
   function page(owner, opts) {
     opts = opts || {};
-    owner.register('service:router', Service.extend({ currentRouteName: opts.route || 'user.boards' }));
+    // What routes/user/boards.js activate sets before its setupController runs update_selected.
+    boardsPageListCache.setBoardsPageActive(!opts.other_page);
     var c = owner.lookup('controller:user/index');
     c.reads = 0;
     c.device_db_user = function() { return opts.db_user === undefined ? 'larry' : opts.db_user; };
@@ -54,7 +55,7 @@ module('Unit | Controller | user/index offline Mine list', function(hooks) {
   });
 
   test('a connection drop on another page reads nothing', async function(assert) {
-    var c = page(this.owner, { route: 'user.board-detail' });
+    var c = page(this.owner, { other_page: true });
     c.update_selected();
     await tick();
     assert.strictEqual(c.reads, 0);
