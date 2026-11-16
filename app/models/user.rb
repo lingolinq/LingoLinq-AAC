@@ -422,7 +422,8 @@ class User < ApplicationRecord
 
   # A school handed this account back to the family (#1063). begin_family_offboarding_consents!
   # writes school_authorization_ended only for an attested or assumed under-13, so the school's
-  # authorization is gone and nothing has replaced it until a parent consents. It never blocks
+  # authorization is gone and nothing has replaced it until a parent consents. It also writes it,
+  # with basis 'none_on_file', for an attested under-13 released with no school_authorization. It never blocks
   # access; FeatureFlags.coppa_blocks_ai_for? and CoppaSentryScrub.child_user? read it. The EU AI
   # consent counts, because it is the only consent an EU family can give for this account.
   def school_handoff_blocks_ai?
@@ -595,6 +596,7 @@ class User < ApplicationRecord
     org_jurisdiction = org.respond_to?(:jurisdiction) ? org.jurisdiction : nil
     did_handoff = false
     did_ai = false
+    did_block = false
     self.with_lock(requires_new: true) do
       self.settings ||= {}
       if skip_if_supported_elsewhere && License.sponsored_elsewhere?(self, org, departing_had_link: departing_had_link)
@@ -654,6 +656,22 @@ class User < ApplicationRecord
         self.settings['school_authorization_ended'] = ended
         self.settings.delete('school_authorization')
         did_handoff = true
+      elsif attested_under_13 && !(school.is_a?(Hash) && school.present?) &&
+            JsonApi::Json.coppa_parental_consent_enabled? && !coppa_parental_consent_active? &&
+            self.settings['school_authorization_ended'].blank?
+        # An attested under-13 with no school_authorization on file (an organization account from
+        # before the stamping, or a signup that claimed 13 or older). There is no school
+        # authorization to end and no hand-back notice, but the release leaves the account with no
+        # consent for AI, so record the same block school_handoff_blocks_ai? reads. No
+        # handoff_notice_at: recent_school_handoff_notice_for? stays false and the legacy
+        # organization_unassigned mail still goes. Review of eb136f283, finding 1.
+        self.settings['school_authorization_ended'] = {
+          'basis' => 'none_on_file',
+          'ended_at' => Time.now.utc.iso8601,
+          'ended_org_id' => org && org.global_id,
+          'age_basis' => age_basis
+        }
+        did_block = true
       end
 
       # Under-16, and an under-13 whose age is only assumed: turn AI prefs off now. An EU under-16 needs
@@ -663,7 +681,7 @@ class User < ApplicationRecord
         did_ai = true
       end
 
-      if did_handoff || did_ai || (birth_month.present? && birth_year.present?)
+      if did_handoff || did_ai || did_block || (birth_month.present? && birth_year.present?)
         self.save!
         if did_handoff
           record_id = SecureRandom.uuid

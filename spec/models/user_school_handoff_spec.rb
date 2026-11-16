@@ -424,6 +424,61 @@ describe 'School-authorized hand-back to the family (#1063)', type: :model do
     end
   end
 
+  # Traci's review of eb136f283, finding 1: an attested under-13 with no school_authorization on
+  # file (an organization account from before the stamping, or a signup that claimed 13 or older)
+  # had AI turned off once at removal, and the next "Allow AI features" save turned it back on.
+  describe 'an attested under-13 released without a school authorization on file' do
+    def released_without_school_authorization!(suffix:, birth:, consent: false)
+      o = Organization.create(settings: {'total_licenses' => 1, 'jurisdiction' => 'US'})
+      License.create!(organization: o, seat_type: 'student', status: 'active')
+      u = school_authorized_user!(suffix: suffix, ai_on: true)
+      u.settings.delete('school_authorization')
+      u.settings['coppa'] = {'parent_consent_granted_at' => Time.now.utc.iso8601} if consent
+      u.save!
+      o.claim_user(u)
+      o.remove_user(u.user_name, birth_month: birth[:month], birth_year: birth[:year])
+      [u.reload, o]
+    end
+
+    def turn_ai_on!(u)
+      u.process({'preferences' => User::EU_AI_PREF_KEYS.map { |k| [k, true] }.to_h})
+      u.reload
+    end
+
+    it 'keeps AI off when the family turns AI back on' do
+      u, _o = released_without_school_authorization!(suffix: 'noauth_ai_on', birth: under13_birth)
+      u = turn_ai_on!(u)
+
+      expect(FeatureFlags.coppa_blocks_ai_for?(u)).to eq(true)
+      expect(FeatureFlags.ai_feature_enabled_for?('ai_word_prediction', u)).to eq(false)
+      User::EU_AI_PREF_KEYS.each { |k| expect(u.settings['preferences'][k]).to eq(false) }
+    end
+
+    it 'is not a hand-back: no hand-back event, no hand-back notice, and the legacy mail still goes' do
+      u, o = released_without_school_authorization!(suffix: 'noauth_no_notice', birth: under13_birth)
+
+      expect(handoff_events(u).count).to eq(0)
+      expect(handoff_notices(u, o).count).to eq(0)
+      expect(u.recent_school_handoff_notice_for?(o)).to eq(false)
+    end
+
+    it 'lets a 13-to-15-year-old at a US organization turn AI back on' do
+      u, _o = released_without_school_authorization!(suffix: 'noauth_teen', birth: under16_over13_birth)
+      u = turn_ai_on!(u)
+
+      expect(FeatureFlags.coppa_blocks_ai_for?(u)).to eq(false)
+      expect(FeatureFlags.ai_feature_enabled_for?('ai_word_prediction', u)).to eq(true)
+    end
+
+    it 'does not block an account whose parent already consented' do
+      u, _o = released_without_school_authorization!(suffix: 'noauth_consented', birth: under13_birth, consent: true)
+      u = turn_ai_on!(u)
+
+      expect(FeatureFlags.coppa_blocks_ai_for?(u)).to eq(false)
+      expect(FeatureFlags.ai_feature_enabled_for?('ai_word_prediction', u)).to eq(true)
+    end
+  end
+
   describe 'which organizations still count as supporting the student' do
     def remove_from(org, u)
       b = under13_birth
