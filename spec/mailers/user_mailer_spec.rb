@@ -264,7 +264,7 @@ describe UserMailer, :type => :mailer do
     it 'applies the email layout when an html_body override is stored' do
       allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
       SystemEmailTemplates.set_template!(nil, 'user_mailer/parental_consent_request', {
-        html_body: '<p>Custom layout test body</p><p><%= @consent_url %></p>'
+        html_body: '<p>Custom layout test body</p><p><%= @consent_url %></p><p><%= @privacy_url %> <%= @decline_url %></p>'
       })
       JsonApi::Json.load_domain('test.host')
       u = User.process_new({

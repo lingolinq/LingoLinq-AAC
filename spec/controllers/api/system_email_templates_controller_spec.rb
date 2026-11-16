@@ -299,6 +299,16 @@ describe Api::SystemEmailTemplatesController, type: :controller do
       expect(JSON.parse(response.body)['template']['override_errors']).to eq({})
     end
 
+    # Many default views contain code blocks, which a stored body may not; an email with nothing
+    # stored must never show the "can no longer be used" alert.
+    it 'show reports no override errors for any email that has nothing stored' do
+      make_site_admin
+      SystemEmailRegistry.all.each do |entry|
+        get :show, params: {id: entry[:key].tr('/', '.'), org_id: 'default'}
+        expect(JSON.parse(response.body)['template']['override_errors']).to eq({}), entry[:key]
+      end
+    end
+
     # Every placeholder the Variables tab lists must also fill in a preview, for every email.
     it 'preview renders every listed placeholder of every email' do
       make_site_admin

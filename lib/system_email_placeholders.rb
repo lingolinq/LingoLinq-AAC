@@ -206,9 +206,11 @@ module SystemEmailPlaceholders
     'user_mailer/lesson_assigned' => %w[@lesson_url],
     'subscription_mailer/gift_created' => %w[@gift.code @gift_redeem_url],
     'user_mailer/confirm_registration' => %w[@user.registration_code],
-    'user_mailer/parental_consent_request' => %w[@consent_url],
+    # Consent requests: COPPA 16 CFR 312.4(c)(1)(v) requires the link to the privacy notice; the
+    # parental request also keeps its decline link, so refusing is as easy as consenting.
+    'user_mailer/parental_consent_request' => %w[@consent_url @privacy_url @decline_url],
     'supervisor_mailer/consent_request' => %w[@approve_url @deny_url],
-    'user_mailer/eu_ai_parental_consent_request' => %w[@consent_url],
+    'user_mailer/eu_ai_parental_consent_request' => %w[@consent_url @privacy_url],
     'user_mailer/parental_consent_confirmation' => %w[@revoke_url],
     'user_mailer/eu_ai_parental_consent_confirmation' => %w[@revoke_url]
   }.freeze

@@ -408,6 +408,47 @@ High. Traci asked for this pass and for the fixes.
 
 Email specs after: 213 examples, 0 failures, 3 pending.
 
+## Canonical red-team pass on PR #1320 (2026-11-15)
+
+`REVIEWED=PR lingolinq/LingoLinq-AAC#1320 at 34589fc15e9ee1882811a27ee6faf604ba00ece8`, after the PII
+preflight (exit 0). Verdict: ship with conditions; no Critical or High.
+
+1. Medium, CONFIRMED: the consent requests required only `@consent_url`, so an edit could drop the
+   privacy link both default views carry (`app/views/user_mailer/parental_consent_request.*`,
+   `eu_ai_parental_consent_request.*`) and the decline link of the parental request. Decision
+   (Traci, "follow the industry standard"):
+   - `parental_consent_request` requires `@consent_url @privacy_url @decline_url`;
+   - `eu_ai_parental_consent_request` requires `@consent_url @privacy_url` (its default has no
+     decline link).
+   Basis:
+   - The privacy link is required by law: COPPA's direct notice must contain "a hyperlink to the
+     operator's online notice of its information practices", 16 CFR 312.4(c)(1)(v)
+     (https://www.law.cornell.edu/cfr/text/16/312.4).
+   - The decline link is standard practice, not a legal mandate: 312.4(c)(1) asks for the means to
+     give consent, not a refusal mechanism. Parents keep a continuing right to refuse further
+     collection or use, which the FTC lists among what they must be told
+     (https://www.ftc.gov/business-guidance/resources/childrens-online-privacy-protection-rule-six-step-compliance-plan-your-business),
+     and EU consent guidance holds that refusing or withdrawing must be as easy as consenting
+     (GDPR Art. 7(3); EDPB Guidelines 05/2020,
+     https://www.edpb.europa.eu/system/files/2026-04/edpb-summary-consent_en.pdf). Requiring the
+     decline link keeps refusal one click away, as consent is.
+   Red first: "requires the privacy link, and the decline link where the default has one, in
+   consent requests" failed (nothing raised); green after.
+   Existing spec changed with Traci's approval (2026-11-15, "if it brings it up to standard, yes"):
+   `spec/mailers/user_mailer_spec.rb` "applies the email layout when an html_body override is
+   stored" saves a parental consent body; it now also includes `@privacy_url` and `@decline_url`,
+   as it gained `@consent_url` under the 2026-11-10 approval. No assertion removed or loosened.
+   The branch-only table "requires the link that is the purpose of the email" lists the new sets.
+   Email specs after: 215 examples, 0 failures, 3 pending.
+   Not closed by this: the direct notice's required wording (312.4(c)(1)(ii)-(iv), (vii)) lives in
+   the message blocks, which a staff editor can also change. Keeping that wording intact is a staff
+   responsibility, like link placement (item 1 of the round-3 follow-up).
+2. Low: the editor alert was tested on one email only. Added "show reports no override errors for
+   any email that has nothing stored" (every registered email); it fails when default bodies are
+   not skipped.
+3. Not changed (Low): a per-format fallback can send an edited text body with the default HTML;
+   repeated parsing of the default views.
+
 ## Log
 
 - Baseline 151 examples, 0 failures, 3 pending.

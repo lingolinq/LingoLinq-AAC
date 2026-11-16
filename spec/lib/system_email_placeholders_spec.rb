@@ -308,15 +308,27 @@ describe SystemEmailPlaceholders do
         'user_mailer/lesson_assigned' => '<%= @lesson_url %>',
         'subscription_mailer/gift_created' => '<%= @gift.code %> <%= @gift_redeem_url %>',
         'user_mailer/confirm_registration' => '<%= @user.registration_code %>',
-        'user_mailer/parental_consent_request' => '<%= @consent_url %>',
+        'user_mailer/parental_consent_request' => '<%= @consent_url %> <%= @privacy_url %> <%= @decline_url %>',
         'supervisor_mailer/consent_request' => '<%= @approve_url %> <%= @deny_url %>',
-        'user_mailer/eu_ai_parental_consent_request' => '<%= @consent_url %>',
+        'user_mailer/eu_ai_parental_consent_request' => '<%= @consent_url %> <%= @privacy_url %>',
         'user_mailer/parental_consent_confirmation' => '<%= @revoke_url %>',
         'user_mailer/eu_ai_parental_consent_confirmation' => '<%= @revoke_url %>'
       }.each do |key, required|
         expect { described_class.validate!("<p>#{required}</p>", key) }.not_to raise_error, key
         expect { described_class.validate!('<p><%= app_name %></p>', key) }.to raise_error(SystemEmailPlaceholders::InvalidTemplate), key
       end
+    end
+
+    # COPPA 16 CFR 312.4(c)(1)(v) requires the direct notice to link to the privacy notice; the
+    # parental request also keeps its decline link (refusing is as easy as consenting).
+    it 'requires the privacy link, and the decline link where the default has one, in consent requests' do
+      key = 'user_mailer/parental_consent_request'
+      expect { described_class.validate!('<p><%= @consent_url %></p>', key) }.to raise_error(SystemEmailPlaceholders::InvalidTemplate, /@privacy_url/)
+      expect { described_class.validate!('<p><%= @consent_url %> <%= @privacy_url %></p>', key) }.to raise_error(SystemEmailPlaceholders::InvalidTemplate, /@decline_url/)
+      expect { described_class.validate!('<p><%= @consent_url %> <%= @privacy_url %> <%= @decline_url %></p>', key) }.not_to raise_error
+      eu = 'user_mailer/eu_ai_parental_consent_request'
+      expect { described_class.validate!('<p><%= @consent_url %></p>', eu) }.to raise_error(SystemEmailPlaceholders::InvalidTemplate, /@privacy_url/)
+      expect { described_class.validate!('<p><%= @consent_url %> <%= @privacy_url %></p>', eu) }.not_to raise_error
     end
 
     it 'does not require links in a preview' do
