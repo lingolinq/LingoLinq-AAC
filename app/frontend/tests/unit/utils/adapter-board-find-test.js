@@ -232,6 +232,56 @@ module('Unit | Utility | adapter board find', function(hooks) {
     }
   });
 
+  /* Review of the #1322 fix, finding 1: only a LATE answer was checked against the session. An answer that arrives in
+     time after a sign-out and another sign-in (no reload) was still stored and handed to the new session. */
+  test('an answer that arrives in time after the session changed is not kept', async function(assert) {
+    assert.expect(3);
+    find_limits.caller_ms = 2000;
+    var prior_token = capabilities.access_token;
+    var d = held(this);
+    stub($, 'realAjax', function(options) { return BOARD_URL.test(options.url) ? d.promise() : timed_out(); });
+    try {
+      capabilities.access_token = 'tok-account-a';
+      var res = { done: false, error: null, value: null };
+      this.store.findRecord('board', '1_908').then(function(r) { res.done = true; res.value = r; }, function(e) { res.done = true; res.error = e || {}; });
+      await waitUntil(function() { return d.state() === 'pending'; });
+      capabilities.access_token = 'tok-account-b';
+      d.resolve(board_payload('1_908'));
+      await waitUntil(function() { return res.done; }, { timeout: 1500 }).catch(function() { });
+      assert.true(res.done, 'answered');
+      assert.strictEqual(res.value, null, 'not handed to the new session');
+      assert.strictEqual(stored_boards(this).length, 0, 'not stored on the device');
+    } finally {
+      capabilities.access_token = prior_token;
+    }
+  });
+
+  /* Review of the #1322 fix: the identity a download is shared under must be the credentials the request sends, or
+     the two could drift apart unnoticed. */
+  test("a download's identity is the token and acting user its request sends", async function(assert) {
+    assert.expect(3);
+    find_limits.caller_ms = 300;
+    var prior = { token: capabilities.access_token, session: window.LingoLinq.session };
+    var d = held(this);
+    var sent = null;
+    stub($, 'realAjax', function(options) {
+      if(BOARD_URL.test(options.url)) { sent = options.headers || {}; return d.promise(); }
+      return timed_out();
+    });
+    try {
+      capabilities.access_token = 'tok-headers';
+      window.LingoLinq.session = EmberObject.create({ as_user_id: '1_77' });
+      this.store.findRecord('board', '1_909').then(function() { }, function() { });
+      await waitUntil(function() { return !!sent; });
+      assert.strictEqual(sent['Authorization'], 'Bearer tok-headers');
+      assert.strictEqual(sent['X-As-User-Id'], '1_77');
+      assert.deepEqual(boardDownload.identities_of('board_1_909'), ['tok-headers|1_77'], 'shared under exactly those credentials');
+    } finally {
+      capabilities.access_token = prior.token;
+      window.LingoLinq.session = prior.session;
+    }
+  });
+
   /* Codex review of #1322, P2: right after sign-in, capabilities.access_token can still be empty while the request
      takes its token from the session (utils/extras.js), then writes it back. The token captured at the start was the
      empty one, so the late answer looked like it belonged to another session and was thrown away. */

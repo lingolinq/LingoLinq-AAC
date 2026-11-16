@@ -52,6 +52,16 @@ export function join_download(key, identity, start) {
   return entry.promise;
 }
 
+// The identities downloads of `key` are running under now. Read by tests (the identity must be the credentials the
+// request sends).
+export function identities_of(key) {
+  var list = [];
+  for(var slot in downloads) {
+    if(downloads[slot].key === key) { list.push(slot.substring(key.length + 1)); }
+  }
+  return list;
+}
+
 // How many requests are waiting on downloads of `key`, under any identity (0 when none runs). Read by tests.
 export function waiting_on(key) {
   var n = 0;

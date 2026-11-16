@@ -1,6 +1,6 @@
 import { module, test } from 'qunit';
 import RSVP from 'rsvp';
-import { store_late_board, join_download } from 'frontend/utils/board_download';
+import { store_late_board, join_download, waiting_on } from 'frontend/utils/board_download';
 
 /* The pieces of utils/board_download.js the adapter (utils/persistence.js DSExtend findRecord) uses for a board
  * answer that arrives after its caller was answered, and for a second request while a download runs. The adapter
@@ -80,13 +80,19 @@ module('Unit | Utility | board download', function() {
   // another user) could get the answer fetched with someone else's credentials.
   test('requests under different identities never share a download', async function(assert) {
     var starts = 0;
-    var start = function() { starts++; return new RSVP.Promise(function() { }); };
-    join_download('board_9_1', 'tok-a|', start);
-    join_download('board_9_1', 'tok-b|', start);
-    join_download('board_9_1', 'tok-a|1_5', start);
+    var finish = [];
+    var start = function() { starts++; return new RSVP.Promise(function(resolve) { finish.push(resolve); }); };
+    var all = [
+      join_download('board_9_1', 'tok-a|', start),
+      join_download('board_9_1', 'tok-b|', start),
+      join_download('board_9_1', 'tok-a|1_5', start)
+    ];
     assert.strictEqual(starts, 3, 'one download per identity');
-    join_download('board_9_1', 'tok-a|', start);
+    all.push(join_download('board_9_1', 'tok-a|', start));
     assert.strictEqual(starts, 3, 'the same identity still joins');
+    finish.forEach(function(resolve) { resolve('done'); }); // settle them, so nothing is left running for later tests
+    await RSVP.all(all);
+    assert.strictEqual(waiting_on('board_9_1'), 0, 'forgotten once settled');
   });
 
   test('one answer is stored once, though several callers were waiting on it', async function(assert) {

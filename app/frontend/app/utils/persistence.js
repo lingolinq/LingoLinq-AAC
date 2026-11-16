@@ -4362,7 +4362,7 @@ persistence.DSExtend = {
               error.skip = true;
               error({error: 'timeout'});
             }, find_limits.caller_ms); // utils/board_download.js
-            var id_or_key = id; var identity_now = function() { return request_identity(capabilities, window.LingoLinq && window.LingoLinq.session, getStashes()); }; var late_started = { at: (new Date()).getTime(), token: identity_now() }; // the request's token and acting user, for join_download and store_late_board (utils/request_identity.js)
+            var id_or_key = id; var identity_now = function() { return request_identity(capabilities, window.LingoLinq && window.LingoLinq.session, lingoLinqExtras.get_stashes()); }; var late_started = { at: (new Date()).getTime(), token: identity_now() }; // the request's token and acting user, for join_download and store_late_board (utils/request_identity.js)
             if(persistence.force_reload == full_id && type.modelName == 'board' && local_data && local_data.board && local_data.board.key) {
               id_or_key = local_data.board.key;
             }
@@ -4371,7 +4371,7 @@ persistence.DSExtend = {
               // called a couple times, but eats the promise for some reason
               // TODO: maybe check if it's a problem in persistence.ajax
               if(error.skip) { if(type.modelName == 'board') { store_late_board(record, id, late_started, late_deps(persistence, identity_now)); } return; } // answered already: a board that arrived late is still kept
-              error.skip = true;
+              error.skip = true; if(type.modelName == 'board' && identity_now() !== late_started.token) { find_reject({error: 'session changed'}); return; } // an answer fetched under another session is not stored or handed on (review of the #1322 fix)
               // mark the retrieved timestamp for freshness checks
               if(record[type.modelName]) {
                 delete record[type.modelName].local_result;
