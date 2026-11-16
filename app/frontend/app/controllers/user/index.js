@@ -1206,7 +1206,7 @@ var UserIndexController = Controller.extend({
        cannot: there is no signal here to notice it. Such a change surfaces after the TTL
        expires, or after any local mutation. That is the deliberate trade; do not read this
        branch as "the list is current". */
-    if(isMineList && !append && backgroundRefresh && boardsPageListCache.hasFreshSnapshot(backend_user_id(_this.get('model')))) { // snapshot keyed by backend id, not 'self'
+    if(isMineList && !append && backgroundRefresh && !prior.from_device && boardsPageListCache.hasFreshSnapshot(backend_user_id(_this.get('model')))) { // snapshot keyed by backend id, not 'self'; a device list (offline) is always replaced
       boardsPageListCache.setMineListBusy(false);
       return;
     }
@@ -1376,7 +1376,7 @@ var UserIndexController = Controller.extend({
     this.set('list_id', list_id);
     var model = this.get('model');
     var persistenceService = this.get('persistence') || this.persistence;
-    if(!persistenceService || typeof persistenceService.get !== 'function' || !persistenceService.get('online')) { return; }
+    if(!persistenceService || typeof persistenceService.get !== 'function') { return; } if(!persistenceService.get('online')) { this.show_device_boards(list_id); return; } // offline: the boards on this device (reopen below)
     var default_key = null;
     if(!_this.get('selected') && model) {
       default_key = model.get('permissions.supervise') ? 'mine' : 'public';
@@ -1906,3 +1906,39 @@ export default UserIndexController;
 // Imported last so the `.eslint-todo` rows above keep their lines.
 import { foldersLayout } from '../../utils/folders_panel_state';
 import backend_user_id, { same_person } from '../../utils/backend_user_id';
+
+/* OFFLINE MINE LIST (2026-11-16, docs/task-management/2026-11-16_offline-boards-page.md). Offline, update_selected
+   used to return before loading anything, so after the 10-minute snapshot expired the boards page said "You don't
+   have any boards yet" though a sync had saved the boards. Now the Mine list is the boards saved on this device
+   (utils/offline_board_list.js), only:
+   - on the boards page or account page (this controller is a singleton; a drop on another page reads nothing);
+   - when the open device database is the signed-in person's, and the page is theirs or one they may model for;
+   - when no finished list is already on screen (a short drop never swaps a full server list for a shorter one);
+   - for the newest request (list_id), so a read that ends after the page is back online is dropped. */
+UserIndexController.reopen({
+  // Whose device database is open (only the signed-in person's counts), and where its boards are read from; tests
+  // set these on their own controller instead of replacing shared singletons.
+  device_db_user: function() { return current_device_db_user(); },
+  device_storage: null,
+  show_device_boards: function(list_id) {
+    var _this = this;
+    var model = this.get('model');
+    var route = this.get('router.currentRouteName');
+    if(!model || model.isDestroyed || (route !== 'user.boards' && route !== 'user.index')) { return; }
+    var mine = this.get('selected') ? this.get('selected') === 'mine' : !!model.get('permissions.supervise');
+    var user_name = model.get('user_name');
+    if(!mine || !user_name) { return; }
+    var me = this.device_db_user();
+    if(!me || (me !== user_name && !model.get('permissions.model'))) { return; }
+    var prior = model.get('my_boards');
+    if(boardsPageListCache.isUsableList(prior) && !prior.from_device) { return; }
+    if(!boardsPageListCache.isUsableList(prior)) { model.set('my_boards', { loading: true }); }
+    own_device_boards(this.store, user_name, this.get('device_storage')).then(function(records) {
+      if(_this.isDestroyed || model.isDestroyed || _this.get('model') !== model || _this.get('list_id') !== list_id) { return; }
+      records.user_id = model.get('id');
+      boardsPageListCache.setMineListBusy(false);
+      model.set('my_boards', records);
+    });
+  }
+});
+import { own_device_boards, current_device_db_user } from '../../utils/offline_board_list';
