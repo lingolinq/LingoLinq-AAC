@@ -67,22 +67,34 @@ module('Unit | Utility | board retry', function() {
     assert.strictEqual(s.count, 1, 'the slot is kept');
   });
 
+  // Rewritten with Traci's approval (2026-11-16): the rule changed with the Codex re-review of #1322. Each parked board
+  // now keeps its own wait, so B (second retry, 2 s) no longer comes back with A (first retry, 1 s).
   test('one thread waits, with its slot given back, then the parked boards come back', function(assert) {
     var schedule = fake_scheduler();
-    var parking = create_parking(schedule);
+    var c = { t: 0 };
+    var parking = create_parking(schedule, function() { return c.t; });
     var s = slots();
     var back = null;
+    var by_attempt = function(attempt) { return attempt * 1000; };
+    var resume = function(boards) { s.reacquire(); back = boards; };
     parking.park('A', 1);
     parking.park('B', 2);
     assert.strictEqual(parking.size(), 2, 'parked boards still count as to do');
-    assert.true(parking.wait(function(attempt) { return attempt * 1000; }, s.release, function(boards) { s.reacquire(); back = boards; }), 'this thread waits');
+    assert.true(parking.wait(by_attempt, s.release, resume), 'this thread waits');
     assert.strictEqual(s.count, 0, 'its slot is given back while it waits');
     assert.false(parking.wait(function() { return 1; }, s.release, function() { }), 'a second thread does not wait as well');
     assert.strictEqual(schedule.steps.length, 1, 'one wait');
     assert.strictEqual(schedule.steps[0].ms, 1000, 'as long as the earliest retry needs');
+    c.t = 1000;
     schedule.run(0);
-    assert.deepEqual(back, ['A', 'B'], 'the parked boards come back, in order');
+    assert.deepEqual(back, ['A'], 'the board whose wait is over comes back');
     assert.strictEqual(s.count, 1, 'the slot is taken again');
+    assert.strictEqual(parking.size(), 1, 'B keeps its own longer wait');
+    assert.true(parking.wait(by_attempt, s.release, resume), 'the thread waits again for B');
+    assert.strictEqual(schedule.steps[1].ms, 1000, 'the rest of its 2 s');
+    c.t = 2000;
+    schedule.run(1);
+    assert.deepEqual(back, ['B']);
     assert.strictEqual(parking.size(), 0);
   });
 
@@ -174,7 +186,7 @@ module('Unit | Utility | board retry', function() {
     c.t = 15000; // all three are overdue
     assert.true(parking.wait(delay_for, function() { released++; }, function(boards, kept_slot) { back = boards; kept = kept_slot; }));
     assert.deepEqual(back, ['A', 'B', 'C'], 'all at once, in order');
-    assert.strictEqual(kept, true, 'the thread keeps its slot');
+    assert.true(kept, 'the thread keeps its slot');
     assert.strictEqual(released, 0, 'no slot given back');
     assert.strictEqual(schedule.steps.length, 0, 'no timer');
   });

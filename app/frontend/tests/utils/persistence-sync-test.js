@@ -6588,8 +6588,10 @@ describe("persistence-sync", function() {
         var held = 10;
         var response = answers([{ reject: { error: 'timeout' } }, { resolve: board167 }]);
         var first = response.then;
+        var slots_at_retry = null;
         response.then = function(ok, fail) {
           if(response.calls === 0) { target.active_board_threads = (target.active_board_threads || 0) + held; } // every slot taken
+          if(response.calls === 1) { slots_at_retry = target.active_board_threads; }
           return first.call(response, ok, fail);
         };
         var state = syncWithBoard167(response);
@@ -6600,12 +6602,46 @@ describe("persistence-sync", function() {
           target.active_board_threads = target.active_board_threads - held; // the slots free up
           waitsFor(function() { return waitForSyncDoneAndSettled(state.result) && state.tailDone; });
           runs(function() {
+            // The resumed thread took exactly one slot (the end-of-sync reset to 0 would hide a missing or extra one).
+            expect(slots_at_retry).toEqual(1);
             expect(response.calls).toEqual(3); // the failed request, then find and reload (the harness asks twice; see "should try a board that timed out once more")
             expect(statusFor167().error).toEqual(undefined);
             cancelSyncTailWork();
             persistence.set('sync_progress', null);
             LingoLinq.sync_testing_real_boards = false;
           });
+        });
+      });
+    });
+
+    // A board whose wait is already over when its thread runs out of work comes back at once, and the thread keeps
+    // its own slot (utils/board_retry.js wait, resume(items, true)). The retry clock (performance.now) runs fast here,
+    // so the wait is over; the walk's other timers use Date.now and are unaffected.
+    it("should retry at once, keeping its slot, a board whose wait is already over", function() {
+      db_wait(function() {
+        var target = persistenceTarget() || persistence;
+        var realNow = window.performance.now.bind(window.performance);
+        var jump = 0;
+        var response = answers([{ reject: { error: 'timeout' } }, { resolve: board167 }]);
+        stub(window.performance, 'now', function() {
+          if(response.calls >= 1) { jump += 1000000; } // every read after the failed request is far past any retry wait
+          return realNow() + jump;
+        });
+        var first = response.then;
+        var slots_at_retry = null;
+        response.then = function(ok, fail) {
+          if(response.calls === 1) { slots_at_retry = target.active_board_threads; }
+          return first.call(response, ok, fail);
+        };
+        var state = syncWithBoard167(response);
+        waitsFor(function() { return waitForSyncDoneAndSettled(state.result) && state.tailDone; });
+        runs(function() {
+          expect(slots_at_retry).toEqual(1); // its own slot, not a second one
+          expect(response.calls).toEqual(3);
+          expect(statusFor167().error).toEqual(undefined);
+          cancelSyncTailWork();
+          persistence.set('sync_progress', null);
+          LingoLinq.sync_testing_real_boards = false;
         });
       });
     });

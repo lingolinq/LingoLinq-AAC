@@ -21,7 +21,8 @@ export function retry_delay(attempt, random) {
   return Math.round(base * (0.8 + 0.4 * r));
 }
 
-// A clock that only moves forward (a device clock set back cannot hold parked boards).
+// A clock that only moves forward, for the due times: a device clock set back does not change when a board is due.
+// The timer that fires the wait is Ember's runLater, which counts on Date.now, so a clock set back still delays it.
 function monotonic_now() {
   if(typeof performance !== 'undefined' && performance && typeof performance.now === 'function') { return performance.now(); }
   return (new Date()).getTime();
@@ -105,7 +106,7 @@ export function create_parking(schedule, now) {
 
 // A resumed thread starts again only through the download limit (services/persistence.js add_thread), so several
 // walks' waiting threads cannot resume above it at once (Codex re-review of #1322). `is_full()` says whether the
-// limit is reached; `go()` takes the slot and starts.
+// limit is exceeded (the same `>` test as add_thread); `go()` takes the slot and starts.
 export function when_slot_free(is_full, schedule, go) {
   if(is_full()) {
     schedule(function() { when_slot_free(is_full, schedule, go); }, 1000);
