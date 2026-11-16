@@ -27,16 +27,20 @@ export function board_transport_options() {
 
 var downloads = {};
 
-// The download running for `key`, or a new one from start(). Forgotten once it settles, success or failure, so a
-// later request starts afresh.
-export function join_download(key, start) {
-  var entry = downloads[key];
+// The download running for `key` under `identity`, or a new one from start(). Forgotten once it settles, success or
+// failure, so a later request starts afresh. `identity` is the request's token and acting user
+// (utils/request_identity.js): a request under another identity never joins, since the running download carries the
+// credentials it started with (Codex review of #1322, P1). join_download(key, start) is the same with no identity.
+export function join_download(key, identity, start) {
+  if(typeof identity === 'function') { start = identity; identity = ''; }
+  var slot = key + '#' + (identity || '');
+  var entry = downloads[slot];
   if(entry) {
     entry.waiting++;
     return entry.promise;
   }
-  entry = { waiting: 1 };
-  var forget = function() { if(downloads[key] === entry) { delete downloads[key]; } };
+  entry = { waiting: 1, key: key };
+  var forget = function() { if(downloads[slot] === entry) { delete downloads[slot]; } };
   entry.promise = new RSVP.Promise(function(resolve) { resolve(start()); }).then(function(res) {
     forget();
     return res;
@@ -44,13 +48,17 @@ export function join_download(key, start) {
     forget();
     throw err;
   });
-  downloads[key] = entry;
+  downloads[slot] = entry;
   return entry.promise;
 }
 
-// How many requests are waiting on the download for `key` (0 when none runs). Read by tests.
+// How many requests are waiting on downloads of `key`, under any identity (0 when none runs). Read by tests.
 export function waiting_on(key) {
-  return downloads[key] ? downloads[key].waiting : 0;
+  var n = 0;
+  for(var slot in downloads) {
+    if(downloads[slot].key === key) { n = n + downloads[slot].waiting; }
+  }
+  return n;
 }
 
 // The adapter's database and session for store_late_board.
@@ -72,19 +80,20 @@ function time_of(value) {
 }
 
 // Store a board answer that arrived after its caller was told "timeout". `started` is {at, token} from when the
-// request was sent. Resolves true when stored. Not stored:
-// - when the session changed since (sign-out, another person signed in);
+// request was sent, `token` being the request's identity (utils/request_identity.js) and `deps.token()` the identity
+// now. Resolves true when stored. Not stored:
+// - when the session changed since (sign-out, another person signed in, acting as another user);
 // - over a device copy with an offline edit waiting to be sent (`changed`), a revoked mark
 //   (utils/board_revocation.js), a copy fetched after this request started, or a newer copy by the server's
 //   `updated` (a save made after this request);
 // - twice for one answer (several requests may have waited on one download).
 export function store_late_board(payload, id, started, deps) {
   if(!payload || !payload.board) { return RSVP.resolve(false); }
-  if(late_seen) {
-    if(late_seen.has(payload)) { return RSVP.resolve(false); }
-    late_seen.add(payload);
-  }
+  if(late_seen && late_seen.has(payload)) { return RSVP.resolve(false); }
+  // The session check comes before the answer is claimed, so a caller whose session no longer matches does not use it
+  // up for one whose session does (Codex review of #1322, P2).
   if(deps.token() !== started.token) { return RSVP.resolve(false); }
+  if(late_seen) { late_seen.add(payload); }
   return RSVP.resolve().then(function() { return deps.find(id); }).then(function(row) { return row; }, function() { return null; }).then(function(row) {
     var raw = row && row.board;
     if(raw) {

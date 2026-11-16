@@ -587,3 +587,24 @@ after reload). One mechanism for "the problem list just disappears"; the other, 
 replacing the Needs attention card (services/sync-notice.js _sync_status_changed). Neither fixed: persisting the log
 is data handling (Rule 0.12) and needs a proposal.
 Not exercised on the emulator: the Waiting and Needs attention drawer stages (unit-tested only).
+
+### Codex review of #1322 (2026-11-16): two findings, fix-proposal facts
+
+P1 "Scope joined downloads to the authenticated session"; P2 "Capture the token actually used for the board request".
+(a) Where read:
+- CONFIRMED: join key is 'board_' + id_or_key only (utils/persistence.js:4369 -> utils/board_download.js:32-49
+  join_download). Nothing about the session is part of it.
+- CONFIRMED: the late-store token is captured as capabilities.access_token at request start (utils/persistence.js:4365)
+  and compared with capabilities.access_token at arrival (late_deps token fn, :4370; board_download.js:87, :97).
+- CONFIRMED: the request's real token is resolved by extras.ajax: capabilities.access_token, else
+  LingoLinq.session.get('access_token'), else stashes auth_settings.access_token; then written back to capabilities
+  (utils/extras.js:221-234). X-As-User-Id comes from LingoLinq.session.get('as_user_id') (extras.js:261-262).
+- CONFIRMED: store_late_board adds the payload to late_seen (:85) BEFORE the token check (:87).
+(b) Shapes: identity = (token or null) x (as_user_id or none). Writers: sign-in, sign-out, SPA sign-out (beta flag),
+  masquerade (as_user_id), the post-login race where capabilities.access_token is empty.
+(c) Claims: reachability of P1 needs a session change without a reload during a download (<= 60 s): SPA sign-out is
+  flag-gated (session.js:783-789), masquerade switches as_user_id in-page (PLAUSIBLE, not traced). Fixed regardless:
+  a cross-account share by construction, and cheap to close.
+Fix: utils/request_identity.js, one definition of the token a request sends (used by extras.ajax, line-neutral) plus
+  as_user_id; join_download(key, identity, start) keys by both; late_started and the late token check use the same
+  identity; late_seen is marked only after the identity check passes. waiting_on(key) sums across identities.

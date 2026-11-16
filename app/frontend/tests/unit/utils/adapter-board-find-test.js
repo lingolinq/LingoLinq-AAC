@@ -9,6 +9,8 @@ import { stubOnPersistence } from 'frontend/tests/helpers/persistence-stub';
 import persistence from 'frontend/utils/persistence';
 import { find_limits } from 'frontend/utils/board_download';
 import * as boardDownload from 'frontend/utils/board_download';
+import capabilities from 'frontend/utils/capabilities';
+import EmberObject from '@ember/object';
 
 /* BOARD DOWNLOADS THROUGH THE ADAPTER (Android sync fix, 2026-11-14;
  * docs/task-management/2026-11-14_android-sync-slow-problems.md, "Final plan").
@@ -201,5 +203,54 @@ module('Unit | Utility | adapter board find', function(hooks) {
     assert.true(res.done, 'answered');
     assert.strictEqual(res.value, null, 'not resolved with the device copy');
     assert.strictEqual(res.error.error, 'timeout');
+  });
+
+  /* Codex review of #1322, P1: a download was joined by board id alone. A request made after the session changed
+     (an SPA sign-out and sign-in, or acting as another user) joined a download that carried the previous credentials,
+     and got its answer. */
+  test('a request under another account starts its own download', async function(assert) {
+    assert.expect(1);
+    find_limits.caller_ms = 300;
+    var prior_token = capabilities.access_token;
+    var d = held(this);
+    var board_calls = 0;
+    stub($, 'realAjax', function(options) {
+      if(BOARD_URL.test(options.url)) { board_calls++; return d.promise(); }
+      return timed_out();
+    });
+    try {
+      capabilities.access_token = 'tok-account-a';
+      this.store.findRecord('board', '1_906').then(function() { }, function() { });
+      await waitUntil(function() { return board_calls >= 1; });
+      capabilities.access_token = 'tok-account-b';
+      this.store.unloadAll('board');
+      this.store.findRecord('board', '1_906').then(function() { }, function() { });
+      await waitUntil(function() { return board_calls >= 2; }, { timeout: 1000 }).catch(function() { });
+      assert.strictEqual(board_calls, 2, 'the second account downloads for itself');
+    } finally {
+      capabilities.access_token = prior_token;
+    }
+  });
+
+  /* Codex review of #1322, P2: right after sign-in, capabilities.access_token can still be empty while the request
+     takes its token from the session (utils/extras.js), then writes it back. The token captured at the start was the
+     empty one, so the late answer looked like it belonged to another session and was thrown away. */
+  test('a late answer is stored when the request took its token from the session', async function(assert) {
+    assert.expect(2);
+    var prior = { token: capabilities.access_token, session: window.LingoLinq.session };
+    var d = held(this);
+    stub($, 'realAjax', function(options) { return BOARD_URL.test(options.url) ? d.promise() : timed_out(); });
+    try {
+      capabilities.access_token = '';
+      window.LingoLinq.session = EmberObject.create({ access_token: 'tok-from-session' });
+      var res = await outcome(this.store.findRecord('board', '1_907'));
+      assert.strictEqual(res.error.error, 'timeout', 'the caller is answered at the caller limit');
+      d.resolve(board_payload('1_907'));
+      await settled();
+      assert.strictEqual(stored_boards(this).length, 1, 'the late answer is stored');
+    } finally {
+      capabilities.access_token = prior.token;
+      window.LingoLinq.session = prior.session;
+    }
   });
 });

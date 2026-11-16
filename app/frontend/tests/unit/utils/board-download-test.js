@@ -66,6 +66,29 @@ module('Unit | Utility | board download', function() {
     assert.strictEqual(x.stored.length, 0);
   });
 
+  // Codex review of #1322, P2: the answer was marked as seen before the session check, so a caller whose session no
+  // longer matched used it up, and a caller under the current session could not store it.
+  test('a caller under another session does not use up the answer for a caller under the current one', async function(assert) {
+    var x = deps(null);
+    var a = answer();
+    assert.false(await store_late_board(a, '1_7', { at: 1000, token: 'tok-0' }, x.d), 'started under another session');
+    assert.true(await store_late_board(a, '1_7', started, x.d), 'the caller under the current session stores it');
+    assert.strictEqual(x.stored.length, 1);
+  });
+
+  // Codex review of #1322, P1: a download was shared by board alone, so a request under another account (or acting as
+  // another user) could get the answer fetched with someone else's credentials.
+  test('requests under different identities never share a download', async function(assert) {
+    var starts = 0;
+    var start = function() { starts++; return new RSVP.Promise(function() { }); };
+    join_download('board_9_1', 'tok-a|', start);
+    join_download('board_9_1', 'tok-b|', start);
+    join_download('board_9_1', 'tok-a|1_5', start);
+    assert.strictEqual(starts, 3, 'one download per identity');
+    join_download('board_9_1', 'tok-a|', start);
+    assert.strictEqual(starts, 3, 'the same identity still joins');
+  });
+
   test('one answer is stored once, though several callers were waiting on it', async function(assert) {
     var x = deps(null);
     var a = answer();
