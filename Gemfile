@@ -88,7 +88,7 @@ gem 'http-2'
 # GHSA-5r7x-x5pm-94xj, GHSA-m39q-9jm7-xp4q, GHSA-r23w-h6cg-h95q, GHSA-r5h4-xh93-f339 (resque-web XSS and
 # CSRF; the dashboard is mounted at /jobby in config/routes.rb); the CSRF fix needs >= 3.2.0
 gem 'resque', '~> 3.2'
-gem 'puma', '~> 7.2', '>= 7.2.1' # >= 7.2.1 clears CVE-2026-47736 / CVE-2026-47737 (PROXY protocol v1 parser)
+gem 'puma', '~> 7.2', '>= 7.2.2' # >= 7.2.1 clears CVE-2026-47736 / CVE-2026-47737 (PROXY protocol v1 parser); >= 7.2.2 clears the 2026-11 advisories (GHSA-86xc-wrr9-xmmq and six others)
 gem 'paper_trail', '~> 15.0'
 gem 'geokit'
 gem 'obf'
