@@ -11,6 +11,11 @@ import stashes from '../utils/_stashes';
  * Converted from modals/gif template/controller to component
  * for the new service-based modal system.
  */
+// The first GIF in an answer that has a picture to show, or null.
+export function first_with_picture(list) {
+  return (list || []).find(function(img) { return img && img.image_url; }) || null;
+}
+
 export default Component.extend({
   modal: service('modal'),
   tagName: '',
@@ -95,8 +100,10 @@ export default Component.extend({
           col3.height = (col3.height || 0) + img.height;
         }
       });
-      if (_this.get('model.luck')) {
-        _this.set('selected_gif', res[0]);
+      // "I'm feeling lucky" (utils/button.js ':gif-lucky' opens this with {lucky: true}; it read `model.luck`, so it never
+      // ran): the first result with a picture, or none, and then the no-results message shows (Codex on #1324).
+      if (_this.get('model.lucky')) {
+        _this.set('selected_gif', first_with_picture(res));
       }
       _this.set('results', { list: res, columns: [{ list: col1 }, { list: col2 }, { list: col3 }] });
     }, function() {
