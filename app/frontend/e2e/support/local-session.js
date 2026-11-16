@@ -11,8 +11,10 @@ function assertLocalStack() {
   }
 }
 
-// seedScript names the e2e/support script that creates userName, for the failure message.
-async function signIn(page, userName, seedScript) {
+// seedScript names the e2e/support script that creates userName, for the failure message. On a device
+// the server has not seen, the sign-in asks whether to trust it; options.shared answers "This is a
+// Shared Device", otherwise "Trust this Device".
+async function signIn(page, userName, seedScript, options) {
   await page.goto('/login');
   await expect(page.locator('#identification')).toBeVisible({ timeout: 30_000 });
   await page.locator('#identification').fill(userName);
@@ -20,7 +22,14 @@ async function signIn(page, userName, seedScript) {
   await page.locator('button.login-btn[type="submit"]').click();
   await page.waitForURL(/login\/device|\/home|\/$/, { timeout: 30_000 });
   if (/login\/device/.test(page.url())) {
-    await page.getByText('Trust this Device').click();
+    // "Trust this Device" (components/login-form.hbs), found by its class rather than its label so a
+    // browser in another interface language signs in too; the outlined button is "Shared Device".
+    const choice = (options && options.shared) ? 'button.login-btn--device.login-btn--outline' : 'button.login-btn--device:not(.login-btn--outline)';
+    await page.locator('.login-device-buttons ' + choice).click();
+    // The sign-in then finishes with an in-app transition or by loading '/' again
+    // (components/login-form.js _login_dispatch_after_wait). The checks below already pass on the page
+    // being replaced, so wait for the one that stays; work started before the reload is lost with it.
+    await page.waitForURL((url) => !/^\/login(\/|$)/.test(url.pathname), { timeout: 60_000 });
   }
   await expect(page.locator('#identification'),
     `could not sign in as ${userName}: run e2e/support/${seedScript} against this stack first`).toBeHidden({ timeout: 30_000 });

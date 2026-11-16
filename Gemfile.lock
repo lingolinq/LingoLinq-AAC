@@ -352,7 +352,7 @@ GEM
       coderay (~> 1.1)
       method_source (~> 1.0)
     public_suffix (7.0.5)
-    puma (7.2.1)
+    puma (7.2.2)
       nio4r (~> 2.0)
     racc (1.8.1)
     rack (3.2.8)
@@ -499,9 +499,9 @@ GEM
       rexml
     ruby2_keywords (0.0.5)
     rubyzip (3.6.0)
-    sanitize (7.0.1)
+    sanitize (7.0.2)
       crass (~> 1.0.8)
-      nokogiri (>= 1.16.8)
+      nokogiri (>= 1.19.7)
     sass-rails (6.0.0)
       sassc-rails (~> 2.1, >= 2.1.1)
     sassc (2.4.0)
@@ -629,7 +629,7 @@ DEPENDENCIES
   permissable-coughdrop
   pg (~> 1.5)
   pg_search
-  puma (~> 7.2, >= 7.2.1)
+  puma (~> 7.2, >= 7.2.2)
   rack (>= 3.2.8)
   rack-attack
   rack-cors
@@ -648,7 +648,7 @@ DEPENDENCIES
   ruby-openai (~> 7.0)
   ruby-saml (>= 1.18.0)
   rubyzip (>= 3.4)
-  sanitize (>= 7.0.1)
+  sanitize (>= 7.0.2)
   sass-rails (~> 6.0)
   sdoc
   sentry-rails

@@ -232,7 +232,7 @@ export default Component.extend({
      dedupe same-name copies and alphabetize — same roots-only + dedupe rules the
      My Board Collection panel uses, so no sub-boards or duplicates leak. */
   _sortMyBoards: function(boards) {
-    boards = filterBrandRoots(filterRootBoards(boards || [], this._subjectUserId()));
+    boards = filterBrandRoots(filterRootBoards(boards || [], backend_id_of(this._subjectUserId(), this.appState.get('sessionUser')))); // backend id, not 'self' (utils/backend_user_id.js)
     boards = dedupeByName(boards, { preferUserNames: boardsPagePreferUserNames(this.get('appState')) });
     return _alphaByName(boards);
   },
@@ -629,3 +629,5 @@ export default Component.extend({
     };
   }
 });
+
+import { backend_id_of } from '../utils/backend_user_id';

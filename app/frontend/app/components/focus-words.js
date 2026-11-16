@@ -95,7 +95,7 @@ export default Component.extend({
   recent_list: computed('model', 'user_list', function() {
     let res = [];
     const last = stashes.get('last_focus_words');
-    if (last && last.user_id === app_state.get('sessionUser.id')) {
+    if (last && same_person(last.user_id, app_state.get('sessionUser'), app_state.get('sessionUser'))) { // an older stash may hold 'self' or the real id
       res.push({ title: last.title || i18n.t('last_focus_word_set', "Last Focus Word Set"), words: last.words, tmp: true });
     }
     const more = this.get('user_list').slice(0, 2);
@@ -187,7 +187,7 @@ export default Component.extend({
 
   stash_set() {
     stashes.persist('last_focus_words', {
-      user_id: app_state.get('sessionUser.id'),
+      user_id: backend_user_id(app_state.get('sessionUser')), // the backend id, so either user record reads it back
       words: this.get('words'),
       title: this.get('title')
     });
@@ -843,3 +843,4 @@ export default Component.extend({
 },
 
 });
+import backend_user_id, { same_person } from '../utils/backend_user_id';

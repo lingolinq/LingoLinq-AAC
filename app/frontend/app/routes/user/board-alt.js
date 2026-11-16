@@ -112,6 +112,16 @@ export default Route.extend({
     };
     return find_board(true);
   },
+  // Offline with nothing to show, and the server did not refuse it: never a dead end.
+  session: service('session'),
+  router: service('router'),
+  afterModel: function(model) {
+    var error = model && model.get && model.get('id') === 'bad' && model.get('error');
+    if(!error || error.unauthorized || error.revoked || !this.session.get('access_token')) { return; }
+    if(this.persistence.get('online') === false || no_connection(error)) {
+      return leave_unsaved_board(this.router, this.appState, this.persistence, boardDetailCache, model.get('key'));
+    }
+  },
   serialize: function(model) {
     var boardname;
     if (model && typeof model.get === 'function') {
@@ -131,9 +141,13 @@ export default Route.extend({
   // utils/board_revocation.js#blocks_view_route decides; it never blocks online.
   revoked_or: function(data, key) {
     var _this = this;
-    var online = !!(this.persistence && this.persistence.get('online'));
+    // An owner found on the device means the server gave no answer, whatever `online` says.
+    var online = !!(this.persistence && this.persistence.get('online')) && !getOwner(this).lookup('route:user').get('owner_stand_in');
     return boardRevocation.blocks_view_route(data, this.appState, online).then(function(blocked) {
-      return blocked ? boardRevocation.unavailable_record(_this, key) : data;
+      if(blocked) { return boardRevocation.unavailable_record(_this, key); }
+      if(online) { return data; }
+      // The board's tiles read url_cache as they render, as the Modern grid does.
+      return within(load_copy_images(_this.persistence, { image_urls: data.get('image_urls') }), DEVICE_READ_WAIT_MS).then(function() { return data; });
     });
   },
   actions: {
@@ -147,3 +161,6 @@ export default Route.extend({
 });
 // Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
 import boardRevocation from '../../utils/board_revocation';
+import { DEVICE_READ_WAIT_MS, leave_unsaved_board, load_copy_images, within } from '../../utils/board_device_copy';
+import { no_connection } from '../../utils/board_owner';
+import { getOwner } from '@ember/application';

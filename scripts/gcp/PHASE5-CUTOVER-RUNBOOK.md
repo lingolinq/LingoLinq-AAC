@@ -633,7 +633,10 @@ Full rationale in the decision memo
    URL map + managed cert + HTTPS/HTTP forwarding. Records the **LB IP** = the DNS A-record
    target for step 9.
 2. `... CONFIRM_ARMOR=1 ...` adds Cloud Armor with the OWASP WAF in **PREVIEW** (log-only, low
-   sensitivity). **The WAF stays in PREVIEW through the DNS cutover and the soak. Do NOT flip it
+   sensitivity). A new policy gets NORMAL logging and STANDARD JSON parsing (`ARMOR_LOG_LEVEL=VERBOSE`
+   is a rehearsal-only opt-in: VERBOSE copies matched request-body content into Cloud Logging). The
+   step is create-only, so re-running it against an existing, hand-tuned policy changes nothing
+   there (see step 9c). **The WAF stays in PREVIEW through the DNS cutover and the soak. Do NOT flip it
    to enforce pre-DNS.** Rationale (verified live 2026-06-30): the LB receives NO traffic until
    step 9 points DNS at it (the `run.app` smoke tests bypass the LB), so pre-DNS the Cloud Armor
    preview logs are empty and prove nothing. The specific risk that motivated preview mode -
@@ -764,49 +767,169 @@ condition is met:
    > produce means a whole school or clinic NATs to a single public IP and shares ONE per-IP token
    > bucket (`--enforce-on-key=IP`, 600 req/60s), so a threshold that looks generous per-user can 429
    > an entire building at once. The script therefore does **not** flip rule 2000 with the WAF sig
-   > rules: `ARMOR_ENFORCE=1` enforces only 1001-1004 and **does not touch rule 2000 at all**, so no
-   > WAF-enforce run can ever flip it to enforcing. Conversely, a routine Armor run will **not**
+   > rules: `ARMOR_ENFORCE_RULES` accepts only 1001-1004 (it refuses 2000) and **does not touch rule
+   > 2000 at all**, so no WAF-enforce run can ever flip it to enforcing. Conversely, a routine Armor run will **not**
    > silently downgrade a rule 2000 you have deliberately enforced - it leaves it as-is and prints a
    > `[GATE]` warning, so returning 2000 to preview is only ever done via the explicit revert (step 3).
    > Enforcing 2000 is a deliberate, even-later step - only after its threshold is proven generous for
-   > building-scale NAT against real district traffic - done by ALSO passing its own gate:
+   > building-scale NAT against real district traffic - done by ALSO passing its own gate. First
+   > export the whole policy to a path OUTSIDE the repo (same as before a WAF flip, step 2 below;
+   > **never commit the file**: it holds the tuned exceptions and this repo is public), then run:
    > ```bash
-   > CONFIRM_LB=1 CONFIRM_ARMOR=1 ARMOR_ENFORCE=1 CONFIRM_ARMOR_ENFORCE=1 \
+   > mkdir -p "$HOME/armor-backups" && \
+   >   EXPORT="$HOME/armor-backups/lingolinq-armor-before-2000-$(date -u +%Y%m%dT%H%M%SZ).yaml" && \
+   >   gcloud compute security-policies export lingolinq-armor --file-name="$EXPORT" \
+   >     --file-format=yaml --project=lingolinq-prod && \
+   >   [ -s "$EXPORT" ] && \
+   >   CONFIRM_LB=1 CONFIRM_ARMOR=1 \
    >   RATE_LIMIT_ENFORCE=1 CONFIRM_RATE_LIMIT_ENFORCE=1 DOMAIN=app.lingolinq.com \
    >   ./scripts/gcp/phase5-frontend-lb.sh
    > ```
-   > After this run, confirm rule 2000 now reads `preview=false` in the step-2e readback (this is the
-   > one case where `preview=false` on rule 2000 is the intended, correct result).
-2. **Flip to enforce (double-gated):**
+   > The run refuses if rule 2000 (or the policy) does not exist yet: a new rule 2000 always starts
+   > in preview. It sends only `--no-preview` to rule 2000, so a threshold tuned by hand is kept. To
+   > set a new threshold in the same run, pass BOTH `RATE_LIMIT_COUNT` and `RATE_LIMIT_INTERVAL_SEC`
+   > (only one of them is refused); the run then re-sends the threshold together with the rest of
+   > 2000's rate-limit config (conform `allow`, exceed `deny-429`, key `IP`).
+   > After this run, confirm rule 2000 now reads `preview=false` in the step-2e readback, with the
+   > threshold you expect (this is the one case where `preview=false` on rule 2000 is the intended,
+   > correct result).
+2. **Flip to enforce ONE RULE AT A TIME (double-gated):** name the single WAF sig rule whose preview
+   hits are clean, save its current config, run, watch it under real traffic, then repeat for the
+   next rule. The script needs bash 4 or newer (macOS `/bin/bash` is 3.2 and is refused); run it
+   with Homebrew bash or from Cloud Shell.
+
+   Pass `ARMOR_ENFORCE_RULES`, `CONFIRM_ARMOR_ENFORCE` and `CONFIRM_ARMOR_ATTACH` **inline** on
+   the command line, as below; never `export` them. An exported value stays in the shell and rides
+   along on the next run, and the script cannot tell it from one typed for that run. If any of them
+   was exported, run `unset ARMOR_ENFORCE_RULES CONFIRM_ARMOR_ENFORCE CONFIRM_ARMOR_ATTACH` first.
+
+   **First, save the rule as it is now, and the whole policy**, to a path OUTSIDE the repo. **Never
+   commit these files**: they hold the tuned exceptions, and this repo is public. Set `RULE` on the
+   first line. Each block below starts with a check that `RULE` is set, and its steps are chained
+   with `&&`, so a missing value or a failed step stops the block without closing your shell. **Stop
+   here if this block does not end by printing `saved:`.**
    ```bash
-   CONFIRM_LB=1 CONFIRM_ARMOR=1 ARMOR_ENFORCE=1 CONFIRM_ARMOR_ENFORCE=1 DOMAIN=app.lingolinq.com \
-     ./scripts/gcp/phase5-frontend-lb.sh
+   RULE=   # set to the ONE WAF sig rule to flip this run: 1001, 1002, 1003 or 1004
+   : "${RULE:?set RULE to the one rule, 1001-1004}" && \
+     mkdir -p "$HOME/armor-backups" && \
+     STAMP="$(date -u +%Y%m%dT%H%M%SZ)" && \
+     BEFORE="$HOME/armor-backups/$RULE-before-$STAMP.yaml" && \
+     EXPORT="$HOME/armor-backups/lingolinq-armor-before-$RULE-$STAMP.yaml" && \
+     gcloud compute security-policies rules describe "$RULE" \
+       --security-policy=lingolinq-armor --project=lingolinq-prod \
+       --format='yaml(action, preview, match.expr.expression, preconfiguredWafConfig)' > "$BEFORE" && \
+     gcloud compute security-policies export lingolinq-armor --file-name="$EXPORT" \
+       --file-format=yaml --project=lingolinq-prod && \
+     { [ -s "$BEFORE" ] || { echo "before copy $BEFORE is empty; stop"; false; }; } && \
+     { [ -s "$EXPORT" ] || { echo "policy export $EXPORT is empty; stop"; false; }; } && \
+     echo "saved: $BEFORE $EXPORT"
    ```
-   **`CONFIRM_LB=1` is REQUIRED here**, not just the ARMOR flags: the script hard-exits at the LB
-   gate (`phase5-frontend-lb.sh` step 1) whenever `CONFIRM_LB != 1`, so it never reaches the Cloud
-   Armor block and the enforce flip silently no-ops (WAF stays in preview while the run reports
-   success). The LB build is idempotent (every create is describe-guarded), so re-passing
-   `CONFIRM_LB=1` against the already-built LB just skips through to the Armor block. The script
-   then converges the **WAF sig rules 1001-1004** to `--no-preview`, does **not** touch rule 2000,
-   and prints the actual per-rule preview state PLUS rule 2000's actual threshold (step 2e). For this
-   WAF-sig-only enforce run (no `RATE_LIMIT_ENFORCE`), confirm rules 1001-1004 read `preview=false`
-   **and rule 2000's preview state is unchanged from whatever it was before this run** - do NOT trust
+   **Then flip it**, in the same shell. `CONFIRM_ARMOR_ENFORCE` repeats the rule number; the old
+   `CONFIRM_ARMOR_ENFORCE=1` form is refused. The flip runs only if both saved files are non-empty
+   and were saved for this `RULE` (a copy left from another rule in the same shell is refused).
+   ```bash
+   : "${RULE:?set RULE to the one rule, 1001-1004}" && \
+     case "${BEFORE:-}" in */"$RULE"-before-*) ;; *) echo "BEFORE is not a copy of rule $RULE; save it again"; false;; esac && \
+     case "${EXPORT:-}" in *-before-"$RULE"-*) ;; *) echo "EXPORT was not saved for rule $RULE; save it again"; false;; esac && \
+     [ -s "${BEFORE:-}" ] && [ -s "${EXPORT:-}" ] && \
+     CONFIRM_LB=1 CONFIRM_ARMOR=1 ARMOR_ENFORCE_RULES="$RULE" CONFIRM_ARMOR_ENFORCE="$RULE" \
+       DOMAIN=app.lingolinq.com ./scripts/gcp/phase5-frontend-lb.sh
+   ```
+   The old all-four `ARMOR_ENFORCE=1` switch is retired. Before making any gcloud call, the script
+   refuses: `ARMOR_ENFORCE_RULES` naming more than one rule (a repeated rule counts), containing any
+   character other than digits, commas and spaces, or naming no rule; `CONFIRM_ARMOR_ENFORCE`
+   missing or naming a different rule, or set with no rule named; `ARMOR_ENFORCE_RULES` together
+   with `RATE_LIMIT_ENFORCE=1`; and `ARMOR_ENFORCE_RULES` or `RATE_LIMIT_ENFORCE=1` without
+   `CONFIRM_LB=1 CONFIRM_ARMOR=1`. It also refuses, before changing anything, to enforce a rule (or
+   in a policy) that does not exist yet: a new rule always starts in preview. It refuses to enforce
+   anything while `lingolinq-armor` is not attached to the backend, since a rule on a detached policy
+   filters nothing. Re-attach it first in a run of its own (`CONFIRM_ARMOR_ATTACH=lingolinq-armor`,
+   no enforce variable) and watch it, because re-attaching turns back on every rule enforced before
+   the detach. The closing readback prints the attached policy, and a flip run fails unless the
+   flipped rule reads back as enforcing (`preview=False`, action `deny(403)`). A describe that fails
+   with anything other than not-found stops the run instead of being read as "missing". Separately,
+   the Armor step stops if the backend already has a DIFFERENT security policy attached, or shows
+   `lingolinq-armor` attached while the policy reads as not found, and does not re-attach an
+   existing policy to a backend that has none (it may have been detached on purpose) unless
+   `CONFIRM_ARMOR_ATTACH=lingolinq-armor` (the policy name) is passed. **`CONFIRM_LB=1` is
+   REQUIRED** because the script hard-exits at the LB gate (`phase5-frontend-lb.sh` step 1) whenever
+   `CONFIRM_LB != 1`. The LB build is idempotent (every create is describe-guarded), so re-passing
+   `CONFIRM_LB=1` against the already-built LB just skips through to the Armor block.
+
+   **A re-run never undoes hand tuning.** The Armor step is create-only: an existing policy keeps its
+   log level, JSON parsing and other advanced options (they are set only when the policy is first
+   created: NORMAL logging and STANDARD JSON parsing by default, VERBOSE only if `ARMOR_LOG_LEVEL=VERBOSE`
+   is passed for a rehearsal), and an existing WAF rule is never rewritten, so hand-tuned expressions,
+   signature opt-outs and preconfigured-WAF exclusions survive. The only change to an existing rule
+   is the named rule's `gcloud compute security-policies rules update <rule> --no-preview`, which sends
+   only the preview field. Rules not named keep whatever preview state they have, so a rule enforced
+   on an earlier run stays enforced. If the existing policy is logging at VERBOSE, or has JSON
+   parsing unset or DISABLED, the run prints a `[GATE]` warning and leaves it; changing either is a
+   deliberate manual `gcloud compute security-policies update lingolinq-armor` with `--log-level` or
+   `--json-parsing`.
+
+   The script prints the actual per-rule preview state and action PLUS rule 2000's actual threshold
+   (step 2e). Confirm the named rule reads `preview=false` with action `deny(403)`, every other rule
+   reads what it read before this run, **and rule 2000's preview state is unchanged from whatever it was before this run** - do NOT trust
    the exit code alone, and do NOT assume 2000 reads `preview=true` here: this run never mutates 2000
    either way (correction, Codex review of PR #513), so if 2000 was already deliberately enforced from
    an earlier rate-limit-enforce run, it correctly stays `preview=false` here too. (Rule 2000 first
    reads `preview=false` after the separate rate-limit enforce run in step 1's blockquote.)
-3. **Verify** a known-bad probe (e.g. `?q=' OR 1=1--`) now returns `403` and that normal app use is
-   unaffected. **Rollback is manual**: re-running the script WITHOUT `ARMOR_ENFORCE` does NOT
-   restore preview - the script only converges rules to `--no-preview` (there is no preview-restore
-   branch), so a describe-guarded re-run just skips the existing enforcing rules. To roll back, set
-   each rule back to preview explicitly:
+
+   **Then check the flipped rule's tuning survived.** The flip sends only the preview field, and the
+   gcloud client is confirmed to send nothing else (an empty update mask). Per the Compute API
+   reference, `securityPolicies.patchRule`'s `updateMask` "Indicates fields to be cleared as part of
+   this request" (text from the API's generated client in gcloud 591.0.0), so an empty mask should
+   clear nothing; that has not been observed on this policy. So describe the rule again, in the same
+   shell as the "before" copy, and diff the two. Only `preview` should differ. If the expression
+   (including any signature opt-outs) or `preconfiguredWafConfig` (the exclusions) changed, roll the
+   rule back to preview (below) and restore the tuning from the "before" file before trying again.
+   ```bash
+   : "${RULE:?set RULE to the one rule, 1001-1004}" && \
+     case "${BEFORE:-}" in */"$RULE"-before-*) ;; *) echo "BEFORE is not a copy of rule $RULE"; false;; esac && \
+     [ -s "${BEFORE:-}" ] && \
+     gcloud compute security-policies rules describe "$RULE" \
+       --security-policy=lingolinq-armor --project=lingolinq-prod \
+       --format='yaml(action, preview, match.expr.expression, preconfiguredWafConfig)' \
+       | diff "$BEFORE" -
+   ```
+   Leave all three files in `$HOME/armor-backups`, outside the repo; never commit them.
+3. **Verify** with a probe for the rule you just flipped (only that rule; the others are still in
+   preview and will not block). It should now return `403`; then check normal app use is unaffected.
+   ```bash
+   # One probe per rule; run only the line for $RULE.
+   # 1001 sqli: curl -s -o /dev/null -w '%{http_code}\n' -G --data-urlencode "q=' OR 1=1--" https://app.lingolinq.com/
+   # 1002 xss:  curl -s -o /dev/null -w '%{http_code}\n' -G --data-urlencode "q=<script>alert(1)</script>" https://app.lingolinq.com/
+   # 1003 lfi:  curl -s -o /dev/null -w '%{http_code}\n' -G --data-urlencode "file=../../../../etc/passwd" https://app.lingolinq.com/
+   # 1004 rce:  curl -s -o /dev/null -w '%{http_code}\n' -G --data-urlencode "cmd=;cat /etc/passwd" https://app.lingolinq.com/
+   ```
+   At low sensitivity, or with a hand-tuned opt-out, a given probe may not match any signature that
+   is switched on. A non-403 is a prompt to check the rule's preview hits in the logs for that probe,
+   not by itself proof the flip failed; the step-2e readback and the describe above are the check
+   of the rule's state.
+
+   **Rollback is manual**: re-running the script without the rule in `ARMOR_ENFORCE_RULES` does NOT
+   restore preview - the script only flips named rules to `--no-preview` (there is no
+   preview-restore branch), so a re-run just leaves the existing enforcing rule alone. Set the rule
+   back to preview explicitly. `--preview` is the only field sent, so its expression and exclusions
+   stay as they are.
+
+   Roll back ONE rule (the normal case, e.g. the rule just flipped false-positives):
+   ```bash
+   RULE=   # set to the rule to return to preview: 1001, 1002, 1003 or 1004
+   : "${RULE:?set RULE to the one rule, 1001-1004}" && \
+     gcloud compute security-policies rules update "$RULE" \
+       --security-policy=lingolinq-armor --preview --project=lingolinq-prod
+   ```
+   Roll back EVERYTHING, including rate-limit rule 2000 (an emergency stop for all Cloud Armor
+   blocking):
    ```bash
    for P in 1001 1002 1003 1004 2000; do
      gcloud compute security-policies rules update "$P" \
        --security-policy=lingolinq-armor --preview --project=lingolinq-prod
    done
    ```
-   (This manual loop is the ONLY way any enforced rule returns to preview - the script never
+   (These manual commands are the ONLY way any enforced rule returns to preview - the script never
    auto-reverts. That is deliberate: once validated and enforced, both the WAF sig rules 1001-1004
    AND rate-limit rule 2000 should stay enforced until an operator explicitly rolls them back here,
    so no routine Armor re-run silently drops a live security control. A non-`RATE_LIMIT_ENFORCE` run

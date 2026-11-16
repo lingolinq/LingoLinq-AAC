@@ -7,119 +7,156 @@
       <h3 class="la-modal-header-label">{{t "Sync Details" key="sync_details"}}</h3>
       <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>&times;</button>
     </div>
-    <div class="la-sync-details-modal-body">
-      <div class="la-sync-details-toolbar">
-        <div class="la-sync-details-toolbar-actions">
-          {{#if (persistence-value 'syncing')}}
-            <button type="button" class="la-sync-details-secondary-btn" {{on "click" (this.ctrlAction "cancel_sync")}}>{{t "Cancel Sync" key="cancel_sync"}}</button>
-          {{/if}}
-          <button type="button" class="la-sync-details-primary-btn" {{on "click" (this.ctrlAction "sync")}}>
-            <svg class="la-sync-details-btn-refresh {{if (persistence-value 'syncing') 'la-sync-details-btn-refresh--spinning'}}" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-            {{#if (persistence-value 'syncing')}}
-              {{t "Syncing..." key="syncing_ellipsis"}}
+
+    {{!-- Summary band: how much is on this device, the sync's own status line, and the one action. --}}
+    <div class="la-sync-details-summary">
+      <div class="la-sync-details-summary-main">
+        {{#if this.summary}}
+          <p class="la-sync-details-summary-pct"><span class="la-sync-details-summary-num">{{this.summary_pct}}%</span> {{t "ready offline" key="sync_ready_offline_lower"}}</p>
+          <div class="la-sync-details-bar la-sync-details-bar--summary" role="img" aria-label={{this.summary_line}}><span class="la-sync-details-bar-fill" style={{this.summary_bar_style}}></span></div>
+        {{/if}}
+        <p class="la-sync-details-lead">
+          {{#if (persistence-value 'sync_succeeded')}}
+            {{#if this.session.invalid_token}}
+              {{t "Please re-login and sync again" key="please_resync"}}
             {{else}}
-              {{t "Sync Now" key="sync_now"}}
+              {{t "Sync Done!" key="sync_done"}}
             {{/if}}
-          </button>
-        </div>
-      </div>
-      <p class="la-sync-details-lead">
-        {{#if (persistence-value 'sync_succeeded')}}
-          {{#if this.session.invalid_token}}
-            {{t "Please re-login and sync again" key="please_resync"}}
+          {{else if (persistence-value 'sync_finished')}}
+            {{t "Done with " key="done_with"}}
+            {{t "error" key="n_errors_lower" count=(persistence-value 'sync_errors')}}
           {{else}}
-            {{t "Sync Done!" key="sync_done"}}
-          {{/if}}
-        {{else if (persistence-value 'sync_finished')}}
-          {{t "Done with " key="done_with"}}
-          {{t "error" key="n_errors_lower" count=(persistence-value 'sync_errors')}}
-          {{t "(see log)" key="see_log"}}
-        {{else}}
-          {{#if (persistence-value 'sync_failed')}}
-            {{t "Sync Failed, see details below" key="sync_failed"}}
-            {{#if (persistence-value 'sync_status_error')}}
-              <span title={{persistence-value 'sync_status_error'}}>{{persistence-value 'sync_status_error'}}</span>
-            {{/if}}
-          {{else}}
-            {{#if (persistence-value 'syncing')}}
-              {{t "Syncing..." key="syncing_ellipsis"}}
-              {{#if (persistence-value 'sync_progress')}}
-                {{#if (persistence-value 'sync_progress.total')}}
-                  {{persistence-value 'sync_progress.visited'}} /
-                  {{t "board" key="communication_set_board" count=(persistence-value 'sync_progress.total')}}
-                {{else}}
-                  {{t "initializing..." key="initializing_lower"}}
-                {{/if}}
+            {{#if (persistence-value 'sync_failed')}}
+              {{t "Sync Failed, see details below" key="sync_failed"}}
+              {{#if (persistence-value 'sync_status_error')}}
+                <span title={{persistence-value 'sync_status_error'}}>{{persistence-value 'sync_status_error'}}</span>
               {{/if}}
             {{else}}
-              {{#if this.needs_sync}}
-                {{#if this.appState.installed_app}}
-                  {{t "Sync before going offline!" key="needs_update"}}
-                {{else}}
-                  {{t "Sync if planning to go offline" key="sync_if_planning_offline"}}
-                {{/if}}
+              {{#if (persistence-value 'syncing')}}
+                {{t "Syncing..." key="syncing_ellipsis"}}
+                {{this.sync_progress_line}}
+              {{else if this.restored_lead}}
+                {{this.restored_lead}}
               {{else}}
-                {{t "Synced and ready for offline" key="up_to_date"}}
+                {{#if this.needs_sync}}
+                  {{#if this.appState.installed_app}}
+                    {{t "Sync before going offline!" key="needs_update"}}
+                  {{else}}
+                    {{t "Sync if planning to go offline" key="sync_if_planning_offline"}}
+                  {{/if}}
+                {{else}}
+                  {{t "Synced and ready for offline" key="up_to_date"}}
+                {{/if}}
               {{/if}}
             {{/if}}
+          {{/if}}
+        </p>
+        {{!-- The details under the status line: how many are saved, and whether the cards are from an earlier sync. --}}
+        {{#if this.summary}}
+          <p class="la-sync-details-summary-line">{{this.summary_line}}</p>
+          {{#if this.summary.from_earlier}}
+            <p class="la-sync-details-summary-line">{{t "These results are from an earlier sync," key="sync_results_from_earlier"}} {{date_ago this.summary.finished}}.</p>
           {{/if}}
         {{/if}}
-      </p>
-
-      {{#if this.details}}
-        {{#each this.details as |sync|}}
-          <h3 class="la-sync-details-log-heading">
-            {{#if sync.errored}}
-              <span class="text-danger">{{date_ago sync.finished}}</span>
-            {{else if sync.issues}}
-              <span class="text-warning">{{date_ago sync.finished}}</span>
-            {{else}}
-              <span class="text-success">{{date_ago sync.finished}}</span>
-            {{/if}}
-          </h3>
-          {{#if sync.manual}}{{t "Manual sync. " key="manual_sync"}}{{/if}}
-          {{sync.summary}}
-          {{#if sync.statuses}}
-            <br>
-            {{t "Boards: %{num} downloaded," num=sync.downloaded key="boards_n_downloaded_comma"}}
-            {{t "%{num} updated, " num=sync.re_downloaded key="n_re_downloaded_comma"}}
-            {{t "%{num} cached" num=sync.cached key="n_cached"}}
-            <a href="#" class="la-sync-details-see-link" {{on "click" (this.ctrlAction "toggle_statuses" sync)}}>{{t "see details" key="see_details"}}</a>
-            {{#if sync.toggled}}
-              {{#if sync.reason}}
-                <p>{{t "sync trigger:" key="sync_trigger"}} {{sync.reason}}</p>
-              {{/if}}
-              <div class="la-sync-details-table-scroll">
-                <table class="table table-striped table-hover la-sync-details-table">
-                  <tbody>
-                    {{#each sync.sorted_statuses as |status|}}
-                      <tr>
-                        <td>
-                          {{status.key}}
-                          {{#if status.error}}
-                            <div class="text-danger la-sync-details-status-error"><em>{{status.error}}</em></div>
-                          {{/if}}
-                        </td>
-                        <td>
-                          {{#if status.downloaded}}
-                            {{t "downloaded" key="downloaded"}}
-                          {{else if status.re_downloaded}}
-                            {{t "updated" key="re_downloaded"}}
-                          {{else if status.cached}}
-                            {{t "cached (no change)" key="cached_no_change"}}
-                          {{/if}}
-                        </td>
-                      </tr>
-                    {{/each}}
-                  </tbody>
-                </table>
-              </div>
-            {{/if}}
+      </div>
+      <div class="la-sync-details-summary-actions">
+        <button type="button" class="la-sync-details-primary-btn" {{on "click" (this.ctrlAction "sync")}}>
+          <svg class="la-sync-details-btn-refresh {{if (persistence-value 'syncing') 'la-sync-details-btn-refresh--spinning'}}" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          {{#if (persistence-value 'syncing')}}
+            {{t "Syncing..." key="syncing_ellipsis"}}
+          {{else if this.missing_count}}
+            {{this.save_missing_label}}
+          {{else}}
+            {{t "Sync Now" key="sync_now"}}
           {{/if}}
-        {{/each}}
-      {{else}}
-        <p class="la-sync-details-muted-block">{{t "No sync details to show" key="no_sync_details"}}</p>
+        </button>
+        {{#if (persistence-value 'sync_cancelable')}}
+          <button type="button" class="la-sync-details-secondary-btn" {{on "click" (this.ctrlAction "cancel_sync")}}>{{t "Cancel Sync" key="cancel_sync"}}</button>
+        {{/if}}
+      </div>
+    </div>
+
+    <div class="la-sync-details-modal-body">
+      {{#if this.summary}}
+        <div class="la-sync-tabs" role="tablist" aria-label={{t "Boards" key="boards"}}>
+          {{#each this.tabs as |tab|}}
+            <button type="button" role="tab" id="la-sync-tab-{{tab.id}}" aria-controls="la-sync-tabpanel" aria-selected={{tab.aria_selected}} class="la-sync-tab {{if tab.selected 'la-sync-tab--selected'}}" {{on "click" tab.pick}}>
+              {{tab.label}}
+              <span class="la-sync-tab-count la-sync-tab-count--{{tab.tone}}">{{tab.count}}</span>
+            </button>
+          {{/each}}
+        </div>
+
+        <div class="la-sync-cards" role="tabpanel" id="la-sync-tabpanel" aria-labelledby="la-sync-tab-{{this.current_tab}}">
+          {{#each this.cards as |card|}}
+            <div class="la-sync-card {{if card.ready 'la-sync-card--ready' 'la-sync-card--attention'}}">
+              <button type="button" class="la-sync-card-head" aria-expanded={{card.expanded}} {{on "click" card.toggle}}>
+                <span class="la-sync-card-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>
+                <span class="la-sync-card-title">
+                  <span class="la-sync-card-name">{{card.name}}</span>
+                  <span class="la-sync-card-role">{{card.role}} · {{card.folders_inside}}</span>
+                </span>
+                <span class="la-sync-card-progress">
+                  <span class="la-sync-details-bar la-sync-details-bar--thin"><span class="la-sync-details-bar-fill" style={{card.bar_style}}></span></span>
+                  <span class="la-sync-card-count">{{card.count}}</span>
+                </span>
+                <span class="la-sync-card-pill">{{card.status}}</span>
+                <svg class="la-sync-card-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              {{#if card.open}}
+                <div class="la-sync-card-body">
+                  {{#if card.has_folders}}
+                    <div class="la-sync-folders-intro">
+                      <span class="la-sync-folders-intro-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>
+                      <span>
+                        <span class="la-sync-folders-intro-title">{{card.intro_title}}</span>
+                        <span class="la-sync-folders-intro-text">{{card.intro_text}}</span>
+                      </span>
+                    </div>
+                    {{#if card.has_missing}}
+                      <section class="la-sync-folder-group la-sync-folder-group--missing">
+                        <div class="la-sync-folder-group-head">
+                          <span>
+                            <h4 class="la-sync-folder-group-title">{{card.missing_title}}</h4>
+                            <span class="la-sync-folder-group-note">{{t "These open while you're online. Try again when the connection is better." key="sync_missing_folders_note"}}</span>
+                          </span>
+                          {{#unless (persistence-value 'syncing')}}
+                            <button type="button" class="la-sync-details-secondary-btn" {{on "click" (this.ctrlAction "sync")}}>{{t "Try again" key="try_again"}}</button>
+                          {{/unless}}
+                        </div>
+                        <ul class="la-sync-folder-grid">
+                          {{#each card.folders_missing as |name|}}
+                            <li class="la-sync-folder-tile">{{name}}</li>
+                          {{/each}}
+                        </ul>
+                      </section>
+                    {{/if}}
+                    {{#if card.has_saved}}
+                      <section class="la-sync-folder-group la-sync-folder-group--saved">
+                        <h4 class="la-sync-folder-group-title">{{card.saved_title}}</h4>
+                        <ul class="la-sync-folder-grid">
+                          {{#each card.folders_saved as |name|}}
+                            <li class="la-sync-folder-tile">{{name}}</li>
+                          {{/each}}
+                        </ul>
+                        {{#if card.has_more_saved}}
+                          <button type="button" class="la-sync-link-btn" aria-expanded={{card.more_expanded}} {{on "click" card.toggle_more}}>{{card.more_label}}</button>
+                        {{/if}}
+                      </section>
+                    {{/if}}
+                  {{else}}
+                    <p class="la-sync-folder-group-note">{{card.no_folders_text}}</p>
+                  {{/if}}
+                </div>
+              {{/if}}
+            </div>
+          {{else}}
+            <p class="la-sync-details-muted-block">{{t "Nothing here right now." key="sync_tab_empty"}}</p>
+          {{/each}}
+        </div>
       {{/if}}
+
+      <p class="la-sync-details-muted-block">{{t "Kept on this device for offline use: your home board and its folders, your sidebar boards, up to %{limit} liked boards, and Crisis Vocabulary." key="sync_offline_scope_limit" limit=(liked-boards-kept)}}</p>
       {{#if this.stashes}}
         {{#if this.stashes.usage_log.length}}
           <p class="la-sync-details-muted-block">
@@ -128,8 +165,71 @@
           </p>
         {{/if}}
       {{/if}}
+
+      {{#if this.show_technical}}
+        {{!-- The line-by-line log, kept for support. --}}
+        <div class="la-sync-details-technical" id="la-sync-technical">
+          {{#if this.details}}
+            {{#each this.details as |sync|}}
+              <h3 class="la-sync-details-log-heading">
+                {{#if sync.errored}}
+                  <span class="text-danger">{{date_ago sync.finished}}</span>
+                {{else if sync.issues}}
+                  <span class="text-warning">{{date_ago sync.finished}}</span>
+                {{else if sync.canceled}}
+                  <span class="text-muted">{{date_ago sync.finished}}</span>
+                {{else}}
+                  <span class="text-success">{{date_ago sync.finished}}</span>
+                {{/if}}
+              </h3>
+              {{#if sync.manual}}{{t "Manual sync. " key="manual_sync"}}{{/if}}
+              {{sync.summary}}
+              {{#if sync.statuses}}
+                <br>
+                {{t "Boards: %{num} downloaded," num=sync.downloaded key="boards_n_downloaded_comma"}}
+                {{t "%{num} updated, " num=sync.re_downloaded key="n_re_downloaded_comma"}}
+                {{t "%{num} cached" num=sync.cached key="n_cached"}}
+                <a href="#" class="la-sync-details-see-link" {{on "click" (this.ctrlAction "toggle_statuses" sync)}}>{{t "see details" key="see_details"}}</a>
+                {{#if sync.toggled}}
+                  {{#if sync.reason}}
+                    <p>{{t "sync trigger:" key="sync_trigger"}} {{sync.reason}}</p>
+                  {{/if}}
+                  <div class="la-sync-details-table-scroll">
+                    <table class="table table-striped table-hover la-sync-details-table">
+                      <tbody>
+                        {{#each sync.sorted_statuses as |status|}}
+                          <tr>
+                            <td>
+                              {{status.key}}
+                              {{#if status.error}}
+                                <div class="text-danger la-sync-details-status-error"><em>{{status.error}}</em></div>
+                              {{/if}}
+                            </td>
+                            <td>
+                              {{#if status.downloaded}}
+                                {{t "downloaded" key="downloaded"}}
+                              {{else if status.re_downloaded}}
+                                {{t "updated" key="re_downloaded"}}
+                              {{else if status.cached}}
+                                {{t "cached (no change)" key="cached_no_change"}}
+                              {{/if}}
+                            </td>
+                          </tr>
+                        {{/each}}
+                      </tbody>
+                    </table>
+                  </div>
+                {{/if}}
+              {{/if}}
+            {{/each}}
+          {{else}}
+            <p class="la-sync-details-muted-block">{{t "No sync details to show" key="no_sync_details"}}</p>
+          {{/if}}
+        </div>
+      {{/if}}
     </div>
     <div class="la-sync-details-modal-footer">
+      <button type="button" class="la-sync-link-btn la-sync-details-technical-toggle" aria-expanded={{if this.show_technical "true" "false"}} aria-controls="la-sync-technical" {{on "click" (this.ctrlAction "toggle_technical")}}>{{t "Technical details (for support)" key="sync_technical_details"}}</button>
       <button type="button" class="la-record-note-cancel-btn" {{on "click" (this.ctrlAction "close")}}>{{t "Close" key="close"}}</button>
     </div>
   </div>

@@ -1,0 +1,24 @@
+// Offline app shell: switched OFF for this environment (OFFLINE_APP_SHELL, lib/offline_shell.rb).
+// This worker replaces any earlier one, deletes the caches it made and unregisters itself. It has no
+// fetch handler, so every request goes to the network as if no worker were installed. It never
+// reloads or navigates a page: someone may be in the middle of a sentence.
+'use strict';
+var CACHE_PREFIX = <%= raw OfflineShell::CACHE_PREFIX.to_json %>;
+
+self.addEventListener('install', function() {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', function(event) {
+  event.waitUntil(
+    caches.keys().then(function(keys) {
+      return Promise.all(keys.filter(function(key) {
+        return key.indexOf(CACHE_PREFIX) === 0;
+      }).map(function(key) {
+        return caches.delete(key);
+      }));
+    }).then(function() {
+      return self.registration.unregister();
+    })
+  );
+});

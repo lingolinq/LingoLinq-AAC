@@ -1,6 +1,7 @@
 import EmberObject from '@ember/object';
 import { get as emberGet } from '@ember/object';
 import LingoLinq from '../app';
+import backend_user_id from './backend_user_id';
 
 /* ──────────────────────────────────────────────────────────────────
    mine_board_grouping
@@ -217,7 +218,7 @@ export function sort_mine(rows, home_key) {
    picker that render tiles rather than rows-with-children. */
 export function transform_mine(flat_boards, user, options) {
   options = options || {};
-  var user_id = user && user.get ? user.get('id') : (user && user.id);
+  var user_id = backend_user_id(user); // backend id, not 'self' (utils/backend_user_id.js)
   var tag_map = user && user.get ? user.get('board_tag_map') : (user && user.board_tag_map);
   var home_key = user && user.get
     ? user.get('preferences.home_board.key')

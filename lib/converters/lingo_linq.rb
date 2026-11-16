@@ -250,7 +250,8 @@ module Converters::LingoLinq
               found = false
               alt_urls.each do |alt_url|
                 next if found
-                req = Typhoeus.head(alt_url)
+                # alt_url is derived from the stored image url, which a user can set.
+                req = SafeHttp.head(alt_url)
                 if req.success?
                   image['fallback_url'] ||= image['url']
                   image['url'] = alt_url

@@ -586,7 +586,7 @@ const AuthenticatedView = Component.extend({
             opts = {user_id: 'self', root: true, per_page: 12};
           } else if(key == 'popular') {
             list = 'popularBoards';
-            opts = {sort: 'home_popularity', per_page: 12, exclude_starred: _this.appState.get('currentUser.id') || 'self', locale: locale};
+            opts = {sort: 'home_popularity', per_page: 12, exclude_starred: backend_user_id(_this.appState.get('currentUser')) || 'self', locale: locale}; // the server does not rewrite 'self' in this param, so send the backend id
           }
           if(!(_this.get(list) || {}).length) {
             _this.set(list, {loading: true});
@@ -666,9 +666,9 @@ const AuthenticatedView = Component.extend({
       var _this = this;
       var model = _this.get('model');
       var for_users = _this.get('current_user_badges') || {};
-      if(model && for_users[model.get('id')]) {
-        var b = _this.best_badge(for_users[model.get('id')], model.get('goal.id'));
-        var eb = _this.earned_badge(for_users[model.get('id')]);
+      if(model && for_users[backend_user_id(model)]) { // badges are keyed by the server's user_id, never 'self'
+        var b = _this.best_badge(for_users[backend_user_id(model)], model.get('goal.id'));
+        var eb = _this.earned_badge(for_users[backend_user_id(model)]);
         if(!this.appState.get('sessionUser.currently_premium') || this.appState.get('sessionUser.supporter_role') || session.get('modeling_session')) {
           b = null;
         }
@@ -1005,7 +1005,7 @@ const AuthenticatedView = Component.extend({
       // first 20 records lets sub-board copies leak through. See utils/board-roots.js
       // / LEARNINGS "visible-tile counts need root clustering".
       var pool = this.get('_fetchedBoards') || this.get('_fetchedPreviewBoards') || [];
-      var fetched = filterRootBoards(pool, this.get('appState.currentUser.id'));
+      var fetched = filterRootBoards(pool, backend_user_id(this.get('appState.currentUser'))); // backend id, not 'self' (utils/backend_user_id.js)
       var seen = {};
       var ordered = [];
       // When a board's display name falls back to its key (no `name`
@@ -1210,7 +1210,7 @@ const AuthenticatedView = Component.extend({
   boardCount: computed('_fetchedBoards.[]', 'appState.currentUser.my_boards.[]', 'appState.currentUser.id', function() {
     var user = this.get('appState.currentUser');
     if (!user) { return 0; }
-    var userId = user.get('id');
+    var userId = backend_user_id(user); // backend id, not 'self' (utils/backend_user_id.js)
     var boards = this.get('_fetchedBoards');
     if (!boards || !boards.length) {
       boards = user.get('my_boards');
@@ -1940,7 +1940,13 @@ AuthenticatedView.reopen({
   init: function() {
     this._super(...arguments);
     var _this = this;
-    this.onSync = function() { _this.send('sync'); };
+    this.onSync = function() {
+      _this.send('sync');
+      // Try Again removes this notice, so the button that had focus is gone. Leave focus on the
+      // dashboard, which is still on the page (#1230).
+      var main = typeof document !== 'undefined' && document.getElementById('dashboard-main');
+      if(main && typeof main.focus === 'function') { main.focus(); }
+    };
   },
   sync_failed_notice: computed('sync_able', 'persistence.{sync_status,root_sync_canceled}', 'stashes.last_sync_status', function() {
     if(!this.get('sync_able')) { return false; }
@@ -1951,7 +1957,14 @@ AuthenticatedView.reopen({
     // A sync the user cancelled ends as failed; they stopped it, so it is not reported.
     if(status) { return status == 'failed' && !this.get('persistence.root_sync_canceled'); }
     return this.get('stashes.last_sync_status') == 'failed';
+  }),
+  // How the running sync is doing (item 8): Basic's home card shares this line (classic-view extends this
+  // component); the Modern page shows the sync in the app-wide drawer instead (components/sync-progress-drawer).
+  sync_progress_line: computed('persistence.sync_progress.{visited,errored,total}', function() {
+    return sync_progress_line(this.get('persistence.sync_progress'));
   })
 });
 
 export default AuthenticatedView;
+import { sync_progress_line } from '../../utils/sync_progress'; // last, so the lint baseline rows above keep their lines
+import backend_user_id from '../../utils/backend_user_id';

@@ -315,6 +315,32 @@ describe JsonApi::User do
       expect(hash['preferences']['device']['long_token']).to eq(nil)
     end
     
+    # Added 2026-11-05 (offline app shell review): preferences.device.long_token is the "Trust this
+    # Device" choice, and the app keeps the offline shell only when it is true for THIS device. A device
+    # with no preferences of its own borrows another device's (same name, same browser), and must not
+    # borrow that device's trust with them: it reports its own setting, nil until it is chosen.
+    it "reports this device's own trust choice, never one borrowed from a same-name device" do
+      u = User.create
+      trusted = Device.create(:user => u, :developer_key_id => 0, :device_key => "1.111 Chrome for Windows")
+      trusted.settings['long_token'] = true
+      trusted.settings['token_history'] = [1, 2, 3, 4]
+      trusted.save
+      fresh = Device.create(:user => u, :developer_key_id => 0, :device_key => "1.222 Chrome for Windows")
+      u.settings['preferences']['devices'][trusted.unique_device_key] = {'long_token' => true, 'voice' => {'pitch' => 1.5}}
+      u.save
+      hash = JsonApi::User.build_json(u, permissions: u, device: fresh)
+      expect(hash['preferences']['device']['voice']).to eq({'pitch' => 1.5}), 'still borrows the other preferences'
+      expect(hash['preferences']['device']['long_token']).to eq(nil)
+
+      fresh.settings['long_token'] = false
+      fresh.save
+      hash = JsonApi::User.build_json(u, permissions: u, device: fresh)
+      expect(hash['preferences']['device']['long_token']).to eq(false)
+
+      hash = JsonApi::User.build_json(u, permissions: u, device: trusted)
+      expect(hash['preferences']['device']['long_token']).to eq(true), 'the trusted device still reports its own choice'
+    end
+
     it "should include prior home boards but not the current home board only when edit permission is available" do
       u = User.create(:settings => {'public' => true})
       u.settings['all_home_boards'] = [{'key' => 'bob/hat', 'id' => '1_3'}, {'key' => 'bob/cat', 'id' => '1_4'}]

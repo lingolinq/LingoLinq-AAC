@@ -8,7 +8,7 @@ export default Route.extend({
   store: service('store'),
   persistence: service('persistence'),
   appState: service('app-state'),
-  model: function(params) {
+  model: function(params, transition) {
     // Check for reserved paths that should be handled by Rails routes
     // These paths (like 'jobby' for Resque, 'cache' for the cache iframe) would
     // otherwise be caught by the Ember router and cause 400/404 when loading as users
@@ -29,7 +29,7 @@ export default Route.extend({
     // Use queryRecord with 'path' to allow the adapter to construct the correct URL
     // while checking for a single record response, avoiding ID mismatch warnings
     // when 'example' redirects to '1_1'
-    var _this = this;
+    var _this = this; this._end_stand_in(); // every navigation starts with no owner from the device, early returns included
     var online = function() {
       return !!(_this && _this.persistence && typeof _this.persistence.get === 'function' && _this.persistence.get('online'));
     };
@@ -53,12 +53,141 @@ export default Route.extend({
       return finish(current);
     }
 
-    return this.store.queryRecord('user', { path: params.user_id }).then(function(data) {
-      // queryRecord just fetched fresh — only refresh if the record is somehow stale
-      // (preserves the prior behaviour for non-self users).
-      if(!data.get('really_fresh')) { bg_reload(data); }
-      return finish(data);
+    var query_server = function(query) {
+      return _this.store.queryRecord('user', Object.assign({ path: params.user_id }, query)).then(function(data) {
+        // queryRecord just fetched fresh — only refresh if the record is somehow stale
+        // (preserves the prior behaviour for non-self users).
+        if(!data.get('really_fresh')) { bg_reload(data); }
+        return finish(data);
+      });
+    };
+
+    // OFFLINE COLD BOOT (the offline app shell, lib/offline_shell.rb, opens the app with no network).
+    // `currentUser` is still null here on a cold boot: it is set from setupController, which Ember
+    // runs after every model hook (utils/session_user_wait.js). queryRecord goes to the network only
+    // (adapters/user.js -> adapters/application.js $.ajax), so offline it can only fail. For the
+    // signed-in user's own page, use the user record read from the device instead: the read
+    // global_transition already started (services/app-state.js `session_user_promise`), or a local
+    // read of our own when none is in flight. Ownership is checked against the session BEFORE
+    // waiting, so signed-out visitors and other users' pages go straight to the server, as before.
+    // The record is used only when it is that user's (a device read can return another account) and it
+    // says this device is trusted: a shared device's record is the last person's, and offline the server
+    // cannot end their session (utils/offline_shell.js device_trust). Only where the offline shell is on,
+    // so the kill switch turns this off too and the native apps, which never set it, are unchanged.
+    // Online, nothing here runs.
+    var session = this.session;
+    var own_page = !!(session && session.get('access_token') && params.user_id &&
+      (params.user_id === session.get('user_name') || params.user_id === session.get('user_id')));
+    if(!online() && own_page && this.offline_shell_on()) {
+      var pending = (this.appState && this.appState.get('session_user_promise')) || this.store.findRecord('user', 'self');
+      return wait_for_session_user(this.appState, { promise: pending, timeout: this.offline_session_wait_ms }).then(function(user) {
+        if(user && (user.get('user_name') === params.user_id || user.get('id') === params.user_id) &&
+            offline_shell.device_trust(user) === 'trusted') {
+          return finish(user);
+        }
+        return query_server();
+      });
+    }
+
+    // A board page with no server (#1213). See _board_page_owner.
+    var boardname = board_target(transition);
+    this._end_stand_in();
+    if(boardname && session && session.get('access_token')) {
+      return this._board_page_owner(params.user_id, boardname, own_page, query_server, finish);
+    }
+
+    return query_server();
+  },
+  // The owner for a board page: the server if it answers in one bounded try, else what the device has.
+  // Only here does a failed lookup change anything, and it would otherwise be the error page, so it runs
+  // wherever that is true, native apps included. A refusal from the server stays a refusal.
+  _board_page_owner: function(user_id, boardname, own_page, query_server, finish) {
+    var _this = this;
+    // With no connection and no owner, the board page cannot start, so its own escape cannot run.
+    var give_up = function(err) {
+      if(_this.persistence.get('online') !== false && !no_connection(err)) { return RSVP.reject(err); }
+      return leave_unsaved_board(_this.router, _this.appState, _this.persistence, boardDetailCache, user_id + '/' + boardname).then(function() {
+        return RSVP.reject({ status: 404, reserved_path: true }); // redirected; see the error action
+      });
+    };
+    var from_device = function() {
+      return _this._device_owner(user_id, boardname, own_page).then(function(owner) {
+        // The patient retry is a server answer too: it clears the shortened-wait note (utils/board_device_copy.js).
+        return owner ? finish(owner) : query_server().then(function(found) { _this.appState.set('device_copy_server_silent_at', null); return found; }, give_up);
+      });
+    };
+    if(!this.persistence.get('online')) { return from_device(); }
+    var started = Date.now();
+    return query_server({ one_try: this.owner_wait_ms }).then(function(owner) {
+      _this.appState.set('device_copy_server_silent_at', null); // the server answered: no shortened wait follows
+      return owner;
+    }, function(err) {
+      if(!no_server_answer(err)) { _this.appState.set('device_copy_server_silent_at', null); return RSVP.reject(err); }
+      // Silent: the board request that follows keeps what is left of the wait (utils/board_device_copy.js).
+      _this.appState.set('device_copy_server_silent_at', started);
+      return from_device();
     });
+  },
+  owner_wait_ms: 8000,
+  // A real record first: supervisees are saved on the device, and speak-as needs theirs. A stand-in only
+  // when this owner's board is on the device. On your own page the record says who was last signed in,
+  // so it needs a trusted device (utils/offline_shell.js device_trust).
+  _device_owner: function(user_id, boardname, own_page) {
+    var _this = this;
+    var named = function(user) { return user && user.get('user_name') === user_id; };
+    // The open database is chosen once per app start, so after a sign-in with no reload it is someone else's.
+    if(!this.persistence.local_db_is_current_user()) { return RSVP.resolve(null); }
+    var trusted = function() { return offline_shell.device_trust(_this.appState.get('sessionUser')) === 'trusted'; };
+    var loaded = this.store.peekAll('user').find(named);
+    var stored = loaded ? RSVP.resolve(loaded) : this.persistence.find('user', user_id).then(function(raw) {
+      return _this.store.push(_this.store.normalize('user', raw));
+    }, function() { return null; });
+    var key = user_id + '/' + boardname;
+    return within(stored, this.offline_session_wait_ms).then(function(user) {
+      if(own_page) { return (named(user) && offline_shell.device_trust(user) === 'trusted') ? user : null; }
+      return wait_for_session_user(_this.appState, { promise: _this.appState.get('session_user_promise'), timeout: _this.offline_session_wait_ms }).then(function() {
+        if(!trusted()) { return null; } // offline the server cannot end a shared device's session
+        if(named(user)) {
+          _this._watch_stand_in();
+          return user;
+        }
+        var memory = boardDetailCache.peek(key);
+        var saved = memory ? RSVP.resolve(memory) : within(_this.persistence.find('board', key), _this.offline_session_wait_ms);
+        return saved.then(function(board) {
+          if(!board || !board.key || board.key.split('/')[0] !== user_id) { return null; }
+          _this._watch_stand_in();
+          return owner_stand_in(user_id);
+        });
+      });
+    }).then(null, function() { return null; });
+  },
+  // An owner found on the device serves board pages only, and Ember keeps a parent's model while its
+  // params are the same, so moving to their other pages must look them up. Watched only while in use.
+  _watch_stand_in: function() {
+    var _this = this;
+    this.set('owner_stand_in', true);
+    if(this._stand_in_watch) { return; }
+    this._stand_in_watch = function(transition) {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      var name = transition && transition.to && transition.to.name;
+      if(name && name.indexOf('user.') === 0 && !is_board_page(name)) {
+        _this._end_stand_in();
+        _this.refresh();
+      }
+    };
+    this.router.on('routeDidChange', this._stand_in_watch);
+  },
+  _end_stand_in: function() {
+    this.set('owner_stand_in', false);
+    if(this._stand_in_watch) { this.router.off('routeDidChange', this._stand_in_watch); }
+    this._stand_in_watch = null;
+  },
+  // How long an offline cold boot waits for the device read above. Offline the fallback can only
+  // fail, so a long wait costs nothing but the signed-in user's own pages.
+  offline_session_wait_ms: 10000,
+  // The page's offline shell setting (layouts/application.html.erb sets window.offline_shell_enabled).
+  offline_shell_on: function() {
+    return offline_shell.setting(typeof window === 'undefined' ? null : window) === 'on';
   },
   session: service('session'),
   /* Publish "whose account is this page" so app-level chrome (the supervising
@@ -73,6 +202,7 @@ export default Route.extend({
     this._super.apply(this, arguments);
     if(isExiting) {
       this.appState.set('page_user', null);
+      this._end_stand_in();
     }
   },
   actions: {
@@ -104,3 +234,8 @@ export default Route.extend({
 
 // Imported last so the `.eslint-todo` rows above keep their lines (as dashboard/authenticated-view.js does).
 import modal from '../utils/modal';
+import { wait_for_session_user } from '../utils/session_user_wait';
+import offline_shell from '../utils/offline_shell';
+import { board_target, is_board_page, no_connection, no_server_answer, owner_stand_in } from '../utils/board_owner';
+import { leave_unsaved_board, within } from '../utils/board_device_copy';
+import boardDetailCache from '../utils/board_detail_cache';

@@ -294,9 +294,11 @@ describe('CreateBoardNewComponent', 'component:create-board-new', function() {
 
     /* The REAL wizard_generate runs, with only its downstream collaborator replaced --
        `generate_labels_with_ai` makes the network call and is not what is under test.
-       Shadowing the actions hash rather than `send` keeps the action itself honest: if
-       it stopped setting the flag, this fails. */
-    it('the AI path hands off through Generate rather than Next', function() {
+       Generate starts the request but no longer hands off: the step stays on screen until
+       the labels arrive (2026-11-13, Traci: no blank card while generating or after a
+       failure). The hand-off on success is covered in
+       tests/integration/create-board-ai-generate-test.js. */
+    it('the AI path starts generating from Generate and keeps the step on screen', function() {
       var c = makeComponent();
       c.set('ai_mode', true);
       c.set('wizard_step', 4);
@@ -304,7 +306,7 @@ describe('CreateBoardNewComponent', 'component:create-board-new', function() {
       c.actions = Object.create(c.actions);
       c.actions.generate_labels_with_ai = function() { generated++; };
       c.send('wizard_generate');
-      expect(c.get('wizard_done')).toEqual(true);
+      expect(c.get('wizard_done')).toEqual(false);
       expect(generated).toEqual(1);
     });
 

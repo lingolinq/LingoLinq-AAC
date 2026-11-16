@@ -652,7 +652,7 @@ export default Service.extend({
       } else if(this.last_selection && this.last_selection.modeling && this.last_selection.ts > ((new Date()).getTime() - 500)) {
         log_event.modeling = true;
       }
-      if(log_event.modeling && session_user_id && session_user_id != user_id) {
+      if(log_event.modeling && session_user_id && !same_person(session_user_id, user_id)) { // both are backend ids (services/app-state.js stashes them so)
         log_event.session_user_id = session_user_id;
       }
       log_event.window_width = window.outerWidth;
@@ -946,3 +946,4 @@ function keep_offline_goal_fields(log_event, obj) {
   }
   return log_event;
 }
+import { same_person } from '../utils/backend_user_id';

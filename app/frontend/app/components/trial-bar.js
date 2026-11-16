@@ -8,6 +8,7 @@ import { copy_or_reuse_as_home, discard_cancelled_copy } from '../utils/board-co
 import { saveHomeBoard } from '../utils/home_board';
 import { basic_try_for, clear_basic_try, after_pick_for_other } from '../utils/board_picker_landing';
 import { preload_board_images } from '../utils/board_preview_warmer';
+import { same_person } from '../utils/backend_user_id';
 
 /**
  * THE TRIAL BAR (2026-10-12). Requested: "Trying a board shows a trial bar, and 'Use this board' opens
@@ -61,9 +62,12 @@ export default Component.extend({
   boardName: computed('board.name', 'trial.name', function() {
     return this.get('trial.name') || this.get('board.name') || '';
   }),
-  forUserName: computed('trial', 'appState.currentUser.id', function() {
+  forUserName: computed('trial', 'appState.currentUser.id', 'appState.sessionUser.id', function() {
     var trial = this.get('trial');
-    if(!trial || !trial.user_id || trial.user_id === this.get('appState.currentUser.id')) { return null; }
+    if(!trial || !trial.user_id) { return null; }
+    // same_person: trial.user_id may be 'self' (an older mark) or a backend id, and currentUser may be the
+    // 'self'-keyed or the real-id-keyed record of the same person (utils/backend_user_id.js).
+    if(same_person(trial.user_id, this.get('appState.currentUser'), this.get('appState.sessionUser'))) { return null; }
     return trial.user_name;
   }),
 
@@ -91,6 +95,17 @@ export default Component.extend({
   _performUse: function() {
     var _this = this;
     var appState = this.get('appState');
+    // A device copy can be older than the server's board, and adopting it posts its buttons (#1213). The board
+    // page hands over its gate (controllers/user/board-detail.js device_copy_gate): offline it says why and
+    // stops; online it fetches the board and stops, so the next tap works. Without a gate (Basic view), stop.
+    if(this.get('deviceCopy')) {
+      var gate = this.get('onDeviceCopy');
+      if(typeof gate !== 'function') {
+        modal.warning(i18n.t('board_action_needs_connection', "This board needs an Internet connection to do that."));
+        return RSVP.resolve();
+      }
+      if(gate()) { return RSVP.resolve(); }
+    }
     var trial = this.get('trial');
     var me = appState.get('currentUser');
     var forOther = !!this.get('forUserName');

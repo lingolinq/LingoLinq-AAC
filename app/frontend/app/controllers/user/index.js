@@ -116,9 +116,9 @@ var UserIndexController = Controller.extend({
      Global id, not user_name: _resolve_setup_user both does
      `store.findRecord('user', user_id)` and compares the param against
      `setup_user.id`, so a handle would re-resolve on every recompute. */
-  homeBoardPickerUserId: computed('model.id', 'appState.currentUser.id', function() {
-    var page_user_id = this.get('model.id');
-    if(!page_user_id || page_user_id === this.get('appState.currentUser.id')) { return null; }
+  homeBoardPickerUserId: computed('model.id', 'model.global_id', 'appState.currentUser.id', 'appState.sessionUser.id', function() {
+    var page_user_id = backend_user_id(this.get('model')); // backend id, never 'self' (utils/backend_user_id.js)
+    if(!page_user_id || same_person(this.get('model'), this.get('appState.currentUser'), this.get('appState.sessionUser'))) { return null; } // 'self'- and real-id-keyed records are one person
     return page_user_id;
   }),
 
@@ -241,7 +241,7 @@ var UserIndexController = Controller.extend({
       return;
     }
     var session_id = this.get('appState.sessionUser.id');
-    var is_self = session_id && this.get('model.id') === session_id;
+    var is_self = !!session_id && same_person(this.get('model'), this.get('appState.sessionUser'), this.get('appState.sessionUser')); // 'self' vs real-id records (utils/backend_user_id.js)
     var is_admin_support = !!this.get('model.permissions.admin_support_actions');
     // Match Api::UsersController#daily_use: own profile or admin-support access only.
     if(!is_self && !is_admin_support) {
@@ -482,7 +482,7 @@ var UserIndexController = Controller.extend({
     // filterBoardsPageTopLevelRoots = filterBrandSetRootBoards(filterRootBoards(...)) —
     // the #375 consolidation of copy_id root filtering + brand key-pattern filtering, so
     // the count/folder summaries match the grid (drops copy_id-less brand sub-boards too).
-    return filterBoardsPageTopLevelRoots(this.get('model.my_boards'), this.get('model.id'));
+    return filterBoardsPageTopLevelRoots(this.get('model.my_boards'), backend_user_id(this.get('model'))); // backend id, not 'self'
   }),
   myBoardsTileCount: computed('myBoardsRoots.[]', function() {
     return (this.get('myBoardsRoots') || []).length;
@@ -764,7 +764,7 @@ var UserIndexController = Controller.extend({
         var was_done = list.done;
         list = filterBrandRoots(list);
         if(root_dedupe) {
-          list = dedupeByName(filterRootBoards(list, this.get('model.id')), {
+          list = dedupeByName(filterRootBoards(list, backend_user_id(this.get('model'))), { // backend id, not 'self'
             preferUserNames: boardsPagePreferUserNames(this.get('appState'))
           });
         }
@@ -813,7 +813,7 @@ var UserIndexController = Controller.extend({
           var bid = String(bidRaw);
           if(bid.match(/-/) && (!emberGet(b, 'copy_id') || emberGet(b, 'copy_id') == bid || emberGet(b, 'copy_id') == bid.split(/-/)[0])) {
             var user_id = bid.split(/-/)[1];
-            if(user_id == _this.get('model.id')) {
+            if(user_id == backend_user_id(_this.get('model'))) { // board ids carry the backend id, never 'self'
               shallow_roots[emberGet(b, 'copy_id') || bid.split(/-/)[0]] = b;
             }
           }
@@ -823,7 +823,7 @@ var UserIndexController = Controller.extend({
           var bidRaw2 = emberGet(b, 'id');
           if (bidRaw2 == null || bidRaw2 === '') { return; }
           var bid = String(bidRaw2);
-          if(bid.match(/-/) && bid.split(/-/)[1] == _this.get('model.id') && emberGet(b, 'copy_id') && shallow_roots[emberGet(b, 'copy_id')]) {
+          if(bid.match(/-/) && bid.split(/-/)[1] == backend_user_id(_this.get('model')) && emberGet(b, 'copy_id') && shallow_roots[emberGet(b, 'copy_id')]) { // backend id, not 'self'
             // Shallow clones are a little trickier to get added as sub-boards to their root
             var shallow = shallow_roots[emberGet(b, 'copy_id')];
             copies[emberGet(shallow, 'id')] = copies[emberGet(shallow, 'id')] || [];
@@ -1035,7 +1035,7 @@ var UserIndexController = Controller.extend({
              filterBoardsPageTopLevelRoots(list). */
           if (!this.get('mineTagFolderDrillIn')) {
             var mineRootIds = Object.create(null);
-            filterBoardsPageTopLevelRoots(list, this.get('model.id')).forEach(function(b) {
+            filterBoardsPageTopLevelRoots(list, backend_user_id(this.get('model'))).forEach(function(b) { // backend id, not 'self'
               if (b) { mineRootIds[String(emberGet(b, 'id'))] = true; }
               var rootGid = b && emberGet(b, 'global_id');
               if (rootGid) { mineRootIds[String(rootGid)] = true; }
@@ -1206,7 +1206,7 @@ var UserIndexController = Controller.extend({
        cannot: there is no signal here to notice it. Such a change surfaces after the TTL
        expires, or after any local mutation. That is the deliberate trade; do not read this
        branch as "the list is current". */
-    if(isMineList && !append && backgroundRefresh && boardsPageListCache.hasFreshSnapshot(_this.get('model.id'))) {
+    if(isMineList && !append && backgroundRefresh && boardsPageListCache.hasFreshSnapshot(backend_user_id(_this.get('model')))) { // snapshot keyed by backend id, not 'self'
       boardsPageListCache.setMineListBusy(false);
       return;
     }
@@ -1254,7 +1254,7 @@ var UserIndexController = Controller.extend({
             delete _this._boards_list_refresh_buffers[bufferKey];
           }
           if(isMineList) {
-            boardsPageListCache.write(_this.get('model.id'), buf);
+            boardsPageListCache.write(backend_user_id(_this.get('model')), buf); // keyed by backend id
             boardsPageListCache.setMineListBusy(false);
           }
         }
@@ -1295,7 +1295,7 @@ var UserIndexController = Controller.extend({
         _this.set(list_name + '.done', true);
         if(isMineList) {
           _this.set(list_name + '.paint_ready', true);
-          boardsPageListCache.write(_this.get('model.id'), _this.get(list_name));
+          boardsPageListCache.write(backend_user_id(_this.get('model')), _this.get(list_name)); // keyed by backend id
           boardsPageListCache.setMineListBusy(false);
         }
       }
@@ -1668,9 +1668,9 @@ var UserIndexController = Controller.extend({
        of inline selection mode. Kept so any stale callers still land on
        the dedicated picker. */
     toggleSetHomeMode: function() {
-      var modelId = this.get('model.id');
+      var modelId = backend_user_id(this.get('model')); // backend id, never 'self'
       var currentId = this.appState.get('currentUser.id');
-      if (modelId && currentId && modelId != currentId) {
+      if (modelId && currentId && !same_person(this.get('model'), this.appState.get('currentUser'), this.appState.get('sessionUser'))) {
         this.get('router').transitionTo('board-picker', { queryParams: { user_id: modelId } });
       } else {
         this.get('router').transitionTo('board-picker');
@@ -1693,7 +1693,7 @@ var UserIndexController = Controller.extend({
       var refreshMine = function() {
         /* Drop the TTL snapshot so update_selected re-queries instead of
            treating the pre-mutation list as still fresh. */
-        boardsPageListCache.clear(_this.get('model.id'));
+        boardsPageListCache.clear(backend_user_id(_this.get('model'))); // keyed by backend id
         _this.update_selected();
       };
       if(action == 'delete') {
@@ -1905,3 +1905,4 @@ export default UserIndexController;
 
 // Imported last so the `.eslint-todo` rows above keep their lines.
 import { foldersLayout } from '../../utils/folders_panel_state';
+import backend_user_id, { same_person } from '../../utils/backend_user_id';

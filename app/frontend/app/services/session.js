@@ -322,7 +322,7 @@ export default Service.extend({
           window.ga('set', 'userId', data.user_id);
           window.ga('send', 'event', 'authentication', 'user-id available');
         }
-        if(_this.appState.get('sessionUser.id') != data.user_id) {
+        if(!same_person(_this.appState.get('sessionUser'), data.user_id)) { // the record keyed 'self' is the same person: refreshing it only reinstalled 'self' (utils/backend_user_id.js)
           runLater(function() {
             _this.appState.refresh_session_user();
           });
@@ -981,3 +981,4 @@ export default Service.extend({
     return this.sign_out_promise;
   }
 });
+import { same_person } from '../utils/backend_user_id';

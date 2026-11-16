@@ -218,17 +218,17 @@ import app_state from './app_state';
         options.headers = options.headers || {};
         options.headers['X-INSTALLED-LINGOLINQ'] = (!!capabilities.installed_app).toString();
         
-        // Resolve token: capabilities first, then session, then stashes (avoids race after login)
-        var token = (capabilities && capabilities.access_token && capabilities.access_token !== 'none' && capabilities.access_token !== '') ? capabilities.access_token : null;
-        if(!token && LingoLinq.session && LingoLinq.session.get && LingoLinq.session.get('access_token')) {
-          token = LingoLinq.session.get('access_token');
-        }
-        if(!token) {
-          var auth = extras.get_stashes().get_object('auth_settings', true);
-          if(auth && auth.access_token && auth.access_token !== 'none' && auth.access_token !== '') {
-            token = auth.access_token;
-          }
-        }
+        // Resolve token: capabilities first, then session, then stashes (avoids race after login).
+        // One definition, utils/request_identity.js request_token: utils/board_download.js keys and
+        // checks a board download by the same token, so a download is never shared across sessions
+        // (Codex review of #1322). Same order and same 'none'/'' handling as the code it replaced.
+        var token = request_token(
+          capabilities,
+          LingoLinq.session,
+          extras.get_stashes()
+        );
+        // (capabilities is updated below when the token came from the session or the stash.)
+        // Keeping capabilities in step keeps later requests, and the board-download key, on this token.
         if(token && capabilities && capabilities.access_token !== token) {
           capabilities.access_token = token;
         }
@@ -677,4 +677,4 @@ extras.get_stashes = function() {
   return extras._services.stashes || stashes;
 };
 
-export default window.lingoLinqExtras;
+export default window.lingoLinqExtras; import { request_token } from './request_identity'; // at the end so no baselined lint row shifts (.eslint-todo)

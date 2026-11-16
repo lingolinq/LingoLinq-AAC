@@ -147,7 +147,7 @@
       "antiClaim": "The Art. 50(2) obligation is NOT closed: this slice marks board generation ONLY. Other AI-output surfaces (generate_focus_words, AiWordPredictor.predict, eval narration, AiPredictionGenerator) are not yet marked, and durable persistence of the marker (board.settings + relinking copy_for) is follow-up. Also distinct from the Art. 50(1) disclosure modal (see cap art50-1-disclosure-modal).",
       "currentEvidence": {
         "file": "lib/ai_board_generator.rb",
-        "line": 149,
+        "line": 177,
         "snippet": "# EU AI Act Article 50(2): mark the board-generation output. The marking"
       },
       "introducedEvidence": {

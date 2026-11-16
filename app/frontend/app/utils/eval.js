@@ -182,7 +182,7 @@ var evaluation = {
     assessment.chimes = settings.chimes;
     if(settings.for_user && !assessment.saved) {
       if(settings.for_user.user_id == 'self') {
-        emberSet(settings.for_user, 'user_id', evaluation.appState.get('currentUser.id'));
+        emberSet(settings.for_user, 'user_id', backend_user_id(evaluation.appState.get('currentUser')) || evaluation.appState.get('currentUser.id')); // the real id: the assessment is logged under it
       }
       assessment.user_id = settings.for_user.user_id;
       assessment.user_name = settings.for_user.user_name;
@@ -203,7 +203,7 @@ var evaluation = {
     // save the evaluation (must match user.log lookup: same id string + optional username alias)
     var evaluated_user_id = assessment.user_id;
     if (evaluated_user_id == null || evaluated_user_id === '') {
-      evaluated_user_id = evaluation.appState.get('currentUser.id');
+      evaluated_user_id = backend_user_id(evaluation.appState.get('currentUser')) || evaluation.appState.get('currentUser.id');
       assessment.user_id = evaluated_user_id;
     }
     evaluated_user_id = String(evaluated_user_id);
@@ -211,7 +211,7 @@ var evaluation = {
     if (assessment.user_name) {
       evaluation.appState.set('last_assessment_for_uname_' + assessment.user_name, assessment);
     }
-    evaluation.stashes.log_event(assessment, assessment.user_id, evaluation.appState.get('sessionUser.id'));
+    evaluation.stashes.log_event(assessment, backend_id_of(assessment.user_id, evaluation.appState.get('sessionUser')) || assessment.user_id, backend_user_id(evaluation.appState.get('sessionUser')) || evaluation.appState.get('sessionUser.id')); // the server drops an event whose user is 'self'
     if(evaluation.persistence.get('online')) {
       evaluation.stashes.push_log();
     } else {
@@ -279,7 +279,7 @@ var evaluation = {
     copy.non_mastery_cutoff = copy.non_mastery_cutoff || non_mastery_cutoff;
     // Exact match beats the ref_id scan whenever we know the record.
     if(opts.log_id) { copy.log_session_id = opts.log_id; }
-    var uid = copy.user_id || opts.user_id;
+    var uid = backend_id_of(copy.user_id || opts.user_id, evaluation.appState.get('sessionUser')) || copy.user_id || opts.user_id;
     if(uid) {
       copy.user_id = uid;
       evaluation.appState.set('last_assessment_for_' + String(uid), copy);
@@ -290,7 +290,7 @@ var evaluation = {
     if(opts.local_only) {
       return RSVP.resolve({queued: false, local_only: true, assessment: copy});
     }
-    evaluation.stashes.log_event(copy, uid, evaluation.appState.get('sessionUser.id'));
+    evaluation.stashes.log_event(copy, uid, backend_user_id(evaluation.appState.get('sessionUser')) || evaluation.appState.get('sessionUser.id'));
     var online = !!evaluation.persistence.get('online');
     if(online) { evaluation.stashes.push_log(); }
     return RSVP.resolve({queued: true, online: online, assessment: copy});
@@ -333,7 +333,7 @@ var evaluation = {
   },
   last_assessment_from_memory: function(userId, userName) {
     if (userId != null && userId !== '') {
-      var byId = evaluation.appState.get('last_assessment_for_' + String(userId));
+      var byId = evaluation.appState.get('last_assessment_for_' + String(backend_id_of(userId, evaluation.appState.get('sessionUser')) || userId)); // written under the real id
       if (byId) { return byId; }
     }
     if (userName) {
@@ -343,7 +343,7 @@ var evaluation = {
   },
   clear_last_assessment_memory: function(userId, userName) {
     if (userId != null && userId !== '') {
-      evaluation.appState.set('last_assessment_for_' + String(userId), null);
+      evaluation.appState.set('last_assessment_for_' + String(backend_id_of(userId, evaluation.appState.get('sessionUser')) || userId), null);
     }
     if (userName) {
       evaluation.appState.set('last_assessment_for_uname_' + userName, null);
@@ -392,9 +392,9 @@ var evaluation = {
   // else the speak-mode/current user (the run_eval launch skips the settings
   // modal, so assessment.user_id can be unset during early play).
   _eval_user_id: function() {
-    var id = (assessment && assessment.user_id) ||
-             evaluation.appState.get('currentUser.id') ||
-             evaluation.appState.get('sessionUser.id');
+    var id = backend_id_of(assessment && assessment.user_id, evaluation.appState.get('sessionUser')) || (assessment && assessment.user_id) ||
+             backend_user_id(evaluation.appState.get('currentUser')) || evaluation.appState.get('currentUser.id') ||
+             backend_user_id(evaluation.appState.get('sessionUser')) || evaluation.appState.get('sessionUser.id');
     return id ? String(id) : '';
   },
   save_progress: function() {
@@ -462,7 +462,7 @@ var evaluation = {
   purge_for_logout: function() {
     var puid = evaluation._get_pointer();
     var uid = evaluation._eval_user_id();
-    [puid, uid].forEach(function(id) {
+    [puid, uid, 'self'].forEach(function(id) { // 'self': a snapshot saved before progress was keyed by the real id
       if(!id) { return; }
       try {
         var p = evaluation.persistence.remove('settings', {id: evaluation.EVAL_PROGRESS_PREFIX + id}, evaluation.EVAL_PROGRESS_PREFIX + id);
@@ -3358,3 +3358,4 @@ evaluation.step_description = function(id, library) {
 export default evaluation;
 // Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
 import { live_service } from './live_service';
+import backend_user_id, { backend_id_of } from './backend_user_id';

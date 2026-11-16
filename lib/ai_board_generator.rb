@@ -84,118 +84,119 @@ module AiBoardGenerator
       scrubbed_prompt = scrub_result[:payload]
       pii_detected = scrub_result[:pii_found]
 
-      system_prompt = <<~PROMPT.strip
-        You are an AAC (Augmentative and Alternative Communication) vocabulary expert.
-        CRITICAL: You MUST output exactly the requested number of words—count them before responding.
-        Output in this exact format:
-        WORDS: word1, word2, word3, ... (comma-separated, all on one line)
-        NAME: Short 2-5 word title only (e.g. "Grinch Christmas Board", "Breakfast Core Words")—NOT a sentence
-        DESCRIPTION: One clear sentence
-      PROMPT
-
       vocabulary_instruction = if include_core_words
         'Include 40-60% high-frequency core words (e.g. I, want, go, more, stop, like, not, help, do, is, it, the, my, turn, fast, slow, yes, no, you) and the rest topic-specific vocabulary from the context.'
       else
         'Focus on topic-specific vocabulary only: nouns, topic verbs, descriptors, and phrases unique to that context. Do NOT include generic core words like I, want, go, more, help, yes, no.'
       end
-      user_prompt = <<~PROMPT.strip
-        Generate exactly #{cell_count} words for an AAC board. CRITICAL: Output exactly #{cell_count} comma-separated words after WORDS: —no more, no fewer. Count to verify.
-        Context: #{scrubbed_prompt}
-        Language: #{locale}
-        #{vocabulary_instruction}
-        Format:
-        WORDS: w1, w2, w3, ... w#{cell_count}
-        NAME: Short title (2-5 words, e.g. "Grinch Christmas Board")
-        DESCRIPTION: One sentence about the board's purpose.
-      PROMPT
 
       provider = api_config[:provider]
       region = api_config[:region]
       model = api_config[:model]
       start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      tokens_sent = 0
+      tokens_received = 0
+      topup_note = nil
+      pii_findings = Array(scrub_result[:findings])
 
       begin
-        last_raw = nil
-        last_response = nil
-        last_payload = { words: [], name: nil, description: nil }
+        # A numbered list, one item per line. Asked for as one comma-separated line, the model
+        # missed the count on most replies (63 to 125 for 64 or 100 cells); numbered, it hit it
+        # in 12 of 12 (docs/task-management/2026-11-13_ai-board-word-count.md).
+        first = call_anthropic(region: region, model: model,
+                               system_prompt: board_system_prompt(cell_count),
+                               user_prompt: board_user_prompt(cell_count, scrubbed_prompt, locale, vocabulary_instruction),
+                               cell_count: cell_count)
+        tokens_sent += first.usage&.input_tokens.to_i
+        tokens_received += first.usage&.output_tokens.to_i
+        reply = read_board_reply(first, cell_count)
+        words = reply[:items]
+        last_raw = reply[:raw]
 
-        2.times do |attempt|
-          prompt_turn = attempt.zero? ? user_prompt : "#{user_prompt}#{board_retry_nudge(cell_count)}"
-          last_response = call_anthropic(region: region, model: model, system_prompt: system_prompt,
-                                         user_prompt: prompt_turn, cell_count: cell_count)
-
-          raw = extract_content_anthropic(last_response)
-          raw = raw.to_s.delete("\uFEFF").strip  # Strip BOM and normalize
-          raw = strip_markdown_code_fence(raw)   # Claude may wrap in ``` blocks
-          last_raw = raw
-          last_payload = structured_parse_payload(raw, cell_count)
-          words = last_payload[:words]
-
-          if words.length >= cell_count
-            duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
-            log_params = {
-              provider: provider.to_s,
-              model: model,
-              user: user,
-              request_summary: "Board generation: #{scrubbed_prompt.truncate(200)}",
-              response_summary: raw.truncate(500),
-              duration_ms: duration_ms,
-              pii_detected: pii_detected,
-              pii_findings: scrub_result[:findings],
-              success: true
-            }
-            log_params[:tokens_sent] = last_response.usage&.input_tokens
-            log_params[:tokens_received] = last_response.usage&.output_tokens
-            # EU AI Act Article 50(2): mark the board-generation output. The marking
-            # is NOT feature-flag-gated (only the Article 50(1) disclosure is); within
-            # this path every successful AI output is marked. SCOPE: this slice marks
-            # board generation only. Other AI-output surfaces are NOT yet marked and are
-            # tracked follow-up: generate_focus_words (below; persists via AiFocusWordSet
-            # cache), AiWordPredictor.predict, eval narration, AiPredictionGenerator.
-            # Durable persistence of this marker (board.settings + relinking copy_for)
-            # is also follow-up; see boards_controller#generate_labels. Until those land,
-            # do not record the Article 50(2) obligation as closed.
-            # ai_generated_content_id is a best-effort link to this output's AiApiLog
-            # row; under alert-but-continue an audit-write failure is alerted (loud) but
-            # the marker is still returned, so a valid marker does not by itself prove a
-            # persisted audit row.
-            marker = Art50Marker.build(provider: provider.to_s, model: model)
-            log_params[:ai_content_marked] = true
-            log_params[:ai_generated_content_id] = marker['content_id']
-            log_ai_call(**log_params)
-            return {
-              words: words.first(cell_count),
-              name: last_payload[:name].presence,
-              description: last_payload[:description].presence,
-              ai_generated: marker,
-              error: nil
-            }
+        # One top-up for only the missing words, instead of asking for the whole list again. It
+        # gets the words already chosen as a do-not-repeat list. A failure here keeps the first
+        # reply's words: the board is never refused for a shortfall.
+        missing = cell_count - words.length
+        # A refusal is not asked again in other words: on a children's product that would be
+        # working around the model's safety decision.
+        if missing.positive? && reply[:declined]
+          topup_note = "no top-up (declined), missing #{missing}"
+        elsif missing.positive? && topup_time_left?(start_time)
+          begin
+            # The do-not-repeat list is model output from an already scrubbed prompt; it is scrubbed
+            # again before it goes out, and a hit there is recorded on the audit row too.
+            list_scrub = PiiScrubber.redact_for_ai(words.join(', '))
+            pii_detected ||= list_scrub[:pii_found]
+            pii_findings += Array(list_scrub[:findings])
+            topup = call_anthropic(region: region, model: model,
+                                   system_prompt: board_system_prompt(missing, topup: true),
+                                   user_prompt: topup_user_prompt(missing, scrubbed_prompt, locale, vocabulary_instruction, list_scrub[:payload]),
+                                   cell_count: missing,
+                                   request_options: topup_request_options(start_time))
+            tokens_sent += topup.usage&.input_tokens.to_i
+            tokens_received += topup.usage&.output_tokens.to_i
+            added = read_board_reply(topup, missing)[:items]
+            words = unique_items(words + added)
+            topup_note = "top-up requested #{missing}, received #{added.length}"
+          rescue StandardError => e
+            topup_note = "top-up requested #{missing}, failed #{e.class}"
+            Rails.logger.warn "AiBoardGenerator top-up failed: #{e.class}"
           end
-
-          break if attempt == 1
+        elsif missing.positive?
+          topup_note = "top-up skipped (time budget), missing #{missing}"
         end
+        words = words.first(cell_count)
+        shortfall = cell_count - words.length
 
         duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
-        wc = last_payload[:words].length
-        Rails.logger.warn "AiBoardGenerator parse/shortfall (wc=#{wc}, cells=#{cell_count}, raw_len=#{last_raw.to_s.length})"
+        # Notes first: the row keeps 500 characters and a numbered reply is longer than that.
+        summary = [topup_note, (shortfall.positive? ? "shortfall #{shortfall} of #{cell_count}" : nil), last_raw.to_s].compact.join(' | ')
         log_params = {
           provider: provider.to_s,
           model: model,
           user: user,
           request_summary: "Board generation: #{scrubbed_prompt.truncate(200)}",
-          response_summary: last_raw.to_s.truncate(500),
+          response_summary: summary.truncate(500),
           duration_ms: duration_ms,
           pii_detected: pii_detected,
-          pii_findings: scrub_result[:findings],
-          success: false
+          pii_findings: pii_findings,
+          tokens_sent: tokens_sent,
+          tokens_received: tokens_received,
+          success: words.any?
         }
-        if last_response
-          log_params[:tokens_sent] = last_response.usage&.input_tokens
-          log_params[:tokens_received] = last_response.usage&.output_tokens
-        end
-        log_ai_call(**log_params)
 
-        return parse_shortfall_response(last_raw, cell_count, wc)
+        if words.empty?
+          Rails.logger.warn "AiBoardGenerator: no usable words (cells=#{cell_count}, raw_len=#{last_raw.to_s.length})"
+          log_ai_call(**log_params)
+          result = { words: nil, name: nil, description: nil,
+                     error: "The AI did not return any usable words. Try Generate again." }
+          result.merge!(dev_diag(:parse_error, "No numbered or WORDS: lines. First 400 chars: #{last_raw.to_s.truncate(400).inspect}")) if Rails.env.development?
+          return result
+        end
+
+        # EU AI Act Article 50(2): mark the board-generation output. The marking is NOT
+        # feature-flag-gated (only the Article 50(1) disclosure is); every delivered output on
+        # this path is marked, a partial list included. SCOPE: this slice marks board generation
+        # only. Other AI-output surfaces are NOT yet marked and are tracked follow-up:
+        # generate_focus_words (below; persists via AiFocusWordSet cache), AiWordPredictor.predict,
+        # eval narration, AiPredictionGenerator. Durable persistence of this marker
+        # (board.settings + relinking copy_for) is also follow-up; see
+        # boards_controller#generate_labels. Until those land, do not record the Article 50(2)
+        # obligation as closed. ai_generated_content_id is a best-effort link to this output's
+        # AiApiLog row; under alert-but-continue an audit-write failure is alerted (loud) but the
+        # marker is still returned, so a valid marker does not by itself prove a persisted row.
+        marker = Art50Marker.build(provider: provider.to_s, model: model)
+        log_params[:ai_content_marked] = true
+        log_params[:ai_generated_content_id] = marker['content_id']
+        log_ai_call(**log_params)
+        return {
+          words: words,
+          shortfall: shortfall,
+          name: reply[:name],
+          description: reply[:description],
+          ai_generated: marker,
+          error: nil
+        }
       rescue Anthropic::Errors::APIError => e
         duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
         log_ai_call(
@@ -204,7 +205,7 @@ module AiBoardGenerator
           user: user,
           request_summary: "Board generation: #{scrubbed_prompt.truncate(200)}",
           response_summary: nil, duration_ms: duration_ms,
-          pii_detected: pii_detected, pii_findings: scrub_result[:findings],
+          pii_detected: pii_detected, pii_findings: pii_findings,
           success: false, error_message: e.message
         )
         Rails.logger.error "AiBoardGenerator Claude API error: #{e.message}"
@@ -218,7 +219,7 @@ module AiBoardGenerator
           user: user,
           request_summary: "Board generation: #{scrubbed_prompt.truncate(200)}",
           response_summary: nil, duration_ms: duration_ms,
-          pii_detected: pii_detected, pii_findings: scrub_result[:findings],
+          pii_detected: pii_detected, pii_findings: pii_findings,
           success: false, error_message: e.message
         )
         Rails.logger.error "AiBoardGenerator API HTTP error: #{e.message}"
@@ -232,11 +233,26 @@ module AiBoardGenerator
           user: user,
           request_summary: "Board generation: #{scrubbed_prompt.truncate(200)}",
           response_summary: nil, duration_ms: duration_ms,
-          pii_detected: pii_detected, pii_findings: scrub_result[:findings],
+          pii_detected: pii_detected, pii_findings: pii_findings,
           success: false, error_message: "#{e.class}: #{e.message}"
         )
         Rails.logger.error "AiBoardGenerator error: #{e.class}: #{e.message}"
         api_error_response('Generation failed', e, kind: :unexpected, provider: provider, model: model)
+      rescue Exception => e # rubocop:disable Lint/RescueException
+        # Rack::Timeout raises outside StandardError. The prompt has already gone out, so the audit
+        # row is written before the timeout carries on up.
+        duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round
+        log_ai_call(
+          provider: provider.to_s,
+          model: model,
+          user: user,
+          request_summary: "Board generation: #{scrubbed_prompt.truncate(200)}",
+          response_summary: nil, duration_ms: duration_ms,
+          pii_detected: pii_detected, pii_findings: pii_findings,
+          tokens_sent: tokens_sent, tokens_received: tokens_received,
+          success: false, error_message: e.class.to_s
+        )
+        raise
       end
     end
 
@@ -523,15 +539,114 @@ module AiBoardGenerator
       { words: words, title: title.presence }
     end
 
-    def board_retry_nudge(cell_count)
-      <<~NUDGE
+    # Board replies come back as a numbered list ("1. apple"). Unicode digits, "1)" and "1、",
+    # Markdown emphasis, list bullets and code fences are all seen in practice.
+    BOARD_ITEM_LINE = /\A\s*(?:[-*\u2022]\s*)?(?:\*\*)?\s*\p{Nd}+\s*(?:\*\*)?\s*[.)\u3001\uFF0E:\uFF1A]\s*(?:\*\*)?\s*(.+?)\s*\z/
+    NAME_OR_DESCRIPTION = /\A\s*(?:name|description)\s*:/i
+    TOPUP_TIME_BUDGET_SECONDS = 8
+    TOPUP_DEADLINE_SECONDS = 12.0
 
+    def board_system_prompt(count, topup: false)
+      what = topup ? "#{count} NEW vocabulary items, none of them already on the board" : "exactly #{count} different vocabulary items"
+      lines = [
+        'You are an AAC (Augmentative and Alternative Communication) vocabulary expert.',
+        "List #{what} as a numbered list, one item per line, numbered 1 to #{count}.",
+        'Each item is a single word or a short phrase, with no commas. Do not repeat an item.'
+      ]
+      lines += ['Then give:', 'NAME: Short 2-5 word title only (e.g. "Grinch Christmas Board", "Breakfast Core Words")--NOT a sentence',
+                'DESCRIPTION: One clear sentence'] unless topup
+      lines.join("\n")
+    end
 
-        CRITICAL: Your previous reply did not include exactly #{cell_count} comma-separated vocabulary items on the WORDS: line. Reply again with:
-        - One WORDS: line containing exactly #{cell_count} entries (count before sending)
-        - Then NAME: and DESCRIPTION: on separate lines
-        Do not stop after a partial list.
-      NUDGE
+    def board_user_prompt(count, scrubbed_prompt, locale, vocabulary_instruction)
+      <<~PROMPT.strip
+        Generate #{count} different words or short phrases for an AAC board.
+        Context: #{scrubbed_prompt}
+        Language: #{locale}
+        #{vocabulary_instruction}
+        Format:
+        1. first item
+        2. second item
+        ...
+        #{count}. last item
+        NAME: Short title (2-5 words, e.g. "Grinch Christmas Board")
+        DESCRIPTION: One sentence about the board's purpose.
+      PROMPT
+    end
+
+    # `already` is the scrubbed do-not-repeat list (see the top-up in generate_words).
+    def topup_user_prompt(count, scrubbed_prompt, locale, vocabulary_instruction, already)
+      <<~PROMPT.strip
+        Generate #{count} more words or short phrases for the same AAC board.
+        Context: #{scrubbed_prompt}
+        Language: #{locale}
+        #{vocabulary_instruction}
+        Already on the board, do not repeat any of these: #{already}
+        Format:
+        1. first new item
+        ...
+        #{count}. last new item
+      PROMPT
+    end
+
+    def topup_time_left?(start_time)
+      (Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) < TOPUP_TIME_BUDGET_SECONDS
+    end
+
+    # The top-up must finish inside the request limit (Rack::Timeout, 15-16 s), or the first
+    # reply's words are lost with the timeout. It gets what is left of a 12 s deadline and no
+    # automatic retries.
+    def topup_request_options(start_time)
+      left = TOPUP_DEADLINE_SECONDS - (Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time)
+      { timeout: [left, 1.0].max, max_retries: 0 }
+    end
+
+    # Items, NAME and DESCRIPTION from one reply. Numbered lines first; failing that, an explicit
+    # WORDS: line. Anything else yields no items, so an off-format reply (bullets, a refusal) is
+    # never turned into labels. A reply cut off at the token limit loses its last item only when
+    # it ends on that item. A reply that is mostly numbered sentences is an explanation or a soft
+    # refusal, not vocabulary, and is `declined`.
+    def read_board_reply(response, expected_count)
+      raw = strip_markdown_code_fence(extract_content_anthropic(response).to_s.delete("\uFEFF").strip)
+      stop = response.respond_to?(:stop_reason) ? response.stop_reason.to_s : ''
+      lines = raw.lines.map { |l| tidy_item(l) }.reject { |l| l.blank? || l.start_with?('```') }
+      items = lines.filter_map { |l| (m = BOARD_ITEM_LINE.match(l)) && m[1] }
+      if items.empty? && raw =~ /^\s*words:/i
+        items = structured_parse_payload(raw, expected_count)[:words]
+      end
+      if stop == 'max_tokens' && items.any? && BOARD_ITEM_LINE.match?(lines.last.to_s)
+        items = items[0...-1]
+      end
+      items = items.reject { |i| i =~ NAME_OR_DESCRIPTION }
+                   .flat_map { |i| i.split(/[,;]/) }
+                   .map { |i| tidy_item(i.gsub(/\*\*|__|`/, '')) }
+                   .reject(&:blank?)
+      sentences = items.count { |i| sentence_like?(i) }
+      declined = stop == 'refusal' || (items.any? && sentences * 2 > items.length)
+      items = declined ? [] : items.reject { |i| sentence_like?(i) }
+      { items: unique_items(items), name: labelled_line(lines, 'name'),
+        description: labelled_line(lines, 'description'), raw: raw, declined: declined }
+    end
+
+    # Board items are words or short phrases. A long or sentence-shaped line is prose.
+    def sentence_like?(item)
+      item.length > 40 || item.split.length > 6 || (item.split.length > 3 && item.match?(/[.?!]\z/))
+    end
+
+    # One `NAME:` or `DESCRIPTION:` line, kept to that line so numbered items after it are not
+    # swallowed into it.
+    def labelled_line(lines, label)
+      line = lines.find { |l| l =~ /\A#{label}\s*:/i }
+      line && line.sub(/\A#{label}\s*:\s*/i, '').strip.presence
+    end
+
+    # strip only removes ASCII whitespace; no-break spaces and zero-width marks also end up here.
+    def tidy_item(text)
+      text.to_s.gsub(/\A[\p{Space}\p{Cf}]+|[\p{Space}\p{Cf}]+\z/, '')
+    end
+
+    def unique_items(items)
+      items.reject(&:blank?).uniq { |i| i.downcase.strip }
     end
 
     def focus_retry_nudge(word_count)
@@ -564,14 +679,16 @@ module AiBoardGenerator
       }
     end
 
-    def call_anthropic(region:, model:, system_prompt:, user_prompt:, cell_count:)
+    def call_anthropic(region:, model:, system_prompt:, user_prompt:, cell_count:, request_options: nil)
       client = AiClient.build!
-      client.messages.create(
+      params = {
         model: model,
         max_tokens: completion_max_tokens(cell_count),
         system: system_prompt,
         messages: [{ role: 'user', content: user_prompt }]
-      )
+      }
+      params[:request_options] = request_options if request_options
+      client.messages.create(**params)
     end
 
     def extract_content_anthropic(response)
@@ -601,23 +718,6 @@ module AiBoardGenerator
       s = raw.strip
       s = s.sub(/\A```\w*\n?/, '').sub(/\n?```\z/, '') if s.start_with?('```')
       s.strip
-    end
-
-    def parse_shortfall_response(raw, cell_count, word_count)
-      min_bar = cell_count / 2
-      friendly = if word_count >= min_bar && word_count < cell_count
-        "The AI returned an incomplete word list (#{word_count} of #{cell_count}). Try Generate again, or use fewer rows or columns."
-      elsif word_count.positive?
-        "The AI returned too few words for this board (#{word_count}/#{cell_count}). Try fewer rows or columns, or tap Generate again."
-      else
-        'Could not parse AI response'
-      end
-      result = { words: nil, name: nil, description: nil, error: friendly }
-      if Rails.env.development?
-        detail = "After 2 attempts: word_count=#{word_count}, cell_count=#{cell_count}, min_bar=#{min_bar}. First 400 chars: #{raw.to_s.truncate(400).inspect}"
-        result.merge!(dev_diag(:parse_error, detail))
-      end
-      result
     end
 
     # Completion output budget: medium/large boards need headroom; 1024 was too low for many models.

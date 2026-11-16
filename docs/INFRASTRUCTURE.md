@@ -218,6 +218,143 @@ head SHA and run URL with the rollout evidence.
   host on the nonprod topic (staging and dev share one database). Convert_* still logs
   and returns false when the Role is unset.
 
+### SES events and alarms
+
+- **Pipeline.** Every environment sets `SES_CONFIGURATION_SET=lingolinq-transactional`
+  (`APP_ENV_VARS_STATIC` in `deploy-cloudrun.yml`), so `SesConfigurationSetInterceptor`
+  (`config/initializers/amazon_ses.rb`) tags all mail, staging included. The configuration
+  set publishes SEND, REJECT, BOUNCE, COMPLAINT, DELIVERY and DELIVERY_DELAY to SNS topic
+  `lingolinq-ses-events` (us-west-2). Two SQS queues subscribe to it:
+  - `lingolinq-ses-events`: every event, 14-day retention, no raw delivery. Nothing reads
+    it: it is the per-message delivery record finding LL-42a24ee911 asked for. Provisioned
+    by `scripts/gcp/phase5-ses-config-set-setup.sh`.
+  - `lingolinq-ses-feedback`: only Bounce and Complaint (`FilterPolicyScope=MessageBody`,
+    `FilterPolicy {"eventType":["Bounce","Complaint"]}`), 14-day retention, raw delivery
+    off, with dead-letter queue `lingolinq-ses-feedback-dlq` after 24 receives (about a day
+    of hourly runs). Provisioned by `scripts/gcp/ses-feedback-queue-setup.sh`
+    (`--dry-run`, `--apply`, `--check`).
+- **Consumer.** `SesEventsWorker` (`app/workers/ses_events_worker.rb`) reads
+  `lingolinq-ses-feedback` in the hourly block of `scheduler:dispatch`, up to 100 receives
+  of 10 messages per run. Permanent bounces (every subtype, including
+  `OnAccountSuppressionList`) call `UserMailer.bounce_email`, which turns email off for
+  every user with that address and records `email_disabled_reason: 'bounce'` and
+  `email_disabled_at` (only when the flag goes from off to on; PaperTrail whodunnit
+  `system:ses-events`), on a locked row without moving `updated_at`, which is the inactivity
+  sweep's activity clock. An account already off for another reason is left alone. Only
+  addresses in the event's `mail.destination` are acted on: `bouncedRecipients` can come
+  from the bouncing server's own report.
+  Complaints are counted but not acted on (owner decision, 2026-11-09). Transient bounces
+  are deleted without action. Malformed messages are counted and deleted. A message whose
+  handling raised stays on the queue for the next run, and the task then fails so the
+  execution goes red. Logs carry counts and event types only. Parsing:
+  `app/models/ses_event.rb`. Changing a user's email to a different address clears the
+  flag, reason and time (`User#process_params`).
+- **Env var.** `SES_EVENTS_QUEUE_URL` (GitHub environment variable
+  `APP_SES_EVENTS_QUEUE_URL`), optional; unset means the worker is a no-op. Set it in the
+  **production** environment only: staging events reach the same queues, and two
+  consumers would split one. A production consumer acting on a staging bounce is
+  accepted, because a permanent bounce is a property of the mailbox. Value after rollout:
+  `https://sqs.us-west-2.amazonaws.com/239044785114/lingolinq-ses-feedback`. Never set it
+  by hand on the service or Job; the next deploy's `--set-env-vars` removes it.
+- **IAM.** `scripts/gcp/iam/lingolinq-cloudrun-s3-ses-policy.json` statement
+  `SQSConsumeSesEventsQueue` grants `sqs:ReceiveMessage`, `sqs:DeleteMessage` (also covers
+  `DeleteMessageBatch`) and `sqs:GetQueueAttributes` to `lingolinq-cloudrun-prod`. During
+  the rollout it lists both queues; the last rollout step removes `lingolinq-ses-events`.
+  The repo file is a mirror; apply it as a new policy version.
+- **Alarms.** `scripts/gcp/ses-reputation-alarms.sh` (`--dry-run`, `--apply`, `--check`)
+  creates SNS topic `lingolinq-ses-alarms` with an email subscription (recipient from
+  `ALARM_EMAIL` or `--email`) and five CloudWatch alarms: `Reputation.BounceRate >= 0.02`
+  (AWS reviews at 5%, may pause at 10%), `Reputation.ComplaintRate >= 0.0005` (AWS reviews
+  at 0.1%, may pause at 0.5%), `ApproximateAgeOfOldestMessage >= 3h` on
+  `lingolinq-ses-feedback` (the consumer is not draining it), any message on the DLQ, and
+  `NumberOfNotificationsFailed >= 1` on the topic (SNS could not deliver to a queue and
+  does not retry). The stale alarm does not catch one message that keeps failing (SQS
+  drops a message received 3 or more times from that metric); the DLQ alarm does. The
+  subscription delivers nothing until its confirmation link is clicked.
+- **Send-failure alert (GCP).** `scripts/gcp/prod-mail-failure-alert.{json,sh}`
+  (`--check`, `--apply`): a log-match policy on `[inactivity sweep] mail stopped`,
+  `SES delivery failed`, and `[job failed] <Mailer> . deliver_message` from the scheduler Job,
+  the web service and the worker pool, on the scheduler liveness alert's proven channel.
+  Every failed Resque job logs `[job failed] <class> . <method> <error class>`
+  (`lib/job_failure_log.rb`, a Resque failure hook on `Worker` and `SlowWorker`; no
+  arguments or error message). Confirm once that app logs are `textPayload` (the command is
+  in the script header).
+- **Moving messages out of the DLQ.** After fixing the cause, an admin principal runs
+  `aws sqs start-message-move-task --source-arn arn:aws:sqs:us-west-2:239044785114:lingolinq-ses-feedback-dlq --region us-west-2`
+  (no destination: messages go back to the queue they came from), and checks progress with
+  `aws sqs list-message-move-tasks --source-arn <same>`. A DLQ message keeps its original
+  enqueue time, so it expires 14 days after SES published it. Do not inspect it with
+  `receive-message`: each receive counts.
+- **What `email_disabled` suppresses**: every mail sent through `General#mail_message` via
+  `Notifiable#channels_for`, except `password_changed`, `email_changed`,
+  `email_changed_prior_address` and `forgot_password`. `Api::UsersController#forgot_password`
+  sends a reset to an account whose email a bounce turned off (owner decision, 2026-11-09)
+  and to no other disabled account; demo logins carry reason `demo`
+  (`DemoDistrict::Seeder.disable_email!`). The inactivity sweep still proceeds for an
+  account whose notice is not sent, and writes AuditEvent `inactivity_notice_not_sent` with
+  the step and reason (`email_disabled` or `no_address`). Mail sent with `mail(...)`
+  directly (parental consent, `login_no_user`, `utterance_share`, `lesson_assigned`, admin
+  mail) is not gated. Full list: `docs/task-management/2026-10-14_ses-bounce-handling.md`.
+
+**Production rollout order** (each step only after the one before it is verified):
+
+1. `scripts/gcp/ses-feedback-queue-setup.sh --dry-run`, then `--apply`, then `--check`
+   (admin principal). From here the new queue collects bounces and complaints; the old
+   queue keeps everything. The same run adds a topic-policy Deny so only the
+   `lingolinq-transactional` configuration set can publish to `lingolinq-ses-events` (the
+   consumer acts on whatever arrives, so any other publisher could forge a bounce). Confirm
+   SES events still arrive after it: send one mail from the app and check that
+   `ApproximateNumberOfMessages` on `lingolinq-ses-events` goes up. If it does not, remove the
+   `DenyPublishExceptSesConfigSet` statement and stop.
+2. Apply the IAM policy (both queues) as a new default version of `lingolinq-cloudrun-s3-ses`
+   (admin principal with MFA; see `scripts/gcp/iam/README.md`). Diff the live default
+   version against the repo file first, then
+   `aws iam create-policy-version --policy-arn arn:aws:iam::239044785114:policy/lingolinq-cloudrun-s3-ses --policy-document file://lingolinq-cloudrun-s3-ses-policy.json --set-as-default`.
+   A managed policy keeps at most five versions; delete the oldest non-default one first if
+   needed.
+3. **Gate:** read the SES account's suppression setting:
+   `aws sesv2 get-account --region us-west-2 --query SuppressionAttributes`. Do not go on
+   until the owner has seen the answer. If `BOUNCE` is listed, SES drops mail to a suppressed
+   address without sending it (and without counting it against reputation), so the reset a
+   bounce-disabled user asks for will not arrive. If `BOUNCE` is NOT listed, every reset to a
+   bounced address is a new hard bounce that counts toward `Reputation.BounceRate`; resets
+   are capped at 6 per account per window (`Passwords#generate_password_reset`), but the
+   owner decides whether that is acceptable before the code ships.
+   **Result (2026-11-12, read by Scot in the SES console):** the account-level setting
+   suppresses both bounces and complaints. Not yet read: whether the `lingolinq-transactional`
+   configuration set overrides it (SES console, Configuration sets, Suppression list options,
+   or `aws sesv2 get-configuration-set --configuration-set-name lingolinq-transactional --region us-west-2 --query SuppressionOptions`).
+   `scripts/gcp/phase5-ses-config-set-setup.sh` sets no override, so the account setting
+   applies unless one was added by hand; confirm before step 4. With the account setting in
+   force, a reset sent to a bounced address is accepted, not delivered, and does not count
+   toward `Reputation.BounceRate` (it still counts toward the daily sending quota). A
+   bounce-disabled user recovers when the address is changed to a different one, which clears
+   the flag: the user (while signed in), a supervisor with edit permission, a full
+   organization manager, or a site admin can change it on the profile edit page; full
+   organization managers and site admins can also set a password in Support Actions
+   (`app/models/user.rb:86,88`, `users_controller.rb:210`). A complaint does not turn email
+   off, and neither does later mail to that address: SES reports it as a Complaint event with
+   `complaintSubType` `OnAccountSuppressionList`, which the consumer counts and ignores
+   (`app/models/ses_event.rb` `classify_complaint`). Whether that subtype should turn email
+   off is an open owner decision.
+4. Merge and release the code to `main`. With the variable unset, the scheduler logs
+   `process_ses_events ... skipped`.
+5. Drain the old queue's backlog once: set `APP_SES_EVENTS_QUEUE_URL` in the `production`
+   environment to the OLD queue
+   (`https://sqs.us-west-2.amazonaws.com/239044785114/lingolinq-ses-events`) and deploy.
+   Watch the hourly `[process_ses_events]` and `[SES events]` lines until a run shows
+   `failed 0` and receives fewer than 1000 messages. Real bounces in the backlog will turn
+   those users' email off. This run deletes the old queue's messages, the one time it does.
+6. Switch the variable to `lingolinq-ses-feedback` and deploy. Events published since step 1
+   were on both queues; handling one twice is harmless (`bounce_email` skips an account
+   already off).
+7. `ALARM_EMAIL=<address> scripts/gcp/ses-reputation-alarms.sh --dry-run`, then `--apply`,
+   click the confirmation link, and run `--check`.
+8. `scripts/gcp/prod-mail-failure-alert.sh --apply`, then `--check`, after confirming the
+   `textPayload` assumption in its header.
+9. Remove `lingolinq-ses-events` from the IAM statement (repo file and a new policy version)
+   once a run on the new queue shows `failed 0`.
+
 ## Background jobs (Resque)
 
 Queues: `priority` (board downloads/exports, Progress actions, translations), `default`,
@@ -281,6 +418,33 @@ Required for each web service and its worker: `DATABASE_URL`, `REDIS_URL`,
 `AWS_SECRET`, `UPLOADS_S3_BUCKET`, `STATIC_S3_BUCKET`, `DEFAULT_HOST`,
 `SECRET_KEY_BASE`, `SECURE_ENCRYPTION_KEY`, `SECURE_NONCE_KEY`, `COOKIE_KEY`. See
 `.env.example` for the full list and the deploy workflow header for which are secrets.
+
+### Offline app shell (`OFFLINE_APP_SHELL`)
+
+Lets the web app open with no network once it has been added to a Home Screen and has synced
+(`lib/offline_shell.rb`). Rails serves a service worker at `/sw.js` that keeps a copy of a generic app
+page (`/offline-shell`) and the files it loads; board data is already on the device.
+
+- **Trusted devices only.** Even when it is on, the app keeps the worker only on a device the
+  signed-in user chose "Trust this Device" for. Signing in as "This is a Shared Device" removes the
+  worker and its copy, so a shared device does not open offline (offline, nothing can end the last
+  person's session there).
+- **Setting:** `OFFLINE_APP_SHELL=on` on the web service turns it on; unset or any other value is off.
+  It comes from the GitHub environment variable `APP_OFFLINE_APP_SHELL` (Settings > Environments >
+  dev / staging / production > Environment variables) through `deploy-cloudrun.yml`. Roll out dev
+  first, then staging, then production.
+- **Turning it off (the kill switch):** set `APP_OFFLINE_APP_SHELL` to `off` (or delete it) and redeploy;
+  the deploy moves traffic to the new revision after its health probe. `gcloud run services update
+  --update-env-vars OFFLINE_APP_SHELL=off` on its own changes nothing users see: the service serves a
+  revision pinned by name (see the deploy section), so the update makes a new revision with no traffic.
+  To skip the deploy anyway, follow it with `gcloud run services update-traffic <web service> --region
+  us-central1 --to-revisions <new revision>=100` (this skips the health probe), and change the GitHub
+  variable too, or the next deploy turns it back on. With the setting off, `/sw.js`
+  serves a worker that deletes its caches and unregisters itself, and the app itself removes the worker
+  and deletes its caches when the page says the setting is off (it can unregister before the browser
+  has fetched that removal worker). Each device drops both the next time it opens the app online.
+- **Do not remove the `/sw.js` route** to turn the feature off, now or later: a 404 there does not
+  unregister an installed worker. The route must keep serving the removal worker.
 
 ## Development environment
 

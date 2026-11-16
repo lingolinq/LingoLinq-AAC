@@ -17,11 +17,11 @@ describe SystemEmailTemplates do
     it 'stores default site override' do
       SystemEmailTemplates.set_template!(nil, 'user_mailer/confirm_registration', {
         subject: 'Hi there',
-        html_body: '<p>Custom</p>'
+        html_body: '<p>Custom <%= @user.registration_code %></p>'
       })
       override = SystemEmailTemplates.lookup('user_mailer/confirm_registration')
       expect(override['subject']).to eq('Hi there')
-      expect(override['html_body']).to eq('<p>Custom</p>')
+      expect(override['html_body']).to eq('<p>Custom <%= @user.registration_code %></p>')
     end
 
     it 'stores org override' do

@@ -153,7 +153,8 @@ class Lesson < ApplicationRecord
       self.schedule(:check_url, true)
       return
     end
-    res = Typhoeus.head(normalized, followlocation: true)
+    # The url is user-set; SafeHttp refuses private addresses and checks each redirect hop.
+    res = SafeHttp.head(normalized)
     self.settings['checked_url'] = {'url' => normalized, 'ts' => Time.now.to_i}
     if res.code < 300 && res.code > 199
       if ['deny', 'sameorigin'].include?((res.headers['X-Frame-Options'] || '').downcase)

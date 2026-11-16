@@ -50,7 +50,7 @@ function _is_fresh(entry) {
 }
 
 function _index(entry) {
-  if (entry.key) { _by_key[entry.key] = entry; }
+  _ensure_listening(); if (entry.key) { _by_key[entry.key] = entry; } // listening: see _ensure_listening at the end of this file
   if (entry.id) { _by_id[entry.id] = entry; }
 }
 
@@ -455,10 +455,11 @@ export default {
     return !!entry.root_only;
   },
 
-  // If the entry is a root-only prefetch/lite load, fetch the full /tree
-  // (no root_only) and ingest descendants. No-ops when the cache is already
-  // a full tree. Shares in-flight full-tree requests. Resolves
-  // { warmed, descendant_count } and never rejects.
+  // If the entry is a root-only prefetch/lite load, fetch the full tree in
+  // pages (_warm_tree_pages, #1219) and ingest descendants. No-ops when the
+  // cache is already a full tree. Shares one in-flight warm per key for the
+  // whole loop. Resolves { warmed, descendant_count } (plus partial when the
+  // warm stopped early) and never rejects. Progress lives in _warm_state.
   warm_full_tree_if_root_only: function(key_or_id) {
     var _this = this;
     if (!this.is_root_only(key_or_id)) {
@@ -472,30 +473,28 @@ export default {
     /* Distinct from prefetch 'tree:' inflight, which is the root_only GET. */
     var inflight_key = 'full-tree:' + key;
     var req = _inflight[inflight_key];
+    /* THE FULL TREE ARRIVES IN PAGES (#1219 units B and B2, PR #1268; _warm_tree_pages at the end of this file).
+       `/tree?offset=0`, then `?offset=<next_offset>` while the answer carries one; a server from before paging
+       sends none, so one request, as before. Each page's descendants go to the cache and the store as they
+       arrive. The root-only mark is cleared when the loop ends: the last page, or TREE_WARM_MAX_PAGES
+       (TREE_WARM_MAX_PAGES_MOBILE on a phone or tablet, capabilities.mobile: the devices the page count exists
+       to protect), after which the rest of the list loads board by board on first tap, as today when a warm has
+       not reached a board. A page that fails leaves the mark and a resume offset on the entry, so the next open
+       continues from there instead of starting over; a second failure ends the warm as partial, so a page that
+       cannot be served never causes a re-warm on every open. The result keeps its shape, { warmed,
+       descendant_count } over all pages, plus partial when the warm stopped early. Lines here are kept so the
+       lint baseline rows below keep their numbers. */
+    //
+    //
     if (!req) {
-      req = persistence.ajax('/api/v1/boards/' + key + '/tree', { type: 'GET' });
+      req = _warm_tree_pages(_this, key);
       _inflight[inflight_key] = req;
       var _clear = function() {
         if (_inflight[inflight_key] === req) { delete _inflight[inflight_key]; }
       };
       req.then(_clear, _clear);
     }
-    return req.then(function(data) {
-      if (!data || !data.root || !data.root.board) {
-        return { warmed: false };
-      }
-      _this.ingest_tree(data, null, {
-        force: false,
-        warm_root_images: false,
-        root_only: false
-      });
-      return {
-        warmed: true,
-        descendant_count: (data.descendants && data.descendants.length) || 0
-      };
-    }, function() {
-      return { warmed: false };
-    });
+    return req;
   },
 
   // Returns the cached raw board JSON, or null if missing/stale.
@@ -503,7 +502,7 @@ export default {
     var entry = _lookup(key_or_id);
     if (!entry) { return null; }
     if (!_is_fresh(entry)) {
-      _drop(entry);
+      _drop_warmed_for(entry); // the entry stays for peek; set, invalidate and clear replace or remove it
       return null;
     }
     return entry.raw;
@@ -539,7 +538,7 @@ export default {
       ordered_for: null,
       root_only: !!opts.root_only
     };
-    _index(entry);
+    _index(entry); _bound_entries(entry); // the cache keeps at most MAX_ENTRIES boards (end of this file)
     return entry;
   },
 
@@ -578,14 +577,15 @@ export default {
   },
 
   // Drops a cached entry (e.g. on save or before edit-mode entry).
-  invalidate: function(key_or_id) {
+  on_boards_revoked: _on_boards_revoked, invalidate: function(key_or_id) {
     var entry = _lookup(key_or_id);
     if (entry) { _drop(entry); }
   },
 
   // Wipe everything (e.g. on logout / user switch).
   clear: function() {
-    _by_key = {};
+    _clear_warm_state();
+    if (_stop_listening) { _stop_listening(); _stop_listening = null; } _by_key = {}; // the listener: see _ensure_listening at the end of this file
     _by_id = {};
     _inflight = {};
     _warmed = {};
@@ -1165,14 +1165,122 @@ export default {
     };
 
     return process_layer(collect_layer_keys(raw));
+  },
+
+  // The raw board JSON however old it is, for when nothing fresher can be had (offline). Unlike
+  // `get`, it does not drop an expired entry.
+  peek: function(key_or_id) {
+    var entry = _lookup(key_or_id);
+    return entry ? entry.raw : null;
   }
 };
 // Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
-import { live_service } from './live_service';
+import { live_service, owner_gone } from './live_service';
 
 // A prefetch chain belongs to the app whose user change started it (pipeline opts `app`). It stops at
 // the next board once that app-state is destroyed, instead of carrying on against whichever app is
 // current by then (tests boot a new app per test; production never destroys its app-state).
 function _pipeline_app_alive(opts) {
   return !(opts && opts.app) || !!live_service(opts.app);
+}
+import boardRevocation from './board_revocation'; // last, so the lint baseline rows above keep their lines
+
+// Item 9C (PR #1268): a board the sync says is revoked leaves memory, so an online tap asks the server
+// instead of showing the copy for the rest of its 5 minutes. Registered the first time anything is stored
+// (at call time, not at load: this module imports utils/persistence, which imports board_revocation).
+function _on_boards_revoked(ids) {
+  (ids || []).forEach(function(id) { var entry = _lookup(id); if (entry) { _drop(entry); } });
+}
+var _stop_listening = null;
+function _ensure_listening() {
+  if (!_stop_listening) { _stop_listening = boardRevocation.on_marked(_on_boards_revoked); }
+}
+
+/* The paged full-tree warm: see the explanation at warm_full_tree_if_root_only above. */
+export var TREE_WARM_MAX_PAGES = 4;
+export var TREE_WARM_MAX_PAGES_MOBILE = 2;
+export var TREE_WARM_MAX_FAILURES = 2;
+
+// The warm's progress per board key (pages fetched, failures, the offset to resume at), kept apart from the cache
+// entry: a forced set replaces the entry on every cache miss, and the page cap and the failure bound must survive
+// that. Emptied by clear().
+var _warm_state = {};
+function _warm_state_for(key) { return (_warm_state[key] = _warm_state[key] || { pages: 0, failures: 0, resume: 0 }); }
+// clear() (sign-out) bumps the generation; a warm started before it drops every page that arrives after it, so
+// a page of the previous person's tree never lands in the new session's cache (pass 2 of the final review).
+var _cache_generation = 0;
+export function cache_generation() { return _cache_generation; }
+function _clear_warm_state() { _warm_state = {}; _cache_generation += 1; }
+
+function _warm_tree_pages(cache, key) {
+  var state = _warm_state_for(key);
+  var max_pages = capabilities.mobile ? TREE_WARM_MAX_PAGES_MOBILE : TREE_WARM_MAX_PAGES;
+  var offset = state.resume || 0;
+  var count = 0;
+  // The loop acts on the app that started it (the harness rule for deferred work, .claude/rules/testing-frontend.md).
+  var owner = LingoLinq.appState;
+  var generation = _cache_generation;
+  var finish = function(partial) {
+    var e = _lookup(key);
+    if (e) { e.root_only = false; }
+    delete _warm_state[key];
+    var res = { warmed: count > 0 || !partial, descendant_count: count };
+    if (partial) { res.partial = true; }
+    return res;
+  };
+  var step = function() {
+    if (owner_gone(owner)) { return RSVP.resolve({ warmed: false }); }
+    return persistence.ajax('/api/v1/boards/' + key + '/tree?offset=' + offset, { type: 'GET' }).then(function(data) {
+      if (generation !== _cache_generation) { return { warmed: false }; }
+      if (!data || (offset === 0 && !(data.root && data.root.board))) { return { warmed: false }; }
+      state.pages += 1;
+      if (offset === 0) {
+        var root_raw = normalize_board_payload(data.root);
+        if (root_raw) {
+          // Keeps the root-only mark: a page is not yet the whole tree.
+          cache.set(root_raw, { force: false, root_only: true });
+          _push_board_to_store(root_raw);
+        }
+      }
+      (data.descendants || []).forEach(function(wrapped) {
+        var sub_raw = normalize_board_payload(wrapped);
+        if (!sub_raw) { return; }
+        cache.set(sub_raw);
+        _push_board_to_store(sub_raw);
+        count += 1;
+      });
+      var next = data.next_offset;
+      if (typeof next !== 'number' || next <= offset) { return finish(false); }
+      if (state.pages >= max_pages) { return finish(true); }
+      offset = next;
+      state.resume = offset;
+      return step();
+    }, function() {
+      if (generation !== _cache_generation) { return { warmed: false }; }
+      state.failures += 1;
+      state.resume = offset;
+      if (state.failures >= TREE_WARM_MAX_FAILURES) { return finish(true); }
+      return { warmed: false };
+    });
+  };
+  return step();
+}
+import capabilities from './capabilities'; // at the end, like the imports above it, so the lint baseline rows keep their lines
+
+/* A BOUND ON WHAT THE CACHE HOLDS (final review of #1268). `get` keeps an expired entry so `peek` can serve it
+   offline, and nothing else evicted one, so every board seen in a session stayed in memory; with the paged warm
+   that is whole trees on a low-memory tablet. Past MAX_ENTRIES boards, the entries least worth keeping go
+   first: expired before fresh, oldest first; the entry just stored is never dropped. */
+export var MAX_ENTRIES = 400;
+function _bound_entries(keep) {
+  var keys = Object.keys(_by_key);
+  if (keys.length <= MAX_ENTRIES) { return; }
+  var seen = [];
+  keys.forEach(function(k) { var e = _by_key[k]; if (e && e !== keep && seen.indexOf(e) === -1) { seen.push(e); } });
+  seen.sort(function(a, b) {
+    var fa = _is_fresh(a) ? 1 : 0, fb = _is_fresh(b) ? 1 : 0;
+    return fa !== fb ? fa - fb : a.fetched_at - b.fetched_at;
+  });
+  var excess = keys.length - MAX_ENTRIES;
+  seen.slice(0, excess).forEach(function(e) { _drop(e); });
 }

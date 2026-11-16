@@ -187,7 +187,7 @@ var sync = EmberObject.extend({
       }
       user = user || sync.get_app_state().get('sessionUser');
       if(!user) { return; }
-      var manual_follow = user.get('id') != sync.get_app_state().get('sessionUser.id');
+      var manual_follow = !sync.same_user(user, 'self');
       var supporter_device = user.get('supporter_view');
       var connected = user.get('sync_connected') || 0;
       var now = (new Date()).getTime();
@@ -208,7 +208,7 @@ var sync = EmberObject.extend({
           }
           res = Object.assign({}, res);
           delete res['meta'];
-          if(user.get('id') == sync.get_app_state().get('sessionUser.id')) {
+          if(sync.same_user(user, 'self')) {
             // Store settings for the session user
             sync.get_stashes().persist('ws_settings', res);
             // ..and retry all manual connections at the same time
@@ -358,7 +358,7 @@ var sync = EmberObject.extend({
   pair_as: function(role, user_id, other_ws_user_id, pair_code) {
     if(role == 'none') {
       // if already pairing for the specified user_id, end it
-      var pair_to_end = sync.current_pairing && sync.current_pairing.room_user_id == user_id;
+      var pair_to_end = sync.current_pairing && sync.same_user(sync.current_pairing.room_user_id, user_id);
       pair_to_end = pair_to_end || (sync.get_app_state().get('pairing.user_id') == user_id && pair_code == 'manual_end');
       if(pair_to_end) {
         speecher.click('partner_end');
@@ -383,7 +383,7 @@ var sync = EmberObject.extend({
       };
       // set pairing state
       LingoLinq.store.findRecord('user', other_user.user_id).then(function(u) {
-        var communicator_id = role == 'partner' ? u.get('id') : sync.get_app_state().get('sessionUser.id');
+        var communicator_id = role == 'partner' ? u.get('id') : backend_user_id(sync.get_app_state().get('sessionUser')); // the real id: the follow check compares it with room ids from the server
         if(role == 'partner') {
           speecher.click('partner_start');
         }
@@ -475,7 +475,7 @@ var sync = EmberObject.extend({
       last_action: sync.get_app_state().get('last_activation'),
       speak_mode: sync.get_app_state().get('speak_mode')
     };
-    if(!sync.get_app_state().get('sessionUser.preferences.remote_modeling') && sync.get_app_state().get('sessionUser.id') == user_id) {
+    if(!sync.get_app_state().get('sessionUser.preferences.remote_modeling') && sync.same_user('self', user_id)) {
       // If remote support is completely disabled, 
       // (as the communicator) don't send anything
       return RSVP.reject();
@@ -483,7 +483,7 @@ var sync = EmberObject.extend({
     if(sync.get_app_state().get('pairing') || sync.get_app_state().get('sessionUser.preferences.remote_modeling_auto_follow') || sync.get_app_state().get('followers.allowed')) {
       // If paired, or allowing auto-followers, include current state
       if(sync.get_app_state().get('speak_mode')) {
-        if(sync.get_app_state().get('pairing.model') || sync.get_app_state().get('sessionUser.id') == user_id) {
+        if(sync.get_app_state().get('pairing.model') || sync.same_user('self', user_id)) {
           // Only send state if modeling or if you're the communicator
           if(extra && extra.button) {
             var button_obj = extra.button
@@ -532,7 +532,7 @@ var sync = EmberObject.extend({
     } else {
 
     }
-    if(update.board_state && !update.current_action && update.board_state.id == sync.last_board_id_assertion && sync.get_app_state().get('sessionUser.id') != user_id) {
+    if(update.board_state && !update.current_action && update.board_state.id == sync.last_board_id_assertion && !sync.same_user('self', user_id)) {
       alert('bad loop');
       // When someone else navigates you to a board,
       // don't assert that board or you can end up
@@ -562,7 +562,7 @@ var sync = EmberObject.extend({
         sync.pending_update = null;
       }
     };
-    if(sync.current_pairing && sync.current_pairing.room_user_id == user_id) {
+    if(sync.current_pairing && sync.same_user(sync.current_pairing.room_user_id, user_id)) {
       if(sync.pending_update) {
         update.defer = defer;
         sync.cached_updates.push(update);
@@ -684,7 +684,7 @@ var sync = EmberObject.extend({
             promise.reject('timed out');
             sync.pair_code = null;
           } else {
-            var driving = (user_id == sync.get_app_state().get('sessionUser.id') && sync.get_app_state().get('sessionUser.supporter_view'));
+            var driving = (sync.same_user(user_id, 'self') && sync.get_app_state().get('sessionUser.supporter_view'));
             sync.send(user_id, {
               type: 'request',
               driving: driving,
@@ -700,7 +700,7 @@ var sync = EmberObject.extend({
   default_listen: function() {
     sync.listen('default_listeners', function(message) {
       var matched = false;
-      if(message.user_id == sync.get_app_state().get('sessionUser.id')) {
+      if(sync.same_user(message.user_id, 'self')) {
         matched = true;
         var auto_accept = sync.get_app_state().get('sessionUser.preferences.remote_modeling_auto_accept');
         if(message.data.sender_id && message.data.sender_id.match(/^me\$/)) {
@@ -855,7 +855,7 @@ var sync = EmberObject.extend({
           var full_following = false, any_following = false;
           if(!modal.is_open()) {
             // Don't navigate when a modal is open
-            if(sync.get_app_state().get('pairing.communicator_id') == message.user_id) {
+            if(sync.same_user(sync.get_app_state().get('pairing.communicator_id'), message.user_id)) {
               any_following = true;
               // Only update when it's for the room you're following/paired in
               if(sync.get_app_state().get('pairing.model')) {
@@ -1061,10 +1061,10 @@ var sync = EmberObject.extend({
   in_room: function(user_id) {
     var con = sync.con;
     if(!con || !con.connection || !con.connection.isOpen()) { return false; }
-    return !!con.subscriptions.subscriptions.find(function(s) { return s.user_id == user_id; });
+    return !!con.subscriptions.subscriptions.find(function(s) { return sync.same_user(s.user_id, user_id); }); // rooms carry the server's real id; callers may pass 'self'
   },
   send: function(user_id, message_obj) {
-    var sub = sync.con && sync.con.subscriptions.subscriptions.find(function(s) { return s.user_id == user_id; });
+    var sub = sync.con && sync.con.subscriptions.subscriptions.find(function(s) { return sync.same_user(s.user_id, user_id); }); // rooms carry the server's real id; callers may pass 'self'
     if(!sub) { return false; }
     message_obj.sender_id = sub.ws_user_id;
     if(sync.user_token) {
@@ -1118,3 +1118,12 @@ sync.init_services = function(services) {
 
 window.sync = sync;
 export default sync;
+// Whether two users (ids or records) are the same person, reading 'self' as the live session user. Room subscriptions
+// and messages carry the server's real id, while the session user can be the record keyed 'self'
+// (serializers/application.js), so `==` on ids dropped the person's own updates, pairing and follow messages.
+// Section 24 of docs/task-management/2026-11-10_offline-followup-proposals.md.
+sync.same_user = function(a, b) {
+  var app_state = sync.get_app_state();
+  return same_person(a, b, app_state && app_state.get && app_state.get('sessionUser'));
+};
+import backend_user_id, { same_person } from './backend_user_id';

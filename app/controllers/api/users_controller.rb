@@ -899,8 +899,11 @@ class Api::UsersController < ApplicationController
     if !user && params['key'] && params['key'].match(/@/)
       users = User.where(:email_hash => User.generate_email_hash(params['key'].strip))
     end
-    not_disabled_users = users.select{|u| !u.settings['email_disabled'] }
-    reset_users = not_disabled_users.select{|u| u.generate_password_reset }
+    # Email that a bounce turned off still gets the reset the user asked for (owner decision,
+    # 2026-11-09); email turned off for any other reason, such as a shared demo login
+    # (DemoDistrict::Seeder.disable_email!), gets none.
+    resettable_users = users.select{|u| !u.settings['email_disabled'] || u.settings['email_disabled_reason'] == 'bounce' }
+    reset_users = resettable_users.select{|u| u.generate_password_reset }
     # Send the appropriate email when one is warranted, but always return the
     # same response shape regardless of whether an account exists, is disabled,
     # or is throttled. Leaking existence (via a users count, a 400 status, or a
