@@ -292,7 +292,8 @@ Proceed to the unchanged tail of the main runbook, in the clean-DB framing:
 
 1. Frontend LB + Cloud Armor - `scripts/gcp/phase5-frontend-lb.sh` (#476, Option B HTTPS LB +
    Cloud Armor). Build the LB + WAF **in PREVIEW only** (`CONFIRM_LB=1` then `CONFIRM_ARMOR=1`);
-   do **NOT** pass `ARMOR_ENFORCE` yet. The WAF enforce flip is a **post-real-traffic** step, not
+   do **NOT** pass `ARMOR_ENFORCE_RULES` yet. The script needs bash 4 or newer (macOS `/bin/bash` 3.2
+   is refused). The WAF enforce flip is a **post-real-traffic** step, not
    part of the cut - see the note below and main runbook step 9c. Validate the LB pre-DNS via IP + Host
    header (`curl --resolve app.lingolinq.com:443:<LB_IP> -k`); expect the managed cert to read
    `PROVISIONING` / `FAILED_NOT_VISIBLE` until DNS is flipped (normal, not a failure).
