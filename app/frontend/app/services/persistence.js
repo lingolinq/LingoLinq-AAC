@@ -2482,7 +2482,7 @@ var persistence = Service.extend({
     return sync_promise;
   },
   sync_tags: function(user) {
-    var store_image_promises = [];
+    var store_image_promises = []; var _this = this; // `this` is undefined in the callbacks below (ES module)
     var queue_tags = new RSVP.Promise(function(resolve, reject) {
       var tag_ids = user.get('preferences.tag_ids') || [];
       var next_tag = function() {
@@ -2490,7 +2490,7 @@ var persistence = Service.extend({
         if(tag_id) {
           LingoLinq.store.findRecord('tag', tag_id).then(function(tag) {
             if(tag.get('button.image_url')) {
-              store_image_promises.push(this.store_url(tag.get('button.image_url'), 'image', false, false));
+              store_image_promises.push(_this.store_url(tag.get('button.image_url'), 'image', false, false));
               runLater(next_tag, 500);
             } else {
               runLater(next_tag, 500);
@@ -2512,20 +2512,20 @@ var persistence = Service.extend({
     });
   },
   sync_contacts: function(user) {
-    var wait = RSVP.resolve();
+    var wait = RSVP.resolve(); var _this = this; var sync_id = this.get('sync_progress.sync_id'); // utils/optional_picture.js
     if(user.get('all_connections_promise')) {
       wait = this.time_promise(user.get('all_connections_promise'), "waiting for connections for " + user.get('user_name'));
     }
     var retrieve_list = wait.then(null, function() { return RSVP.resolve(); }).then(function() {
       var all_store_images = [];
       (user.get('supervisors') || []).forEach(function(sup) {
-        if(LingoLinq.remote_url(sup.avatar_url) && !this.store_url_quick_check(sup.avatar_url, 'image')) {
-          all_store_images.push(this.store_url_now(sup.avatar_url, 'image'));
+        if(LingoLinq.remote_url(sup.avatar_url) && !_this.store_url_quick_check(sup.avatar_url, 'image')) {
+          all_store_images.push(optional_picture(_this.store_url(sup.avatar_url, 'image', false, false, sync_id), _this.time_promise, _this.get('optional_picture_ms')));
         }
       });
       (user.get('contacts') || []).forEach(function(contact) {
-        if(LingoLinq.remote_url(contact.image_url) && !this.store_url_quick_check(contact.image_url, 'image')) {
-          all_store_images.push(this.store_url_now(contact.image_url, 'image'));
+        if(LingoLinq.remote_url(contact.image_url) && !_this.store_url_quick_check(contact.image_url, 'image')) {
+          all_store_images.push(optional_picture(_this.store_url(contact.image_url, 'image', false, false, sync_id), _this.time_promise, _this.get('optional_picture_ms')));
         }
       });
       return all_store_images;
@@ -3482,7 +3482,7 @@ var persistence = Service.extend({
         }
         var url = user.get('avatar_url');
         if(url && !_this.store_url_quick_check(url, 'image')) {
-          return _this.store_url_now(url, 'image');
+          return optional_picture(_this.store_url_now(url, 'image'), _this.time_promise, _this.get('optional_picture_ms')); // never fails the sync, unless storage is full
         } else {
           return RSVP.resolve({});
         }
@@ -5140,3 +5140,4 @@ persistence.reopen({
   }
 });
 import { is_stale_item, drop_stale_head } from '../utils/url_store_queue';
+import { optional_picture } from '../utils/optional_picture';
