@@ -348,7 +348,7 @@ GEM
       coderay (~> 1.1)
       method_source (~> 1.0)
     public_suffix (7.0.5)
-    puma (7.2.1)
+    puma (7.2.2)
       nio4r (~> 2.0)
     racc (1.8.1)
     rack (3.2.8)
@@ -621,7 +621,7 @@ DEPENDENCIES
   permissable-coughdrop
   pg (~> 1.5)
   pg_search
-  puma (~> 7.2, >= 7.2.1)
+  puma (~> 7.2, >= 7.2.2)
   rack (>= 3.2.8)
   rack-attack
   rack-cors
