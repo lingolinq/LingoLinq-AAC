@@ -8,7 +8,7 @@
 
 <%= mailer_t('school_handoff_mailer.ai_notice') %>
 
-<%= mailer_t('school_handoff_mailer.billing_notice') %>
+<%= mailer_t('school_handoff_mailer.billing_notice') %><% if @premium_ends_at %> <%= mailer_t('school_handoff_mailer.premium_ends', date: long_ordinal_date(@premium_ends_at)) %><% end %>
 
 <%= mailer_t('school_handoff_mailer.footer') %>
 <%= mailer_t('school_handoff_mailer.contact_link_label') %>: <%= @contact_url %>

@@ -5,6 +5,6 @@
 <p><%= mailer_t('school_handoff_mailer.intro_unnamed_org', app_name: app_name, username: @user.user_name) %></p>
 <% end %>
 <p><%= mailer_t('school_handoff_mailer.ai_notice') %></p>
-<p><%= mailer_t('school_handoff_mailer.billing_notice') %></p>
+<p><%= mailer_t('school_handoff_mailer.billing_notice') %><% if @premium_ends_at %> <%= mailer_t('school_handoff_mailer.premium_ends', date: long_ordinal_date(@premium_ends_at)) %><% end %></p>
 <p><%= mailer_t('school_handoff_mailer.footer') %> <a href="<%= @contact_url %>"><%= mailer_t('school_handoff_mailer.contact_link_label') %></a></p>
 <p><%= email_signature %></p>

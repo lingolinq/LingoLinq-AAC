@@ -311,6 +311,10 @@ class UserMailer < ActionMailer::Base
     @org = Organization.find_by_global_id(org_id)
     @org_name = @org && @org.settings && @org.settings['name'].presence
     @contact_url = "#{JsonApi::Json.absolute_host}/contact"
+    # This notice stands in for organization_unassigned (skipped above after a hand-back), so it
+    # carries that mail's warning about when premium access runs out. Read at send time, after the
+    # seat release has set the trial or grace period (Subscription concern).
+    @premium_ends_at = @user.expires_at if @user && @user.expires_at && @user.expires_at > Time.now
     subject = SystemEmailI18n.resolve('user_mailer/school_handoff_notice', 'school_handoff_mailer.subject')
     mail_message(@user, subject) if @user
   end

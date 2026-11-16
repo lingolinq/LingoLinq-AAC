@@ -76,6 +76,52 @@ describe UserMailer, :type => :mailer do
     end
   end
 
+  # Traci's review of eb136f283, finding 5: this notice replaces organization_unassigned
+  # (UserMailer#organization_unassigned returns early after it), so it carries that mail's
+  # warning about when premium access runs out. The date is read from the stored expires_at.
+  it 'says when premium access ends, in both parts' do
+    o = Organization.create(settings: {'name' => 'Riverside District'})
+    u = handed_back_user(email: 'family_handoff_expiry@example.com')
+    u.expires_at = Time.now + 14.days
+    u.save!
+    u.reload
+    date = Object.new.extend(MailerHelper).long_ordinal_date(u.expires_at)
+
+    m = UserMailer.school_handoff_notice(u.global_id, o.global_id)
+
+    m.body.parts.each do |part|
+      body = CGI.unescapeHTML(part.body.to_s)
+      expect(body).to include("Premium access on the account ends on #{date}.")
+    end
+  end
+
+  it 'leaves the premium end date out when the account has none' do
+    o = Organization.create(settings: {'name' => 'Riverside District'})
+    u = handed_back_user(email: 'family_handoff_no_expiry@example.com')
+    u.expires_at = nil
+    u.save!
+    expect(u.reload.expires_at).to eq(nil)
+
+    m = UserMailer.school_handoff_notice(u.global_id, o.global_id)
+
+    m.body.parts.each do |part|
+      expect(CGI.unescapeHTML(part.body.to_s)).not_to include('Premium access on the account ends')
+    end
+  end
+
+  it 'leaves the premium end date out when it has already passed' do
+    o = Organization.create(settings: {'name' => 'Riverside District'})
+    u = handed_back_user(email: 'family_handoff_past_expiry@example.com')
+    u.expires_at = Time.now - 2.days
+    u.save!
+
+    m = UserMailer.school_handoff_notice(u.global_id, o.global_id)
+
+    m.body.parts.each do |part|
+      expect(CGI.unescapeHTML(part.body.to_s)).not_to include('Premium access on the account ends')
+    end
+  end
+
   it 'sends nothing when the account has no email' do
     o = Organization.create
     u = handed_back_user(email: nil)
