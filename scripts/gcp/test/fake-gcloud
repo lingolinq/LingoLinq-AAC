@@ -19,6 +19,8 @@
 #   STUB_NOTFOUND_PROJECT=<id>          not-found errors name this project instead of --project
 #   STUB_ERROR_STYLE=batch              error blocks use the "Some requests did not succeed:" title
 #   STUB_UPDATE_FAIL=1                  `security-policies update` (log level / JSON parsing) fails
+#   STUB_FLIP_IGNORED=1                 `rules update N --no-preview` succeeds but the rule still reads preview
+#   STUB_ACTION=<action>                action a rule reads back (default deny(403))
 #   STUB_LOG_LEVEL_READ_FAIL=1          the policy's logLevel readback fails (non-404)
 #   STUB_ATTACHED=<url or empty>        backend's attached policy (default: lingolinq-armor)
 #   STUB_BACKEND_READ_FAIL=1            the backend's securityPolicy read fails
@@ -90,6 +92,10 @@ case "$args" in
   "compute security-policies rules "*)
     verb="$4"; prio="$5"
     if [ "$verb" = "create" ]; then touch "$state/rule-$prio"; exit 0; fi
+    if [ "$verb" = "update" ]; then
+      case " $* " in *" --no-preview "*) [ "${STUB_FLIP_IGNORED:-0}" = "1" ] || touch "$state/flipped-$prio" ;; esac
+      exit 0
+    fi
     if [ "$verb" = "describe" ]; then
       [ "${STUB_POLICY:-present}" = "error" ] && read_error "compute.security-policies.rules.describe"
       in_list "$prio" "${STUB_RULE_READ_ERROR:-}" && read_error "compute.security-policies.rules.describe"
@@ -111,8 +117,8 @@ case "$args" in
         not_found "compute.security-policies.rules.describe" "projects/$proj/global/securityPolicies/$policy_name/rules/$prio"
       fi
       case "$fmt" in
-        'value(preview)') echo "${STUB_PREVIEW:-True}" ;;
-        'value(action)') echo "deny(403)" ;;
+        'value(preview)') if [ -e "$state/flipped-$prio" ]; then echo False; else echo "${STUB_PREVIEW:-True}"; fi ;;
+        'value(action)') echo "${STUB_ACTION:-deny(403)}" ;;
         *rateLimitThreshold*) printf '600\t60\n' ;;
       esac
       exit 0

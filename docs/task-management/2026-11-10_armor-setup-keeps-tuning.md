@@ -238,3 +238,19 @@ now match the whole line; the buggy line fails R4_1d.
 
 Driver after the fixes, in `ruby:3.4.4-slim` (bash 5) with `--network none`: 76 passed, 0 failed,
 1 skipped.
+
+## Review round 5: canonical red-team pass on PR #1319 (2026-11-15)
+
+`REVIEWED=PR lingolinq/LingoLinq-AAC#1319 at 05da2641aa00df00d6916c4f6f6b3ba5f88b0173`, after the
+PII preflight (exit 0). Verdict: ship with conditions; no Critical or High.
+
+| Finding | Fix | Cases |
+|---|---|---|
+| Medium, CONFIRMED: `CONFIRM_ARMOR_ATTACH` plus an enforce variable on a detached policy re-attached it and flipped a rule in one run, turning back on every rule enforced before the detach together with the new one; the round-4 refusal message suggested exactly that. | Enforcing is refused whenever no policy is attached, attach confirmed or not; the message says to re-attach in its own run first. `R4_1c` changed from "flip, then attach" to "refused, no calls" (the specified behaviour changed). | `R4_1c_enforce_detached_confirmed`, `O_existing_detached_confirm` (re-attach alone, unchanged) |
+| Low: a flip run exited 0 whatever the readback said | Step 2e fails the run unless the flipped rule reads `preview=False` and `deny(403)` (rule 2000: `preview=False`); an unreadable value fails too. The fake now remembers a `--no-preview` update, and gained `STUB_FLIP_IGNORED` and `STUB_ACTION`. | `R5_1a_flip_ignored`, `R5_1b_flip_wrong_action`, `R5_1c_rl_flip_ignored` |
+| Low: the comment above `armor_policy_nf_re` still said any project prefix is accepted | Comment corrected. | n/a |
+| Medium, not a code change: the rule-level not-found wording and the project-path form are ASSUMED, never observed live | Not done: needs one read-only describe of a missing policy and rule in a non-production project, then the captured text as the fake's default. Needs Traci's OK and such a project. | open |
+| Low: an exported enforce variable can re-flip a rule rolled back earlier; the 9c backup check does not check freshness | Not changed; documented (inline-only rule, never-export note). | open |
+
+Against the script before these fixes, R4_1c and R5_1a-c failed. Driver after: 79 passed, 0 failed,
+1 skipped.

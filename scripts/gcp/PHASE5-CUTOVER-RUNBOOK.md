@@ -843,8 +843,10 @@ condition is met:
    `CONFIRM_LB=1 CONFIRM_ARMOR=1`. It also refuses, before changing anything, to enforce a rule (or
    in a policy) that does not exist yet: a new rule always starts in preview. It refuses to enforce
    anything while `lingolinq-armor` is not attached to the backend, since a rule on a detached policy
-   filters nothing, unless the same run attaches it (`CONFIRM_ARMOR_ATTACH=lingolinq-armor`). The
-   closing readback prints the attached policy. A describe that fails
+   filters nothing. Re-attach it first in a run of its own (`CONFIRM_ARMOR_ATTACH=lingolinq-armor`,
+   no enforce variable) and watch it, because re-attaching turns back on every rule enforced before
+   the detach. The closing readback prints the attached policy, and a flip run fails unless the
+   flipped rule reads back as enforcing (`preview=False`, action `deny(403)`). A describe that fails
    with anything other than not-found stops the run instead of being read as "missing". Separately,
    the Armor step stops if the backend already has a DIFFERENT security policy attached, or shows
    `lingolinq-armor` attached while the policy reads as not found, and does not re-attach an

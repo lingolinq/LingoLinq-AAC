@@ -316,7 +316,7 @@ rule_enforce_requested() { [ -n "$ENFORCE_RULE" ] && [ "$1" = "$ENFORCE_RULE" ];
 # WARNING, say) are ignored, and "missing" means EVERY problem line in the block is the not-found
 # message for the resource actually being read. Anything else (permission, quota, network, auth, a
 # not-found for some other resource, an error shape this does not know) is NOT "missing".
-# Not-found message for the policy itself (path from the server, so any project prefix is accepted).
+# Not-found message for the policy itself, for this project only (projects/$PROJECT_ID/...).
 armor_policy_nf_re() {
   printf '%s' "^The resource 'projects/$PROJECT_ID/global/securityPolicies/$ARMOR_POLICY' was not found\$"
 }
@@ -667,12 +667,13 @@ if [ "$CONFIRM_ARMOR" = "1" ]; then
   fi
   # An enforce flip filters traffic only while the policy is attached to the backend. On a detached
   # policy (an incident detach, or a first run interrupted before Step 2d) the flip would succeed and
-  # the Step 2e readback would show preview=false while nothing is filtered. Refuse it here, before
-  # any change, unless this run also attaches the policy (CONFIRM_ARMOR_ATTACH).
-  if { [ -n "$ENFORCE_RULE" ] || [ "$RL_ENFORCING" = "1" ]; } && [ -z "$ATTACHED_POLICY" ] \
-      && [ "$ATTACH_CONFIRMED" != "1" ]; then
+  # the Step 2e readback would show preview=false while nothing is filtered. Re-attaching in the same
+  # run is refused too: it would turn back on every rule enforced before the detach together with
+  # the new one, so the re-attach is its own run, watched, before any rule is flipped.
+  if { [ -n "$ENFORCE_RULE" ] || [ "$RL_ENFORCING" = "1" ]; } && [ -z "$ATTACHED_POLICY" ]; then
     echo "ERROR: $ARMOR_POLICY is not attached to $BACKEND_NAME, so enforcing a rule now would filter nothing." >&2
-    echo "       Attach it in the same run with CONFIRM_ARMOR_ATTACH=$ARMOR_POLICY (inline), or attach it first." >&2
+    echo "       Re-attach it in its own run first (CONFIRM_LB=1 CONFIRM_ARMOR=1 CONFIRM_ARMOR_ATTACH=$ARMOR_POLICY," >&2
+    echo "       inline, with no enforce variable), check the readback and traffic, then flip one rule." >&2
     exit 1
   fi
 
@@ -839,6 +840,33 @@ if [ "$CONFIRM_ARMOR" = "1" ]; then
       echo "    rule $PRIO: preview=$ACTUAL_PREVIEW action=$ACTUAL_ACTION"
     fi
   done
+  # The flip must have taken. The named rule reads preview=False with deny(403) (rule 2000:
+  # preview=False); anything else, including an unreadable value, fails the run instead of being
+  # reported as a success.
+  FLIP_CHECK_FAILED=0
+  if [ -n "$ENFORCE_RULE" ]; then
+    NOW_PREVIEW="$(gcloud compute security-policies rules describe "$ENFORCE_RULE" \
+      --security-policy="$ARMOR_POLICY" --project="$PROJECT_ID" --format='value(preview)' 2>/dev/null || echo '?')"
+    NOW_ACTION="$(gcloud compute security-policies rules describe "$ENFORCE_RULE" \
+      --security-policy="$ARMOR_POLICY" --project="$PROJECT_ID" --format='value(action)' 2>/dev/null || echo '?')"
+    if [ "$NOW_PREVIEW" != "False" ]; then
+      echo "ERROR: rule $ENFORCE_RULE still reads preview=$NOW_PREVIEW after the flip; it is not enforcing." >&2
+      FLIP_CHECK_FAILED=1
+    fi
+    if [ "$NOW_ACTION" != "deny(403)" ]; then
+      echo "ERROR: rule $ENFORCE_RULE enforces action $NOW_ACTION, not deny(403). Check it before relying on it." >&2
+      FLIP_CHECK_FAILED=1
+    fi
+  fi
+  if [ "$RL_ENFORCING" = "1" ]; then
+    NOW_PREVIEW="$(gcloud compute security-policies rules describe 2000 \
+      --security-policy="$ARMOR_POLICY" --project="$PROJECT_ID" --format='value(preview)' 2>/dev/null || echo '?')"
+    if [ "$NOW_PREVIEW" != "False" ]; then
+      echo "ERROR: rule 2000 still reads preview=$NOW_PREVIEW after the flip; it is not enforcing." >&2
+      FLIP_CHECK_FAILED=1
+    fi
+  fi
+  [ "$FLIP_CHECK_FAILED" = "0" ] || exit 1
 else
   gate "Step 2 (Cloud Armor) SKIPPED. Re-run with CONFIRM_ARMOR=1 once approved."
 fi
