@@ -2450,7 +2450,7 @@ var persistence = EmberObject.extend({
             statuses: statuses,
             summary: sync_message
           });
-          safeSet(getPersistence(), 'sync_log', log);
+          safeSet(getPersistence(), 'sync_log', record_sync_log(getPersistence(), log)); // utils/sync_log_store.js
           safeSet(getPersistence(), 'sync_log_rand', Math.random());
         }
         return RSVP.resolve(last_sync);
@@ -2490,7 +2490,7 @@ var persistence = EmberObject.extend({
           summary: i18n.t('error_syncing_user', "Error syncing %{user_id}: ", {user_id: user_name}) + message
         });
         safeSet(getPersistence(), 'last_sync_event_at', (new Date()).getTime());
-        safeSet(getPersistence(), 'sync_log', log);
+        safeSet(getPersistence(), 'sync_log', record_sync_log(getPersistence(), log)); // utils/sync_log_store.js
         if(err && err.error) {
           modal.error(err.error);
         }
@@ -4361,17 +4361,17 @@ persistence.DSExtend = {
               if(error.skip) { return; }
               error.skip = true;
               error({error: 'timeout'});
-            }, 15000);
-            var id_or_key = id;
+            }, find_limits.caller_ms); // utils/board_download.js
+            var id_or_key = id; var identity_now = function() { return request_identity(capabilities, window.LingoLinq && window.LingoLinq.session, lingoLinqExtras.get_stashes()); }; var late_started = { at: (new Date()).getTime(), token: identity_now() }; // the request's token and acting user, for join_download and store_late_board (utils/request_identity.js)
             if(persistence.force_reload == full_id && type.modelName == 'board' && local_data && local_data.board && local_data.board.key) {
               id_or_key = local_data.board.key;
             }
-            return _super.call(_this, store, type, id_or_key).then(function(record) {
+            return (type.modelName == 'board' ? join_download('board_' + id_or_key, late_started.token, function() { return _this.ajax(_this.buildURL('board', id_or_key, null, 'findRecord'), 'GET', board_transport_options()); }) : _super.call(_this, store, type, id_or_key)).then(function(record) { // a board: one long attempt, joined by a second request (utils/board_download.js)
               // DEBUGGER HERE, when wifi is off this still gets
               // called a couple times, but eats the promise for some reason
               // TODO: maybe check if it's a problem in persistence.ajax
-              if(error.skip) { return; }
-              error.skip = true;
+              if(error.skip) { if(type.modelName == 'board') { store_late_board(record, id, late_started, late_deps(persistence, identity_now)); } return; } // answered already: a board that arrived late is still kept
+              error.skip = true; if(type.modelName == 'board' && identity_now() !== late_started.token) { find_reject({error: 'session changed'}); return; } // an answer fetched under another session is not stored or handed on (review of the #1322 fix)
               // mark the retrieved timestamp for freshness checks
               if(record[type.modelName]) {
                 delete record[type.modelName].local_result;
@@ -4639,3 +4639,4 @@ import { queue_eventual_store } from './eventual_store_queue';
 import { is_permanent_upload_url } from './permanent_upload';
 import { on_uploads_cdn, is_web_page } from './direct_fetch';
 import { is_stale_item, drop_stale_head } from './url_store_queue';
+import { find_limits, board_transport_options, join_download, late_deps, store_late_board } from './board_download'; import { record_sync_log } from './sync_log_store'; import { request_identity } from './request_identity'; // at the end so no baselined lint row shifts (see .eslint-todo)

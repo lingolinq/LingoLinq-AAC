@@ -82,6 +82,19 @@ module('Unit | Service | app-state clear_user_state handoffs', function(hooks) {
     persistence.set('root_sync_canceled', saved.root_sync_canceled);
   });
 
+  /* SYNC LOG (docs/task-management/2026-11-15_persist-sync-log.md): the previous person's sync results (board names,
+     and board keys that carry usernames) are not left in memory for the next person's Sync Details. The clear is
+     here because session.js calls a persistence.clear_user_state that the service does not define. */
+  test("the previous person's sync log is cleared", function(assert) {
+    var appState = this.owner.lookup('service:app-state');
+    var persistence = this.owner.lookup('service:persistence');
+    var saved = persistence.get('sync_log');
+    persistence.set('sync_log', [{ user_id: 'someone', statuses: [{ key: 'someone/core', status: 'downloaded' }] }]);
+    try { appState.clear_user_state(); } catch (e) { /* unrelated teardown in a bare test owner */ }
+    assert.deepEqual(persistence.get('sync_log'), []);
+    persistence.set('sync_log', saved);
+  });
+
   /* FOLLOW-UP SYNC (section 19 of docs/task-management/2026-11-10_offline-followup-proposals.md): a sync the signed-out
      person asked for while another ran would start when that sync ends, in the next session. Sign-out drops it, and
      the drawer it held does not come back. */

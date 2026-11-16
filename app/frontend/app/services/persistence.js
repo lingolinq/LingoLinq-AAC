@@ -253,7 +253,7 @@ var persistence = Service.extend({
           return;
         }
         if (extras.get && typeof extras.get === 'function' && extras.get('ready')) {
-          _this.find('settings', 'lastSync').then(function(res) {
+          restore_sync_log(_this); _this.find('settings', 'lastSync').then(function(res) {
             if (_this && _this.set) {
               _this.set('last_sync_at', res.last_sync);
               _this.set('sync_stamps', res.stamps);
@@ -269,7 +269,7 @@ var persistence = Service.extend({
             if (!service || !service.find || !service.set) {
               return;
             }
-            service.find('settings', 'lastSync').then(function(res) {
+            restore_sync_log(service); service.find('settings', 'lastSync').then(function(res) { // the sync log is read on its own (utils/sync_log_store.js), never chained onto lastSync
               service.set('last_sync_at', res.last_sync);
               service.set('sync_stamps', res.stamps);
             }, function() {
@@ -1973,14 +1973,14 @@ var persistence = Service.extend({
     var progresses = (this.get('sync_progress') || {}).progress_for || {};
     var visited = 0;
     var to_visit = 0;
-    var errors = [];
+    var errors = []; var parked = 0; // boards waiting to be tried again (utils/board_retry.js): the drawer's "waiting for a better connection"
     for(var idx in progresses) {
       visited = visited + progresses[idx].visited;
       to_visit = to_visit + progresses[idx].to_visit;
-      errors = errors.concat(progresses[idx].board_errors || []);
+      errors = errors.concat(progresses[idx].board_errors || []); parked = parked + (progresses[idx].parked || 0);
     }
     if(this.get('sync_progress')) {
-      this.set('sync_progress.visited', visited);
+      this.set('sync_progress.visited', visited); this.set('sync_progress.parked', parked);
       this.set('sync_progress.to_visit', to_visit);
       this.set('sync_progress.total', to_visit + visited);
       this.set('sync_progress.errored', errors.length);
@@ -1989,7 +1989,7 @@ var persistence = Service.extend({
   },
   cancel_sync: function() {
     if(this.get('sync_progress')) {
-      this.set('sync_progress.canceled', true);
+      this.set('sync_progress.canceled', true); wake_parked(this.get('sync_progress')); // a thread waiting to retry a board resumes now and stops (utils/board_retry.js)
     }
   },
   time_promise: time_promise,
@@ -2106,7 +2106,7 @@ var persistence = Service.extend({
             // already reloaded in sync_supervisees
             return user;
           } else {
-            return _this_sync.time_promise(user.reload(), 'reloading root user', 5000).then(null, function(reloadErr) {
+            return _this_sync.time_promise(user.reload(), 'reloading root user', USER_RELOAD_MS).then(null, function(reloadErr) { // utils/sync_board_fallback.js
               sync_reject({error: "failed to retrieve user details", network: sync_error_is_network(reloadErr)});
             });
           }
@@ -2374,7 +2374,7 @@ var persistence = Service.extend({
       var complete_sync = track_buttons.then(function() {
         var last_sync = (new Date()).getTime() / 1000;
         if(_this_sync.get('sync_progress.root_user') == user_id && !_this_sync.end_canceled_sync(sync_id, user_id, user_name, force)) { // a cancelled sync whose walk resolved ends as cancelled, before anything below moves the stamps or the clock
-          var sync_stamps = _this_sync.get('sync_progress.sync_stamps');
+          var sync_stamps = _this_sync.get('sync_progress.sync_stamps'); var board_roots = _this_sync.get('sync_progress.board_roots') || {}; // which board each one was reached from, for Sync Details (utils/sync_rollup.js)
           var statuses = _this_sync.get('sync_progress.board_statuses') || [];
           if(_this_sync.get('sync_progress.last_sync_stamp')) {
             _this_sync.set('last_sync_stamp', _this_sync.get('sync_progress.last_sync_stamp'));
@@ -2425,10 +2425,10 @@ var persistence = Service.extend({
             manual: force,
             issues: errors.length > 0,
             finished: new Date(),
-            statuses: statuses,
+            statuses: statuses, roots: board_roots,
             summary: sync_message
           });
-          _this_sync.set('sync_log', log);
+          _this_sync.set('sync_log', record_sync_log(_this_sync, log)); // newest 5, saved for the owner (utils/sync_log_store.js)
           _this_sync.set('sync_log_rand', Math.random());
         }
         return RSVP.resolve(last_sync);
@@ -2464,13 +2464,13 @@ var persistence = Service.extend({
         log.push({
           user_id: user_name,
           manual: force,
-          errored: true,
+          errored: _this_sync._canceled_sync_id !== sync_id, canceled: _this_sync._canceled_sync_id === sync_id || undefined, // a cancel that ended through this branch is still a cancel (docs/task-management/2026-11-15_persist-sync-log.md)
           finished: new Date(),
           statuses: statuses,
-          summary: i18n.t('error_syncing_user', "Error syncing %{user_id}: ", {user_id: user_name}) + message
+          summary: _this_sync._canceled_sync_id === sync_id ? i18n.t('sync_canceled_summary', "Sync canceled") : i18n.t('error_syncing_user', "Error syncing %{user_id}: ", {user_id: user_name}) + message
         });
         _this_sync.set('last_sync_event_at', (new Date()).getTime());
-        _this_sync.set('sync_log', log);
+        _this_sync.set('sync_log', record_sync_log(_this_sync, log)); _this_sync.set('sync_log_rand', Math.random()); // utils/sync_log_store.js
         if(err && err.error && !_this_sync.sync_is_automatic()) {
           modal.error(err.error);
         }
@@ -3059,7 +3059,7 @@ var persistence = Service.extend({
         // other boards, the starter copies made at sign-up, or public boards: to have a board on the device, star it.
         var to_visit_boards = offlineSyncSeeds.seeds(user);
         var safely_cached_boards = {};
-        var checked_linked_boards = {}; var unreachable_boards = {}; // boards this sync could not get: reported once, not queued again by a board that links to them (#1212)
+        var checked_linked_boards = {}; var unreachable_boards = {}; var parking = create_parking(schedule_sync_board_step); register_parking(_sync.get('sync_progress'), parking); // boards this sync could not get: reported once, not queued again by a board that links to them (#1212); parked ones are tried again later (utils/board_retry.js)
 
         var visited_boards = [];
         if(!_sync.get('sync_progress.progress_for')) {
@@ -3083,8 +3083,8 @@ var persistence = Service.extend({
           if(p_for) {
             p_for[user.get('id')] = {
               visited: visited_boards.length,
-              to_visit: to_visit_boards.length,
-              board_errors: board_errors
+              to_visit: to_visit_boards.length + parking.size(), // a parked board is still to do
+              board_errors: board_errors, parked: parking.size()
             };
           }
           _sync.update_sync_progress();
@@ -3128,7 +3128,7 @@ var persistence = Service.extend({
               if(safely_cached) {
                 console.log("this board (" + board.get('key') + ") has already been cached locally");
               }
-              synced_boards.push(board);
+              synced_boards.push(board); note_board_root(_sync.get('sync_progress'), next, {id: board.get('id'), key: board.get('key'), name: board.get('name')}); // utils/sync_rollup.js
               visited_boards.push(id);
 
               if(LingoLinq.remote_url(board.get('icon_url_with_fallback')) && !_sync.store_url_quick_check(board.get('icon_url_with_fallback'), 'image')) {
@@ -3248,7 +3248,7 @@ var persistence = Service.extend({
                 }
 
                 if(!already_visited && !already_going_to_visit && !unreachable_boards[board.id] && !unreachable_boards[board.key]) {
-                  to_visit_boards.push({id: board.id, key: board.key, depth: next.depth + 1, link_disabled: board.link_disabled, visit_source: (emberGet(prior_board, 'key') || emberGet(prior_board, 'id'))});
+                  to_visit_boards.push(Object.assign({id: board.id, key: board.key, depth: next.depth + 1, link_disabled: board.link_disabled, visit_source: (emberGet(prior_board, 'key') || emberGet(prior_board, 'id'))}, root_for_link(next))); // a folder carries its board's root (utils/sync_rollup.js)
                 }
                 var force_cache_check = true;
                 if(safely_cached || force_cache_check) {
@@ -3361,7 +3361,7 @@ var persistence = Service.extend({
                   nextBoard(defer);
                 }, 75);
               });
-            }, function(err) { if(claim_board_retry(_sync.get('sync_progress'), id, err)) { unreachable_boards[id] = true; if(key) { unreachable_boards[key] = true; } schedule_sync_board_step(function() { to_visit_boards.unshift(next); nextBoard(defer); }, BOARD_RETRY_DELAY_MS); return; } // #1212: once more, later (utils/sync_board_fallback.js)
+            }, function(err) { var retry = claim_board_retry(_sync.get('sync_progress'), id, err); if(retry) { unreachable_boards[id] = true; if(key) { unreachable_boards[key] = true; } parking.park(next, retry); schedule_sync_board_step(function() { nextBoard(defer); }, 75); return; } // a passing failure: parked, and tried again after a growing wait, up to 3 more times; this thread walks on (utils/board_retry.js)
               var board_unauthorized = (err && err.error == "Not authorized");
               if(next.link_disabled && board_unauthorized) {
                 // TODO: if a link is disabled, can we get away with ignoring an unauthorized board?
@@ -3370,7 +3370,7 @@ var persistence = Service.extend({
                   nextBoard(defer);
                 }, 75);
               } else {
-                unreachable_boards[id] = true; if(key) { unreachable_boards[key] = true; } // TODO: if a board has been deleted
+                unreachable_boards[id] = true; if(key) { unreachable_boards[key] = true; } note_board_root(_sync.get('sync_progress'), next, {id: id, key: key}); // TODO: if a board has been deleted
                 if(err.error && err.error.error) {
                   err = err.error;
                 }
@@ -3388,7 +3388,7 @@ var persistence = Service.extend({
             // TODO: mark this defer's promise as waiting (needs to be unmarked at each
             // nextBoard call), then set a longer timeout before calling nextBoard,
             // and only resolve when *all* the promises are waiting.
-            defer.resolve();
+            if(!parking.wait(retry_delay, function() { _this.active_board_threads--; }, function(back) { _this.active_board_threads++; to_visit_boards.unshift.apply(to_visit_boards, back); nextBoard(defer); })) { defer.resolve(); } // parked boards: one thread waits for them, its slot given back (utils/board_retry.js); otherwise this thread ends
           } else {
             schedule_sync_board_step(function() {
               nextBoard(defer);
@@ -4984,7 +4984,7 @@ import { queue_eventual_store } from '../utils/eventual_store_queue';
 import { is_permanent_upload_url } from '../utils/permanent_upload';
 import { on_uploads_cdn, is_web_page } from '../utils/direct_fetch';
 import { picture_kept_in_database, usable_database_copy } from '../utils/database_picture';
-import { BOARD_RELOAD_MS, keep_stored_board, claim_board_retry, BOARD_RETRY_DELAY_MS, note_device_boards, known_on_device } from '../utils/sync_board_fallback';
+import { BOARD_RELOAD_MS, USER_RELOAD_MS, keep_stored_board, claim_board_retry, note_device_boards, known_on_device } from '../utils/sync_board_fallback'; import { create_parking, register_parking, wake_parked, retry_delay } from '../utils/board_retry'; import { note_board_root, root_for_link } from '../utils/sync_rollup'; import { record_sync_log, restore_sync_log } from '../utils/sync_log_store';
 import { usable_copy } from '../utils/board_device_copy';
 import { reason_is_automatic, merge_follow_up } from '../utils/sync_follow_up';
 
@@ -5116,7 +5116,7 @@ persistence.reopen({
     if(this._active_root_sync_id === sync_id && this.sync_status_is_for_signed_in_user(user_id)) { this.set('sync_status', null); }
     var log = [].concat(this.get('sync_log') || []);
     log.push({ user_id: user_name, manual: force, canceled: true, finished: new Date(), statuses: [], summary: i18n.t('sync_canceled_summary', "Sync canceled") });
-    this.set('sync_log', log);
+    this.set('sync_log', record_sync_log(this, log)); // utils/sync_log_store.js
     this.set('sync_log_rand', Math.random());
     this.set('last_sync_event_at', (new Date()).getTime());
     return true;

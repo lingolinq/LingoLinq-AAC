@@ -6528,13 +6528,13 @@ describe("persistence-sync", function() {
       });
     });
 
-    it("should try a timed-out board only once more, then report it", function() {
+    it("should try a timed-out board three more times, then report it", function() { // was "once more"; changed with Traci's approval 2026-11-14 (utils/board_retry.js)
       db_wait(function() {
         var response = answers([{ reject: { error: 'timeout' } }]);
         var state = syncWithBoard167(response);
         waitsFor(function() { return waitForSyncDoneAndSettled(state.result) && state.tailDone; });
         runs(function() {
-          expect(response.calls).toEqual(2);
+          expect(response.calls).toEqual(4);
           expect(statusFor167().error).toEqual('board 167 failed retrieval for syncing, linked from 145');
           cancelSyncTailWork();
           persistence.set('sync_progress', null);
@@ -6543,13 +6543,13 @@ describe("persistence-sync", function() {
       });
     });
 
-    it("should ask for a board linked from two places at most twice", function() {
+    it("should ask for a board linked from two places at most four times", function() {
       db_wait(function() {
         var response = answers([{ reject: { error: 'timeout' } }]);
         var state = syncWithBoard167(response, true);
         waitsFor(function() { return waitForSyncDoneAndSettled(state.result) && state.tailDone; });
         runs(function() {
-          expect(response.calls).toEqual(2);
+          expect(response.calls).toEqual(4);
           cancelSyncTailWork();
           persistence.set('sync_progress', null);
           LingoLinq.sync_testing_real_boards = false;
@@ -6568,7 +6568,7 @@ describe("persistence-sync", function() {
         runs(function() {
           var log = persistence.get('sync_log') || [];
           var rows = ((log[0] && log[0].statuses) || []).filter(function(s) { return s.id == '167'; });
-          expect(response.calls).toEqual(2);
+          expect(response.calls).toEqual(4);
           expect(rows.length).toEqual(1);
           expect(rows[0] && rows[0].error).toEqual('board fred/slow failed retrieval for syncing, linked from 145');
           expect(logById(queryLog, '160')).toNotEqual(undefined);
@@ -7295,6 +7295,40 @@ describe("persistence-sync", function() {
       });
     });
 
+    // docs/task-management/2026-11-15_persist-sync-log.md: a sync cancelled at a point where its walk REJECTS (seen on
+    // the iOS WebKit run, cancel 2.5 s in) ends through the failure branch. It is still a cancel: logged as canceled,
+    // not errored, so Sync Details neither says "didn't finish" nor shows its partial rows as the result.
+    it("logs a cancelled sync whose walk rejects as canceled, not errored", function() {
+      db_wait(function() {
+        cancelSyncTailWork();
+        unloadSyncStoreRecords();
+        persistence.set('sync_progress', null);
+        persistence.set('sync_status', null);
+        persistence.set('root_sync_canceled', false);
+        persistence._canceled_sync_id = null;
+        stub(modal, 'error', function() { });
+        stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+        stubOnPersistence('sync_user', function() { return RSVP.resolve(); });
+        stubOnPersistence('sync_boards', function() {
+          persistence.cancel_sync();
+          return RSVP.reject({error: 'canceled'});
+        });
+        queryLog.defineFixture({ method: 'GET', type: 'user', response: RSVP.resolve({user: {id: '1371', user_name: 'fred'}}), id: '1371' });
+        var done = null;
+        persistence.sync('1371').then(function() { done = 'resolved'; }, function() { done = 'rejected'; });
+        waitsFor(function() { return done && syncSettled(); });
+        runs(function() {
+          var log = persistence.get('sync_log') || [];
+          var last = log[log.length - 1] || {};
+          expect(last.canceled).toEqual(true);
+          expect(!!last.errored).toEqual(false);
+          cancelSyncTailWork();
+          persistence.set('sync_progress', null);
+          persistence.set('sync_status', null);
+        });
+      });
+    });
+
     // Cancel pauses AUTOMATIC syncing (Traci, 2026-11-12): without it the stamp check started the cancelled sync again
     // about 5 minutes later, every time. The existing back-off is reused (30 minutes, doubling to 6 hours, reset by a
     // finished sync); a sync the person asks for is not held back by it.
@@ -7364,6 +7398,137 @@ describe("persistence-sync", function() {
           cancelSyncTailWork();
           persistence.set('sync_progress', null);
         });
+      });
+    });
+  });
+
+  it("should keep only the newest 5 entries in the sync log (docs/task-management/2026-11-15_persist-sync-log.md)", function() {
+    db_wait(function() {
+      cancelSyncTailWork();
+      unloadSyncStoreRecords();
+      clearLocalSyncDb();
+      resetSyncTestCaches();
+      if (typeof app_state.set === 'function') {
+        app_state.set('refresh_stamp', null);
+        app_state.set('short_refresh_stamp', null);
+        app_state.set('medium_refresh_stamp', null);
+      }
+      var tailDone = false;
+      enableRealSyncBoards(stubOnPersistence, function() { tailDone = true; });
+      persistence.set('sync_log', [{a: 1}, {a: 2}, {a: 3}, {a: 4}, {a: 5}]);
+      persistence.set('sync_progress', null);
+      persistence.set('sync_status', null);
+      var stores = [];
+      stubStoreUrl( function(url, type) {
+        stores.push(url);
+        console.log(url);
+        return RSVP.resolve({url: url});
+      });
+      stubOnPersistence( 'find_changed', function() { return RSVP.resolve([]); });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'user',
+        response: RSVP.resolve({user: {
+          id: '1340',
+          user_name: 'fred',
+          avatar_url: 'http://example.com/pic.png',
+          preferences: {home_board: {id: '145'}}
+        }}),
+        id: "1340"
+      });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'board',
+        response: RSVP.resolve({board: {
+          id: '145',
+          image_url: 'http://example.com/board.png',
+          buttons: [
+            {id: '1', image_id: '2', sound_id: '3', load_board: {id: '167'}}
+          ],
+          grid: {
+            rows: 1,
+            columns: 1,
+            order: [['1']]
+          }
+        },
+          image: [
+            {id: '2', url: 'http://example.com/image.png'}
+          ],
+          sound: [
+            {id: '3', url: 'http://example.com/sound.mp3'}
+          ]
+        }),
+        id: '145'
+      });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'board',
+        response: RSVP.resolve({board: {
+          id: '167',
+          image_url: 'http://example.com/board.png',
+          buttons: [
+            {id: '1', image_id: '2', load_board: {id: '145'}},
+            {id: '2', image_id: '2', load_board: {id: '178'}}
+          ],
+          grid: {
+            rows: 1,
+            columns: 1,
+            order: [['1']]
+          }
+        },
+          image: [
+            {id: '2', url: 'http://example.com/image2.png'}
+          ]
+        }),
+        id: '167'
+      });
+      queryLog.defineFixture({
+        method: 'GET',
+        type: 'board',
+        response: RSVP.resolve({board: {
+          id: '178',
+          image_url: 'http://example.com/board.png',
+          buttons: [
+            {id: '1', image_id: '2', load_board: {id: '145'}},
+            {id: '2', image_id: '2', load_board: {id: '167'}},
+            {id: '3', image_id: '2', load_board: {id: '178'}}
+          ],
+          grid: {
+            rows: 1,
+            columns: 1,
+            order: [['1']]
+          }
+        },
+          image: [
+            {id: '2', url: 'http://example.com/image2.png'}
+          ]
+        }),
+        id: '178'
+      });
+      var done = false;
+      setTimeout(function() { // not the runloop's later (ember/no-runloop): a plain delay before the sync starts
+        cancelSyncTailWork();
+        persistence.set('sync_status', null);
+        persistence.set('sync_progress', null);
+        persistence.sync(1340).then(function() {
+          done = true;
+        }, function() { done = true; });
+      }, 50);
+      waitsFor(function() { return waitForSyncDoneAndSettled(done) && tailDone; });
+      runs(function() {
+        var logs = queryLog;
+        expect(logById(logs, '1340')).toNotEqual(undefined);
+        expect(logById(logs, '145')).toNotEqual(undefined);
+        expect(logById(logs, '167')).toNotEqual(undefined);
+        expect(logById(logs, '178')).toNotEqual(undefined);
+        var log = persistence.get('sync_log');
+        expect(log.length).toEqual(5);
+        expect(log[0].a).toEqual(2);
+        expect(log[4].user_id).toEqual('fred');
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+        persistence.set('sync_status', null);
+        LingoLinq.sync_testing_real_boards = false;
       });
     });
   });

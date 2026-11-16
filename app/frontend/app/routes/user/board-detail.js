@@ -596,8 +596,8 @@ export default Route.extend({
     }
   },
 
-  resetController: function(controller, isExiting) {
-    if(isExiting) {
+  resetController: function(controller, isExiting, transition) {
+    if(isExiting && !(transition && transition.to && transition.to.name === 'user.board-detail_loading')) { // a slow folder hop passes through this board's loading screen (templates/user/board-detail-loading.hbs): not leaving the page, so its sentence and mode stay
       /* Drop the "Try this Board" marker on ANY exit from board-detail. The Back
          control it drives is scoped to a single trial, so leaving by the sidebar,
          the Home button, a browser Back, or anything else ends that trial just as
