@@ -25,12 +25,27 @@ module('Unit | Utility | offline board list', function(hooks) {
     assert.true(list.from_device, 'marked, so the server list replaces it online');
   });
 
-  test('a board already in memory is kept, found by its key too', async function(assert) {
+  test('a board already in memory under its id is kept, not overwritten by the device copy', async function(assert) {
     var store = this.owner.lookup('service:store');
-    var mem = store.push({ data: { id: 'larry/kept', type: 'board', attributes: { key: 'larry/kept', name: 'In memory' } } });
+    var mem = store.push({ data: { id: '9902_1', type: 'board', attributes: { key: 'larry/kept', name: 'In memory' } } });
     var list = await own_device_boards(store, 'larry', storage([row('9902_1', 'larry/kept', { name: 'Older device copy' })]));
     assert.strictEqual(list[0], mem);
-    assert.strictEqual(mem.get('name'), 'In memory', 'not overwritten by the device copy');
+    assert.strictEqual(mem.get('name'), 'In memory');
+  });
+
+  test('a board in memory under its key (fetched by key) is left alone, and the list holds the id record', async function(assert) {
+    var store = this.owner.lookup('service:store');
+    var by_key = store.push({ data: { id: 'larry/bykey', type: 'board', attributes: { key: 'larry/bykey', name: 'Fetched by key' } } });
+    var list = await own_device_boards(store, 'larry', storage([row('9902_2', 'larry/bykey', { name: 'Device copy' })]));
+    assert.strictEqual(list[0].get('id'), '9902_2', 'the page groups folders by id');
+    assert.strictEqual(by_key.get('name'), 'Fetched by key', 'unchanged');
+  });
+
+  test('a device database that throws as it is read gives an empty list, not an exception', async function(assert) {
+    var store = this.owner.lookup('service:store');
+    var list = await own_device_boards(store, 'larry', { find_all: function() { throw new Error('The database connection is closing.'); } });
+    assert.strictEqual(list.length, 0);
+    assert.true(list.done);
   });
 
   test('no user name, or a failed read, is an empty finished list', async function(assert) {

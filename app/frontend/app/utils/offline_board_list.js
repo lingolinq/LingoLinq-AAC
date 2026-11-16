@@ -32,19 +32,22 @@ function device_list(records) {
 
 // The boards on the device whose key starts with `<user_name>/` (the user's own boards and shallow-clone copies;
 // the server's Mine list is the same owner, app/controllers/api/boards_controller.rb:94-124), not revoked, as store
-// records. A record already in memory is kept, found by id or by key (a board fetched by key is stored under its key,
-// serializers/application.js:85-94), so an older device copy never overwrites it. `storage` is passed in by tests.
+// records. A record already in memory under the board's id is kept, so an older device copy never overwrites it. (A
+// board fetched by key is a separate record under its key, serializers/application.js:85-94: pushing by id leaves it
+// alone, and listing it would hide its folders, which the page groups by id.) The read runs inside the promise chain,
+// so a database that throws (a closing IndexedDB connection) gives an empty list, not an exception. `storage` is
+// passed in by tests.
 export function own_device_boards(store, user_name, storage) {
   if(!store || !user_name) { return RSVP.resolve(device_list([])); }
   var prefix = user_name + '/';
   var source = storage || lingoLinqExtras.storage;
-  return RSVP.resolve(source.find_all('board')).then(function(rows) {
+  return RSVP.resolve().then(function() { return source.find_all('board'); }).then(function(rows) {
     var records = [];
     (rows || []).forEach(function(row) {
       var data = row && (row.data || row);
       var raw = data && data.raw;
       if(!raw || !raw.id || typeof raw.key !== 'string' || raw.key.indexOf(prefix) !== 0 || is_revoked_raw(raw)) { return; }
-      var existing = store.peekRecord('board', raw.id) || store.peekRecord('board', raw.key);
+      var existing = store.peekRecord('board', raw.id);
       records.push(existing || store.push({ data: { id: raw.id, type: 'board', attributes: raw } }));
     });
     return device_list(records);

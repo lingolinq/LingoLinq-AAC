@@ -1915,7 +1915,8 @@ import backend_user_id, { same_person } from '../../utils/backend_user_id';
      flag (routes/user/boards.js activate, boardsPageListCache.isBoardsPageActive) is read, not the router's
      currentRouteName, which still names the previous page while this page's setupController runs;
    - when the open device database is the signed-in person's, and the page is theirs or one they may model for;
-   - when no finished list is already on screen (a short drop never swaps a full server list for a shorter one);
+   - when no finished list is already on screen: a short drop never swaps a full server list for a shorter one, and a
+     device list already built is kept (the device's boards cannot change while offline: a sync needs the network);
    - for the newest request (list_id), so a read that ends after the page is back online is dropped. */
 UserIndexController.reopen({
   // Whose device database is open (only the signed-in person's counts), and where its boards are read from; tests
@@ -1932,14 +1933,14 @@ UserIndexController.reopen({
     var me = this.device_db_user();
     if(!me || (me !== user_name && !model.get('permissions.model'))) { return; }
     var prior = model.get('my_boards');
-    if(boardsPageListCache.isUsableList(prior) && !prior.from_device) { return; }
-    if(!boardsPageListCache.isUsableList(prior)) { model.set('my_boards', { loading: true }); }
+    if(boardsPageListCache.isUsableList(prior)) { return; }
+    model.set('my_boards', { loading: true });
     own_device_boards(this.store, user_name, this.get('device_storage')).then(function(records) {
       if(_this.isDestroyed || model.isDestroyed || _this.get('model') !== model || _this.get('list_id') !== list_id) { return; }
       records.user_id = model.get('id');
       boardsPageListCache.setMineListBusy(false);
       model.set('my_boards', records);
-    });
+    }, function() { /* own_device_boards resolves an empty list on a failed read; nothing else rejects */ });
   }
 });
 import { own_device_boards, current_device_db_user } from '../../utils/offline_board_list';
