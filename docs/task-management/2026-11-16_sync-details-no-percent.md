@@ -219,3 +219,29 @@ Each finding checked:
   that resolves" comment is back above its own describe; this log's canceled-first-sync line corrected above; the
   card fields shared by finished and unfinished cards are written once (`finished_card` / `unfinished_card` + the
   shared lists). `overall.pct` kept: `tests/unit/utils/sync-rollup-test.js:49` still asserts it.
+
+## A real failed first sync on four browsers (2026-11-17)
+
+Set-up: a synthetic user `sync_e2e_failfirst` (home board with 3 folders and a second-level folder, Crisis Vocabulary in
+the sidebar) with one contact whose picture is on a remote host (example.com address; private local e2e database). On
+develop that contact makes the contacts step throw after the boards are saved (`sync_contacts` calls
+`this.store_url_quick_check` with `this` undefined; fixed by #1327), so its first sync is a real failed first sync.
+Branch build served locally, the e2e harness's link and picture routing, a fresh device each time, Sync Now, then
+Sync Details. Opened through the dashboard's path (`modal.open('sync-details')`): Modern lands on the home board in
+Speak Mode, where the drawer stays hidden by design.
+
+| Browser | Sync | Log entry | Sync Details |
+|---|---|---|---|
+| Chromium, Pixel 7 profile | failed: "unspecified sync error" | errored, 6 rows, roots kept | "Sync Failed, see details below"; "6 boards and folders are saved on this device."; "Saved before the sync stopped"; 2 cards (home "4 folders saved", Crisis Vocabulary "Saved"); no %, tabs or pills |
+| WebKit, iPhone 15 profile | same | same | same |
+| Firefox, desktop | same | same | same |
+| Chrome 124 on the Android emulator (ll_trace, tablet) | same | same | same |
+
+Emulator note: Playwright's Android `launchBrowser` stalled on this AVD (new tabs stayed about:blank; the earlier
+unexplained TTS-probe stall looks the same). Chrome was driven over its DevTools socket instead (`adb forward
+tcp:9333 localabstract:chrome_devtools_remote`, a tab opened by intent, `connectOverCDP`), with DOM `click()` for
+buttons (pointer input over that connection timed out).
+
+Found on the way, not changed: `sync_logs` calls `this.store` inside plain callbacks (`services/persistence.js`
+sync_logs), which would throw; it is unreachable today, since only that function writes the `bigLogs` row it reads.
+Follow-up.
