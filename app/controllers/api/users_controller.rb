@@ -1057,21 +1057,22 @@ class Api::UsersController < ApplicationController
   end
 
   # Records the AI data-sharing consent (#1136) of an existing account with one click.
-  # Only the signed-in account holder, acting on their own account with a full-access
-  # token, can do this: not a supervisor, not an admin or manager acting as the account
-  # (masquerade), not a valet login and not a limited-scope token. A district-managed
-  # account is covered by its district instead, and an account on the parent route by
-  # the parent's approval; both are refused here with the route named. Source and
-  # version are server constants, never read from the request.
+  # Only the signed-in account holder acting on their own account can do this:
+  # - a supervisor, or an admin or manager acting as the account (masquerade), is
+  #   refused below with `account_holder_required`;
+  # - a valet login or a limited-scope token is refused by allowed?(user, 'edit');
+  # - a district-managed account is covered by its district instead
+  #   (`org_authorization_required`);
+  # - an account on the parent route is refused by grant_ai_consent! itself
+  #   (`parental_consent_required`).
+  # Source and version are server constants, never read from the request.
   def ai_consent
     user = User.find_by_path(params['user_id'])
     return unless exists?(user, params['user_id'])
     return unless allowed?(user, 'edit')
-    own_account = @api_user && user.id == @api_user.id && !@true_user &&
-                  !@api_user.valet_mode? && api_permission_scopes.include?('full')
+    own_account = @api_user && user.id == @api_user.id && !@true_user
     return api_error(403, {error: 'account_holder_required'}) unless own_account
     return api_error(400, {error: 'org_authorization_required'}) if Organization.ai_consent_orgs_for(user).any?
-    return api_error(400, {error: 'parental_consent_required'}) if user.ai_consent_parent_route?
     begin
       user.grant_ai_consent!(
         disclosures_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION,

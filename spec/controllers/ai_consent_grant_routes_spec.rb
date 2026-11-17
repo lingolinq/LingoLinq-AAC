@@ -117,6 +117,13 @@ describe 'AI data-sharing consent: who can record one (#1136)' do
         expect(@user.reload.settings['ai_consent']).to be_blank
       end
 
+      it 'refuses a valet login' do
+        valet_token_user
+        post :ai_consent, params: { user_id: @user.global_id }
+        expect(response).not_to be_successful
+        expect(@user.reload.settings['ai_consent']).to be_blank
+      end
+
       it 'refuses a district-managed account and names the district route' do
         token_user
         org = Organization.create(settings: { 'total_licenses' => 1 })
