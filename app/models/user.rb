@@ -149,6 +149,27 @@ class User < ApplicationRecord
     !['unspecified', 'communicator'].include?(self.registration_type)
   end
 
+  # Account types that may be sent to the marketing CRM (HubSpot), #1123. An allowlist,
+  # because the type is a value the client sends: anything not named here, including
+  # a type added later, is not sent.
+  MARKETING_TRACKABLE_TYPES = %w[therapist parent teacher other eval manually-added-supervisor].freeze
+
+  # True only for an adult supporter account: an allowlisted account type, no
+  # child-consent record of any state, not registered as under 16, and recorded as
+  # 18 or over at signup. Anything missing or unreadable means not sent. Separate
+  # from supporter_registration?, which mail and stats still read with its own meaning.
+  def marketing_trackable?
+    s = self.settings.is_a?(Hash) ? self.settings : {}
+    prefs = s['preferences']
+    type = prefs.is_a?(Hash) ? prefs['registration_type'] : nil
+    return false unless type.is_a?(String) && MARKETING_TRACKABLE_TYPES.include?(type)
+    return false if s['coppa'].present?
+    reg = s['registration']
+    return false unless reg.is_a?(Hash)
+    return false if reg['under_16']
+    reg['adult_at_signup'] == true
+  end
+
   # Analytics / third-party tracking preference (GDPR). After +process_params+, stored as boolean via +process_boolean+;
   # legacy rows may still have the string 'false'.
   def cookies_opted_out?
@@ -2918,9 +2939,19 @@ class User < ApplicationRecord
         under_16 = classified_under_16
       end
       eu_under_16 = !!(country && LingoLinq::Jurisdiction.eu?(country) && under_16)
+      # A yes/no "18 or over at signup", worked out from the birth month and year the
+      # signup form sends; the date itself is not kept. True ONLY when a usable date
+      # says 18 or over. No date, or an unusable one, is false: it never falls back
+      # to the self-declared under-16 flag. Read by marketing_trackable? (#1123).
+      adult_at_signup = User.age_under_threshold?(
+        birth_month: birth_month,
+        birth_year: birth_year,
+        age: 18
+      ) == false
       self.settings['registration'] = {
         'under_16' => under_16,
         'eu_under_16' => eu_under_16,
+        'adult_at_signup' => adult_at_signup,
         'registered_at' => Time.now.utc.iso8601
       }
       # Compliance Kernel: persist birth month/year + jurisdiction declaration when
