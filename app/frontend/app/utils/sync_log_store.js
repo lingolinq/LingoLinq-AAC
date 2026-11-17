@@ -41,7 +41,7 @@ function defaults(deps) {
 // (components/sync-details.js `details`: idx, status flags, sorted_statuses, toggled) are left out.
 export function entry_copy(entry) {
   var copy = {};
-  ['user_id', 'reason', 'manual', 'issues', 'errored', 'canceled', 'finished', 'summary', 'roots'].forEach(function(k) {
+  ['user_id', 'reason', 'manual', 'issues', 'errored', 'canceled', 'storage_failed', 'finished', 'summary', 'roots'].forEach(function(k) {
     if(entry[k] !== undefined) { copy[k] = entry[k]; }
   });
   copy.statuses = (Array.isArray(entry.statuses) ? entry.statuses : []).filter(function(s) { return s && typeof s === 'object'; }).map(function(s) {
@@ -124,6 +124,22 @@ export function last_result(log) {
   for(var i = list.length - 1; i >= 0; i--) {
     var e = list[i];
     if(e && !e.errored && !e.canceled && e.statuses && e.statuses.length) {
+      return { entry: e, from_earlier: i < list.length - 1 };
+    }
+  }
+  return null;
+}
+
+// What Sync Details shows when no sync has finished (last_result is null), such as a new account whose first sync
+// failed: the newest sync that stopped (failed or cancelled) and has rows, and whether a later one came after it
+// (Traci, 2026-11-16; docs/task-management/2026-11-16_sync-details-no-percent.md). Its rows are only the boards it
+// reached, so the view says "Saved before the sync stopped" and claims nothing ready. A sync whose board writes failed
+// (`storage_failed`, services/persistence.js) saved nothing it lists, so it is never this result.
+export function partial_result(log) {
+  var list = Array.isArray(log) ? log : [];
+  for(var i = list.length - 1; i >= 0; i--) {
+    var e = list[i];
+    if(e && (e.errored || e.canceled) && !e.storage_failed && e.statuses && e.statuses.length) {
       return { entry: e, from_earlier: i < list.length - 1 };
     }
   }

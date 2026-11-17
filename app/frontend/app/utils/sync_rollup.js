@@ -1,4 +1,4 @@
-import { last_result } from './sync_log_store';
+import { last_result, partial_result } from './sync_log_store';
 
 // Sync results grouped by the boards a person knows (Traci, 2026-11-14; mockups "Sync Status Mockups", the combined
 // design). A sync saves the home board, the sidebar boards, the liked boards and Crisis Vocabulary, and each one's
@@ -127,19 +127,30 @@ export function with_errors(statuses, errors) {
 // The summary Sync Details and the sync drawer show: the running sync while one runs (its rows so far, with the
 // failures it has recorded), otherwise a finished sync on this device. Sync Details takes the newest one with rows
 // (utils/sync_log_store.js last_result), so a cancelled sync does not empty it, and marks it `from_earlier` when a
-// later sync had no rows. The drawer reports the sync that just ended, so it passes `latest_only`. Null when there is
-// nothing to group.
+// later sync had no rows. With no finished sync at all it takes the newest stopped one (partial_result), marked
+// `stopped`. A running or stopped summary is `unfinished`: its rows are only the boards reached so far, so nothing in
+// it may be called ready (Traci, 2026-11-16). The drawer reports the sync that just ended, so it passes `latest_only`
+// and never gets an earlier or stopped one. Null when there is nothing to group.
 export function summary_for(persistence, opts) {
   if(!persistence || typeof persistence.get !== 'function') { return null; }
   if(persistence.get('syncing') && persistence.get('sync_progress')) {
-    return rollup(with_errors(persistence.get('sync_progress.board_statuses'), persistence.get('sync_progress.errors')), persistence.get('sync_progress.board_roots'));
+    var running = rollup(with_errors(persistence.get('sync_progress.board_statuses'), persistence.get('sync_progress.errors')), persistence.get('sync_progress.board_roots'));
+    running.unfinished = true;
+    return running;
   }
+  var latest_only = !!(opts && opts.latest_only);
   var log = persistence.get('sync_log') || [];
   var found = last_result(log);
-  if(!found || (found.from_earlier && opts && opts.latest_only)) { return null; }
+  var stopped = false;
+  if(!found && !latest_only) {
+    found = partial_result(log);
+    stopped = !!found;
+  }
+  if(!found || (found.from_earlier && latest_only)) { return null; }
   var summary = rollup(found.entry.statuses, found.entry.roots);
   summary.from_earlier = found.from_earlier;
   summary.finished = found.entry.finished || null;
+  if(stopped) { summary.unfinished = true; summary.stopped = true; }
   return summary;
 }
 

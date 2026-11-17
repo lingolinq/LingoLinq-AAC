@@ -5,7 +5,7 @@ import { computed } from '@ember/object';
 import { htmlSafe } from '@ember/template';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
-import { sync_progress_line } from '../utils/sync_progress';
+import { sync_progress_line, ready_title } from '../utils/sync_progress';
 import { summary_for } from '../utils/sync_rollup';
 import { restored_lead_kind } from '../utils/sync_log_store';
 
@@ -61,14 +61,32 @@ export default Component.extend({
     if(kind === 'issues') { return i18n.t('sync_lead_last_issues', "The last sync finished, but some boards didn't save."); }
     return null;
   }),
-  summary_pct: computed('summary', function() { var s = this.get('summary'); return s ? s.overall.pct : 0; }),
-  summary_bar_style: computed('summary_pct', function() { return htmlSafe('width: ' + this.get('summary_pct') + '%;'); }),
-  summary_line: computed('summary', function() {
+  // No percentage anywhere (Traci, 2026-11-16; docs/task-management/2026-11-16_sync-details-no-percent.md). A running
+  // sync, or one that stopped with no finished sync before it, is `unfinished` (utils/sync_rollup.js summary_for): its
+  // rows are only the boards reached, so it gets no headline, no tabs and no Ready labels.
+  unfinished: computed('summary', function() { var s = this.get('summary'); return !!(s && s.unfinished); }),
+  stopped: computed('summary', function() { var s = this.get('summary'); return !!(s && s.stopped); }),
+  show_tabs: computed('summary', 'unfinished', function() { return !!this.get('summary') && !this.get('unfinished'); }),
+  // The drawer's words for the newest finished sync. None for cards from an earlier sync, which sit under a status line
+  // about a later one that failed or was cancelled (Traci, 2026-11-16), and none for an unfinished one.
+  headline: computed('summary', 'unfinished', function() {
+    var s = this.get('summary');
+    if(!s || this.get('unfinished') || s.from_earlier) { return null; }
+    return ready_title(s);
+  }),
+  summary_line: computed('summary', 'unfinished', 'stopped', function() {
     var s = this.get('summary');
     if(!s) { return null; }
+    if(this.get('stopped')) {
+      var n = s.overall.saved;
+      return n === 1 ? i18n.t('sync_drawer_saved_one', "1 board is saved on this device.") :
+        i18n.t('sync_drawer_saved_many', "%{n} boards and folders are saved on this device.", { n: n });
+    }
+    if(this.get('unfinished')) { return null; } // the status line says how many are saved so far
     return i18n.t('sync_saved_of_total', "%{saved} of %{total} boards and folders are saved on this device.", { saved: s.overall.saved, total: s.overall.total });
   }),
-  missing_count: computed('summary', function() { var s = this.get('summary'); return s ? s.overall.missing : 0; }),
+  // Only a finished sync knows what is missing; an unfinished one's failures are only those reached so far.
+  missing_count: computed('summary', 'unfinished', function() { var s = this.get('summary'); return s && !this.get('unfinished') ? s.overall.missing : 0; }),
   save_missing_label: computed('missing_count', function() {
     var n = this.get('missing_count');
     return n === 1 ? i18n.t('sync_save_the_one_now', "Save it now") : i18n.t('sync_save_the_n_now', "Save the %{n} now", { n: n });
@@ -94,11 +112,13 @@ export default Component.extend({
       return t;
     });
   }),
-  cards: computed('summary', 'current_tab', 'open_cards', 'all_saved_cards', function() {
+  cards: computed('summary', 'current_tab', 'open_cards', 'all_saved_cards', 'unfinished', 'stopped', function() {
     var self = this;
     var s = this.get('summary');
     if(!s) { return []; }
-    var tab = this.get('current_tab');
+    var unfinished = this.get('unfinished');
+    var stopped = this.get('stopped');
+    var tab = unfinished ? 'all' : this.get('current_tab'); // no tabs while unfinished: every board
     var open = this.get('open_cards') || {};
     var all_saved = this.get('all_saved_cards') || {};
     var first_attention = (s.groups.find(function(g) { return !g.ready; }) || {}).key;
@@ -108,8 +128,22 @@ export default Component.extend({
       var is_open = (g.key in open) ? open[g.key] : (g.key === first_attention);
       var show_all = !!all_saved[g.key];
       var missing = g.folders_missing.length;
+      if(unfinished) { return Object.assign(self.unfinished_card(g, stopped), {
+        folders_missing: g.folders_missing,
+        folders_saved: show_all ? g.folders_saved : g.folders_saved.slice(0, SAVED_SHOWN),
+        has_missing: missing > 0,
+        has_saved: g.saved_count > 0,
+        has_more_saved: g.saved_count > SAVED_SHOWN,
+        more_label: show_all ? i18n.t('sync_show_fewer', "Show fewer") : i18n.t('sync_show_all_saved_n', "Show all %{n} saved folders", { n: g.saved_count }),
+        more_expanded: show_all ? 'true' : 'false',
+        missing_title: i18n.t('sync_not_saved_yet_n', "Not saved yet · %{n}", { n: missing }),
+        saved_title: i18n.t('sync_saved_n', "Saved · %{n}", { n: g.saved_count }),
+        open: is_open, expanded: is_open ? 'true' : 'false',
+        toggle: function() { var o = Object.assign({}, self.get('open_cards') || {}); o[g.key] = !is_open; self.set('open_cards', o); },
+        toggle_more: function() { var a = Object.assign({}, self.get('all_saved_cards') || {}); a[g.key] = !show_all; self.set('all_saved_cards', a); }
+      }); }
       return {
-        key: g.key, name: g.name, ready: g.ready, role: role_label(g.role),
+        key: g.key, name: g.name, ready: g.ready, tone: g.ready ? 'ready' : 'attention', role: role_label(g.role),
         folders_inside: folders_inside(g.folder_count),
         has_folders: g.folder_count > 0,
         status: g.ready ? i18n.t('sync_card_ready_offline', "Ready offline") :
@@ -135,6 +169,22 @@ export default Component.extend({
       };
     });
   }),
+  // A card for a board an unfinished sync reached: how many folders it saved, with no Ready label, no total and no bar
+  // (the sync did not reach every folder). Missing folders are only the failures it recorded.
+  unfinished_card(g, stopped) {
+    var n = g.saved_count;
+    return {
+      key: g.key, name: g.name, ready: false, tone: g.folders_missing.length > 0 || g.board_missing ? 'attention' : 'saved', unfinished: true,
+      role: role_label(g.role), folders_inside: null, status: null, bar_style: null,
+      has_folders: g.folder_count > 0,
+      count: g.folder_count > 0 ? (n === 1 ? i18n.t('sync_card_one_folder_saved', "1 folder saved") : i18n.t('sync_card_n_folders_saved_only', "%{n} folders saved", { n: n })) :
+        (g.board_missing ? i18n.t('sync_card_not_saved', "Not saved yet") : i18n.t('sync_card_saved', "Saved")),
+      intro_title: i18n.t('sync_folders_inside_title', "Folders inside %{name}", { name: g.name }),
+      intro_text: i18n.t('sync_folders_intro_unfinished', "These open from folder buttons on %{name}.", { name: g.name }),
+      no_folders_text: stopped ? i18n.t('sync_no_folders_saved_before_stop', "No folders were saved before the sync stopped.") :
+        i18n.t('sync_no_folders_saved_yet', "No folders are saved yet.")
+    };
+  },
   tagName: '',
 
   details: computed(

@@ -23,3 +23,13 @@ export function sync_progress_line(progress) {
   }
   return line;
 }
+
+// How many of a person's boards are ready offline, in the words the sync drawer and Sync Details both use (Traci,
+// 2026-11-16: the two screens always agree, and neither shows a percentage). `summary` is utils/sync_rollup.js
+// summary_for's; a board counts as ready when it and every folder reached under it saved. Null without a summary.
+export function ready_title(summary) {
+  if(!summary || !summary.groups) { return null; }
+  if(summary.overall && summary.overall.missing === 0) { return i18n.t('sync_drawer_all_ready', "All your boards are ready offline"); }
+  var ready = summary.groups.filter(function(g) { return g.ready; }).length;
+  return i18n.t('sync_drawer_n_of_m_ready', "%{ready} of %{total} boards are ready offline", { ready: ready, total: summary.groups.length });
+}

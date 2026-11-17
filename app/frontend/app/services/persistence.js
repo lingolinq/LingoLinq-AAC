@@ -2423,7 +2423,7 @@ var persistence = Service.extend({
             user_id: user_name,
             reason: sync_reason,
             manual: force,
-            issues: errors.length > 0,
+            issues: errors.length > 0, errored: storage_failed ? true : undefined, storage_failed: storage_failed ? true : undefined, // the boards' writes failed: it did not finish (Sync Details, utils/sync_log_store.js partial_result)
             finished: new Date(),
             statuses: statuses, roots: board_roots,
             summary: sync_message
@@ -2437,7 +2437,7 @@ var persistence = Service.extend({
     }, function(err) {
       if(_this_sync.get('sync_progress.root_user') == user_id) {
         var statuses = _this_sync.get('sync_progress.board_statuses') || [];
-        var stamps = _this_sync.get('sync_progress.sync_stamps');
+        var stamps = _this_sync.get('sync_progress.sync_stamps'); var stopped_roots = _this_sync.get('sync_progress.board_roots') || {}; var stopped_errors = _this_sync.get('sync_progress.errors') || []; // kept in its log entry, for Sync Details' cards after a stop
         _this_sync.set('sync_progress', null);
         if(_this_sync._canceled_sync_id === sync_id) { if(_this_sync._active_root_sync_id === sync_id && _this_sync.sync_status_is_for_signed_in_user(user_id)) { _this_sync.set('sync_status', null); } } else if(_this_sync.sync_status_is_for_signed_in_user(user_id)) { _this_sync.set('sync_status', 'failed'); }
         // if last sync attempt ended in failure and this attempt also
@@ -2466,7 +2466,7 @@ var persistence = Service.extend({
           manual: force,
           errored: _this_sync._canceled_sync_id !== sync_id, canceled: _this_sync._canceled_sync_id === sync_id || undefined, // a cancel that ended through this branch is still a cancel (docs/task-management/2026-11-15_persist-sync-log.md)
           finished: new Date(),
-          statuses: statuses,
+          statuses: with_errors(statuses, stopped_errors), roots: stopped_roots, // grouped and with the failures it recorded, as the finished sync's entry (utils/sync_rollup.js)
           summary: _this_sync._canceled_sync_id === sync_id ? i18n.t('sync_canceled_summary', "Sync canceled") : i18n.t('error_syncing_user', "Error syncing %{user_id}: ", {user_id: user_name}) + message
         });
         _this_sync.set('last_sync_event_at', (new Date()).getTime());
@@ -4984,7 +4984,7 @@ import { queue_eventual_store } from '../utils/eventual_store_queue';
 import { is_permanent_upload_url } from '../utils/permanent_upload';
 import { on_uploads_cdn, is_web_page } from '../utils/direct_fetch';
 import { picture_kept_in_database, usable_database_copy } from '../utils/database_picture';
-import { BOARD_RELOAD_MS, USER_RELOAD_MS, keep_stored_board, claim_board_retry, note_device_boards, known_on_device } from '../utils/sync_board_fallback'; import { create_parking, register_parking, wake_parked, retry_delay } from '../utils/board_retry'; import { note_board_root, root_for_link } from '../utils/sync_rollup'; import { record_sync_log, restore_sync_log } from '../utils/sync_log_store';
+import { BOARD_RELOAD_MS, USER_RELOAD_MS, keep_stored_board, claim_board_retry, note_device_boards, known_on_device } from '../utils/sync_board_fallback'; import { create_parking, register_parking, wake_parked, retry_delay } from '../utils/board_retry'; import { note_board_root, root_for_link, with_errors } from '../utils/sync_rollup'; import { record_sync_log, restore_sync_log } from '../utils/sync_log_store';
 import { usable_copy } from '../utils/board_device_copy';
 import { reason_is_automatic, merge_follow_up } from '../utils/sync_follow_up';
 

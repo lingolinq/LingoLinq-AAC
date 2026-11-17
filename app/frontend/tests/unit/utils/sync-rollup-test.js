@@ -1,6 +1,7 @@
 import { module, test } from 'qunit';
 import EmberObject from '@ember/object';
 import { note_board_root, root_for_link, rollup, with_errors, summary_for, current_root_name, only_parked_left } from 'frontend/utils/sync_rollup';
+import { ready_title } from 'frontend/utils/sync_progress';
 
 /* Sync results grouped by the boards a person knows (utils/sync_rollup.js): one row per home, sidebar or liked
  * board, with its folders underneath, instead of every folder on its own line (Traci, 2026-11-14). */
@@ -95,6 +96,41 @@ module('Unit | Utility | sync rollup', function() {
     assert.deepEqual(running.groups[0].folders_missing, ['Go'], 'with the failures it recorded');
     assert.strictEqual(summary_for(EmberObject.create({ sync_log: [] })), null, 'nothing before a first sync');
     assert.strictEqual(summary_for(null), null);
+  });
+
+  // docs/task-management/2026-11-16_sync-details-no-percent.md: Sync Details shows, with no finished sync, the newest
+  // stopped one; it and a running sync are unfinished (no Ready labels, Traci 2026-11-16). The drawer never shows an
+  // earlier or stopped sync.
+  test('with no finished sync, the summary is the newest stopped one, unfinished', function(assert) {
+    var w = walk();
+    var p = EmberObject.create({ sync_log: [{ errored: true, statuses: w.statuses, roots: w.sp.board_roots, finished: new Date(1700000000000) }] });
+    var s = summary_for(p);
+    assert.true(s.unfinished);
+    assert.true(s.stopped);
+    assert.false(s.from_earlier);
+    assert.deepEqual(s.groups.map(function(g) { return g.name; }), ['Quick Core 60', 'Keyboard']);
+    assert.strictEqual(summary_for(p, { latest_only: true }), null, 'the drawer reports only a sync that finished');
+  });
+
+  test('a running sync is unfinished; a finished one is not', function(assert) {
+    var w = walk();
+    var running = EmberObject.create({ syncing: true, sync_progress: { board_statuses: w.statuses, board_roots: w.sp.board_roots }, sync_log: [] });
+    assert.true(summary_for(running).unfinished);
+    assert.notOk(summary_for(running).stopped);
+    var done = EmberObject.create({ sync_log: [{ statuses: w.statuses, roots: w.sp.board_roots }] });
+    assert.notOk(summary_for(done).unfinished);
+    var stopped_later = EmberObject.create({ sync_log: [{ statuses: w.statuses, roots: w.sp.board_roots }, { errored: true, statuses: w.statuses, roots: w.sp.board_roots }] });
+    assert.notOk(summary_for(stopped_later).unfinished, 'an earlier finished sync wins over a later stopped one');
+    assert.true(summary_for(stopped_later).from_earlier);
+  });
+
+  // One wording for how many boards are ready, in the drawer and Sync Details (Traci, 2026-11-16).
+  test('how many boards are ready offline, in words', function(assert) {
+    var w = walk();
+    assert.strictEqual(ready_title(rollup(w.statuses, w.sp.board_roots)), '1 of 2 boards are ready offline');
+    var clean = w.statuses.filter(function(s) { return !s.error; });
+    assert.strictEqual(ready_title(rollup(clean, w.sp.board_roots)), 'All your boards are ready offline');
+    assert.strictEqual(ready_title(null), null);
   });
 
   test('the board being saved now is named by its top board', function(assert) {
