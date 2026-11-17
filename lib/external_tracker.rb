@@ -109,8 +109,78 @@ module ExternalTracker
     end
     if res.code.to_i >= 300
       Rails.logger.error("ExternalTracker: HubSpot contact sync failed for user #{user.global_id}: status=#{res.code}")
+    else
+      record_sent_email(user, email)
     end
     res.code
+  end
+
+  # The addresses this app has sent to HubSpot for this account. Kept on the account
+  # so that deletion can remove exactly those contacts (#384) and nothing else.
+  def self.sent_emails(user)
+    list = user && user.settings.is_a?(Hash) && user.settings['hubspot'].is_a?(Hash) ? user.settings['hubspot']['sent_emails'] : nil
+    Array(list).select { |e| e.is_a?(String) && e.present? }.uniq
+  end
+
+  def self.record_sent_email(user, email)
+    return if email.blank? || sent_emails(user).include?(email)
+    user.settings['hubspot'] = { 'sent_emails' => sent_emails(user) + [email] }
+    user.save
+  rescue => e
+    Rails.logger.error("ExternalTracker: could not record the sent address for user #{user.global_id}: #{e.class}")
+  end
+
+  REMOVE_CONTACT_URL = 'https://api.hubapi.com/crm/v3/objects/contacts/gdpr-delete'
+  REMOVE_CONTACT_ATTEMPTS = 3
+
+  # Permanently deletes the HubSpot contacts for these addresses (#384). HubSpot
+  # reference, read 2026-11-17:
+  # https://developers.hubspot.com/docs/api-reference/legacy/crm/objects/contacts/gdpr/gdpr-delete-contact
+  #
+  # Call this ONLY with addresses from sent_emails. HubSpot stores (blocklists) an
+  # address it does not know, so passing an address that was never sent would hand
+  # HubSpot a new one.
+  #
+  # The addresses are the arguments because the account row is already gone when this
+  # runs. The worker (BoyBand) does not retry a failed job, so this method retries
+  # itself: the addresses that failed are scheduled again, up to
+  # REMOVE_CONTACT_ATTEMPTS in all. It never raises, and it logs a status and a count,
+  # never an address.
+  def self.remove_contact(emails, attempt = 1)
+    return false unless ENV['HUBSPOT_ACCESS_TOKEN']
+    emails = Array(emails).select { |e| e.is_a?(String) && e.present? }.uniq
+    return true if emails.empty?
+    failed = []
+    statuses = []
+    emails.each do |email|
+      begin
+        res = Typhoeus.post(REMOVE_CONTACT_URL, {
+          body: {objectId: email, idProperty: 'email'}.to_json,
+          headers: {
+            'Content-Type' => 'application/json',
+            'Authorization' => "Bearer #{ENV['HUBSPOT_ACCESS_TOKEN']}"
+          },
+          timeout: 10
+        })
+        code = res.code.to_i
+        # 2xx: deleted. 404: HubSpot has no such contact, which is the state we want.
+        next if (code >= 200 && code < 300) || code == 404
+        statuses << code
+      rescue => e
+        # The class only: an exception message can carry the request, address included.
+        statuses << e.class.name
+      end
+      failed << email
+    end
+    return true if failed.empty?
+    attempt = attempt.to_i
+    if attempt < REMOVE_CONTACT_ATTEMPTS
+      Rails.logger.warn("ExternalTracker: HubSpot contact removal failed for #{failed.length} address(es), attempt #{attempt} of #{REMOVE_CONTACT_ATTEMPTS}, will retry: #{statuses.uniq.join(', ')}")
+      Worker.schedule(ExternalTracker, :remove_contact, failed, attempt + 1)
+    else
+      Rails.logger.error("ExternalTracker: HubSpot contact removal gave up for #{failed.length} address(es) after #{REMOVE_CONTACT_ATTEMPTS} attempts: #{statuses.uniq.join(', ')}")
+    end
+    false
   end
 
   # Reduce a referring URL to just its scheme+host (origin) so any PII in the
