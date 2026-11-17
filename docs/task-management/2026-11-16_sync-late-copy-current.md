@@ -160,3 +160,10 @@ The 37 in-memory boards were complete records (image urls present), so this run 
 at the retry; that case is covered by the board_lookup tests. The sync log holds 94 statuses for 57 boards (57
 "downloaded", 37 "re-downloaded"): consistent with each in-memory board's first reload timing out and its retry using
 the late copy, but not traced board by board.
+
+Faster links with the final code, one run each: 4 Mbps 93 s / 41.9 MB (develop 90-92 s / 41.9 MB); 1.5 Mbps 248 s /
+42.1 MB (develop 240-241 s / 42.1 MB). The 1.5 Mbps run's sync log has 58 statuses (94 at 0.8 Mbps, where
+boards were retried), which suggests few or no retries and so little or no use of the changed code; not checked board
+by board. One run cannot say whether the 8 s is real.
+
+Comparison page (private until shared): https://claude.ai/artifact/FX6pAnfHqqpxv57Y27cr8J
