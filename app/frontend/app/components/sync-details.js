@@ -128,32 +128,9 @@ export default Component.extend({
       var is_open = (g.key in open) ? open[g.key] : (g.key === first_attention);
       var show_all = !!all_saved[g.key];
       var missing = g.folders_missing.length;
-      if(unfinished) { return Object.assign(self.unfinished_card(g, stopped), {
-        folders_missing: g.folders_missing,
-        folders_saved: show_all ? g.folders_saved : g.folders_saved.slice(0, SAVED_SHOWN),
-        has_missing: missing > 0,
-        has_saved: g.saved_count > 0,
-        has_more_saved: g.saved_count > SAVED_SHOWN,
-        more_label: show_all ? i18n.t('sync_show_fewer', "Show fewer") : i18n.t('sync_show_all_saved_n', "Show all %{n} saved folders", { n: g.saved_count }),
-        more_expanded: show_all ? 'true' : 'false',
-        missing_title: i18n.t('sync_not_saved_yet_n', "Not saved yet · %{n}", { n: missing }),
-        saved_title: i18n.t('sync_saved_n', "Saved · %{n}", { n: g.saved_count }),
-        open: is_open, expanded: is_open ? 'true' : 'false',
-        toggle: function() { var o = Object.assign({}, self.get('open_cards') || {}); o[g.key] = !is_open; self.set('open_cards', o); },
-        toggle_more: function() { var a = Object.assign({}, self.get('all_saved_cards') || {}); a[g.key] = !show_all; self.set('all_saved_cards', a); }
-      }); }
-      return {
-        key: g.key, name: g.name, ready: g.ready, tone: g.ready ? 'ready' : 'attention', role: role_label(g.role),
-        folders_inside: folders_inside(g.folder_count),
-        has_folders: g.folder_count > 0,
-        status: g.ready ? i18n.t('sync_card_ready_offline', "Ready offline") :
-          (missing > 0 ? (missing === 1 ? i18n.t('sync_card_one_folder_waiting', "1 folder waiting") : i18n.t('sync_card_n_folders_waiting', "%{n} folders waiting", { n: missing })) : i18n.t('sync_card_not_saved', "Not saved yet")),
-        count: g.folder_count > 0 ? i18n.t('sync_card_folders_saved', "%{saved} of %{total} folders saved", { saved: g.saved_count, total: g.folder_count }) : (g.board_missing ? i18n.t('sync_card_not_saved', "Not saved yet") : i18n.t('sync_card_saved', "Saved")),
-        bar_style: htmlSafe('width: ' + (g.folder_count > 0 ? Math.floor(100 * g.saved_count / g.folder_count) : (g.board_missing ? 0 : 100)) + '%;'),
-        intro_title: i18n.t('sync_folders_inside_title', "Folders inside %{name}", { name: g.name }),
-        intro_text: g.folder_count === 1 ? i18n.t('sync_folders_intro_one', "This board opens from a folder button on %{name}. It is saved separately.", { name: g.name }) :
-          i18n.t('sync_folders_intro_many', "These %{n} boards open from folder buttons on %{name}. Each one is saved separately.", { n: g.folder_count, name: g.name }),
-        no_folders_text: i18n.t('sync_board_no_folders', "%{name} has no folders inside. It is saved as a single board.", { name: g.name }),
+      var face = unfinished ? self.unfinished_card(g, stopped) : self.finished_card(g);
+      // What every card has, whatever the sync's state: its folder lists and whether it is open.
+      return Object.assign(face, {
         missing_title: i18n.t('sync_not_saved_yet_n', "Not saved yet · %{n}", { n: missing }),
         saved_title: i18n.t('sync_saved_n', "Saved · %{n}", { n: g.saved_count }),
         folders_missing: g.folders_missing,
@@ -166,9 +143,26 @@ export default Component.extend({
         open: is_open, expanded: is_open ? 'true' : 'false',
         toggle: function() { var o = Object.assign({}, self.get('open_cards') || {}); o[g.key] = !is_open; self.set('open_cards', o); },
         toggle_more: function() { var a = Object.assign({}, self.get('all_saved_cards') || {}); a[g.key] = !show_all; self.set('all_saved_cards', a); }
-      };
+      });
     });
   }),
+  // A card for a board a finished sync checked: Ready offline or what is waiting, and how many of its folders saved.
+  finished_card(g) {
+    var missing = g.folders_missing.length;
+    return {
+      key: g.key, name: g.name, ready: g.ready, tone: g.ready ? 'ready' : 'attention', role: role_label(g.role),
+      folders_inside: folders_inside(g.folder_count),
+      has_folders: g.folder_count > 0,
+      status: g.ready ? i18n.t('sync_card_ready_offline', "Ready offline") :
+        (missing > 0 ? (missing === 1 ? i18n.t('sync_card_one_folder_waiting', "1 folder waiting") : i18n.t('sync_card_n_folders_waiting', "%{n} folders waiting", { n: missing })) : i18n.t('sync_card_not_saved', "Not saved yet")),
+      count: g.folder_count > 0 ? i18n.t('sync_card_folders_saved', "%{saved} of %{total} folders saved", { saved: g.saved_count, total: g.folder_count }) : (g.board_missing ? i18n.t('sync_card_not_saved', "Not saved yet") : i18n.t('sync_card_saved', "Saved")),
+      bar_style: htmlSafe('width: ' + (g.folder_count > 0 ? Math.floor(100 * g.saved_count / g.folder_count) : (g.board_missing ? 0 : 100)) + '%;'),
+      intro_title: i18n.t('sync_folders_inside_title', "Folders inside %{name}", { name: g.name }),
+      intro_text: g.folder_count === 1 ? i18n.t('sync_folders_intro_one', "This board opens from a folder button on %{name}. It is saved separately.", { name: g.name }) :
+        i18n.t('sync_folders_intro_many', "These %{n} boards open from folder buttons on %{name}. Each one is saved separately.", { n: g.folder_count, name: g.name }),
+      no_folders_text: i18n.t('sync_board_no_folders', "%{name} has no folders inside. It is saved as a single board.", { name: g.name })
+    };
+  },
   // A card for a board an unfinished sync reached: how many folders it saved, with no Ready label, no total and no bar
   // (the sync did not reach every folder). Missing folders are only the failures it recorded.
   unfinished_card(g, stopped) {

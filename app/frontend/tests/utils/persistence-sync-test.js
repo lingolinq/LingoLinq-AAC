@@ -7265,9 +7265,6 @@ describe("persistence-sync", function() {
     });
   });
 
-  // A cancelled sync whose board walk resolves (the walk resolves on cancel, services/persistence.js nextBoard) ended in
-  // the success branch: 'succeeded' with "ready for offline use" in the drawer right after Cancel, the stash and the
-  // sync clocks moved as if the boards were saved (section 22 of docs/task-management/2026-11-10_offline-followup-proposals.md).
   // docs/task-management/2026-11-16_sync-details-no-percent.md (R1): with no finished sync, Sync Details shows what a
   // stopped sync saved, grouped by board. Only the finished sync's entry used to keep the groups (`roots`) and the
   // failures recorded so far; a stopped one now keeps them too.
@@ -7279,6 +7276,7 @@ describe("persistence-sync", function() {
         persistence.set('sync_progress', null);
         persistence.set('sync_status', null);
         persistence._canceled_sync_id = null;
+        var saved = { last_sync_status: stashes.get('last_sync_status'), last_sync_at: persistence.get('last_sync_at') };
         stub(modal, 'error', function() { });
         stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
         stubOnPersistence('sync_user', function() { return RSVP.resolve(); });
@@ -7305,6 +7303,9 @@ describe("persistence-sync", function() {
           expect((last.roots || {})['me/core-feel']).toEqual(roots['me/core-feel']);
           var feel = (last.statuses || []).filter(function(row) { return row.key === 'me/core-feel'; });
           expect(feel.some(function(row) { return !!row.error; })).toEqual(true);
+          stashes.persist('last_sync_status', saved.last_sync_status); // the failure branch writes these (services/persistence.js)
+          persistence.set('sync_status_error', null);
+          persistence.set('last_sync_at', saved.last_sync_at);
           cancelSyncTailWork();
           persistence.set('sync_progress', null);
           persistence.set('sync_status', null);
@@ -7313,6 +7314,9 @@ describe("persistence-sync", function() {
     });
   });
 
+  // A cancelled sync whose board walk resolves (the walk resolves on cancel, services/persistence.js nextBoard) ended in
+  // the success branch: 'succeeded' with "ready for offline use" in the drawer right after Cancel, the stash and the
+  // sync clocks moved as if the boards were saved (section 22 of docs/task-management/2026-11-10_offline-followup-proposals.md).
   describe("a cancelled sync that resolves", function() {
     it("ends as canceled: no success, no moved sync clock, a canceled log entry", function() {
       db_wait(function() {

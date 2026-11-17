@@ -82,7 +82,7 @@ Alternatives:
 
 - While a sync runs, the cards (with "Ready offline" pills and tabs) still show the rows so far. A board can read
   "Ready offline" before all its folders are found. Not covered by the decisions; left as is and asked of Traci.
-- A canceled first sync also gets shape 4 (the heading says "stopped", which fits a cancel).
+- A canceled first sync gets shape 4 only when its entry has rows. The usual Cancel path logs `statuses: []` (`services/persistence.js` end_canceled_sync), so it shows no cards; a cancel that ends through the failure branch keeps its rows (corrected after the final review).
 - Shape 4 after an app restart: the log is restored (`restore_sync_log`), so the same view shows; the lead is
   `restored_lead`'s "The last sync didn't finish...".
 - New strings need translations (i18n generator) for 13 locales.
@@ -192,3 +192,30 @@ pill/tabs when unfinished, heading when stopped); drawer with an errored-only lo
 - i18n: `i18n_generator.rb --generate` and `--merge`: 6 new keys, `sync_ready_offline_lower` dropped; the 12 other
   locales carry `***` English placeholders (shown in English, `utils/i18n.js:448`). Machine translation not run:
   1Password was signed out in this session (`extras:translate_ui_locales` needs GOOGLE_TRANSLATE_TOKEN).
+
+## Final review (adversary, 2026-11-17, at 5ec336455): ship with changes, no Critical or High
+
+All 8 earlier findings and every revised-proposal line confirmed implemented; persistence.js edits line-neutral; the
+other readers of `errored` (technical list, restored_lead_kind, entry_copy/merge_logs, drawer) behave as intended.
+Each finding checked:
+- Medium (CONFIRMED by reading, not executed): the headline can describe another person's sync when a root sync for
+  someone else (`controllers/user/index.js` `sync`, `persistence.sync(model.id, 'all_reload')`) logs a finished
+  entry after the person's own failed sync. Checked: no template calls that `sync` action (grep of
+  app/templates/user and the components), so no control reaches it today; the earlier review found the same. Not
+  changed; the log entry's `user_id` would be the gate if that action is ever wired to a control. Pre-existing source
+  ("87% ready" today).
+- Low: the earlier-sync band still shows "X of Y boards and folders are saved" and "Save the N now". Traci's answer
+  was about the ready headline only; kept as counts of that earlier sync under "These results are from an earlier
+  sync". Noted in the PR for her.
+- Low: "No folders are saved yet." for a running sync's card without folders was not in the proposal; kept (true, and
+  the finished text "has no folders inside" may be false mid-sync). Recorded here.
+- Low: no render test for the template guards. Not added: the stub approach (a pass-through modal-dialog) was not
+  tried here; the guards were checked in the browser in every state. Follow-up.
+- Low (PLAUSIBLE): errors recorded in the last ~75 ms before a stop may be missing from the stopped entry
+  (`sync_progress.errors` is refreshed by update_sync_progress on each nextBoard). Not changed: calling it in the
+  failure branch was not tested; a board missed this way reads saved under "Saved before the sync stopped".
+  Follow-up.
+- Low, fixed: the R1 test now restores `last_sync_status`, `sync_status_error` and `last_sync_at`; the "cancelled sync
+  that resolves" comment is back above its own describe; this log's canceled-first-sync line corrected above; the
+  card fields shared by finished and unfinished cards are written once (`finished_card` / `unfinished_card` + the
+  shared lists). `overall.pct` kept: `tests/unit/utils/sync-rollup-test.js:49` still asserts it.
