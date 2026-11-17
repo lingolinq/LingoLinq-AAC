@@ -20,6 +20,11 @@
 <%= mailer_t('parental_consent_mailer.privacy_link_label') %>:
 <%= @privacy_url %>
 
+<%= mailer_t('parental_consent_mailer.ai_notice') %>
+
+<%= mailer_t('parental_consent_mailer.ai_disclosure_link_label') %>:
+<%= @ai_disclosure_url %>
+
 <%= mailer_t('parental_consent_mailer.decline_heading') %>
 
 <% if @offboarding %>

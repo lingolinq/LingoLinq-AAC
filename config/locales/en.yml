@@ -35,6 +35,8 @@ en:
     cta_label: "Approve Account & Get Started"
     privacy_notice: "Before you do, feel free to take a quick look at our Privacy Policy to see exactly how we collect, use, and protect your child's information."
     privacy_link_label: "Privacy Policy"
+    ai_notice: "Approving also gives your consent for the optional AI features of this account (word prediction, board generation and evaluation summaries). When they are used, some of what is typed is sent to our AI provider to produce suggestions. They stay off until someone turns them on in Preferences, and can be turned off there at any time. The full details are in our AI data-sharing disclosure:"
+    ai_disclosure_link_label: "AI data-sharing disclosure"
     decline_heading: "Prefer not to continue?"
     decline_prompt: "If you do not want this account to continue, you can decline. We will permanently delete the account."
     offboarding_decline_prompt: "If you do not want this account to continue, you can decline. We will prepare an export of the account data when available, then permanently delete the account."
@@ -126,6 +128,7 @@ en:
     aac_notice: "Core communication tools (boards, speak mode, and other non-AI features) remain available without this consent."
     action_prompt: "If you are the parent or legal guardian and agree to allow AI features for this account, please open the link below:"
     privacy_notice: "Before giving consent, please review how we handle information in our Privacy Policy:"
+    ai_notice: "Your consent covers sharing some of what is typed in this account with our AI provider when these features are used. The full details are in our AI data-sharing disclosure:"
     footer: "If you did not expect this message, you can ignore this email. AI features will stay off until consent is given or the request expires."
   eu_ai_parental_consent_confirmation_mailer:
     subject: "AI feature consent confirmed for %{app_name}"
