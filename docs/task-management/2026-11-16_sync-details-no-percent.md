@@ -334,3 +334,26 @@ supervisee's array alone holds an error; the copy is stale; one unconfirmed row;
 `statuses: []`, copy only, root's array only, roots dropped, no confirm); the failure branch with an unconfirmed row and
 a live-only error (mutants: copy only, no confirm); grouped-test: a cancelled entry with rows (heading, summary line,
 restored lead).
+
+### Part 2 status when this session stopped (2026-11-17, Rule 0.13: three self-inflicted errors close together)
+
+UNCOMMITTED in this worktree (not verified; do not push as is):
+- `utils/sync_rollup.js`: `note_board_done`, `confirmed_statuses`, `live_board_errors` (H and A).
+- `services/persistence.js`: `note_board_done` on the reload-success and fresh-download lines (:2782, :2785, same
+  lines); the failure branch reads `confirmed_statuses` and `live_board_errors` (:2439-2440, same lines);
+  `end_canceled_sync` logs confirmed rows, live errors and roots (+7 lines at :5115, below the baseline's last row 4465;
+  every hunk above it is one-for-one, checked with `git diff -U0`); the import line.
+- Tests: `tests/unit/utils/sync-rollup-test.js` (3), `tests/utils/persistence-sync-test.js` (2 in the #1212 harness,
+  a new describe "a stopped sync's log entry" with 2), `tests/unit/components/sync-details-grouped-test.js` (1, a pin:
+  passes before and after).
+Last run (filter /sync|persistence|offline board list|board retry|revocation/i): 595 tests, 584 pass, 9 skipped
+(pre-existing), 2 fail, both in the new describe:
+1. the Cancel test called `persistence.end_canceled_sync` on the utils/persistence import (no such method there). Patched
+   to call `persistenceTarget() || persistence` (the service); NOT re-run.
+2. the failure-branch test failed the leak check: "LingoLinq.Board.refresh_data_urls was replaced and not restored".
+   Not diagnosed. R1, which it copies, passes the same check; it may be fallout from (1) dying first. Run the describe
+   alone after (1) is re-run.
+Red runs before the code: all 7 new non-pin tests failed for the right reasons (missing helpers; empty Cancel rows).
+Still to do: re-run; diagnose (2) if it remains; mutants (no note on :2782; no confirm in either stop path; copy-only
+errors; root's array only; roots dropped; `statuses: []`); unit T (the `content` tag, here and in #1328, whose push needs
+Scot's OK for a third review round); lint gate; final review; Traci's answer on item B; then a PR.
