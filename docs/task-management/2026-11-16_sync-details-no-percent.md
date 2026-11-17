@@ -245,3 +245,54 @@ buttons (pointer input over that connection timed out).
 Found on the way, not changed: `sync_logs` calls `this.store` inside plain callbacks (`services/persistence.js`
 sync_logs), which would throw; it is unreachable today, since only that function writes the `bigLogs` row it reads.
 Follow-up.
+
+## Part 2 (2026-11-17): the Cancel path logs what it saved and what failed (for #1328)
+
+Why: PR #1328 ("Boards on This Device", docs/task-management/2026-11-16_offline-boards-page.md in that branch) hides
+another owner's liked board when this person's newest clean sync saw it without an error AND no later sync of theirs
+shows an error for it (`utils/offline_board_list.js` `seen_by_last_sync`, reads `entry.statuses[].error`). This branch
+already gives the failure branch's entry the errors it recorded. The Cancel path still logs `statuses: []`, so a board
+refused during a sync the person cancelled stays listed. Traci (2026-11-17): close it on this branch, full process.
+develop merged first (e55026ccb: #1326, #1327; one import-line conflict, both sides kept).
+
+### Fact sheet
+- (a) READ: Sync Details `partial_result` / `summary_for` (`utils/sync_log_store.js`, `utils/sync_rollup.js`) and the
+  technical list read a canceled entry's `statuses`/`roots`; #1328 reads `statuses[].error` of every entry for the
+  person. CONFIRMED (this branch's files; #1328's at its head 09fd218be).
+- (b) Writers of a stopped entry (`services/persistence.js`, this branch):
+  - Cancel that resolves: `end_canceled_sync` (:5113-5124): `sync_progress` cleared first, then `statuses: []`, no
+    roots. Called from the success branch (:2376) while `sync_progress` is still set. CONFIRMED.
+  - Cancel or failure that rejects: the failure branch (:2440-2470): `with_errors(statuses, sync_progress.errors)`,
+    `roots`, `canceled` or `errored`. CONFIRMED.
+  - `sync_progress.errors` is a COPY refreshed only by `update_sync_progress` at the top of each walk step (:3089 via
+    :1972-1988); the live arrays are `sync_progress.progress_for[<user id>].board_errors` (:3070, :3087), pushed at
+    :3359, :3378, :3380. On a cancel the walk returns before refreshing (:3078-3081), so the copy can miss the last
+    board's error. CONFIRMED by reading (the earlier review's "~75 ms" Low).
+  - `entry_copy` keeps `statuses[].error` (`utils/sync_log_store.js:44-50`), so an error row survives a restart.
+    CONFIRMED.
+- (c) Cross-file: services/persistence.js's last baselined row is 4465, so :5113 may take new lines and the failure
+  branch must stay line-neutral. CONFIRMED (`.eslint-todo`).
+
+### Proposal (A)
+1. `utils/sync_rollup.js` `stopped_errors(progress)`: the concatenated live `board_errors` of every
+   `progress.progress_for` entry (empty for none). Pure.
+2. `end_canceled_sync`: BEFORE clearing `sync_progress`, read `board_statuses` (uniq by id, as the failure branch),
+   `stopped_errors(...)` and `board_roots`; log `statuses: with_errors(statuses, errors), roots`.
+3. The failure branch reads `stopped_errors(sync_progress)` instead of the `sync_progress.errors` copy (same line).
+Effect on Sync Details: a cancelled sync now has rows, so with no finished sync it shows the stopped cards
+(`stopped: 'canceled'`, already designed and tested on this branch); with a finished sync it is "from earlier" as
+before (`last_result` skips canceled entries).
+Candidates: (b) call `update_sync_progress()` before reading: rejected, it writes `sync_progress` fields and notifies
+the drawer on a sync that is ending; (c) leave the Cancel entry empty: rejected (the #1328 gap).
+Tests (red first): a cancel that resolves logs the visited board, an error recorded after the last refresh, and the
+roots (mutants: `statuses: []`; reading the `sync_progress.errors` copy); the failure branch picks up an error recorded
+after the last refresh (mutant: the copy); `stopped_errors` unit test.
+
+### Item B (liked boards the server reports as revoked): recommend NOT doing it
+`utils/board_revocation.js` `settled_decision` writes revocation marks only after a full, error-free, uncancelled sync of
+every synced person ("short of a full, error-free sync ... no decision"), because a partial answer must never take a
+board away from an AAC user (a supervisee's response covers only their own tree). Recording "revoked" from a stopped
+sync, or hiding a board in #1328's list on that partial verdict, reverses that safeguard. The case left: with
+"sync liked boards" on, a board unshared since the last clean sync, followed only by stopped syncs, stays listed on a
+TRUSTED device (shared devices already hide other owners' private boards), where its device copy already opens today.
+The next clean sync marks it. For Traci to confirm.
