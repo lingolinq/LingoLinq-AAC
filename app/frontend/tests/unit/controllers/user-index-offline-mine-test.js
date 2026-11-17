@@ -32,6 +32,9 @@ module('Unit | Controller | user/index offline boards view', function(hooks) {
     c.set('device_storage', { find_all: opts.find_all || function() { c.reads++; return RSVP.resolve(rows()); } });
     c.set('persistence', EmberObject.create({ online: !!opts.online, sync_log: [], meta: function() { return null; } }));
     c.set('store', owner.lookup('service:store'));
+    // A trusted device unless the test says otherwise (Part 3: on a shared device only what opens there is listed).
+    var trust = opts.trust === undefined ? true : opts.trust;
+    c.set('appState', EmberObject.create({ sessionUser: trust === null ? null : EmberObject.create({ preferences: { device: { long_token: trust } } }) }));
     c.set('model', EmberObject.create({ id: '9911_9', user_name: opts.user_name || 'larry', permissions: opts.permissions || { supervise: true, model: true },
       preferences: (opts.user_name || 'larry') === 'larry' ? { home_board: { id: '9911_1', key: 'larry/home' } } : {}, stats: {} })); // each person's own seeds
     return c;
@@ -129,5 +132,65 @@ module('Unit | Controller | user/index offline boards view', function(hooks) {
     answer.resolve([]);
     await tick();
     assert.false(c.get('offline_view'));
+  });
+
+  // Part 3 (docs/task-management/2026-11-16_offline-boards-page.md): the list belongs to one offline spell. Back online
+  // it stays on screen until the server list arrives; the next time the page goes offline the device is read again (a
+  // sync, a like or an unshare may have changed it), with the earlier list on screen until the new one is ready.
+  function pending_store(owner) {
+    var real = owner.lookup('service:store');
+    return { query: function() { return new RSVP.Promise(function() {}); }, peekRecord: real.peekRecord.bind(real), push: real.push.bind(real) };
+  }
+
+  test('a new offline spell reads the device again; the earlier list stays on screen meanwhile', async function(assert) {
+    var second = null;
+    var c = page(this.owner, { find_all: function() { c.reads++; return c.reads === 1 ? RSVP.resolve(rows()) : new RSVP.Promise((r) => { second = r; }); } });
+    c.update_selected();
+    await tick();
+    var first = c.get('offline_boards');
+    assert.deepEqual(keys(first), ['larry/home']);
+    c.set('store', pending_store(this.owner));
+    c.set('persistence.online', true);
+    await tick();
+    assert.strictEqual(c.get('offline_boards'), first, 'online, the server list not here yet: unchanged');
+    c.set('persistence.online', false);
+    await tick();
+    assert.strictEqual(c.reads, 2, 'read again in the new offline spell');
+    assert.strictEqual(c.get('offline_boards'), first, 'the earlier list stays on screen during the read');
+    second(rows().concat([{ data: { id: '9911_3', raw: { id: '9911_3', key: 'larry/new', name: 'New', user_name: 'larry' } } }]));
+    await tick();
+    assert.deepEqual(keys(c.get('offline_boards')), ['larry/home', 'larry/new']);
+  });
+
+  test('a re-read that fails keeps the earlier list', async function(assert) {
+    var c = page(this.owner, { find_all: function() { c.reads++; if(c.reads > 1) { throw new Error('The database connection is closing.'); } return RSVP.resolve(rows()); } });
+    c.update_selected();
+    await tick();
+    var first = c.get('offline_boards');
+    c.set('store', pending_store(this.owner));
+    c.set('persistence.online', true);
+    await tick();
+    c.set('persistence.online', false);
+    await tick();
+    assert.strictEqual(c.reads, 2);
+    assert.strictEqual(c.get('offline_boards'), first, 'not swapped for an empty list');
+  });
+
+  test('a shared device, or one whose trust is not known yet: a communicator\'s boards are not listed (they do not open there)', async function(assert) {
+    var c = page(this.owner, { user_name: 'other', permissions: { supervise: true, model: true }, trust: null });
+    c.update_selected();
+    await tick();
+    assert.deepEqual(keys(c.get('offline_boards')), []);
+  });
+
+  test('the device becoming trusted reads the list again', async function(assert) {
+    var c = page(this.owner, { trust: false });
+    c.update_selected();
+    await tick();
+    assert.strictEqual(c.reads, 1);
+    c.set('appState.sessionUser', EmberObject.create({ preferences: { device: { long_token: true } } }));
+    c.update_selected();
+    await tick();
+    assert.strictEqual(c.reads, 2);
   });
 });

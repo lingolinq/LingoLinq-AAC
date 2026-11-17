@@ -9774,5 +9774,6 @@
   "filter_rooms_by_name": "Filtrar quartos por nome [[ Filter rooms by name",
   "filter_rooms_by_name_or_person": "Filtre os quartos por nome ou pessoa. [[ Filter rooms by name or person",
   "org_admin_tools": "Ferramentas administrativas [[ Admin tools",
-  "org_section_subscription": "Subscrição [[ Subscription"
+  "org_section_subscription": "Subscrição [[ Subscription",
+  "device_boards_not_shown": "*** Your boards can't be shown right now. Close and reopen the app, or connect to the internet."
 }

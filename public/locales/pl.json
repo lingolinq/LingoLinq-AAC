@@ -9765,5 +9765,6 @@
   "device_boards_note": "*** You're offline. These boards are saved on this device and open without internet.",
   "device_boards_empty": "*** No boards are saved on this device yet",
   "device_boards_empty_subtitle": "*** Connect to the internet and sync to use your boards offline.",
-  "gif_search_no_results": "*** No GIFs found. Try different words in your sentence and search again."
+  "gif_search_no_results": "*** No GIFs found. Try different words in your sentence and search again.",
+  "device_boards_not_shown": "*** Your boards can't be shown right now. Close and reopen the app, or connect to the internet."
 }

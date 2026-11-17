@@ -1918,9 +1918,13 @@ import backend_user_id, { same_person } from '../../utils/backend_user_id';
      page that passes `offline_view` on (the account page keeps its normal UI);
    - when the open device database is the signed-in person's, and the page is theirs or one they may model for;
    - whatever tab or list was on screen.
-   A list built for this person is kept (the device's boards cannot change while offline: a sync needs the network); a
-   read that ends after a newer request (list_id) is dropped. The view ends when a server list arrives
-   (generate_or_append_to_list), not on every `online` flip. */
+   A list belongs to one offline spell (Part 3): read the first time the page is offline, kept while offline (the
+   device's boards cannot change without the network), and read again the next time the page goes offline, since a
+   sync, a like or an unshare may have changed them; the earlier list stays on screen until the new one is ready, and a
+   read that fails keeps it. On a device not marked "Trust this Device" (or before its trust is known) only the boards
+   that open there are listed (utils/offline_board_list.js opens_here). A read that ends after a newer request
+   (list_id) is dropped. The view ends when a server list arrives (generate_or_append_to_list), not on every `online`
+   flip. */
 UserIndexController.reopen({
   // Whose device database is open (only the signed-in person's counts), and where its boards are read from; tests
   // set these on their own controller instead of replacing shared singletons.
@@ -1928,6 +1932,10 @@ UserIndexController.reopen({
   device_storage: null,
   offline_view: false,
   offline_boards: null,
+  offline_spell: 0,
+  next_offline_spell: observer('persistence.online', function() {
+    if(this.get('persistence.online')) { this.incrementProperty('offline_spell'); }
+  }),
   show_device_boards: function(list_id) {
     var _this = this;
     var model = this.get('model');
@@ -1937,16 +1945,23 @@ UserIndexController.reopen({
     var me = this.device_db_user();
     if(!me || (me !== user_name && !model.get('permissions.model'))) { return; }
     this.set('offline_view', true);
+    var spell = this.get('offline_spell');
+    var shared = offline_shell.device_trust(this.get('appState.sessionUser')) !== 'trusted';
     var prior = this.get('offline_boards');
-    if(prior && prior.from_device && prior.user_name === user_name) { return; }
-    this.set('offline_boards', { loading: true });
+    var same_person = !!(prior && prior.from_device && prior.user_name === user_name);
+    if(same_person && prior.spell === spell && prior.shared === shared) { return; }
+    if(!same_person) { this.set('offline_boards', { loading: true }); }
     var persistence_service = this.get('persistence');
     var sync_log = persistence_service && typeof persistence_service.get === 'function' ? persistence_service.get('sync_log') : null;
-    device_board_list(this.store, model, { storage: this.get('device_storage'), sync_log: sync_log }).then(function(records) {
+    device_board_list(this.store, model, { storage: this.get('device_storage'), sync_log: sync_log, shared: shared, me: me }).then(function(records) {
       if(_this.isDestroyed || model.isDestroyed || _this.get('model') !== model || _this.get('list_id') !== list_id) { return; }
+      if(records.read_failed && same_person) { return; }
       records.user_name = user_name;
+      records.spell = spell;
+      records.shared = shared;
       _this.set('offline_boards', records);
     }, function() { /* device_board_list resolves an empty list on a failed read; nothing else rejects */ });
   }
 });
 import { device_board_list, current_device_db_user } from '../../utils/offline_board_list';
+import offline_shell from '../../utils/offline_shell';

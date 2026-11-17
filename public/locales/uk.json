@@ -9774,5 +9774,6 @@
   "filter_rooms_by_name": "Фільтрувати кімнати за назвою [[ Filter rooms by name",
   "filter_rooms_by_name_or_person": "Фільтрувати кімнати за іменем або особою [[ Filter rooms by name or person",
   "org_admin_tools": "Інструменти адміністратора [[ Admin tools",
-  "org_section_subscription": "Підписка [[ Subscription"
+  "org_section_subscription": "Підписка [[ Subscription",
+  "device_boards_not_shown": "*** Your boards can't be shown right now. Close and reopen the app, or connect to the internet."
 }

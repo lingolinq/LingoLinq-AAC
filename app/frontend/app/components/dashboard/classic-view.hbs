@@ -665,7 +665,9 @@
                div is rendered in BOTH views; only Focused styles it, so Gentle is unchanged. --}}
           <div class="ch-boards__panel">
             <div class="ch-boards__grid">
-              {{#if this.deviceBoards.loading}}
+              {{#if this.deviceBoardsRefused}}
+                <p class="ch-empty" role="status">{{t "Your boards can't be shown right now. Close and reopen the app, or connect to the internet." key="device_boards_not_shown"}}</p>
+              {{else if this.deviceBoards.loading}}
                 <p class="ch-empty" role="status">{{t "Finding the boards on this device..." key="device_boards_loading"}}</p>
               {{else if this.deviceBoards.length}}
                 {{#each this.deviceBoards as |board|}}

@@ -9766,5 +9766,6 @@
   "filter_rooms_by_name": "部屋を名前で絞り込む [[ Filter rooms by name",
   "filter_rooms_by_name_or_person": "名前または人物で部屋を絞り込む [[ Filter rooms by name or person",
   "org_admin_tools": "管理ツール [[ Admin tools",
-  "org_section_subscription": "サブスクリプション [[ Subscription"
+  "org_section_subscription": "サブスクリプション [[ Subscription",
+  "device_boards_not_shown": "*** Your boards can't be shown right now. Close and reopen the app, or connect to the internet."
 }

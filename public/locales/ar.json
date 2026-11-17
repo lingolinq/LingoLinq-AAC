@@ -9766,5 +9766,6 @@
   "filter_rooms_by_name": "تصفية الغرف حسب الاسم [[ Filter rooms by name",
   "filter_rooms_by_name_or_person": "تصفية الغرف حسب الاسم أو الشخص [[ Filter rooms by name or person",
   "org_admin_tools": "أدوات الإدارة [[ Admin tools",
-  "org_section_subscription": "الاشتراك [[ Subscription"
+  "org_section_subscription": "الاشتراك [[ Subscription",
+  "device_boards_not_shown": "*** Your boards can't be shown right now. Close and reopen the app, or connect to the internet."
 }

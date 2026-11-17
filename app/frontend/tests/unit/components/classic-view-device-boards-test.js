@@ -62,4 +62,81 @@ module('Unit | Component | classic-view boards on this device', function(hooks) 
     await tick();
     assert.strictEqual(c.reads, 1);
   });
+
+  // Part 3 (docs/task-management/2026-11-16_offline-boards-page.md).
+  var home_row = function() { return { data: { id: '1_1', raw: { id: '1_1', key: 'larry/home', name: 'Home', user_name: 'larry' } } }; };
+  var held = function(c) {
+    var release = { fn: null };
+    c.set('device_storage', { find_all: function() { c.reads++; return new RSVP.Promise((r) => { release.fn = r; }); } });
+    return release;
+  };
+
+  test('a new offline spell reads again; the earlier list stays on screen meanwhile (also while online)', async function(assert) {
+    var c = setup(this);
+    c.load_device_boards();
+    await tick();
+    var first = c.get('deviceBoards');
+    var release = held(c);
+    c.set('persistence.online', true);
+    await tick();
+    assert.strictEqual(c.get('deviceBoards'), first, 'online: not cleared (the offline branch can still be on screen)');
+    c.set('persistence.online', false);
+    await tick();
+    assert.strictEqual(c.reads, 2, 'read again in the new offline spell');
+    assert.strictEqual(c.get('deviceBoards'), first, 'the earlier list stays during the read');
+    release.fn([home_row(), { data: { id: '1_2', raw: { id: '1_2', key: 'larry/new', name: 'New', user_name: 'larry' } } }]);
+    await tick();
+    assert.deepEqual(c.get('deviceBoards').map((b) => b.get('key')), ['larry/home', 'larry/new']);
+  });
+
+  test('the current user record replaced by another of the same person: the read still lands (no endless "Finding...")', async function(assert) {
+    var c = setup(this);
+    var release = held(c);
+    c.load_device_boards();
+    await tick();
+    c.set('appState.currentUser', EmberObject.create({ user_name: 'larry', preferences: { home_board: { id: '1_1', key: 'larry/home' } }, stats: {} }));
+    await tick();
+    release.fn([home_row()]);
+    await tick();
+    assert.notOk(c.get('deviceBoards.loading'));
+    assert.deepEqual(c.get('deviceBoards').map((b) => b.get('key')), ['larry/home']);
+  });
+
+  test('a user name that arrives later starts the read', async function(assert) {
+    var c = setup(this);
+    c.set('appState.currentUser', EmberObject.create({ preferences: {}, stats: {} }));
+    c.load_device_boards();
+    await tick();
+    assert.strictEqual(c.reads, 0);
+    c.set('appState.currentUser.user_name', 'larry');
+    await tick();
+    assert.strictEqual(c.reads, 1);
+  });
+
+  test('a device database that is not this person\'s: no list (an earlier one is dropped), and the page says it cannot show them', async function(assert) {
+    var c = setup(this, { db_user: 'sam' });
+    var earlier = [];
+    earlier.from_device = true;
+    earlier.user_name = 'sam';
+    c.set('deviceBoards', earlier);
+    c.load_device_boards();
+    await tick();
+    assert.strictEqual(c.reads, 0);
+    assert.notOk(c.get('deviceBoards'));
+    assert.true(c.get('deviceBoardsRefused'));
+  });
+
+  test('a shared device, or one whose trust is not known yet: another owner\'s board is not listed; trusted, it is', async function(assert) {
+    var c = setup(this);
+    c.set('appState.currentUser.stats', { starred_board_refs: [{ id: '4_1', key: 'therapist/feelings' }] });
+    c.set('persistence.sync_log', [{ user_id: 'larry', statuses: [{ id: '4_1', key: 'therapist/feelings', status: 'cached' }] }]);
+    c.set('device_storage', { find_all: function() { c.reads++; return RSVP.resolve([home_row(), { data: { id: '4_1', raw: { id: '4_1', key: 'therapist/feelings', name: 'Feelings', user_name: 'therapist' } } }]); } });
+    c.load_device_boards();
+    await tick();
+    assert.deepEqual(c.get('deviceBoards').map((b) => b.get('key')), ['larry/home'], 'unknown trust counts as shared');
+    c.set('appState.sessionUser', EmberObject.create({ preferences: { device: { long_token: true } } }));
+    c.load_device_boards();
+    await tick();
+    assert.deepEqual(c.get('deviceBoards').map((b) => b.get('key')), ['larry/home', 'therapist/feelings'], 'trusted: read again');
+  });
 });

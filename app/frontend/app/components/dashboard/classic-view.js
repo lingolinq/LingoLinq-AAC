@@ -674,25 +674,49 @@ export default AuthenticatedView.extend({
   /* BOARDS ON THIS DEVICE (Traci, 2026-11-16; docs/task-management/2026-11-16_offline-boards-page.md): offline, the
      Boards tab lists every board the person can open from the device (utils/offline_board_list.js), in its own
      `deviceBoards`, not `recentOfflineBoards` (which the online Recent tab shows). Only from the signed-in person's own
-     device database (unknown is no); a list built for this person is kept while offline (the device's boards cannot
-     change without a sync). Observers do not run on init, so didInsertElement calls it too. */
+     device database (unknown is no). A list belongs to one offline spell, as on Modern's boards page
+     (controllers/user/index.js show_device_boards; Part 3): kept while offline, read again the next time the app goes
+     offline, the earlier list on screen until the new one is ready. Not cleared when `online` turns true: this branch
+     can still be on screen then (authenticated-view.js showOffline is set after a device read). On a shared device (or
+     before its trust is known) only the boards that open there are listed. The read is matched to the person by user
+     name, not by record: a cold start replaces the 'self' record (services/app-state.js find_user), and a user name that
+     arrives later starts the read. When the open database is not this person's, nothing is listed and the page says
+     so (`deviceBoardsRefused`), never "No boards are saved". Observers do not run on init, so didInsertElement calls it
+     too. */
   device_db_user() { return current_device_db_user(); },
   device_storage: null,
-  load_device_boards: observer('persistence.online', function() {
+  device_spell: 0,
+  next_device_spell: observer('persistence.online', function() {
+    if(this.get('persistence.online')) { this.incrementProperty('device_spell'); }
+  }),
+  load_device_boards: observer('persistence.online', 'appState.currentUser.user_name', function() {
     var p = this.get('persistence');
     if(!p || typeof p.get !== 'function' || p.get('online')) { return; }
     var user = this.get('appState.currentUser');
     var user_name = user && user.get && user.get('user_name');
-    if(!user_name || this.device_db_user() !== user_name) { return; }
+    if(!user_name) { return; }
+    var me = this.device_db_user();
+    if(me !== user_name) {
+      this.setProperties({ deviceBoards: null, deviceBoardsRefused: true });
+      return;
+    }
+    this.set('deviceBoardsRefused', false);
+    var spell = this.get('device_spell');
+    var shared = offline_shell.device_trust(this.get('appState.sessionUser')) !== 'trusted';
     var prior = this.get('deviceBoards');
-    if(prior && prior.from_device && prior.user_name === user_name) { return; }
+    var same_person = !!(prior && prior.from_device && prior.user_name === user_name);
+    if(same_person && prior.spell === spell && prior.shared === shared) { return; }
     var _this = this;
-    this.set('deviceBoards', { loading: true });
-    device_board_list(this.get('store'), user, { storage: this.get('device_storage'), sync_log: p.get('sync_log') }).then(function(records) {
-      if(_this.isDestroyed || _this.isDestroying || _this.get('appState.currentUser') !== user) { return; }
+    if(!same_person) { this.set('deviceBoards', { loading: true }); }
+    device_board_list(this.get('store'), user, { storage: this.get('device_storage'), sync_log: p.get('sync_log'), shared: shared, me: me }).then(function(records) {
+      if(_this.isDestroyed || _this.isDestroying || _this.get('appState.currentUser.user_name') !== user_name) { return; }
+      if(records.read_failed && same_person) { return; }
       records.user_name = user_name;
+      records.spell = spell;
+      records.shared = shared;
       _this.set('deviceBoards', records);
     }, function() { /* device_board_list resolves an empty list on a failed read */ });
   }),
 });
 import { device_board_list, current_device_db_user } from '../../utils/offline_board_list'; // last, as in the controllers
+import offline_shell from '../../utils/offline_shell';

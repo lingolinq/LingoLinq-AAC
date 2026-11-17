@@ -9773,5 +9773,6 @@
   "filter_rooms_by_name": "Scag seomraí de réir ainm [[ Filter rooms by name",
   "filter_rooms_by_name_or_person": "Scag seomraí de réir ainm nó duine [[ Filter rooms by name or person",
   "org_admin_tools": "Uirlisí riaracháin [[ Admin tools",
-  "org_section_subscription": "Síntiús [[ Subscription"
+  "org_section_subscription": "Síntiús [[ Subscription",
+  "device_boards_not_shown": "*** Your boards can't be shown right now. Close and reopen the app, or connect to the internet."
 }

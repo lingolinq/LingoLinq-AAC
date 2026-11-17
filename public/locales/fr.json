@@ -9766,5 +9766,6 @@
   "filter_rooms_by_name": "Filtrer les chambres par nom [[ Filter rooms by name",
   "filter_rooms_by_name_or_person": "Filtrer les chambres par nom ou par personne [[ Filter rooms by name or person",
   "org_admin_tools": "Outils d'administration [[ Admin tools",
-  "org_section_subscription": "Abonnement [[ Subscription"
+  "org_section_subscription": "Abonnement [[ Subscription",
+  "device_boards_not_shown": "*** Your boards can't be shown right now. Close and reopen the app, or connect to the internet."
 }

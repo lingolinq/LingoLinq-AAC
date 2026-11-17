@@ -161,6 +161,8 @@ export function device_board_list(store, user, opts) {
       return store.peekRecord('board', raw.id) || store.push({ data: { id: raw.id, type: 'board', attributes: raw } });
     }));
   }, function() {
-    return device_list([]);
+    var none = device_list([]);
+    none.read_failed = true; // the pages keep an earlier list over this one
+    return none;
   });
 }
