@@ -321,3 +321,36 @@ Revised:
 - Tests added per the review: null sessionUser counts as shared (both callers); `lingolinq-team/x` and `lingolinqx/x`
   are not library boards; a non-public `lingolinq/x` is not; a key-less row; dead token then a therapist board is still
   refused; the list unchanged while online with the server query pending.
+
+### Part 3 implemented (2026-11-16/17)
+
+Commits: e3e38f15c (U1 list rules + `library_board`), b6066b00b (U5 the four gates), d6fdaa443 (U3/U4 lifetime, Basic
+read, the refused line), 3e2a207e7 (U6 real owner check; a strengthened test), 066d1dcf0 (assert.expect). develop merged
+at ad1f9d6c1. Every unit red first, then green.
+
+Mutation (each must fail a test; restored from copies after each):
+- U1: no per-person filter; later errors ignored; no shared filter; shared filter by page user; `library_board` by
+  prefix, without the public check, allowing `my:` keys: 7 of 7 failed.
+- U5: each of the four gates without the exception; any copy accepted; offline-only dropped; an early return in
+  `_copy_refused` that skips remembering the dead session: 8 of 8 failed.
+- U3/U4: no spell; no trust in the kept-list key; the loading flash; a failed re-read replacing the list; unknown trust
+  not shared; no spell bump; Basic identity compare; no user-name observer; no refused flag; clearing on online:
+  12 of 12 failed after one test was strengthened (the identity-compare mutant first survived: see the 2026-11
+  learnings archive).
+- U6: owner from the sign-in only; from the database name only: both failed.
+
+Tests: the targeted set 212/212; the wider offline/sync/board/dashboard set 1071 pass, 0 fail, 2 skipped (both
+existing persistence tests). `npm run lint:js:ci`: only the known `sync-details.js:220` false positive (the lint plugin
+reads the main checkout); `ember-template-lint` on the changed templates: clean.
+
+Browser (built branch on :5081, Chrome, synthetic users; `sync_e2e_other` given a public liked board owned by
+`sync_e2e_basic`, local e2e database only): trusted device, Modern Gentle/Focused wide and phone: home, Crisis
+Vocabulary and the other owner's liked board, names and pictures; Basic Gentle/Focused wide: home and Crisis
+Vocabulary. Shared Device sign-in: the other owner's board is not listed (Modern wide and phone, Basic wide), and an
+offline tap on Crisis Vocabulary opens it (Modern board-detail, Basic board), with no "isn't saved" message. Trusted:
+an offline tap on the other owner's liked board opens it. Not run in a browser: the Basic "can't be shown" line (the
+SPA sign-in it guards needs a flag that is off) and a cold offline start on a shared device.
+
+Left for other work: the sync recording what it was refused when it stops (Sync Details rework PR, Traci); SPA
+sign-out leaves the offline view on the controller (behind the off `auth_spa_transition`); a reused user name opens
+the old account's device database (pre-existing; needs a server-side owner id).
