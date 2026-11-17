@@ -71,7 +71,7 @@ export default Component.extend({
   results_empty: computed('results.{loading,error}', 'results.list.@each.image_url', function() {
     const results = this.get('results');
     if (!results || results.loading || results.error) { return false; }
-    return !(results.list || []).some(function(img) { return img && img.image_url; });
+    return !first_with_picture(results.list);
   }),
 
   searchGifs() {

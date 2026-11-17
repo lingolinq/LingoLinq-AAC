@@ -4,6 +4,9 @@ import RSVP from 'rsvp';
 import contentGrabbers from 'frontend/utils/content_grabbers';
 import * as QUnit from 'qunit';
 import { first_with_picture } from 'frontend/components/gif';
+import Button from 'frontend/utils/button';
+import modal from 'frontend/utils/modal';
+import LingoLinq from 'frontend/app';
 
 /*
  * A GIF search that finds nothing used to leave the modal blank: an empty answer still built the
@@ -46,7 +49,16 @@ QUnit.module('Unit | Component | gif no results', function(hooks) {
     assert.strictEqual(first_with_picture(null), null);
   });
 
+  // Through the real ':gif-lucky' action (utils/button.js), so renaming the option on either side turns this red.
   QUnit.test('lucky mode is read from the {lucky: true} the button opens it with', async function(assert) {
+    Button.load_actions();
+    var action = LingoLinq.special_actions.find(function(a) { return a.action === ':gif-lucky'; });
+    var own_open = Object.prototype.hasOwnProperty.call(modal, 'open');
+    var real_open = modal.open;
+    var captured = null;
+    modal.open = function(template, options) { captured = { template: template, options: options }; };
+    try { action.trigger(); } finally { if(own_open) { modal.open = real_open; } else { delete modal.open; } }
+    assert.strictEqual(captured.template, 'modals/gif');
     var comp = this.owner.factoryFor('component:gif').create();
     var grabber = contentGrabbers.pictureGrabber;
     var own = Object.prototype.hasOwnProperty.call(grabber, 'protected_search');
@@ -54,7 +66,7 @@ QUnit.module('Unit | Component | gif no results', function(hooks) {
     var pic = { image_url: 'https://example.com/b.gif', height: 1 };
     grabber.protected_search = function() { return RSVP.resolve([{ height: 1 }, pic]); };
     try {
-      comp.set('model', { lucky: true });
+      comp.set('model', captured.options);
       comp.set('search', 'hello');
       comp.searchGifs();
       await settled();
