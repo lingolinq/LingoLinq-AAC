@@ -6,16 +6,16 @@ import aiFeatureGate from './ai_feature_gate';
 import { needsAcknowledgement } from './article50_gate';
 
 // AI-powered word prediction service.
-// Optimized for Gemini free tier (20 requests/minute).
+// Runtime AI is Claude on Amazon Bedrock, reached through /api/v1/words/predict.
 //
 // Budget strategy:
-//  - Client-side rate limiter: max 15 req/min (leaves headroom)
+//  - Client-side cap: 60 req/min, the only brake on a runaway loop (no per-user server limit yet)
 //  - Aggressive caching: 10-min TTL, 300 entries
-//  - Debounce: 300ms to collapse rapid observer fires into one request
-//  - 429 backoff: pauses requests for 30s when rate-limited
-//  - No pre-fetching: every request counts
+//  - Debounce: 300ms, and callers asking for the same sentence share one request
+//  - Refusal backoff: pauses requests for 30s after a 429, a 403 or an "AI is off" 400
+//  - 2 second limit, sent once: a prediction that arrives later than that is no use
 
-var RATE_LIMIT = 15;       // max requests per minute
+var RATE_LIMIT = 60;       // max requests per minute
 var RATE_WINDOW = 60000;   // 1 minute in ms
 var BACKOFF_MS = 30000;    // pause after a 429
 
@@ -164,6 +164,10 @@ var ai_word_predictor = {
         url: '/api/v1/words/predict',
         type: 'POST',
         dataType: 'json',
+        // Its own limit, and marked as already on its last attempt: the app's $.ajax wrapper
+        // (utils/extras.js) otherwise gives a POST 20 seconds and sends a timed-out one again.
+        timeout: 2000,
+        attempt: 2,
         data: { sentence: sentence, locale: locale, count: count }
       }).then(function(result) {
         var words = (result && result.words) || [];
