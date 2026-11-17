@@ -1968,3 +1968,12 @@ AuthenticatedView.reopen({
 export default AuthenticatedView;
 import { sync_progress_line } from '../../utils/sync_progress'; // last, so the lint baseline rows above keep their lines
 import backend_user_id from '../../utils/backend_user_id';
+
+/* The Speak card's picture is the LingoLinq board icon (models/board.js fallback_image_url, app/models/board.rb
+   DEFAULT_ICON): its transparent corners let it fill more of the round frame without the ring cutting it (the
+   `--brand` modifiers in app.scss, 2026-11-16). Kept last so the line-anchored lint baseline holds. */
+AuthenticatedView.reopen({
+  speakBoardImageIsBrandIcon: computed('speakBoardImage', function() {
+    return /\/images\/lingolinq-board-icon\.png(\?|$)/.test(this.get('speakBoardImage') || '');
+  })
+});

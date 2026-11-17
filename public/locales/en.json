@@ -5673,6 +5673,7 @@
   "nothing_to_gif_search_yet": "There's nothing to search for yet — add some words to your sentence first.",
   "selected_gif": "Selected GIF",
   "error_loading_results_not_online": "Error loading results, it appears you are not online",
+  "gif_search_no_results": "No GIFs found. Try different words in your sentence and search again.",
   "no_results": "No results",
   "flip_image": "Flip Image",
   "grid_over_max_notice": "Grids larger than %{max} × %{max} may not display as expected.",

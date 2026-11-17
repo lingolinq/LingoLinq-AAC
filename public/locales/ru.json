@@ -9320,6 +9320,7 @@
   "device_boards_note": "*** You're offline. These boards are saved on this device and open without internet.",
   "device_boards_empty": "*** No boards are saved on this device yet",
   "device_boards_empty_subtitle": "*** Connect to the internet and sync to use your boards offline.",
+  "gif_search_no_results": "*** No GIFs found. Try different words in your sentence and search again.",
   "==== lvl8 ============": "Below are all words for priority level 8 (this string does not need to be translated)",
   "on_the_date": "На дату [[ On the Date",
   "after_time": "По истечении времени [[ After Time",
