@@ -296,3 +296,41 @@ sync, or hiding a board in #1328's list on that partial verdict, reverses that s
 "sync liked boards" on, a board unshared since the last clean sync, followed only by stopped syncs, stays listed on a
 TRUSTED device (shared devices already hide other owners' private boards), where its device copy already opens today.
 The next clean sync marks it. For Traci to confirm.
+
+### Review of Part 2's proposal (adversary, 2026-11-17): proceed with changes; Traci: the High + the Cancel path
+
+Checked: `board_lookup` records `'re-downloaded'` BEFORE the reload (`services/persistence.js:2780`); a passing failure
+with no device copy is parked with no error (:3363), and a stop drops it; `final_rows` counts the row as saved
+(`utils/sync_rollup.js:17`, `:52`). The batch step records `'downloaded'` before its store (:2971; the store's success
+calls `note_device_boards`). CONFIRMED. So a stopped entry (failure branch, already on this branch, and Cancel) can show
+boards as "saved on this device" that are not: High. Traci (2026-11-17): fix the High and the Cancel path; tag lookup
+failures so #1328 hides a liked board only on those (that #1328 push needs Scot's OK for a third review round); the
+non-error status for pictures dropped by a cancel is deferred.
+Corrections to Part 2's text: the "Why" line is inverted (#1328 LISTS the board when the newest clean sync saw it
+without an error and no later entry shows one, and hides it otherwise); `stopped` is a boolean (`utils/sync_rollup.js`),
+not 'canceled'; no test computes a cancelled stopped summary yet. Item B's reason: `settled_decision` guards writing
+device-wide marks; it says nothing about filtering one person's list, and the remaining case also covers "sync liked
+boards" off with a stop before the walk reaches the board, and a sync that finished WITH problems (no marks, though #1328
+then hides the board because the sync skipped it). The recommendation stands for Traci.
+
+Revised units (one commit each, red first):
+- H. `utils/sync_rollup.js` `note_board_done(sync_progress, id, key)` and `confirmed_statuses(statuses, sync_progress)`:
+  at a stop, a `'downloaded'`/`'re-downloaded'` row counts as saved only when `board_lookup` finished it
+  (`note_board_done`, called on the same lines as :2782's reload success and :2785) or the device database confirmed it
+  (`sync_progress.device_boards`, `note_device_boards`); otherwise its status becomes `'not_saved'` (not an error, so
+  #1328 does not hide on it; Sync Details counts it as not saved, `rollup` `ok = saved && !error`). Used by the failure
+  branch (same line) and the Cancel path.
+- A. `live_board_errors(sync_progress)` (not `stopped_errors`: that name is the failure branch's local): every
+  `progress_for[*].board_errors` entry plus any `sync_progress.errors` entry not already among them (so R1's planted
+  copy still counts, once; no fixture change). `end_canceled_sync` logs, before clearing `sync_progress`,
+  `with_errors(confirmed_statuses(uniq(board_statuses)), live_board_errors(...))` and `roots`. The failure branch reads
+  `live_board_errors` (same line).
+- T. Content errors ("failed to sync completely", :3359) carry `content: true`, kept by `with_errors`, the success
+  branch's merge (:2383-2394, line-neutral) and `entry_copy`; #1328's `seen_by_last_sync` ignores `content` rows
+  (older untagged entries still hide: the safe side).
+Tests: sync_rollup units (note/confirm/live errors, dedupe); `board_lookup` harness: a memory-only board whose reload
+times out is not done, a reload that succeeds is (mutant: no note); `end_canceled_sync` with planted progress (a
+supervisee's array alone holds an error; the copy is stale; one unconfirmed row; a specific roots key; mutants:
+`statuses: []`, copy only, root's array only, roots dropped, no confirm); the failure branch with an unconfirmed row and
+a live-only error (mutants: copy only, no confirm); grouped-test: a cancelled entry with rows (heading, summary line,
+restored lead).
