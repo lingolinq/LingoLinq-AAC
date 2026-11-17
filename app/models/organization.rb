@@ -2124,6 +2124,93 @@ class Organization < ApplicationRecord
     self.settings['default_beta_program_access'] != false
   end
 
+  # The districts whose AI authorization governs this account's AI data-sharing
+  # consent: every organization the account is attached to as a user with the
+  # attachment accepted. A pending invitation does not count (the account has not
+  # joined), and neither does a manager or supervisor attachment (those adults
+  # consent for themselves).
+  def self.ai_consent_orgs_for(user)
+    return [] unless user && user.id
+    attached_orgs(user, true).select { |e| e['type'] == 'user' && !e['pending'] }.map { |e| e['org'] }.compact.uniq
+  end
+
+  # True only when a manager has authorized AI for this organization's managed
+  # accounts at the queried disclosure version and has not withdrawn it. Absent
+  # means not authorized: the setting is off until someone turns it on.
+  def ai_authorized?(disclosures_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION)
+    a = self.settings && self.settings['ai_authorization']
+    return false unless a.is_a?(Hash)
+    return false if a['authorized_at'].blank?
+    return false if a['revoked_at'].present?
+    return false unless a['disclosures_version'] == disclosures_version
+    true
+  end
+
+  # Records that +authorized_by+ (a User) authorized AI for the accounts this
+  # organization manages, at the current disclosure version. The settings write and
+  # the AuditEvent share one locked transaction, so a failed audit insert rolls the
+  # authorization back. Returns false when a current authorization already stands.
+  def authorize_ai!(authorized_by:, ip: nil)
+    raise ArgumentError, 'invalid_authorized_by' unless authorized_by.respond_to?(:global_id) && authorized_by.global_id.present?
+    res = false
+    self.with_lock(requires_new: true) do
+      self.settings ||= {}
+      next if ai_authorized?
+      a = self.settings['ai_authorization']
+      a = {} unless a.is_a?(Hash)
+      a['record_id'] = SecureRandom.uuid if a['record_id'].blank?
+      a['authorized_at'] = Time.now.utc.iso8601
+      a['authorized_by'] = authorized_by.global_id
+      a['disclosures_version'] = LingoLinq::AiConsentDisclosures::CURRENT_VERSION
+      a['ip'] = ip
+      a.delete('revoked_at')
+      a.delete('revoked_by')
+      self.settings['ai_authorization'] = a
+      self.save!
+      AuditEvent.create!(
+        user_key: authorized_by.global_id,
+        data: {
+          'type' => 'org_ai_authorization_grant',
+          'organization_id' => self.global_id,
+          'disclosures_version' => a['disclosures_version'],
+          'record_id' => a['record_id']
+        },
+        event_type: 'org_ai_authorization_grant',
+        record_id: a['record_id']
+      )
+      res = true
+    end
+    res
+  end
+
+  # Withdraws the organization's AI authorization. Returns false when none stands.
+  def revoke_ai_authorization!(revoked_by:)
+    raise ArgumentError, 'invalid_revoked_by' unless revoked_by.respond_to?(:global_id) && revoked_by.global_id.present?
+    res = false
+    self.with_lock(requires_new: true) do
+      self.settings ||= {}
+      a = self.settings['ai_authorization']
+      next unless a.is_a?(Hash) && a['authorized_at'].present? && a['revoked_at'].blank?
+      a['revoked_at'] = Time.now.utc.iso8601
+      a['revoked_by'] = revoked_by.global_id
+      self.settings['ai_authorization'] = a
+      self.save!
+      AuditEvent.create!(
+        user_key: revoked_by.global_id,
+        data: {
+          'type' => 'org_ai_authorization_revoke',
+          'organization_id' => self.global_id,
+          'disclosures_version' => a['disclosures_version'],
+          'record_id' => a['record_id']
+        },
+        event_type: 'org_ai_authorization_revoke',
+        record_id: a['record_id']
+      )
+      res = true
+    end
+    res
+  end
+
   # Opt-out off-switch for Google Speech-to-Text (voice transcription) egress.
   # Board translation is not gated here; the Translate Boards modal shows a
   # Google Cloud Translation disclaimer instead.
