@@ -92,6 +92,19 @@ module('Unit | Route | user owner of a board page', function(hooks) {
     await assert.rejects(this.route.model({user_id: 'kid'}, to_board('home')));
   });
 
+  // Part 3 (Traci 2026-11-16): the boards a person starts with open offline on any device.
+  test('a shared device: a public LingoLinq library board gets a stand-in; no other board does', async function(assert) {
+    this.route.appState.set('sessionUser', EmberObject.create({preferences: {device: {long_token: false}}}));
+    this.device.board['lingolinq/yes-no'] = {id: '1_9', key: 'lingolinq/yes-no', public: true};
+    var owner = await this.route.model({user_id: 'lingolinq'}, to_board('yes-no'));
+    assert.strictEqual(owner.get('user_name'), 'lingolinq');
+    assert.true(owner.get('board_owner_stand_in'));
+    this.device.board['lingolinq/draft'] = {id: '1_8', key: 'lingolinq/draft', public: false};
+    await assert.rejects(this.route.model({user_id: 'lingolinq'}, to_board('draft')), 'a library account board that is not public');
+    this.device.board['therapist/feelings'] = {id: '1_7', key: 'therapist/feelings', public: true};
+    await assert.rejects(this.route.model({user_id: 'therapist'}, to_board('feelings')), 'another owner\'s board');
+  });
+
   test('a board only in memory still gets its owner, so the tap that was allowed works', async function(assert) {
     boardDetailCache.set({id: '1_9', key: 'lingolinq/crisis', buttons: []});
     var owner = await this.route.model({user_id: 'lingolinq'}, to_board('crisis'));

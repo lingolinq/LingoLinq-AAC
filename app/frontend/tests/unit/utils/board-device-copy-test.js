@@ -50,6 +50,17 @@ module('Unit | Utility | board_device_copy', function(hooks) {
       assert.true(await board_saved_here(device(false, {'lingolinq/crisis': raw}), cache, 'lingolinq/crisis', me), 'a trusted device');
     });
 
+    // Part 3 (Traci 2026-11-16): the boards a person starts with open offline on any device.
+    test('board_saved_here: on a shared device a public LingoLinq library board opens offline when it is saved', async function(assert) {
+      var shared = EmberObject.create({sessionUser: EmberObject.create({user_name: 'me', preferences: {device: {long_token: false}}})});
+      var lib = {id: '1_8', key: 'lingolinq/yes-no', buttons: [], public: true};
+      assert.true(await board_saved_here(device(false, {'lingolinq/yes-no': lib}), cache, 'lingolinq/yes-no', shared), 'saved');
+      assert.true(await board_saved_here(device(false, {}), {peek: function() { return lib; }}, 'lingolinq/yes-no', shared), 'in memory');
+      assert.false(await board_saved_here(device(false, {}), cache, 'lingolinq/yes-no', shared), 'not on the device');
+      assert.false(await board_saved_here(device(false, {'lingolinq/draft': {id: '1_9', key: 'lingolinq/draft', buttons: [], public: false}}), cache, 'lingolinq/draft', shared), 'not public');
+      assert.false(await board_saved_here(device(false, {'therapist/feelings': {id: '1_6', key: 'therapist/feelings', buttons: [], public: true}}), cache, 'therapist/feelings', shared), 'another owner\'s public board');
+    });
+
     test('board_saved_here only says no offline, for a board that is really missing', async function(assert) {
       assert.true(await board_saved_here(device(true, {}), cache, 'me/board', me), 'online');
       assert.false(await board_saved_here(device(false, {}), cache, 'me/board', me), 'offline, not on the device');
