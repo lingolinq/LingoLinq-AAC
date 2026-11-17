@@ -175,6 +175,27 @@ module('Unit | Utility | board retry', function() {
     assert.strictEqual(parking.size(), 1);
   });
 
+  // The timer runs on Ember's runLater (Date.now) while due times use the monotonic clock, so a wall clock moved
+  // forward between the first arm and the re-arm can fire the superseded timer FIRST. It must still do nothing.
+  test('a superseded timer that fires before the newer one brings nothing back early', function(assert) {
+    var schedule = fake_scheduler();
+    var c = clock_at(0);
+    var parking = create_parking(schedule, c.now);
+    var back = [];
+    parking.park('A', 3); // due at 90 s
+    parking.wait(delay_for, function() { }, function(boards) { back.push(boards); });
+    c.t = 1000;
+    parking.park('B', 1); // due at 11 s: re-arms the timer
+    assert.strictEqual(schedule.steps.length, 2, 're-armed');
+    c.t = 5000;
+    schedule.run(0); // the superseded timer fires early (wall clock moved forward)
+    assert.deepEqual(back, [], 'B is not back before its own 10 s');
+    assert.strictEqual(parking.size(), 2, 'both boards still parked');
+    c.t = 11000;
+    schedule.run(1);
+    assert.deepEqual(back, [['B']], 'B comes back when its wait is over');
+  });
+
   test('boards already due come back together, and the thread keeps its download slot', function(assert) {
     var schedule = fake_scheduler();
     var c = clock_at(0);
