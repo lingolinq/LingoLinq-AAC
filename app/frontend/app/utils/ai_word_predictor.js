@@ -53,7 +53,7 @@ var ai_word_predictor = {
     return aiFeatureGate.aiFeatureEnabled(state, 'ai_word_prediction') && aiFeatureGate.authoringFeatureEnabled(state, 'ai_word_prediction');
   },
 
-  predict: function(sentence, options) {
+  _predict_unshared: function(sentence, options) {
     var _this = this;
     options = options || {};
     var locale = options.locale || 'en';
@@ -109,6 +109,42 @@ var ai_word_predictor = {
         _this._fetch(sentence.trim().toLowerCase(), locale, count).then(resolve, function() { resolve([]); });
       }, _this._debounce_ms);
     });
+  },
+
+  // Callers asking for the same sentence and language share ONE request. The body above has a
+  // single waiting slot and resolves whoever was in it with [] when the next call arrives, even
+  // a call for the very same sentence; several lookups per tap (the Modern rail's, and the
+  // classic board controller's) therefore cancelled each other and no caller got the AI words.
+  // A DIFFERENT sentence still replaces one that has not been sent, and a cleared sentence still
+  // cancels: both go through the body above unchanged.
+  _shared: {},        // cache key -> promise, while it is waiting or on the wire
+  _pending_key: null, // the key the waiting slot (_pending_timer) belongs to
+
+  predict: function(sentence, options) {
+    var _this = this;
+    options = options || {};
+    // The AI check runs for EVERY caller, before any shared answer is handed out: a request
+    // started while AI was allowed must not answer a caller for whom it is off.
+    if(!_this.is_enabled(options.appState)) {
+      return _this._predict_unshared(sentence, options);
+    }
+    var key = _this._cache_key(sentence, options.locale || 'en');
+    if(_this._shared[key]) {
+      return _this._shared[key];
+    }
+    // The body is about to resolve the waiting sentence with []. Forget it first, so a repeat
+    // ask for that sentence starts again instead of being handed the cancelled empty answer.
+    if(_this._pending_timer && _this._pending_key !== null) {
+      delete _this._shared[_this._pending_key];
+    }
+    var promise = _this._predict_unshared(sentence, options);
+    _this._pending_key = _this._pending_timer ? key : null;
+    _this._shared[key] = promise;
+    var forget = function() {
+      if(_this._shared[key] === promise) { delete _this._shared[key]; }
+    };
+    promise.then(forget, forget);
+    return promise;
   },
 
   _has_budget: function() {
@@ -174,6 +210,7 @@ var ai_word_predictor = {
 
   clear_cache: function() {
     this._cache = {};
+    this._shared = {};
   }
 };
 

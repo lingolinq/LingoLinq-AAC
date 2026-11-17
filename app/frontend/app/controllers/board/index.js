@@ -153,7 +153,7 @@ export default Controller.extend(prefClasses, {
     'appState.inflection_shift',
     'appState.label_locale',
     'appState.vocalization_locale',
-    'model.locale',
+    'model.locale', 'appState.router.currentRouteName',
     'model.translations',
     function() {
       // Word prediction is governed by the global user preference (only an
@@ -163,7 +163,7 @@ export default Controller.extend(prefClasses, {
       // Eval boards (obf/eval*) are a controlled assessment — word prediction
       // would interfere and its symbols aren't part of the test — so suppress
       // the lookup (and the bar below) whenever eval_mode is active.
-      if(this.appState.get('referenced_user.preferences.word_suggestions') !== true || !this.appState.get('speak_mode') || this.appState.get('eval_mode')) { return; }
+      if(this.appState.get('referenced_user.preferences.word_suggestions') !== true || !this.appState.get('speak_mode') || this.appState.get('eval_mode') || this.modern_view_active()) { return; }
       var _this = this;
       var button_list = this.get('appState.button_list');
       var last_button = button_list[button_list.length - 1];
@@ -1782,5 +1782,17 @@ export default Controller.extend(prefClasses, {
     button_event: function(action, a, b) {
       this.send(action, a, b);
     }
+  },
+  /* Whether the Modern (board-detail) view is on screen. This controller stays alive there:
+     routes/user/board-detail.js calls controllerFor('board.index') and mirrors the board onto it,
+     and `updateSuggestions` above watches the shared button list, so without this check every tap
+     in the Modern view also ran a classic prediction lookup for a bar that view does not render.
+     "Is board-detail active", NOT "is board.index active": this controller also serves
+     user.board-alt.index, and an unknown route must keep prediction on. Read the way
+     services/app-state.js resolve_board_from_controller reads the route.
+     Below `actions` so the .eslint-todo rows above keep their lines. */
+  modern_view_active: function() {
+    var route_name = this.appState.get('router.currentRouteName') || this.appState.get('current_route') || '';
+    return String(route_name).indexOf('board-detail') !== -1;
   }
 });
