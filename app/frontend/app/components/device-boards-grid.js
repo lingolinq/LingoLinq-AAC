@@ -22,7 +22,8 @@ export default Component.extend({
     };
   },
 
-  // BoardIcon takes the {board} wrapper the online grid passes it.
+  // Each tile's board record and whether it is the home board. BoardIcon gets the record itself: it unwraps
+  // {board} only for a copy cluster (one with `children`, components/board-icon.js set_board_record).
   items: computed('boards.[]', 'boardsCtrl.model.preferences.home_board.key', function() {
     var home = this.get('boardsCtrl.model.preferences.home_board.key');
     var list = this.get('boards');
