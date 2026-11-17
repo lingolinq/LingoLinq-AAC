@@ -20,7 +20,12 @@ QUnit.module('Integration | boards on this device', function(hooks) {
       model: EmberObject.create({ permissions: { edit: true }, preferences: { home_board: { key: 'tester/home' } } }),
       send: function(action, arg) { opened.push([action, arg]); }
     }));
-    var device = [EmberObject.create({ id: '1_1', key: 'tester/home', name: 'Home' }), EmberObject.create({ id: '1_2', key: 'lingolinq/crisis-vocabulary', name: 'Crisis Vocabulary' })];
+    // Board records, as utils/offline_board_list.js device_board_list hands them over (peekRecord or store.push).
+    var store = this.owner.lookup('service:store');
+    var device = [
+      store.push({ data: { id: '1_1', type: 'board', attributes: { key: 'tester/home', name: 'Tester Home Board' } } }),
+      store.push({ data: { id: '1_2', type: 'board', attributes: { key: 'lingolinq/crisis-vocabulary', name: 'Crisis Vocabulary' } } })
+    ];
     device.done = true;
     device.from_device = true;
     this.set('device', device);
@@ -33,6 +38,8 @@ QUnit.module('Integration | boards on this device', function(hooks) {
     assert.dom('.ub-boards-page__boards-title').exists({ count: 1 }, 'one heading, the section\'s own h2');
     assert.dom('.ub-boards-page__board-item').exists({ count: 2 });
     assert.dom('.ub-boards-page__board-item--home').exists({ count: 1 }, 'the home board is marked');
+    assert.dom('[data-board-key="tester/home"]').containsText('Tester Home Board', 'each tile shows its board\'s name, not a loading placeholder');
+    assert.dom('[data-board-key="lingolinq/crisis-vocabulary"]').containsText('Crisis Vocabulary');
     assert.dom('.ub-boards-page__board-item[draggable="true"]').doesNotExist('nothing to drag');
     assert.dom('.ub-boards-page__tabs').doesNotExist('no tab row');
     assert.dom('.ub-boards-page__tabs-mobile-picker').doesNotExist('no phone tab picker');
