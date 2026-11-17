@@ -56,6 +56,7 @@ module JsonApi::Organization
       json['jurisdiction'] = org.jurisdiction
       json['default_beta_program_access'] = org.default_beta_program_access?
       json['external_ai_processing'] = org.external_ai_processing_allowed?
+      json['ai_authorized'] = org.ai_authorized?
       if org.settings['activation_settings']
         json['start_codes'] = Organization.start_codes(org)
       end

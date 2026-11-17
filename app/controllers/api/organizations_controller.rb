@@ -874,7 +874,24 @@ class Api::OrganizationsController < ApplicationController
     if org_data && !org.allows?(@api_user, 'delete')
       org_data.delete('parent_org')
     end
+    # AI authorization for the accounts this organization manages (#1136). It is its
+    # own audited record, not a plain setting, so it is taken out of the general update
+    # and applied only for someone who may manage the organization (an assistant can
+    # edit but not manage), acting as themselves.
+    ai_authorized = nil
+    if org_data && (org_data.key?('ai_authorized') || org_data.key?(:ai_authorized))
+      raw = org_data.delete('ai_authorized')
+      raw = org_data.delete(:ai_authorized) if raw.nil?
+      if org.allows?(@api_user, 'manage') && !@true_user
+        ai_authorized = [true, 'true', '1', 1].include?(raw) ? true : ([false, 'false', '0', 0].include?(raw) ? false : nil)
+      end
+    end
     if org.process(org_data, {'updater' => @api_user})
+      if ai_authorized == true
+        org.authorize_ai!(authorized_by: @api_user, ip: request.remote_ip)
+      elsif ai_authorized == false
+        org.revoke_ai_authorization!(revoked_by: @api_user)
+      end
       render json: JsonApi::Organization.as_json(org, :wrapper => true, :permissions => @api_user).to_json
     else
       api_error(400, {error: "organization update failed", errors: (Array(org.processing_errors) + Array(org.errors.full_messages)).uniq})

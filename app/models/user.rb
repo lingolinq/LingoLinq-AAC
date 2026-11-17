@@ -1577,7 +1577,63 @@ class User < ApplicationRecord
   # Sources accepted by grant_ai_consent!. Anything else raises ArgumentError so
   # Phase 3 controllers cannot silently widen the surface by passing an arbitrary
   # value pulled from params. New sources must be added here explicitly.
-  AI_CONSENT_SOURCES = %w[email_link in_app admin_backfill].freeze
+  AI_CONSENT_SOURCES = %w[email_link in_app admin_backfill registration].freeze
+
+  # Sources where the account holder acts for their own account (Scot, 2026-11-17:
+  # agreement at registration, and one click for an existing account). Every other
+  # source is someone else acting (a parent's emailed link, an admin backfill).
+  AI_CONSENT_SELF_SOURCES = %w[registration in_app].freeze
+
+  # True when this account's AI data-sharing consent has to come from a parent or
+  # guardian, never from the account itself: any COPPA record at all (pending,
+  # approved, declined or revoked), or an EU under-16 registration.
+  def ai_consent_parent_route?
+    coppa = self.settings && self.settings['coppa']
+    return true if coppa.is_a?(Hash) && coppa.present?
+    eu_under_16?
+  end
+
+  # Registration route: records the consent the account holder gave by agreeing to
+  # the terms at signup. Called only by the public signup controllers, never from
+  # process_params (which also runs on every later update). Returns false, and
+  # records nothing, when the terms were not agreed, when the account is on the
+  # parent route, or when a district created or already holds the account. Never
+  # raises into the signup request: a failure is logged and AI simply stays off
+  # until the account agrees in the app.
+  def record_registration_ai_consent!(ip: nil, user_agent: nil)
+    return false unless self.settings && self.settings['terms_agreed'].present?
+    return false if ai_consent_parent_route?
+    return false if self.settings['authored_organization_id'].present?
+    return false if Organization.attached_orgs(self).any? { |o| o['type'] == 'user' }
+    grant_ai_consent!(
+      disclosures_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION,
+      granted_by: 'account_holder',
+      source: 'registration',
+      ip: ip,
+      user_agent: user_agent,
+      granted_by_user_id: self.global_id
+    )
+  rescue ArgumentError, ActiveRecord::ActiveRecordError => e
+    Rails.logger.error("registration AI consent not recorded for #{self.global_id}: #{e.class}")
+    false
+  end
+
+  # Parent route: records the AI consent that comes with a parent's or guardian's
+  # approval through their emailed link. The parent's address stays in the approval
+  # record it already lives in; it is not copied here. Never raises into the
+  # approval page.
+  def record_parent_ai_consent!(ip: nil, user_agent: nil)
+    grant_ai_consent!(
+      disclosures_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION,
+      granted_by: 'parent',
+      source: 'email_link',
+      ip: ip,
+      user_agent: user_agent
+    )
+  rescue ArgumentError, ActiveRecord::ActiveRecordError => e
+    Rails.logger.error("parent AI consent not recorded for #{self.global_id}: #{e.class}")
+    false
+  end
 
   # Sources accepted by revoke_ai_consent!. Kept separate from grant sources
   # because the valid actors for revocation (parent, admin, automated system)
@@ -1623,9 +1679,19 @@ class User < ApplicationRecord
     # that a later valid grant can't repair), and a string version would make the
     # stale-version check lexicographic. Raises 'invalid_disclosures_version'.
     disclosures_version = ai_consent_normalize_version!(disclosures_version)
-    if granted_by_user_id.present?
-      granted_by_user_id = normalize_ai_consent_granted_by_user_id!(granted_by_user_id)
-      raise ArgumentError, 'self_grant_forbidden' if granted_by_user_id == self.global_id
+    granted_by_user_id = normalize_ai_consent_granted_by_user_id!(granted_by_user_id) if granted_by_user_id.present?
+    if AI_CONSENT_SELF_SOURCES.include?(source) && (granted_by_user_id.blank? || granted_by_user_id == self.global_id)
+      # The account holder acting for their own account: allowed, except where the
+      # consent has to come from a parent or guardian. A missing grantor id counts
+      # as the account itself, so leaving the id out cannot get a parent-route
+      # account past this.
+      raise ArgumentError, 'parental_consent_required' if ai_consent_parent_route?
+    elsif source == 'registration'
+      # Registration is only ever the new account agreeing for itself.
+      raise ArgumentError, 'invalid_granted_by_user_id'
+    elsif granted_by_user_id == self.global_id
+      # Every other source is someone else acting (a parent's link, an admin backfill).
+      raise ArgumentError, 'self_grant_forbidden'
     end
 
     res = false

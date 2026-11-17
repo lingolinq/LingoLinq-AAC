@@ -284,6 +284,13 @@ class Api::UsersController < ApplicationController
       start_progress = res[:progress]
       start_code_org = res[:target] if res.is_a?(Hash) && res[:target].is_a?(Organization)
     end
+    # AI data-sharing consent (#1136): a self-signup agrees to it with the terms. Only
+    # for a public signup (nobody signed in) with no start code: a start code attaches
+    # the account to a district in a background job, and that district's authorization
+    # is then what covers it.
+    if @api_user.nil? && !(user_data && user_data['start_code'].present?)
+      user.record_registration_ai_consent!(ip: request.remote_ip, user_agent: request.user_agent)
+    end
     UserBoardProvisioner.provision_for(user)
     # Org-authored (school-official) creation: emit the immutable authorization audit
     # now that the user is persisted. process_params recorded the basis in settings
@@ -1046,6 +1053,40 @@ class Api::UsersController < ApplicationController
     render json: {
       article_50_disclosure_shown: true,
       disclosures_version: LingoLinq::Article50Disclosures::CURRENT_VERSION
+    }
+  end
+
+  # Records the AI data-sharing consent (#1136) of an existing account with one click.
+  # Only the signed-in account holder, acting on their own account with a full-access
+  # token, can do this: not a supervisor, not an admin or manager acting as the account
+  # (masquerade), not a valet login and not a limited-scope token. A district-managed
+  # account is covered by its district instead, and an account on the parent route by
+  # the parent's approval; both are refused here with the route named. Source and
+  # version are server constants, never read from the request.
+  def ai_consent
+    user = User.find_by_path(params['user_id'])
+    return unless exists?(user, params['user_id'])
+    return unless allowed?(user, 'edit')
+    own_account = @api_user && user.id == @api_user.id && !@true_user &&
+                  !@api_user.valet_mode? && api_permission_scopes.include?('full')
+    return api_error(403, {error: 'account_holder_required'}) unless own_account
+    return api_error(400, {error: 'org_authorization_required'}) if Organization.ai_consent_orgs_for(user).any?
+    return api_error(400, {error: 'parental_consent_required'}) if user.ai_consent_parent_route?
+    begin
+      user.grant_ai_consent!(
+        disclosures_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION,
+        granted_by: 'account_holder',
+        source: 'in_app',
+        ip: request.remote_ip,
+        user_agent: request.user_agent,
+        granted_by_user_id: user.global_id
+      )
+    rescue ArgumentError => e
+      return api_error 400, {error: e.message}
+    end
+    render json: {
+      ai_consent_granted: user.ai_consent_granted?,
+      disclosures_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION
     }
   end
 

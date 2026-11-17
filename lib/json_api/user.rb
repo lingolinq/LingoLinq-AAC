@@ -572,6 +572,18 @@ json['preferences']['skin'] = user.settings['preferences']['skin']
     if json['permissions'] && json['permissions']['model']
       json['article_50_disclosure_required'] = EuJurisdiction.disclosure_required?(user)
       json['article_50_disclosure_shown'] = user.article_50_disclosure_shown?
+      # AI data-sharing consent (#1136), same scope as the pair above: only the
+      # account itself is told. `route` says who can give it: the account ('self'),
+      # its district ('organization') or a parent or guardian ('parent').
+      json['ai_consent_required'] = FeatureFlags.ai_consent_blocks_ai_for?(user)
+      json['ai_consent_route'] = if Organization.ai_consent_orgs_for(user).any?
+        'organization'
+      elsif user.ai_consent_parent_route?
+        'parent'
+      else
+        'self'
+      end
+      json['ai_consent_disclosures_version'] = LingoLinq::AiConsentDisclosures::CURRENT_VERSION
     end
     # Prefill Resend modal after reload (edit only; account holder entered this address).
     if user.eu_ai_parental_consent_pending? && json['permissions'] && json['permissions']['edit']
