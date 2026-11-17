@@ -135,6 +135,7 @@ export default AuthenticatedView.extend({
     this._super(...arguments);
     try { this.update_selected(); } catch (e) { /* board list stays empty */ }
     try { this.checkForBlankSlate(); } catch (e) { /* offline list stays empty */ }
+    try { this.load_device_boards(); } catch (e) { /* "Boards on This Device" stays empty */ }
     try { this.reload_logs(); } catch (e) { /* sessions + badges stay empty */ }
     if(this._pending_index_nav) {
       var nav = this._pending_index_nav;
@@ -669,4 +670,29 @@ export default AuthenticatedView.extend({
   /* The Speak card's board picture (authenticated-view.js#speakBoardImage) is a Modern home page card;
      classic-view.hbs never shows it, so the Basic home page does not fetch that board (2026-10-13). */
   _loadSpeakBoard() {},
+
+  /* BOARDS ON THIS DEVICE (Traci, 2026-11-16; docs/task-management/2026-11-16_offline-boards-page.md): offline, the
+     Boards tab lists every board the person can open from the device (utils/offline_board_list.js), in its own
+     `deviceBoards`, not `recentOfflineBoards` (which the online Recent tab shows). Only from the signed-in person's own
+     device database (unknown is no); a list built for this person is kept while offline (the device's boards cannot
+     change without a sync). Observers do not run on init, so didInsertElement calls it too. */
+  device_db_user() { return current_device_db_user(); },
+  device_storage: null,
+  load_device_boards: observer('persistence.online', function() {
+    var p = this.get('persistence');
+    if(!p || typeof p.get !== 'function' || p.get('online')) { return; }
+    var user = this.get('appState.currentUser');
+    var user_name = user && user.get && user.get('user_name');
+    if(!user_name || this.device_db_user() !== user_name) { return; }
+    var prior = this.get('deviceBoards');
+    if(prior && prior.from_device && prior.user_name === user_name) { return; }
+    var _this = this;
+    this.set('deviceBoards', { loading: true });
+    device_board_list(this.get('store'), user, { storage: this.get('device_storage'), sync_log: p.get('sync_log') }).then(function(records) {
+      if(_this.isDestroyed || _this.isDestroying || _this.get('appState.currentUser') !== user) { return; }
+      records.user_name = user_name;
+      _this.set('deviceBoards', records);
+    }, function() { /* device_board_list resolves an empty list on a failed read */ });
+  }),
 });
+import { device_board_list, current_device_db_user } from '../../utils/offline_board_list'; // last, as in the controllers

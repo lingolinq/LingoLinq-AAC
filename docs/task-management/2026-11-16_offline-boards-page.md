@@ -88,3 +88,82 @@ ordering. Fixed by reading the page's own flag, set in the route's `activate` (w
 
 Lesson: a guard keyed on the current route, read from a route's setupController, sees the route being left. Use a flag
 the route sets in `activate`, and confirm any route-dependent guard in a browser on a built branch.
+
+## Part 2 (Traci, 2026-11-16): offline, the boards page becomes one "Offline Boards" view
+
+Decision: "Offline, the boards page should transition from My Boards, Public Boards, etc to just Offline Boards and show
+all of their available boards (in their same respective styles as their pages, so modern focused gets modern focused
+styles, basic gentle gets basic gentle styles, etc)." Traci uses Modern.
+
+### Facts (mapped 2026-11-16; file:line in the branch)
+
+- What a sync saves (`utils/offline_sync_seeds.js:31-66`): the home board (`preferences.home_board`), sidebar boards
+  (`preferences.sidebar_boards[].key`), liked boards (`stats.starred_board_refs`, suggested ones only with
+  `sync_starred_boards`), Crisis Vocabulary (always), and each one's folders (buttons' `load_board`, followed by the
+  walk). The copy `sync_offline_scope_limit` already describes this set.
+- Part 1's list (`own_device_boards`) keeps only keys under `<user_name>/`: it misses Crisis Vocabulary and other
+  people's liked or sidebar boards, and it lists the person's own folders as boards.
+- Surfaces: Modern `/:user/boards` (`templates/user/boards.hbs` → `BoardsBrowser` → `AvailableBoardsSection`: tab row
+  :679-747 with the ≤640px picker, tag-folder panel :54-535, Boards section :536-873, grid tiles
+  `ub-boards-page__board-item` + `BoardIcon` :772-873, New Board in three places, Change Home Board, filter, density
+  toggle). Basic: home page Boards tab (`components/dashboard/classic-view.hbs:657-787`, offline branch :659-674 lists
+  `find_recent` = recently opened, up to 12, heading "Recent boards").
+- Styles: only Gentle and Focused layouts; chosen by body classes (`ll-layout-focused`, `ll-view-basic/modern`), so the
+  existing tile markup inside the existing wrappers gets the right style.
+- Naming clash: "Offline boards" (`offline_boards_subtitle`) already names the Basic Access card that leads to
+  `/offline-boards` ("Always-Available Boards", the free emergency boards).
+
+### Proposal
+
+1. `utils/offline_board_list.js` `available_device_boards(store, user, storage)`: from the signed-in person's device
+   database, the boards to list: the seeds found on the device (home, sidebar, liked, Crisis Vocabulary) and the
+   person's own boards, minus any board reached as a folder (a `load_board` target of another listed board's buttons),
+   except a seed (a seed is listed even if another board links to it). Home first, then sidebar, liked, own, Crisis
+   Vocabulary last. Not revoked; one entry per board.
+2. Modern: an `offline_view` flag on the controller (offline AND boards page AND the device database is the signed-in
+   person's). The Boards section then shows only: the heading "Offline Boards", a one-line note, and the grid of
+   tiles (same markup, same `BoardIcon`, open on tap). Hidden while offline: the tab row and picker, the tag-folder
+   panel, New Board (three places), Change Home Board, the filter row, remove buttons and "More". Back online,
+   everything returns and the server list loads.
+3. Basic: the Boards tab's offline branch uses the same list, heading "Offline Boards", same `ch-boards__cell` +
+   `BoardIcon` tiles.
+4. Part 1's guards stay (owner, page, newest request, finished list kept, read inside the promise chain).
+
+### Open (for Traci)
+
+- The heading: "Offline Boards" shares its name with the Always-Available Boards card. Keep it, or e.g. "Boards on
+  This Device"?
+
+### Tests and checks
+
+- Unit: the list from device rows: seeds by id and key, others' liked board listed, Crisis Vocabulary listed, a folder
+  of the home board not listed, a seed linked from another board still listed, revoked dropped, order.
+- Render: the Modern Boards section offline shows the heading and tiles and no tab row, picker, New Board, folders
+  panel; online unchanged. Basic offline branch shows the same list.
+- Browser on the built branch: Modern Gentle, Modern Focused, Basic Gentle, Basic Focused, phone and wide: sync,
+  airplane mode, open the boards page or Boards tab; back online.
+
+### Review of Part 2 (adversary): proceed with changes; Traci's decisions (2026-11-16)
+
+Decisions: heading "Boards on This Device" (the Basic Access card keeps "Offline boards"); a fix, no feature flag;
+other people's boards are listed on untrusted devices too (Traci chose B; on a device not marked "Trust this Device",
+tapping one offline still redirects, as the Speak Mode sidebar does today: `routes/user.js` `_device_owner`).
+
+Revised design (closes F1-F3, F5, F6, F8-F13; F4 for Modern):
+- The list has its own property, never `my_boards`/`board_list`: Modern `controller.offline_boards`, Basic
+  `deviceBoards`. Read from the device each time the boards page goes offline, whatever tab or list was on screen.
+- Builder `device_board_list(store, page_user, opts)` in `utils/offline_board_list.js`: the page user's sync seeds
+  (`offline_sync_seeds`: home, sidebar, liked, Crisis Vocabulary) found on the device, then the page user's own boards
+  that no seed reaches, as sets: a board is a folder only when reachable through a followable link (on the grid, not
+  hidden, link not disabled) from a listed board; an own set with no unreached root (a cycle) is listed by its first
+  board by key, so no set disappears. Another owner's liked board is listed only if the last clean sync saw it
+  without an error (`sync_log`), so a board unshared since is not offered. Order: home, sidebar, liked, own (by name),
+  Crisis Vocabulary. Revoked out. Part 1's `own_device_boards` is replaced.
+- Modern: `templates/user/boards.hbs` passes `@offlineView` into BoardsBrowser (the account page passes nothing, so it
+  keeps its normal UI); BoardsBrowser shows, instead of AvailableBoardsSection and its New Board button: the h2
+  "Boards on This Device", a status line, the grid in the same tile markup (`ub-boards-page__board-item` + BoardIcon),
+  tap opens the board, no remove callback, not draggable; an offline empty state on new keys. The hero New Board link is
+  hidden too. Entering clears Set Home mode. Leaving the view: only when a server list arrives (hysteresis), not on
+  every `online` flip.
+- Basic: the Boards tab's offline branch uses `deviceBoards` (same builder, same owner guard), heading "Boards on This
+  Device", the same `ch-boards__cell` tiles; `recentOfflineBoards` (the online Recent tab) untouched.

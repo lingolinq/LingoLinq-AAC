@@ -9758,5 +9758,11 @@
   "sync_drawer_saving": "Zapisywanie tablic do użytku offline [[ Saving your boards for offline use",
   "sync_drawer_waiting": "Czekam na lepsze połączenie [[ Waiting for a better connection",
   "try_now": "Spróbuj teraz [[ Try now",
-  "sync_see_details": "Zobacz szczegóły [[ See details"
+  "sync_see_details": "Zobacz szczegóły [[ See details",
+  "boards_on_this_device": "*** Boards on This Device",
+  "device_boards_loading": "*** Finding the boards on this device...",
+  "device_boards_empty_basic": "*** No boards are saved on this device yet. Connect to the internet and sync to use your boards offline.",
+  "device_boards_note": "*** You're offline. These boards are saved on this device and open without internet.",
+  "device_boards_empty": "*** No boards are saved on this device yet",
+  "device_boards_empty_subtitle": "*** Connect to the internet and sync to use your boards offline."
 }

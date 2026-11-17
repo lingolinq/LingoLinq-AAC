@@ -4,11 +4,11 @@ import EmberObject from '@ember/object';
 import RSVP from 'rsvp';
 import boardsPageListCache from 'frontend/utils/boards_page_list_cache';
 
-/* Offline, the boards page's Mine list is the boards saved on this device (controllers/user/index.js
+/* Offline, the boards page swaps its tabs and list for "Boards on This Device" (controllers/user/index.js
  * show_device_boards; docs/task-management/2026-11-16_offline-boards-page.md). Reported on Android: sync, airplane
  * mode, My Boards said "You don't have any boards yet". The device owner and the device's boards are set on each
  * test's own controller (device_db_user, device_storage), not on shared singletons. */
-module('Unit | Controller | user/index offline Mine list', function(hooks) {
+module('Unit | Controller | user/index offline boards view', function(hooks) {
   setupTest(hooks);
 
   hooks.afterEach(function() {
@@ -18,8 +18,8 @@ module('Unit | Controller | user/index offline Mine list', function(hooks) {
 
   function rows() {
     return [
-      { data: { id: '9911_1', raw: { id: '9911_1', key: 'larry/home', name: 'Home' } } },
-      { data: { id: '9911_2', raw: { id: '9911_2', key: 'other/y', name: 'Not mine' } } },
+      { data: { id: '9911_1', raw: { id: '9911_1', key: 'larry/home', name: 'Home', user_name: 'larry' } } },
+      { data: { id: '9911_2', raw: { id: '9911_2', key: 'other/y', name: 'Other', user_name: 'other' } } },
     ];
   }
   function page(owner, opts) {
@@ -30,30 +30,44 @@ module('Unit | Controller | user/index offline Mine list', function(hooks) {
     c.reads = 0;
     c.device_db_user = function() { return opts.db_user === undefined ? 'larry' : opts.db_user; };
     c.set('device_storage', { find_all: opts.find_all || function() { c.reads++; return RSVP.resolve(rows()); } });
-    c.set('persistence', EmberObject.create({ online: !!opts.online, meta: function() { return null; } }));
+    c.set('persistence', EmberObject.create({ online: !!opts.online, sync_log: [], meta: function() { return null; } }));
     c.set('store', owner.lookup('service:store'));
-    c.set('model', EmberObject.create({ id: '9911_9', user_name: opts.user_name || 'larry', permissions: opts.permissions || { supervise: true, model: true } }));
+    c.set('model', EmberObject.create({ id: '9911_9', user_name: opts.user_name || 'larry', permissions: opts.permissions || { supervise: true, model: true },
+      preferences: (opts.user_name || 'larry') === 'larry' ? { home_board: { id: '9911_1', key: 'larry/home' } } : {}, stats: {} })); // each person's own seeds
     return c;
   }
   var tick = function() { return new Promise((r) => setTimeout(r, 30)); };
+  var keys = function(list) { return list.map((b) => b.get('key')); };
 
-  test('opened offline (no tab chosen yet): the boards saved on the device are listed', async function(assert) {
+  test('opened offline: the view is on, and lists the boards on the device', async function(assert) {
     var c = page(this.owner);
     c.update_selected();
     await tick();
-    var list = c.get('model.my_boards');
-    assert.deepEqual(list.map((b) => b.get('key')), ['larry/home'], 'own boards only');
-    assert.true(list.done);
+    assert.true(c.get('offline_view'));
+    assert.deepEqual(keys(c.get('offline_boards')), ['larry/home']);
+    assert.notOk(c.get('model.my_boards'), 'the Mine list is never touched');
   });
 
-  // The identity guard, one clause at a time: the open database must be the signed-in person's, and the page must be
-  // theirs or one they may model for.
-  test('your own page, but the open database is not yours (or unknown): never read', async function(assert) {
+  test('whatever tab or list was on screen, the device list is read (not the list on screen)', async function(assert) {
+    var c = page(this.owner);
+    var shown = [];
+    shown.done = true;
+    c.set('model.my_boards', shown);
+    c.set('selected', 'public');
+    c.update_selected();
+    await tick();
+    assert.true(c.get('offline_view'));
+    assert.deepEqual(keys(c.get('offline_boards')), ['larry/home']);
+    assert.strictEqual(c.get('model.my_boards'), shown, 'the server list stays as it was, for when the connection returns');
+  });
+
+  // The identity guard, one clause at a time.
+  test('your own page, but the open database is not yours (or unknown): never read, no view', async function(assert) {
     var c = page(this.owner, { db_user: null });
     c.update_selected();
     await tick();
     assert.strictEqual(c.reads, 0);
-    assert.notOk(c.get('model.my_boards'));
+    assert.false(c.get('offline_view'));
   });
 
   test('another person\'s page you may not model for: your database is not read for them', async function(assert) {
@@ -67,18 +81,7 @@ module('Unit | Controller | user/index offline Mine list', function(hooks) {
     var c = page(this.owner, { user_name: 'other', permissions: { supervise: true, model: true } });
     c.update_selected();
     await tick();
-    assert.deepEqual(c.get('model.my_boards').map((b) => b.get('key')), ['other/y']);
-  });
-
-  test('coming back to the page offline keeps the device list, without reading the database again', async function(assert) {
-    var c = page(this.owner);
-    c.update_selected();
-    await tick();
-    var first = c.get('model.my_boards');
-    c.update_selected();
-    await tick();
-    assert.strictEqual(c.get('model.my_boards'), first);
-    assert.strictEqual(c.reads, 1);
+    assert.deepEqual(keys(c.get('offline_boards')), ['other/y']);
   });
 
   test('a connection drop on another page reads nothing', async function(assert) {
@@ -86,17 +89,18 @@ module('Unit | Controller | user/index offline Mine list', function(hooks) {
     c.update_selected();
     await tick();
     assert.strictEqual(c.reads, 0);
+    assert.false(c.get('offline_view'));
   });
 
-  test('a finished list already on screen stays through a drop', async function(assert) {
+  test('coming back to the page offline keeps the list, without reading the database again', async function(assert) {
     var c = page(this.owner);
-    var shown = [];
-    shown.done = true;
-    c.set('model.my_boards', shown);
     c.update_selected();
     await tick();
-    assert.strictEqual(c.get('model.my_boards'), shown);
-    assert.strictEqual(c.reads, 0);
+    var first = c.get('offline_boards');
+    c.update_selected();
+    await tick();
+    assert.strictEqual(c.get('offline_boards'), first);
+    assert.strictEqual(c.reads, 1);
   });
 
   test('a device read that ends after a newer request is dropped', async function(assert) {
@@ -108,20 +112,22 @@ module('Unit | Controller | user/index offline Mine list', function(hooks) {
     c.set('list_id', 'newer'); // back online: update_selected started a newer list
     release(rows());
     await tick();
-    assert.notOk(c.get('model.my_boards.from_device'));
+    assert.notOk(c.get('offline_boards.from_device'));
   });
 
-  test('back online, the device list is replaced by the server list, even with a fresh snapshot', async function(assert) {
-    var c = page(this.owner, { online: true });
-    var queried = 0;
-    c.set('store', { query: function() { queried++; return RSVP.resolve([]); }, peekRecord: function() { return null; } });
-    var device = [];
-    device.done = true;
-    device.from_device = true;
-    c.set('model.my_boards', device);
-    boardsPageListCache.write('9911_9', []);
-    c.set('selected', 'mine'); // fires update_selected itself (the observer)
+  test('back online, the view ends only when a server list arrives', async function(assert) {
+    var c = page(this.owner);
+    c.update_selected();
     await tick();
-    assert.strictEqual(queried, 1, 'the server list was asked for');
+    assert.true(c.get('offline_view'));
+    var answer = RSVP.defer();
+    c.set('store', { query: function() { return answer.promise; }, peekRecord: function() { return null; } });
+    c.set('persistence.online', true);
+    c.set('selected', 'mine'); // update_selected runs (the observer)
+    await tick();
+    assert.true(c.get('offline_view'), 'still the device list while the server has not answered (no flipping)');
+    answer.resolve([]);
+    await tick();
+    assert.false(c.get('offline_view'));
   });
 });
