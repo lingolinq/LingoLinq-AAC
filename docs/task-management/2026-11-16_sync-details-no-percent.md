@@ -165,3 +165,30 @@ errored + storage_failed and survives entry_copy; partial_result direct on [erro
 errored], storage-failed skipped, from_earlier; summary_for shapes incl. latest_only; ready_title; Sync Details
 computed (syncing, finished newest, from_earlier, stopped); a render test of the modal for each shape (no "%", no
 pill/tabs when unfinished, heading when stopped); drawer with an errored-only log → 'result' stage (unchanged).
+
+## Implementation and verification (2026-11-17)
+
+- Red first: 12 new or changed tests failed for the expected reasons (missing helpers; the failed sync's entry had no
+  `roots` and no merged error; the storage-failed entry was not errored); the drawer's errored-only test was green
+  before and after (it pins unchanged behaviour).
+- Green: 209 of 210 on `--filter "/sync log store|sync rollup|sync-details grouped|sync-progress-drawer|failed sync's log entry|could not be saved as failed|storage|sync progress line|cancelled sync|sync-details/i"`
+  (the 1 skip is the existing filesystem fix_url test the "storage" filter matches).
+- Mutations, two runs, each mutant turning its own tests red:
+  - A: failure entry without roots; storage entry without `errored`; `partial_result` without the errored/canceled
+    check; `summary_for` without the `latest_only` gate; headline ignoring `from_earlier`.
+  - B: `partial_result` without the storage skip; tabs filtering while unfinished; a Ready label on unfinished cards;
+    failure entry without merged errors; `missing_count` for an unfinished summary.
+- No ModalDialog render test: rendering it costs 8-27 s per test and broke QUnit's ceiling
+  (`tests/integration/modal-close-button-test.js` header). Checked in a browser instead: production build served
+  locally, Playwright at 1280 px and Pixel 7, the modal opened in each state (finished with a missing folder,
+  finished all ready, earlier result, stopped first sync, running sync). In every state: no "%"; the headline only for
+  the newest finished sync ("1 of 2 boards are ready offline" / "All your boards are ready offline"); no tabs, pills
+  or `tabpanel` role when unfinished; "Saved before the sync stopped" only when stopped; the moving bar only while
+  syncing; the chevron 20 px from the right edge of the card head on its first row at both widths; no horizontal
+  overflow. The stopped heading first sat flush on the first card; moved inside the card list (12 px gap) and
+  re-checked.
+- Lint: `npm run lint:js:ci` only the known worktree false positive (`sync-details.js`, `toggle_technical`, now line
+  270); `ember-template-lint` clean on sync-details.hbs.
+- i18n: `i18n_generator.rb --generate` and `--merge`: 6 new keys, `sync_ready_offline_lower` dropped; the 12 other
+  locales carry `***` English placeholders (shown in English, `utils/i18n.js:448`). Machine translation not run:
+  1Password was signed out in this session (`extras:translate_ui_locales` needs GOOGLE_TRANSLATE_TOKEN).

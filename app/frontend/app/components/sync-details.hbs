@@ -82,9 +82,6 @@
 
     <div class="la-sync-details-modal-body">
       {{#if this.summary}}
-        {{#if this.stopped}}
-          <h4 class="la-sync-folder-group-title">{{t "Saved before the sync stopped" key="sync_saved_before_stopped"}}</h4>
-        {{/if}}
         {{#if this.show_tabs}}
         <div class="la-sync-tabs" role="tablist" aria-label={{t "Boards" key="boards"}}>
           {{#each this.tabs as |tab|}}
@@ -97,6 +94,9 @@
         {{/if}}
 
         <div class="la-sync-cards" role={{if this.show_tabs "tabpanel"}} id="la-sync-tabpanel" aria-labelledby={{if this.show_tabs (concat "la-sync-tab-" this.current_tab)}}>
+          {{#if this.stopped}}
+            <h4 class="la-sync-folder-group-title">{{t "Saved before the sync stopped" key="sync_saved_before_stopped"}}</h4>
+          {{/if}}
           {{#each this.cards as |card|}}
             <div class="la-sync-card la-sync-card--{{card.tone}}">
               <button type="button" class="la-sync-card-head" aria-expanded={{card.expanded}} {{on "click" card.toggle}}>
