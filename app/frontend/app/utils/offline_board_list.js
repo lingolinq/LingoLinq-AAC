@@ -11,6 +11,7 @@ import lingoLinqExtras from './extras';
 import { is_revoked_raw } from './board_revocation';
 import { offline_sync_seeds } from './offline_sync_seeds';
 import { last_result } from './sync_log_store';
+import { library_board } from './board_device_copy';
 
 // The person whose device database is open, only when it is the signed-in person's (capabilities.setup_database
 // names it from auth_settings at app start; an SPA sign-out can leave the previous person's open). Unknown is no:
@@ -41,28 +42,45 @@ export function followable_links(raw) {
 
 var LIKED = { 'starred board': true, 'suggested board': true };
 
-// Whether the last clean sync saw a board without an error (its log entry's statuses, by id or key).
-function seen_by_last_sync(sync_log) {
-  var found = last_result(sync_log || []);
+// Whether this person's last clean sync saw a board without an error, and no later sync of theirs (finished or not)
+// showed an error for it (by id or key). Only entries for `user_name` count (`user_id` is the synced person's user_name,
+// services/persistence.js sync). A failed or cancelled sync logs only the boards it visited today; once the sync records
+// its errors when it stops (the Sync Details rework), those hide the board here too.
+function seen_by_last_sync(sync_log, user_name) {
+  var mine = (sync_log || []).filter(function(e) { return e && e.user_id === user_name; });
+  var found = last_result(mine);
   var ok = {};
   var failed = {};
-  ((found && found.entry && found.entry.statuses) || []).forEach(function(s) {
-    var mark = s.error ? failed : ok;
-    if(s.id) { mark[s.id] = true; }
-    if(s.key) { mark[s.key] = true; }
+  var mark = function(s, into) { if(s.id) { into[s.id] = true; } if(s.key) { into[s.key] = true; } };
+  ((found && found.entry && found.entry.statuses) || []).forEach(function(s) { if(s) { mark(s, s.error ? failed : ok); } });
+  mine.slice(found ? mine.indexOf(found.entry) + 1 : mine.length).forEach(function(e) {
+    (e.statuses || []).forEach(function(s) { if(s && s.error) { mark(s, failed); } });
   });
   return function(raw) { return !!(ok[raw.id] || ok[raw.key]) && !failed[raw.id] && !failed[raw.key]; };
 }
 
+// On a device not marked "Trust this Device" (`opts.shared`), another owner's board cannot open offline
+// (routes/user.js _device_owner), so only the boards that do are listed: those of the person whose device database
+// this is (`opts.me`) and LingoLinq library boards (utils/board_device_copy.js library_board).
+function opens_here(opts) {
+  return function(raw) {
+    if(!opts.shared) { return true; }
+    var owner = typeof raw.key === 'string' ? raw.key.split('/')[0] : null;
+    return (!!opts.me && owner === opts.me) || library_board(raw);
+  };
+}
+
 // The rows to list, in order, from the device rows ({data: {id, raw}}) for `user` (the page's person). Pure, so the
 // rules are tested without a database:
-// - the sync's seeds found on the device, in seed order (home, sidebar, liked), Crisis Vocabulary last; another
-//   owner's liked board only if the last clean sync saw it without an error (not one unshared since);
+// - the sync's seeds found on the device, in seed order (home, sidebar, liked); Crisis Vocabulary in sidebar order
+//   when the sidebar carries it, else last (Traci, 2026-11-16); another owner's liked board only if this person's
+//   last clean sync saw it without an error (not one unshared since);
 // - then the person's own boards that none of those reaches, as sets: a board is a folder when a followable link from
 //   a listed board (or from another of these) reaches it; a set that is all a cycle is listed by its first board by
 //   key, so no set is left out. Sorted by name.
-// Revoked boards are never listed.
-export function pick_device_boards(rows, user, sync_log) {
+// Revoked boards are never listed, and on a shared device only boards that open there (opens_here above).
+export function pick_device_boards(rows, user, sync_log, opts) {
+  opts = opts || {};
   var by_id = {};
   var by_key = {};
   (rows || []).forEach(function(row) {
@@ -74,7 +92,8 @@ export function pick_device_boards(rows, user, sync_log) {
   });
   var find = function(ref) { return (ref && ((ref.id && by_id[ref.id]) || (ref.key && by_key[ref.key]))) || null; };
   var user_name = user.get('user_name');
-  var seen = seen_by_last_sync(sync_log);
+  var seen = seen_by_last_sync(sync_log, user_name);
+  var opens = opens_here(opts);
 
   var picked = [];
   var listed = {};
@@ -82,7 +101,7 @@ export function pick_device_boards(rows, user, sync_log) {
   var crisis = null;
   offline_sync_seeds(user).forEach(function(seed) {
     var raw = find(seed);
-    if(!raw) { return; }
+    if(!raw || !opens(raw)) { return; }
     if(LIKED[seed.visit_source] && raw.user_name !== user_name && !seen(raw)) { return; }
     if(seed.visit_source === 'crisis vocabulary') { crisis = crisis || raw; return; }
     take(raw);
@@ -103,7 +122,7 @@ export function pick_device_boards(rows, user, sync_log) {
 
   var own = Object.keys(by_id).map(function(id) { return by_id[id]; }).filter(function(raw) {
     return !listed[raw.id] && !reached[raw.id] && (!crisis || raw.id !== crisis.id) &&
-      typeof raw.key === 'string' && raw.key.indexOf(user_name + '/') === 0;
+      typeof raw.key === 'string' && raw.key.indexOf(user_name + '/') === 0 && opens(raw);
   });
   var linked_from_own = {};
   own.forEach(function(raw) {
@@ -132,13 +151,13 @@ function device_list(records) {
 // The listed boards as store records. A record already in memory under the board's id is kept, so an older device
 // copy never overwrites it. The read runs inside the promise chain, so a database that throws (a closing IndexedDB
 // connection) gives an empty list, not an exception. `opts.storage` is passed in by tests; `opts.sync_log` is
-// persistence's sync_log.
+// persistence's sync_log; `opts.shared` and `opts.me` are the shared-device rule (opens_here).
 export function device_board_list(store, user, opts) {
   opts = opts || {};
   if(!store || !user || typeof user.get !== 'function' || !user.get('user_name')) { return RSVP.resolve(device_list([])); }
   var source = opts.storage || lingoLinqExtras.storage;
   return RSVP.resolve().then(function() { return source.find_all('board'); }).then(function(rows) {
-    return device_list(pick_device_boards(rows, user, opts.sync_log).map(function(raw) {
+    return device_list(pick_device_boards(rows, user, opts.sync_log, { shared: opts.shared, me: opts.me }).map(function(raw) {
       return store.peekRecord('board', raw.id) || store.push({ data: { id: raw.id, type: 'board', attributes: raw } });
     }));
   }, function() {

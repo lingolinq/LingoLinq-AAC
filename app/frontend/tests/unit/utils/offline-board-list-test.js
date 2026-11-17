@@ -35,9 +35,9 @@ module('Unit | Utility | offline board list', function(hooks) {
     var rows = [board('4_1', 'therapist/feelings'), CRISIS];
     var user = person({ stats: { starred_board_refs: [{ id: '4_1', key: 'therapist/feelings' }] } });
     assert.deepEqual(keys(pick_device_boards(rows, user, [])), ['lingolinq/crisis-vocabulary'], 'no sync log: not offered');
-    var seen = [{ statuses: [{ id: '4_1', key: 'therapist/feelings', status: 'cached' }] }];
+    var seen = [{ user_id: 'larry', statuses: [{ id: '4_1', key: 'therapist/feelings', status: 'cached' }] }];
     assert.deepEqual(keys(pick_device_boards(rows, user, seen)), ['therapist/feelings', 'lingolinq/crisis-vocabulary']);
-    var refused = [{ statuses: [{ id: '4_1', key: 'therapist/feelings', status: 'cached' }, { id: '4_1', key: 'therapist/feelings', error: 'Not authorized' }] }];
+    var refused = [{ user_id: 'larry', statuses: [{ id: '4_1', key: 'therapist/feelings', status: 'cached' }, { id: '4_1', key: 'therapist/feelings', error: 'Not authorized' }] }];
     assert.deepEqual(keys(pick_device_boards(rows, user, refused)), ['lingolinq/crisis-vocabulary'], 'refused since: not offered');
   });
 
@@ -91,5 +91,57 @@ module('Unit | Utility | offline board list', function(hooks) {
     assert.strictEqual(own_device_db_user('lingolinqStorage::larry===abc', { user_name: 'sam' }), null, 'another person\'s database');
     assert.strictEqual(own_device_db_user('lingolinqStorage::larry===abc', null), null, 'signed out');
     assert.strictEqual(own_device_db_user(null, { user_name: 'larry' }), null, 'no database open: unknown is no');
+  });
+
+  // Part 3 (docs/task-management/2026-11-16_offline-boards-page.md): only this person's syncs count, and a later sync
+  // that showed an error for the board hides it, finished or not.
+  test('another owner\'s liked board: only this person\'s syncs count, and a later error hides it', function(assert) {
+    var rows = [board('4_1', 'therapist/feelings'), CRISIS];
+    var user = person({ stats: { starred_board_refs: [{ id: '4_1', key: 'therapist/feelings' }] } });
+    var ok = function(who) { return { user_id: who, statuses: [{ id: '4_1', key: 'therapist/feelings', status: 'cached' }] }; };
+    var err = function(who, extra) { return Object.assign({ user_id: who, statuses: [{ id: '4_1', key: 'therapist/feelings', error: 'board therapist/feelings failed retrieval for syncing' }] }, extra || {}); };
+    var only = ['lingolinq/crisis-vocabulary'];
+    var both = ['therapist/feelings', 'lingolinq/crisis-vocabulary'];
+    assert.deepEqual(keys(pick_device_boards(rows, user, [ok('sam')])), only, 'someone else\'s sync saw it: not offered');
+    assert.deepEqual(keys(pick_device_boards(rows, user, [ok('larry'), err('sam')])), both, 'someone else\'s sync failing on it does not hide it');
+    assert.deepEqual(keys(pick_device_boards(rows, user, [ok('larry'), err('larry', { errored: true })])), only, 'a later failed sync showed an error for it');
+    assert.deepEqual(keys(pick_device_boards(rows, user, [ok('larry'), err('larry', { canceled: true })])), only, 'a later cancelled sync showed an error for it');
+    assert.deepEqual(keys(pick_device_boards(rows, user, [ok('larry'), { user_id: 'larry', errored: true, statuses: [{ id: '5_5', key: 'larry/other', status: 'cached' }] }])), both,
+      'a later failed sync that did not reach it leaves it listed');
+  });
+
+  // On a device not marked "Trust this Device", another owner's private board cannot open offline (routes/user.js
+  // _device_owner), so it is not listed; the person's own boards and LingoLinq library boards are.
+  test('a shared device lists only what opens there: own boards and public LingoLinq library boards', function(assert) {
+    var LIB = board('2_1', 'lingolinq/yes-no', [], { public: true });
+    var DRAFT = board('2_2', 'lingolinq/draft', [], { public: false });
+    var CRISIS_PUBLIC = board('9_99', 'lingolinq/crisis-vocabulary', [], { public: true });
+    var rows = [board('1_1', 'larry/home'), LIB, DRAFT, board('4_1', 'therapist/feelings'), board('3_1', 'larry/mine'), CRISIS_PUBLIC];
+    var user = person({ preferences: { home_board: { id: '1_1', key: 'larry/home' }, sidebar_boards: [{ key: 'lingolinq/yes-no' }, { key: 'lingolinq/draft' }] },
+      stats: { starred_board_refs: [{ id: '4_1', key: 'therapist/feelings' }] } });
+    var log = [{ user_id: 'larry', statuses: [{ id: '4_1', key: 'therapist/feelings', status: 'cached' }] }];
+    assert.deepEqual(keys(pick_device_boards(rows, user, log, { shared: true, me: 'larry' })),
+      ['larry/home', 'lingolinq/yes-no', 'larry/mine', 'lingolinq/crisis-vocabulary'], 'shared: no therapist board, no private library draft');
+    assert.deepEqual(keys(pick_device_boards(rows, user, log, { shared: false, me: 'larry' })),
+      ['larry/home', 'lingolinq/yes-no', 'lingolinq/draft', 'therapist/feelings', 'larry/mine', 'lingolinq/crisis-vocabulary'], 'trusted: all of them');
+  });
+
+  test('a shared device, on a page for someone else (a supervisee): their boards do not open there, library boards do', function(assert) {
+    var rows = [board('1_1', 'sam/home'), board('2_1', 'lingolinq/yes-no', [], { public: true }), board('3_1', 'sam/mine')];
+    var sam = person({ user_name: 'sam', preferences: { home_board: { id: '1_1', key: 'sam/home' }, sidebar_boards: [{ key: 'lingolinq/yes-no' }] } });
+    assert.deepEqual(keys(pick_device_boards(rows, sam, [], { shared: true, me: 'larry' })), ['lingolinq/yes-no']);
+    assert.deepEqual(keys(pick_device_boards(rows, sam, [], { shared: false, me: 'larry' })), ['sam/home', 'lingolinq/yes-no', 'sam/mine']);
+  });
+
+  test('device_board_list passes the shared-device rule on', async function(assert) {
+    var store = this.owner.lookup('service:store');
+    var rows = [board('9903_1', 'larry/home'), board('9903_2', 'therapist/feelings')];
+    var user = person({ preferences: { home_board: { id: '9903_1', key: 'larry/home' } }, stats: { starred_board_refs: [{ id: '9903_2', key: 'therapist/feelings' }] } });
+    var log = [{ user_id: 'larry', statuses: [{ id: '9903_2', key: 'therapist/feelings', status: 'cached' }] }];
+    var storage = { find_all: function() { return Promise.resolve(rows); } };
+    var shared = await device_board_list(store, user, { storage: storage, sync_log: log, shared: true, me: 'larry' });
+    assert.deepEqual(shared.map(function(r) { return r.get('key'); }), ['larry/home']);
+    var trusted = await device_board_list(store, user, { storage: storage, sync_log: log, shared: false, me: 'larry' });
+    assert.deepEqual(trusted.map(function(r) { return r.get('key'); }), ['larry/home', 'therapist/feelings']);
   });
 });

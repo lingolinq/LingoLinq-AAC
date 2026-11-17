@@ -5,7 +5,7 @@ import LingoLinq from 'frontend/app';
 import RSVP from 'rsvp';
 import modal from 'frontend/utils/modal';
 import { stub, restoreStubs } from 'frontend/tests/helpers/jasmine';
-import { usable_copy, newest_copy, server_refused, session_ended, board_saved_here, device_has_board, leave_unsaved_board, load_copy_images } from 'frontend/utils/board_device_copy';
+import { usable_copy, newest_copy, server_refused, session_ended, board_saved_here, device_has_board, leave_unsaved_board, load_copy_images, library_board } from 'frontend/utils/board_device_copy';
 
 /* Which copy of a board the Modern board page may show when the server gave no usable answer
  * (#1213). The rejection shapes are the real ones: utils/extras.js wraps every failure as
@@ -178,5 +178,23 @@ module('Unit | Utility | board_device_copy pictures after sign-out', function() 
     };
     await load_copy_images(fake, { image_urls: { '1_1': 'http://example.com/a.png' } });
     assert.strictEqual(fake.url_cache['http://example.com/a.png'], 'data:image/png;base64,AAAA');
+  });
+
+});
+
+// Part 3 (docs/task-management/2026-11-16_offline-boards-page.md, Traci 2026-11-16): the boards a person starts with
+// always open offline, trusted device or not. Only public boards of the LingoLinq library account count.
+module('Unit | Utility | board_device_copy library boards', function() {
+  test('library_board: only a public board owned exactly by the LingoLinq library account', function(assert) {
+    assert.true(library_board({ key: 'lingolinq/yes-no', public: true }));
+    assert.false(library_board({ key: 'lingolinq/draft', public: false }), 'not public');
+    assert.false(library_board({ key: 'lingolinq/draft' }), 'public unknown');
+    assert.false(library_board({ key: 'lingolinq-team/x', public: true }), 'a different account whose name starts the same');
+    assert.false(library_board({ key: 'lingolinqx/x', public: true }), 'a different account');
+    assert.false(library_board({ key: 'lingolinq/my:therapist:feelings', public: true }), 'a shallow clone of another owner\'s board');
+    assert.false(library_board({ key: 'therapist/feelings', public: true }));
+    assert.false(library_board({ public: true }), 'no key');
+    assert.false(library_board(null));
+    assert.false(library_board(undefined));
   });
 });

@@ -4,6 +4,20 @@ import modal from './modal';
 import { get as emberGet } from '@ember/object';
 import { board_view_route, opens_in_view_route } from './board_view';
 import { is_protected_board, route_refuses_local } from './board_revocation';
+import { CATALOG_ACCOUNT } from './board_prefetch_planner';
+
+// A board of the LingoLinq library account: the boards a person starts with (the default sidebar, the starter board,
+// Crisis Vocabulary; lib/system_board_sources.rb, app/models/user.rb default_sidebar_boards). They are public, so they
+// open offline on any device, trusted or not (Traci, 2026-11-16; docs/task-management/2026-11-16_offline-boards-page.md
+// Part 3). `raw` is a device copy or a board record. The owner must match exactly, the copy must say it is public (a
+// `lingolinq` user name can be registered where the library account has another name), and a `my:` key is a shallow
+// clone of another owner's board (app/models/concerns/global_id.rb:250-260), not a library board.
+export function library_board(raw) {
+  var key = raw && emberGet(raw, 'key');
+  if(typeof key !== 'string' || emberGet(raw, 'public') !== true) { return false; }
+  var parts = key.split('/');
+  return parts.length === 2 && parts[0] === CATALOG_ACCOUNT && parts[1].indexOf('my:') !== 0;
+}
 
 // The copy of a board the Modern board page falls back on when the server gives no usable answer
 // (#1213): the row saved on the device by sync, or the copy held in memory from this session.
