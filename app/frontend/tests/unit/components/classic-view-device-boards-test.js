@@ -65,9 +65,10 @@ module('Unit | Component | classic-view boards on this device', function(hooks) 
 
   // Part 3 (docs/task-management/2026-11-16_offline-boards-page.md).
   var home_row = function() { return { data: { id: '1_1', raw: { id: '1_1', key: 'larry/home', name: 'Home', user_name: 'larry' } } }; };
+  // Each device read waits until the test releases it: release.fn is the latest read, release.all every read in order.
   var held = function(c) {
-    var release = { fn: null };
-    c.set('device_storage', { find_all: function() { c.reads++; return new RSVP.Promise((r) => { release.fn = r; }); } });
+    var release = { fn: null, all: [] };
+    c.set('device_storage', { find_all: function() { c.reads++; return new RSVP.Promise((r) => { release.fn = r; release.all.push(r); }); } });
     return release;
   };
 
@@ -96,7 +97,7 @@ module('Unit | Component | classic-view boards on this device', function(hooks) 
     await tick();
     c.set('appState.currentUser', EmberObject.create({ user_name: 'larry', preferences: { home_board: { id: '1_1', key: 'larry/home' } }, stats: {} }));
     await tick();
-    release.fn([home_row()]);
+    release.all[0]([home_row()]); // the read started with the record that was replaced
     await tick();
     assert.notOk(c.get('deviceBoards.loading'));
     assert.deepEqual(c.get('deviceBoards').map((b) => b.get('key')), ['larry/home']);

@@ -3,6 +3,8 @@ import { setupTest } from 'frontend/tests/helpers';
 import EmberObject from '@ember/object';
 import RSVP from 'rsvp';
 import boardsPageListCache from 'frontend/utils/boards_page_list_cache';
+import capabilities from 'frontend/utils/capabilities';
+import { stub, restoreStubs } from 'frontend/tests/helpers/jasmine';
 
 /* Offline, the boards page swaps its tabs and list for "Boards on This Device" (controllers/user/index.js
  * show_device_boards; docs/task-management/2026-11-16_offline-boards-page.md). Reported on Android: sync, airplane
@@ -28,7 +30,7 @@ module('Unit | Controller | user/index offline boards view', function(hooks) {
     boardsPageListCache.setBoardsPageActive(!opts.other_page);
     var c = owner.lookup('controller:user/index');
     c.reads = 0;
-    c.device_db_user = function() { return opts.db_user === undefined ? 'larry' : opts.db_user; };
+    if(opts.db_user !== 'real') { c.device_db_user = function() { return opts.db_user === undefined ? 'larry' : opts.db_user; }; }
     c.set('device_storage', { find_all: opts.find_all || function() { c.reads++; return RSVP.resolve(rows()); } });
     c.set('persistence', EmberObject.create({ online: !!opts.online, sync_log: [], meta: function() { return null; } }));
     c.set('store', owner.lookup('service:store'));
@@ -192,5 +194,30 @@ module('Unit | Controller | user/index offline boards view', function(hooks) {
     c.update_selected();
     await tick();
     assert.strictEqual(c.reads, 2);
+  });
+
+  // The real owner check (utils/offline_board_list.js current_device_db_user), not a test stand-in: the open database's
+  // name (capabilities.db_name, set at app start) must name the signed-in person (the auth_settings stash).
+  test('the real owner check: read only when the open database is the signed-in person\'s', async function(assert) {
+    try {
+      // utils/_stashes exports a Proxy that reads window.stashes (the service instance, or the class when there is
+      // none) and has no set trap, so the stub goes on window.stashes itself.
+      stub(window.stashes, 'get_object', function(key) { return key === 'auth_settings' ? { user_name: 'larry' } : null; });
+      stub(capabilities, 'db_name', 'lingolinqStorage::larry===abc');
+      var c = page(this.owner, { db_user: 'real' });
+      c.update_selected();
+      await tick();
+      assert.strictEqual(c.reads, 1, 'larry\'s database, larry signed in');
+      assert.deepEqual(keys(c.get('offline_boards')), ['larry/home']);
+      c.set('offline_boards', null);
+      c.set('offline_view', false);
+      stub(capabilities, 'db_name', 'lingolinqStorage::sam===abc');
+      c.update_selected();
+      await tick();
+      assert.strictEqual(c.reads, 1, 'sam\'s database still open after larry signed in: not read');
+      assert.false(c.get('offline_view'));
+    } finally {
+      restoreStubs();
+    }
   });
 });
