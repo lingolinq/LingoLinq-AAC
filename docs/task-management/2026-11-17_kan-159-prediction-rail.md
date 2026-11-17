@@ -157,3 +157,134 @@ code before it was accepted.
   are the new tests), 122 pass after; `ai_word_predictor` 33 of 35 before, 36 of 36 after;
   `board/index` 16 of 19 before, 21 of 21 after; `word_suggestions` 26 of 26 both times.
 - Lint gate: `findings=1545 baseline=1548 grandfathered=1545 new=0`.
+
+# KAN-156: built-in words at once, AI words when they arrive; AI time limit and cap
+
+Same branch, on top of the KAN-159 commit (`8395c2c31`). Cites are to that commit.
+
+## Fact sheet
+
+### (a) Where the values are read
+
+- CONFIRMED. The Modern lookup commits to the rail in one place, when `lookup_with_ai` resolves:
+  `board-detail.js:3741-3744` calling `_apply_suggestion_results` (`:3652`), which commits at
+  `:3666`. `_run_suggestion_lookup` (`:3717-3750`) writes nothing before that, so the previous
+  sentence's words stay on the rail, selectable, until the promise resolves.
+- CONFIRMED. `lookup_with_ai` resolves once, after `RSVP.all` of the built-in lookup, the AI
+  request and the saved-entries request (`word_suggestions.js:1220`).
+- CONFIRMED. The AI request's timeout is read in the app's `$.ajax` wrapper: a caller's own
+  `timeout` wins (`utils/extras.js:186`), otherwise a POST gets 20000 (`:190`). A timed-out POST is
+  sent again once, 500 ms later, when `original_options.attempt <= 1` (`:362`); `attempt` is copied
+  from the caller's options (`:179-182`).
+- CONFIRMED. The client cap is read in `_has_budget` against `RATE_LIMIT` (`ai_word_predictor.js:18`).
+
+### (b) Every shape
+
+- `lookup_with_ai` returns the built-in promise alone when AI is off (`word_suggestions.js:1208`);
+  otherwise the merged list. With an AI answer of `[]` that is the built-in list, minus any word
+  that does not start with a word in progress (`:1144`), plus saved entries (`:1225-1235`).
+  (Corrected after review: the first draft said simply "the built-in list".)
+- `_apply_suggestion_results` receives the MERGED list. When that is empty (built-in empty, AI
+  empty, no saved entries) it starts a second AI request of its own (`board-detail.js:3677-3678`)
+  unless the sentence is empty or a word is in progress.
+- The freeze (`_prediction_freeze_watch`, `:3290`) holds the rendered words when a write changes
+  the word sequence while the rail is the dwell or scan target, and releases on an empty list. It
+  has a one-shot exemption for the refresh that follows a committed prediction (`:3331-3344`),
+  consumed by the FIRST write that changes the words.
+
+### (c) Cross-file claims
+
+- CONFIRMED. `lookup()` stamps the placeholder image on its own results, asynchronously, in
+  `fallback_url().then` (`word_suggestions.js:716-720`).
+- CONFIRMED. `utils/extras.js` is shared by every request in the app; nothing in this change edits it.
+- CONFIRMED. The server clamps `count` to 8 (`board-detail.js:3266` cites `api/words_controller.rb:66`);
+  not relevant to the limits changed here.
+
+## Proposal
+
+### 1. Built-in words first (Modern view only)
+
+`_run_suggestion_lookup` starts the built-in lookup, commits its words through
+`_apply_suggestion_results` as soon as they are ready (same token check as today), and hands the
+same promise to `lookup_with_ai` so the built-in lookup is not run twice. The merged list is
+committed when it arrives, exactly as today. Only when AI is on; with AI off `lookup_with_ai`
+already returns the built-in words alone.
+
+- An empty built-in result commits nothing early: the previous words stay until the merged answer,
+  as today. Committing an empty list would blank the rail under a dwell and release the freeze.
+- No loading flag on the early commit: the delayed dim cue would otherwise flash on every tap.
+- Alternative considered: have `lookup_with_ai` call back when built-in words are ready. Rejected:
+  the classic controller shares that function and its rendering carries an Android timing
+  workaround; a promise passed in by the one caller that wants it changes nothing for the other.
+- Alternative considered: blank or dim the rail while AI is out. Rejected: an empty rail is worse
+  for a user already reaching for a word than a current built-in list.
+- Risk: for direct touch, tiles can change about a second after they appear, when AI words are
+  merged in ahead of the built-in ones. The freeze covers dwell and scanning only. To be measured
+  and reported; changing the merge order is a separate decision.
+- Mutation: do not commit the built-in words early.
+
+### 2. Two second limit, one attempt
+
+`_fetch` passes `timeout: 2000` and marks the request as already on its last attempt, so the
+wrapper neither applies 20 seconds nor sends it again. `utils/extras.js` is not edited. Applies to
+both views.
+
+- Mutation: remove the two options.
+
+### 3. Cap 60 a minute
+
+`RATE_LIMIT` 15 to 60. The 30 second pause after a refusal stays.
+
+- Mutation: set it back to 15.
+
+## Proposal review (adversary agent, before any KAN-156 app code was edited)
+
+Reviewed at `8395c2c31` plus the uncommitted proposal and tests.
+
+| Finding | Decision |
+|---|---|
+| High: with no word in progress the merge puts AI words first and the server returns as many as were asked for, so a full AI answer replaces EVERY built-in tile. Built-in first would therefore change the whole rail twice per tap, the second time 0.3 to 2.3 seconds after the tap, and direct touch has no freeze | Accepted. Part 1 (built-in first) is NOT implemented. It needs a product decision on how the two lists share the rail; see "Open decision" |
+| Medium: the early write would consume the one-shot post-commit exemption, so the AI list would then be frozen for a gaze user who keeps looking at the rail | Accepted; belongs to the same decision |
+| Medium: a symbol resolved for an early built-in item is painted on the old item object, not the merged copy | Accepted; any future early commit has to carry the image across |
+| Medium: spelling corrections shown early would vanish when the merge applies its prefix filter | Accepted; an early commit must be limited to "no word in progress" or use the same filter |
+| Medium: 2 seconds is not grounded in measured latency, and the server finishes (and bills) a request the client gave up on; when the built-in list is empty a timed-out turn sends a second request through the fallback at `board-detail.js:3677` | Partly accepted. 2 seconds is the figure in the ticket and the approved plan; it is shipped as is and the latency check is listed under "Not verified". The fallback resend exists today for any failed AI answer; it is not changed here and is listed as a follow-up |
+| Low: no server-side limit behind the 60 a minute cap | Known; the server limit is a separate proposal. The file header now says the client cap is the only brake |
+| Low: weak or pre-passing tests | The limits test now also asserts a timeout neither pauses AI nor is cached. The built-in-first tests are parked, not committed |
+| Low: lint baseline placement; missing rejection handler; fact-sheet errors | Fact sheet corrected above; the rest applies to part 1 only |
+
+Checked and held up: `attempt: 2` is read only where the wrapper counts attempts and picks its
+default timeout; a timeout is rejected with status 0, which does not trigger the 30 second pause
+and is never written to the client cache.
+
+## What shipped for KAN-156
+
+- Parts 2 and 3: `_fetch` passes `timeout: 2000` and `attempt: 2`; `RATE_LIMIT` is 60.
+- Red before the fix (`tests/unit/utils/ai-word-predictor-limits-test.js`): the timed-out request
+  was sent twice; the twenty-first request in a minute got no words. Green after.
+- The pre-fix red run is the falsification for both: it is the same tests against the code with
+  the two options absent and the cap at 15.
+
+## Open decision (Scot): what the rail shows while the AI answer is out
+
+After KAN-159 the Modern rail keeps the previous sentence's words until the AI answer arrives
+(about a second on dev in October, at most about 2.3 seconds with the new limit), then changes
+once. Before KAN-159 it changed at once to built-in words and never showed AI words. Three ways
+forward; none is implemented:
+
+1. Leave it: one change per tap, late.
+2. The ticket's wording: built-in words at once, then the whole rail changes again when AI answers.
+3. Reserved slots: built-in words fill some tiles at once, AI words appear in the remaining tiles
+   when they arrive, and no tile changes its word once shown.
+
+## Not verified
+
+- Lookups, AI requests and timings per tap in a real browser against a real backend, before or
+  after. The counts in this log come from unit tests with the network replaced.
+- Real Bedrock latency against the 2 second limit.
+- Real dwell hardware, switch scanning, Cordova and Electron.
+
+## Follow-ups noted, not done
+
+- The Modern fallback at `board-detail.js:3677` asks the AI a second time when the merged list is
+  empty, including after a timeout.
+- Per-user server limit on `POST /api/v1/words/predict`.
