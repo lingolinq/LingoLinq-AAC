@@ -560,6 +560,7 @@ module('Unit | Route | user/board-detail device copy', function(hooks) {
   // Part 3 (Traci 2026-11-16): offline, a LingoLinq library board opens on any device, also after the session died;
   // online, and for every other board, the dead-session rule is unchanged, and a server refusal still wins.
   test('offline on a shared device with a dead session: a library board keeps its copy, no other board does', function(assert) {
+    assert.expect(8);
     var session = this.route.get('session');
     var prior = session.get('invalid_token');
     this.appState.set('sessionUser.preferences.device.long_token', false);

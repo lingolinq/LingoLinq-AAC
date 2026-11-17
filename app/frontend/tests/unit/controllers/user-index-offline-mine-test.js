@@ -199,6 +199,7 @@ module('Unit | Controller | user/index offline boards view', function(hooks) {
   // The real owner check (utils/offline_board_list.js current_device_db_user), not a test stand-in: the open database's
   // name (capabilities.db_name, set at app start) must name the signed-in person (the auth_settings stash).
   test('the real owner check: read only when the open database is the signed-in person\'s', async function(assert) {
+    assert.expect(4);
     try {
       // utils/_stashes exports a Proxy that reads window.stashes (the service instance, or the class when there is
       // none) and has no set trap, so the stub goes on window.stashes itself.
