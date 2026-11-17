@@ -1,0 +1,137 @@
+require 'spec_helper'
+
+# #1063: the informational notice sent to the account's own email when a school-authorized
+# under-13 is handed back to the family.
+describe UserMailer, :type => :mailer do
+  def handed_back_user(email:)
+    u = User.create(settings: {'email' => email, 'name' => 'Handoff Kid'})
+    u.settings['school_authorization_ended'] = {
+      'basis' => 'school_official',
+      'ended_at' => Time.now.utc.iso8601
+    }
+    u.save!
+    u
+  end
+
+  it 'mails the account email' do
+    o = Organization.create(settings: {'name' => 'Riverside District'})
+    u = handed_back_user(email: 'family_handoff@example.com')
+
+    m = UserMailer.school_handoff_notice(u.global_id, o.global_id)
+
+    expect(m.to).to eq(['family_handoff@example.com'])
+    expect(m.subject).to be_present
+    text = m.body.parts.detect { |p| p.content_type.match(/text\/plain/) }.body.to_s
+    expect(text).to include('Riverside District')
+  end
+
+  it 'names the organization in the HTML part too' do
+    o = Organization.create(settings: {'name' => 'Riverside District'})
+    u = handed_back_user(email: 'family_handoff_html@example.com')
+
+    m = UserMailer.school_handoff_notice(u.global_id, o.global_id)
+
+    html = m.body.parts.detect { |p| p.content_type.match(/text\/html/) }.body.to_s
+    expect(html).to include('Riverside District')
+  end
+
+  it 'still sends when the organization is gone by the time the notice goes out' do
+    u = handed_back_user(email: 'family_handoff_unnamed@example.com')
+
+    # '1_0' names no organization (ids start at 1).
+    m = UserMailer.school_handoff_notice(u.global_id, '1_0')
+
+    expect(m.to).to eq(['family_handoff_unnamed@example.com'])
+    text = m.body.parts.detect { |p| p.content_type.match(/text\/plain/) }.body.to_s
+    expect(text).to include('An organization no longer supports')
+  end
+
+  # User#school_handoff_blocks_ai? keeps AI off for this account until a parent consents, so a
+  # preferences switch alone does not turn it back on.
+  it 'says AI stays off until a parent or guardian consents, in both parts' do
+    o = Organization.create(settings: {'name' => 'Riverside District'})
+    u = handed_back_user(email: 'family_handoff_ai@example.com')
+    expect(u.school_handoff_blocks_ai?).to eq(true)
+
+    m = UserMailer.school_handoff_notice(u.global_id, o.global_id)
+
+    m.body.parts.each do |part|
+      body = CGI.unescapeHTML(part.body.to_s)
+      expect(body).to include('They stay off until a parent or guardian gives consent.')
+      expect(body).not_to include('turn them back on')
+    end
+  end
+
+  # There is no consent route for these accounts yet (no in-app step and no staff procedure), so
+  # the notice offers the contact page for questions and does not promise a way to arrange consent.
+  # Changed in the review of eb136f283 (finding 3), on Scot's decision to hold that copy until the
+  # adult account-holder flow exists.
+  it 'points the family to the contact page for questions without promising a consent route, in both parts' do
+    o = Organization.create(settings: {'name' => 'Riverside District'})
+    u = handed_back_user(email: 'family_handoff_contact@example.com')
+
+    m = UserMailer.school_handoff_notice(u.global_id, o.global_id)
+
+    m.body.parts.each do |part|
+      body = CGI.unescapeHTML(part.body.to_s)
+      expect(body).to include('If you have questions, contact us.')
+      expect(body).to include("#{JsonApi::Json.absolute_host}/contact")
+      expect(body).not_to include('arrange consent')
+    end
+  end
+
+  # Traci's review of eb136f283, finding 5: this notice replaces organization_unassigned
+  # (UserMailer#organization_unassigned returns early after it), so it carries that mail's
+  # warning about when premium access runs out. The date is read from the stored expires_at.
+  it 'says when premium access ends, in both parts' do
+    o = Organization.create(settings: {'name' => 'Riverside District'})
+    u = handed_back_user(email: 'family_handoff_expiry@example.com')
+    u.expires_at = Time.now + 14.days
+    u.save!
+    u.reload
+    date = Object.new.extend(MailerHelper).long_ordinal_date(u.expires_at)
+
+    m = UserMailer.school_handoff_notice(u.global_id, o.global_id)
+
+    m.body.parts.each do |part|
+      body = CGI.unescapeHTML(part.body.to_s)
+      expect(body).to include("Premium access on the account ends on #{date}.")
+    end
+  end
+
+  it 'leaves the premium end date out when the account has none' do
+    o = Organization.create(settings: {'name' => 'Riverside District'})
+    u = handed_back_user(email: 'family_handoff_no_expiry@example.com')
+    u.expires_at = nil
+    u.save!
+    expect(u.reload.expires_at).to eq(nil)
+
+    m = UserMailer.school_handoff_notice(u.global_id, o.global_id)
+
+    m.body.parts.each do |part|
+      expect(CGI.unescapeHTML(part.body.to_s)).not_to include('Premium access on the account ends')
+    end
+  end
+
+  it 'leaves the premium end date out when it has already passed' do
+    o = Organization.create(settings: {'name' => 'Riverside District'})
+    u = handed_back_user(email: 'family_handoff_past_expiry@example.com')
+    u.expires_at = Time.now - 2.days
+    u.save!
+
+    m = UserMailer.school_handoff_notice(u.global_id, o.global_id)
+
+    m.body.parts.each do |part|
+      expect(CGI.unescapeHTML(part.body.to_s)).not_to include('Premium access on the account ends')
+    end
+  end
+
+  it 'sends nothing when the account has no email' do
+    o = Organization.create
+    u = handed_back_user(email: nil)
+
+    m = UserMailer.school_handoff_notice(u.global_id, o.global_id)
+
+    expect(m.to).to be_blank
+  end
+end

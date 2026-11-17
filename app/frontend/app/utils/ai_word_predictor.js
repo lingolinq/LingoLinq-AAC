@@ -48,9 +48,9 @@ var ai_word_predictor = {
     // existing non-AI prediction path with no dialog, error, or indicator of
     // any kind. Acknowledging at any other gated surface (or at session
     // entry) flips article_50_disclosure_shown, re-evaluated per call (after any pause).
-    // Both must allow AI: the current user (whose taps are sent) and the signed-in person (words_controller.rb).
+    // Both must allow AI: the current user (whose taps are sent; their own block too, #1063) and the signed-in person (words_controller.rb).
     if(needsAcknowledgement(state)) { return false; }
-    return aiFeatureGate.aiFeatureEnabled(state, 'ai_word_prediction') && aiFeatureGate.authoringFeatureEnabled(state, 'ai_word_prediction');
+    return aiFeatureGate.aiFeatureEnabled(state, 'ai_word_prediction') && aiFeatureGate.authoringFeatureEnabled(state, 'ai_word_prediction') && !aiFeatureGate.communicatorAiBlocked(state);
   },
 
   predict: function(sentence, options) {
@@ -97,7 +97,7 @@ var ai_word_predictor = {
 
     // Skip debounce for prediction taps (immediate)
     if(options.immediate) {
-      return _this._fetch(sentence.trim().toLowerCase(), locale, count);
+      return _this._fetch(sentence.trim().toLowerCase(), locale, count, options.appState);
     }
 
     // Debounce for board-button taps
@@ -106,7 +106,7 @@ var ai_word_predictor = {
       _this._pending_timer = runLater(function() {
         _this._pending_timer = null;
         _this._pending_reject = null;
-        _this._fetch(sentence.trim().toLowerCase(), locale, count).then(resolve, function() { resolve([]); });
+        _this._fetch(sentence.trim().toLowerCase(), locale, count, options.appState).then(resolve, function() { resolve([]); });
       }, _this._debounce_ms);
     });
   },
@@ -120,7 +120,16 @@ var ai_word_predictor = {
     return this._request_times.length < RATE_LIMIT;
   },
 
-  _fetch: function(sentence, locale, count) {
+  // The predict request body. Speaking as someone, it names them (user_id) so the server applies
+  // their own AI block as well as the signed-in person's (#1063, words_controller.rb#predict).
+  _request_data: function(sentence, locale, count, appStateService) {
+    var data = { sentence: sentence, locale: locale, count: count };
+    var communicatorId = aiFeatureGate.predictionCommunicatorId(appStateService || app_state);
+    if(communicatorId) { data.user_id = communicatorId; }
+    return data;
+  },
+
+  _fetch: function(sentence, locale, count, appStateService) {
     var _this = this;
     _this._request_times.push(Date.now());
     return new RSVP.Promise(function(resolve) {
@@ -128,7 +137,7 @@ var ai_word_predictor = {
         url: '/api/v1/words/predict',
         type: 'POST',
         dataType: 'json',
-        data: { sentence: sentence, locale: locale, count: count }
+        data: _this._request_data(sentence, locale, count, appStateService)
       }).then(function(result) {
         var words = (result && result.words) || [];
         _this._cache_put(sentence, words, locale);

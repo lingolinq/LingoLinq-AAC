@@ -57,6 +57,10 @@ class Api::WordsController < ApplicationController
     return api_error(400, {error: "ai_word_prediction is not enabled for this user"}) if !@api_user || !FeatureFlags.ai_feature_enabled_for?('ai_word_prediction', @api_user)
     return api_error(403, {error: "parental consent required"}) if FeatureFlags.coppa_blocks_ai_for?(@api_user)
     return api_error(403, {error: "parental consent required"}) if FeatureFlags.eu_under16_blocks_ai_for?(@api_user)
+    # Speaking as someone (#1063): their own AI block applies too.
+    communicator = ai_prediction_communicator
+    return unless communicator
+    return api_error(403, {error: "parental consent required"}) if ai_blocked_for_communicator?(communicator)
     # EU AI Act Article 50(1) server-side backstop (shared helper LL-6723438462):
     # a client that skips the ai-disclosure modal and calls this endpoint directly
     # must still be refused. See ApplicationController#require_article_50_disclosure!.

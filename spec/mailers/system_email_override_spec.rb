@@ -202,4 +202,20 @@ describe SystemEmailOverride, type: :mailer do
     expect(html).to match(/Below are the details of your purchase:/)
     expect(html).not_to include('Edited')
   end
+
+  # The hand-back notice's premium end date (UserMailer#school_handoff_notice) is one plain value,
+  # so an edited body can keep it with an output tag; edited bodies allow no <% if %>.
+  it 'fills the premium end notice in a stored school_handoff_notice body' do
+    org = Organization.create(settings: {'name' => 'Test District'})
+    user.expires_at = Time.now + 14.days
+    user.save!
+    date = Object.new.extend(MailerHelper).long_ordinal_date(user.reload.expires_at)
+    store_default_override('user_mailer/school_handoff_notice', {
+      'text_body' => 'Edited notice. <%= @premium_ends_notice %>'
+    })
+    m = UserMailer.school_handoff_notice(user.global_id, org.global_id)
+    text = message_body(m, :text)
+    expect(text).to include('Edited notice.')
+    expect(text).to include("Premium access on the account ends on #{date}.")
+  end
 end
