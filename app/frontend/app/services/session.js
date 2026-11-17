@@ -237,9 +237,9 @@ export default Service.extend({
       this.persistence.tokens = {};
     }
     // Confirmed tokens[key]=true is set only after the server accepts, below.
-
+    // No stored token: send the 'none' sentinel, since the ajax wrapper may still add a stale in-memory token as Authorization (utils/extras.js:221-238) and token_check validates 'none', not that header (session_controller.rb:602).
     var access_token = store_data.access_token || "none";
-    var url = '/api/v1/token_check?rnd=' + Math.round(Math.random() * 999999);
+    var url = '/api/v1/token_check?' + (access_token === 'none' ? 'access_token=none&' : '') + 'rnd=' + Math.round(Math.random() * 999999);
     if(store_data.as_user_id) {
       url = url + "&as_user_id=" + store_data.as_user_id;
     }
@@ -980,8 +980,10 @@ export default Service.extend({
     });
     return this.sign_out_promise;
   },
-  // token_check reads Authorization. Pass the token this call already has,
-  // because the shared ajax helper may not have a stored session yet.
+  // token_check reads Authorization. The ajax wrapper (utils/extras.js:221-238) replaces this
+  // header whenever capabilities, session.access_token or the auth_settings stash has a token,
+  // so it reaches the wire only when none of them does (store_data came from
+  // auth_settings_fallback, which outlives invalidate()). Keep it for that case.
   _token_check_headers: function(access_token) {
     if(!access_token || access_token === 'none') {
       return {};

@@ -30,11 +30,11 @@ function tokenCheckPrefix(access_token, as_user_id) {
 }
 
 function urlStartsWithTokenCheck(url, access_token, as_user_id, opts) {
-  // Query must not carry the bearer token. The header does.
-  if (!url || url.indexOf('/api/v1/token_check?rnd=') !== 0) {
+  var none = (!access_token || access_token === 'none') ? 'access_token=none&' : ''; // a real token never goes in the query; no token sends exactly 'access_token=none'
+  if (!url || url.indexOf('/api/v1/token_check?' + none + 'rnd=') !== 0) {
     return false;
   }
-  if (url.indexOf('access_token=') !== -1) {
+  if (url.split('access_token=').length !== (none ? 2 : 1)) {
     return false;
   }
   if (as_user_id && url.indexOf('&as_user_id=' + as_user_id) < 0) {
@@ -625,6 +625,35 @@ describe('session', function() {
       runs();
     });
 
+    it('should send the none sentinel when only an in-memory token is left, through the real ajax wrapper', function() {
+      // No stored login, but this tab still holds a token (another tab signed out). The wrapper
+      // (utils/extras.js) still adds that token as Authorization, so the query must say 'none',
+      // which token_check validates and rejects (session_controller.rb token_check).
+      stub(stashesTarget(), 'get_object', function() { return null; });
+      stub(sessionTarget(), 'auth_settings_fallback', function() { return null; });
+      stub(capabilities, 'access_token', 'stale_token');
+      persistenceTarget().set('online', true);
+      // The harness's global beforeEach stubs persistence.ajax offline (helpers/ember_helper.js); call the real one.
+      var real_ajax = persistenceTarget().constructor.prototype.ajax;
+      stub(persistenceTarget(), 'ajax', function() { return real_ajax.apply(persistenceTarget(), arguments); });
+      var sent = null;
+      stub($, 'realAjax', function(o) {
+        if(o.url && o.url.indexOf('/api/v1/token_check') === 0) { sent = o; }
+        return RSVP.reject({});
+      });
+      var settled = false;
+      session.check_token().then(function() { settled = true; }, function() { settled = true; });
+      waitsFor(function() { return sent && settled; });
+      runs(function() {
+        // Precondition, not a requirement: proves the wrapper path ran and added the stale token.
+        // A later fix that stops sending it may replace this line.
+        expect(sent.headers['Authorization']).toEqual('Bearer stale_token');
+        expect(sent.url.indexOf('/api/v1/token_check?access_token=none&rnd=')).toEqual(0);
+        expect(sent.url.split('access_token=').length).toEqual(2);
+        expect(sent.url.indexOf('stale_token')).toEqual(-1);
+      });
+    });
+
     it('should do nothing on error if offline', function() {
       var called = false;
       var opts = {};
@@ -1006,6 +1035,7 @@ describe('session', function() {
 
 // Imported last so the `.eslint-todo` rows above keep their lines.
 import capabilities from '../../utils/capabilities';
+import $ from 'jquery';
 
 function tokenCheckHeaderOk(access_token, opts) {
   var headers = opts && opts.headers;
