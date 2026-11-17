@@ -102,10 +102,13 @@ export function known_on_device(sync_progress, record) {
 // True when `row`, a device row, is a complete copy (it opens offline, with permissions and image urls) stored during
 // this sync: stamped no earlier than the later of the sync's start (`started_at`, services/persistence.js sync) and its
 // read of the device's boards (known_on_device's rule above: a stamp from before that read proves nothing). It says
-// "stored during this sync", not "requested during it".
-export function copy_from_this_sync(sync_progress, row) {
+// "stored during this sync", not "requested during it". When the server's revisions list names the board
+// (`listed_revision`), the row must be that revision: it is judged on the row, since a lite record in memory may carry
+// no revision.
+export function copy_from_this_sync(sync_progress, row, listed_revision) {
   var start = sync_progress && sync_progress.started_at;
   if(!start || !usable_copy(row) || !row.permissions || !row.image_urls || !row.retrieved) { return false; }
+  if(listed_revision && listed_revision != row.current_revision) { return false; }
   return row.retrieved >= Math.max(start, sync_progress.device_boards_read_at || 0);
 }
 
@@ -113,9 +116,9 @@ export function copy_from_this_sync(sync_progress, row) {
 // row is read from the device, not judged from `record`: a record Modern view pushed from a /tree answer has no stamp
 // and no image urls (utils/board_detail_cache.js), and store_late_board writes only the device. `find_row(record)`
 // resolves the device's usable copy or rejects (services/persistence.js device_board_row).
-export function stored_this_sync(sync_progress, id, record, find_row) {
+export function stored_this_sync(sync_progress, id, record, find_row, listed_revision) {
   if(!sync_progress || !id || !(sync_progress.retried_lookups || {})[id]) { return RSVP.resolve(null); }
-  return RSVP.resolve(find_row(record)).then(function(row) { return copy_from_this_sync(sync_progress, row) ? row : null; }, function() { return null; });
+  return RSVP.resolve(find_row(record)).then(function(row) { return copy_from_this_sync(sync_progress, row, listed_revision) ? row : null; }, function() { return null; });
 }
 
 // A first sync has no stored copy to keep, so a board whose lookup failed was lost with its folders. When the failure

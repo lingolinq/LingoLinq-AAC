@@ -56,6 +56,21 @@ module('Unit | Utility | sync board fallback: copies stored during this sync', f
 
   function record(id) { return { get: function(attr) { return attr === 'global_id' || attr === 'id' ? id : undefined; } }; }
 
+  // The server's revisions list is judged against the row being used, not the record in memory: a lite record from a
+  // /tree answer may carry no revision at all.
+  test('a listed revision must match the copy', function(assert) {
+    assert.true(copy_from_this_sync(progress(), row({ current_revision: 'r1' }), 'r1'), 'the same revision');
+    assert.false(copy_from_this_sync(progress(), row({ current_revision: 'r1' }), 'r2'), 'the server lists a newer one');
+    assert.false(copy_from_this_sync(progress(), row({ current_revision: undefined }), 'r2'), 'the copy has none');
+    assert.true(copy_from_this_sync(progress(), row({ current_revision: undefined }), undefined), 'nothing listed');
+  });
+
+  test('a listed revision is passed on to the row check', async function(assert) {
+    var found = await stored_this_sync(progress(), '1_7', record('1_7'), function() { return RSVP.resolve(row({ current_revision: 'r1' })); }, 'r2');
+    assert.strictEqual(found, null);
+  });
+
+
   test('a retried board reads its device row and answers it when stored during this sync', async function(assert) {
     var reads = [];
     var found = await stored_this_sync(progress(), '1_7', record('1_7'), function(rec) { reads.push(rec.get('id')); return RSVP.resolve(row()); });

@@ -2777,7 +2777,7 @@ var persistence = Service.extend({
             board_statuses.push({id: id, key: record.get('key'), status: 'cached'});
             return record;
           } else {
-            return (key_for_id || cache_mismatch ? RSVP.resolve(null) : _this.board_stored_this_sync(id, record)).then(function(copy) { if(copy) { board_statuses.push({id: id, key: copy.get('key'), status: 'downloaded'}); copy.set('button_set_needs_reload', true); return copy; } // a parked board whose late answer this sync stored is not downloaded again (board_stored_this_sync below); a lookup by key, or a newer revision listed by the server, reloads as before
+            return (key_for_id ? RSVP.resolve(null) : _this.board_stored_this_sync(id, record, fresh_board_revisions && fresh_board_revisions[id])).then(function(copy) { if(copy) { board_statuses.push({id: id, key: copy.get('key'), status: 'downloaded'}); copy.set('button_set_needs_reload', true); return copy; } // a parked board whose late answer this sync stored is not downloaded again (board_stored_this_sync below); a lookup by key reloads as before, and so does a copy the server's revisions list says is old
             board_statuses.push({id: id, key: record.get('key'), status: 're-downloaded'}); record.set('button_set_needs_reload', true);
             return _this.time_promise(record.reload(), "reload board", BOARD_RELOAD_MS).then(null, function(err) { return keep_stored_board(record, err, board_statuses, id, function(rec) { return _this.device_board_row(rec); }); }); }); // #1212 (utils/sync_board_fallback.js)
           }
@@ -5129,9 +5129,6 @@ persistence.reopen({
     if(this.get('sync_progress') && !this.get('sync_progress.canceled')) { this.pause_automatic_sync(); }
     return this._super(...arguments);
   },
-  // The back-off that follows a failed automatic sync (sync_backoff_watcher): 30 minutes, doubling to 6 hours, reset by a
-  // finished sync. It only gates check_for_needs_sync, so the Sync button and the syncs a person's own changes start
-  // still run. No failure time is recorded, so a reconnect does not skip it (reconnect_may_skip_backoff).
   // The device's copy of a board, when it opens offline (utils/board_device_copy.js usable_copy), or a rejection. By
   // global id: a key lookup scans every board row (#1212). Used by board_lookup's reload branch above.
   device_board_row: function(record) {
@@ -5141,13 +5138,17 @@ persistence.reopen({
   },
   // For a parked board being tried again (board_lookup's reload branch above), the device's complete copy stored
   // during this sync, put in the store as the sync puts a cached row (sync_boards, "push already-cached record"), or
-  // null when there is none and the board is downloaded as before (utils/sync_board_fallback.js stored_this_sync).
-  board_stored_this_sync: function(id, record) {
+  // null when there is none, or putting it in the store fails, and the board is downloaded as before
+  // (utils/sync_board_fallback.js stored_this_sync). `listed_revision` is the server's revision for the board, if listed.
+  board_stored_this_sync: function(id, record, listed_revision) {
     var _this = this;
-    return stored_this_sync(this.get('sync_progress'), id, record, function(rec) { return _this.device_board_row(rec); }).then(function(row) {
+    return stored_this_sync(this.get('sync_progress'), id, record, function(rec) { return _this.device_board_row(rec); }, listed_revision).then(function(row) {
       return row ? LingoLinq.store.push({ data: { id: row.id, type: 'board', attributes: row } }) : null;
-    });
+    }).then(null, function() { return null; });
   },
+  // The back-off that follows a failed automatic sync (sync_backoff_watcher): 30 minutes, doubling to 6 hours, reset by a
+  // finished sync. It only gates check_for_needs_sync, so the Sync button and the syncs a person's own changes start
+  // still run. No failure time is recorded, so a reconnect does not skip it (reconnect_may_skip_backoff).
   pause_automatic_sync: function() {
     var count = (this.get('auto_sync_failures') || 0) + 1;
     var wait = Math.min(AUTO_SYNC_BACKOFF_MS * Math.pow(2, count - 1), AUTO_SYNC_BACKOFF_MAX_MS);

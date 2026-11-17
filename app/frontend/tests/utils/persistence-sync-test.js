@@ -6460,7 +6460,7 @@ describe("persistence-sync", function() {
 
     // A first sync has no stored copy to keep, so a board that timed out was lost with its folders. It is now tried
     // once more, later in the same sync (services/persistence.js nextBoard; utils/sync_board_fallback.js).
-    function syncWithBoard167(response, twoParents) {
+    function syncWithBoard167(response, twoParents, beforeSync) {
       cancelSyncTailWork();
       unloadSyncStoreRecords();
       resetSyncTestCaches();
@@ -6489,6 +6489,7 @@ describe("persistence-sync", function() {
       queryLog.defineFixture({ method: 'GET', type: 'board', id: '167', response: response });
       cacheStoredUrl('http://example.com/pic.png');
       cacheStoredUrl('http://example.com/board.png'); defineCrisisVocabularyFixture();
+      if(beforeSync) { beforeSync(); }
       persistence.sync(1340).then(function(res) { state.result = res; });
       return state;
     }
@@ -6520,6 +6521,36 @@ describe("persistence-sync", function() {
           // (tests/helpers/ember_helper.js) skips the adapter's `retrieved` stamp, so the board is never `fresh`.
           expect(response.calls).toEqual(3);
           expect(statusFor167().status).toEqual('re-downloaded');
+          expect(statusFor167().error).toEqual(undefined);
+          cancelSyncTailWork();
+          persistence.set('sync_progress', null);
+          LingoLinq.sync_testing_real_boards = false;
+        });
+      });
+    });
+
+    // The late answer of the timed-out request is stored on the device (utils/board_download.js store_late_board),
+    // stamped then; the retry uses that copy instead of downloading the board again (the old code reloaded it:
+    // 3 requests, 're-downloaded'). docs/task-management/2026-11-16_sync-late-copy-current.md.
+    it("should use the copy stored late by a timed-out request when the board is tried again", function() {
+      db_wait(function() {
+        var late = { at: null };
+        var base = answers([{ reject: { error: 'timeout' } }, { resolve: board167 }]);
+        var response = { calls: 0, then: function(ok, fail) { if(base.calls === 0) { late.at = (new Date()).getTime(); } var p = base.then(ok, fail); response.calls = base.calls; return p; } };
+        var state = syncWithBoard167(response, false, function() {
+          var target = persistenceTarget() || persistence;
+          var priorFind = target.find;
+          stubOnPersistence('find', function(store, key) {
+            if(store === 'board' && key == '167' && late.at) {
+              return RSVP.resolve({ id: '167', key: 'fred/slow', image_url: 'http://example.com/board.png', buttons: [], grid: { rows: 1, columns: 1, order: [[null]] }, permissions: { view: true }, image_urls: {}, retrieved: late.at });
+            }
+            return priorFind.apply(target, arguments);
+          });
+        });
+        waitsFor(function() { return waitForSyncDoneAndSettled(state.result) && state.tailDone; });
+        runs(function() {
+          expect(response.calls).toEqual(2); // the failed request, then the retry's find; no reload
+          expect(statusFor167().status).toEqual('downloaded');
           expect(statusFor167().error).toEqual(undefined);
           cancelSyncTailWork();
           persistence.set('sync_progress', null);
@@ -6783,7 +6814,7 @@ describe("persistence-sync", function() {
       stub(LingoLinq.store, 'peekRecord', function() { return opts.peeked ? rec : null; });
       stub(LingoLinq.store, 'findRecord', function(type, lookup) { if(type == 'board' && (lookup == '1_1216' || lookup == 'example/late')) { return RSVP.resolve(rec); } });
       res.pushed = EmberObject.create({ id: '1_1216', key: 'example/late' });
-      stub(LingoLinq.store, 'push', function(json) { res.pushes.push(json); return res.pushed; });
+      stub(LingoLinq.store, 'push', function(json) { if(opts.pushFails) { throw new Error('push failed'); } res.pushes.push(json); return res.pushed; });
       var target = persistenceTarget() || persistence;
       var priorFind = target.find;
       stubOnPersistence('find', function(store, key) {
@@ -6838,6 +6869,27 @@ describe("persistence-sync", function() {
         expect(res.pushes.length).toEqual(1);
         expect(res.board).toEqual(res.pushed);
         expect(statuses()).toEqual(['downloaded']);
+        persistence.set('sync_progress', null);
+      });
+    });
+
+    it("uses the device's copy when the server's listed revision matches it, though the lite record has none", function() {
+      var res = lookupRetried({ peeked: true, inMemory: { image_urls: undefined, retrieved: undefined, current_revision: undefined }, revisions: { '1_1216': 'r1' } });
+      waitsFor(function() { return res.done; });
+      runs(function() {
+        expect(res.error).toEqual(undefined);
+        expect(res.reloads).toEqual(0);
+        expect(res.pushes.length).toEqual(1);
+        expect(statuses()).toEqual(['downloaded']);
+        persistence.set('sync_progress', null);
+      });
+    });
+
+    it("downloads the board as before when putting the device's copy in the store fails", function() {
+      var res = lookupRetried({ pushFails: true });
+      waitsFor(function() { return res.done; });
+      runs(function() {
+        expectReloaded(res);
         persistence.set('sync_progress', null);
       });
     });
