@@ -270,8 +270,11 @@ Risks:
 - U3 Modern: the spell observer and `update_selected` both observe `online`; the order does not matter
   (`show_device_boards` runs only offline, the bump only online).
 - U1 shared filter hides a supervisee's boards on a shared device (they do not open there today).
-- U1 per-person entries: a supervisor's sync that covers supervisees writes one entry under the supervisor, so on a
-  supervisee's page other owners' liked boards are not listed (fails safe: hidden, not wrongly shown).
+- U1 per-person entries: CORRECTED by the final code review (2026-11-17): a supervisor's sync writes one entry PER
+  supervisee, keyed by the supervisee's global id, not user name (`services/persistence.js:2153-2158` sets user_name
+  only when supervisees are not ignored; `sync_supervisees` passes `supervisee.id`, `:2618`, `:2621`). The filter here
+  matches user names, so those entries never count, and on a supervisee's page other owners' liked boards are listed
+  only after a sync run from that page (fails safe: hidden, not wrongly shown).
 Unresolved: production value of `SYSTEM_BOARD_USER_NAME` (ASSUMED unset).
 Basic's line when the owner guard refuses (Traci, 2026-11-16): "Your boards can't be shown right now. Close and
 reopen the app, or connect to the internet." (the device database is chosen at app start from the signed-in person,
@@ -354,3 +357,25 @@ SPA sign-in it guards needs a flag that is off) and a cold offline start on a sh
 Left for other work: the sync recording what it was refused when it stops (Sync Details rework PR, Traci); SPA
 sign-out leaves the offline view on the controller (behind the off `auth_spa_transition`); a reused user name opens
 the old account's device database (pre-existing; needs a server-side owner id).
+
+### Final review of the Part 3 code (adversary, 2026-11-17): ship with conditions; senior pass: approve with comments
+
+`/review-pr` (REVIEWED=range d6b3cc859e22cca4f6776d57154948c5404166a9 ... HEAD 2c83e466f2c88c8691da634f2109a745177ebddd):
+approve with comments (no Critical or High). Adversary: no Critical, High or Medium; 6 Low. Traci (2026-11-17): the
+cheap fixes and the docs; the rest are follow-ups.
+- Fixed: a first device read that fails was kept for the whole offline spell and shown as "No boards are saved". It is
+  now not kept (the next call reads again) and both views say "Your boards can't be shown right now. Close and reopen
+  the app, or connect to the internet." This corrects d6fdaa443's subject, which claimed Basic never says "none"
+  wrongly.
+- Pinned: a stored `lingolinq` user record is never returned as the owner on a shared device (the `!shared &&`
+  guard in routes/user.js had no test).
+- Corrected: d6fdaa443's line "a trust change reads again" holds when something calls the reader; Modern has no
+  trigger for a trust change within one offline spell (`update_selected` observes selected, online and current_tag),
+  so the list reads again at the next spell. Fails safe (unknown trust lists fewer boards).
+- Corrected above: the supervisee log-entry risk line.
+- Follow-ups (in the PR's "Not covered"): after a public `lingolinq` board opened on a shared device, a non-public
+  `lingolinq` board reached by link, Back or an id-only folder link is not rechecked (matters only where `lingolinq`
+  is a registrable name); each new offline spell reads every board row (a flapping connection repeats it; Basic reads
+  on any tab); a device read in flight when the app comes back online, then a failed server list, leaves "Finding..."
+  on the boards page (from Part 2); a cold offline start on a shared device needs a native build to check (in browsers
+  a shared sign-in removes the offline shell worker, `utils/offline_shell.js:12-13`).

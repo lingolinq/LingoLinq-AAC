@@ -221,4 +221,16 @@ module('Unit | Controller | user/index offline boards view', function(hooks) {
       restoreStubs();
     }
   });
+
+  // Final review (2026-11-17): a first read that fails is not kept for the whole offline spell; the next call reads again.
+  test('a first read that fails is shown as failed and read again next time', async function(assert) {
+    var c = page(this.owner, { find_all: function() { c.reads++; if(c.reads === 1) { throw new Error('The database connection is closing.'); } return RSVP.resolve(rows()); } });
+    c.update_selected();
+    await tick();
+    assert.true(c.get('offline_boards.read_failed'), 'marked as a failed read, not an empty device');
+    c.update_selected();
+    await tick();
+    assert.strictEqual(c.reads, 2, 'read again');
+    assert.deepEqual(keys(c.get('offline_boards')), ['larry/home']);
+  });
 });

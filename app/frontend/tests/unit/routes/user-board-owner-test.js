@@ -105,6 +105,13 @@ module('Unit | Route | user owner of a board page', function(hooks) {
     await assert.rejects(this.route.model({user_id: 'therapist'}, to_board('feelings')), 'another owner\'s board');
   });
 
+  test('a shared device: a stored LingoLinq library account record is never returned as the owner; the copy decides', async function(assert) {
+    this.route.appState.set('sessionUser', EmberObject.create({preferences: {device: {long_token: false}}}));
+    this.device.user.lingolinq = {id: '1_2', user_name: 'lingolinq'};
+    this.device.board['lingolinq/draft'] = {id: '1_8', key: 'lingolinq/draft', public: false};
+    await assert.rejects(this.route.model({user_id: 'lingolinq'}, to_board('draft')), 'not public: refused, record or not');
+  });
+
   test('a board only in memory still gets its owner, so the tap that was allowed works', async function(assert) {
     boardDetailCache.set({id: '1_9', key: 'lingolinq/crisis', buttons: []});
     var owner = await this.route.model({user_id: 'lingolinq'}, to_board('crisis'));

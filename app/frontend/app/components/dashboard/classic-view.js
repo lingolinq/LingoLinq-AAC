@@ -712,8 +712,7 @@ export default AuthenticatedView.extend({
       if(_this.isDestroyed || _this.isDestroying || _this.get('appState.currentUser.user_name') !== user_name) { return; }
       if(records.read_failed && same_person) { return; }
       records.user_name = user_name;
-      records.spell = spell;
-      records.shared = shared;
+      if(!records.read_failed) { records.spell = spell; records.shared = shared; } // a failed read is not kept: the next call reads again
       _this.set('deviceBoards', records);
     }, function() { /* device_board_list resolves an empty list on a failed read */ });
   }),

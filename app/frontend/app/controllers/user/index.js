@@ -1957,8 +1957,7 @@ UserIndexController.reopen({
       if(_this.isDestroyed || model.isDestroyed || _this.get('model') !== model || _this.get('list_id') !== list_id) { return; }
       if(records.read_failed && same_person) { return; }
       records.user_name = user_name;
-      records.spell = spell;
-      records.shared = shared;
+      if(!records.read_failed) { records.spell = spell; records.shared = shared; } // a failed read is not kept: the next call reads again
       _this.set('offline_boards', records);
     }, function() { /* device_board_list resolves an empty list on a failed read; nothing else rejects */ });
   }

@@ -74,4 +74,15 @@ QUnit.module('Integration | boards on this device', function(hooks) {
     assert.dom('.ub-boards-page__new-board-btn').exists();
     assert.dom('.ub-boards-page__folders-section').exists('the normal list section');
   });
+
+  QUnit.test('offline, a device read that failed: says the boards cannot be shown, not that none are saved', async function(assert) {
+    assert.timeout(30000);
+    var failed = [];
+    failed.done = true;
+    failed.read_failed = true;
+    this.set('failed', failed);
+    await render(hbs`<BoardsBrowser @boardsCtrl={{this.boardsCtrl}} @offlineView={{true}} @offlineBoards={{this.failed}} />`);
+    assert.dom('[role="status"]').includesText("Your boards can't be shown right now.");
+    assert.dom('.ub-boards-page__empty-title').doesNotExist('not "No boards are saved on this device yet"');
+  });
 });

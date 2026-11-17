@@ -1,5 +1,7 @@
 {{#if @boards.loading}}
   <p class="ub-boards-page__device-note" role="status">{{t "Finding the boards on this device..." key="device_boards_loading"}}</p>
+{{else if @boards.read_failed}}
+  <p class="ub-boards-page__device-note" role="status">{{t "Your boards can't be shown right now. Close and reopen the app, or connect to the internet." key="device_boards_not_shown"}}</p>
 {{else if this.items.length}}
   <p class="ub-boards-page__device-note" role="status">
     <svg class="ub-boards-page__device-note-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

@@ -140,4 +140,16 @@ module('Unit | Component | classic-view boards on this device', function(hooks) 
     await tick();
     assert.deepEqual(c.get('deviceBoards').map((b) => b.get('key')), ['larry/home', 'therapist/feelings'], 'trusted: read again');
   });
+
+  test('a first read that fails is shown as failed and read again next time', async function(assert) {
+    var c = setup(this);
+    c.set('device_storage', { find_all: function() { c.reads++; if(c.reads === 1) { throw new Error('The database connection is closing.'); } return RSVP.resolve([home_row()]); } });
+    c.load_device_boards();
+    await tick();
+    assert.true(c.get('deviceBoards.read_failed'));
+    c.load_device_boards();
+    await tick();
+    assert.strictEqual(c.reads, 2, 'read again');
+    assert.deepEqual(c.get('deviceBoards').map((b) => b.get('key')), ['larry/home']);
+  });
 });
