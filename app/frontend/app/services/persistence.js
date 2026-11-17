@@ -2482,14 +2482,14 @@ var persistence = Service.extend({
     return sync_promise;
   },
   sync_tags: function(user) {
-    var store_image_promises = []; var _this = this; // `this` is undefined in the callbacks below (ES module)
+    var store_image_promises = []; var _this = this; var started = Date.now(); // `this` is undefined in the callbacks below (ES module); `started`: utils/optional_picture.js picture_ms_left
     var queue_tags = new RSVP.Promise(function(resolve, reject) {
       var tag_ids = user.get('preferences.tag_ids') || [];
       var next_tag = function() {
         var tag_id = tag_ids.pop();
         if(tag_id) {
           LingoLinq.store.findRecord('tag', tag_id).then(function(tag) {
-            if(tag.get('button.image_url')) {
+            if(tag.get('button.image_url') && !_this.store_url_quick_check(tag.get('button.image_url'), 'image')) { // a picture already on the device is not queued again (as sync_contacts)
               store_image_promises.push(_this.store_url(tag.get('button.image_url'), 'image', false, false));
               runLater(next_tag, 500);
             } else {
@@ -2506,7 +2506,7 @@ var persistence = Service.extend({
       runLater(next_tag, 500);
     });
     return this.time_promise(queue_tags, "sync tags for " + user.get('user_name')).then(function() {
-      return RSVP.all_wait(store_image_promises).then(null, function(err) {
+      return optional_picture(RSVP.all_wait(store_image_promises), _this.time_promise, picture_ms_left(started, _this.get('optional_picture_ms'))).then(null, function(err) { // tag pictures never hold "syncing tags" past its 30 s
         return RSVP.resolve([]);
       });
     });
@@ -5140,4 +5140,4 @@ persistence.reopen({
   }
 });
 import { is_stale_item, drop_stale_head } from '../utils/url_store_queue';
-import { optional_picture } from '../utils/optional_picture';
+import { optional_picture, picture_ms_left } from '../utils/optional_picture';

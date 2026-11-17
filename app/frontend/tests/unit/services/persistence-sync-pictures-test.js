@@ -3,7 +3,7 @@ import { setupTest } from 'frontend/tests/helpers';
 import EmberObject from '@ember/object';
 import RSVP from 'rsvp';
 import LingoLinq from 'frontend/app';
-import { OPTIONAL_PICTURE_MS } from 'frontend/utils/optional_picture';
+import { OPTIONAL_PICTURE_MS, picture_ms_left } from 'frontend/utils/optional_picture';
 
 /* A picture never fails the sync (docs/task-management/2026-11-16_sync-status-first-sync.md, A). A new account's
  * first sync on Traci's phone failed with "promise timed out: sync user data": the default avatar, on a host the app
@@ -82,9 +82,8 @@ module('Unit | Service | persistence sync pictures', function(hooks) {
     assert.true(!!err.quota_maxed);
   });
 
-  test('a tag\'s button picture is saved (the tags step no longer throws)', async function(assert) {
-    var asked = [];
-    var p = service(this.owner, function(url) { asked.push(url); return RSVP.resolve({ url: url }); });
+  // One tag with a button picture, through LingoLinq.store (a shared singleton: restored exactly, own property or not)
+  async function with_one_tag(fn) {
     var store = LingoLinq.store;
     var own = Object.prototype.hasOwnProperty.call(store, 'findRecord');
     var original = store.findRecord;
@@ -93,10 +92,40 @@ module('Unit | Service | persistence sync pictures', function(hooks) {
       return original.apply(store, arguments);
     };
     try {
-      await p.sync_tags(user({ preferences: { tag_ids: ['t1'] } }));
+      return await fn(user({ preferences: { tag_ids: ['t1'] } }));
     } finally {
       if(own) { store.findRecord = original; } else { delete store.findRecord; }
     }
+  }
+
+  test('a tag\'s button picture is saved (the tags step no longer throws)', async function(assert) {
+    var asked = [];
+    var p = service(this.owner, function(url) { asked.push(url); return RSVP.resolve({ url: url }); });
+    await with_one_tag(function(u) { return p.sync_tags(u); });
     assert.deepEqual(asked, ['https://example.com/tag.png']);
+  });
+
+  test('a tag\'s picture that never answers does not hold the tags step', async function(assert) {
+    var p = service(this.owner, never);
+    // the step's own limit (30 s, services/persistence.js "syncing tags"), shortened: the walk takes about 1 s here
+    var err = await with_one_tag(function(u) { return rejects(p.time_promise(p.sync_tags(u), 'syncing tags', 3000)); });
+    assert.strictEqual(err, null, 'the tags step finished inside its limit');
+  });
+
+  test('a tag\'s picture already on the device is not queued again', async function(assert) {
+    var asked = [];
+    var p = service(this.owner, function(url) { asked.push(url); return RSVP.resolve({ url: url }); });
+    p.store_url_quick_check = function() { return true; };
+    await with_one_tag(function(u) { return p.sync_tags(u); });
+    assert.deepEqual(asked, []);
+  });
+
+  test('the wait for tag pictures ends before the step\'s limit, however late it starts', function(assert) {
+    var now = Date.now();
+    assert.strictEqual(picture_ms_left(now, 15000), 15000, 'early in the step: the whole picture limit');
+    var late = picture_ms_left(now - 20000, 15000);
+    assert.true(late <= 5000, 'after a 20 s walk: at most what is left of 30 s, less 5 s');
+    assert.true(late > 4000, 'and not cut further');
+    assert.strictEqual(picture_ms_left(now - 40000, 15000), 1, 'past the limit: 1 ms, never 0 (time_promise reads 0 as 30 s)');
   });
 });

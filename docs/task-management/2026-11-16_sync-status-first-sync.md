@@ -104,3 +104,49 @@ Verdict: proceed with changes for 1 and 2; rethink 3 and 4. Checked each finding
   (4) Traci decided on 2026-11-11 "a moving bar, not a percentage" while syncing (`sync-progress-drawer.hbs:12`); the
   proposed percentage mixes units, moves backward (simulated 99 → 3 when a supervisee walk starts) and disagrees with
   the text beside it. The red tests for 3 and 4 are set aside, not committed.
+
+## Codex P1 on #1327 (2026-11-16): tag pictures had no limit
+
+Finding (Codex, review of 17fc936e1, `services/persistence.js:2493`): a tag's button picture that never answers holds
+`sync_tags`, so the step's 30 s limit fails the whole sync.
+
+Fact sheet (cites at 17fc936e1, corrected after review):
+- CONFIRMED: `sync_tags` pushes `_this.store_url(tag.button.image_url, 'image', false, false)` bare, no limit
+  (`services/persistence.js:2493`); after the walk it waits `RSVP.all_wait(store_image_promises)` (:2509), whose every
+  rejection, `quota_maxed` included, is swallowed (:2509-2511). So tag pictures fail the step only by hanging.
+- CONFIRMED: the walk has its own 30 s limit (`time_promise(queue_tags, "sync tags for ...")`, :2508) and the step
+  another (`time_promise(sync_tags(user), "syncing tags")`, :2321; `time_promise` :28-48). Either failing fails the sync.
+- CONFIRMED (review): pre-existing, not introduced. Before a7f3da2a8 the line read `this.store_url`, which threw, so
+  `runLater(next_tag)` never ran, the walk never settled, and its 30 s limit failed every sync of a person (or
+  supervisee) with a pictured tag (the line dates from 48a055d55; it is on main). The `this` fix narrowed that to "fails
+  when a picture stalls"; this change closes it.
+- CONFIRMED: each tag lookup is a network call with no limit (`adapters/application.js:45-46`); Android runs one
+  queue worker (:1502-1507) and a first sync's board pictures fill the queue first, so a tag picture usually waits out
+  any per-picture limit. A per-picture 15 s (first candidate) leaves the step failing once the walk passes about 15 s,
+  about 8 tags on a slow phone link.
+- CONFIRMED: tags lacked the `store_url_quick_check` gate contacts have (:2522, :2527), so saved pictures were queued
+  again every sync.
+
+Candidates:
+- A (first proposal): `optional_picture` per tag picture, as contacts. Rejected after review: the leftover window above.
+- B (done): one limit over the whole picture wait: `optional_picture(all_wait(...), time_promise, picture_ms_left(started,
+  optional_picture_ms))`, where `picture_ms_left` (`utils/optional_picture.js`) is the picture limit (15 s) cut so the
+  wait ends 5 s before the step's 30 s, measured from the start of `sync_tags`, and at least 1 ms (`time_promise` reads
+  0 as 30 s). Pictures still downloading keep going in the queue; the step does not wait for them.
+- Also done: the quick-check gate, as contacts. Not done: passing `sync_id` (it would make queued tag pictures droppable
+  as stale on cancel, `utils/url_store_queue.js:9-13`; tags keep today's queue behaviour, so nothing new to test).
+- C (not taken): not waiting for tag pictures at all. Simpler, but gives up saving them within the step on a fast link.
+
+Residual (not changed): a walk longer than 30 s (a tag lookup that never answers, `findRecord` has no limit) still fails
+the step; that is a lookup, not a picture. The `utils/persistence.js` copy (:2504-2532) runs only before the service
+exists; not edited, as for contacts.
+
+Review (adversary, 2026-11-16): proceed with changes. Conditions: correct the "introduced" claim and cites (done above);
+close the window or state it (closed, B); consider the quick-check gate (done); test `sync_id` or say it is untested
+(`sync_id` not passed).
+
+Tests: red first, "a tag's picture that never answers does not hold the tags step" (RED at 3023 ms on 17fc936e1);
+added "already on the device is not queued again" and the `picture_ms_left` arithmetic. Green 12/12 with
+`timingStrict=1`. Mutants, one combined run, each killed: drop the whole-wait limit (the never-answers test red at
+3023 ms), drop the quick-check gate (red), drop the 1 ms floor (red). Lint gate: only the known `sync-details.js:220`
+false positive.
