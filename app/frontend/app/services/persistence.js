@@ -1640,7 +1640,7 @@ var persistence = Service.extend({
             };
             return RSVP.resolve(object);
           }, function(xhr) {
-            reject({error: "URL lookup failed during proxy for " + url});
+            reject(Object.assign({error: "URL lookup failed during proxy for " + url}, failure_cause(xhr))); // only the status and offline flag (utils/board_content_retry.js)
           });
         });
       });
@@ -3092,7 +3092,7 @@ var persistence = Service.extend({
           var id = next && (next.id || next.key);
           var key = next && next.key;
           var source = next && next.visit_source;
-          if(next && next.depth < 20 && id && !visited_boards.find(function(i) { return i == id; }) && !boardRevocation.skip_board(_this, user.get('id'), next)) {
+          if(next && next.content_retry) { retry_content(next, { sync_progress: _sync.get('sync_progress'), store: function(item) { return _sync.store_url(item.url, item.type, item.keep_big, force, sync_id); }, park: function(entry, retry) { parking.park(entry, retry); }, fail: function(board_error) { board_errors.push(board_error); }, then: function() { schedule_sync_board_step(function() { nextBoard(defer); }, 75); } }); } else if(next && next.depth < 20 && id && !visited_boards.find(function(i) { return i == id; }) && !boardRevocation.skip_board(_this, user.get('id'), next)) { // first branch: a board's parked content, only its failed saves again; the board is not walked again (utils/board_content_retry.js)
             var local_full_set_revision = null;
 
             // check if there's a local copy that's already been loaded
@@ -3160,8 +3160,8 @@ var persistence = Service.extend({
               if(next.image && !_sync.store_url_quick_check(next.image, 'image')) {
                 content_promises++;
                 visited_board_promises.push(//this.queue_sync_action('store_sidebar_image', sync_id, function() {
-                  /*return*/ _sync.store_url(next.image, 'image', false, force, sync_id).then(null, function() {
-                    return RSVP.reject({error: "sidebar icon url failed to sync, " + next.image});
+                  /*return*/ _sync.store_url(next.image, 'image', false, force, sync_id).then(null, function(err) {
+                    return RSVP.reject(content_failure("sidebar icon url failed to sync, " + next.image, err, {url: next.image, type: 'image', keep_big: false})); // utils/board_content_retry.js
                   })
                /*})*/);
                 importantIds.push("dataCache_" + next.image);
@@ -3192,8 +3192,8 @@ var persistence = Service.extend({
                   if(!_sync.store_url_quick_check(personalized, 'image')) {
                     content_promises++;
                     visited_board_promises.push(//_sync.queue_sync_action('store_button_image', sync_id, function() {
-                      /*return*/ _sync.store_url(personalized, 'image', keep_big, force, sync_id).then(null, function() {
-                        return RSVP.reject({error: "button image failed to sync, " + image.url});
+                      /*return*/ _sync.store_url(personalized, 'image', keep_big, force, sync_id).then(null, function(err) {
+                        return RSVP.reject(content_failure("button image failed to sync, " + image.url, err, {url: personalized, type: 'image', keep_big: keep_big}));
                       })
                   /*})*/);
                     importantIds.push("dataCache_" + image.url);
@@ -3206,8 +3206,8 @@ var persistence = Service.extend({
                   if(!_sync.image_filename_cache[image_filename]) {
                     content_promises++;
                     visited_board_promises.push(
-                      _sync.store_url(image.url, 'image', keep_big, force, sync_id).then(null, function() {
-                        return RSVP.reject({error: "missing button image failed to sync, " + image.url});
+                      _sync.store_url(image.url, 'image', keep_big, force, sync_id).then(null, function(err) {
+                        return RSVP.reject(content_failure("missing button image failed to sync, " + image.url, err, {url: image.url, type: 'image', keep_big: keep_big}));
                       })
                    );
                   }
@@ -3225,8 +3225,8 @@ var persistence = Service.extend({
                 importantIds.push("sound_" + sound.id);
                 if(LingoLinq.remote_url(sound.url) && !_sync.store_url_quick_check(sound.url, 'sound')) {
                   visited_board_promises.push(//this.queue_sync_action('store_button_sound', sync_id, function() {
-                     /*return*/ _sync.store_url(sound.url, 'sound', false, force, sync_id).then(null, function() {
-                      return RSVP.reject({error: "button sound failed to sync, " + sound.url});
+                     /*return*/ _sync.store_url(sound.url, 'sound', false, force, sync_id).then(null, function(err) {
+                      return RSVP.reject(content_failure("button sound failed to sync, " + sound.url, err, {url: sound.url, type: 'sound', keep_big: false}));
                      })
                   /*})*/);
                   importantIds.push("dataCache_" + sound.url);
@@ -3341,12 +3341,12 @@ var persistence = Service.extend({
               if(safely_cached && content_promises > 0) {
                 console.log("EXPECTED NO BOARD CONTENT SAVES BUT THERE WERE " + content_promises);
               }
-              RSVP.all_wait(visited_board_promises).then(function() {
+              var content_failures = []; settle_content(visited_board_promises, content_failures).then(function() { // every save settles before the board is judged (utils/board_content_retry.js)
                 full_set_revisions[board.get('id')] = board.get('full_set_revision');
                 schedule_sync_board_step(function() {
                   nextBoard(defer);
                 }, safely_cached && visited_board_promises.length === 0 ? 50 : 75);
-              }, function(err) {
+              }, function(err) { var content_retry = claim_content_retry(content_failures, _sync.get('sync_progress'), id); if(content_retry) { parking.park(content_entry(next, content_failures), content_retry); schedule_sync_board_step(function() { nextBoard(defer); }, 75); return; } // every failure passing: only the failed saves are parked and tried again (utils/board_content_retry.js)
                 var msg = "board " + (key || id) + " failed to sync completely";
                 if(typeof err == 'string') {
                   msg = msg + ": " + err;
@@ -5141,3 +5141,4 @@ persistence.reopen({
 });
 import { is_stale_item, drop_stale_head } from '../utils/url_store_queue';
 import { optional_picture, picture_ms_left } from '../utils/optional_picture';
+import { failure_cause, content_failure, settle_content, claim_content_retry, content_entry, retry_content } from '../utils/board_content_retry';

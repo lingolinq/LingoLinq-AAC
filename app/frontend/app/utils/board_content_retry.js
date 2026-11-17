@@ -1,0 +1,101 @@
+// A board's picture or sound cut off by a dropped link (docs/task-management/2026-11-17_sync-picture-after-link-drop.md).
+//
+// The sync walk (services/persistence.js sync_boards, nextBoard) saved the board and queued its pictures and sounds;
+// one still downloading when the link went made the board a board error ("failed to sync completely"), never tried
+// again though the link came back. Now, when every failed save of a board failed for a passing reason
+// (utils/sync_board_fallback.js passing_failure), only those saves are parked, through the walk's board parking
+// (utils/board_retry.js: about 10, 30, then 90 s), and tried again; the board itself is not walked or downloaded again.
+// After MAX_BOARD_RETRIES more tries, or when any failure is not passing (a picture that does not exist), the board is
+// reported as before.
+import RSVP from 'rsvp';
+import { passing_failure, MAX_BOARD_RETRIES } from './sync_board_fallback';
+
+// What passing_failure reads from a failed request, and nothing else: the request itself is not kept (the proxy's
+// error body repeats the picture's URL, and a protected picture's URL carries a token).
+export function failure_cause(err) {
+  var cause = {};
+  if(err && typeof err === 'object') {
+    if(err.offline === true) { cause.offline = true; }
+    if(err.fakeXHR && typeof err.fakeXHR.status === 'number') { cause.fakeXHR = { status: err.fakeXHR.status }; }
+  }
+  return cause;
+}
+
+// A failed save of the board's content: the message the board error shows, whether its cause passes, and what to save
+// again (`item`: url, type, keep_big).
+export function content_failure(message, err, item) {
+  return { error: message, passing: passing_failure(err), item: Object.assign({ message: message }, item) };
+}
+
+// Waits for every save, unlike RSVP.all_wait outside tests (utils/misc.js), which rejects at the first failure while
+// the board's other saves still run in the queue: a board parked then would queue them a second time. Resolves when
+// all saved; otherwise pushes every failure onto `failures` and rejects with the first, in the order they failed.
+export function settle_content(promises, failures) {
+  return new RSVP.Promise(function(resolve, reject) {
+    var left = promises.length;
+    if(!left) { resolve(); return; }
+    var settled = function() {
+      left--;
+      if(left > 0) { return; }
+      if(failures.length) { reject(failures[0]); } else { resolve(); }
+    };
+    promises.forEach(function(promise) {
+      RSVP.resolve(promise).then(settled, function(err) { failures.push(err); settled(); });
+    });
+  });
+}
+
+// The retry number for this board's failed content, or 0 when it is reported now: every failure is a content
+// failure with a passing cause, and the board has a retry left. Counted per board for the sync in
+// `sync_progress.retried_content`, apart from its lookup retries (`retried_lookups`), so neither uses up the other.
+export function claim_content_retry(failures, sync_progress, id) {
+  if(!sync_progress || !id || !failures.length) { return 0; }
+  if(!failures.every(function(f) { return f && f.passing === true && f.item; })) { return 0; }
+  sync_progress.retried_content = sync_progress.retried_content || {};
+  var done = sync_progress.retried_content[id] || 0;
+  if(done >= MAX_BOARD_RETRIES) { return 0; }
+  sync_progress.retried_content[id] = done + 1;
+  return done + 1;
+}
+
+// The walk's entry for a board's parked content: the board's place in the walk, and only the saves to try again.
+export function content_entry(next, failures) {
+  return Object.assign({}, next, { content_retry: failures.map(function(f) { return f.item; }) });
+}
+
+// The board error, worded as the walk words it (services/persistence.js, the board's content failure).
+export function content_error(entry, err) {
+  var msg = "board " + (entry.key || entry.id) + " failed to sync completely";
+  if(typeof err == 'string') {
+    msg = msg + ": " + err;
+  } else if(err && err.error) {
+    msg = msg + ": " + err.error;
+  }
+  if(entry.visit_source) {
+    msg = msg + ", linked from " + entry.visit_source;
+  }
+  return { error: msg, board_id: entry.id, board_key: entry.key };
+}
+
+// A parked entry back on the walk: save its content again; park it again while its failures pass and a retry is
+// left, or report the board. `ctx`: sync_progress, store(item), park(entry, retry), fail(board_error), then() (the
+// walk goes on).
+export function retry_content(entry, ctx) {
+  var failures = [];
+  var saves = entry.content_retry.map(function(item) {
+    return ctx.store(item).then(null, function(err) {
+      return RSVP.reject(content_failure(item.message, err, item));
+    });
+  });
+  return settle_content(saves, failures).then(function() {
+    ctx.then();
+  }, function(first) {
+    var retry = claim_content_retry(failures, ctx.sync_progress, entry.id || entry.key);
+    if(retry) {
+      ctx.park(content_entry(entry, failures), retry);
+    } else {
+      ctx.fail(content_error(entry, first));
+    }
+    ctx.then();
+  });
+}
