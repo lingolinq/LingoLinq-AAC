@@ -167,3 +167,157 @@ Revised design (closes F1-F3, F5, F6, F8-F13; F4 for Modern):
   every `online` flip.
 - Basic: the Boards tab's offline branch uses `deviceBoards` (same builder, same owner guard), heading "Boards on This
   Device", the same `ch-boards__cell` tiles; `recentOfflineBoards` (the online Recent tab) untouched.
+
+## Part 3: final review fixes and "library boards always open" (2026-11-16)
+
+The final adversarial review of the Part 2 diff (a19b67047) passed with conditions: no Critical or High, 3 Medium.
+The Medium findings were checked against the code, below. Traci's decisions (2026-11-16):
+- fix all 3, plus the test gaps, in this PR;
+- the boards a person starts with must always open offline, trusted device or not: **LingoLinq library boards**
+  (owner = the `lingolinq` system account, `lib/system_board_sources.rb:3`; the default sidebar
+  `app/models/user.rb:4496`, Vocal Flair 60, Crisis Vocabulary). They are public and hold no personal data;
+- on a shared device, "Boards on This Device" hides other people's private boards (they cannot open there), so the
+  list shows only what opens;
+- Crisis Vocabulary follows sidebar order (already the behaviour; only the comments change);
+- in #1328, not a separate PR.
+develop merged first (ad1f9d6c1; the 12 locale conflicts kept both key sets).
+
+### Fact sheet
+
+F1, a liked board unshared since the last clean sync:
+- READ: `utils/offline_board_list.js:45-56` `seen_by_last_sync` → `utils/sync_log_store.js:122-131` `last_result`,
+  which skips errored and cancelled entries and ignores `entry.user_id`. CONFIRMED.
+- Shapes of a log entry, by writer (all in `services/persistence.js`, the live service, `services/app-state.js:67`):
+  success `:2421-2431` (statuses with `sync_progress.errors` merged in at `:2382-2394`, a refusal reads
+  "...failed retrieval for syncing..."); failure/cancel `:2463-2470` (statuses = boards visited, errors NOT
+  merged); early cancel `:5118` (no statuses). `user_id` is the person's user_name once their record loaded
+  (`:2158`), else the id `sync` was called with; such an early failure has no statuses. CONFIRMED.
+- A refused board does not fail the sync: `board_errors.push({..., board_unauthorized})` and the walk goes on
+  (`:3364-3385`); `update_sync_progress` gathers them into `sync_progress.errors` (`:1972-1988`). CONFIRMED.
+- `finish_sync` (revocation marks) runs only on success (`:2382`). CONFIRMED.
+
+F2, the device list is kept all session:
+- Modern READ/keep: `controllers/user/index.js:1940-1941` (returns when a from-device list for the user exists);
+  written only at `:1942`, `:1948`; never cleared. Basic: `components/dashboard/classic-view.js:687-688`, same.
+  CONFIRMED.
+- `update_selected` observes `persistence.online` (`index.js:1372`) and calls `show_device_boards` only offline
+  (`:1379`). Clearing `offline_boards` when online returns would show the empty state while the view is still up
+  (the view leaves only when a server list arrives, `:1210`, `:1227`; `device-boards-grid.hbs` shows "No boards
+  are saved" for a missing list). CONFIRMED.
+
+F3, Basic can stay on "Finding..." or say "No boards are saved" wrongly:
+- `classic-view.js:681` observes only `persistence.online`; `:692` drops the result when `appState.currentUser`
+  is a different OBJECT (cold boot replaces the 'self' record, `services/app-state.js:477-479`, `:542-552`),
+  leaving `{loading: true}`. When the owner guard refuses (`:686`), `deviceBoards` stays unset and the template
+  says "No boards are saved on this device yet" (`classic-view.hbs:675`). CONFIRMED (the boot timing itself is
+  not reproduced).
+
+Library boards on a shared device:
+- Gates that refuse another owner's device copy on a shared device: `routes/user.js:150` (`_device_owner`,
+  `if(!trusted()) { return null; }`); `utils/board_device_copy.js:68` (`board_saved_here`);
+  `routes/user/board-detail.js:778` (`_session_known_dead`) and `:789` (`_copy_refused`, dead session). The
+  person's own boards on a warm session open through `routes/user.js:49-53` (currentUser) on any device; a
+  supervisee's boards go through `_device_owner` and are refused on a shared device. CONFIRMED.
+- The frontend's library account: `utils/board_prefetch_planner.js:15` `CATALOG_ACCOUNT = 'lingolinq'`; the
+  backend's is `ENV.fetch('SYSTEM_BOARD_USER_NAME', 'lingolinq')`, set nowhere in the repo. ASSUMED for
+  production (not checked in Secret Manager or Cloud Run env); a different value would only make the exception
+  not apply (safe direction).
+- Pre-existing, not changed: a COLD offline boot on a shared device does not open the person's own pages
+  (`routes/user.js:81-89` requires trusted), so the boards page itself needs a warm session there.
+
+### Proposal (one commit per unit, red test first)
+
+U1 `offline_board_list.js` (pure):
+- Only entries whose `user_id` is the page user's user_name count.
+- Another owner's liked board is listed only if the newest clean entry saw it without an error AND no newer entry
+  (errored or cancelled) lists it in `refused`.
+- `opts.shared_for` (the signed-in user_name when the device is not trusted): every board whose owner (key prefix)
+  is neither that person nor `CATALOG_ACCOUNT` is left out, own sets of a supervisee included (they cannot open).
+  Callers pass it from `offline_shell.device_trust(appState.sessionUser)`; unknown trust (null) counts as shared.
+- Comments: Crisis Vocabulary is last unless the sidebar carries it (Traci: sidebar order).
+U2 `services/persistence.js` failure branch (`:2463-2470`, line-neutral): the entry gets
+  `refused: refused_refs(sync_progress.errors)` (ids and keys of errors with `board_unauthorized`), read before
+  `sync_progress` is cleared. A new field, so Sync Details and the drawer (which read `statuses`) are unchanged.
+  The helper lives in `utils/sync_log_store.js`.
+U3 lifetime: Modern keeps a list only within one offline spell (`_device_spell`, bumped by an observer in the
+  `reopen` when `online` turns true; the list records the spell it was read in), so it still shows while the
+  server list loads and is read again the next time the page goes offline. Basic clears `deviceBoards` when
+  `online` turns true (its offline branch is not on screen then).
+U4 Basic: keep the result when the current user's user_name still matches (not object identity); observe
+  `appState.currentUser.user_name` too; when the owner guard refuses, a neutral line instead of "No boards are
+  saved" (copy for Traci).
+U5 Library boards: one helper `library_board(key)` (owner === `CATALOG_ACCOUNT`) in `board_device_copy.js`, used by
+  the four gates: `_device_owner` lets a library board's stand-in through on a shared device; `board_saved_here`
+  checks the device for it; `_session_known_dead` and `_copy_refused` do not refuse a library board for a dead
+  session (a server refusal of it still wins, `:791-797`).
+U6 one controller test that runs the real `current_device_db_user` (sets `capabilities.db_name` and the
+  `auth_settings` stash, restores both exactly).
+
+Candidates considered:
+- F1: (a, chosen) a `refused` field on failed entries; (b) merge errors into a failed entry's `statuses` as the
+  success branch does: rejected, it changes what Sync Details shows for a failed sync (cards would show failures,
+  and the Sync Details rework is pending); (c) hide every other owner's liked board after any unfinished sync:
+  rejected, going offline mid-sync is common and would empty them; (d) run `finish_sync` on failure: rejected,
+  revocation from a partial walk is a wider change.
+- F2: (a, chosen) offline spell; (b) clear on online: rejected (empty state while the view is up); (c) always
+  re-read keeping the prior on screen: simpler, but re-parses every board row on each `update_selected` offline
+  and changes the "read once while offline" tests' specification.
+- U5: (a, chosen) owner === `CATALOG_ACCOUNT`; (b) any `public` board: Traci chose (a).
+
+Risks:
+- U5 widens what opens on a shared device; scope is public library boards only. A server refusal still wins
+  online.
+- U3 Modern: the spell observer and `update_selected` both observe `online`; the order does not matter
+  (`show_device_boards` runs only offline, the bump only online).
+- U1 shared filter hides a supervisee's boards on a shared device (they do not open there today).
+- U1 per-person entries: a supervisor's sync that covers supervisees writes one entry under the supervisor, so on a
+  supervisee's page other owners' liked boards are not listed (fails safe: hidden, not wrongly shown).
+Unresolved: production value of `SYSTEM_BOARD_USER_NAME` (ASSUMED unset).
+Basic's line when the owner guard refuses (Traci, 2026-11-16): "Your boards can't be shown right now. Close and
+reopen the app, or connect to the internet." (the device database is chosen at app start from the signed-in person,
+`utils/capabilities.js` setup_database). Basic's home (`/`) has no trusted-device gate (`routes/index.js:56-69`,
+`findRecord('user', 'self')`), so the hint applies on shared devices too; a cold offline start was not run in a browser.
+
+Tests and the mutation that must fail each:
+- U1: [clean OK X, errored refused X] → X out (mutant: ignore `refused`); [another person's clean entry with X OK]
+  → X out for this person (mutant: no user filter); shared: therapist liked board out, `lingolinq/...` sidebar in,
+  own in, supervisee page's own boards out; trusted: therapist in (mutant: filter by page user / drop filter).
+- U2: `refused_refs` unit test; failure-branch entry carries `refused` (mutant: omit the field).
+- U3: offline → online → offline gives 2 device reads, within one spell 1 (mutant: no spell check). Basic: online
+  clears, next offline reads again.
+- U4: a replaced currentUser record with the same user_name keeps the result (mutant: identity compare);
+  a user_name arriving later triggers the read; guard refused shows the neutral line.
+- U5: per gate, a `lingolinq/...` key opens on a shared device and a `therapist/...` key does not (mutant: drop
+  the helper from that gate).
+
+### Review of Part 3's proposal (adversary): proceed with changes; revised units
+
+Checked: the saved log keeps a fixed field list (`utils/sync_log_store.js:44`), so a new `refused` field is lost at
+restart; the usual Cancel path (`end_canceled_sync`, `services/persistence.js:5113-5118`) logs `statuses: []` after
+clearing `sync_progress`. CONFIRMED. The fact sheet's ":5118 early cancel" is wrong: it is the normal Cancel path.
+The review's other points (refusal shape `result.error` vs `error`, revoked liked roots skipped without an error,
+the errors snapshot) all concern the sync recording what it was refused when it stops.
+
+Traci (2026-11-16): that sync-side recording goes to the Sync Details rework PR (already planned to make the sync
+record roots and errors when it stops). U2 is dropped here; U1 reads errors in any newer entry's `statuses`, so it
+uses them once that PR records them. Until then the gap is on trusted devices only (shared devices hide another
+owner's private board), where that board already opens from its device copy (not new).
+
+Revised:
+- U1: entries for the page user only; another owner's liked board needs the newest clean entry to have seen it
+  without an error and no newer entry to show an error for it. Shared filter takes an explicit `shared` flag
+  (`device_trust(sessionUser) !== 'trusted'`, so unknown is shared) and `me` (the device database's user).
+- U3, both views: an offline spell counter (bumped when `online` turns true); a kept list is reused only for the same
+  spell and the same `shared`; the earlier list stays on screen while it is read again (no "Finding..." or empty
+  flash). Basic is not cleared on `online` (its offline branch can still be on screen, `authenticated-view.js:424-450`).
+- U5: `library_board(raw)` needs the exact owner `CATALOG_ACCOUNT` (not a prefix), no `my:` segment (shallow clone of
+  another owner's board, `app/models/concerns/global_id.rb:250-260`) AND `public === true` on the device copy
+  (`lib/json_api/board.rb:136`), since a `lingolinq` user name is registrable where `SYSTEM_BOARD_USER_NAME` differs
+  (`spec/models/concerns/processable_spec.rb:194-197`). The dead-session exception applies only offline
+  (`persistence.online === false`); a library navigation still records `_dead_token`, and a server refusal still wins.
+  Risks added: a library board's device copy can carry the person's own fields (`starred`, `permissions`, `copy` key
+  with their user name, `lib/json_api/board.rb:186-187`, `:325-333`); a cold offline boot on a shared device now opens
+  a library home board instead of /offline-boards (`routes/index.js:262-266`, check in a browser).
+- Tests added per the review: null sessionUser counts as shared (both callers); `lingolinq-team/x` and `lingolinqx/x`
+  are not library boards; a non-public `lingolinq/x` is not; a key-less row; dead token then a therapist board is still
+  refused; the list unchanged while online with the server query pending.
