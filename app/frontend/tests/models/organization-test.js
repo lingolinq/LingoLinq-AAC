@@ -78,4 +78,22 @@ describe('Organization', function() {
       expect(o.get('external_ai_processing')).toEqual(true);
     });
   });
+
+  describe("ai_authorized", function() {
+    it("should expose the ai_authorized attr, off until a manager turns it on", function() {
+      var o = LingoLinq.store.createRecord('organization');
+      expect(o.get('ai_authorized')).toEqual(undefined);
+      o.set('ai_authorized', true);
+      expect(o.get('ai_authorized')).toEqual(true);
+      o.set('ai_authorized', false);
+      expect(o.get('ai_authorized')).toEqual(false);
+    });
+
+    it("should be sent on save as organization[ai_authorized] like the other attrs", function() {
+      var o = LingoLinq.store.createRecord('organization');
+      o.set('ai_authorized', true);
+      var json = o.serialize();
+      expect(json.ai_authorized).toEqual(true);
+    });
+  });
 });

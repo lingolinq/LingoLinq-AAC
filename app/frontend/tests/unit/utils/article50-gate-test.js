@@ -3,7 +3,7 @@ import RSVP from 'rsvp';
 import modal from 'frontend/utils/modal';
 import i18n from 'frontend/utils/i18n';
 import {
-  needsAcknowledgement,
+  needsAcknowledgement, needsAiConsent, sessionEntryGatePending, GATE_AI_CONSENT_NOT_GIVEN, aiConsentDeferred, deferAiConsent, clearAiConsentDeferral, aiConsentDisclosureUrl,
   presentBlockingGate,
   maybeShowSessionEntryGate,
   onlyIfGenuinelyResolved,
@@ -387,6 +387,368 @@ module('Unit | Utility | article50 gate', function(hooks) {
         article_50_disclosure_shown: true
       }));
       assert.false(openCalled);
+    });
+  });
+
+  /* AI data-sharing consent (#1136). The same modal asks for it, so the gate opens for
+     either need. These tests cover the new predicate and the paths it changes; the
+     Article-50-only paths above are the ones that must stay exactly as they were. */
+  module('AI data-sharing consent', function(consentHooks) {
+    var consentUser = null;
+
+    function makeConsentUser(overrides) {
+      return makeUser(Object.assign({
+        global_id: 'test_ai_consent_user_1',
+        article_50_disclosure_required: false,
+        article_50_disclosure_shown: false,
+        feature_flags: { article_50_disclosure: true },
+        ai_consent_required: true,
+        ai_consent_route: 'self',
+        preferences: {ai_features_enabled: true}
+      }, overrides || {}));
+    }
+
+    consentHooks.beforeEach(function() {
+      consentUser = makeConsentUser();
+      clearAiConsentDeferral(consentUser);
+    });
+
+    consentHooks.afterEach(function() {
+      clearAiConsentDeferral(consentUser);
+    });
+
+    module('needsAiConsent truth table', function() {
+      test('true only when ai_consent_required is true AND the route is self', function(assert) {
+        assert.true(needsAiConsent(makeAppState(true, makeConsentUser())));
+      });
+
+      test('false when consent is not required, whatever the route', function(assert) {
+        assert.false(needsAiConsent(makeAppState(true, makeConsentUser({ai_consent_required: false}))));
+        assert.false(needsAiConsent(makeAppState(true, makeConsentUser({ai_consent_required: false, ai_consent_route: 'organization'}))));
+      });
+
+      test('false when the route is organization or parent: the account cannot agree for itself', function(assert) {
+        assert.false(needsAiConsent(makeAppState(true, makeConsentUser({ai_consent_route: 'organization'}))));
+        assert.false(needsAiConsent(makeAppState(true, makeConsentUser({ai_consent_route: 'parent'}))));
+      });
+
+      test('false when the route is missing or unknown', function(assert) {
+        assert.false(needsAiConsent(makeAppState(true, makeConsentUser({ai_consent_route: undefined}))));
+        assert.false(needsAiConsent(makeAppState(true, makeConsentUser({ai_consent_route: 'bogus'}))));
+      });
+
+      test('false when the fields are absent (a record that is not the session user)', function(assert) {
+        var user = makeUser();
+        assert.false(needsAiConsent(makeAppState(true, user)));
+      });
+
+      test('false with no appState, no subject or a non-appState argument', function(assert) {
+        assert.false(needsAiConsent(null));
+        assert.false(needsAiConsent({}));
+        assert.false(needsAiConsent(makeAppState(true, null)));
+      });
+
+      test('reads the authenticated sessionUser, not the speak-mode communicator', function(assert) {
+        var supporter = makeConsentUser();
+        var communicator = makeConsentUser({ai_consent_required: false});
+        assert.true(needsAiConsent(makeSpeakModeAppState(true, supporter, communicator)));
+        assert.false(needsAiConsent(makeSpeakModeAppState(true, communicator, supporter)));
+      });
+
+      test('does not depend on the article_50_disclosure feature flag', function(assert) {
+        var user = makeConsentUser({feature_flags: {article_50_disclosure: false}});
+        assert.true(needsAiConsent(makeAppState(false, user)));
+        assert.false(needsAcknowledgement(makeAppState(false, user)));
+      });
+    });
+
+    module('presentBlockingGate with consent', function() {
+      test('opens the modal when only consent is needed, and resolves once consent is recorded', function(assert) {
+        assert.expect(3);
+        var done = assert.async();
+        var openArgs = null;
+        modal.open = function(template, options) {
+          openArgs = [template, options];
+          consentUser.set('ai_consent_required', false);
+          return RSVP.resolve({ok: true});
+        };
+        presentBlockingGate(makeAppState(true, consentUser)).then(function(result) {
+          assert.strictEqual(openArgs[0], 'ai-disclosure');
+          assert.true(openArgs[1].scannable);
+          assert.deepEqual(result, {ok: true});
+          done();
+        });
+      });
+
+      test('REJECTS when the modal closes without consent ("Not now"), naming the consent gate only', function(assert) {
+        assert.expect(3);
+        var done = assert.async();
+        modal.open = function() { return RSVP.resolve(); };
+        var resolved = false;
+        presentBlockingGate(makeAppState(true, consentUser)).then(function() {
+          resolved = true;
+        }, function(err) {
+          assert.false(resolved);
+          assert.strictEqual(err.ai_consent_gate, GATE_AI_CONSENT_NOT_GIVEN);
+          assert.strictEqual(err.art50_gate, undefined, 'Article 50 is not outstanding, so it is not named');
+          done();
+        });
+      });
+
+      test('names both gates when both are outstanding and the modal closes', function(assert) {
+        assert.expect(2);
+        var done = assert.async();
+        modal.open = function() { return RSVP.resolve(); };
+        var user = makeConsentUser({article_50_disclosure_required: true, article_50_disclosure_shown: false});
+        presentBlockingGate(makeAppState(true, user)).then(null, function(err) {
+          assert.strictEqual(err.ai_consent_gate, GATE_AI_CONSENT_NOT_GIVEN);
+          assert.strictEqual(err.art50_gate, GATE_NOT_ACKNOWLEDGED);
+          done();
+        });
+      });
+
+      test('a bumped modal rejects and says so (replaced), still naming the outstanding consent', function(assert) {
+        assert.expect(3);
+        var done = assert.async();
+        modal.open = function() { return RSVP.resolve({replaced: true}); };
+        presentBlockingGate(makeAppState(true, consentUser)).then(null, function(err) {
+          assert.true(err.replaced);
+          assert.strictEqual(err.art50_gate, GATE_NOT_ACKNOWLEDGED);
+          assert.strictEqual(err.ai_consent_gate, GATE_AI_CONSENT_NOT_GIVEN);
+          done();
+        });
+      });
+
+      test('"Not now" does not stop the next blocking AI action from asking again', function(assert) {
+        assert.expect(1);
+        var done = assert.async();
+        var opens = 0;
+        modal.open = function() { opens++; return RSVP.resolve(); };
+        deferAiConsent(consentUser);
+        presentBlockingGate(makeAppState(true, consentUser)).then(null, function() {
+          assert.strictEqual(opens, 1, 'the remembered "Not now" only quiets the session-entry notice');
+          done();
+        });
+      });
+
+      test('an account that needs neither opens nothing and resolves', function(assert) {
+        assert.expect(1);
+        var done = assert.async();
+        var openCalled = false;
+        modal.open = function() { openCalled = true; return RSVP.resolve(); };
+        presentBlockingGate(makeAppState(true, makeConsentUser({ai_consent_required: false}))).then(function() {
+          assert.false(openCalled);
+          done();
+        });
+      });
+
+      test('a district-route account is not prompted', function(assert) {
+        assert.expect(1);
+        var done = assert.async();
+        var openCalled = false;
+        modal.open = function() { openCalled = true; return RSVP.resolve(); };
+        presentBlockingGate(makeAppState(true, makeConsentUser({ai_consent_route: 'organization'}))).then(function() {
+          assert.false(openCalled);
+          done();
+        });
+      });
+
+      test('Article-50-only rejection is unchanged: only art50_gate, no consent key', function(assert) {
+        assert.expect(1);
+        var done = assert.async();
+        modal.open = function() { return RSVP.resolve(); };
+        var user = makeUser({article_50_disclosure_required: true, article_50_disclosure_shown: false});
+        presentBlockingGate(makeAppState(true, user)).then(null, function(err) {
+          assert.deepEqual(err, {art50_gate: GATE_NOT_ACKNOWLEDGED});
+          done();
+        });
+      });
+    });
+
+    module('presentBlockingGate with skipAiConsent (evaluation narration)', function() {
+      test('resolves at once with no modal when only consent is outstanding', function(assert) {
+        assert.expect(2);
+        var done = assert.async();
+        var openCalled = false;
+        modal.open = function() { openCalled = true; return RSVP.resolve(); };
+        presentBlockingGate(makeAppState(true, consentUser), {skipAiConsent: true}).then(function() {
+          assert.false(openCalled);
+          assert.true(needsAiConsent(makeAppState(true, consentUser)), 'the clinician\'s own consent is untouched');
+          done();
+        });
+      });
+
+      test('with Article 50 outstanding it opens the notice, told to skip consent, and resolves once acknowledged', function(assert) {
+        assert.expect(3);
+        var done = assert.async();
+        var openArgs = null;
+        var user = makeConsentUser({article_50_disclosure_required: true});
+        modal.open = function(template, options) {
+          openArgs = [template, options];
+          user.set('article_50_disclosure_shown', true);
+          return RSVP.resolve({ok: true});
+        };
+        presentBlockingGate(makeAppState(true, user), {skipAiConsent: true}).then(function(result) {
+          assert.strictEqual(openArgs[0], 'ai-disclosure');
+          assert.deepEqual(openArgs[1], {scannable: true, skipAiConsent: true});
+          assert.deepEqual(result, {ok: true});
+          done();
+        });
+      });
+
+      test('a close without the acknowledgement rejects naming Article 50 only, never the consent gate', function(assert) {
+        assert.expect(2);
+        var done = assert.async();
+        modal.open = function() { return RSVP.resolve(); };
+        var user = makeConsentUser({article_50_disclosure_required: true});
+        presentBlockingGate(makeAppState(true, user), {skipAiConsent: true}).then(null, function(err) {
+          assert.deepEqual(err, {art50_gate: GATE_NOT_ACKNOWLEDGED});
+          assert.strictEqual(err.ai_consent_gate, undefined);
+          done();
+        });
+      });
+
+      test('without the option the modal is opened with exactly the options it always had', function(assert) {
+        assert.expect(1);
+        var done = assert.async();
+        var openArgs = null;
+        modal.open = function(template, options) {
+          openArgs = options;
+          consentUser.set('ai_consent_required', false);
+          return RSVP.resolve();
+        };
+        presentBlockingGate(makeAppState(true, consentUser)).then(function() {
+          assert.deepEqual(openArgs, {scannable: true});
+          done();
+        });
+      });
+
+      test('the blocking path ignores the Allow AI features preference: it still asks when an AI action starts', function(assert) {
+        assert.expect(1);
+        var done = assert.async();
+        var opens = 0;
+        modal.open = function() { opens++; return RSVP.resolve(); };
+        var user = makeConsentUser({preferences: {ai_features_enabled: false}});
+        presentBlockingGate(makeAppState(true, user)).then(null, function() {
+          assert.strictEqual(opens, 1);
+          done();
+        });
+      });
+    });
+
+    module('session entry', function() {
+      test('opens the modal for a fresh account that needs consent', function(assert) {
+        var openArgs = null;
+        modal.open = function(template, options) { openArgs = [template, options]; return RSVP.resolve(); };
+        maybeShowSessionEntryGate(consentUser);
+        assert.strictEqual(openArgs[0], 'ai-disclosure');
+        assert.true(sessionEntryGatePending(consentUser));
+      });
+
+      test('stays shut for a stale model', function(assert) {
+        var openCalled = false;
+        modal.open = function() { openCalled = true; return RSVP.resolve(); };
+        var stale = makeConsentUser({really_fresh: false});
+        maybeShowSessionEntryGate(stale);
+        assert.false(openCalled);
+        assert.false(sessionEntryGatePending(stale));
+      });
+
+      test('stays shut for district and parent route accounts', function(assert) {
+        assert.false(sessionEntryGatePending(makeConsentUser({ai_consent_route: 'organization'})));
+        assert.false(sessionEntryGatePending(makeConsentUser({ai_consent_route: 'parent'})));
+      });
+
+      test('does not re-open after "Not now" on this device, for that user only', function(assert) {
+        var openCalled = false;
+        modal.open = function() { openCalled = true; return RSVP.resolve(); };
+        assert.true(deferAiConsent(consentUser));
+        assert.true(aiConsentDeferred(consentUser));
+        maybeShowSessionEntryGate(consentUser);
+        assert.false(openCalled, 'remembered "Not now" keeps the session-entry notice shut');
+        assert.false(sessionEntryGatePending(consentUser));
+        var other = makeConsentUser({global_id: 'test_ai_consent_user_2'});
+        assert.false(aiConsentDeferred(other), 'another account on the same device is still asked');
+        assert.true(sessionEntryGatePending(other));
+      });
+
+      test('an outstanding Article 50 acknowledgement still opens it even after "Not now"', function(assert) {
+        var user = makeConsentUser({article_50_disclosure_required: true, article_50_disclosure_shown: false});
+        deferAiConsent(user);
+        assert.true(sessionEntryGatePending(user));
+      });
+
+      test('a localStorage that throws means "not remembered", never a crash', function(assert) {
+        assert.expect(3);
+        var descriptor = Object.getOwnPropertyDescriptor(window, 'localStorage');
+        Object.defineProperty(window, 'localStorage', {
+          configurable: true,
+          get: function() { throw new Error('denied'); }
+        });
+        try {
+          assert.false(deferAiConsent(consentUser));
+          assert.false(aiConsentDeferred(consentUser));
+          assert.true(sessionEntryGatePending(consentUser), 'errs toward asking');
+        } finally {
+          if (descriptor) {
+            Object.defineProperty(window, 'localStorage', descriptor);
+          } else {
+            delete window.localStorage;
+          }
+        }
+      });
+
+      test('does not open for consent when Allow AI features is off, absent, null or unrecognized', function(assert) {
+        assert.expect(8);
+        var openCalled = false;
+        modal.open = function() { openCalled = true; return RSVP.resolve(); };
+        [{ai_features_enabled: false}, {ai_features_enabled: 'false'}, {ai_features_enabled: 0}, {ai_features_enabled: null}, {ai_features_enabled: 'maybe'}, {}, undefined].forEach(function(prefs) {
+          var user = makeConsentUser({preferences: prefs});
+          assert.false(sessionEntryGatePending(user), 'pending for ' + JSON.stringify(prefs));
+          maybeShowSessionEntryGate(user);
+        });
+        assert.false(openCalled);
+      });
+
+      test('opens for consent when Allow AI features is on, in the app\'s own true vocabulary', function(assert) {
+        assert.expect(5);
+        var opens = 0;
+        modal.open = function() { opens++; return RSVP.resolve(); };
+        [true, 'true', '1', 1].forEach(function(value) {
+          var user = makeConsentUser({preferences: {ai_features_enabled: value}});
+          assert.true(sessionEntryGatePending(user), 'pending for ' + JSON.stringify(value));
+          maybeShowSessionEntryGate(user);
+        });
+        assert.strictEqual(opens, 4);
+      });
+
+      test('Article-50-only session entry is not affected by the preference', function(assert) {
+        assert.expect(3);
+        [{ai_features_enabled: false}, {}, undefined].forEach(function(prefs) {
+          var user = makeUser({really_fresh: true, article_50_disclosure_required: true, article_50_disclosure_shown: false, preferences: prefs});
+          assert.true(sessionEntryGatePending(user), 'pending for ' + JSON.stringify(prefs));
+        });
+      });
+
+      test('an Article 50 notice still opens, with the consent step, for an account whose AI preference is off', function(assert) {
+        var user = makeConsentUser({article_50_disclosure_required: true, preferences: {ai_features_enabled: false}});
+        assert.true(sessionEntryGatePending(user), 'Article 50 alone keeps the notice open');
+      });
+
+      test('consent-free accounts behave exactly as before (Article 50 only)', function(assert) {
+        var user = makeUser({really_fresh: true, article_50_disclosure_required: true, article_50_disclosure_shown: false});
+        assert.true(sessionEntryGatePending(user));
+        var acked = makeUser({really_fresh: true, article_50_disclosure_required: true, article_50_disclosure_shown: true});
+        assert.false(sessionEntryGatePending(acked));
+      });
+    });
+
+    module('aiConsentDisclosureUrl', function() {
+      test('uses the version the server reported, and version 1 otherwise', function(assert) {
+        assert.strictEqual(aiConsentDisclosureUrl(makeConsentUser({ai_consent_disclosures_version: 2})), '/ai_consent/disclosures/2');
+        assert.strictEqual(aiConsentDisclosureUrl(makeConsentUser()), '/ai_consent/disclosures/1');
+        assert.strictEqual(aiConsentDisclosureUrl(null), '/ai_consent/disclosures/1');
+      });
     });
   });
 });

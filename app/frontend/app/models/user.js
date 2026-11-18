@@ -1291,7 +1291,13 @@ LingoLinq.User = BaseModel.extend({
       list.push(opts);
       _this.persistence.store('dataCache', list, 'word_log/' + user_id).then(null, function() { });
     });
-  }
+  },
+  /** Response-only, session user only: no current AI data-sharing consent, so the server refuses every AI call (#1136). Absent on any other user. */
+  ai_consent_required: attr('boolean'),
+  /** Response-only: who can give that consent. 'self' (the account holder), 'organization' (the district) or 'parent' (a parent or guardian). */
+  ai_consent_route: attr('string'),
+  /** Response-only: the AI data-sharing disclosure version a grant would record. */
+  ai_consent_disclosures_version: attr('number')
 });
 LingoLinq.User.integrations_for = {};
 LingoLinq.User.find_integration = function(user_name, key) {

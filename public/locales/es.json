@@ -9764,5 +9764,20 @@
   "sync_drawer_waiting": "Esperando una mejor conexión [[ Waiting for a better connection",
   "try_now": "Inténtalo ahora [[ Try now",
   "sync_see_details": "Ver detalles [[ See details",
-  "gif_search_no_results": "*** No GIFs found. Try different words in your sentence and search again."
+  "gif_search_no_results": "*** No GIFs found. Try different words in your sentence and search again.",
+  "ai_consent_off_organization": "*** AI features are off because your organization has not turned them on yet. An administrator of the organization needs to allow them.",
+  "ai_consent_off_parent": "*** AI features are off until a parent or guardian approves them for this account.",
+  "ai_consent_off_unknown": "*** AI features are off for this account until AI data sharing is agreed to. The account holder, a parent or guardian, or the organization can do that.",
+  "ai_consent_pref_label": "*** AI Data-Sharing",
+  "ai_consent_pref_off_self": "*** AI features are off until you agree to the AI data-sharing disclosure.",
+  "ai_consent_pref_review_button": "*** Review and Agree",
+  "ai_consent_off_self": "*** AI features are off until you agree to the AI data-sharing disclosure. You can agree in Preferences, under AI Features.",
+  "ai_consent_narration_off": "*** A standard summary was written instead, because AI is not turned on for this student's account. The student, a parent or guardian, or the organization has to agree to AI data sharing first.",
+  "ai_consent_agreement_text": "*** Some features in LingoLinq use AI services outside LingoLinq to make suggestions and drafts. If you choose Agree and Continue, you agree to the AI data-sharing disclosure, which explains what is sent and to whom. If you choose Not now, AI features stay off until you agree.",
+  "ai_consent_error": "*** There was a problem recording your agreement. Please try again.",
+  "ai_consent_disclosure_link": "*** Read the AI Data-Sharing Disclosure",
+  "register_ai_consent_note": "*** Agreeing also covers the AI data-sharing disclosure, which explains what is sent to AI services if you use AI features.",
+  "org_ai_authorized_label": "*** AI features for managed accounts",
+  "org_ai_authorized_toggle": "*** Allow AI features for the accounts this organization manages",
+  "org_ai_authorized_hint": "*** Turning this on confirms that this organization is authorized to allow AI features for these accounts, including getting any parent or guardian consent that is needed. It covers word prediction, board generation, focus words and evaluation summaries. It is off by default, and each account can still turn AI features off for itself."
 }

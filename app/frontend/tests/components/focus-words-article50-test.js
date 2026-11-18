@@ -753,4 +753,145 @@ describe('focus-words Article 50 gate', function() {
       built.destroy();
     });
   });
+
+  /* AI data-sharing consent (#1136) on the same gate. */
+  describe('AI data-sharing consent', function() {
+    function consentUser(attrs) {
+      return makeUser(Object.assign({
+        global_id: '1_1',
+        ai_consent_required: true,
+        ai_consent_route: 'self'
+      }, attrs || {}));
+    }
+
+    it('does NOT dispatch the generate request when only consent is needed, and opens the notice instead', function() {
+      var opened = [];
+      stub(persistence, 'ajax', function(url) {
+        ajaxCalls.push(url);
+        return RSVP.resolve({});
+      });
+      stub(modal, 'open', function(template, opts) {
+        opened.push({template: template, opts: opts});
+        return RSVP.resolve({replaced: true});
+      });
+      setAppState(true, consentUser());
+      component.set('model', {board: 'b1'});
+      component.set('ai_prompt', 'the grinch');
+
+      component.send('generate_focus_words_with_ai');
+
+      expect(ajaxCalls.length).toEqual(0);
+      expect(opened.length).toEqual(1);
+      expect(opened[0].template).toEqual('ai-disclosure');
+    });
+
+    it('re-opens focus-words with the draft and the reason after "Not now", and never dispatches', function() {
+      var opened = [];
+      stub(persistence, 'ajax', function(url) {
+        ajaxCalls.push(url);
+        return RSVP.resolve({});
+      });
+      stub(modal, 'open', function(template, opts) {
+        opened.push({template: template, opts: opts});
+        // "Not now" closes the notice with nothing recorded: the user is unchanged.
+        return RSVP.resolve({});
+      });
+      setAppState(true, consentUser());
+      component.set('model', {board: 'b1'});
+      component.set('ai_prompt', 'the grinch');
+      component.set('ai_word_count', 12);
+
+      component.send('generate_focus_words_with_ai');
+
+      waitsFor(function() { return opened.length >= 2; });
+      runs(function() {
+        expect(ajaxCalls.length).toEqual(0);
+        expect(opened[1].template).toEqual('modals/focus-words');
+        expect(opened[1].opts.ai_consent_refused).toEqual(true);
+        expect(opened[1].opts.art50_resume.ai_prompt).toEqual('the grinch');
+        expect(opened[1].opts.art50_resume.ai_word_count).toEqual(12);
+      });
+    });
+
+    it('does NOT re-open focus-words when the notice was bumped by another modal', function() {
+      var opened = [];
+      stub(persistence, 'ajax', function() { return RSVP.resolve({}); });
+      stub(modal, 'open', function(template, opts) {
+        opened.push({template: template, opts: opts});
+        return RSVP.resolve({replaced: true});
+      });
+      setAppState(true, consentUser());
+      component.set('model', {board: 'b1'});
+      component.set('ai_prompt', 'the grinch');
+
+      component.send('generate_focus_words_with_ai');
+
+      waitsFor(function() { return opened.length >= 1; });
+      runs(function() {
+        expect(opened.length).toEqual(1);
+      });
+    });
+
+    it('shows the reason on the re-opened modal (opening() with ai_consent_refused)', function() {
+      setAppState(true, consentUser());
+      component.set('model', {board: 'b1', ai_consent_refused: true, art50_resume: {ai_prompt: 'the grinch', ai_word_count: 15}});
+      component.set('modal', EmberObject.create({setComponent: function() {}}));
+
+      component.send('opening');
+
+      expect(component.get('ai_prompt')).toEqual('the grinch');
+      expect(component.get('ai_generate_error')).toEqual(i18n.t('ai_consent_off_self', "AI features are off until you agree to the AI data-sharing disclosure. You can agree in Preferences, under AI Features."));
+    });
+
+    it('a normal open shows no consent message', function() {
+      setAppState(true, consentUser());
+      component.set('model', {board: 'b1'});
+      component.set('modal', EmberObject.create({setComponent: function() {}}));
+
+      component.send('opening');
+
+      expect(component.get('ai_generate_error')).toEqual(null);
+    });
+
+    it('does not gate a district-route account on the client, and turns the server 403 into the organization message', function() {
+      var reject = null;
+      var opened = [];
+      stub(persistence, 'ajax', function(url) {
+        ajaxCalls.push(url);
+        return new RSVP.Promise(function(resolve, innerReject) { reject = innerReject; });
+      });
+      stub(modal, 'open', function(template) { opened.push(template); return RSVP.resolve({}); });
+      setAppState(true, consentUser({ai_consent_route: 'organization'}));
+      component.set('ai_prompt', 'the grinch');
+
+      component.send('generate_focus_words_with_ai');
+      expect(opened.length).toEqual(0);
+      // The shape the $.ajax wrapper rejects with for a 403 carrying {error: ...}.
+      reject({fakeXHR: {status: 403, responseJSON: {error: 'ai_consent_required', disclosures_version: 1}}, result: 'ai_consent_required'});
+
+      waitsFor(function() { return component.get('ai_generating') === false; });
+      runs(function() {
+        var shown = component.get('ai_generate_error');
+        expect(shown).toEqual(i18n.t('ai_consent_off_organization', "AI features are off because your organization has not turned them on yet. An administrator of the organization needs to allow them."));
+        expect(shown.indexOf('ai_consent_required')).toEqual(-1);
+      });
+    });
+
+    it('says a parent or guardian has to approve for a parent-route account', function() {
+      var reject = null;
+      stub(persistence, 'ajax', function() {
+        return new RSVP.Promise(function(resolve, innerReject) { reject = innerReject; });
+      });
+      setAppState(true, consentUser({ai_consent_route: 'parent'}));
+      component.set('ai_prompt', 'the grinch');
+
+      component.send('generate_focus_words_with_ai');
+      reject({responseJSON: {error: 'ai_consent_required'}});
+
+      waitsFor(function() { return component.get('ai_generating') === false; });
+      runs(function() {
+        expect(component.get('ai_generate_error')).toEqual(i18n.t('ai_consent_off_parent', "AI features are off until a parent or guardian approves them for this account."));
+      });
+    });
+  });
 });

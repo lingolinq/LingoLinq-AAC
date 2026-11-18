@@ -200,4 +200,28 @@ QUnit.module('Integration | Component | create-board-new AI generate', function(
     assert.true(seen.component.get('wizard_done'));
     assert.strictEqual(seen.component.get('model.grid.labels'), 'slide swing');
   });
+
+  // No AI data-sharing consent (#1136): say so in plain words, never the raw code.
+  QUnit.test('a server refusal for missing AI consent shows a plain message, not the error code', async function(assert) {
+    await openLastAiStep();
+    await click('.nb-ai-generate__btn');
+    await waitUntil(() => seen.component.get('ai_generating'));
+    pending.reject({ fakeXHR: { status: 403, responseJSON: { error: 'ai_consent_required', disclosures_version: 1 } }, result: 'ai_consent_required' });
+    await settled();
+    assert.false(seen.component.get('wizard_done'));
+    assert.dom('.nb-ai-generate [role="alert"]').includesText('AI features are off');
+    assert.dom('.nb-ai-generate [role="alert"]').doesNotIncludeText('ai_consent_required');
+    assert.dom('.nb-ai-generate__btn').hasAttribute('aria-busy', 'false');
+  });
+
+  QUnit.test('"Not now" on the consent step sends no request and says AI is off, not that a notice must be read', async function(assert) {
+    article50Gate.presentBlockingGate = function() { return RSVP.reject({ ai_consent_gate: article50Gate.GATE_AI_CONSENT_NOT_GIVEN }); };
+    pending = null;
+    await openLastAiStep();
+    await click('.nb-ai-generate__btn');
+    assert.strictEqual(pending, null, 'no generate request was sent');
+    assert.false(seen.component.get('ai_generating'));
+    assert.dom('.nb-ai-generate [role="alert"]').includesText('AI features are off');
+    assert.dom('.nb-ai-generate [role="alert"]').doesNotIncludeText('transparency notice');
+  });
 });

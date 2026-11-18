@@ -32,12 +32,17 @@
         </span>
         <div id="ai-disclosure-summary" class="la-terms-agree-text">
           <p>{{t "Before you continue, here is what you should know:" key="ai_disclosure_intro"}}</p>
-          {{#if this.loading}}
+          {{#if this.consent_only}}
+            {{!-- Only the AI data-sharing agreement is being asked: no Article 50 notice. --}}
+          {{else if this.loading}}
             <p>{{t "Loading the AI transparency notice..." key="ai_disclosure_loading"}}</p>
           {{else if this.disclosure_html}}
             {{safe this.disclosure_html}}
           {{else}}
             <p>{{t "We could not load the full notice right now. In short: some features in this app use AI to help generate suggestions or drafts. You can review the full notice anytime from Settings, AI Features." key="ai_disclosure_offline_fallback"}}</p>
+          {{/if}}
+          {{#if this.consent_pending}}
+            <p>{{t "Some features in LingoLinq use AI services outside LingoLinq to make suggestions and drafts. If you choose Agree and Continue, you agree to the AI data-sharing disclosure, which explains what is sent and to whom. If you choose Not now, AI features stay off until you agree." key="ai_consent_agreement_text"}}</p>
           {{/if}}
         </div>
       </div>
@@ -48,12 +53,28 @@
              failed without any focus move. --}}
         <p class="la-terms-agree-error" role="alert">{{t "There was a problem recording your acknowledgement. Please try again." key="ai_disclosure_ack_error"}}</p>
       {{/if}}
+      {{#if this.consent_error}}
+        <p class="la-terms-agree-error" role="alert">{{t "There was a problem recording your agreement. Please try again." key="ai_consent_error"}}</p>
+      {{/if}}
       <div class="modal_targets la-contact-form__actions la-terms-agree-actions">
-        <a href={{this.disclosureLinkUrl}} target="_blank" rel="noopener" class="la-terms-agree-link">{{t "Read the Full AI Transparency Notice" key="ai_disclosure_full_link"}}</a>
+        {{#unless this.consent_only}}
+          <a href={{this.disclosureLinkUrl}} target="_blank" rel="noopener" class="la-terms-agree-link">{{t "Read the Full AI Transparency Notice" key="ai_disclosure_full_link"}}</a>
+        {{/unless}}
+        {{#if this.consent_pending}}
+          <a href={{this.consentDisclosureUrl}} target="_blank" rel="noopener" class="la-terms-agree-link">{{t "Read the AI Data-Sharing Disclosure" key="ai_consent_disclosure_link"}}</a>
+        {{/if}}
         {{!-- ONE stable button element across the error toggle (WCAG 2.4.3): the label
              switches on ack_error but the element does not, so keyboard focus is not
              dropped when the error state flips it from Acknowledge to Try Again. --}}
-        <button type="button" class="btn la-btn la-btn--primary" disabled={{this.acknowledging}} {{on "click" (this.ctrlAction "acknowledge")}}>{{#if this.ack_error}}{{t "Try Again" key="ai_disclosure_retry"}}{{else}}{{t "Acknowledge and Continue" key="ai_disclosure_acknowledge"}}{{/if}}</button>
+        {{!-- "Not now" exists only while the AI data-sharing agreement is what is being
+             asked. With only the Article 50 acknowledgement outstanding the modal keeps
+             its single button, exactly as before. --}}
+        {{#if this.consent_pending}}
+          <button type="button" class="btn la-btn la-btn--ghost" disabled={{this.acknowledging}} {{on "click" (this.ctrlAction "notNow")}}>{{t "Not now" key="not_now"}}</button>
+          <button type="button" class="btn la-btn la-btn--primary" disabled={{this.acknowledging}} {{on "click" (this.ctrlAction "agree")}}>{{#if this.consent_error}}{{t "Try Again" key="ai_disclosure_retry"}}{{else}}{{t "Agree and Continue" key="accept_and_continue"}}{{/if}}</button>
+        {{else}}
+          <button type="button" class="btn la-btn la-btn--primary" disabled={{this.acknowledging}} {{on "click" (this.ctrlAction "acknowledge")}}>{{#if this.ack_error}}{{t "Try Again" key="ai_disclosure_retry"}}{{else}}{{t "Acknowledge and Continue" key="ai_disclosure_acknowledge"}}{{/if}}</button>
+        {{/if}}
       </div>
     </div>
   </div>

@@ -11,6 +11,7 @@ import EmberObject from '@ember/object';
 import RSVP from 'rsvp';
 import persistence from '../../utils/persistence';
 import article50Gate from '../../utils/article50_gate';
+import i18n from '../../utils/i18n';
 
 // AI eval narration follows the SLP's own AI setting (the person using the tool)
 // as well as the feature flag, so an SLP with AI off is not shown an AI button
@@ -182,5 +183,67 @@ describe('EvalComprehensiveRunner AI flag follows the signed-in SLP', 'component
     var c = testOwner.factoryFor('component:eval-comprehensive-runner').create();
     c.set('appState', flagState({ comprehensive_eval_ai: true }, {}, {}));
     expect(c.get('aiSettingOff')).toEqual(true);
+  });
+});
+
+// AI data-sharing consent (#1136). Narration checks the STUDENT's consent on the server,
+// which then returns the standard summary and says so; the clinician is not asked for their
+// own consent here.
+describe('EvalComprehensiveRunner AI data-sharing consent', 'component:eval-comprehensive-runner', function() {
+  var testOwner;
+
+  beforeEach(function() {
+    testOwner = this.owner;
+    stub(persistence, 'get', function(key) {
+      if(key === 'online') { return true; }
+      return null;
+    });
+  });
+
+  async function narrate(gateStub, ajaxStub) {
+    stub(article50Gate, 'presentBlockingGate', gateStub);
+    var ajaxCalled = false;
+    stub(persistence, 'ajax', function() { ajaxCalled = true; return ajaxStub(); });
+    var c = testOwner.factoryFor('component:eval-comprehensive-runner').create();
+    c.set('appState', appStateFor(true, { ai_features_enabled: true }));
+    c.set('session', EmberObject.create({ toLogPayload: function() { return { data: {} }; } }));
+    var fn = (c.actions && c.actions.generateAiNarrative) || c.generateAiNarrative;
+    fn.call(c);
+    await new RSVP.Promise(function(resolve) { setTimeout(resolve, 20); });
+    c.ajaxCalled = ajaxCalled;
+    return c;
+  }
+
+  itAsync('keeps the standard summary the server returned and says why AI was not used', async function() {
+    var c = await narrate(function() { return RSVP.resolve(); }, function() {
+      return RSVP.resolve({ narrative: 'Standard summary text', ai_generated: null, ai_consent_required: true });
+    });
+    expect(c.get('session.aiNarrative')).toEqual('Standard summary text');
+    expect(c.get('aiError')).toEqual(i18n.t('ai_consent_narration_off', "A standard summary was written instead, because AI is not turned on for this student's account. The student, a parent or guardian, or the organization has to agree to AI data sharing first."));
+  });
+
+  itAsync('shows no consent message when the server did not refuse for consent', async function() {
+    var c = await narrate(function() { return RSVP.resolve(); }, function() {
+      return RSVP.resolve({ narrative: 'AI summary text', ai_generated: 'marker' });
+    });
+    expect(c.get('session.aiNarrative')).toEqual('AI summary text');
+    expect(c.get('aiError')).toEqual(null);
+  });
+
+  itAsync('does not ask the clinician for their own consent: the gate is told to skip it, because the server checks the student', async function() {
+    var seenOptions = null;
+    var c = await narrate(function(appState, options) { seenOptions = options; return RSVP.resolve(); }, function() {
+      return RSVP.resolve({ narrative: 'AI summary text', ai_generated: 'marker' });
+    });
+    expect(seenOptions).toEqual({ skipAiConsent: true });
+    expect(c.ajaxCalled).toEqual(true);
+  });
+
+  itAsync('the Article 50 refusal still shows the transparency-notice message', async function() {
+    var c = await narrate(function() { return RSVP.reject({ art50_gate: article50Gate.GATE_NOT_ACKNOWLEDGED }); }, function() {
+      return RSVP.resolve({});
+    });
+    expect(c.ajaxCalled).toEqual(false);
+    expect(c.get('aiError')).toEqual("Please review the AI transparency notice before generating an AI narrative.");
   });
 });

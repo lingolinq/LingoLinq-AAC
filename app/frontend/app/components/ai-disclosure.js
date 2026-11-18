@@ -5,13 +5,29 @@ import persistence from '../utils/persistence';
 // URL live in utils/article50_gate so this modal and the passive Preferences link
 // cannot drift apart; that constant tracks the backend's
 // LingoLinq::Article50Disclosures::CURRENT_VERSION (Plan 03-01).
-import { art50DisclosureUrl, art50Subject, art50UserId } from '../utils/article50_gate';
+import {
+  art50DisclosureUrl,
+  art50Subject,
+  art50UserId,
+  needsAcknowledgement,
+  needsAiConsent,
+  aiConsentDisclosureUrl,
+  deferAiConsent,
+  clearAiConsentDeferral
+} from '../utils/article50_gate';
+import RSVP from 'rsvp';
 
 /**
  * The one shared, accessible "you are about to use AI" modal (F1). Composes
  * modal-dialog in BLOCK mode: uncloseable, no Escape, no backdrop-click, exactly
  * one scan/keyboard-reachable exit (Acknowledge, or Try Again on a failed write).
  * Cloned from terms-agree.js's shape per 03-CONTEXT.md/03-UI-SPEC.md.
+ *
+ * It also asks for AI data-sharing consent (#1136) when the account holder has none
+ * on record (utils/article50_gate.js#needsAiConsent), unless it was opened with the
+ * skipAiConsent option. ONLY when consent is asked there is a
+ * second button, "Not now", and the primary button reads "Agree and Continue"; with
+ * only the Article 50 acknowledgement outstanding the modal is exactly as before.
  */
 export default Component.extend({
   modal: service('modal'),
@@ -40,6 +56,22 @@ export default Component.extend({
     // Locale-aware: drives BOTH the in-modal fetch below and the "Read the Full
     // Notice" link, so a Spanish reader gets the Spanish notice in both places.
     this.set('disclosureLinkUrl', art50DisclosureUrl());
+    // AI data-sharing consent (#1136). The same notice also asks the account holder
+    // to agree to the AI data-sharing disclosure. consent_pending is what is still
+    // being asked (it turns false once the agreement is recorded); consent_only means
+    // the Article 50 notice is not needed, so its text is not fetched or shown.
+    // `skipAiConsent` arrives through the modal options (presentBlockingGate passes it
+    // when the caller's AI call does not depend on this account's consent), or as an
+    // argument. In that mode this is the Article 50 notice alone, exactly as before.
+    var appState = this.get('appState');
+    var modalService = this.get('modal');
+    var openedWith = modalService && typeof modalService.getSettingsFor === 'function' ? modalService.getSettingsFor('ai-disclosure') : null;
+    var skipConsent = !!(this.get('skipAiConsent') || (openedWith && openedWith.skipAiConsent));
+    var consentPending = !skipConsent && needsAiConsent(appState);
+    this.set('consent_pending', consentPending);
+    this.set('consent_only', consentPending && !needsAcknowledgement(appState));
+    this.set('consent_error', false);
+    this.set('consentDisclosureUrl', aiConsentDisclosureUrl(art50Subject(appState)));
   },
 
   didInsertElement() {
@@ -54,6 +86,12 @@ export default Component.extend({
    */
   fetchDisclosure() {
     var _this = this;
+    if (this.get('consent_only')) {
+      // Only the consent is being asked: no Article 50 notice to load.
+      this.set('disclosure_html', null);
+      this.set('loading', false);
+      return;
+    }
     if (persistence && typeof persistence.get === 'function' && !persistence.get('online')) {
       this.showOfflineFallback();
       return;
@@ -118,6 +156,73 @@ export default Component.extend({
      * /users/self/article_50_disclosure_ack 404s and the supporter cannot
      * acknowledge.
      */
+    /**
+     * "Agree and Continue" when AI data-sharing consent is being asked. Records the
+     * consent (POST /users/:id/ai_consent, source and version are server constants),
+     * then the Article 50 acknowledgement if that is ALSO needed, then closes. A failed
+     * write of either step never closes the modal, for the same reason as acknowledge
+     * below: closing resolves the caller's promise. Each step is skipped when it is
+     * already recorded, so "Try Again" after a half-done pass repeats only what is left.
+     * The id rule is the same as acknowledge's: art50UserId, never the 'self' sentinel.
+     */
+    agree() {
+      var _this = this;
+      if (this.get('acknowledging')) { return; }
+      var appState = this.get('appState');
+      var user = art50Subject(appState);
+      var userId = art50UserId(user);
+      if (!user || !userId) {
+        this.set('consent_error', true);
+        return;
+      }
+      this.set('acknowledging', true);
+      this.set('consent_error', false);
+      this.set('ack_error', false);
+      var consentStep = RSVP.resolve();
+      if (needsAiConsent(appState)) {
+        consentStep = persistence.ajax('/api/v1/users/' + userId + '/ai_consent', {
+          type: 'POST'
+        }).then(function() {
+          user.set('ai_consent_required', false);
+          clearAiConsentDeferral(user);
+          if (!_this.isDestroyed && !_this.isDestroying) { _this.set('consent_pending', false); }
+        });
+      }
+      consentStep.then(function() {
+        if (_this.isDestroyed || _this.isDestroying) { return; }
+        if (needsAcknowledgement(appState)) {
+          return persistence.ajax('/api/v1/users/' + userId + '/article_50_disclosure_ack', {
+            type: 'POST'
+          }).then(function() {
+            user.set('article_50_disclosure_shown', true);
+          });
+        }
+      }).then(function() {
+        if (_this.isDestroyed || _this.isDestroying) { return; }
+        _this.set('acknowledging', false);
+        _this.get('modal').close();
+      }, function() {
+        if (_this.isDestroyed || _this.isDestroying) { return; }
+        _this.set('acknowledging', false);
+        // consent_pending is still true only when the consent write itself failed.
+        if (_this.get('consent_pending')) {
+          _this.set('consent_error', true);
+        } else {
+          _this.set('ack_error', true);
+        }
+      });
+    },
+    /**
+     * "Not now": close WITHOUT recording anything. A blocking caller's promise rejects
+     * (presentBlockingGate re-checks needsAiConsent), so the gated AI action does not
+     * run. Remembered per user on this device so the session-entry notice does not
+     * re-open on every page load; the next blocking AI action asks again.
+     */
+    notNow() {
+      if (this.get('acknowledging')) { return; }
+      deferAiConsent(art50Subject(this.get('appState')));
+      this.get('modal').close();
+    },
     acknowledge() {
       var _this = this;
       if (this.get('acknowledging')) { return; }
