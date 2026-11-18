@@ -140,8 +140,10 @@ design. The spec answers the picture host in the browser only, not through the s
 rows, 57/57 saved, 8 runs): 10 runs on eaf5cf7f5, all "succeeded" with 0 failed rows; pictures of 2-5 liked folders
 parked and saved on retry in every run where it was sampled (runs 3-10). Run 1: 56/57 on the device, unexplained; the
 probe then printed counts only and read the device about 1 s after the sync ended, while the last board rows are still
-being written one every 200 ms (`store_eventually`, services/persistence.js:702). Runs 2-10: 57/57. Open; later runs read
-the device again 20 s later and name any missing board with its status rows.
+being written one every 200 ms (`store_eventually`, services/persistence.js:702). Runs 2-10: 57/57. Runs 11-15 on
+713e5f7a4 (the probe names any missing board and reads the device again 20 s later): 57/57 at both reads, "succeeded", 0
+failed rows, liked-folder pictures retried and saved in each. Run 1 not reproduced in 14 runs since; its cause is
+unproven (the late row write is the likely one), and it is stated in the PR as not covered.
 
 Final review (adversary): ship with conditions. All four earlier conditions CONFIRMED met; no caller regression; no
 path in the diff found that drops a board. Done from it: the retry's save arguments pinned (type and sync_id asserted
