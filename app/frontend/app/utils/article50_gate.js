@@ -35,6 +35,15 @@ export var ART50_CURRENT_VERSION = 1;
 export var ART50_DISCLOSURE_URL = '/ai_consent/disclosures/art50_v' + ART50_CURRENT_VERSION;
 
 /**
+ * The AI data-sharing disclosure version the registration page shows next to the
+ * agreement, kept in sync with LingoLinq::AiConsentDisclosures::CURRENT_VERSION.
+ * Signup sends it, and the server records the registration consent only when it
+ * matches its own current version, so a page built for an older version creates
+ * the account and records nothing.
+ */
+export var AI_CONSENT_REGISTRATION_VERSION = 2;
+
+/**
  * The notice URL with the reader's current locale attached. ALWAYS use this
  * rather than the bare ART50_DISCLOSURE_URL constant for anything a user
  * actually reads.

@@ -289,7 +289,7 @@ class Api::UsersController < ApplicationController
     # the account to a district in a background job, and that district's authorization
     # is then what covers it.
     if @api_user.nil? && !(user_data && user_data['start_code'].present?)
-      user.record_registration_ai_consent!(ip: request.remote_ip, user_agent: request.user_agent)
+      user.record_registration_ai_consent!(shown_version: user_data && user_data['ai_disclosure_version'], ip: request.remote_ip, user_agent: request.user_agent)
     end
     UserBoardProvisioner.provision_for(user)
     # Org-authored (school-official) creation: emit the immutable authorization audit

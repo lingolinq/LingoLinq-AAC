@@ -572,9 +572,13 @@ json['preferences']['skin'] = user.settings['preferences']['skin']
     if json['permissions'] && json['permissions']['model']
       json['article_50_disclosure_required'] = EuJurisdiction.disclosure_required?(user)
       json['article_50_disclosure_shown'] = user.article_50_disclosure_shown?
-      # AI data-sharing consent (#1136), same scope as the pair above: only the
-      # account itself is told. `route` says who can give it: the account ('self'),
-      # its district ('organization') or a parent or guardian ('parent').
+    end
+    # AI data-sharing consent (#1136): only the account itself is told, so nobody
+    # else is offered a way to agree while looking at this account. `route` says who
+    # can give it: the account ('self'), its district ('organization') or a parent
+    # or guardian ('parent').
+    viewer = args[:permissions]
+    if viewer.respond_to?(:id) && viewer.id.present? && viewer.id == user.id
       json['ai_consent_required'] = FeatureFlags.ai_consent_blocks_ai_for?(user)
       json['ai_consent_route'] = if Organization.ai_consent_orgs_for(user).any?
         'organization'

@@ -1297,7 +1297,9 @@ LingoLinq.User = BaseModel.extend({
   /** Response-only: who can give that consent. 'self' (the account holder), 'organization' (the district) or 'parent' (a parent or guardian). */
   ai_consent_route: attr('string'),
   /** Response-only: the AI data-sharing disclosure version a grant would record. */
-  ai_consent_disclosures_version: attr('number')
+  ai_consent_disclosures_version: attr('number'),
+  // Sent at signup only: the AI data-sharing disclosure version the page showed.
+  ai_disclosure_version: attr('number')
 });
 LingoLinq.User.integrations_for = {};
 LingoLinq.User.find_integration = function(user_name, key) {

@@ -1634,12 +1634,16 @@ class User < ApplicationRecord
 
   # Registration route: records the consent the account holder gave by agreeing to
   # the terms at signup. Called only by the public signup controllers, never from
-  # process_params (which also runs on every later update). Returns false, and
+  # process_params (which also runs on every later update). +shown_version+ is the
+  # disclosure version the signup form says it showed next to the agreement: a form
+  # that showed none, or not the current one, creates the account and records
+  # nothing here. Returns false, and
   # records nothing, when the terms were not agreed, when the account is on the
   # parent route, or when a district created or already holds the account. Never
   # raises into the signup request: a failure is logged and AI simply stays off
   # until the account agrees in the app.
-  def record_registration_ai_consent!(ip: nil, user_agent: nil)
+  def record_registration_ai_consent!(shown_version:, ip: nil, user_agent: nil)
+    return false unless shown_version.to_s =~ /\A\d+\z/ && shown_version.to_i == LingoLinq::AiConsentDisclosures::CURRENT_VERSION
     return false unless self.settings && self.settings['terms_agreed'].present?
     return false if ai_consent_parent_route?
     return false if self.settings['authored_organization_id'].present?

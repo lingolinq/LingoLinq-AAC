@@ -160,8 +160,7 @@ refused for that reason.
 
 ### Questions I could not resolve (for counsel, not decided in code)
 
-- Whether agreement bundled into the terms step is specific enough for GDPR consent.
-- Whether a district's authorization can stand in for a parent's for an under-13 managed account.
+- Open legal questions for counsel are tracked privately.
 - Disclosure v1 text names word prediction only; a reviewed v2 is needed for board generation.
 
 ### Tests, and the mutation that must make each fail
@@ -269,10 +268,10 @@ The adversary review blocked the first proposal. What changed because of it:
 
 - Narration ignored the student's "Allow AI features" setting. `EvalNarrator.ai_consent_refuses?`
   now refuses when the master preference is present and not true.
-- `managing_organization` counts a pending invite. `Organization.ai_consent_orgs_for` reads
-  accepted, non-pending `type == 'user'` attachments only.
-- A masquerading admin satisfied "acting on itself". The grant endpoint requires `!@true_user`,
-  and so does the organization setting.
+- `Organization.ai_consent_orgs_for` reads accepted, non-pending `type == 'user'` attachments
+  only.
+- The grant endpoint and the organization setting require the signed-in account to be acting
+  as itself.
 - The self-grant guard only ran when an id was passed. It now runs for every self source.
 - The registration grant is recorded after the account is saved, and never for a start-code
   signup.
@@ -337,6 +336,21 @@ decisions above: `spec/lib/system_email_placeholders_spec.rb` (two examples, req
 In the version 2 block of `config/locales/en.yml` the board item sits after the evaluation
 item. The wording guard in `spec/support/ai_disclosure_claims.rb` splits on sentence ends, so
 a heading with no full stop directly after the evaluation sentence is read as part of it.
+
+## Review round 2 (2026-11-18)
+
+One pass approved with comments; the other asked for two changes, both made with a failing
+test first:
+
+- Signup records the AI consent only when the signup request says the page showed the
+  current disclosure version. A signup form that does not carry the sentence, or a page
+  built for an older version, creates the account and records nothing.
+- An edited parent request email that leaves out the AI sentence gets it added, in html and
+  text. The sentence is not one of the strings an edit can replace.
+- The consent fields in an account's record are sent to the account itself only.
+- A parent link whose email carried an older disclosure version has its own example.
+
+These fixes were made after the second review round and have not had a review of their own.
 
 ## Follow-ups
 

@@ -12,7 +12,8 @@ describe 'AI data-sharing consent: who can record one (#1136)' do
 
   describe Api::UsersController, type: :controller do
     def adult(extra = {})
-      { 'birth_month' => 1, 'birth_year' => Time.now.utc.year - 20, 'terms_agree' => true }.merge(extra)
+      { 'birth_month' => 1, 'birth_year' => Time.now.utc.year - 20, 'terms_agree' => true,
+        'ai_disclosure_version' => LingoLinq::AiConsentDisclosures::CURRENT_VERSION }.merge(extra)
     end
 
     describe 'registration' do
@@ -26,6 +27,20 @@ describe 'AI data-sharing consent: who can record one (#1136)' do
         expect(c['granted_by_user_id']).to eq(u.global_id)
         expect(FeatureFlags.ai_consent_blocks_ai_for?(u)).to eq(false)
         expect(AuditEvent.where(event_type: 'ai_consent_grant', user_key: u.global_id).count).to eq(1)
+      end
+
+      # The signup form says which disclosure version it showed next to the agreement. A
+      # form that showed none (a page loaded before this change, or a signup form without
+      # the sentence) or an older one creates the account and records no AI consent.
+      it 'records nothing when the signup did not show the current disclosure' do
+        [nil, '', current_version - 1, current_version + 1, 'abc'].each_with_index do |shown, i|
+          post :create, params: { user: adult('name' => "reg_stale_#{i}", 'ai_disclosure_version' => shown) }
+          expect(response).to be_successful
+          u = User.find_by_path(JSON.parse(response.body)['user']['id'])
+          expect(u.settings['terms_agreed']).to be_present
+          expect(u.settings['ai_consent']).to be_blank
+          expect(FeatureFlags.ai_consent_blocks_ai_for?(u)).to eq(true)
+        end
       end
 
       it 'records nothing when the terms were not agreed' do
@@ -187,6 +202,38 @@ describe 'AI data-sharing consent: who can record one (#1136)' do
     end
   end
 
+  describe SessionController, type: :controller do
+    let(:link) do
+      { 'mode' => 'signup_complete', 'sub' => 'google-sub-consent', 'email' => 'google-consent@example.com',
+        'name' => 'Consent Signup', 'flow' => 'register', 'device_id' => 'dev1', 'app' => false, 'terms_agree' => true,
+        'birth_month' => 1, 'birth_year' => Time.now.utc.year - 20 }
+    end
+
+    before(:each) do
+      allow(GoogleOAuth).to receive(:enabled?).and_return(true)
+      allow(GoogleOAuth).to receive(:client_id).and_return('test-client-id')
+      allow(GoogleOAuth).to receive(:client_secret).and_return('test-secret')
+      allow(GoogleOAuth).to receive(:fetch_link).and_return(link)
+      allow(GoogleOAuth).to receive(:clear_link)
+    end
+
+    it 'records the consent for a Google signup that showed the current disclosure' do
+      post :google_signup_complete, params: { nonce: 'n1', user_name: 'google_consent_a', registration_type: 'therapist',
+                                              terms_agree: 'true', ai_disclosure_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION.to_s }
+      expect(response).to be_successful
+      u = User.find_by(user_name: 'google_consent_a')
+      expect(u.settings['ai_consent']['source']).to eq('registration')
+    end
+
+    it 'records nothing for a Google signup that did not show the current disclosure' do
+      post :google_signup_complete, params: { nonce: 'n1', user_name: 'google_consent_b', registration_type: 'therapist', terms_agree: 'true' }
+      expect(response).to be_successful
+      u = User.find_by(user_name: 'google_consent_b')
+      expect(u).not_to eq(nil)
+      expect(u.settings['ai_consent']).to be_blank
+    end
+  end
+
   describe ParentalConsentsController, type: :controller do
     after(:each) { AuditEvent.where(event_type: %w[ai_consent_grant coppa_parental_consent_grant]).delete_all }
 
@@ -235,6 +282,36 @@ describe 'AI data-sharing consent: who can record one (#1136)' do
       expect(u.coppa_parental_consent_active?).to eq(true)
       expect(u.settings['ai_consent']).to be_blank
       expect(FeatureFlags.ai_consent_blocks_ai_for?(u)).to eq(true)
+    end
+
+    it 'approves the account but records no AI consent for a link whose email carried an older disclosure version' do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      u = User.process_new({ 'name' => 'minor_ai4', 'email' => 'minor_ai4@example.com', 'password' => 'abcdefgh',
+                             'terms_agree' => true, 'coppa_under_13' => true,
+                             'parent_consent_email' => 'guardian_ai4@example.com' }, { pending: true })
+      u.settings['coppa']['ai_disclosures_version'] = current_version - 1
+      u.save!
+      get :complete, params: { user_id: u.global_id, token: u.settings['coppa']['parent_consent_token'] }
+      u.reload
+      expect(u.coppa_parental_consent_active?).to eq(true)
+      expect(u.settings['ai_consent']).to be_blank
+    end
+  end
+
+  # The consent fields in the account's own record are for the account itself.
+  describe 'who is told about an account\'s consent state' do
+    it 'tells the account itself and not a supervisor reading it' do
+      student = User.create
+      supervisor = User.create
+      User.link_supervisor_to_user(supervisor, student, nil, true)
+      own = JsonApi::User.as_json(student.reload, permissions: student)
+      expect(own['ai_consent_required']).to eq(true)
+      expect(own['ai_consent_route']).to eq('self')
+      seen = JsonApi::User.as_json(student.reload, permissions: supervisor.reload)
+      expect(seen['permissions']['model']).to eq(true)
+      expect(seen).not_to have_key('ai_consent_required')
+      expect(seen).not_to have_key('ai_consent_route')
+      expect(seen).not_to have_key('ai_consent_disclosures_version')
     end
   end
 
