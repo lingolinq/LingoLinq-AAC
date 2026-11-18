@@ -244,3 +244,69 @@ refused for that reason.
   - Open: the blocklist side effect above. Named in the PR for Scot.
 - Mutations: restore `supporter_registration?` at either read site; drop the `coppa`, `under_16`
   or marker clause; remove the `flush_user_completely` call.
+
+# Outcomes (2026-11-17)
+
+## Consent design Scot approved
+
+Research into Google Workspace for Education and Microsoft 365 Education found no per-user
+consent click in either: the district administrator is the control, and student AI is off by
+default. Scot approved the lightest design that matches:
+
+1. A self-signup account agrees at registration (one sentence and a link on the terms step).
+2. A district authorizes AI once (`Organization#authorize_ai!`), and that alone covers the
+   accounts it manages. No per-student prompt.
+3. An existing self-signup account agrees with one click on the existing one-time AI notice.
+4. Under-13 and EU under-16 accounts get no new step: the existing parent approval emails
+   now say that approving covers AI data sharing.
+5. Withdrawal is "Allow AI features" off.
+6. AI stays off for managed accounts until a manager turns the setting on. Scot, 2026-11-17:
+   no grandfathering, there are no existing districts.
+
+## First proposal review (#1136): blocked, then fixed
+
+The adversary review blocked the first proposal. What changed because of it:
+
+- Narration ignored the student's "Allow AI features" setting. `EvalNarrator.ai_consent_refuses?`
+  now refuses when the master preference is present and not true.
+- `managing_organization` counts a pending invite. `Organization.ai_consent_orgs_for` reads
+  accepted, non-pending `type == 'user'` attachments only.
+- A masquerading admin satisfied "acting on itself". The grant endpoint requires `!@true_user`,
+  and so does the organization setting.
+- The self-grant guard only ran when an id was passed. It now runs for every self source.
+- The registration grant is recorded after the account is saved, and never for a start-code
+  signup.
+- The coverage spec's pattern had blind spots; it now scans per method.
+
+Not fixed, named in the PR: a child a parent already approved has no route to this consent,
+and `AI_CONSENT_HARD_GATE` is not in the deploy workflow, so a deploy clears it.
+
+## Second proposal review (#384): blocked, then redesigned
+
+- Critical: HubSpot's permanent-delete endpoint adds an address it has never seen to a
+  blocklist. Calling it for every deleted account would have sent children's and students'
+  addresses to HubSpot. Redesign: `ExternalTracker.record_sent_email` records an address only
+  when it was actually sent, and `remove_contact` is called only for recorded addresses.
+- High: the worker does not retry a failed job. `remove_contact` retries itself
+  (`REMOVE_CONTACT_ATTEMPTS = 3`) and never raises.
+- Medium: schedule after the row is destroyed, not before.
+- The adult marker is written only when `age_under_threshold?(..., age: 18) == false`.
+
+Contacts sent to HubSpot before this change are not recorded, so they are not removed on
+deletion. That reconciliation needs someone with HubSpot access.
+
+## Checks
+
+- Every guard was removed in turn with a test going red (backend: consent check, grant
+  routes, adults-only, removal; frontend: preference check, gate skip, component skip).
+- Full RSpec suite against untouched `develop` (`d6b3cc859`): the same 68 examples fail on
+  both in this environment; none are in files this branch touches.
+- Targeted Ember run: 194 of 194. Not the full frontend suite. No browser click-through.
+
+## Follow-ups
+
+- The registration sentence shows for start-code and EU under-16 signups, where the server
+  records nothing. The controller has the state to hide it on the main terms step
+  (`start_code`, `euUnder16Registration`); the Google fallback step only has a proxy.
+- The disclosure link is fixed to version 1 in `register.hbs` and `organization/settings.hbs`.
+- Twelve locale files carry English text for the 15 new keys.
