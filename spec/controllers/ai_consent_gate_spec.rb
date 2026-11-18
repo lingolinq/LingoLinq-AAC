@@ -159,9 +159,9 @@ describe Api::EvalSessionsController, type: :controller do
     expect(EvalNarrator).not_to have_received(:call_anthropic)
   end
 
-  it 'narrate: drafts through the model when the student has a current consent, even if the clinician has none' do
+  it 'narrate: drafts through the model when the student has a current consent and AI turned on, even if the clinician has none' do
     token_user
-    student = grant_test_ai_consent!(User.create)
+    student = grant_test_ai_consent_with_ai_on!(User.create)
     User.link_supervisor_to_user(@user, student, nil, true)
     post :narrate, params: { eval_session: eval_payload, user_id: student.global_id, use_anthropic: true }
     json = assert_success_json

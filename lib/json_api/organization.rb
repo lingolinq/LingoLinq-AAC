@@ -57,6 +57,8 @@ module JsonApi::Organization
       json['default_beta_program_access'] = org.default_beta_program_access?
       json['external_ai_processing'] = org.external_ai_processing_allowed?
       json['ai_authorized'] = org.ai_authorized?
+      # Always false in a response, so a saved page stops reporting a change it already made.
+      json['ai_authorized_changed'] = false
       if org.settings['activation_settings']
         json['start_codes'] = Organization.start_codes(org)
       end

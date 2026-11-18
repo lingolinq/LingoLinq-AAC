@@ -69,6 +69,10 @@ LingoLinq.Organization = BaseModel.extend({
   external_ai_processing: attr('boolean'),
   /** True when a manager has authorized AI features for the accounts this organization manages (#1136). Off by default; only a manager can change it. */
   ai_authorized: attr('boolean'),
+  // Set by the settings page on save when the switch was changed on that page; the
+  // server ignores ai_authorized without it, so a page loaded earlier cannot undo
+  // another manager's change.
+  ai_authorized_changed: attr('boolean'),
   preferred_symbols: attr('string'),
   start_codes: attr('raw'),
   custom_domain: attr('boolean'),

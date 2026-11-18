@@ -22,6 +22,10 @@ module AiConsent
         return show_art50(match[1])
       end
 
+      # A stable link for pages that should always show the version consent is
+      # recorded against today (registration, the organization setting).
+      version = LingoLinq::AiConsentDisclosures::CURRENT_VERSION if version.to_s == 'current'
+
       unless LingoLinq::AiConsentDisclosures.known_version?(version)
         return render plain: 'Not Found', status: :not_found
       end

@@ -137,8 +137,8 @@ describe 'AI data-sharing consent at the AI libraries (#1136)' do
       allow(EvalNarrator).to receive(:call_anthropic).and_return(anthropic_response('Drafted narrative.'))
     end
 
-    it 'drafts through the model for a student with a current consent (control)' do
-      result = EvalNarrator.draft_narrative(payload, user: consented)
+    it 'drafts through the model for a student with a current consent and AI turned on (control)' do
+      result = EvalNarrator.draft_narrative(payload, user: grant_test_ai_consent_with_ai_on!(User.create))
       expect(result['narrative']).to eq('Drafted narrative.')
       expect(EvalNarrator).to have_received(:call_anthropic).once
     end
@@ -167,16 +167,30 @@ describe 'AI data-sharing consent at the AI libraries (#1136)' do
       expect(EvalNarrator).not_to have_received(:call_anthropic)
     end
 
-    it 'still drafts for a consented student who never set the preference, or set it on' do
+    # AI stays off until someone turns it on: a consent alone does not start narration.
+    it 'returns the local template for a consented student who never set "Allow AI features"' do
       never = grant_test_ai_consent!(User.create)
       never.settings['preferences'].delete('ai_features_enabled') if never.settings['preferences']
       never.save!
-      on = grant_test_ai_consent!(User.create)
-      on.settings['preferences'] ||= {}
-      on.settings['preferences']['ai_features_enabled'] = true
-      on.save!
-      expect(EvalNarrator.draft_narrative(payload, user: never)['narrative']).to eq('Drafted narrative.')
-      expect(EvalNarrator.draft_narrative(payload, user: on)['narrative']).to eq('Drafted narrative.')
+      no_prefs = grant_test_ai_consent!(User.create)
+      no_prefs.settings.delete('preferences')
+      no_prefs.save!
+      [never, no_prefs].each do |u|
+        result = EvalNarrator.draft_narrative(payload, user: u)
+        expect(result['narrative']).to be_present
+        expect(result['ai_generated']).to eq(nil)
+      end
+      expect(EvalNarrator).not_to have_received(:call_anthropic)
+    end
+
+    it 'drafts for a consented student whose "Allow AI features" is on' do
+      [true, 'true', 1, '1'].each do |on_value|
+        on = grant_test_ai_consent!(User.create)
+        on.settings['preferences'] ||= {}
+        on.settings['preferences']['ai_features_enabled'] = on_value
+        on.save!
+        expect(EvalNarrator.draft_narrative(payload, user: on)['narrative']).to eq('Drafted narrative.')
+      end
     end
   end
 

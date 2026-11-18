@@ -157,12 +157,12 @@ module EvalNarrator
   # account has "Allow AI features" set to anything but on: that setting is how an
   # account withdraws, and nothing else at this call site reads it for the student
   # (the comprehensive_eval_ai flag and preference are checked on the clinician).
-  # A student account that has never set the preference is not refused by it.
+  # A student account that has never set the preference is refused too: AI stays
+  # off until someone turns it on, which is what the consent notices say.
   def self.ai_consent_refuses?(user)
     return true if FeatureFlags.ai_consent_blocks_ai_for?(user)
     prefs = user.respond_to?(:settings) && user.settings.is_a?(Hash) ? user.settings['preferences'] : nil
     master = prefs.is_a?(Hash) ? prefs['ai_features_enabled'] : nil
-    return false if master.nil?
     FeatureFlags.ai_pref_value(master) != true
   end
 

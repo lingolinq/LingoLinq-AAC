@@ -95,5 +95,17 @@ describe('Organization', function() {
       var json = o.serialize();
       expect(json.ai_authorized).toEqual(true);
     });
+
+    // The server ignores ai_authorized unless the save says the switch was changed on
+    // this page, so a page loaded earlier cannot undo another manager's change.
+    it("should send ai_authorized_changed with the save", function() {
+      var o = LingoLinq.store.createRecord('organization');
+      expect(o.serialize().ai_authorized_changed).not.toEqual(true);
+      o.set('ai_authorized', true);
+      o.set('ai_authorized_changed', !!o.changedAttributes().ai_authorized);
+      var json = o.serialize();
+      expect(json.ai_authorized).toEqual(true);
+      expect(json.ai_authorized_changed).toEqual(true);
+    });
   });
 });

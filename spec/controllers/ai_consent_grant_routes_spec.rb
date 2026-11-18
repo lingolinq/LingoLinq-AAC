@@ -280,12 +280,12 @@ describe 'AI data-sharing consent: who can record one (#1136)' do
     it 'lets a full manager authorize and later withdraw, recording who did it' do
       token_user
       org.add_manager(@user.user_name, true)
-      put :update, params: { id: org.global_id, organization: { 'ai_authorized' => true } }
+      put :update, params: { id: org.global_id, organization: { 'ai_authorized' => true, 'ai_authorized_changed' => true } }
       expect(assert_success_json['organization']['ai_authorized']).to eq(true)
       a = org.reload.settings['ai_authorization']
       expect(a['authorized_by']).to eq(@user.global_id)
       expect(a['disclosures_version']).to eq(current_version)
-      put :update, params: { id: org.global_id, organization: { 'ai_authorized' => false } }
+      put :update, params: { id: org.global_id, organization: { 'ai_authorized' => false, 'ai_authorized_changed' => true } }
       expect(assert_success_json['organization']['ai_authorized']).to eq(false)
       expect(org.reload.settings['ai_authorization']['revoked_by']).to eq(@user.global_id)
     end
@@ -293,9 +293,36 @@ describe 'AI data-sharing consent: who can record one (#1136)' do
     it 'ignores the setting from an assistant manager (edit but not manage)' do
       token_user
       org.add_manager(@user.user_name, false)
-      put :update, params: { id: org.global_id, organization: { 'ai_authorized' => true } }
+      put :update, params: { id: org.global_id, organization: { 'ai_authorized' => true, 'ai_authorized_changed' => true } }
       expect(response).to be_successful
       expect(org.reload.ai_authorized?).to eq(false)
+    end
+
+    # A settings page opened before another manager changed the switch sends back the
+    # value it loaded with every save. Only a save that says the switch was changed counts.
+    it 'does not turn the switch back on from a page that only echoes the value it loaded' do
+      token_user
+      org.add_manager(@user.user_name, true)
+      other = User.create
+      org.add_manager(other.user_name, true)
+      org.authorize_ai!(authorized_by: @user)
+      org.revoke_ai_authorization!(revoked_by: other)
+      put :update, params: { id: org.global_id, organization: { 'name' => 'Renamed District', 'ai_authorized' => true } }
+      expect(response).to be_successful
+      expect(org.reload.ai_authorized?).to eq(false)
+      expect(org.settings['name']).to eq('Renamed District')
+      put :update, params: { id: org.global_id, organization: { 'ai_authorized' => true, 'ai_authorized_changed' => false } }
+      expect(org.reload.ai_authorized?).to eq(false)
+    end
+
+    it 'does not turn the switch off from a page that only echoes the value it loaded' do
+      token_user
+      org.add_manager(@user.user_name, true)
+      org.authorize_ai!(authorized_by: @user)
+      put :update, params: { id: org.global_id, organization: { 'name' => 'Renamed District', 'ai_authorized' => false } }
+      expect(response).to be_successful
+      expect(org.reload.ai_authorized?).to eq(true)
+      expect(assert_success_json['organization']['ai_authorized_changed']).to eq(false)
     end
 
     it 'leaves an authorization alone when an update does not mention it' do

@@ -877,15 +877,22 @@ class Api::OrganizationsController < ApplicationController
     # AI authorization for the accounts this organization manages (#1136). It is its
     # own audited record, not a plain setting, so it is taken out of the general update
     # and applied only for someone who may manage the organization (an assistant can
-    # edit but not manage), acting as themselves.
+    # edit but not manage), acting as themselves. The settings page sends the value it
+    # loaded with every save, so it counts only when the save also says the switch was
+    # changed (ai_authorized_changed): a page opened before another manager changed the
+    # switch must not put it back.
     ai_authorized = nil
     if org_data && (org_data.key?('ai_authorized') || org_data.key?(:ai_authorized))
       raw = org_data.delete('ai_authorized')
       raw = org_data.delete(:ai_authorized) if raw.nil?
-      if org.allows?(@api_user, 'manage') && !@true_user
+      changed = org_data.delete('ai_authorized_changed')
+      changed = org_data.delete(:ai_authorized_changed) if changed.nil?
+      if [true, 'true', '1', 1].include?(changed) && org.allows?(@api_user, 'manage') && !@true_user
         ai_authorized = [true, 'true', '1', 1].include?(raw) ? true : ([false, 'false', '0', 0].include?(raw) ? false : nil)
       end
     end
+    org_data.delete('ai_authorized_changed') if org_data
+    org_data.delete(:ai_authorized_changed) if org_data
     if org.process(org_data, {'updater' => @api_user})
       if ai_authorized == true
         org.authorize_ai!(authorized_by: @api_user, ip: request.remote_ip)

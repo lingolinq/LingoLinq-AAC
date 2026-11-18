@@ -320,7 +320,8 @@ describe('ai-disclosure', function() {
       build(this.owner);
       expect(built.get('consent_pending')).toEqual(true);
       expect(built.get('consent_only')).toEqual(true);
-      expect(built.get('consentDisclosureUrl')).toEqual('/ai_consent/disclosures/1');
+      // No version on this account's record: the link goes to the server's current disclosure.
+      expect(built.get('consentDisclosureUrl')).toEqual('/ai_consent/disclosures/current');
     });
 
     it('asks for both, with the Article 50 notice shown, when both are outstanding', function() {

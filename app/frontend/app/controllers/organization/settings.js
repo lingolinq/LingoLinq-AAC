@@ -185,6 +185,8 @@ export default Controller.extend({
         _this.set('model.support_target', {email: _this.get('support_email')})
       }
       var org = _this.get('model');
+      var changed = (org && typeof org.changedAttributes === 'function' && org.changedAttributes()) || {};
+      _this.set('model.ai_authorized_changed', !!changed.ai_authorized);
       _this.set('status', {saving: true});
       org.save().then(function() {
         _this.set('_home_board_key_lines', undefined);

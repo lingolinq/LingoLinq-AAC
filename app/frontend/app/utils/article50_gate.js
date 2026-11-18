@@ -160,11 +160,12 @@ export function needsAiConsent(appState) {
 
 /**
  * The AI data-sharing disclosure page for the version the server reported for
- * this account (ai_consent_disclosures_version), version 1 when it is absent.
+ * this account (ai_consent_disclosures_version), or the server's current
+ * version when it is absent.
  */
 export function aiConsentDisclosureUrl(user) {
   var version = user && typeof user.get === 'function' ? parseInt(user.get('ai_consent_disclosures_version'), 10) : NaN;
-  return '/ai_consent/disclosures/' + (version > 0 ? version : 1);
+  return '/ai_consent/disclosures/' + (version > 0 ? version : 'current');
 }
 
 /**

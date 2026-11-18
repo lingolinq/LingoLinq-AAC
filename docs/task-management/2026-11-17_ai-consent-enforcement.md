@@ -303,10 +303,53 @@ deletion. That reconciliation needs someone with HubSpot access.
   both in this environment; none are in files this branch touches.
 - Targeted Ember run: 194 of 194. Not the full frontend suite. No browser click-through.
 
+## Review round 1 (2026-11-18) and what changed
+
+Both passes asked for changes. Fixed, each with a failing test first:
+
+- A parent link emailed before the AI notice existed approves the account and records no AI
+  consent. Each parent request is stamped with the disclosure version its email carried.
+- A HubSpot call that gets no HTTP answer is not recorded as sent, and the sent-address
+  record is written to a freshly locked row.
+- An account a school created, with no age on file showing 13 or over, is on the parent
+  route.
+- **Disclosure version 2** (Scot, 2026-11-18). Version 1 said board suggestions were outside
+  this consent, while the check covers them. Version 2 names word prediction, board
+  suggestions and focus words, and keeps evaluation narration marked inactive.
+  `CURRENT_VERSION` is 2; version 1 stays readable at its own link and its record hash is
+  pinned in the spec. `/ai_consent/disclosures/current` serves the current version, and the
+  registration and organization pages link there. The parent email and the organization
+  switch hint no longer name evaluation summaries. The version 2 text is new legal copy and
+  has not had a human review yet.
+- **Narration needs "Allow AI features" on** for the student (Scot, 2026-11-18). A consent
+  alone does not start it, which is what the notices say.
+- **The AI disclosure link is required** in an edited parent request email (Scot,
+  2026-11-18). A stored body without it is not used and the default email goes out.
+- A settings page that only echoes the switch value it loaded no longer changes the
+  organization switch; the save has to say the switch was changed on that page.
+
+Existing tests changed in this round, each because the rule it encoded changed with the
+decisions above: `spec/lib/system_email_placeholders_spec.rb` (two examples, required list),
+`spec/mailers/user_mailer_spec.rb` (one stored body gains the link),
+`spec/lib/lingo_linq/ai_consent_disclosures_spec.rb` (current version is 2) and
+`spec/models/user_spec.rb` (the default-version example uses the current version).
+
+In the version 2 block of `config/locales/en.yml` the board item sits after the evaluation
+item. The wording guard in `spec/support/ai_disclosure_claims.rb` splits on sentence ends, so
+a heading with no full stop directly after the evaluation sentence is read as part of it.
+
 ## Follow-ups
+
+- `docs/legal/AI_DATA_SHARING_CONSENT.md` and `docs/legal/AI_DATA_FLOW_CLASSIFICATION.md`
+  still describe board suggestions as outside this consent. They need the
+  compliance-document process, not an edit here. The Privacy Policy sentence that said the same
+  (`privacy_special_ai_board_suggestions_note`) was aligned in this change and needs the same
+  human review as the version 2 text. The sentence before it
+  (`privacy_special_ai_consent_intro`) names only word prediction; its English is pinned as
+  reviewed in `spec/lib/privacy_locale_english_pins_spec.rb`, so it was left for that review.
+- No Spanish text exists for the consent disclosure (version 1 had none either).
 
 - The registration sentence shows for start-code and EU under-16 signups, where the server
   records nothing. The controller has the state to hide it on the main terms step
   (`start_code`, `euUnder16Registration`); the Google fallback step only has a proxy.
-- The disclosure link is fixed to version 1 in `register.hbs` and `organization/settings.hbs`.
 - Twelve locale files carry English text for the 15 new keys.

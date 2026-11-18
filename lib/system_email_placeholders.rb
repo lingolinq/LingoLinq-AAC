@@ -208,9 +208,11 @@ module SystemEmailPlaceholders
     'user_mailer/confirm_registration' => %w[@user.registration_code],
     # Consent requests: COPPA 16 CFR 312.4(c)(1)(v) requires the link to the privacy notice; the
     # parental request also keeps its decline link, so refusing is as easy as consenting.
-    'user_mailer/parental_consent_request' => %w[@consent_url @privacy_url @decline_url],
+    # Both parent requests also carry the AI data-sharing disclosure link: approving records AI
+    # consent (#1136), so an edited body cannot drop the notice the consent rests on.
+    'user_mailer/parental_consent_request' => %w[@consent_url @privacy_url @decline_url @ai_disclosure_url],
     'supervisor_mailer/consent_request' => %w[@approve_url @deny_url],
-    'user_mailer/eu_ai_parental_consent_request' => %w[@consent_url @privacy_url],
+    'user_mailer/eu_ai_parental_consent_request' => %w[@consent_url @privacy_url @ai_disclosure_url],
     'user_mailer/parental_consent_confirmation' => %w[@revoke_url],
     'user_mailer/eu_ai_parental_consent_confirmation' => %w[@revoke_url]
   }.freeze

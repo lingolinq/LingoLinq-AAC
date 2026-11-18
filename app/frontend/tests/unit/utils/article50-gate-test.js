@@ -746,8 +746,8 @@ module('Unit | Utility | article50 gate', function(hooks) {
     module('aiConsentDisclosureUrl', function() {
       test('uses the version the server reported, and version 1 otherwise', function(assert) {
         assert.strictEqual(aiConsentDisclosureUrl(makeConsentUser({ai_consent_disclosures_version: 2})), '/ai_consent/disclosures/2');
-        assert.strictEqual(aiConsentDisclosureUrl(makeConsentUser()), '/ai_consent/disclosures/1');
-        assert.strictEqual(aiConsentDisclosureUrl(null), '/ai_consent/disclosures/1');
+        assert.strictEqual(aiConsentDisclosureUrl(makeConsentUser()), '/ai_consent/disclosures/current');
+        assert.strictEqual(aiConsentDisclosureUrl(null), '/ai_consent/disclosures/current');
       });
     });
   });
