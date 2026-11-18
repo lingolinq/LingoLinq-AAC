@@ -153,3 +153,10 @@ as the walk's. Mutants for each killed (one build). Not done: `content_error` st
 (replacing those 9 lines needs padding to keep the line count for the rows below); a save that never settles holds its
 thread (also true before for a board whose saves all succeed); the drawer counts parked content as a folder left
 (`waiting_line`): wording for Traci.
+
+## Drawer wording (2026-11-18, Traci: "fix the drawer wording to reflect what is actually happening")
+
+- Cause, confirmed: `waiting_line` (components/sync-progress-drawer.js) read `sync_progress.parked`, which is `parking.size()` (services/persistence.js:3087), and counted parked content entries (a saved board whose pictures or sounds wait) together with boards not yet saved. So a saved folder was reported as "1 folder is left".
+- Change: `parking.count(test)` (utils/board_retry.js), `is_content_entry` (utils/board_content_retry.js), and the walk reports `parked_content`, summed with `parked` in `update_sync_progress`, line-neutral. The drawer words the two kinds apart; boards not yet saved keep the existing wording and translations. There are 2 new strings (`sync_drawer_waiting_content_one/_many`), added with `i18n_generator.rb --generate` and then `--merge`; the 12 locales show the `***` untranslated marker.
+- Tests: the drawer unit test, `count`, `is_content_entry`, and a walk test reading `parked`/`parked_content` = 1/1 while the picture waits. 4 mutants in one build, each turned its own test red. Filter `sync`: 401 passed, 0 failed, 2 skipped.
+- Process note: a combined mutate-and-revert command that ended with `git checkout --` on files with UNCOMMITTED fixes was blocked before it ran; it would have wiped the fix. Commit the fix first, then mutate. A reverse-replace undo also fails when the mutant's text already appears elsewhere in the file (`return parked.length;` is in `size` too).
