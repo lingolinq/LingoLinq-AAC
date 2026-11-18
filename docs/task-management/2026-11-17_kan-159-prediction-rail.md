@@ -271,8 +271,11 @@ After KAN-159 the Modern rail keeps the previous sentence's words until the AI a
 version of this log said "at most about 2.3 seconds". That was wrong as written. The rail waits
 for three answers, and the saved-entries GET had the app-wide 8 second limit and two 20 second
 retries, so on weak wifi the wait could run to most of a minute (it could before KAN-159 too).
-With the entries limit added in round 1 the wait is about 2.3 seconds at most, with one
-exception listed under follow-ups (an AI timeout with no built-in words: about 4.6 seconds). Before KAN-159 it changed at once to built-in words and never showed AI words. Three ways
+With the wait for saved entries limited to 2 seconds (round 1, reworked after round 2) the wait
+is about 2.3 seconds at most, with two exceptions: an AI timeout with no built-in words (about
+4.6 seconds, under follow-ups), and the first lookup of a session, which also waits for the
+built-in word lists to load (`load()`: the ngram and core-word GETs, with the app-wide limits;
+unchanged by this PR). Before KAN-159 it changed at once to built-in words and never showed AI words. Three ways
 forward; none is implemented:
 
 1. Leave it: one change per tap, late.
@@ -325,6 +328,34 @@ Two things from the first full run on these fixes, before the totals above:
   run on the earlier head. Seen once; cause not found. This change does not touch session code,
   but that is not proof it is unrelated.
 
+## Dual review of the diff, round 2 (Codex gpt-6.1-sol high, adversary agent)
+
+Reviewed head `a6ed2587b`. PII preflight exit 0. Verdict: request changes. Both passes confirmed
+the round 1 fixes for the superseded sentence, the never-answering request and the strengthened
+router test, and raised nothing new on the KAN-159 fix or the KAN-156 limits.
+
+| Finding | Decision |
+|---|---|
+| High: the identity check added in round 1 does not hold. The session user's record id is the literal `self` for every person, so later switches in one tab are not seen; the check is skipped when the new identity has AI off; the saved-entries cache has the same property and was untouched; the tests used made-up ids | Removed from this PR (Scot, 2026-11-18: narrow and review). `_who`, `_who_last`, the clear on change, the late-answer check and their three tests are gone, which puts the predictor back to what `develop` does on this point. Round 1's verifier had already refuted the original finding as a new defect; adding a fix anyway was the mistake. Listed under follow-ups as its own work covering both caches |
+| Medium: the 2 second limit CANCELLED the saved-entries GET, and a miss is not remembered, so on a connection slower than 2 seconds the entries never arrived for the whole session (before, they arrived late once and were remembered) | Fixed differently: the request is exactly as on `develop` again, and `lookup_with_ai` waits for it at most 2 seconds (`user_entries_within_limit`). A late answer still lands in `_server_entry_cache` for the next tap on that word. This supersedes the round 1 row above that says `timeout: 2000, attempt: 3` |
+| Medium / Low: `_who_last` was not restored between tests, and an existing cache test passed only because of what an earlier test left | Gone with the identity code |
+| Low: the "2.3 seconds at most" bound omitted the first lookup of a session | Qualified under "Open decision" above |
+
+Red before the entries change (code at `a6ed2587b`, new test
+`word-suggestions-user-entries-limit-test.js`): "the rail stops waiting for saved entries at the
+limit, and a late answer is remembered for the next tap" failed with the rail still waiting.
+Green after. That red run is the falsification.
+
+Where the new value is read: `user_entries_wait_ms` is read once, when
+`user_entries_within_limit` arms its timer; `lookup_with_ai` calls that function on the one line
+that used to call `fetch_user_entries`, which has no other caller. The timer is cleared when the
+request answers first. It is a plain `setTimeout`: a new `@ember/runloop` call would be a new
+lint finding.
+
+Full suite on this change, timing-strict: `pool=include` 1770 tests, 1758 pass, 7 skip, 5 todo,
+0 fail; `pool=exclude` 2926 tests, 2896 pass, 30 skip, 0 fail (two fewer than round 1: three
+identity tests removed, one entries test added). Lint gate `new=0`.
+
 ## Not verified
 
 - Lookups, AI requests and timings per tap in a real browser against a real backend, before or
@@ -342,4 +373,10 @@ Two things from the first full run on these fixes, before the totals above:
 - The Modern controller's `updateSuggestions` has no "is the Modern view on screen" check, so
   after a Modern visit it still runs a lookup on classic-view taps.
 - No app caller cancels the waiting AI request when the sentence is cleared.
-- The client cache and shared map are per tab; identity scoping is by clearing on change.
+- The predictor's client cache and shared map, and the saved-entries cache
+  (`_server_entry_cache`), are per tab and keyed by sentence or word and language only, not by
+  who is signed in or being spoken for. `develop` already behaves this way for both caches. A
+  proper fix covers both, and must not key on the session user's record id (it is the literal
+  `self` for everyone, `serializers/application.js`; compare `global_id`, `models/user.js`, or
+  use `utils/backend_user_id.js`). The round 1 attempt was removed after round 2.
+- Reserved slots on the rail (option 3 above), as its own piece of work.

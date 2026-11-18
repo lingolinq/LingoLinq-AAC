@@ -1,80 +1,105 @@
 import { module, test } from 'qunit';
-import $ from 'jquery';
+import RSVP from 'rsvp';
 import { setupTest } from '../../helpers';
-import { settled } from '@ember/test-helpers';
+import { settled, waitUntil } from '@ember/test-helpers';
 import wordSuggestions from 'frontend/utils/word_suggestions';
+import aiPredictor from 'frontend/utils/ai_word_predictor';
 
-/* KAN-156, review round 1. With AI on, `lookup_with_ai` waits for THREE answers before the rail
-   changes: the built-in words, the AI words, and the communicator's own saved next-word entries
+/* KAN-156. With AI on, `lookup_with_ai` waits for THREE answers before the rail changes: the
+   built-in words, the AI words, and the communicator's own saved next-word entries
    (`fetch_user_entries`, a GET to /api/v1/prediction_entries). The AI request has a 2 second
-   limit, but the entries GET inherited the app-wide default: 8 seconds, then two more attempts of
-   20 seconds each from the $.ajax wrapper (utils/extras.js). On weak wifi the rail therefore
-   kept the previous sentence's words for most of a minute. It gets the same 2 second limit and
-   is sent once.
+   limit, but the entries GET has the app-wide default: 8 seconds, then two more attempts of 20
+   seconds each from the $.ajax wrapper (utils/extras.js). On weak wifi the rail therefore kept the
+   previous sentence's words for most of a minute.
 
-   `$.realAjax`, the transport UNDER the app's wrapper, is replaced, so the wrapper's own timeout
-   default and retries are what is being exercised. */
+   The rail now WAITS at most 2 seconds for the entries. The request itself is left alone: an
+   answer that arrives later is still remembered, so the next tap on that word has the entries.
+   (Cutting the request off at 2 seconds instead would mean a communicator on a slow connection
+   never gets their saved entries at all.)
+
+   The entries request is a recorder whose answers this file resolves by hand, so "still on the
+   wire" is a state the test holds, not a race against a timer. */
 module('Unit | Utility | word_suggestions user entries limit', function(hooks) {
   setupTest(hooks);
 
-  let saved = null;
+  let restore = [];
+  const patch = (obj, key, value) => {
+    restore.push([obj, key, Object.getOwnPropertyDescriptor(obj, key)]);
+    obj[key] = value;
+  };
 
   hooks.beforeEach(function() {
-    saved = {
-      realAjax: Object.getOwnPropertyDescriptor($, 'realAjax'),
-      get_persistence: Object.getOwnPropertyDescriptor(wordSuggestions, 'get_persistence'),
-      entry_cache: wordSuggestions._server_entry_cache
-    };
-    wordSuggestions._server_entry_cache = {};
-    /* The part of the persistence service this path uses: it hands its arguments to $.ajax. */
-    wordSuggestions.get_persistence = function() {
-      return { ajax: function() { return $.ajax.apply(null, arguments); } };
-    };
+    const requests = this.requests = [];
+    patch(wordSuggestions, '_server_entry_cache', {});
+    patch(wordSuggestions, 'get_persistence', function() {
+      return {
+        ajax: function(url, opts) {
+          const d = { url: url, opts: opts };
+          d.promise = new RSVP.Promise(function(resolve) { d.resolve = resolve; });
+          requests.push(d);
+          return d.promise;
+        }
+      };
+    });
+    patch(wordSuggestions, 'lookup', function() { return RSVP.resolve([{ word: 'some', source: 'local' }]); });
+    patch(wordSuggestions, 'fallback_url', function() { return RSVP.resolve('data:,'); });
+    patch(wordSuggestions, 'log_prediction_telemetry', function() {});
+    patch(aiPredictor, 'is_enabled', function() { return true; });
+    patch(aiPredictor, 'predict', function() { return RSVP.resolve(['to']); });
   });
 
   hooks.afterEach(async function() {
+    /* End anything a test left on the wire, while the recorder's cache is still installed. */
+    this.requests.forEach(function(d) { d.resolve({ entries: [] }); });
     await settled();
-    if(saved.realAjax) { Object.defineProperty($, 'realAjax', saved.realAjax); }
-    if(saved.get_persistence) { Object.defineProperty(wordSuggestions, 'get_persistence', saved.get_persistence); } else { delete wordSuggestions.get_persistence; }
-    wordSuggestions._server_entry_cache = saved.entry_cache;
+    restore.reverse().forEach(([obj, key, descriptor]) => {
+      if(descriptor) { Object.defineProperty(obj, key, descriptor); } else { delete obj[key]; }
+    });
+    restore = [];
   });
 
-  test('a saved-entries request that times out is given 2 seconds and is not sent again', async function(assert) {
-    assert.expect(5);
-    assert.strictEqual(typeof $.realAjax, 'function', 'guard: the app\'s $.ajax wrapper is installed');
-    const sent = [];
-    $.realAjax = function(options) {
-      sent.push({ url: options.url, timeout: options.timeout });
-      /* What jQuery reports for a timeout: no status, readyState 0, textStatus "timeout". */
-      const failed = { then: function(ok, fail) { if(fail) { fail({ status: 0, readyState: 0 }, 'timeout', 'timeout'); } return failed; } };
-      return failed;
-    };
+  const words = (list) => list.map((s) => s.word);
 
-    const entries = await wordSuggestions.fetch_user_entries('want', 'en');
-    /* The wrapper schedules each further attempt 500 ms later on the run loop; wait them out. */
+  test('the rail stops waiting for saved entries at the limit, and a late answer is remembered for the next tap', async function(assert) {
+    assert.expect(6);
+    patch(wordSuggestions, 'user_entries_wait_ms', 20);
+    let first = null;
+    wordSuggestions.lookup_with_ai({ last_finished_word: 'want', sentence: 'i want', locale: 'en' }).then(function(list) { first = list; });
+
+    await waitUntil(() => first !== null, { timeout: 1500, timeoutMessage: 'the rail was still waiting for the saved entries' });
+    assert.deepEqual(words(first), ['to', 'some'], 'the rail got the AI and built-in words without the entries');
+    assert.strictEqual(this.requests.length, 1, 'guard: the entries request was sent');
+    assert.strictEqual(this.requests[0].opts.timeout, undefined, 'and was not given a cut-off of its own');
+
+    /* The answer arrives after the rail moved on. */
+    this.requests[0].resolve({ entries: [{ next_word: 'juice' }] });
     await settled();
+    assert.deepEqual(Object.keys(wordSuggestions._server_entry_cache), ['en:want'], 'the late answer is remembered');
 
-    assert.deepEqual(entries, [], 'the caller gets no saved entries');
-    assert.strictEqual(sent.length, 1, 'the request was sent once');
-    assert.strictEqual(sent[0].timeout, 2000, 'with a 2 second limit');
+    const second = await wordSuggestions.lookup_with_ai({ last_finished_word: 'want', sentence: 'i want', locale: 'en' });
+    assert.deepEqual(words(second), ['to', 'some', 'juice'], 'the next tap on that word has the saved entry');
+    assert.strictEqual(this.requests.length, 1, 'without asking the server again');
+  });
+
+  test('saved entries that arrive within the limit are on the rail for that tap', async function(assert) {
+    assert.expect(2);
+    const lookup = wordSuggestions.lookup_with_ai({ last_finished_word: 'want', sentence: 'i want', locale: 'en' });
+    await waitUntil(() => this.requests.length > 0, { timeout: 1500 });
+    this.requests[0].resolve({ entries: [{ next_word: 'juice' }] });
+
+    assert.deepEqual(words(await lookup), ['to', 'some', 'juice'], 'the entry is offered after the AI and built-in words');
+    assert.deepEqual(Object.keys(wordSuggestions._server_entry_cache), ['en:want'], 'and is remembered');
+  });
+
+  test('a saved-entries request that fails does not hold the rail or get remembered', async function(assert) {
+    assert.expect(2);
+    patch(wordSuggestions, 'get_persistence', function() {
+      return { ajax: function() { return RSVP.reject({ error: 'timeout' }); } };
+    });
+
+    const list = await wordSuggestions.lookup_with_ai({ last_finished_word: 'want', sentence: 'i want', locale: 'en' });
+
+    assert.deepEqual(words(list), ['to', 'some'], 'the rail has the AI and built-in words');
     assert.deepEqual(Object.keys(wordSuggestions._server_entry_cache), [], 'and the miss is not remembered, so the next tap asks again');
-  });
-
-  test('saved entries that arrive are returned and remembered', async function(assert) {
-    assert.expect(3);
-    const sent = [];
-    $.realAjax = function(options) {
-      sent.push(options.url);
-      const done = { then: function(succeed) { succeed({ entries: [{ next_word: 'juice' }] }, 'success', { status: 200, getResponseHeader: function() { return null; } }); return done; } };
-      return done;
-    };
-
-    const entries = await wordSuggestions.fetch_user_entries('want', 'en');
-    const again = await wordSuggestions.fetch_user_entries('want', 'en');
-    await settled();
-
-    assert.deepEqual(entries.map((e) => e.next_word), ['juice'], 'the entries reach the caller');
-    assert.deepEqual(again.map((e) => e.next_word), ['juice'], 'and the repeat ask');
-    assert.strictEqual(sent.length, 1, 'from one request');
   });
 });

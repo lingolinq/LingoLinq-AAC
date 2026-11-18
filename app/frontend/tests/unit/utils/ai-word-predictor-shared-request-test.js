@@ -1,10 +1,8 @@
 import { module, test } from 'qunit';
 import $ from 'jquery';
 import RSVP from 'rsvp';
-import EmberObject from '@ember/object';
 import { waitUntil } from '@ember/test-helpers';
 import aiPredictor from 'frontend/utils/ai_word_predictor';
-import { standInGlobals } from 'frontend/tests/helpers/stand-in-globals';
 
 /* KAN-159. `predict()` had ONE waiting slot: every new call cancelled whoever was waiting and
    resolved them with [] (the `_pending_reject` branch), even when the newcomer asked for the very
@@ -18,11 +16,6 @@ import { standInGlobals } from 'frontend/tests/helpers/stand-in-globals';
    `$.ajax` is replaced with a recorder whose answers this file resolves by hand, so "still
    waiting" and "already on the wire" are states the test holds, not races against a timer. */
 module('Unit | Utility | ai_word_predictor shared request', function(hooks) {
-  /* `predict` asks the app state who is on screen. This module boots no app, so it gets its own
-     stand-in instead of whatever an earlier test's torn-down app left in the globals. Registered
-     first, so it is still installed when the afterEach below calls `predict`. */
-  standInGlobals(hooks, { appState: () => EmberObject.create({}) });
-
   let saved = null;
 
   hooks.beforeEach(function() {
@@ -61,10 +54,6 @@ module('Unit | Utility | ai_word_predictor shared request', function(hooks) {
     if(saved.shared_max_ms === undefined) { delete aiPredictor._shared_max_ms; } else { aiPredictor._shared_max_ms = saved.shared_max_ms; }
     aiPredictor.clear_cache();
   });
-
-  function person(current_id, session_id) {
-    return EmberObject.create({ currentUser: { id: current_id }, sessionUser: { id: session_id } });
-  }
 
   test('two callers waiting on the same sentence share one request and both get its words', async function(assert) {
     assert.expect(4);
@@ -208,53 +197,5 @@ module('Unit | Utility | ai_word_predictor shared request', function(hooks) {
     assert.deepEqual(await again, ['to'], 'the repeat ask got an answer of its own');
     assert.strictEqual(this.requests.length, 2, 'from a new request');
     assert.strictEqual(this.requests[1].opts.data.sentence, 'i want', 'for the same sentence');
-  });
-
-  /* The server scopes its answers to the account (lib/ai_word_predictor.rb cache_scope) and
-     scrubs with that account's own names. One tab can change who is signed in or who is being
-     spoken for without a reload, so neither a request in flight nor a remembered answer may
-     carry over. */
-  test('a different communicator is not handed a request started for the previous one', async function(assert) {
-    assert.expect(4);
-    const first = aiPredictor.predict('i want', { locale: 'en', count: 5, appState: person('u-1', 's-1') });
-    await waitUntil(() => this.requests.length > 0, { timeout: 2000 });
-    const other = aiPredictor.predict('i want', { locale: 'en', count: 5, appState: person('u-2', 's-1') });
-    await waitUntil(() => this.requests.length > 1, { timeout: 2000, timeoutMessage: 'the second communicator joined the first one\'s request' });
-
-    /* The earlier communicator's answer arrives LAST, after the tab has moved on from them. */
-    this.requests[1].resolve({ words: ['to'] });
-    assert.deepEqual(await other, ['to'], 'the second gets the answer to their own request');
-    this.requests[0].resolve({ words: ['mine'] });
-    assert.deepEqual(await first, ['mine'], 'the first communicator still gets their own answer');
-    assert.strictEqual(this.requests.length, 2, 'two requests were sent');
-    assert.deepEqual(aiPredictor._cache['en:i want'].words, ['to'], 'and the late answer is not remembered for the communicator now on screen');
-  });
-
-  test('an answer remembered for one signed-in person is not reused for another', async function(assert) {
-    assert.expect(4);
-    const first = aiPredictor.predict('i want', { locale: 'en', count: 5, appState: person('u-1', 's-1') });
-    await waitUntil(() => this.requests.length > 0, { timeout: 2000 });
-    this.requests[0].resolve({ words: ['mine'] });
-    assert.deepEqual(await first, ['mine'], 'guard: the first answer arrived');
-    assert.deepEqual(aiPredictor._cache['en:i want'].words, ['mine'], 'guard: and was remembered');
-
-    const other = aiPredictor.predict('i want', { locale: 'en', count: 5, appState: person('u-1', 's-2') });
-    await waitUntil(() => this.requests.length > 1, { timeout: 2000, timeoutMessage: 'the remembered answer was reused' });
-    this.requests[1].resolve({ words: ['to'] });
-
-    assert.deepEqual(await other, ['to'], 'the next person gets an answer of their own');
-    assert.deepEqual(aiPredictor._cache['en:i want'].words, ['to'], 'and theirs is what is remembered now');
-  });
-
-  test('the same person asking again still uses the remembered answer', async function(assert) {
-    assert.expect(3);
-    const state = person('u-1', 's-1');
-    const first = aiPredictor.predict('i want', { locale: 'en', count: 5, appState: state });
-    await waitUntil(() => this.requests.length > 0, { timeout: 2000 });
-    this.requests[0].resolve({ words: ['to'] });
-    assert.deepEqual(await first, ['to'], 'guard: the first answer arrived');
-
-    assert.deepEqual(await aiPredictor.predict('i want', { locale: 'en', count: 5, appState: state }), ['to'], 'the repeat ask is answered');
-    assert.strictEqual(this.requests.length, 1, 'without a second request');
   });
 });
