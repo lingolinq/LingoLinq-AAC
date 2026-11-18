@@ -143,6 +143,26 @@ describe 'AI data-sharing consent: who can record one (#1136)' do
         expect(JSON.parse(response.body)['error']).to eq('parental_consent_required')
         expect(@user.reload.settings['ai_consent']).to be_blank
       end
+
+      it 'refuses a school-created account with no age on file, even after it has left its district' do
+        token_user
+        @user.settings['school_authorization'] = { 'basis' => 'school_official', 'organization_id' => '1_999' }
+        @user.save!
+        post :ai_consent, params: { user_id: @user.global_id }
+        expect(response).to have_http_status(400)
+        expect(JSON.parse(response.body)['error']).to eq('parental_consent_required')
+        expect(@user.reload.settings['ai_consent']).to be_blank
+      end
+
+      it 'lets a school-created account agree for itself when the age on file is 13 or over' do
+        token_user
+        @user.settings['school_authorization'] = { 'basis' => 'school_official', 'organization_id' => '1_999' }
+        @user.settings['compliance'] = { 'birth_month' => 1, 'birth_year' => Time.now.utc.year - 30 }
+        @user.save!
+        post :ai_consent, params: { user_id: @user.global_id }
+        expect(response).to have_http_status(200)
+        expect(@user.reload.ai_consent_granted?).to eq(true)
+      end
     end
 
     describe 'what the account is told' do
