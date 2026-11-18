@@ -3092,7 +3092,7 @@ var persistence = Service.extend({
           var id = next && (next.id || next.key);
           var key = next && next.key;
           var source = next && next.visit_source;
-          if(next && next.content_retry) { retry_content(next, { sync_progress: _sync.get('sync_progress'), store: function(item) { return _sync.store_url(item.url, item.type, item.keep_big, force, sync_id); }, park: function(entry, retry) { parking.park(entry, retry); }, fail: function(board_error) { board_errors.push(board_error); }, then: function() { schedule_sync_board_step(function() { nextBoard(defer); }, 75); } }); } else if(next && next.depth < 20 && id && !visited_boards.find(function(i) { return i == id; }) && !boardRevocation.skip_board(_this, user.get('id'), next)) { // first branch: a board's parked content, only its failed saves again; the board is not walked again (utils/board_content_retry.js)
+          if(next && next.content_retry) { retry_content(next, { sync_progress: _sync.get('sync_progress'), store: function(item) { return _sync.store_url(item.url, item.type, item.keep_big, force, sync_id); }, saved: function(board) { full_set_revisions[board.id] = board.full_set_revision; }, park: function(entry, retry) { parking.park(entry, retry); }, fail: function(board_error) { board_errors.push(board_error); }, then: function() { schedule_sync_board_step(function() { nextBoard(defer); }, 75); } }); } else if(next && next.depth < 20 && id && !visited_boards.find(function(i) { return i == id; }) && !boardRevocation.skip_board(_this, user.get('id'), next)) { // first branch: a board's parked content, only its failed saves again; the board is not walked again (utils/board_content_retry.js)
             var local_full_set_revision = null;
 
             // check if there's a local copy that's already been loaded
@@ -3346,7 +3346,7 @@ var persistence = Service.extend({
                 schedule_sync_board_step(function() {
                   nextBoard(defer);
                 }, safely_cached && visited_board_promises.length === 0 ? 50 : 75);
-              }, function(err) { var content_retry = claim_content_retry(content_failures, _sync.get('sync_progress'), id); if(content_retry) { parking.park(content_entry(next, content_failures), content_retry); schedule_sync_board_step(function() { nextBoard(defer); }, 75); return; } // every failure passing: only the failed saves are parked and tried again (utils/board_content_retry.js)
+              }, function(err) { var content_retry = claim_content_retry(content_failures, _sync.get('sync_progress'), id); if(content_retry) { parking.park(content_entry(next, content_failures, {id: board.get('id'), full_set_revision: board.get('full_set_revision')}), content_retry); schedule_sync_board_step(function() { nextBoard(defer); }, 75); return; } // every failure passing: only the failed saves are parked and tried again (utils/board_content_retry.js)
                 var msg = "board " + (key || id) + " failed to sync completely";
                 if(typeof err == 'string') {
                   msg = msg + ": " + err;

@@ -58,9 +58,11 @@ export function claim_content_retry(failures, sync_progress, id) {
   return done + 1;
 }
 
-// The walk's entry for a board's parked content: the board's place in the walk, and only the saves to try again.
-export function content_entry(next, failures) {
-  return Object.assign({}, next, { content_retry: failures.map(function(f) { return f.item; }) });
+// The walk's entry for a board's parked content: the board's place in the walk, only the saves to try again, and
+// what the walk records when they save (`board`: its id and full_set_revision, services/persistence.js
+// full_set_revisions).
+export function content_entry(next, failures, board) {
+  return Object.assign({}, next, { content_retry: failures.map(function(f) { return f.item; }), content_board: board || null });
 }
 
 // The board error, worded as the walk words it (services/persistence.js, the board's content failure).
@@ -74,28 +76,29 @@ export function content_error(entry, err) {
   if(entry.visit_source) {
     msg = msg + ", linked from " + entry.visit_source;
   }
-  return { error: msg, board_id: entry.id, board_key: entry.key };
+  return { error: msg, board_id: entry.id || entry.key, board_key: entry.key }; // as the walk: its id is next.id || next.key
 }
 
 // A parked entry back on the walk: save its content again; park it again while its failures pass and a retry is
-// left, or report the board. `ctx`: sync_progress, store(item), park(entry, retry), fail(board_error), then() (the
-// walk goes on).
+// left, or report the board. `ctx`: sync_progress, store(item), saved(board) (all saved), park(entry, retry),
+// fail(board_error), then() (the walk goes on: called once, whatever happens here).
 export function retry_content(entry, ctx) {
   var failures = [];
   var saves = entry.content_retry.map(function(item) {
-    return ctx.store(item).then(null, function(err) {
+    return RSVP.resolve().then(function() { return ctx.store(item); }).then(null, function(err) {
       return RSVP.reject(content_failure(item.message, err, item));
     });
   });
   return settle_content(saves, failures).then(function() {
-    ctx.then();
+    if(entry.content_board) { ctx.saved(entry.content_board); }
   }, function(first) {
     var retry = claim_content_retry(failures, ctx.sync_progress, entry.id || entry.key);
     if(retry) {
-      ctx.park(content_entry(entry, failures), retry);
+      ctx.park(content_entry(entry, failures, entry.content_board), retry);
     } else {
       ctx.fail(content_error(entry, first));
     }
+  }).finally(function() {
     ctx.then();
   });
 }

@@ -127,3 +127,27 @@ Tests (`timingStrict=1`):
   (util), the sound handler and the sidebar handler not keeping the cause (their walk tests only).
 - Not covered by a walk test: the "missing button image" handler (same `content_failure` call as the others).
 - Lint gate: only the known `sync-details.js:220` false positive.
+
+## Live runs and final review (2026-11-17)
+
+E2E (6 browser projects, eaf5cf7f5 on :5089): 53/54. "The link drops during a sync and comes back" passes on 5 of 6 (it
+failed on all 6 with #1327). Android Chrome: CONFIRMED from its trace as a harness artifact: home-6's direct download
+failed during the drop, its proxy fallback ran after the link was back (23:40:13.7), and the server asked the real CDN
+for the spec's made-up path (403, answered 400: "File not retrieved, status 403"); a 400 reports the board at once, by
+design. The spec answers the picture host in the browser only, not through the server's proxy.
+
+`synth_big` WebKit reproduction (6 liked folders, 4 Mbps, link down 20-45 s; develop and #1326: "finished", 2-3 failed
+rows, 57/57 saved, 8 runs): 10 runs on eaf5cf7f5, all "succeeded" with 0 failed rows; pictures of 2-5 liked folders
+parked and saved on retry in every run where it was sampled (runs 3-10). Run 1: 56/57 on the device, unexplained; the
+probe then printed counts only and read the device about 1 s after the sync ended, while the last board rows are still
+being written one every 200 ms (`store_eventually`, services/persistence.js:702). Runs 2-10: 57/57. Open; later runs read
+the device again 20 s later and name any missing board with its status rows.
+
+Final review (adversary): ship with conditions. All four earlier conditions CONFIRMED met; no caller regression; no
+path in the diff found that drops a board. Done from it: the retry's save arguments pinned (type and sync_id asserted
+on the second try); a board whose retried content saves is recorded in `full_set_revisions` (`content_board`,
+`ctx.saved`); `retry_content` calls `then` once even when a save throws; the error row's `board_id` is `id || key`,
+as the walk's. Mutants for each killed (one build). Not done: `content_error` stays a copy of the walk's inline message
+(replacing those 9 lines needs padding to keep the line count for the rows below); a save that never settles holds its
+thread (also true before for a board whose saves all succeed); the drawer counts parked content as a folder left
+(`waiting_line`): wording for Traci.

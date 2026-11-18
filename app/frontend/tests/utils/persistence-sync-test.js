@@ -7615,14 +7615,14 @@ describe("persistence-sync", function() {
       cancelSyncTailWork();
       unloadSyncStoreRecords();
       resetSyncTestCaches();
-      var state = { tailDone: false, result: null, calls: 0 };
+      var state = { tailDone: false, result: null, calls: 0, types: [], sync_ids: [] };
       enableRealSyncBoards(stubOnPersistence, function() { state.tailDone = true; });
       persistence.set('sync_log', null);
       persistence.set('sync_progress', null);
       persistence.set('sync_status', null);
-      stubStoreUrl(function(url) {
+      stubStoreUrl(function(url, type, keep_big, force, sync_id) {
         if(url !== failing) { return RSVP.resolve({url: url}); }
-        state.calls++;
+        state.calls++; state.types.push(type); state.sync_ids.push(sync_id); // a retry saves as the first try did (Cancel drops a queued save by its sync_id)
         return answer(state.calls);
       });
       stub(modal, 'error', function() { });
@@ -7669,6 +7669,9 @@ describe("persistence-sync", function() {
           expect(errorFor('145')).toEqual(undefined);
           expect((persistence.get('sync_log') || [])[0].issues).toNotEqual(true);
           expect(requestsFor('145')).toEqual(BOARD_145_REQUESTS); // the board is not asked for again; only the picture
+          expect(state.types).toEqual(['image', 'image']);
+          expect(state.sync_ids[0]).toNotEqual(undefined);
+          expect(state.sync_ids[1]).toEqual(state.sync_ids[0]);
           done();
         });
       });
@@ -7692,6 +7695,7 @@ describe("persistence-sync", function() {
         waitsFor(function() { return finished(state); });
         runs(function() {
           expect(state.calls).toEqual(2);
+          expect(state.types).toEqual(['sound', 'sound']);
           expect(errorFor('145')).toEqual(undefined);
           done();
         });

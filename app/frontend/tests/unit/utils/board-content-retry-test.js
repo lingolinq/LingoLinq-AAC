@@ -68,8 +68,8 @@ module('Unit | Utility | board content retry', function() {
 
   test('the parked entry keeps the board\'s place and only the failed saves', function(assert) {
     var next = { id: '145', key: 'fred/home', depth: 0, visit_source: 'home board' };
-    var entry = content_entry(next, [content_failure('m', null, { url: 'u', type: 'image', keep_big: true })]);
-    assert.deepEqual(entry, { id: '145', key: 'fred/home', depth: 0, visit_source: 'home board', content_retry: [{ message: 'm', url: 'u', type: 'image', keep_big: true }] });
+    var entry = content_entry(next, [content_failure('m', null, { url: 'u', type: 'image', keep_big: true })], { id: '1_145', full_set_revision: 'r1' });
+    assert.deepEqual(entry, { id: '145', key: 'fred/home', depth: 0, visit_source: 'home board', content_retry: [{ message: 'm', url: 'u', type: 'image', keep_big: true }], content_board: { id: '1_145', full_set_revision: 'r1' } });
     assert.strictEqual(next.content_retry, undefined, 'the walk\'s own entry is not changed');
   });
 
@@ -77,20 +77,23 @@ module('Unit | Utility | board content retry', function() {
     assert.deepEqual(content_error({ id: '145', key: 'fred/home', visit_source: 'home board' }, { error: 'button image failed to sync, u' }),
       { error: 'board fred/home failed to sync completely: button image failed to sync, u, linked from home board', board_id: '145', board_key: 'fred/home' });
     assert.strictEqual(content_error({ id: '145' }, 'oops').error, 'board 145 failed to sync completely: oops');
+    assert.deepEqual(content_error({ key: 'fred/liked', visit_source: 'starred board' }, { error: 'e' }),
+      { error: 'board fred/liked failed to sync completely: e, linked from starred board', board_id: 'fred/liked', board_key: 'fred/liked' }, 'a board known by key only, as the walk records it');
   });
 
   function ctx_for(answers) {
-    var log = { stored: [], parked: [], failed: [], then: 0 };
+    var log = { stored: [], parked: [], failed: [], saved: [], then: 0 };
     var ctx = {
       sync_progress: {},
       store: function(item) { log.stored.push(item.url); return answers[item.url](); },
+      saved: function(board) { log.saved.push(board); },
       park: function(entry, retry) { log.parked.push({ entry: entry, retry: retry }); },
       fail: function(err) { log.failed.push(err); },
       then: function() { log.then++; }
     };
     return { ctx: ctx, log: log };
   }
-  var entry = { id: '145', key: 'fred/home', visit_source: 'home board', content_retry: [
+  var entry = { id: '145', key: 'fred/home', visit_source: 'home board', content_board: { id: '1_145', full_set_revision: 'r1' }, content_retry: [
     { url: 'a', type: 'image', keep_big: false, message: 'button image failed to sync, a' },
     { url: 'b', type: 'sound', keep_big: false, message: 'button sound failed to sync, b' }
   ] };
@@ -101,6 +104,16 @@ module('Unit | Utility | board content retry', function() {
     assert.deepEqual(r.log.stored, ['a', 'b']);
     assert.deepEqual(r.log.parked, []);
     assert.deepEqual(r.log.failed, []);
+    assert.deepEqual(r.log.saved, [{ id: '1_145', full_set_revision: 'r1' }], 'the board is recorded as complete, as the walk does for a board that saved');
+    assert.strictEqual(r.log.then, 1);
+  });
+
+  test('a save that throws is a failure of that save, and the walk still goes on once', async function(assert) {
+    var r = ctx_for({ a: function() { throw new Error('boom'); }, b: function() { return RSVP.resolve({}); } });
+    await retry_content(entry, r.ctx);
+    assert.strictEqual(r.log.failed.length, 1);
+    assert.strictEqual(r.log.failed[0].error, 'board fred/home failed to sync completely: button image failed to sync, a, linked from home board');
+    assert.deepEqual(r.log.saved, []);
     assert.strictEqual(r.log.then, 1);
   });
 
@@ -110,6 +123,8 @@ module('Unit | Utility | board content retry', function() {
     assert.strictEqual(r.log.parked.length, 1);
     assert.strictEqual(r.log.parked[0].retry, 1);
     assert.deepEqual(r.log.parked[0].entry.content_retry.map(function(i) { return i.url; }), ['b']);
+    assert.deepEqual(r.log.parked[0].entry.content_board, { id: '1_145', full_set_revision: 'r1' }, 'kept for the next retry');
+    assert.deepEqual(r.log.saved, []);
     assert.deepEqual(r.log.failed, []);
     assert.strictEqual(r.log.then, 1);
   });
