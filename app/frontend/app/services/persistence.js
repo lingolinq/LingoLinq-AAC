@@ -1973,14 +1973,14 @@ var persistence = Service.extend({
     var progresses = (this.get('sync_progress') || {}).progress_for || {};
     var visited = 0;
     var to_visit = 0;
-    var errors = []; var parked = 0; // boards waiting to be tried again (utils/board_retry.js): the drawer's "waiting for a better connection"
+    var errors = []; var parked = 0; var parked_content = 0; // boards waiting to be tried again (utils/board_retry.js): the drawer's "waiting for a better connection"
     for(var idx in progresses) {
       visited = visited + progresses[idx].visited;
       to_visit = to_visit + progresses[idx].to_visit;
-      errors = errors.concat(progresses[idx].board_errors || []); parked = parked + (progresses[idx].parked || 0);
+      errors = errors.concat(progresses[idx].board_errors || []); parked = parked + (progresses[idx].parked || 0); parked_content = parked_content + (progresses[idx].parked_content || 0);
     }
     if(this.get('sync_progress')) {
-      this.set('sync_progress.visited', visited); this.set('sync_progress.parked', parked);
+      this.set('sync_progress.visited', visited); this.set('sync_progress.parked', parked); this.set('sync_progress.parked_content', parked_content);
       this.set('sync_progress.to_visit', to_visit);
       this.set('sync_progress.total', to_visit + visited);
       this.set('sync_progress.errored', errors.length);
@@ -3084,7 +3084,7 @@ var persistence = Service.extend({
             p_for[user.get('id')] = {
               visited: visited_boards.length,
               to_visit: to_visit_boards.length + parking.size(), // a parked board is still to do
-              board_errors: board_errors, parked: parking.size()
+              board_errors: board_errors, parked: parking.size(), parked_content: parking.count(is_content_entry) // parked_content: saved boards whose pictures or sounds wait (utils/board_content_retry.js)
             };
           }
           _sync.update_sync_progress();
@@ -5141,4 +5141,4 @@ persistence.reopen({
 });
 import { is_stale_item, drop_stale_head } from '../utils/url_store_queue';
 import { optional_picture, picture_ms_left } from '../utils/optional_picture';
-import { failure_cause, content_failure, settle_content, claim_content_retry, content_entry, retry_content } from '../utils/board_content_retry';
+import { failure_cause, content_failure, settle_content, claim_content_retry, content_entry, retry_content, is_content_entry } from '../utils/board_content_retry';

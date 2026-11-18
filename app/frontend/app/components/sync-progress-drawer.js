@@ -89,10 +89,22 @@ export default Component.extend({
     return p ? current_root_name(p.board_statuses, p.board_roots) : null;
   }),
 
-  waiting_line: computed('persistence.sync_progress.parked', function() {
-    var n = this.get('persistence.sync_progress.parked') || 0;
-    return n === 1 ? i18n.t('sync_drawer_waiting_one', "1 folder is left. It will be tried again automatically.") :
-      i18n.t('sync_drawer_waiting_many', "%{n} folders are left. They will be tried again automatically.", { n: n });
+  // Two kinds of parked work (services/persistence.js sync_boards): a folder not saved yet, and a saved folder whose
+  // pictures or sounds were cut off (utils/board_content_retry.js). Each is said as it is; the folder is not "left"
+  // when only its pictures wait.
+  waiting_line: computed('persistence.sync_progress.{parked,parked_content}', function() {
+    var content = this.get('persistence.sync_progress.parked_content') || 0;
+    var boards = Math.max(0, (this.get('persistence.sync_progress.parked') || 0) - content);
+    var lines = [];
+    if(boards || !content) {
+      lines.push(boards === 1 ? i18n.t('sync_drawer_waiting_one', "1 folder is left. It will be tried again automatically.") :
+        i18n.t('sync_drawer_waiting_many', "%{n} folders are left. They will be tried again automatically.", { n: boards }));
+    }
+    if(content) {
+      lines.push(content === 1 ? i18n.t('sync_drawer_waiting_content_one', "1 folder is saved, but some of its pictures or sounds are not. They will be tried again automatically.") :
+        i18n.t('sync_drawer_waiting_content_many', "%{n} folders are saved, but some of their pictures or sounds are not. They will be tried again automatically.", { n: content }));
+    }
+    return lines.join(' ');
   }),
 
   result_title: computed('stage', 'summary', 'sync_notice.message', function() {

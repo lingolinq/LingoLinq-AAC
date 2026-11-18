@@ -7677,6 +7677,27 @@ describe("persistence-sync", function() {
       });
     });
 
+    it("counts the waiting picture's board as saved content, not a board still to get, for the drawer", function() {
+      db_wait(function() {
+        var seen = [];
+        var real = persistence.update_sync_progress;
+        stubOnPersistence('update_sync_progress', function() {
+          var res = real.apply(this, arguments);
+          var p = this.get('sync_progress');
+          if(p && p.parked) { seen.push([p.parked, p.parked_content]); }
+          return res;
+        });
+        var state = syncWith(BUTTON, function(n) { return n === 1 ? dropped() : saved(n); });
+        waitsFor(function() { return finished(state); });
+        runs(function() {
+          expect(state.calls).toEqual(2);
+          expect(seen.length > 0).toEqual(true); // the walk reported the parked picture while it waited
+          expect(seen.every(function(s) { return s[0] === 1 && s[1] === 1; })).toEqual(true);
+          done();
+        });
+      });
+    });
+
     it("tries a button picture again when the app counted itself offline", function() {
       db_wait(function() {
         var state = syncWith(BUTTON, function(n) { return n === 1 ? offline() : saved(n); });

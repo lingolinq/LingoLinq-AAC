@@ -9313,6 +9313,8 @@
   "try_now": "Jetzt ausprobieren [[ Try now",
   "sync_see_details": "Details anzeigen [[ See details",
   "gif_search_no_results": "*** No GIFs found. Try different words in your sentence and search again.",
+  "sync_drawer_waiting_content_one": "*** 1 folder is saved, but some of its pictures or sounds are not. They will be tried again automatically.",
+  "sync_drawer_waiting_content_many": "*** %{n} folders are saved, but some of their pictures or sounds are not. They will be tried again automatically.",
   "==== lvl8 ============": "Below are all words for priority level 8 (this string does not need to be translated)",
   "on_the_date": "Am Datum [[ On the Date",
   "after_time": "Nach der Zeit [[ After Time",

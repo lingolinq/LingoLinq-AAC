@@ -9759,5 +9759,7 @@
   "sync_drawer_waiting": "Czekam na lepsze połączenie [[ Waiting for a better connection",
   "try_now": "Spróbuj teraz [[ Try now",
   "sync_see_details": "Zobacz szczegóły [[ See details",
-  "gif_search_no_results": "*** No GIFs found. Try different words in your sentence and search again."
+  "gif_search_no_results": "*** No GIFs found. Try different words in your sentence and search again.",
+  "sync_drawer_waiting_content_one": "*** 1 folder is saved, but some of its pictures or sounds are not. They will be tried again automatically.",
+  "sync_drawer_waiting_content_many": "*** %{n} folders are saved, but some of their pictures or sounds are not. They will be tried again automatically."
 }

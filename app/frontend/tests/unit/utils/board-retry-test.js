@@ -242,4 +242,14 @@ module('Unit | Utility | board retry', function() {
     parking.wake();
     assert.strictEqual(parking.size(), 1, 'the board stays parked for the next waiter');
   });
+
+  test('count says how many parked items a test accepts', function(assert) {
+    var parking = create_parking(fake_scheduler());
+    parking.park({ id: 'a' }, 1);
+    parking.park({ id: 'b', content_retry: [] }, 1);
+    parking.park({ id: 'c', content_retry: [] }, 2);
+    assert.strictEqual(parking.count(function(item) { return !!item.content_retry; }), 2);
+    assert.strictEqual(parking.count(function() { return false; }), 0);
+    assert.strictEqual(parking.size(), 3);
+  });
 });

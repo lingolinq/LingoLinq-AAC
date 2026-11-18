@@ -74,6 +74,8 @@ export function create_parking(schedule, now) {
     },
     // Parked boards are still to do: the progress count includes them.
     size: function() { return parked.length; },
+    // How many parked items `test(item)` accepts (the drawer tells saved folders waiting on content from boards not saved).
+    count: function(test) { return parked.filter(function(p) { return test(p.item); }).length; },
     // A thread whose walk has nothing else to do. Returns false when there is nothing parked or another thread
     // already waits: the caller then ends that thread. When boards are already due, they come back at once and the
     // thread keeps its slot: resume(items, true). Otherwise this thread waits: release() gives its slot back now,

@@ -2985,6 +2985,8 @@
   "sync_show_all_saved_n": "Show all %{n} saved folders",
   "sync_drawer_waiting_one": "1 folder is left. It will be tried again automatically.",
   "sync_drawer_waiting_many": "%{n} folders are left. They will be tried again automatically.",
+  "sync_drawer_waiting_content_one": "1 folder is saved, but some of its pictures or sounds are not. They will be tried again automatically.",
+  "sync_drawer_waiting_content_many": "%{n} folders are saved, but some of their pictures or sounds are not. They will be tried again automatically.",
   "sync_drawer_all_ready": "All your boards are ready offline",
   "sync_drawer_n_of_m_ready": "%{ready} of %{total} boards are ready offline",
   "sync_drawer_saved_one": "1 board is saved on this device.",

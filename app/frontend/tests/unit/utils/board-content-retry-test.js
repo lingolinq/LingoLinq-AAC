@@ -1,7 +1,7 @@
 import { module, test } from 'qunit';
 import RSVP from 'rsvp';
 import {
-  failure_cause, content_failure, settle_content, claim_content_retry, content_entry, content_error, retry_content
+  failure_cause, content_failure, settle_content, claim_content_retry, content_entry, content_error, retry_content, is_content_entry
 } from 'frontend/utils/board_content_retry';
 import { claim_board_retry, MAX_BOARD_RETRIES } from 'frontend/utils/sync_board_fallback';
 
@@ -79,6 +79,12 @@ module('Unit | Utility | board content retry', function() {
     assert.strictEqual(content_error({ id: '145' }, 'oops').error, 'board 145 failed to sync completely: oops');
     assert.deepEqual(content_error({ key: 'fred/liked', visit_source: 'starred board' }, { error: 'e' }),
       { error: 'board fred/liked failed to sync completely: e, linked from starred board', board_id: 'fred/liked', board_key: 'fred/liked' }, 'a board known by key only, as the walk records it');
+  });
+
+  test('a parked content entry is told apart from a parked board', function(assert) {
+    assert.true(is_content_entry(content_entry({ id: '145' }, [], null)));
+    assert.false(is_content_entry({ id: '145', key: 'fred/home' }));
+    assert.false(is_content_entry(null));
   });
 
   function ctx_for(answers) {

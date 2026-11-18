@@ -65,6 +65,11 @@ export function content_entry(next, failures, board) {
   return Object.assign({}, next, { content_retry: failures.map(function(f) { return f.item; }), content_board: board || null });
 }
 
+// A parked entry that holds a saved board's content, not a board still to get (the drawer words the two apart).
+export function is_content_entry(item) {
+  return !!(item && item.content_retry);
+}
+
 // The board error, worded as the walk words it (services/persistence.js, the board's content failure).
 export function content_error(entry, err) {
   var msg = "board " + (entry.key || entry.id) + " failed to sync completely";

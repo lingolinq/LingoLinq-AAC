@@ -121,4 +121,14 @@ module('Unit | Component | sync-progress-drawer', function(hooks) {
     assert.strictEqual(woke, 1);
     assert.notOk(progress.canceled, 'not cancelled');
   });
+
+  test('a saved folder whose pictures or sounds wait is not said to be left', function(assert) {
+    var line = function(parked, parked_content) {
+      return build_with(this, { status: 'syncing' }, { parked: parked, parked_content: parked_content, to_visit: parked }, []).get('waiting_line');
+    }.bind(this);
+    assert.strictEqual(line(1, 1), '1 folder is saved, but some of its pictures or sounds are not. They will be tried again automatically.');
+    assert.strictEqual(line(3, 3), '3 folders are saved, but some of their pictures or sounds are not. They will be tried again automatically.');
+    assert.strictEqual(line(3, 1), '2 folders are left. They will be tried again automatically. 1 folder is saved, but some of its pictures or sounds are not. They will be tried again automatically.', 'both kinds, each said as it is');
+    assert.strictEqual(line(2, 0), '2 folders are left. They will be tried again automatically.', 'boards only: as before');
+  });
 });
