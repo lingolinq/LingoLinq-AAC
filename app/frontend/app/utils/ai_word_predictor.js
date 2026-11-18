@@ -117,8 +117,18 @@ var ai_word_predictor = {
   // classic board controller's) therefore cancelled each other and no caller got the AI words.
   // A DIFFERENT sentence still replaces one that has not been sent, and a cleared sentence still
   // cancels: both go through the body above unchanged.
-  _shared: {},        // cache key -> promise, while it is waiting or on the wire
+  _shared: {},        // cache key -> { promise, at }, while it is waiting or on the wire
   _pending_key: null, // the key the waiting slot (_pending_timer) belongs to
+  _shared_max_ms: 5000, // a request that has not answered by then is no longer joined
+  _who_last: null,    // who the remembered and shared answers belong to
+
+  // The communicator whose taps are sent and the signed-in person: the two accounts the server
+  // judges and scopes a prediction by (words_controller.rb, lib/ai_word_predictor.rb cache_scope).
+  _who: function(appStateService) {
+    var state = appStateService || app_state;
+    if(!state || typeof state.get !== 'function') { return '/'; }
+    return (state.get('currentUser.id') || '') + '/' + (state.get('sessionUser.id') || '');
+  },
 
   predict: function(sentence, options) {
     var _this = this;
@@ -128,9 +138,24 @@ var ai_word_predictor = {
     if(!_this.is_enabled(options.appState)) {
       return _this._predict_unshared(sentence, options);
     }
+    // One tab can change who is signed in, or who is being spoken for, without a reload. Nothing
+    // remembered or in flight for the previous person answers the next one.
+    var who = _this._who(options.appState);
+    if(who !== _this._who_last) {
+      _this._who_last = who;
+      _this.clear_cache();
+    }
     var key = _this._cache_key(sentence, options.locale || 'en');
-    if(_this._shared[key]) {
-      return _this._shared[key];
+    var shared = _this._shared[key];
+    if(shared && (Date.now() - shared.at) < _this._shared_max_ms) {
+      // Joining a request does not go through the body, so do its cancelling here: a DIFFERENT
+      // sentence still waiting has been moved on from. An empty ask is the body's own cancel.
+      if(_this._pending_timer && _this._pending_key !== key) {
+        delete _this._shared[_this._pending_key];
+        _this._pending_key = null;
+        _this._predict_unshared('', options);
+      }
+      return shared.promise;
     }
     // The body is about to resolve the waiting sentence with []. Forget it first, so a repeat
     // ask for that sentence starts again instead of being handed the cancelled empty answer.
@@ -139,9 +164,9 @@ var ai_word_predictor = {
     }
     var promise = _this._predict_unshared(sentence, options);
     _this._pending_key = _this._pending_timer ? key : null;
-    _this._shared[key] = promise;
+    _this._shared[key] = { promise: promise, at: Date.now() };
     var forget = function() {
-      if(_this._shared[key] === promise) { delete _this._shared[key]; }
+      if(_this._shared[key] && _this._shared[key].promise === promise) { delete _this._shared[key]; }
     };
     promise.then(forget, forget);
     return promise;
@@ -159,6 +184,7 @@ var ai_word_predictor = {
   _fetch: function(sentence, locale, count) {
     var _this = this;
     _this._request_times.push(Date.now());
+    var cache_when_sent = _this._cache; // clear_cache() replaces it; a late answer is then not remembered
     return new RSVP.Promise(function(resolve) {
       $.ajax({
         url: '/api/v1/words/predict',
@@ -171,7 +197,7 @@ var ai_word_predictor = {
         data: { sentence: sentence, locale: locale, count: count }
       }).then(function(result) {
         var words = (result && result.words) || [];
-        _this._cache_put(sentence, words, locale);
+        if(_this._cache === cache_when_sent) { _this._cache_put(sentence, words, locale); }
         resolve(words);
       }, function(xhr) {
         if(_this._should_pause(xhr)) {

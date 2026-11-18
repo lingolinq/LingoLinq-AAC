@@ -118,8 +118,9 @@ module('Unit | Controller | board/index stays quiet in the Modern view', functio
     await settled();
     assert.strictEqual(this.lookups.length, 0, 'guard: quiet while the Modern view is on screen');
 
-    /* Same board, same sentence: nothing else the observer watches changes on this move. */
-    this.controller.appState.set('router', { currentRouteName: 'user.board-alt.index' });
+    /* Same board, same sentence: nothing else the observer watches changes on this move. The
+       router is the SAME object throughout, as in the app; only its route name changes. */
+    this.controller.appState.set('router.currentRouteName', 'user.board-alt.index');
     await waitUntil(() => this.lookups.length > 0, { timeout: 2000 });
 
     assert.strictEqual(this.lookups[0].sentence, 'i want', 'the sentence already in the bar is looked up on arrival');

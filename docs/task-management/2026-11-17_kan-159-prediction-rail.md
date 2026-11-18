@@ -267,8 +267,12 @@ and is never written to the client cache.
 ## Open decision (Scot): what the rail shows while the AI answer is out
 
 After KAN-159 the Modern rail keeps the previous sentence's words until the AI answer arrives
-(about a second on dev in October, at most about 2.3 seconds with the new limit), then changes
-once. Before KAN-159 it changed at once to built-in words and never showed AI words. Three ways
+(about a second on dev in October), then changes once. CORRECTED after review round 1: the first
+version of this log said "at most about 2.3 seconds". That was wrong as written. The rail waits
+for three answers, and the saved-entries GET had the app-wide 8 second limit and two 20 second
+retries, so on weak wifi the wait could run to most of a minute (it could before KAN-159 too).
+With the entries limit added in round 1 the wait is about 2.3 seconds at most, with one
+exception listed under follow-ups (an AI timeout with no built-in words: about 4.6 seconds). Before KAN-159 it changed at once to built-in words and never showed AI words. Three ways
 forward; none is implemented:
 
 1. Leave it: one change per tap, late.
@@ -279,6 +283,47 @@ forward; none is implemented:
 **Decided (Scot, 2026-11-17):** option 1 ships in this PR; option 3 is built afterwards as its own
 piece of work (it needs layout choices and its own proposal and review). Until then the previous
 sentence's words stay on the rail, and can be selected, while the AI answer is out.
+
+## Dual review of the diff, round 1 (Codex gpt-6.1-sol high, adversary agent)
+
+Reviewed head `d5239ffa7`. PII preflight exit 0. Verdict: request changes.
+
+| Finding | Decision |
+|---|---|
+| High (Codex only): a shared request is keyed by sentence and language, so another identity in the same tab could be handed it | A verifier refuted it as a new defect: `develop` already answers any caller from the client cache (same key, 10 minutes, never cleared), and the answer is derived from the sentence alone. Fixed anyway, for both the shared map and the cache: `predict` drops everything remembered or in flight when the communicator or the signed-in person changes, and an answer that lands after that is not remembered |
+| Medium (Codex): joining a shared request skipped the waiting slot, so a sentence already moved on from was still sent | Fixed: joining cancels a different waiting sentence |
+| Medium (adversary): the stale window was bounded by the saved-entries GET, not the 2 second AI limit | Fixed: `fetch_user_entries` passes `timeout: 2000, attempt: 3`. Cost: on a connection slower than 2 seconds the communicator's saved entries are left out of that tap's rail instead of holding it up. The bound in this log is corrected above |
+| Medium (adversary): cap 15 to 60 with no server-side Bedrock timeout or per-user limit | Not fixed here: server code is outside this PR. Listed under follow-ups; needs an owner before the cap reaches prod |
+| Low (adversary): a request that never settles would be joined for the life of the tab | Fixed: a shared request older than 5 seconds is not joined |
+| Low (adversary): the "arriving on the classic board" test passed with the weaker key `appState.router` | Fixed: the test keeps one router object and changes its name. Mutation `appState.router` now turns it red |
+| Low (adversary): the Modern controller still looks up on classic-view taps after a Modern visit; the fallback re-ask; no app caller cancels on clear | Not fixed: all pre-existing, listed under follow-ups |
+
+Red before the fixes (same tests, code at `d5239ffa7`): 5 new tests in
+`ai-word-predictor-shared-request-test.js` and 1 in
+`word-suggestions-user-entries-limit-test.js`. Green after. That red run is the falsification
+for those fixes.
+
+Where each new value is read: `_who` reads `currentUser.id` and `sessionUser.id` from the same
+state `is_enabled` reads, in `predict` before the shared map and before the body reads `_cache`.
+The age check is on the only line that returns a shared promise. `timeout` and `attempt` on the
+entries GET are read by the `$.ajax` wrapper (`utils/extras.js`, the `if(!options.timeout)` block
+and the `original_options.attempt <= 2 && original_options.type == 'GET'` retry test);
+`persistence.ajax` hands its arguments to `$.ajax` unchanged.
+
+Full suite on the round 1 fixes, timing-strict: `pool=include` 1770 tests, 1758 pass, 7 skip,
+5 todo, 0 fail; `pool=exclude` 2928 tests, 2898 pass, 30 skip, 0 fail. Lint gate `new=0`.
+
+Two things from the first full run on these fixes, before the totals above:
+
+- 13 failures in `ai-word-predictor-shared-request-test.js`: `leak check: read
+  LingoLinq.appState.get on a destroyed service`, from `_who` reading the app state when a test
+  passed none. The module boots no app, so it now uses `standInGlobals`. In the app the state it
+  reads is the live one `is_enabled` already reads.
+- 1 failure in an existing test, `session: session check_token - accepts the answer for the
+  token this tab is sending after another tab signed in` (expected `b_user`, got `null`). It
+  passed alone (16 of 16 in its module) and in the next full `pool=exclude` run, and in the full
+  run on the earlier head. Seen once; cause not found. This change does not touch session code,
+  but that is not proof it is unrelated.
 
 ## Not verified
 
@@ -291,4 +336,10 @@ sentence's words stay on the rail, and can be selected, while the AI answer is o
 
 - The Modern fallback at `board-detail.js:3677` asks the AI a second time when the merged list is
   empty, including after a timeout.
-- Per-user server limit on `POST /api/v1/words/predict`.
+- Per-user server limit on `POST /api/v1/words/predict`, and a short server-side Bedrock timeout
+  for prediction (`lib/ai_word_predictor.rb` sets none, so a call the client gave up on runs, and
+  is billed, until Rack::Timeout ends it). Both matter more with the cap at 60.
+- The Modern controller's `updateSuggestions` has no "is the Modern view on screen" check, so
+  after a Modern visit it still runs a lookup on classic-view taps.
+- No app caller cancels the waiting AI request when the sentence is cleared.
+- The client cache and shared map are per tab; identity scoping is by clearing on change.

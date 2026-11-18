@@ -1179,7 +1179,7 @@ word_suggestions.fetch_user_entries = function(prefix, locale) {
   return persistenceService.ajax(
     '/api/v1/prediction_entries?prefix=' + encodeURIComponent(normalize_prediction_key(prefix)) +
     '&locale=' + encodeURIComponent(locale || 'en'),
-    { type: 'GET', dataType: 'json' }
+    { type: 'GET', dataType: 'json', timeout: 2000, attempt: 3 } // own 2 second limit; attempt 3 = the $.ajax wrapper (utils/extras.js) sends a timed-out GET no further times
   ).then(function(res) {
     var entries = (res && res.entries) || [];
     word_suggestions._server_entry_cache[cacheKey] = entries;
