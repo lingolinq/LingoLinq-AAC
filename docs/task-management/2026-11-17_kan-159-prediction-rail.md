@@ -276,6 +276,10 @@ forward; none is implemented:
 3. Reserved slots: built-in words fill some tiles at once, AI words appear in the remaining tiles
    when they arrive, and no tile changes its word once shown.
 
+**Decided (Scot, 2026-11-17):** option 1 ships in this PR; option 3 is built afterwards as its own
+piece of work (it needs layout choices and its own proposal and review). Until then the previous
+sentence's words stay on the rail, and can be selected, while the AI answer is out.
+
 ## Not verified
 
 - Lookups, AI requests and timings per tap in a real browser against a real backend, before or
