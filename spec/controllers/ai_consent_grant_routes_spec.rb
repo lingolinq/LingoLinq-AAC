@@ -193,6 +193,58 @@ describe 'AI data-sharing consent: who can record one (#1136)' do
       get :complete, params: { user_id: u.global_id, token: 'not-the-token' }
       expect(u.reload.settings['ai_consent']).to be_blank
     end
+
+    it 'stamps a new request with the disclosure version its email names' do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      u = User.process_new({ 'name' => 'minor_ai4', 'email' => 'minor_ai4@example.com', 'password' => 'abcdefgh',
+                             'terms_agree' => true, 'coppa_under_13' => true,
+                             'parent_consent_email' => 'guardian_ai4@example.com' }, { pending: true })
+      expect(u.settings['coppa']['ai_disclosures_version']).to eq(current_version)
+    end
+
+    it 'approves the account but records no AI consent for a link sent before the email carried the AI notice' do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      u = User.process_new({ 'name' => 'minor_ai3', 'email' => 'minor_ai3@example.com', 'password' => 'abcdefgh',
+                             'terms_agree' => true, 'coppa_under_13' => true,
+                             'parent_consent_email' => 'guardian_ai3@example.com' }, { pending: true })
+      # A request made before this change has no record of an AI notice.
+      u.settings['coppa'].delete('ai_disclosures_version')
+      u.save!
+      get :complete, params: { user_id: u.global_id, token: u.settings['coppa']['parent_consent_token'] }
+      u.reload
+      expect(u.coppa_parental_consent_active?).to eq(true)
+      expect(u.settings['ai_consent']).to be_blank
+      expect(FeatureFlags.ai_consent_blocks_ai_for?(u)).to eq(true)
+    end
+  end
+
+  describe EuAiParentalConsentsController, type: :controller do
+    after(:each) { AuditEvent.where(event_type: %w[ai_consent_grant eu_ai_parental_consent_grant]).delete_all }
+
+    def eu_request(name)
+      u = User.create
+      u.settings['email'] = "#{name}@example.com"
+      u.save!
+      u.request_eu_ai_parental_consent!("guardian_#{name}@example.com", requested_features: { 'ai_features_enabled' => true })
+      u
+    end
+
+    it "records the AI consent with the parent's approval when the request carried the AI notice" do
+      u = eu_request('eu_minor1')
+      expect(u.settings['eu_ai_parental_consent']['ai_disclosures_version']).to eq(current_version)
+      get :complete, params: { user_id: u.global_id, token: u.settings['eu_ai_parental_consent']['parent_consent_token'] }
+      expect(u.reload.settings['ai_consent']['disclosures_version']).to eq(current_version)
+    end
+
+    it 'records no AI consent for a link sent before the email carried the AI notice' do
+      u = eu_request('eu_minor2')
+      u.settings['eu_ai_parental_consent'].delete('ai_disclosures_version')
+      u.save!
+      get :complete, params: { user_id: u.global_id, token: u.settings['eu_ai_parental_consent']['parent_consent_token'] }
+      u.reload
+      expect(u.eu_ai_parental_consent_active?).to eq(true)
+      expect(u.settings['ai_consent']).to be_blank
+    end
   end
 
   describe Api::OrganizationsController, type: :controller do

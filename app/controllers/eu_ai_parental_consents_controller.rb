@@ -16,7 +16,7 @@ class EuAiParentalConsentsController < ApplicationController
       elsif user.eu_ai_parental_consent_pending? && user.grant_eu_ai_parental_consent!(token, ip: request.remote_ip, user_agent: request.headers['User-Agent'])
         @success = true
         # AI data-sharing consent (#1136) comes with the parent's approval of AI features.
-        user.record_parent_ai_consent!(ip: request.remote_ip, user_agent: request.headers['User-Agent'])
+        user.record_parent_ai_consent!(request: 'eu_ai_parental_consent', ip: request.remote_ip, user_agent: request.headers['User-Agent'])
         UserMailer.schedule_parent_consent_delivery(:eu_ai_parental_consent_confirmation, user.global_id)
       end
     end

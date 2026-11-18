@@ -41,6 +41,26 @@ describe 'HubSpot: remove the contact when the account is deleted (#384)' do
       ExternalTracker.persist_new_user(u.global_id)
       expect(ExternalTracker.sent_emails(u.reload)).to eq([])
     end
+
+    it 'records nothing when the call got no HTTP answer (status 0)' do
+      ENV['HUBSPOT_ACCESS_TOKEN'] = 'hubby'
+      u = adult_supporter('no_answer@example.com')
+      expect(Typhoeus).to receive(:post).and_return(OpenStruct.new(code: 0))
+      ExternalTracker.persist_new_user(u.global_id)
+      expect(ExternalTracker.sent_emails(u.reload)).to eq([])
+    end
+
+    it 'does not undo a settings change made while the HubSpot call was in flight' do
+      u = adult_supporter('in_flight@example.com')
+      stale = User.find(u.id)
+      fresh = User.find(u.id)
+      fresh.settings['preferences']['ai_features_enabled'] = false
+      fresh.save!
+      ExternalTracker.record_sent_email(stale, 'in_flight@example.com')
+      u.reload
+      expect(u.settings['preferences']['ai_features_enabled']).to eq(false)
+      expect(ExternalTracker.sent_emails(u)).to eq(['in_flight@example.com'])
+    end
   end
 
   describe 'Flusher.flush_user_completely' do

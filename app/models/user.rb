@@ -646,6 +646,7 @@ class User < ApplicationRecord
           )
           blob['parent_email'] = process_string(parent)
           blob['parent_consent_token'] = GoSecure.nonce('parent_consent')
+          blob['ai_disclosures_version'] = LingoLinq::AiConsentDisclosures::CURRENT_VERSION # the AI notice this request's email carries (#1136)
           blob['parent_consent_expires_at'] = deadline_at
           blob['needs_parent_email'] = false
           send_coppa_email = true
@@ -754,6 +755,7 @@ class User < ApplicationRecord
         'offboarding' => offboarding,
         'parent_email' => process_string(parent),
         'parent_consent_token' => GoSecure.nonce('parent_consent'),
+        'ai_disclosures_version' => LingoLinq::AiConsentDisclosures::CURRENT_VERSION, # the AI notice this request's email carries (#1136)
         'parent_consent_expires_at' => deadline,
         'needs_parent_email' => false
       }
@@ -1419,6 +1421,7 @@ class User < ApplicationRecord
       'pending_parent_consent' => true,
       'parent_email' => process_string(parent),
       'parent_consent_token' => GoSecure.nonce('eu_ai_parent_consent'),
+      'ai_disclosures_version' => LingoLinq::AiConsentDisclosures::CURRENT_VERSION, # the AI notice this request's email carries (#1136)
       'parent_consent_expires_at' => 14.days.from_now.utc.iso8601,
       'requested_features' => features
     }
@@ -1643,7 +1646,16 @@ class User < ApplicationRecord
   # approval through their emailed link. The parent's address stays in the approval
   # record it already lives in; it is not copied here. Never raises into the
   # approval page.
-  def record_parent_ai_consent!(ip: nil, user_agent: nil)
+  #
+  # `request` names the approval record the parent just completed ('coppa' or
+  # 'eu_ai_parental_consent'). The consent is recorded only when that request was
+  # stamped with the current disclosure version when it was made, which is what says
+  # its email carried the AI notice. A link sent before the notice existed, or under
+  # an earlier disclosure version, approves the account and records no AI consent.
+  def record_parent_ai_consent!(request:, ip: nil, user_agent: nil)
+    blob = self.settings.is_a?(Hash) ? self.settings[request.to_s] : nil
+    stamped = blob.is_a?(Hash) ? blob['ai_disclosures_version'] : nil
+    return false unless stamped == LingoLinq::AiConsentDisclosures::CURRENT_VERSION
     grant_ai_consent!(
       disclosures_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION,
       granted_by: 'parent',
@@ -2908,6 +2920,7 @@ class User < ApplicationRecord
           'pending_parent_consent' => true,
           'parent_email' => process_string(parent),
           'parent_consent_token' => GoSecure.nonce('parent_consent'),
+          'ai_disclosures_version' => LingoLinq::AiConsentDisclosures::CURRENT_VERSION, # the AI notice this request's email carries (#1136)
           'parent_consent_expires_at' => 14.days.from_now.utc.iso8601
         }
         # COPPA: a child cannot acknowledge the Privacy Policy on its own. Drop

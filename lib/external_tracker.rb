@@ -107,10 +107,12 @@ module ExternalTracker
       Rails.logger.error("ExternalTracker: HubSpot POST raised for user #{user.global_id}: #{e.class}: #{e.message}")
       return nil
     end
-    if res.code.to_i >= 300
-      Rails.logger.error("ExternalTracker: HubSpot contact sync failed for user #{user.global_id}: status=#{res.code}")
-    else
+    # Only a 2xx answer means HubSpot holds the contact. Status 0 is "no HTTP answer"
+    # (a timeout or a refused connection), so it is a failure, not a send.
+    if (200..299).cover?(res.code.to_i)
       record_sent_email(user, email)
+    else
+      Rails.logger.error("ExternalTracker: HubSpot contact sync failed for user #{user.global_id}: status=#{res.code}")
     end
     res.code
   end
@@ -123,9 +125,17 @@ module ExternalTracker
   end
 
   def self.record_sent_email(user, email)
-    return if email.blank? || sent_emails(user).include?(email)
-    user.settings['hubspot'] = { 'sent_emails' => sent_emails(user) + [email] }
-    user.save
+    return if email.blank? || !user || !user.id
+    # Written to a freshly read, locked row, never to the copy the caller loaded before
+    # the HubSpot call: saving that copy would put back every setting as it was then,
+    # and undo a change (turning AI off, say) made while the call was in flight.
+    User.transaction do
+      current = User.lock.find_by(id: user.id)
+      next if current.nil? || sent_emails(current).include?(email)
+      current.settings ||= {}
+      current.settings['hubspot'] = { 'sent_emails' => sent_emails(current) + [email] }
+      current.save!
+    end
   rescue => e
     Rails.logger.error("ExternalTracker: could not record the sent address for user #{user.global_id}: #{e.class}")
   end
