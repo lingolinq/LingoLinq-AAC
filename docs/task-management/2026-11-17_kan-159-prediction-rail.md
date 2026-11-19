@@ -272,10 +272,11 @@ version of this log said "at most about 2.3 seconds". That was wrong as written.
 for three answers, and the saved-entries GET had the app-wide 8 second limit and two 20 second
 retries, so on weak wifi the wait could run to most of a minute (it could before KAN-159 too).
 With the wait for saved entries limited to 2 seconds (round 1, reworked after round 2) the wait
-is about 2.3 seconds at most, with two exceptions: an AI timeout with no built-in words (about
-4.6 seconds, under follow-ups), and the first lookup of a session, which also waits for the
-built-in word lists to load (`load()`: the ngram and core-word GETs, with the app-wide limits;
-unchanged by this PR). Before KAN-159 it changed at once to built-in words and never showed AI words. Three ways
+is about 2.3 seconds at most, with three exceptions, none changed by this PR: an AI timeout with
+no built-in words (about 4.6 seconds, under follow-ups); the first lookup of a session, which
+also waits for the built-in word lists to load (`load()`: the ngram and core-word GETs, with the
+app-wide limits); and the first tap for a vocabulary button set that is not loaded yet, because
+the Modern controller waits for `load_vocabulary_button_sets` before it starts the lookup. Before KAN-159 it changed at once to built-in words and never showed AI words. Three ways
 forward; none is implemented:
 
 1. Leave it: one change per tap, late.
@@ -293,9 +294,9 @@ Reviewed head `d5239ffa7`. PII preflight exit 0. Verdict: request changes.
 
 | Finding | Decision |
 |---|---|
-| High (Codex only): a shared request is keyed by sentence and language, so another identity in the same tab could be handed it | A verifier refuted it as a new defect: `develop` already answers any caller from the client cache (same key, 10 minutes, never cleared), and the answer is derived from the sentence alone. Fixed anyway, for both the shared map and the cache: `predict` drops everything remembered or in flight when the communicator or the signed-in person changes, and an answer that lands after that is not remembered |
+| High (Codex only): a shared request is keyed by sentence and language, so another identity in the same tab could be handed it | A verifier refuted it as a new defect: `develop` already answers any caller from the client cache (same key, 10 minutes, never cleared), and the answer is derived from the sentence alone. Fixed anyway, for both the shared map and the cache: `predict` drops everything remembered or in flight when the communicator or the signed-in person changes, and an answer that lands after that is not remembered. SUPERSEDED: that fix did not hold and was removed after round 2 (see round 2 below) |
 | Medium (Codex): joining a shared request skipped the waiting slot, so a sentence already moved on from was still sent | Fixed: joining cancels a different waiting sentence |
-| Medium (adversary): the stale window was bounded by the saved-entries GET, not the 2 second AI limit | Fixed: `fetch_user_entries` passes `timeout: 2000, attempt: 3`. Cost: on a connection slower than 2 seconds the communicator's saved entries are left out of that tap's rail instead of holding it up. The bound in this log is corrected above |
+| Medium (adversary): the stale window was bounded by the saved-entries GET, not the 2 second AI limit | Fixed: `fetch_user_entries` passes `timeout: 2000, attempt: 3`. Cost: on a connection slower than 2 seconds the communicator's saved entries are left out of that tap's rail instead of holding it up. The bound in this log is corrected above. SUPERSEDED: round 2 found the real cost was worse and the limit was moved to the wait (see round 2 below) |
 | Medium (adversary): cap 15 to 60 with no server-side Bedrock timeout or per-user limit | Not fixed here: server code is outside this PR. Listed under follow-ups; needs an owner before the cap reaches prod |
 | Low (adversary): a request that never settles would be joined for the life of the tab | Fixed: a shared request older than 5 seconds is not joined |
 | Low (adversary): the "arriving on the classic board" test passed with the weaker key `appState.router` | Fixed: the test keeps one router object and changes its name. Mutation `appState.router` now turns it red |
@@ -306,7 +307,8 @@ Red before the fixes (same tests, code at `d5239ffa7`): 5 new tests in
 `word-suggestions-user-entries-limit-test.js`. Green after. That red run is the falsification
 for those fixes.
 
-Where each new value is read: `_who` reads `currentUser.id` and `sessionUser.id` from the same
+(SUPERSEDED in part: this paragraph describes the code as it stood after round 1. `_who` and the
+`timeout` and `attempt` options on the entries GET were removed after round 2.) Where each new value was read: `_who` reads `currentUser.id` and `sessionUser.id` from the same
 state `is_enabled` reads, in `predict` before the shared map and before the body reads `_cache`.
 The age check is on the only line that returns a shared promise. `timeout` and `attempt` on the
 entries GET are read by the `$.ajax` wrapper (`utils/extras.js`, the `if(!options.timeout)` block
@@ -320,8 +322,8 @@ Two things from the first full run on these fixes, before the totals above:
 
 - 13 failures in `ai-word-predictor-shared-request-test.js`: `leak check: read
   LingoLinq.appState.get on a destroyed service`, from `_who` reading the app state when a test
-  passed none. The module boots no app, so it now uses `standInGlobals`. In the app the state it
-  reads is the live one `is_enabled` already reads.
+  passed none. The module was given `standInGlobals` for that. SUPERSEDED: `_who` and the
+  stand-in were both removed after round 2.
 - 1 failure in an existing test, `session: session check_token - accepts the answer for the
   token this tab is sending after another tab signed in` (expected `b_user`, got `null`). It
   passed alone (16 of 16 in its module) and in the next full `pool=exclude` run, and in the full
@@ -355,6 +357,16 @@ lint finding.
 Full suite on this change, timing-strict: `pool=include` 1770 tests, 1758 pass, 7 skip, 5 todo,
 0 fail; `pool=exclude` 2926 tests, 2896 pass, 30 skip, 0 fail (two fewer than round 1: three
 identity tests removed, one entries test added). Lint gate `new=0`.
+
+## Dual review of the diff, round 3 (Codex gpt-6.1-sol high, adversary agent)
+
+Round 3 was Scot's OK on 2026-11-18. Reviewed head `bb592361e`. PII preflight exit 0. Verdict:
+approve from both passes, no Critical or High. Both judged the original cross-account finding
+pre-existing on `develop`. Open after it: the Medium on server-side limits (follow-ups) and Lows.
+After the review, only this log changed (the superseded markers and the third exception above).
+Lows left open: no test pins the shipped 2000 ms wait; the wait's `setTimeout` is not seen by
+`settled()`, so a future test that leaves the entries request unanswered must wait for it; a
+shared request that never answers and is never asked again keeps its map entry.
 
 ## Not verified
 
