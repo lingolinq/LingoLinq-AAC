@@ -216,3 +216,17 @@ Verdict: proceed with conditions. The facts were confirmed, including that the n
 Tests: failing first (b8f4f6c00: 9 new tests failed on the old code; 2 guards passed). After the fix: the targeted modules pass; filter `sync` 415 passed, 0 failed, 2 skipped; `persistence` 337/0/9; `revocation` 33/0; `sidebar` 55/0. A test bug was fixed along the way: the two-sync test first read `sync_log[0]`, the older entry. 8 mutants in one build, each turned its own test red: icon not optional; no on-device check; a warned retry not recorded complete; warning on an error row; `new_warnings` ignoring the previous sync; `entry_copy` dropping `warning`; no Try again; Sync Details not opening the warned card.
 
 Process: a mutant restore used `cd ..` from app/frontend (it lands in app/, not the repo root), so the restore missed; caught at once by `git status` and redone from the commit. Use absolute paths for restores.
+
+### Final review (adversary) of 6ab2823d1 and what was applied (68720fc65)
+
+Verdict: ship with conditions; no Critical or High.
+- F1 [Medium, CONFIRMED]: `new_warnings` took ANY earlier entry with rows as the previous sync. A failed or cancelled sync logs partial rows (`persistence.js:2462-2470`), so a failure between two warned successes made the same warning "new" again, and the card stayed. Applied: skip errored and cancelled entries, as `last_result` does (`sync_log_store.js:122-130`); unit cases for errored and cancelled entries with partial rows.
+- F2 [Low]: the walk wiring for "an icon neither holds back nor words the error" had no walk test, because icon and button were on different boards. Applied: `syncWith` options (`answers`, `side`), and two walk tests on one board (a dead icon with a cut-off button picture: the button picture is retried, the folder is not failed, the icon warns; a cut-off icon with a dead button picture: the error is worded by the button picture).
+- F3 [Low]: the second-sync test never reached "recorded complete" (no `full_set_revision` in the fixture). Applied: the fixture gets one, and the test reads `synced_full_set_revisions`. The first assertion used `1_146` and failed. A debug read showed the walk records the warned board, but this harness keys the record by its key (`fred/side`); the test's key was corrected. It was not a code defect.
+- F4 [Low]: on Needs attention, the warning gives a count, not the folder's name. This matches the approved proposal; it is Traci's call.
+- F5 [Low]: `only_optional` has no production caller (its test proves nothing about the walk). Left in place pending Traci's OK to remove it and its test (rule #14).
+- Not covered: the walk's `on_device` lambdas have no walk test (unit only).
+
+Mutants for the review fixes, one build, each turned its test red: the error not reworded (`err = judged.fail` removed); a warned board not recorded; `new_warnings` counting failed syncs. Filter `sync`: 417 passed, 0 failed, 2 skipped.
+
+Device check on the warning code (6ab2823d1, served on 5089): 5 more WebKit runs (16-20), synth_big, link down 20-45 s. All "succeeded", 57 of 57 saved, 0 failed rows, nothing missing 20 s later, liked folders' pictures retried and saved (2-3 per run). No warning appeared, as expected: the link came back within the retries.
