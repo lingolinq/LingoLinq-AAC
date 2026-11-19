@@ -16,6 +16,9 @@ module('Unit | Controller | user/index offline boards view', function(hooks) {
   hooks.afterEach(function() {
     boardsPageListCache.clear('9911_9');
     boardsPageListCache.setBoardsPageActive(false);
+    // A test whose server list never answers (pending_store) leaves the Mine list busy; board_detail_cache's prefetch
+    // waits on that flag for up to 2 minutes, which timed out the next modules' tests in CI.
+    boardsPageListCache.setMineListBusy(false);
   });
 
   function rows() {

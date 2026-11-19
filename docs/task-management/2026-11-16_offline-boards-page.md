@@ -398,3 +398,14 @@ pattern for a literal false positive is a narrow `.gitleaks.toml` allowlist (`ta
 `regexes` entry), as for `pin_placeholder_4_digit`. Traci approved it (2026-11-19); added for the two literals only. Local
 scan, same version and range: no leaks. Falsified on scratch files: without the entry the fixture line is flagged; with it,
 it passes; a different high-entropy `key:` value is still flagged.
+
+### CI ember-shard-main on 09fd218be: 8 timeouts caused by this PR's test module (fixed 2026-11-19, local)
+The 8 failures (board prefetch after its app is gone; six "the sentence bar hears select"; offline_shell >
+follow_device_trust) pass alone and on every other branch. Reproduced locally: this PR's modules plus those three, 184
+tests, the same 8 fail. Bisected to `Unit | Controller | user/index offline boards view`, then to its second half.
+Cause (CONFIRMED by reading and by the fix): the two tests using `pending_store` (a server list that never answers)
+leave `boardsPageListCache` "Mine list busy" on (`controllers/user/index.js:1222` sets it; only an answer clears it), and
+the module's afterEach did not reset it. `utils/board_detail_cache.js` `_wait_while_mine_list_busy` (:230-243, used at
+:869) then holds every later prefetch for up to 120 s, polling with runLater, so the next tests time out until the cap
+(15 s x 7, then offline_shell at about 6 s). Fix: the module's afterEach also calls `setMineListBusy(false)` (teardown
+only; no fixture or assertion changed). The same reproduction: 184/184. The leak check does not see module-level flags.
