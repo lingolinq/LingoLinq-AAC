@@ -388,3 +388,11 @@ the log. `seen_by_last_sync` treats a tagged row as no refusal: in the last clea
 sync it does not hide the board. An untagged older entry still hides it (the safe side). Red first (the new test failed
 on its first case); green 13/13 on `offline board list`; mutants: each of the two conditions reverted fails the new test.
 Pushing this to PR #1328 is a third review round: Scot's OK, then Traci's, before any push.
+
+### CI secret-detection on 09fd218be: 22 false positives (checked 2026-11-19)
+CI's gitleaks (8.30.1, range d6b3cc859..09fd218be) reports 22 leaks. Re-run locally with the same pinned version, config and
+range (`--redact`): all 22 are `generic-api-key` on test-fixture board keys, `key: 'therapist/feelings'` (21) and
+`key: 'larry/home'` (1), in six unit test files (commits a73ff790a, e3e38f15c, b6066b00b, d6fdaa443). No credential.
+Renaming the fixtures cannot clear it (the old commits stay in the scanned range; force-push is denied). The repo's
+pattern for a literal false positive is a narrow `.gitleaks.toml` allowlist (`targetRules = ["generic-api-key"]`, a
+`regexes` entry), as for `pin_placeholder_4_digit`. Not changed: awaiting Traci's OK (Rule #0.14: check config).
