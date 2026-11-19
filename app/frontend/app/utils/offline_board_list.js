@@ -46,15 +46,17 @@ var LIKED = { 'starred board': true, 'suggested board': true };
 // showed an error for it (by id or key). Only entries for `user_name` count (`user_id` is the synced person's user_name,
 // services/persistence.js sync). A failed or cancelled sync logs only the boards it visited today; once the sync records
 // its errors when it stops (the Sync Details rework), those hide the board here too.
+// An error tagged `content` (the board was reached; a picture or sound did not save) is not a refusal: it neither hides
+// the board nor counts against it.
 function seen_by_last_sync(sync_log, user_name) {
   var mine = (sync_log || []).filter(function(e) { return e && e.user_id === user_name; });
   var found = last_result(mine);
   var ok = {};
   var failed = {};
   var mark = function(s, into) { if(s.id) { into[s.id] = true; } if(s.key) { into[s.key] = true; } };
-  ((found && found.entry && found.entry.statuses) || []).forEach(function(s) { if(s) { mark(s, s.error ? failed : ok); } });
+  ((found && found.entry && found.entry.statuses) || []).forEach(function(s) { if(s) { mark(s, s.error && !s.content ? failed : ok); } });
   mine.slice(found ? mine.indexOf(found.entry) + 1 : mine.length).forEach(function(e) {
-    (e.statuses || []).forEach(function(s) { if(s && s.error) { mark(s, failed); } });
+    (e.statuses || []).forEach(function(s) { if(s && s.error && !s.content) { mark(s, failed); } });
   });
   return function(raw) { return !!(ok[raw.id] || ok[raw.key]) && !failed[raw.id] && !failed[raw.key]; };
 }

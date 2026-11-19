@@ -110,6 +110,25 @@ module('Unit | Utility | offline board list', function(hooks) {
       'a later failed sync that did not reach it leaves it listed');
   });
 
+  // A board the sync reached whose pictures or sounds did not all save carries `content` on its error (the Sync Details
+  // branch, utils/sync_rollup.js content_error): the server did not refuse it, so it does not hide the board. An older
+  // untagged entry still hides it (the safe side).
+  test('another owner\'s liked board: a picture that did not save does not hide it', function(assert) {
+    var rows = [board('4_1', 'therapist/feelings'), CRISIS];
+    var user = person({ stats: { starred_board_refs: [{ id: '4_1', key: 'therapist/feelings' }] } });
+    var content = { id: '4_1', key: 'therapist/feelings', error: 'board therapist/feelings failed to sync completely: button image failed to sync', content: true };
+    var ok = { user_id: 'larry', statuses: [{ id: '4_1', key: 'therapist/feelings', status: 'cached' }] };
+    var only = ['lingolinq/crisis-vocabulary'];
+    var both = ['therapist/feelings', 'lingolinq/crisis-vocabulary'];
+    assert.deepEqual(keys(pick_device_boards(rows, user, [{ user_id: 'larry', statuses: [{ id: '4_1', key: 'therapist/feelings', status: 'downloaded' }, content] }])), both,
+      'the last clean sync reached it, with a picture that did not save');
+    assert.deepEqual(keys(pick_device_boards(rows, user, [ok, { user_id: 'larry', errored: true, statuses: [content] }])), both, 'a later sync: only a picture did not save');
+    assert.deepEqual(keys(pick_device_boards(rows, user, [ok, { user_id: 'larry', errored: true, statuses: [content, { id: '4_1', key: 'therapist/feelings', error: 'Not authorized' }] }])), only,
+      'a later refusal still hides it');
+    assert.deepEqual(keys(pick_device_boards(rows, user, [ok, { user_id: 'larry', errored: true, statuses: [Object.assign({}, content, { content: undefined })] }])), only,
+      'an older entry without the tag still hides it');
+  });
+
   // On a device not marked "Trust this Device", another owner's private board cannot open offline (routes/user.js
   // _device_owner), so it is not listed; the person's own boards and LingoLinq library boards are.
   test('a shared device lists only what opens there: own boards and public LingoLinq library boards', function(assert) {

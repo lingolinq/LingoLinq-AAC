@@ -379,3 +379,12 @@ cheap fixes and the docs; the rest are follow-ups.
   on any tab); a device read in flight when the app comes back online, then a failed server list, leaves "Finding..."
   on the boards page (from Part 2); a cold offline start on a shared device needs a native build to check (in browsers
   a shared sign-in removes the offline shell worker, `utils/offline_shell.js:12-13`).
+
+## Part 4 (2026-11-19): a picture that did not save does not hide a liked board (local commit; push needs Scot's OK)
+
+The Sync Details branch (`traci/fix/sync-details-no-percent`, commit 27d54fb39) now tags the walk's "failed to sync
+completely" error with `content: true` (the board was reached; a picture or sound did not save) and keeps the tag through
+the log. `seen_by_last_sync` treats a tagged row as no refusal: in the last clean sync it counts as seen, and in a later
+sync it does not hide the board. An untagged older entry still hides it (the safe side). Red first (the new test failed
+on its first case); green 13/13 on `offline board list`; mutants: each of the two conditions reverted fails the new test.
+Pushing this to PR #1328 is a third review round: Scot's OK, then Traci's, before any push.
