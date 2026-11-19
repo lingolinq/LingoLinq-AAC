@@ -872,7 +872,7 @@ describe('focus-words Article 50 gate', function() {
       waitsFor(function() { return component.get('ai_generating') === false; });
       runs(function() {
         var shown = component.get('ai_generate_error');
-        expect(shown).toEqual(i18n.t('ai_consent_off_organization', "AI features are off because your organization has not turned them on yet. An administrator of the organization needs to allow them."));
+        expect(shown).toEqual(i18n.t('ai_consent_off_organization', "AI features are off because your organization has not turned them on yet. A manager of the organization needs to turn them on."));
         expect(shown.indexOf('ai_consent_required')).toEqual(-1);
       });
     });

@@ -47,7 +47,7 @@ module('Unit | Utility | ai_consent', function() {
   module('aiConsentRefusalMessage', function() {
     test('says the organization has to turn AI on for the organization route', function(assert) {
       assert.strictEqual(aiConsentRefusalMessage(appStateFor(userWithRoute('organization'))),
-        i18n.t('ai_consent_off_organization', "AI features are off because your organization has not turned them on yet. An administrator of the organization needs to allow them."));
+        i18n.t('ai_consent_off_organization', "AI features are off because your organization has not turned them on yet. A manager of the organization needs to turn them on."));
       assert.true(/organization/i.test(aiConsentRefusalMessage(appStateFor(userWithRoute('organization')))));
     });
 

@@ -224,7 +224,7 @@ export function aiConsentRefusalMessage(appState) {
   var user = art50Subject(appState);
   var route = user && typeof user.get === 'function' ? user.get('ai_consent_route') : null;
   if (route === 'organization') {
-    return i18n.t('ai_consent_off_organization', "AI features are off because your organization has not turned them on yet. An administrator of the organization needs to allow them.");
+    return i18n.t('ai_consent_off_organization', "AI features are off because your organization has not turned them on yet. A manager of the organization needs to turn them on.");
   } else if (route === 'parent') {
     return i18n.t('ai_consent_off_parent', "AI features are off until a parent or guardian approves them for this account.");
   } else if (route === 'self') {
@@ -239,7 +239,7 @@ export function aiConsentRefusalMessage(appState) {
  * returned the standard (non-AI) summary when it sets ai_consent_required.
  */
 export function aiConsentNarrationMessage() {
-  return i18n.t('ai_consent_narration_off', "A standard summary was written instead, because AI is not turned on for this student's account. The student, a parent or guardian, or the organization has to agree to AI data sharing first.");
+  return i18n.t('ai_consent_narration_off', "A standard summary was written instead, because AI features are not turned on for this student's account.");
 }
 
 /**

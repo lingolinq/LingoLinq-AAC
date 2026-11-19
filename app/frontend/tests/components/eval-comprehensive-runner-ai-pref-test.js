@@ -219,7 +219,7 @@ describe('EvalComprehensiveRunner AI data-sharing consent', 'component:eval-comp
       return RSVP.resolve({ narrative: 'Standard summary text', ai_generated: null, ai_consent_required: true });
     });
     expect(c.get('session.aiNarrative')).toEqual('Standard summary text');
-    expect(c.get('aiError')).toEqual(i18n.t('ai_consent_narration_off', "A standard summary was written instead, because AI is not turned on for this student's account. The student, a parent or guardian, or the organization has to agree to AI data sharing first."));
+    expect(c.get('aiError')).toEqual(i18n.t('ai_consent_narration_off', "A standard summary was written instead, because AI features are not turned on for this student's account."));
   });
 
   itAsync('shows no consent message when the server did not refuse for consent', async function() {

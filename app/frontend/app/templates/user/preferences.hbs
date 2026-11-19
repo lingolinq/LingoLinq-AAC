@@ -244,7 +244,7 @@
         <label class="col-sm-3 control-label">{{t "AI Data-Sharing" key='ai_consent_pref_label'}}</label>
         <div class="col-sm-9">
           {{#if (is-equal this.model.ai_consent_route "organization")}}
-            <p class="form-control-static">{{t "AI features are off because your organization has not turned them on yet. An administrator of the organization needs to allow them." key='ai_consent_off_organization'}}</p>
+            <p class="form-control-static">{{t "AI features are off because your organization has not turned them on yet. A manager of the organization needs to turn them on." key='ai_consent_off_organization'}}</p>
           {{else if (is-equal this.model.ai_consent_route "parent")}}
             <p class="form-control-static">{{t "AI features are off until a parent or guardian approves them for this account." key='ai_consent_off_parent'}}</p>
           {{else if (is-equal this.model.ai_consent_route "self")}}
