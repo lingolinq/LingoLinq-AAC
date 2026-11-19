@@ -399,3 +399,7 @@ Red: 4 new tests failed for the missing tag or helper. Green: 31/31 on `/sync ro
 tagged/i`; full sync filter 600 tests, 591 pass, 9 skipped, 0 fail. Mutants: T1 helper without the tag: killed (1); T2 `with_errors` dropping it: killed (1); T3 tagging every
 error: killed (2); T4 `entry_copy` dropping it: killed (1); T5 merge onto an existing row: killed (1); T6 :3359 not
 using the helper: SURVIVED (the accepted gap); T7 merge on an error-only row: killed (1).
+
+### Item B decided (Traci, 2026-11-19): not done
+A stopped sync does not record "revoked". The recommendation above stands. Record the remaining case (on a trusted device, a
+liked board unshared since the last clean sync stays listed until a clean sync) in the PR's "Not covered".
