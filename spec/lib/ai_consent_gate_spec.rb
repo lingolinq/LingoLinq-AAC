@@ -227,13 +227,35 @@ describe 'AI data-sharing consent at the AI libraries (#1136)' do
       other = Organization.create(settings: { 'total_licenses' => 3 })
       managed = User.create
       org.add_user(managed.user_name, false)
-      other.add_user(managed.user_name, false, false)
+      other.add_user(managed.user_name, false, true)
       managed.reload
       expect(Organization.ai_consent_orgs_for(managed).map(&:global_id).sort).to eq([org.global_id, other.global_id].sort)
       org.authorize_ai!(authorized_by: manager)
       expect(FeatureFlags.ai_consent_blocks_ai_for?(managed.reload)).to eq(true)
       other.authorize_ai!(authorized_by: manager)
       expect(FeatureFlags.ai_consent_blocks_ai_for?(managed.reload)).to eq(false)
+    end
+
+    it 'is not covered by an organization that attached the account without sponsoring it' do
+      org.authorize_ai!(authorized_by: manager)
+      attached = User.create
+      org.add_user(attached.user_name, false, false)
+      attached.reload
+      expect(Organization.ai_consent_orgs_for(attached)).to eq([])
+      # The organization's switch does not turn AI on for it...
+      expect(FeatureFlags.ai_consent_blocks_ai_for?(attached)).to eq(true)
+      # ...and its own consent still applies.
+      grant_test_ai_consent!(attached)
+      expect(FeatureFlags.ai_consent_blocks_ai_for?(attached.reload)).to eq(false)
+    end
+
+    it 'counts a sponsored evaluation account as covered by its organization' do
+      evaluated = User.create
+      org.settings['total_eval_licenses'] = 1
+      org.save!
+      org.add_user(evaluated.user_name, false, true, true)
+      evaluated.reload
+      expect(Organization.ai_consent_orgs_for(evaluated).map(&:global_id)).to eq([org.global_id])
     end
 
     it 'records who authorized, when and at which disclosure version, with one audit event each way' do

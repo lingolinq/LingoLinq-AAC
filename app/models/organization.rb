@@ -2125,13 +2125,18 @@ class Organization < ApplicationRecord
   end
 
   # The districts whose AI authorization governs this account's AI data-sharing
-  # consent: every organization the account is attached to as a user with the
-  # attachment accepted. A pending invitation does not count (the account has not
-  # joined), and neither does a manager or supervisor attachment (those adults
-  # consent for themselves).
+  # consent: every organization that sponsors the account as a user, with the
+  # attachment accepted. Sponsored covers seated accounts and evaluation accounts
+  # (add_user refuses an unsponsored eval). Not counted, so the account's own record
+  # or its parent decides instead:
+  # - a pending invitation (the account has not joined);
+  # - an unsponsored attachment (add_unsponsored_user, add_external_user, gift
+  #   codes): the organization did not take the account on, so its switch is not the
+  #   authorization (Scot, 2026-11-19);
+  # - a manager or supervisor attachment (those adults consent for themselves).
   def self.ai_consent_orgs_for(user)
     return [] unless user && user.id
-    attached_orgs(user, true).select { |e| e['type'] == 'user' && !e['pending'] }.map { |e| e['org'] }.compact.uniq
+    attached_orgs(user, true).select { |e| e['type'] == 'user' && !e['pending'] && e['sponsored'] }.map { |e| e['org'] }.compact.uniq
   end
 
   # True only when a manager has authorized AI for this organization's managed

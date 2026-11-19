@@ -399,3 +399,16 @@ Not fixed, for Scot:
 - Children approved before this change have no route to this consent.
 - A concurrent organization save can restore a withdrawn switch (settings are one column).
 - The edited-email check accepts the AI sentence anywhere in the body, including hidden markup.
+
+## Decisions 2026-11-19 (Scot)
+
+- The organization AI switch covers only accounts the organization sponsors (seated and
+  evaluation accounts), with the attachment accepted. An unsponsored attachment no longer
+  counts, so that account's own consent or its parent's decides. `Organization.ai_consent_orgs_for`;
+  specs in `spec/lib/ai_consent_gate_spec.rb` and `spec/controllers/ai_consent_grant_routes_spec.rb`
+  (both go red with the old rule). The existing "every district must authorize" example now
+  attaches its second organization sponsored, since the rule it encoded changed.
+- No child account was approved before this change, so none needs a separate route.
+- Parent approval links acting on GET: follow-up #1338, before district accounts with children go live.
+- Re-asking a parent after a disclosure version change: follow-up #1339, before the next version.
+- String review done; all proposed wording applied.

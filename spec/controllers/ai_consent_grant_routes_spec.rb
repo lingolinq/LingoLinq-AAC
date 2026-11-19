@@ -165,6 +165,15 @@ describe 'AI data-sharing consent: who can record one (#1136)' do
         expect(@user.reload.settings['ai_consent']).to be_blank
       end
 
+      it 'lets an account an organization attached without sponsoring agree for itself' do
+        token_user
+        org = Organization.create(settings: { 'total_licenses' => 1 })
+        org.add_user(@user.user_name, false, false)
+        post :ai_consent, params: { user_id: @user.global_id, disclosure_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION }
+        expect(response).to be_successful
+        expect(@user.reload.ai_consent_granted?).to eq(true)
+      end
+
       it 'refuses an account on the parent route and names it' do
         token_user
         @user.settings['coppa'] = { 'pending_parent_consent' => true, 'parent_consent_granted_at' => Time.now.utc.iso8601 }
