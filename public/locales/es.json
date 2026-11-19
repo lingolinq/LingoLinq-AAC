@@ -9765,10 +9765,10 @@
   "try_now": "Inténtalo ahora [[ Try now",
   "sync_see_details": "Ver detalles [[ See details",
   "gif_search_no_results": "*** No GIFs found. Try different words in your sentence and search again.",
-  "sync_drawer_waiting_content_one": "*** 1 folder's pictures or sounds are still downloading. They will be tried again automatically.",
-  "sync_drawer_waiting_content_many": "*** %{n} folders' pictures or sounds are still downloading. They will be tried again automatically.",
-  "sync_picture_not_saved_n": "*** Picture not saved · %{n}",
-  "sync_picture_warning_one": "*** The picture for %{name} couldn't be saved. It shows a placeholder picture until a later sync gets it.",
-  "sync_picture_warning_many": "*** Pictures for %{n} folders couldn't be saved: %{names}. They show a placeholder picture until a later sync gets them.",
-  "sync_picture_not_saved_note": "*** These work offline and show a placeholder picture for now. Try again when the connection is better."
+  "sync_drawer_waiting_content_one": "Las imágenes o los sonidos de una carpeta aún se están descargando. Se intentará descargar de nuevo automáticamente. [[ 1 folder's pictures or sounds are still downloading. They will be tried again automatically.",
+  "sync_drawer_waiting_content_many": "Las imágenes o los sonidos de las carpetas %{n} aún se están descargando. Se intentará descargarlos de nuevo automáticamente. [[ %{n} folders' pictures or sounds are still downloading. They will be tried again automatically.",
+  "sync_picture_not_saved_n": "Imagen no guardada · %{n} [[ Picture not saved · %{n}",
+  "sync_picture_warning_one": "No se pudo guardar la imagen de %{name}. Se muestra una imagen provisional hasta que se complete una sincronización posterior. [[ The picture for %{name} couldn't be saved. It shows a placeholder picture until a later sync gets it.",
+  "sync_picture_warning_many": "No se pudieron guardar las imágenes de las carpetas %{n}: %{names}. Se muestra una imagen de marcador de posición hasta que se sincronice posteriormente. [[ Pictures for %{n} folders couldn't be saved: %{names}. They show a placeholder picture until a later sync gets them.",
+  "sync_picture_not_saved_note": "Funcionan sin conexión y, por ahora, muestran una imagen provisional. Inténtalo de nuevo cuando la conexión sea mejor. [[ These work offline and show a placeholder picture for now. Try again when the connection is better."
 }

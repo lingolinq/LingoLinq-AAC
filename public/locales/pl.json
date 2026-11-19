@@ -9760,10 +9760,10 @@
   "try_now": "Spróbuj teraz [[ Try now",
   "sync_see_details": "Zobacz szczegóły [[ See details",
   "gif_search_no_results": "*** No GIFs found. Try different words in your sentence and search again.",
-  "sync_drawer_waiting_content_one": "*** 1 folder's pictures or sounds are still downloading. They will be tried again automatically.",
-  "sync_drawer_waiting_content_many": "*** %{n} folders' pictures or sounds are still downloading. They will be tried again automatically.",
-  "sync_picture_not_saved_n": "*** Picture not saved · %{n}",
-  "sync_picture_warning_one": "*** The picture for %{name} couldn't be saved. It shows a placeholder picture until a later sync gets it.",
-  "sync_picture_warning_many": "*** Pictures for %{n} folders couldn't be saved: %{names}. They show a placeholder picture until a later sync gets them.",
-  "sync_picture_not_saved_note": "*** These work offline and show a placeholder picture for now. Try again when the connection is better."
+  "sync_drawer_waiting_content_one": "Zdjęcia i dźwięki z 1 folderu są nadal pobierane. Pobieranie zostanie automatycznie powtórzone. [[ 1 folder's pictures or sounds are still downloading. They will be tried again automatically.",
+  "sync_drawer_waiting_content_many": "Obrazy i dźwięki z folderów %{n} są nadal pobierane. Pobieranie zostanie automatycznie powtórzone. [[ %{n} folders' pictures or sounds are still downloading. They will be tried again automatically.",
+  "sync_picture_not_saved_n": "Obraz nie został zapisany · %{n} [[ Picture not saved · %{n}",
+  "sync_picture_warning_one": "Nie udało się zapisać zdjęcia dla %{name}. Wyświetla się ono jako zdjęcie zastępcze, dopóki nie zostanie odzyskane podczas późniejszej synchronizacji. [[ The picture for %{name} couldn't be saved. It shows a placeholder picture until a later sync gets it.",
+  "sync_picture_warning_many": "Nie udało się zapisać zdjęć z folderów %{n}: %{names}. Wyświetlają się jako zdjęcia zastępcze, dopóki nie zostaną odzyskane podczas późniejszej synchronizacji. [[ Pictures for %{n} folders couldn't be saved: %{names}. They show a placeholder picture until a later sync gets them.",
+  "sync_picture_not_saved_note": "Działają one offline i na razie wyświetlają obrazek zastępczy. Spróbuj ponownie, gdy połączenie będzie lepsze. [[ These work offline and show a placeholder picture for now. Try again when the connection is better."
 }

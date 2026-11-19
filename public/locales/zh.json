@@ -9765,10 +9765,10 @@
   "try_now": "立即尝试 [[ Try now",
   "sync_see_details": "查看详情 [[ See details",
   "gif_search_no_results": "*** No GIFs found. Try different words in your sentence and search again.",
-  "sync_drawer_waiting_content_one": "*** 1 folder's pictures or sounds are still downloading. They will be tried again automatically.",
-  "sync_drawer_waiting_content_many": "*** %{n} folders' pictures or sounds are still downloading. They will be tried again automatically.",
-  "sync_picture_not_saved_n": "*** Picture not saved · %{n}",
-  "sync_picture_warning_one": "*** The picture for %{name} couldn't be saved. It shows a placeholder picture until a later sync gets it.",
-  "sync_picture_warning_many": "*** Pictures for %{n} folders couldn't be saved: %{names}. They show a placeholder picture until a later sync gets them.",
-  "sync_picture_not_saved_note": "*** These work offline and show a placeholder picture for now. Try again when the connection is better."
+  "sync_drawer_waiting_content_one": "1 个文件夹中的图片或声音仍在下载中。系统将自动重试。 [[ 1 folder's pictures or sounds are still downloading. They will be tried again automatically.",
+  "sync_drawer_waiting_content_many": "%{n} 文件夹中的图片或声音仍在下载中。系统将自动重试。 [[ %{n} folders' pictures or sounds are still downloading. They will be tried again automatically.",
+  "sync_picture_not_saved_n": "图片未保存 · %{n} [[ Picture not saved · %{n}",
+  "sync_picture_warning_one": "%{name} 的图片无法保存。目前显示占位符图片，待后续同步获取后才会显示。 [[ The picture for %{name} couldn't be saved. It shows a placeholder picture until a later sync gets it.",
+  "sync_picture_warning_many": "%{n} 文件夹的图片无法保存：%{names}。它们会显示占位符图片，直到稍后同步获取为止。 [[ Pictures for %{n} folders couldn't be saved: %{names}. They show a placeholder picture until a later sync gets them.",
+  "sync_picture_not_saved_note": "这些功能目前可以离线使用，但会显示占位图片。请在网络连接良好时再试。 [[ These work offline and show a placeholder picture for now. Try again when the connection is better."
 }
