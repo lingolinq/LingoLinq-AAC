@@ -23,3 +23,12 @@ export function sync_progress_line(progress) {
   }
   return line;
 }
+
+// The warning for folders a finished sync saved without their picture (utils/sync_rollup.js pictures_missing, overall
+// warned; Traci, 2026-11-18): offline they show the placeholder until a later sync saves the picture. Null for none.
+// The sync drawer adds it to its result line; Sync Details shows it where the ready boards are not listed.
+export function picture_warning(n) {
+  if(!n) { return null; }
+  return n === 1 ? i18n.t('sync_picture_warning_one', "1 folder's picture couldn't be saved. It shows a plain square until a later sync gets it.") :
+    i18n.t('sync_picture_warning_many', "%{n} folders' pictures couldn't be saved. They show a plain square until a later sync gets them.", { n: n });
+}

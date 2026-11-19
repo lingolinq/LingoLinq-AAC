@@ -3092,7 +3092,7 @@ var persistence = Service.extend({
           var id = next && (next.id || next.key);
           var key = next && next.key;
           var source = next && next.visit_source;
-          if(next && next.content_retry) { retry_content(next, { sync_progress: _sync.get('sync_progress'), store: function(item) { return _sync.store_url(item.url, item.type, item.keep_big, force, sync_id); }, saved: function(board) { full_set_revisions[board.id] = board.full_set_revision; }, park: function(entry, retry) { parking.park(entry, retry); }, fail: function(board_error) { board_errors.push(board_error); }, then: function() { schedule_sync_board_step(function() { nextBoard(defer); }, 75); } }); } else if(next && next.depth < 20 && id && !visited_boards.find(function(i) { return i == id; }) && !boardRevocation.skip_board(_this, user.get('id'), next)) { // first branch: a board's parked content, only its failed saves again; the board is not walked again (utils/board_content_retry.js)
+          if(next && next.content_retry) { retry_content(next, { sync_progress: _sync.get('sync_progress'), store: function(item) { return _sync.store_url(item.url, item.type, item.keep_big, force, sync_id); }, saved: function(board) { full_set_revisions[board.id] = board.full_set_revision; }, park: function(entry, retry) { parking.park(entry, retry); }, fail: function(board_error) { board_errors.push(board_error); }, warn: function(warning) { note_warning(_sync.get('sync_progress.board_statuses'), warning); }, on_device: function(item) { return _sync.store_url_quick_check(item.url, item.type); }, then: function() { schedule_sync_board_step(function() { nextBoard(defer); }, 75); } }); } else if(next && next.depth < 20 && id && !visited_boards.find(function(i) { return i == id; }) && !boardRevocation.skip_board(_this, user.get('id'), next)) { // first branch: a board's parked content, only its failed saves again; the board is not walked again (utils/board_content_retry.js)
             var local_full_set_revision = null;
 
             // check if there's a local copy that's already been loaded
@@ -3161,7 +3161,7 @@ var persistence = Service.extend({
                 content_promises++;
                 visited_board_promises.push(//this.queue_sync_action('store_sidebar_image', sync_id, function() {
                   /*return*/ _sync.store_url(next.image, 'image', false, force, sync_id).then(null, function(err) {
-                    return RSVP.reject(content_failure("sidebar icon url failed to sync, " + next.image, err, {url: next.image, type: 'image', keep_big: false})); // utils/board_content_retry.js
+                    return RSVP.reject(content_failure("sidebar icon url failed to sync, " + next.image, err, {url: next.image, type: 'image', keep_big: false, optional: true})); // utils/board_content_retry.js; optional: a liked or sidebar folder's icon warns, never fails its folder
                   })
                /*})*/);
                 importantIds.push("dataCache_" + next.image);
@@ -3346,7 +3346,7 @@ var persistence = Service.extend({
                 schedule_sync_board_step(function() {
                   nextBoard(defer);
                 }, safely_cached && visited_board_promises.length === 0 ? 50 : 75);
-              }, function(err) { var content_retry = claim_content_retry(content_failures, _sync.get('sync_progress'), id); if(content_retry) { parking.park(content_entry(next, content_failures, {id: board.get('id'), full_set_revision: board.get('full_set_revision')}), content_retry); schedule_sync_board_step(function() { nextBoard(defer); }, 75); return; } // every failure passing: only the failed saves are parked and tried again (utils/board_content_retry.js)
+              }, function(err) { var judged = judge_content(content_failures, _sync.get('sync_progress'), id, function(item) { return _sync.store_url_quick_check(item.url, item.type); }); judged.warn.forEach(function(f) { note_warning(_sync.get('sync_progress.board_statuses'), content_warning({id: id, key: key || board.get('key'), visit_source: source}, f)); }); if(judged.retry) { parking.park(content_entry(next, judged.park, {id: board.get('id'), full_set_revision: board.get('full_set_revision')}), judged.retry); schedule_sync_board_step(function() { nextBoard(defer); }, 75); return; } if(!judged.fail) { full_set_revisions[board.get('id')] = board.get('full_set_revision'); schedule_sync_board_step(function() { nextBoard(defer); }, 75); return; } err = judged.fail; // utils/board_content_retry.js judge_content: passing failures parked and tried again; an optional save (the folder's icon) only warns, and the board is complete; otherwise the board error, worded by its first required failure
                 var msg = "board " + (key || id) + " failed to sync completely";
                 if(typeof err == 'string') {
                   msg = msg + ": " + err;
@@ -4984,7 +4984,7 @@ import { queue_eventual_store } from '../utils/eventual_store_queue';
 import { is_permanent_upload_url } from '../utils/permanent_upload';
 import { on_uploads_cdn, is_web_page } from '../utils/direct_fetch';
 import { picture_kept_in_database, usable_database_copy } from '../utils/database_picture';
-import { BOARD_RELOAD_MS, USER_RELOAD_MS, keep_stored_board, claim_board_retry, note_device_boards, known_on_device } from '../utils/sync_board_fallback'; import { create_parking, register_parking, wake_parked, retry_delay, when_slot_free } from '../utils/board_retry'; import { note_board_root, root_for_link } from '../utils/sync_rollup'; import { record_sync_log, restore_sync_log } from '../utils/sync_log_store';
+import { BOARD_RELOAD_MS, USER_RELOAD_MS, keep_stored_board, claim_board_retry, note_device_boards, known_on_device } from '../utils/sync_board_fallback'; import { create_parking, register_parking, wake_parked, retry_delay, when_slot_free } from '../utils/board_retry'; import { note_board_root, root_for_link, note_warning } from '../utils/sync_rollup'; import { record_sync_log, restore_sync_log } from '../utils/sync_log_store';
 import { usable_copy } from '../utils/board_device_copy';
 import { reason_is_automatic, merge_follow_up } from '../utils/sync_follow_up';
 
@@ -5141,4 +5141,4 @@ persistence.reopen({
 });
 import { is_stale_item, drop_stale_head } from '../utils/url_store_queue';
 import { optional_picture, picture_ms_left } from '../utils/optional_picture';
-import { failure_cause, content_failure, settle_content, claim_content_retry, content_entry, retry_content, is_content_entry } from '../utils/board_content_retry';
+import { failure_cause, content_failure, settle_content, content_entry, retry_content, is_content_entry, judge_content, content_warning } from '../utils/board_content_retry';

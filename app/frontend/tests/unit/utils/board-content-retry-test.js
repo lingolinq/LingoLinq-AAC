@@ -1,7 +1,7 @@
 import { module, test } from 'qunit';
 import RSVP from 'rsvp';
 import {
-  failure_cause, content_failure, settle_content, claim_content_retry, content_entry, content_error, retry_content, is_content_entry, only_optional, content_warning
+  failure_cause, content_failure, settle_content, claim_content_retry, content_entry, content_error, retry_content, is_content_entry, only_optional, content_warning, judge_content
 } from 'frontend/utils/board_content_retry';
 import { claim_board_retry, MAX_BOARD_RETRIES } from 'frontend/utils/sync_board_fallback';
 
@@ -181,5 +181,33 @@ module('Unit | Utility | board content retry', function() {
     assert.strictEqual(r.log.parked.length, 1);
     assert.true(r.log.parked[0].entry.content_retry[0].optional, 'still known as optional on its next try');
     assert.deepEqual(r.log.warned, []);
+  });
+
+  test('judge_content: an icon never holds back nor words the board\'s other failures', function(assert) {
+    var icon_dead = content_failure('icon', { fakeXHR: { status: 400 } }, { url: 'i', type: 'image', optional: true });
+    var icon_cut = content_failure('icon', { fakeXHR: { status: 0 } }, { url: 'i', type: 'image', optional: true });
+    var button_cut = content_failure('button', { fakeXHR: { status: 0 } }, { url: 'b', type: 'image' });
+    var button_dead = content_failure('button', { fakeXHR: { status: 400 } }, { url: 'b', type: 'image' });
+    var j = judge_content([icon_dead, button_cut], {}, '145');
+    assert.deepEqual([j.retry, j.park.map(function(f) { return f.item.url; }), j.warn.length, j.fail], [1, ['b'], 1, null], 'a dead icon: the button picture is still tried again, the icon warns');
+    j = judge_content([icon_cut, button_dead], {}, '145');
+    assert.strictEqual(j.fail, button_dead, 'the board error is worded by the button picture');
+    assert.deepEqual(j.warn, [icon_cut]);
+    assert.strictEqual(j.retry, 0);
+    j = judge_content([icon_cut, button_cut], {}, '145');
+    assert.deepEqual(j.park.map(function(f) { return f.item.url; }), ['b', 'i'], 'both cut off: both tried again');
+    j = judge_content([icon_dead], {}, '145');
+    assert.deepEqual([j.retry, j.warn.length, j.fail], [0, 1, null], 'only a dead icon: a warning, and the board is complete');
+    var spent = { retried_content: { '145': 3 } };
+    j = judge_content([icon_cut], spent, '145');
+    assert.deepEqual([j.retry, j.warn.length, j.fail], [0, 1, null], 'retries spent: a warning');
+    j = judge_content([icon_cut, button_cut], { retried_content: { '145': 3 } }, '145');
+    assert.strictEqual(j.fail, button_cut, 'retries spent with a button picture: the board error, by the button picture');
+  });
+
+  test('judge_content: an icon on the device by now is no failure', function(assert) {
+    var icon = content_failure('icon', { fakeXHR: { status: 400 } }, { url: 'i', type: 'image', optional: true });
+    var j = judge_content([icon], {}, '145', function(item) { return item.url === 'i'; });
+    assert.deepEqual([j.retry, j.warn.length, j.fail], [0, 0, null]);
   });
 });

@@ -88,6 +88,9 @@
         </div>
 
         <div class="la-sync-cards" role="tabpanel" id="la-sync-tabpanel" aria-labelledby="la-sync-tab-{{this.current_tab}}">
+          {{#if this.picture_warning_line}}
+            <p class="la-sync-folder-group-note" data-test-sync-picture-warning>{{this.picture_warning_line}}</p>
+          {{/if}}
           {{#each this.cards as |card|}}
             <div class="la-sync-card {{if card.ready 'la-sync-card--ready' 'la-sync-card--attention'}}">
               <button type="button" class="la-sync-card-head" aria-expanded={{card.expanded}} {{on "click" card.toggle}}>
@@ -146,6 +149,25 @@
                     {{/if}}
                   {{else}}
                     <p class="la-sync-folder-group-note">{{card.no_folders_text}}</p>
+                  {{/if}}
+                  {{#if card.has_picture_warning}}
+                    {{!-- Saved and ready offline, but its picture was not (Traci, 2026-11-18): it shows the placeholder. --}}
+                    <section class="la-sync-folder-group la-sync-folder-group--missing" data-test-sync-card-picture-warning>
+                      <div class="la-sync-folder-group-head">
+                        <span>
+                          <h4 class="la-sync-folder-group-title">{{card.pictures_title}}</h4>
+                          <span class="la-sync-folder-group-note">{{t "These work offline and show a plain square for now. Try again when the connection is better." key="sync_picture_not_saved_note"}}</span>
+                        </span>
+                        {{#unless (persistence-value 'syncing')}}
+                          <button type="button" class="la-sync-details-secondary-btn" {{on "click" (this.ctrlAction "sync")}}>{{t "Try again" key="try_again"}}</button>
+                        {{/unless}}
+                      </div>
+                      <ul class="la-sync-folder-grid">
+                        {{#each card.pictures_missing as |name|}}
+                          <li class="la-sync-folder-tile">{{name}}</li>
+                        {{/each}}
+                      </ul>
+                    </section>
                   {{/if}}
                 </div>
               {{/if}}

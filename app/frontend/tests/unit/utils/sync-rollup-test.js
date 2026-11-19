@@ -1,6 +1,6 @@
 import { module, test } from 'qunit';
 import EmberObject from '@ember/object';
-import { note_board_root, root_for_link, rollup, with_errors, summary_for, current_root_name, only_parked_left } from 'frontend/utils/sync_rollup';
+import { note_board_root, root_for_link, rollup, with_errors, summary_for, current_root_name, only_parked_left, note_warning, new_warnings } from 'frontend/utils/sync_rollup';
 
 /* Sync results grouped by the boards a person knows (utils/sync_rollup.js): one row per home, sidebar or liked
  * board, with its folders underneath, instead of every folder on its own line (Traci, 2026-11-14). */
@@ -122,5 +122,42 @@ module('Unit | Utility | sync rollup', function() {
     assert.strictEqual(r.overall.warned, 1);
     assert.strictEqual(r.overall.missing, 1, 'the missing count is unchanged');
     assert.strictEqual(rollup(walk().statuses, w.sp.board_roots).overall.warned, 0);
+  });
+
+  test('note_warning puts the warning on the board\'s latest row, never on a row of its own', function(assert) {
+    var rows = [{ id: 'me/side', key: 'me/side', status: 'downloaded' }, { id: '1_2', key: 'me/side', status: 'cached' }, { key: 'me/other', status: 'cached' }];
+    assert.true(note_warning(rows, { warning: 'w', board_id: 'me/side', board_key: 'me/side' }));
+    assert.deepEqual(rows.map(function(r) { return r.warning; }), [undefined, 'w', undefined], 'the latest row of that board');
+    assert.false(note_warning(rows, { warning: 'w', board_id: 'me/none', board_key: 'me/none' }), 'no row: nothing added');
+    assert.strictEqual(rows.length, 3);
+    var by_id = [{ id: '145', status: 'downloaded' }];
+    assert.true(note_warning(by_id, { warning: 'w', board_id: '145' }), 'a board known by id');
+    var errored = [{ key: 'me/x', error: 'e' }];
+    assert.false(note_warning(errored, { warning: 'w', board_key: 'me/x' }), 'not on an error row');
+  });
+
+  test('an error wins over a warning for the same board', function(assert) {
+    var w = walk();
+    w.statuses.push({ id: '1_20', key: 'me/keyboard', status: 'cached', warning: 'w' }, { id: '1_20', key: 'me/keyboard', error: 'failed' });
+    var r = rollup(w.statuses, w.sp.board_roots);
+    assert.false(r.groups[1].ready);
+    assert.deepEqual(r.groups[1].pictures_missing, []);
+    assert.strictEqual(r.overall.warned, 0);
+  });
+
+  test('new_warnings: only boards the sync before, for the same person, did not warn about', function(assert) {
+    var entry = function(user, rows) { return { user_id: user, statuses: rows }; };
+    var kb = { key: 'me/kb', status: 'cached', warning: 'w' };
+    var fun = { key: 'me/fun', status: 'cached', warning: 'w' };
+    var plain = { key: 'me/kb', status: 'cached' };
+    assert.deepEqual(new_warnings([entry('me', [kb])]), ['me/kb'], 'no sync before: new');
+    assert.deepEqual(new_warnings([entry('me', [kb]), entry('me', [kb])]), [], 'the same warning again');
+    assert.deepEqual(new_warnings([entry('me', [kb]), entry('me', [kb, fun])]), ['me/fun']);
+    assert.deepEqual(new_warnings([entry('me', [plain]), entry('me', [kb])]), ['me/kb'], 'warned now, not before');
+    assert.deepEqual(new_warnings([entry('me', [kb]), entry('me', []), entry('me', [kb])]), [], 'a sync with no rows (cancelled) is skipped');
+    assert.deepEqual(new_warnings([entry('you', [kb]), entry('me', [kb])]), ['me/kb'], 'another person\'s sync does not count');
+    assert.deepEqual(new_warnings([entry('me', [plain])]), []);
+    assert.deepEqual(new_warnings([]), []);
+    assert.deepEqual(new_warnings(null), []);
   });
 });

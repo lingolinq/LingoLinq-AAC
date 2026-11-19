@@ -145,4 +145,12 @@ module('Unit | Component | sync-progress-drawer', function(hooks) {
     assert.strictEqual(none.get('result_detail'), '1 board is saved on this device.');
     assert.false(none.get('offer_try_again'), 'nothing to try again');
   });
+
+  test('a sync that needs attention also names a folder saved without its picture', function(assert) {
+    var roots = { 'me/core': { root: 'me/core', name: 'Quick Core 60', role: 'home board', key: 'me/core' }, 'me/kb': { root: 'me/kb', name: 'Keyboard', role: 'sidebar board', key: 'me/kb' } };
+    var drawer = build_with(this, { status: 'done', kind: 'finished' }, null, [{ statuses: [{ key: 'me/core', error: 'failed' }, { key: 'me/kb', status: 'cached', warning: 'w' }], roots: roots }]);
+    assert.strictEqual(drawer.get('stage'), 'attention');
+    assert.strictEqual(drawer.get('result_detail'), "1 board didn't save. It still opens while you're online. 1 folder's picture couldn't be saved. It shows a plain square until a later sync gets it.");
+    assert.false(drawer.get('offer_try_again'), 'Try again already leads');
+  });
 });

@@ -50,6 +50,7 @@ function final_rows(statuses) {
     if(!rows[k]) { order.push(k); rows[k] = {}; }
     var row = rows[k];
     if(s.error) { row.error = s.error; } else if(s.status) { row.status = s.status; if(SAVED_STATUSES[s.status]) { row.saved = true; } }
+    if(s.warning) { row.warning = s.warning; } // saved without its picture (note_warning)
     row.key = s.key || row.key || null;
     row.id = s.id || row.id || null;
   });
@@ -63,7 +64,9 @@ function short_name(key) {
 
 // The groups for `statuses` (rows of {id, key, status, error}) with `roots` (sync_progress.board_roots or a log
 // entry's `roots`). Each group: {key, name, role, board_saved, board_missing, folders_saved: [names],
-// folders_missing: [names], folder_count, saved_count, ready}. And overall: {saved, total, pct, missing}.
+// folders_missing: [names], folder_count, saved_count, ready, pictures_missing: [names of its boards saved without
+// their picture]}. And overall: {saved, total, pct, missing, warned}. A warning does not make a board missing; a
+// board that failed is missing, whatever warning it also has.
 export function rollup(statuses, roots) {
   roots = roots || {};
   var groups = {};
@@ -75,7 +78,7 @@ export function rollup(statuses, roots) {
     if(!groups[root]) {
       order.push(root);
       groups[root] = { key: root, name: root_info.name || short_name(root), role: root_info.role || (info && info.role) || null,
-        board_saved: false, board_missing: false, folders_saved: [], folders_missing: [] };
+        board_saved: false, board_missing: false, folders_saved: [], folders_missing: [], pictures_missing: [] };
     }
     var g = groups[root];
     var ok = !!row.saved && !row.error;
@@ -83,15 +86,18 @@ export function rollup(statuses, roots) {
     if(is_root) {
       if(ok) { g.board_saved = true; } else { g.board_missing = true; }
       if(info && info.name) { g.name = info.name; }
+      if(ok && row.warning) { g.pictures_missing.push(g.name); }
     } else {
       var name = (info && info.name) || short_name(row.key || row.id);
       if(ok) { g.folders_saved.push(name); } else { g.folders_missing.push(name); }
+      if(ok && row.warning) { g.pictures_missing.push(name); }
     }
   });
   var list = order.map(function(k) {
     var g = groups[k];
     g.folders_saved.sort(function(a, b) { return a.localeCompare(b); });
     g.folders_missing.sort(function(a, b) { return a.localeCompare(b); });
+    g.pictures_missing.sort(function(a, b) { return a.localeCompare(b); });
     g.folder_count = g.folders_saved.length + g.folders_missing.length;
     g.saved_count = g.folders_saved.length;
     g.ready = !g.board_missing && g.folders_missing.length === 0;
@@ -103,13 +109,52 @@ export function rollup(statuses, roots) {
     if(ra !== rb) { return ra - rb; }
     return order.indexOf(a.key) - order.indexOf(b.key);
   });
-  var total = 0, saved = 0, missing = 0;
+  var total = 0, saved = 0, missing = 0, warned = 0;
   list.forEach(function(g) {
+    warned += g.pictures_missing.length;
     total += g.folder_count + 1;
     saved += g.saved_count + (g.board_missing ? 0 : 1);
     missing += g.folders_missing.length + (g.board_missing ? 1 : 0);
   });
-  return { groups: list, overall: { saved: saved, total: total, missing: missing, pct: total ? Math.floor(100 * saved / total) : 100 } };
+  return { groups: list, overall: { saved: saved, total: total, missing: missing, warned: warned, pct: total ? Math.floor(100 * saved / total) : 100 } };
+}
+
+// A board saved without its picture (utils/board_content_retry.js content_warning): the warning goes on the board's
+// latest status row, so it is kept and shown as that board's. A row is never added for it (a row with only a warning
+// would read as a board that did not save), so a board with no row yet gets no warning.
+export function note_warning(statuses, warning) {
+  if(!statuses || !warning) { return false; }
+  for(var i = statuses.length - 1; i >= 0; i--) {
+    var s = statuses[i];
+    if(s && !s.error && ((warning.board_key && s.key === warning.board_key) || (warning.board_id && (s.id === warning.board_id || s.key === warning.board_id)))) {
+      s.warning = warning.warning;
+      return true;
+    }
+  }
+  return false;
+}
+
+function warned_keys(entry) {
+  var keys = {};
+  final_rows((entry && entry.statuses) || []).forEach(function(row) {
+    if(row.saved && !row.error && row.warning) { keys[row.key || row.id] = true; }
+  });
+  return keys;
+}
+
+// The boards of the newest finished sync in `log` saved without their picture that the sync before it, for the same
+// person, did not warn about (services/sync-notice.js keeps a success card with a new warning until it is dismissed;
+// the same warning again goes away on its own, as any success, Traci 2026-11-18).
+export function new_warnings(log) {
+  log = log || [];
+  var latest = log[log.length - 1];
+  if(!latest) { return []; }
+  var prev = null;
+  for(var i = log.length - 2; i >= 0; i--) {
+    if(log[i] && log[i].user_id === latest.user_id && (log[i].statuses || []).length) { prev = log[i]; break; }
+  }
+  var before = warned_keys(prev);
+  return Object.keys(warned_keys(latest)).filter(function(k) { return !before[k]; });
 }
 
 // A board's errors as the sync keeps them while it runs (sync_progress.progress_for[*].board_errors), merged into its

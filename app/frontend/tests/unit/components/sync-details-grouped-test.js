@@ -113,4 +113,14 @@ module('Unit | Component | sync-details grouped view', function(hooks) {
     assert.false(core.has_picture_warning);
     assert.false(core.open);
   });
+
+  test('on Needs attention, a folder saved without its picture is named above the cards', function(assert) {
+    var mixed = [{ key: 'me/kb', status: 'cached', warning: 'w' }, { key: 'me/core', status: 'downloaded' }, { key: 'me/core-feel', status: 'downloaded' }, { key: 'me/core-go', error: 'failed retrieval' }];
+    var c = build(this, [{ statuses: mixed, roots: roots }]);
+    assert.strictEqual(c.get('current_tab'), 'attention');
+    assert.strictEqual(c.get('picture_warning_line'), "1 folder's picture couldn't be saved. It shows a plain square until a later sync gets it.");
+    assert.true(c.get('cards')[0].open, 'the board that needs attention is still the one opened');
+    c.get('tabs')[2].pick();
+    assert.strictEqual(c.get('picture_warning_line'), null, 'on All boards its card says it');
+  });
 });

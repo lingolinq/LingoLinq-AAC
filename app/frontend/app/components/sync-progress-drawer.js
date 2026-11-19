@@ -3,7 +3,7 @@ import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
-import { sync_progress_line } from '../utils/sync_progress';
+import { sync_progress_line, picture_warning } from '../utils/sync_progress';
 import { summary_for, current_root_name, only_parked_left } from '../utils/sync_rollup';
 import { wake_parked } from '../utils/board_retry';
 
@@ -18,6 +18,12 @@ export function on_board_page(route_name) {
 // 'saving' while the sync walks; 'waiting' when all it has left are boards waiting to be tried again
 // (utils/board_retry.js); after it, 'ready' (all saved), 'attention' (some folders or boards did not save),
 // or 'result' (the plain result card, when the sync left nothing to group, such as a failure before any board).
+// The result line, and after it the warning for folders saved without their picture (utils/sync_progress.js).
+function with_picture_warning(line, summary) {
+  var warning = picture_warning(summary && summary.overall && summary.overall.warned);
+  return warning ? line + ' ' + warning : line;
+}
+
 export function drawer_stage(notice_status, notice_kind, sync_progress, summary) {
   if(notice_status === 'syncing') { return only_parked_left(sync_progress) ? 'waiting' : 'saving'; }
   if(!summary || notice_kind === 'failed') { return 'result'; }
@@ -107,6 +113,12 @@ export default Component.extend({
     return lines.join(' ');
   }),
 
+  // A ready sync with a folder saved without its picture offers Try again beside Sync Details (Traci, 2026-11-18); a
+  // sync that needs attention already leads with it.
+  offer_try_again: computed('stage', 'summary.overall.warned', function() {
+    return this.get('stage') === 'ready' && !!(this.get('summary.overall.warned'));
+  }),
+
   result_title: computed('stage', 'summary', 'sync_notice.message', function() {
     var s = this.get('summary');
     var stage = this.get('stage');
@@ -123,19 +135,19 @@ export default Component.extend({
     var stage = this.get('stage');
     if(stage === 'ready') {
       var n = s.overall.saved;
-      return n === 1 ? i18n.t('sync_drawer_saved_one', "1 board is saved on this device.") :
-        i18n.t('sync_drawer_saved_many', "%{n} boards and folders are saved on this device.", { n: n });
+      return with_picture_warning(n === 1 ? i18n.t('sync_drawer_saved_one', "1 board is saved on this device.") :
+        i18n.t('sync_drawer_saved_many', "%{n} boards and folders are saved on this device.", { n: n }), s);
     }
     if(stage === 'attention') {
       var missing = s.groups.filter(function(g) { return !g.ready; });
       var only = missing.length === 1 ? missing[0] : null;
       if(only && !only.board_missing) {
         var f = only.folders_missing.length;
-        return f === 1 ? i18n.t('sync_drawer_one_folder_of', "1 folder of %{board} didn't save. It still opens while you're online.", { board: only.name }) :
-          i18n.t('sync_drawer_n_folders_of', "%{n} folders of %{board} didn't save. They still open while you're online.", { n: f, board: only.name });
+        return with_picture_warning(f === 1 ? i18n.t('sync_drawer_one_folder_of', "1 folder of %{board} didn't save. It still opens while you're online.", { board: only.name }) :
+          i18n.t('sync_drawer_n_folders_of', "%{n} folders of %{board} didn't save. They still open while you're online.", { n: f, board: only.name }), s);
       }
-      return s.overall.missing === 1 ? i18n.t('sync_drawer_one_missing', "1 board didn't save. It still opens while you're online.") :
-        i18n.t('sync_drawer_n_missing', "%{n} boards and folders didn't save. They still open while you're online.", { n: s.overall.missing });
+      return with_picture_warning(s.overall.missing === 1 ? i18n.t('sync_drawer_one_missing', "1 board didn't save. It still opens while you're online.") :
+        i18n.t('sync_drawer_n_missing', "%{n} boards and folders didn't save. They still open while you're online.", { n: s.overall.missing }), s);
     }
     return this.get('sync_notice.detail');
   }),

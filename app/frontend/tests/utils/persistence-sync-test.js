@@ -7778,10 +7778,8 @@ describe("persistence-sync", function() {
           expect(state.calls).toEqual(4); // still tried again on a dropped link, as any picture
           expect(errorFor('fred/side')).toEqual(undefined);
           expect(warningFor('fred/side')).toEqual(SIDEBAR_WARNING);
-          var entry = (persistence.get('sync_log') || [])[0];
-          expect(entry.issues).toNotEqual(true);
-          expect(entry.warned).toEqual(true);
-          expect(persistence.get('sync_status')).toEqual('succeeded');
+          expect((persistence.get('sync_log') || [])[0].issues).toNotEqual(true);
+          expect(persistence.get('sync_status')).toEqual('succeeded'); // no board error: board_revocation finish_sync gets none for an icon (it used to block its marks)
           done();
         });
       });
@@ -7795,7 +7793,6 @@ describe("persistence-sync", function() {
           expect(state.calls).toEqual(1);
           expect(errorFor('fred/side')).toEqual(undefined);
           expect(warningFor('fred/side')).toEqual(SIDEBAR_WARNING);
-          expect((persistence.get('sync_log') || [])[0].warned).toEqual(true);
           expect(persistence.get('sync_status')).toEqual('succeeded');
           done();
         });
@@ -7808,7 +7805,26 @@ describe("persistence-sync", function() {
         waitsFor(function() { return finished(state); });
         runs(function() {
           expect(warningFor('fred/side')).toEqual(undefined);
-          expect((persistence.get('sync_log') || [])[0].warned).toNotEqual(true);
+          done();
+        });
+      });
+    });
+
+    it("tries the icon again on the next sync after a warning", function() {
+      db_wait(function() {
+        var state = syncWith(SIDEBAR, function(n) { return n === 1 ? RSVP.reject({error: 'URL lookup failed during proxy', fakeXHR: {status: 400}}) : saved(n); });
+        var second = {result: null};
+        waitsFor(function() { return finished(state); });
+        runs(function() {
+          expect(warningFor('fred/side')).toEqual(SIDEBAR_WARNING);
+          persistence.sync(1340).then(function(res) { second.result = res; }); // the board is recorded as complete; its icon is not
+        });
+        waitsFor(function() { return waitForSyncDoneAndSettled(second.result); });
+        runs(function() {
+          expect(state.calls).toEqual(2);
+          var log = persistence.get('sync_log') || [];
+          expect(log.length).toEqual(2);
+          expect(log[1].statuses.filter(function(st) { return st.key === 'fred/side' && st.warning; }).length).toEqual(0); // the newest sync: saved, no warning
           done();
         });
       });
