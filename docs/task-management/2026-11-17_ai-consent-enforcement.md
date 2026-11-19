@@ -393,6 +393,7 @@ field to the element being on the page in every layout.
 Not fixed, for Scot:
 - A HubSpot send in flight while its account is deleted can leave the contact behind (one
   reviewer rated this High, the earlier round Medium). Needs a record that outlives the account.
+  Accepted by Scot as a known gap on 2026-11-18; follow-up #1332.
 - A parent approval link records the AI consent on the same link open as the account approval,
   and mail scanners open links.
 - Children approved before this change have no route to this consent.
