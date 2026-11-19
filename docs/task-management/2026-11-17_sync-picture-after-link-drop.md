@@ -230,3 +230,13 @@ Verdict: ship with conditions; no Critical or High.
 Mutants for the review fixes, one build, each turned its test red: the error not reworded (`err = judged.fail` removed); a warned board not recorded; `new_warnings` counting failed syncs. Filter `sync`: 417 passed, 0 failed, 2 skipped.
 
 Device check on the warning code (6ab2823d1, served on 5089): 5 more WebKit runs (16-20), synth_big, link down 20-45 s. All "succeeded", 57 of 57 saved, 0 failed rows, nothing missing 20 s later, liked folders' pictures retried and saved (2-3 per run). No warning appeared, as expected: the link came back within the retries.
+
+### Review of a28508b74 and 68720fc65 (adversary), Traci's calls, and what was applied (042a05706)
+
+- [Medium, CONFIRMED] Nothing would have caught a walk change that counted every parked entry as content: the only walk test parked one content entry and no lookup. Applied: walk test "counts a board waiting to be looked up again as not saved" (`parked` 1, `parked_content` 0).
+- [Low] The waiting line called the folder "saved", while the result card says "didn't save" when the content retries run out. Traci chose (a): "1 folder's pictures or sounds are still downloading. They will be tried again automatically."
+- [Low, PLAUSIBLE] Counts are walk entries, not folders (inherited from `parked`): a folder queued twice under a race can show in both lines. Display only; not changed.
+- [Low] `new_warnings` read whatever entry was last in the log; a supervisor's sync of a communicator finishing inside the 8 s window could decide the card. Traci: fix it. Applied: `new_warnings(log, user_name)` takes the signed-in person's newest finished entry (`sync-notice.js` `_signed_in_user_name`, from `auth_settings.user_name`, which is what log entries carry as `user_id`).
+- Final-review F4 (Traci: yes): the warning names the folder(s): "The picture for Keyboard couldn't be saved. ..."; plural "Pictures for 2 folders couldn't be saved: Keyboard, Fun. ..." (group order). F5 (Traci: yes): `only_optional` and its test removed.
+- Test corrections while landing it, both mistakes in my new expectations, not the code: the names come in group order (sidebar before liked), not alphabetically; a "failed sync" case had no earlier finished sync, so the warning is rightly new; the case now has one.
+- 3 mutants, one build, each red: `parked_content` = size; `new_warnings` ignoring the person; the warning not naming the folder. Filter `sync` 418 passed, 0 failed, 2 skipped; `persistence` 340/0/9.
