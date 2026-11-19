@@ -257,4 +257,14 @@ describe Api::DatabaseContentsController, :type => :controller do
       expect(payload['columns']).to match_array(expected)
     end
   end
+
+  describe 'admin sign-in' do
+    LimitedSignInHelpers::KINDS.each do |kind, wording|
+      it "should refuse an admin whose sign-in #{wording}" do
+        limited_admin_token(kind)
+        get :index, params: {table: 'organizations', limit: 5}
+        assert_error 'Not authorized', 403
+      end
+    end
+  end
 end

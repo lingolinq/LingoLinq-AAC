@@ -1011,4 +1011,59 @@ describe Device, :type => :model do
       end
     end
   end
+
+  describe "check_token once the account uses 2FA" do
+    it "signs out a sign-in made before the account turned on 2FA" do
+      u = User.create
+      d = Device.create(user: u, developer_key_id: 0, device_key: 'before-2fa')
+      token = d.tokens[0]
+      expect(Device.check_token(token, nil)[:user]).to eq(u)
+      u.assert_2fa!
+      res = Device.check_token(token, nil)
+      expect(res[:error]).to eq('Invalid token')
+      expect(res[:invalid_token]).to eq(true)
+      expect(res[:user]).to eq(nil)
+    end
+
+    it "keeps a sign-in that is waiting for its code, so it can enter one" do
+      u = User.create
+      u.assert_2fa!
+      d = Device.create(user: u, developer_key_id: 0, device_key: 'pending-2fa')
+      token = d.tokens[0]
+      res = Device.check_token(token, nil)
+      expect(res[:error]).to eq(nil)
+      expect(res[:user]).to eq(u)
+      expect(res[:user].permission_scopes).to eq(['none'])
+    end
+
+    it "keeps a sign-in that entered a code" do
+      u = User.create
+      u.assert_2fa!
+      d = Device.create(user: u, developer_key_id: 0, device_key: 'confirmed-2fa')
+      token = d.tokens[0]
+      code = ROTP::TOTP.new(u.reload.settings['2fa']['secret'], issuer: 'LingoLinq').now
+      expect(d.reload.confirm_2fa!(code)).to eq(true)
+      res = Device.check_token(token, nil)
+      expect(res[:error]).to eq(nil)
+      expect(res[:user]).to eq(u)
+    end
+
+    it "keeps a modeling (valet) sign-in, which does not ask for a code" do
+      u = User.create
+      u.assert_2fa!
+      d = Device.create(user: u, developer_key_id: 0, device_key: 'valet-2fa', settings: {'valet' => true})
+      token = d.tokens[0]
+      res = Device.check_token(token, nil)
+      expect(res[:error]).to eq(nil)
+      expect(res[:user]).to eq(u)
+    end
+
+    it "leaves sign-ins alone for an account without 2FA" do
+      u = User.create
+      d = Device.create(user: u, developer_key_id: 0, device_key: 'no-2fa')
+      token = d.tokens[0]
+      expect(Device.check_token(token, nil)[:user]).to eq(u)
+      expect(Device.check_token(token, nil)[:user]).to eq(u)
+    end
+  end
 end

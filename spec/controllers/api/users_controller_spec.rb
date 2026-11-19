@@ -5495,4 +5495,43 @@ describe Api::UsersController, :type => :controller do
     end
   end
 
+  describe "index admin sign-in" do
+    LimitedSignInHelpers::KINDS.each do |kind, wording|
+      it "should refuse the user search to an admin manager whose sign-in #{wording}" do
+        limited_admin_token(kind, admin_org_manager: true)
+        expect(Organization.admin_manager?(@user)).to eq(true)
+        get :index, params: {q: 'bob'}
+        assert_error 'admins only'
+      end
+    end
+  end
+
+  describe "update_2fa on the device in use" do
+    it "keeps the device that confirmed the code signed in" do
+      token_user
+      token = @device.tokens[0]
+      post :update_2fa, params: {'user_id' => @user.global_id, 'action_2fa' => 'enable'}
+      assert_success_json
+      code = ROTP::TOTP.new(@user.reload.settings['tmp_2fa']['secret'], issuer: 'LingoLinq').now
+      post :update_2fa, params: {'user_id' => @user.global_id, 'action_2fa' => 'confirm', 'code_2fa' => code}
+      json = assert_success_json
+      expect(json['state']).to eq({'required' => true, 'verified' => true})
+      expect(@device.reload.settings['2fa']['last_otp']).to be_a(Integer)
+      res = Device.check_token(token, nil)
+      expect(res[:error]).to eq(nil)
+      expect(res[:user]).to eq(@user)
+    end
+
+    it "signs out the account's other devices when it turns on 2FA" do
+      token_user
+      other = Device.create(user: @user, developer_key_id: 0, device_key: 'other-device')
+      other_token = other.tokens[0]
+      expect(Device.check_token(other_token, nil)[:user]).to eq(@user)
+      post :update_2fa, params: {'user_id' => @user.global_id, 'action_2fa' => 'enable'}
+      code = ROTP::TOTP.new(@user.reload.settings['tmp_2fa']['secret'], issuer: 'LingoLinq').now
+      post :update_2fa, params: {'user_id' => @user.global_id, 'action_2fa' => 'confirm', 'code_2fa' => code}
+      assert_success_json
+      expect(Device.check_token(other_token, nil)[:error]).to eq('Invalid token')
+    end
+  end
 end
