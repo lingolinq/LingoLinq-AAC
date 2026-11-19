@@ -142,8 +142,8 @@ function warned_keys(entry) {
   return keys;
 }
 
-// The boards of the newest finished sync in `log` saved without their picture that the sync before it, for the same
-// person, did not warn about (services/sync-notice.js keeps a success card with a new warning until it is dismissed;
+// The boards of the newest finished sync in `log` saved without their picture that the finished sync before it, for
+// the same person, did not warn about (services/sync-notice.js keeps a success card with a new warning until it is dismissed;
 // the same warning again goes away on its own, as any success, Traci 2026-11-18).
 export function new_warnings(log) {
   log = log || [];
@@ -151,7 +151,7 @@ export function new_warnings(log) {
   if(!latest) { return []; }
   var prev = null;
   for(var i = log.length - 2; i >= 0; i--) {
-    if(log[i] && log[i].user_id === latest.user_id && (log[i].statuses || []).length) { prev = log[i]; break; }
+    if(log[i] && log[i].user_id === latest.user_id && !log[i].errored && !log[i].canceled && (log[i].statuses || []).length) { prev = log[i]; break; } // a finished sync, as last_result (utils/sync_log_store.js): a failed or cancelled one stopped part way
   }
   var before = warned_keys(prev);
   return Object.keys(warned_keys(latest)).filter(function(k) { return !before[k]; });

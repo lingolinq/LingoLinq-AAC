@@ -7610,17 +7610,20 @@ describe("persistence-sync", function() {
     // How often this harness asks for the board in a sync with no retry: 3, measured with a picture that is not retried
     // (the 400 case below). A retry that walked the board again would ask more.
     var BOARD_145_REQUESTS = 3;
-    // `failing`: the URL whose save `answer(n)` answers (the n-th try); every other save succeeds.
-    function syncWith(failing, answer) {
+    // `failing`: the URL whose save `answer(n)` answers (the n-th try); every other save succeeds. `opts.answers`: more
+    // URLs answered the same way, each counted in state.calls_for[url]; `opts.side`: more of fred/side's board record.
+    function syncWith(failing, answer, opts) {
+      opts = opts || {};
       cancelSyncTailWork();
       unloadSyncStoreRecords();
       resetSyncTestCaches();
-      var state = { tailDone: false, result: null, calls: 0, types: [], sync_ids: [] };
+      var state = { tailDone: false, result: null, calls: 0, types: [], sync_ids: [], calls_for: {} };
       enableRealSyncBoards(stubOnPersistence, function() { state.tailDone = true; });
       persistence.set('sync_log', null);
       persistence.set('sync_progress', null);
       persistence.set('sync_status', null);
       stubStoreUrl(function(url, type, keep_big, force, sync_id) {
+        if(opts.answers && opts.answers[url]) { state.calls_for[url] = (state.calls_for[url] || 0) + 1; return opts.answers[url](state.calls_for[url]); }
         if(url !== failing) { return RSVP.resolve({url: url}); }
         state.calls++; state.types.push(type); state.sync_ids.push(sync_id); // a retry saves as the first try did (Cancel drops a queued save by its sync_id)
         return answer(state.calls);
@@ -7635,9 +7638,9 @@ describe("persistence-sync", function() {
         id: '145', image_url: 'http://example.com/board.png', image_urls: {'2': BUTTON}, sound_urls: {'3': SOUND},
         buttons: [{id: '1', label: 'hi', image_id: '2', sound_id: '3'}], grid: {rows: 1, columns: 1, order: [['1']]}
       }})});
-      queryLog.defineFixture({ method: 'GET', type: 'board', id: 'fred/side', response: RSVP.resolve({board: {
+      queryLog.defineFixture({ method: 'GET', type: 'board', id: 'fred/side', response: RSVP.resolve({board: Object.assign({
         id: '1_146', key: 'fred/side', image_url: 'http://example.com/board.png', buttons: [], grid: {rows: 1, columns: 1, order: [[null]]}
-      }})});
+      }, opts.side || {})})});
       cacheStoredUrl('http://example.com/pic.png');
       cacheStoredUrl('http://example.com/board.png'); defineCrisisVocabularyFixture();
       persistence.sync(1340).then(function(res) { state.result = res; });
@@ -7810,14 +7813,52 @@ describe("persistence-sync", function() {
       });
     });
 
+    // One board with both: its icon and a button picture (Traci, 2026-11-18; final review F2).
+    var SIDE_BUTTON = 'http://example.com/side-button.png';
+    var SIDE_WITH_BUTTON = {image_urls: {'5': SIDE_BUTTON}, buttons: [{id: '1', label: 'hey', image_id: '5'}], grid: {rows: 1, columns: 1, order: [['1']]}};
+    function dead() { return RSVP.reject({error: 'URL lookup failed during proxy', fakeXHR: {status: 400}}); }
+
+    it("still tries a folder's button picture again when its icon cannot be saved", function() {
+      db_wait(function() {
+        var answers = {}; answers[SIDE_BUTTON] = function(n) { return n === 1 ? dropped() : saved(n); };
+        var state = syncWith(SIDEBAR, function() { return dead(); }, {side: SIDE_WITH_BUTTON, answers: answers});
+        waitsFor(function() { return finished(state); });
+        runs(function() {
+          expect(state.calls_for[SIDE_BUTTON]).toEqual(2); // the dead icon did not hold back the button picture's retry
+          expect(errorFor('fred/side')).toEqual(undefined);
+          expect(warningFor('fred/side')).toEqual(SIDEBAR_WARNING);
+          done();
+        });
+      });
+    });
+
+    it("words a folder's error by its button picture, not its icon", function() {
+      db_wait(function() {
+        var answers = {}; answers[SIDE_BUTTON] = function() { return dead(); };
+        var state = syncWith(SIDEBAR, function() { return dropped(); }, {side: SIDE_WITH_BUTTON, answers: answers});
+        waitsFor(function() { return finished(state); });
+        runs(function() {
+          expect(state.calls_for[SIDE_BUTTON]).toEqual(1);
+          expect(errorFor('fred/side')).toEqual('board fred/side failed to sync completely: button image failed to sync, ' + SIDE_BUTTON + ', linked from sidebar board');
+          done();
+        });
+      });
+    });
+
     it("tries the icon again on the next sync after a warning", function() {
       db_wait(function() {
-        var state = syncWith(SIDEBAR, function(n) { return n === 1 ? RSVP.reject({error: 'URL lookup failed during proxy', fakeXHR: {status: 400}}) : saved(n); });
+        var state = syncWith(SIDEBAR, function(n) { return n === 1 ? RSVP.reject({error: 'URL lookup failed during proxy', fakeXHR: {status: 400}}) : saved(n); }, {side: {full_set_revision: 'side-rev-1'}});
         var second = {result: null};
+        var revisions = null;
         waitsFor(function() { return finished(state); });
         runs(function() {
           expect(warningFor('fred/side')).toEqual(SIDEBAR_WARNING);
-          persistence.sync(1340).then(function(res) { second.result = res; }); // the board is recorded as complete; its icon is not
+          persistence.find('settings', 'synced_full_set_revisions').then(function(r) { revisions = r; }, function() { revisions = {}; });
+        });
+        waitsFor(function() { return revisions; });
+        runs(function() {
+          expect(revisions['fred/side']).toEqual('side-rev-1'); // the warned board is recorded as complete (this harness keys the record by its key), so the next sync finds it cached
+          persistence.sync(1340).then(function(res) { second.result = res; }); // its icon is not on the device, so it is tried again
         });
         waitsFor(function() { return waitForSyncDoneAndSettled(second.result); });
         runs(function() {

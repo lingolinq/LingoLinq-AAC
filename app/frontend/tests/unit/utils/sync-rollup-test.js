@@ -155,6 +155,8 @@ module('Unit | Utility | sync rollup', function() {
     assert.deepEqual(new_warnings([entry('me', [kb]), entry('me', [kb, fun])]), ['me/fun']);
     assert.deepEqual(new_warnings([entry('me', [plain]), entry('me', [kb])]), ['me/kb'], 'warned now, not before');
     assert.deepEqual(new_warnings([entry('me', [kb]), entry('me', []), entry('me', [kb])]), [], 'a sync with no rows (cancelled) is skipped');
+    assert.deepEqual(new_warnings([entry('me', [kb]), Object.assign(entry('me', [plain]), { errored: true }), entry('me', [kb])]), [], 'a failed sync with partial rows is skipped');
+    assert.deepEqual(new_warnings([entry('me', [kb]), Object.assign(entry('me', [plain]), { canceled: true }), entry('me', [kb])]), [], 'a cancelled sync with partial rows is skipped');
     assert.deepEqual(new_warnings([entry('you', [kb]), entry('me', [kb])]), ['me/kb'], 'another person\'s sync does not count');
     assert.deepEqual(new_warnings([entry('me', [plain])]), []);
     assert.deepEqual(new_warnings([]), []);
