@@ -766,7 +766,7 @@ var persistence = Service.extend({
           // Only report the save as complete once the local write has actually
           // landed; resolving earlier lets a find() issued by the caller race
           // the write, miss, and poison known_missing for that record.
-          resolve(obj);
+          resolve(obj); try { note_board_written(root, store, obj); } catch(e) { } // a written board counts as saved at a stop (utils/sync_rollup.js); never blocks the write's promise
         }, function(error) {
           root.errors = root.errors || [];
           root.errors.push({error: error, message: "Failed to store object", object: obj, store: store, key: key}); note_failed_write(root, error); // a sync counts it (utils/storage_failures.js)
@@ -2779,10 +2779,10 @@ var persistence = Service.extend({
           } else {
             board_statuses.push({id: id, key: record.get('key'), status: 're-downloaded'});
             record.set('button_set_needs_reload', true);
-            return _this.time_promise(record.reload(), "reload board", BOARD_RELOAD_MS).then(function(reloaded) { note_board_done(_this.get('sync_progress'), id, record.get('key')); return reloaded; }, function(err) { return keep_stored_board(record, err, board_statuses, id, function(rec) { return _this.find('board', rec.get('global_id') || rec.get('id')).then(function(row) { return usable_copy(row) ? row : RSVP.reject({error: 'no usable copy'}); }); }); }); // #1212 (utils/sync_board_fallback.js): by global id, a key lookup scans every board row
+            return _this.time_promise(record.reload(), "reload board", BOARD_RELOAD_MS).then(null, function(err) { return keep_stored_board(record, err, board_statuses, id, function(rec) { return _this.find('board', rec.get('global_id') || rec.get('id')).then(function(row) { return usable_copy(row) ? row : RSVP.reject({error: 'no usable copy'}); }); }); }); // #1212 (utils/sync_board_fallback.js): by global id, a key lookup scans every board row
           }
         } else {
-          board_statuses.push({id: id, key: record.get('key'), status: 'downloaded'}); note_board_done(_this.get('sync_progress'), id, record.get('key')); // utils/sync_rollup.js
+          board_statuses.push({id: id, key: record.get('key'), status: 'downloaded'});
           record.set('button_set_needs_reload', true);
           return record;
         }
@@ -4984,7 +4984,7 @@ import { queue_eventual_store } from '../utils/eventual_store_queue';
 import { is_permanent_upload_url } from '../utils/permanent_upload';
 import { on_uploads_cdn, is_web_page } from '../utils/direct_fetch';
 import { picture_kept_in_database, usable_database_copy } from '../utils/database_picture';
-import { BOARD_RELOAD_MS, USER_RELOAD_MS, keep_stored_board, claim_board_retry, note_device_boards, known_on_device } from '../utils/sync_board_fallback'; import { create_parking, register_parking, wake_parked, retry_delay, when_slot_free } from '../utils/board_retry'; import { note_board_root, root_for_link, with_errors, note_board_done, confirmed_statuses, live_board_errors, content_error } from '../utils/sync_rollup'; import { record_sync_log, restore_sync_log } from '../utils/sync_log_store';
+import { BOARD_RELOAD_MS, USER_RELOAD_MS, keep_stored_board, claim_board_retry, note_device_boards, known_on_device } from '../utils/sync_board_fallback'; import { create_parking, register_parking, wake_parked, retry_delay, when_slot_free } from '../utils/board_retry'; import { note_board_root, root_for_link, with_errors, confirmed_statuses, live_board_errors, content_error, note_board_written } from '../utils/sync_rollup'; import { record_sync_log, restore_sync_log } from '../utils/sync_log_store';
 import { usable_copy } from '../utils/board_device_copy';
 import { reason_is_automatic, merge_follow_up } from '../utils/sync_follow_up';
 

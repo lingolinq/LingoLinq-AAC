@@ -6408,7 +6408,9 @@ describe("persistence-sync", function() {
     it("marks a board finished when its reload finished", function() {
       persistence.set('sync_progress', {});
       var rec = storedBoard(true);
-      stub(rec, 'reload', function() { return RSVP.resolve(rec); });
+      // The reload's save runs through the real store, as the adapter's does (setup changed 2026-11-19, Traci's OK:
+      // a board counts as saved once its write succeeds, utils/sync_rollup.js note_board_written).
+      stub(rec, 'reload', function() { return persistence.store('board', {board: {id: '1_1212', key: 'example/slow'}}, null).then(function() { return rec; }); });
       var res = { done: false };
       persistence.board_lookup('1_1212', {}).then(function() { res.done = true; }, function() { res.done = true; res.failed = true; });
       waitsFor(function() { return res.done; });
@@ -6421,12 +6423,16 @@ describe("persistence-sync", function() {
       });
     });
 
-    // board_lookup's other finishing path: a board the server just sent (fresh), with no reload. Noted as finished: its
-    // device save is queued (store_eventually resolves on queueing, not on the write; see the task log, final review).
+    // board_lookup's other finishing path: a board the server just sent (fresh), with no reload. Its save runs through
+    // the real store before the lookup answers (setup changed 2026-11-19, Traci's OK).
     it("marks a freshly downloaded board finished", function() {
       persistence.set('sync_progress', {});
       var rec = storedBoard(true);
       rec.set('fresh', true);
+      var find = LingoLinq.store.findRecord;
+      stub(LingoLinq.store, 'findRecord', function(type, id) {
+        return persistence.store('board', {board: {id: '1_1212', key: 'example/slow'}}, null).then(function() { return find.call(LingoLinq.store, type, id); });
+      });
       var res = { done: false };
       persistence.board_lookup('1_1212', {}).then(function() { res.done = true; }, function() { res.done = true; res.failed = true; });
       waitsFor(function() { return res.done; });
@@ -6435,6 +6441,74 @@ describe("persistence-sync", function() {
         expect(lastStatus()).toEqual('downloaded');
         var rows = confirmed_statuses(persistence.get('sync_progress.board_statuses'), persistence.get('sync_progress'));
         expect(rows[rows.length - 1].status).toEqual('downloaded');
+        persistence.set('sync_progress', null);
+      });
+    });
+
+    // Part 3, unit F1: the adapter's save is only QUEUED when the fetch answers (store_eventually), so a finished
+    // reload is not yet on the device. Until its write succeeds it is not saved at a stop; a failed write never is.
+    it("does not count a reloaded board as saved while its save has not run", function() {
+      persistence.set('sync_progress', {});
+      var rec = storedBoard(true);
+      stub(rec, 'reload', function() { return RSVP.resolve(rec); });
+      var res = { done: false };
+      persistence.board_lookup('1_1212', {}).then(function() { res.done = true; }, function() { res.done = true; res.failed = true; });
+      waitsFor(function() { return res.done; });
+      runs(function() {
+        expect(res.failed).toEqual(undefined);
+        var rows = confirmed_statuses(persistence.get('sync_progress.board_statuses'), persistence.get('sync_progress'));
+        expect(rows[rows.length - 1].status).toEqual('not_saved');
+        persistence.set('sync_progress', null);
+      });
+    });
+
+    it("does not count a freshly downloaded board as saved while its save has not run", function() {
+      persistence.set('sync_progress', {});
+      var rec = storedBoard(true);
+      rec.set('fresh', true);
+      var res = { done: false };
+      persistence.board_lookup('1_1212', {}).then(function() { res.done = true; }, function() { res.done = true; res.failed = true; });
+      waitsFor(function() { return res.done; });
+      runs(function() {
+        expect(lastStatus()).toEqual('downloaded');
+        var rows = confirmed_statuses(persistence.get('sync_progress.board_statuses'), persistence.get('sync_progress'));
+        expect(rows[rows.length - 1].status).toEqual('not_saved');
+        persistence.set('sync_progress', null);
+      });
+    });
+
+    it("does not count a reloaded board as saved when its save failed", function() {
+      persistence.set('sync_progress', {});
+      var rec = storedBoard(true);
+      var prior = lingoLinqExtras.storage.store; // the harness passes only 'settings' to the device; fail the board write
+      stub(lingoLinqExtras.storage, 'store', function(store, record, key) {
+        if(store === 'board') { return RSVP.reject({error: 'error storing record in db', quota: true}); }
+        return prior.call(lingoLinqExtras.storage, store, record, key);
+      });
+      var svc = persistenceTarget() || persistence;
+      var counts = { failed: svc.failed_writes, quota: svc.failed_writes_quota };
+      stub(rec, 'reload', function() { return persistence.store('board', {board: {id: '1_1212', key: 'example/slow'}}, null).then(function() { return rec; }); });
+      var res = { done: false };
+      persistence.board_lookup('1_1212', {}).then(function() { res.done = true; }, function() { res.done = true; res.failed = true; });
+      waitsFor(function() { return res.done; });
+      runs(function() {
+        var rows = confirmed_statuses(persistence.get('sync_progress.board_statuses'), persistence.get('sync_progress'));
+        expect(rows[rows.length - 1].status).toEqual('not_saved');
+        svc.failed_writes = counts.failed; svc.failed_writes_quota = counts.quota;
+        persistence.set('sync_progress', null);
+      });
+    });
+
+    // The adapter writes through utils/persistence.js's own store (its DSExtend is the one the adapter mixes in), not
+    // the service's: the proxy sends persistence.store to the service, so that copy is reached through the prototype.
+    it("counts a board written by the utils copy's store as saved", function() {
+      persistence.set('sync_progress', {});
+      var done = false;
+      Object.getPrototypeOf(persistence).store.call(null, 'board', {board: {id: '1_1213', key: 'example/utils'}}, null).then(function() { done = true; });
+      waitsFor(function() { return done; });
+      runs(function() {
+        var rows = confirmed_statuses([{ id: '1_1213', key: 'example/utils', status: 're-downloaded' }], persistence.get('sync_progress'));
+        expect(rows[0].status).toEqual('re-downloaded');
         persistence.set('sync_progress', null);
       });
     });

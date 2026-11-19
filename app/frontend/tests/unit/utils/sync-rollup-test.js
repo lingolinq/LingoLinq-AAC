@@ -1,6 +1,6 @@
 import { module, test } from 'qunit';
 import EmberObject from '@ember/object';
-import { note_board_root, root_for_link, rollup, with_errors, summary_for, current_root_name, only_parked_left, note_board_done, confirmed_statuses, live_board_errors, content_error } from 'frontend/utils/sync_rollup';
+import { note_board_root, root_for_link, rollup, with_errors, summary_for, current_root_name, only_parked_left, note_board_done, confirmed_statuses, live_board_errors, content_error, note_board_written } from 'frontend/utils/sync_rollup';
 import { ready_title } from 'frontend/utils/sync_progress';
 
 /* Sync results grouped by the boards a person knows (utils/sync_rollup.js): one row per home, sidebar or liked
@@ -195,6 +195,25 @@ module('Unit | Utility | sync rollup', function() {
   test('content_error: a board reached whose content did not all save is tagged content', function(assert) {
     var msg = 'board me/core failed to sync completely: button image failed to sync, http://example.com/p.png';
     assert.deepEqual(content_error(msg, '1_1', 'me/core'), { error: msg, board_id: '1_1', board_key: 'me/core', content: true });
+  });
+
+  // Part 3, unit F1: a board counts as saved once its WRITE succeeds (both persistence store copies call this).
+  test('note_board_written: a written board, by id and key, from either shape', function(assert) {
+    var sp = {};
+    var root = { get: function(k) { return k === 'sync_progress' ? sp : null; } };
+    note_board_written(root, 'board', { board: { id: '1_5', key: 'me/x' }, images: [] }); // the adapter's payload
+    assert.deepEqual(sp.boards_done, { '1_5': true, 'me/x': true });
+    assert.strictEqual(sp.device_boards, undefined, 'never creates the device map (it means "the device was read")');
+    note_board_written(root, 'board', { id: '1_6', key: 'me/y' }); // the batch's raw board
+    assert.true(sp.boards_done['1_6'] && sp.boards_done['me/y']);
+    sp.device_boards = {};
+    note_board_written(root, 'board', { id: '1_7', key: 'me/z' });
+    assert.deepEqual(sp.device_boards, { '1_7': true, 'me/z': true }, 'adds to a map the sync read');
+    note_board_written(root, 'image', { id: '1_8' });
+    assert.false(!!sp.boards_done['1_8'], 'only boards');
+    note_board_written({ get: function() { return null; } }, 'board', { id: '1_9' });
+    note_board_written(null, 'board', { id: '1_9' });
+    assert.false(!!sp.boards_done['1_9'], 'no sync running: nothing');
   });
 
   test('with_errors keeps the content tag, and adds none to other failures', function(assert) {

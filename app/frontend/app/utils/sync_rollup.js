@@ -112,15 +112,32 @@ export function rollup(statuses, roots) {
   return { groups: list, overall: { saved: saved, total: total, missing: missing, pct: total ? Math.floor(100 * saved / total) : 100 } };
 }
 
-// A board whose lookup finished during this sync (services/persistence.js board_lookup: its reload resolved, or it was
-// downloaded). At a stop, only such a download, or one the device database confirmed (sync_progress.device_boards,
-// utils/sync_board_fallback.js note_device_boards), counts as saved (docs/task-management/2026-11-16_sync-details-no-
-// percent.md Part 2).
+// A board written to the device during this sync (note_board_written below). At a stop, only such a download, or one
+// the device database already held (sync_progress.device_boards, utils/sync_board_fallback.js note_device_boards),
+// counts as saved (docs/task-management/2026-11-16_sync-details-no-percent.md Parts 2 and 3).
 export function note_board_done(sync_progress, id, key) {
   if(!sync_progress) { return; }
   sync_progress.boards_done = sync_progress.boards_done || {};
   if(id) { sync_progress.boards_done[id] = true; }
   if(key) { sync_progress.boards_done[key] = true; }
+}
+
+// A board whose WRITE to the device succeeded while a sync runs (both persistence store copies call this on their
+// success line: services/persistence.js and utils/persistence.js `store`). The adapter's save is only queued when a
+// fetch answers (store_eventually), so this, not the fetch, is what makes a board saved at a stop. Reads the caller's
+// `obj` (`obj[store] || obj`: the adapter's {board: ...} payload or a raw board), never the record handed to the
+// device database, which rewrites its id (utils/dbman.js). Adds to `device_boards` only when the sync already read the
+// device (creating that map means "the device was read", utils/sync_board_fallback.js known_on_device).
+export function note_board_written(root, store, obj) {
+  if(store !== 'board' || !root || typeof root.get !== 'function' || !obj) { return; }
+  var sync_progress = root.get('sync_progress');
+  if(!sync_progress) { return; }
+  var raw = obj[store] || obj;
+  note_board_done(sync_progress, raw.id, raw.key);
+  if(sync_progress.device_boards) {
+    if(raw.id) { sync_progress.device_boards[raw.id] = true; }
+    if(raw.key) { sync_progress.device_boards[raw.key] = true; }
+  }
 }
 
 var UNCONFIRMED_UNTIL_DONE = { 'downloaded': true, 're-downloaded': true };

@@ -558,3 +558,29 @@ verified (cee927b8f). Remaining, in order:
 cards; a cancel during priming (rows with no roots); item B; the :3359 walk line untested; queued-save failures not
 counted (`note_failed_write` not in the utils `store`); 'cached' rows trusted by the `retrieved` stamp; a fresh board
 served from memory with no device read; a renamed key; a board queued at Cancel that lands a second later.
+
+### Unit F1 (2026-11-19): a board counts as saved once its write succeeds. Code written; NOT fully verified
+Code: `utils/sync_rollup.js` `note_board_written(root, store, obj)` (reads `obj[store] || obj`; marks `boards_done`; adds
+to `device_boards` only when it exists); called after `resolve(obj)`, in try/catch, on the success line of both `store`
+copies (`services/persistence.js:769`, `utils/persistence.js:757`, same lines); the queue-time notes at :2782/:2785
+removed (both lines back to their pre-H form); the services import drops `note_board_done`; utils imports the helper
+(:4642, same line). Every hunk one-for-one.
+Deviation from the reviewed plan: :2975's `note_device_boards` is LEFT in place. A failed batch write is counted
+(service `store`, `note_failed_write`), so F2 marks the stopped entry `storage_failed` and `partial_result` skips it; the
+batch caches its lookups before storing (:2972-2973), so the map entry affects only `confirmed_statuses`. No test drives
+a batch write to success, so a move could not be falsified without a new heavy harness.
+Tests: the two approved setup changes (their reload/fetch now stores `{board: {id: '1_1212', key: 'example/slow'}}`
+through the real store; assertions unchanged); new: a reloaded board whose save has not run, or failed (board write
+failed at `lingoLinqExtras.storage.store`), is `not_saved`; a board written by the utils copy's own `store` (reached via
+`Object.getPrototypeOf(persistence).store`) is saved; unit `note_board_written`. Red before the code: 4 fail for the right
+reasons (missing helper; 're-downloaded' where 'not_saved' is expected; the utils write not counted). Green after: 64/64
+on the related describes.
+NOT yet run: the sibling "a freshly downloaded board ... while its save has not run" (added after the green run), the
+F1 mutants (F1a no hook in the service store; F1b no hook in the utils store; F1c no unwrap; F1d creating
+`device_boards`; F1f/F1g the old lookup-time notes back, written with `note_board_written(_this, 'board', {id, key})`
+because `note_board_done` is no longer imported), and the full sync filter.
+Stopped (Rule #0.13): a fourth self-inflicted error. A mutant-script edit failed its own assertion, but the run was
+chained with `;` and started anyway; it was killed mid-mutant with F1a applied to services/persistence.js. Restored from
+the script's own backup, the diff checked against F1 (hook present, :2782/:2785 as above). Next session: run the
+narrow filter (the new sibling), then the six mutants (fix the F1f/F1g strings in the scratch script first), then the
+full filter, then the dual review on the new range, then mark #1336 ready.
