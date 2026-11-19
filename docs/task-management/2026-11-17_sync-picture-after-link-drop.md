@@ -189,3 +189,30 @@ Candidates:
   - Risk: line-neutral edits in persistence.js (all appended to existing lines).
 - C2: the icon save never rejects; warn at once, no retry. Simpler, but a short drop gives a warning the C1 retry would have avoided. Rejected.
 - C3: silent like the board's own icon (:3137). Rejected by Traci (she wants a warning).
+
+### Proposal review (adversary) and what was applied
+
+Verdict: proceed with conditions. The facts were confirmed, including that the next sync tries the icon again (the :3160 gate is only `store_url_quick_check`; seeds are rebuilt every sync, :3060).
+- [High] A warned sync is a 'succeeded' card, which closes itself after 8 s (`services/sync-notice.js:22, :116`, verified). Traci chose option 1: a success with a NEW warning (not warned on the same person's previous finished sync) stays until dismissed; the same warning again closes on its own. The check runs when the timer fires (`new_warnings`), because the sync writes its log after its status and observers run inside the status set.
+- [Medium] An icon failure blocked the retry of the board's other saves and gave the board error its wording (`claim_content_retry` needs every failure passing; `settle_content` rejects with the first). Applied: `judge_content` keeps optional failures out of the retry decision and the wording; a cut-off icon is still parked with the others.
+- [Medium] A warning was not named when another board also failed. Applied: the drawer's attention detail adds the warning; Sync Details shows `picture_warning_line` on Needs attention.
+- [Low] A warning-only row would read as not saved. Applied: `note_warning` sets `warning` on the board's latest live status row at judgment time, never adds a row and skips error rows; in the rollup the error wins. This removed the planned `board_warnings`, `update_sync_progress` and completion-merge changes. `entry_copy` keeps the row `warning`.
+- [Low] A shared icon may already be on the device. Applied: `on_device` (`store_url_quick_check`) drops it before warning.
+- [Low] Revocation: an icon-only sync used to block `boardRevocation.finish_sync`'s marks (it applies them only with no errors); now it applies them. Intended: an icon does not make the server's verdict incomplete. Pinned indirectly: the walk tests assert `sync_status` 'succeeded' (no errors) for an icon-only failure.
+- [Low] The `warned` entry key is redundant; dropped (its assertions came out of this session's not-yet-shipped red tests, since the spec changed with the review).
+- [Low] A second-sync test was added ("tries the icon again on the next sync after a warning").
+- Not changed, noted: a board that is both a sidebar seed and a liked seed with different images (no seed dedupe, pre-existing); the drawer's Try again still forces a full sync, as for failures.
+
+### Implementation (6ab2823d1)
+
+- `utils/board_content_retry.js`: `only_optional`, `judge_content`, `content_warning`; `retry_content` uses `judge_content` and `ctx.warn`/`ctx.on_device`, and records the board complete when only warnings remain.
+- `services/persistence.js`, line-neutral (5144 lines): the icon item is `optional: true` (:3164); the board judgment (:3349) uses `judge_content`, notes the warnings, and records the board complete when nothing failed; the retry ctx (:3095) gains `warn` and `on_device`; imports at the end.
+- `utils/sync_rollup.js`: `final_rows` keeps `warning`; groups get `pictures_missing` and overall `warned`; `note_warning`; `new_warnings`. `utils/sync_log_store.js` keeps the row `warning`.
+- `utils/sync_progress.js` `picture_warning`; the drawer adds it to its ready and attention lines and offers Try again (secondary) when ready; Sync Details opens the first warned card when nothing needs attention, shows a "Picture not saved" section with Try again, and a summary line on Needs attention.
+- `services/sync-notice.js`: the timer keeps a success with new warnings.
+- `templates/application.hbs`: classic sidebar icons fall back to the placeholder.
+- 4 new strings, through `i18n_generator.rb --generate`/`--merge`.
+
+Tests: failing first (b8f4f6c00: 9 new tests failed on the old code; 2 guards passed). After the fix: the targeted modules pass; filter `sync` 415 passed, 0 failed, 2 skipped; `persistence` 337/0/9; `revocation` 33/0; `sidebar` 55/0. A test bug was fixed along the way: the two-sync test first read `sync_log[0]`, the older entry. 8 mutants in one build, each turned its own test red: icon not optional; no on-device check; a warned retry not recorded complete; warning on an error row; `new_warnings` ignoring the previous sync; `entry_copy` dropping `warning`; no Try again; Sync Details not opening the warned card.
+
+Process: a mutant restore used `cd ..` from app/frontend (it lands in app/, not the repo root), so the restore missed; caught at once by `git status` and redone from the commit. Use absolute paths for restores.
