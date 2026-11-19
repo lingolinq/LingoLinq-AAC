@@ -381,3 +381,21 @@ Scot's OK for a third review round); lint gate; final review; Traci's answer on 
 - persistence.js hunks above 4465 one-for-one (2439-2440, 2782, 2785, 4987); +7 at 5115.
 - H and A are one commit: one import line, the Cancel path (A) calls H's `confirmed_statuses`, and the describe's two
   tests check both. An H-only commit would be a state no run verified.
+
+### Unit T, this branch (2026-11-18/19): content errors tagged
+
+Facts (CONFIRMED by reading): the content error is pushed at `services/persistence.js:3359` as `{error, board_id,
+board_key}`; lookup failures (:3378 deleted, :3380 retrieval) stay untagged. `with_errors` built `{id, key, error}`;
+the success merge (:2383-2394) set `status.error` or pushed `{id, key, error}`; `entry_copy` kept `id, key, status,
+error`. Each dropped any tag.
+No test reaches :3359 (only a failed picture or sound save on the real walk does, and no harness drives one). Traci
+(2026-11-18): build the error with a pure helper (`utils/sync_rollup.js` `content_error`, used on :3359, same line) and
+unit-test it; accept that a mutant reverting :3359 to the literal survives (T6 below; for the PR's "Not covered").
+Change: `content_error`; `with_errors` copies `content` only when set (no `content: undefined` key); the success merge
+sets or clears it on an existing row and adds it to an error-only row (same lines); `entry_copy` keeps `content`.
+persistence.js hunks one-for-one (2387, 2392, 3359, 4987). The utils copy (`utils/persistence.js:3377`) has its own
+"failed to sync completely" line, untouched, as H and A left that copy (the app runs the service's sync).
+Red: 4 new tests failed for the missing tag or helper. Green: 31/31 on `/sync rollup|sync log store|content failures
+tagged/i`; full sync filter 600 tests, 591 pass, 9 skipped, 0 fail. Mutants: T1 helper without the tag: killed (1); T2 `with_errors` dropping it: killed (1); T3 tagging every
+error: killed (2); T4 `entry_copy` dropping it: killed (1); T5 merge onto an existing row: killed (1); T6 :3359 not
+using the helper: SURVIVED (the accepted gap); T7 merge on an error-only row: killed (1).

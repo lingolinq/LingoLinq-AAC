@@ -46,7 +46,7 @@ export function entry_copy(entry) {
   });
   copy.statuses = (Array.isArray(entry.statuses) ? entry.statuses : []).filter(function(s) { return s && typeof s === 'object'; }).map(function(s) {
     var row = {};
-    ['id', 'key', 'status', 'error'].forEach(function(k) { if(s[k] !== undefined) { row[k] = s[k]; } });
+    ['id', 'key', 'status', 'error', 'content'].forEach(function(k) { if(s[k] !== undefined) { row[k] = s[k]; } }); // content: utils/sync_rollup.js content_error
     return row;
   });
   return copy;

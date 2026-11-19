@@ -46,6 +46,13 @@ module('Unit | Utility | sync log store', function() {
     assert.deepEqual(entry_copy({ errored: true, finished: e.finished }).statuses, [], 'an entry without rows gets an empty list');
   });
 
+  // Part 2 unit T: the content tag survives a restart, so PR #1328's list reads it from a restored entry too.
+  test('a saved entry keeps the content tag on a row', function(assert) {
+    var e = entry(1);
+    e.statuses = [{ id: '1_1', key: 'me/core', status: 'downloaded', error: 'board me/core failed to sync completely', content: true }];
+    assert.deepEqual(entry_copy(e).statuses, [{ id: '1_1', key: 'me/core', status: 'downloaded', error: 'board me/core failed to sync completely', content: true }]);
+  });
+
   test('a finished sync is saved, newest 5, in the owner\'s record', function(assert) {
     var p = service('me', 'me');
     var storage = fake_storage();

@@ -2384,12 +2384,12 @@ var persistence = Service.extend({
             if(error.board_key || error.board_id) {
               var status = statuses.find(function(s) { return (s.key && s.key == error.board_key); });
               if(status) {
-                status.error = error.error;
+                status.error = error.error; if(error.content) { status.content = true; } else { delete status.content; } // utils/sync_rollup.js content_error
               } else {
                 statuses.push({
                   id: error.board_id || error.board_key,
                   key: error.board_key || error.board_id,
-                  error: error.error
+                  error: error.error, ...(error.content ? { content: true } : {})
                 });
               }
             }
@@ -3356,7 +3356,7 @@ var persistence = Service.extend({
                 if(source) {
                    msg = msg + ", linked from " + source;
                 }
-                board_errors.push({error: msg, board_id: id, board_key: key});
+                board_errors.push(content_error(msg, id, key)); // tagged content: the board was reached (utils/sync_rollup.js)
                 schedule_sync_board_step(function() {
                   nextBoard(defer);
                 }, 75);
@@ -4984,7 +4984,7 @@ import { queue_eventual_store } from '../utils/eventual_store_queue';
 import { is_permanent_upload_url } from '../utils/permanent_upload';
 import { on_uploads_cdn, is_web_page } from '../utils/direct_fetch';
 import { picture_kept_in_database, usable_database_copy } from '../utils/database_picture';
-import { BOARD_RELOAD_MS, USER_RELOAD_MS, keep_stored_board, claim_board_retry, note_device_boards, known_on_device } from '../utils/sync_board_fallback'; import { create_parking, register_parking, wake_parked, retry_delay, when_slot_free } from '../utils/board_retry'; import { note_board_root, root_for_link, with_errors, note_board_done, confirmed_statuses, live_board_errors } from '../utils/sync_rollup'; import { record_sync_log, restore_sync_log } from '../utils/sync_log_store';
+import { BOARD_RELOAD_MS, USER_RELOAD_MS, keep_stored_board, claim_board_retry, note_device_boards, known_on_device } from '../utils/sync_board_fallback'; import { create_parking, register_parking, wake_parked, retry_delay, when_slot_free } from '../utils/board_retry'; import { note_board_root, root_for_link, with_errors, note_board_done, confirmed_statuses, live_board_errors, content_error } from '../utils/sync_rollup'; import { record_sync_log, restore_sync_log } from '../utils/sync_log_store';
 import { usable_copy } from '../utils/board_device_copy';
 import { reason_is_automatic, merge_follow_up } from '../utils/sync_follow_up';
 

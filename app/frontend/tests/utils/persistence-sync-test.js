@@ -7520,6 +7520,59 @@ describe("persistence-sync", function() {
     });
   });
 
+  // Part 2 unit T: a finished sync's entry keeps the content tag on a board whose pictures or sounds did not all save,
+  // both on the board's own row and on a row added for an error alone; a lookup failure gets none (PR #1328 hides
+  // another owner's liked board only on that).
+  describe("a finished sync's log entry: content failures tagged", function() {
+    it("keeps content on the board's row and on an error-only row, and none on a lookup failure", function() {
+      db_wait(function() {
+        cancelSyncTailWork();
+        unloadSyncStoreRecords();
+        persistence.set('sync_progress', null);
+        persistence.set('sync_status', null);
+        persistence._canceled_sync_id = null;
+        var saved = { last_sync_status: stashes.get('last_sync_status'), last_sync_at: persistence.get('last_sync_at'), last_sync_stamp: persistence.get('last_sync_stamp'), last_sync_event_at: persistence.get('last_sync_event_at') };
+        var core_error = 'board me/core failed to sync completely: button image failed to sync, http://example.com/p.png';
+        var pics_error = 'board me/pics failed to sync completely: button image failed to sync, http://example.com/q.png';
+        var gone_error = 'board me/gone failed retrieval for syncing, linked from me/core';
+        stub(modal, 'error', function() { });
+        stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+        stubOnPersistence('sync_user', function() { return RSVP.resolve(); });
+        stubOnPersistence('sync_boards', function() {
+          persistence.set('sync_progress.board_statuses', [{ id: '1_1', key: 'me/core', status: 'downloaded' }]);
+          persistence.set('sync_progress.errors', [
+            { board_id: '1_1', board_key: 'me/core', error: core_error, content: true },
+            { board_id: '1_3', board_key: 'me/pics', error: pics_error, content: true },
+            { board_id: '1_5', board_key: 'me/gone', error: gone_error }
+          ]);
+          return RSVP.resolve({});
+        });
+        queryLog.defineFixture({ method: 'GET', type: 'user', response: RSVP.resolve({user: {id: '1374', user_name: 'fred'}}), id: '1374' });
+        var done = null;
+        persistence.sync('1374').then(function() { done = 'resolved'; }, function() { done = 'rejected'; });
+        waitsFor(function() { return done && syncSettled(); });
+        runs(function() {
+          var log = persistence.get('sync_log') || [];
+          var last = log[log.length - 1] || {};
+          var row = function(k) { return (last.statuses || []).filter(function(r) { return r.key === k; })[0] || {}; };
+          expect(!!last.canceled || !!last.errored).toEqual(false);
+          expect(row('me/core').error).toEqual(core_error);
+          expect(row('me/core').content).toEqual(true);
+          expect(row('me/pics').content).toEqual(true);
+          expect(row('me/gone').error).toEqual(gone_error);
+          expect('content' in row('me/gone')).toEqual(false);
+          stashes.persist('last_sync_status', saved.last_sync_status);
+          persistence.set('sync_status_error', null);
+          persistence.set('last_sync_at', saved.last_sync_at);
+          persistence.set('last_sync_stamp', saved.last_sync_stamp); persistence.set('last_sync_event_at', saved.last_sync_event_at);
+          cancelSyncTailWork();
+          persistence.set('sync_progress', null);
+          persistence.set('sync_status', null);
+        });
+      });
+    });
+  });
+
   // A cancelled sync whose board walk resolves (the walk resolves on cancel, services/persistence.js nextBoard) ended in
   // the success branch: 'succeeded' with "ready for offline use" in the drawer right after Cancel, the stash and the
   // sync clocks moved as if the boards were saved (section 22 of docs/task-management/2026-11-10_offline-followup-proposals.md).

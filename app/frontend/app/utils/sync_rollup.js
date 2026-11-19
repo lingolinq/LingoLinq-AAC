@@ -159,13 +159,23 @@ export function live_board_errors(sync_progress) {
   return list;
 }
 
+// The error for a board the walk reached whose pictures or sounds did not all save ("failed to sync completely",
+// services/persistence.js sync_boards). Tagged `content`: the board itself was not refused, so PR #1328's offline list
+// does not hide another owner's liked board on it (docs/task-management/2026-11-16_sync-details-no-percent.md Part 2, T).
+export function content_error(msg, id, key) {
+  return { error: msg, board_id: id, board_key: key, content: true };
+}
+
 // A board's errors as the sync keeps them while it runs (sync_progress.progress_for[*].board_errors), merged into its
-// status rows the way the finished sync does (services/persistence.js sync, before its log entry).
+// status rows the way the finished sync does (services/persistence.js sync, before its log entry). A content error's
+// tag is kept; other rows get no `content` key.
 export function with_errors(statuses, errors) {
   var rows = (statuses || []).slice();
   (errors || []).forEach(function(error) {
     if(error && (error.board_key || error.board_id)) {
-      rows.push({ id: error.board_id || error.board_key, key: error.board_key || error.board_id, error: error.error });
+      var row = { id: error.board_id || error.board_key, key: error.board_key || error.board_id, error: error.error };
+      if(error.content) { row.content = true; }
+      rows.push(row);
     }
   });
   return rows;

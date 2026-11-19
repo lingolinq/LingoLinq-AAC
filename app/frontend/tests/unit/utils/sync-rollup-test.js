@@ -1,6 +1,6 @@
 import { module, test } from 'qunit';
 import EmberObject from '@ember/object';
-import { note_board_root, root_for_link, rollup, with_errors, summary_for, current_root_name, only_parked_left, note_board_done, confirmed_statuses, live_board_errors } from 'frontend/utils/sync_rollup';
+import { note_board_root, root_for_link, rollup, with_errors, summary_for, current_root_name, only_parked_left, note_board_done, confirmed_statuses, live_board_errors, content_error } from 'frontend/utils/sync_rollup';
 import { ready_title } from 'frontend/utils/sync_progress';
 
 /* Sync results grouped by the boards a person knows (utils/sync_rollup.js): one row per home, sidebar or liked
@@ -188,5 +188,23 @@ module('Unit | Utility | sync rollup', function() {
     assert.deepEqual(live_board_errors(sp), [a, b, c]);
     assert.deepEqual(live_board_errors({ errors: [c] }), [c], 'no live arrays: the copy');
     assert.deepEqual(live_board_errors(null), []);
+  });
+
+  // Part 2 unit T: a board that was reached but whose pictures or sounds did not all save ("failed to sync
+  // completely") is tagged `content`, so PR #1328's offline list can tell it from a board the server refused.
+  test('content_error: a board reached whose content did not all save is tagged content', function(assert) {
+    var msg = 'board me/core failed to sync completely: button image failed to sync, http://example.com/p.png';
+    assert.deepEqual(content_error(msg, '1_1', 'me/core'), { error: msg, board_id: '1_1', board_key: 'me/core', content: true });
+  });
+
+  test('with_errors keeps the content tag, and adds none to other failures', function(assert) {
+    var rows = with_errors([], [
+      { board_id: '1_1', board_key: 'me/core', error: 'board me/core failed to sync completely', content: true },
+      { board_id: '1_9', board_key: 'kid/feel', error: 'board kid/feel failed retrieval for syncing' }
+    ]);
+    assert.deepEqual(rows, [
+      { id: '1_1', key: 'me/core', error: 'board me/core failed to sync completely', content: true },
+      { id: '1_9', key: 'kid/feel', error: 'board kid/feel failed retrieval for syncing' }
+    ]);
   });
 });
