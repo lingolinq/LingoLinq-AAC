@@ -395,4 +395,6 @@ range (`--redact`): all 22 are `generic-api-key` on test-fixture board keys, `ke
 `key: 'larry/home'` (1), in six unit test files (commits a73ff790a, e3e38f15c, b6066b00b, d6fdaa443). No credential.
 Renaming the fixtures cannot clear it (the old commits stay in the scanned range; force-push is denied). The repo's
 pattern for a literal false positive is a narrow `.gitleaks.toml` allowlist (`targetRules = ["generic-api-key"]`, a
-`regexes` entry), as for `pin_placeholder_4_digit`. Not changed: awaiting Traci's OK (Rule #0.14: check config).
+`regexes` entry), as for `pin_placeholder_4_digit`. Traci approved it (2026-11-19); added for the two literals only. Local
+scan, same version and range: no leaks. Falsified on scratch files: without the entry the fixture line is flagged; with it,
+it passes; a different high-entropy `key:` value is still flagged.
