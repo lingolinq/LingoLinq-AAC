@@ -518,3 +518,21 @@ Revised plan:
 - The two existing tests: the smallest change keeps their assertions and changes only the fixture (the stubbed reload
   or find stores `{board: {id: '1_1212', key: 'example/slow'}}` through the real path); new siblings pin the no-write
   case. Needs Traci's OK.
+Traci (2026-11-19): change the two tests' setup (assertions kept; the stubbed reload/fetch stores through the real save
+path; siblings for no write and a failed write). Leave `note_failed_write` out of the utils `store` (record in "Not
+covered"). Order: unit F2 (storage_failed in both stop paths), then unit F1 (saved only on a written board).
+
+### Unit F2 (2026-11-19): storage_failed in both stop paths
+Code: the failure branch sets `storage_failed: writes_failed_since(_this_sync, writes_before) || undefined` (same line,
+:2467); the :2376 call passes `writes_before`; `end_canceled_sync(..., writes_before)` checks only when given it.
+Harness trap found on the way (CONFIRMED by a debug run): `primeSyncHarness` stubs `lingoLinqExtras.storage.store` so
+only 'settings' writes reach the device database (`tests/utils/persistence-sync-test.js:649-656`); every other write
+resolves without writing. A `capabilities.dbman.store_internal` stub therefore never sees a board write in this suite.
+My first version of the F2 tests used that stub: the failure-branch test failed (no write was ever counted), and the
+Cancel test passed for the wrong reason (a later 'settings' write failed). Rewritten to fail the 'board' write at
+`lingoLinqExtras.storage.store` and pass every other store through. The existing `syncWithFailingWrites` tests
+(:5801) also fail only a 'settings' write; noted, not changed.
+Red (the committed pre-F2 code, the corrected tests): 3/3 fail on `storage_failed`. Green: 16/16 on the stop-path
+describes; full sync filter 603 tests, 594 pass, 9 skipped, 0 fail; lint only the known false positive. Mutants: F2a
+failure branch without the flag: killed (1); F2b :2376 not passing `writes_before`: killed (1); F2c Cancel checking with
+no start count: killed (1); F2d Cancel entry without the flag: killed (2).

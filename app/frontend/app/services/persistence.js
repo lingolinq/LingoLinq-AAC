@@ -2373,7 +2373,7 @@ var persistence = Service.extend({
 
       var complete_sync = track_buttons.then(function() {
         var last_sync = (new Date()).getTime() / 1000;
-        if(_this_sync.get('sync_progress.root_user') == user_id && !_this_sync.end_canceled_sync(sync_id, user_id, user_name, force)) { // a cancelled sync whose walk resolved ends as cancelled, before anything below moves the stamps or the clock
+        if(_this_sync.get('sync_progress.root_user') == user_id && !_this_sync.end_canceled_sync(sync_id, user_id, user_name, force, writes_before)) { // a cancelled sync whose walk resolved ends as cancelled, before anything below moves the stamps or the clock
           var sync_stamps = _this_sync.get('sync_progress.sync_stamps'); var board_roots = _this_sync.get('sync_progress.board_roots') || {}; // which board each one was reached from, for Sync Details (utils/sync_rollup.js)
           var statuses = _this_sync.get('sync_progress.board_statuses') || [];
           if(_this_sync.get('sync_progress.last_sync_stamp')) {
@@ -2464,7 +2464,7 @@ var persistence = Service.extend({
         log.push({
           user_id: user_name,
           manual: force,
-          errored: _this_sync._canceled_sync_id !== sync_id, canceled: _this_sync._canceled_sync_id === sync_id || undefined, // a cancel that ended through this branch is still a cancel (docs/task-management/2026-11-15_persist-sync-log.md)
+          errored: _this_sync._canceled_sync_id !== sync_id, canceled: _this_sync._canceled_sync_id === sync_id || undefined, storage_failed: writes_failed_since(_this_sync, writes_before) || undefined, // a board write failed: none of its rows is shown as saved (utils/sync_log_store.js partial_result) // a cancel that ended through this branch is still a cancel (docs/task-management/2026-11-15_persist-sync-log.md)
           finished: new Date(),
           statuses: with_errors(statuses, stopped_errors), roots: stopped_roots, // grouped and with the failures it recorded, as the finished sync's entry (utils/sync_rollup.js)
           summary: _this_sync._canceled_sync_id === sync_id ? i18n.t('sync_canceled_summary', "Sync canceled") : i18n.t('error_syncing_user', "Error syncing %{user_id}: ", {user_id: user_name}) + message
@@ -4978,7 +4978,7 @@ export default persistence;
 // Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
 import boardRevocation from '../utils/board_revocation';
 import { keep_queued_keys, replay_save_options } from '../utils/preference_save';
-import { note_failed_write, failed_write_count, end_sync_if_storage_failed } from '../utils/storage_failures';
+import { note_failed_write, failed_write_count, end_sync_if_storage_failed, writes_failed_since } from '../utils/storage_failures';
 import offlineSyncSeeds from '../utils/offline_sync_seeds';
 import { queue_eventual_store } from '../utils/eventual_store_queue';
 import { is_permanent_upload_url } from '../utils/permanent_upload';
@@ -5110,7 +5110,7 @@ persistence.reopen({
   // result and moves neither the sync clock nor the stamps (the next sync must still run). It records the event time
   // (as the failure branch does) so the automatic check does not restart a sync right after Cancel, and logs the cancel.
   // Section 22 of docs/task-management/2026-11-10_offline-followup-proposals.md. Returns true when it ended the sync.
-  end_canceled_sync: function(sync_id, user_id, user_name, force) {
+  end_canceled_sync: function(sync_id, user_id, user_name, force, writes_before) {
     if(!sync_id || this._canceled_sync_id !== sync_id) { return false; }
     // What the cancelled sync saved and what failed, read before sync_progress is cleared: as the failure branch, only
     // downloads that finished count as saved, and every user's recorded errors are kept with the roots (Sync Details'
@@ -5119,10 +5119,13 @@ persistence.reopen({
     var reached = Utils.uniq(confirmed_statuses((progress && progress.board_statuses) || [], progress), function(s) { return s.id; });
     var statuses = with_errors(reached, live_board_errors(progress));
     var roots = (progress && progress.board_roots) || {};
+    // A board write failed since the sync began (`writes_before`, from sync): as the failure branch. Not told when it
+    // began, nothing is checked (the count lasts the session, utils/storage_failures.js).
+    var storage_failed = writes_before !== undefined && writes_failed_since(this, writes_before);
     this.set('sync_progress', null);
     if(this._active_root_sync_id === sync_id && this.sync_status_is_for_signed_in_user(user_id)) { this.set('sync_status', null); }
     var log = [].concat(this.get('sync_log') || []);
-    log.push({ user_id: user_name, manual: force, canceled: true, finished: new Date(), statuses: statuses, roots: roots, summary: i18n.t('sync_canceled_summary', "Sync canceled") });
+    log.push({ user_id: user_name, manual: force, canceled: true, finished: new Date(), statuses: statuses, roots: roots, storage_failed: storage_failed || undefined, summary: i18n.t('sync_canceled_summary', "Sync canceled") });
     this.set('sync_log', record_sync_log(this, log)); // utils/sync_log_store.js
     this.set('sync_log_rand', Math.random());
     this.set('last_sync_event_at', (new Date()).getTime());
