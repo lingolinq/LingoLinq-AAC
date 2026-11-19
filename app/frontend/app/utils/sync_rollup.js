@@ -112,6 +112,53 @@ export function rollup(statuses, roots) {
   return { groups: list, overall: { saved: saved, total: total, missing: missing, pct: total ? Math.floor(100 * saved / total) : 100 } };
 }
 
+// A board whose lookup finished during this sync (services/persistence.js board_lookup: its reload resolved, or it was
+// downloaded). At a stop, only such a download, or one the device database confirmed (sync_progress.device_boards,
+// utils/sync_board_fallback.js note_device_boards), counts as saved (docs/task-management/2026-11-16_sync-details-no-
+// percent.md Part 2).
+export function note_board_done(sync_progress, id, key) {
+  if(!sync_progress) { return; }
+  sync_progress.boards_done = sync_progress.boards_done || {};
+  if(id) { sync_progress.boards_done[id] = true; }
+  if(key) { sync_progress.boards_done[key] = true; }
+}
+
+var UNCONFIRMED_UNTIL_DONE = { 'downloaded': true, 're-downloaded': true };
+
+// A stopped sync's rows: a download recorded before it finished (board_lookup records 're-downloaded' before the
+// reload; the batch step 'downloaded' before its store) and never confirmed reads 'not_saved': not an error, so it is
+// neither counted as saved (rollup) nor taken as a refusal. A board waiting for a retry, or still loading, when the sync
+// stopped is not on the device. Other rows are unchanged; a finished sync does not use this (its walk resolved them all).
+export function confirmed_statuses(statuses, sync_progress) {
+  var done = (sync_progress && sync_progress.boards_done) || {};
+  var device = (sync_progress && sync_progress.device_boards) || {};
+  var ok = function(s) { return !!((s.id && (done[s.id] || device[s.id])) || (s.key && (done[s.key] || device[s.key]))); };
+  return (statuses || []).map(function(s) {
+    if(!s || s.error || !UNCONFIRMED_UNTIL_DONE[s.status] || ok(s)) { return s; }
+    return Object.assign({}, s, { status: 'not_saved' });
+  });
+}
+
+// The errors a stopped sync recorded: every user's live array (sync_progress.progress_for[*].board_errors; the walk
+// pushes there), then any entry of the sync_progress.errors copy not already among them (update_sync_progress refreshes
+// that copy only at each walk step, so it can miss the last errors, and a test or older caller may set only it). Each
+// once.
+export function live_board_errors(sync_progress) {
+  var list = [];
+  var seen = {};
+  var add = function(e) {
+    if(!e) { return; }
+    var k = [e.board_id, e.board_key, e.error].join('|');
+    if(seen[k]) { return; }
+    seen[k] = true;
+    list.push(e);
+  };
+  var per_user = (sync_progress && sync_progress.progress_for) || {};
+  Object.keys(per_user).forEach(function(u) { ((per_user[u] && per_user[u].board_errors) || []).forEach(add); });
+  ((sync_progress && sync_progress.errors) || []).forEach(add);
+  return list;
+}
+
 // A board's errors as the sync keeps them while it runs (sync_progress.progress_for[*].board_errors), merged into its
 // status rows the way the finished sync does (services/persistence.js sync, before its log entry).
 export function with_errors(statuses, errors) {

@@ -145,4 +145,18 @@ module('Unit | Component | sync-details grouped view', function(hooks) {
     assert.strictEqual(c.get('summary_line'), '3 boards and folders are saved on this device.');
     assert.strictEqual(c.get('missing_count'), 0, 'no "Save the N now": only the failures it reached are known');
   });
+
+  // Part 2 (2026-11-17): a cancelled sync now logs its rows (services/persistence.js end_canceled_sync); a download its
+  // lookup never finished is 'not_saved', which reads as not saved, not as a failure.
+  test('no finished sync, the last one cancelled: what it saved, under the stopped heading; an unfinished download is not counted', function(assert) {
+    var parked_roots = Object.assign({ 'me/core-parked': { root: 'me/core', name: 'Parked', key: 'me/core-parked' } }, roots);
+    var rows = statuses.concat([{ key: 'me/core-parked', status: 'not_saved' }]);
+    var c = build(this, [{ canceled: true, statuses: rows, roots: parked_roots, finished: new Date(1700000000000) }]);
+    assert.true(c.get('stopped'));
+    assert.strictEqual(c.get('headline'), null);
+    assert.false(c.get('show_tabs'));
+    assert.strictEqual(c.get('summary_line'), '3 boards and folders are saved on this device.', 'the unfinished download is not counted');
+    assert.deepEqual(c.get('cards')[0].folders_missing, ['Go', 'Parked']);
+    assert.strictEqual(c.get('restored_lead'), 'The last sync was canceled.');
+  });
 });

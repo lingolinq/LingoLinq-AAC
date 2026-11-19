@@ -2436,8 +2436,8 @@ var persistence = Service.extend({
       return complete_sync;
     }, function(err) {
       if(_this_sync.get('sync_progress.root_user') == user_id) {
-        var statuses = _this_sync.get('sync_progress.board_statuses') || [];
-        var stamps = _this_sync.get('sync_progress.sync_stamps'); var stopped_roots = _this_sync.get('sync_progress.board_roots') || {}; var stopped_errors = _this_sync.get('sync_progress.errors') || []; // kept in its log entry, for Sync Details' cards after a stop
+        var statuses = confirmed_statuses(_this_sync.get('sync_progress.board_statuses') || [], _this_sync.get('sync_progress')); // a download not finished at the stop is not saved (utils/sync_rollup.js)
+        var stamps = _this_sync.get('sync_progress.sync_stamps'); var stopped_roots = _this_sync.get('sync_progress.board_roots') || {}; var stopped_errors = live_board_errors(_this_sync.get('sync_progress')); // kept in its log entry, for Sync Details' cards after a stop
         _this_sync.set('sync_progress', null);
         if(_this_sync._canceled_sync_id === sync_id) { if(_this_sync._active_root_sync_id === sync_id && _this_sync.sync_status_is_for_signed_in_user(user_id)) { _this_sync.set('sync_status', null); } } else if(_this_sync.sync_status_is_for_signed_in_user(user_id)) { _this_sync.set('sync_status', 'failed'); }
         // if last sync attempt ended in failure and this attempt also
@@ -2779,10 +2779,10 @@ var persistence = Service.extend({
           } else {
             board_statuses.push({id: id, key: record.get('key'), status: 're-downloaded'});
             record.set('button_set_needs_reload', true);
-            return _this.time_promise(record.reload(), "reload board", BOARD_RELOAD_MS).then(null, function(err) { return keep_stored_board(record, err, board_statuses, id, function(rec) { return _this.find('board', rec.get('global_id') || rec.get('id')).then(function(row) { return usable_copy(row) ? row : RSVP.reject({error: 'no usable copy'}); }); }); }); // #1212 (utils/sync_board_fallback.js): by global id, a key lookup scans every board row
+            return _this.time_promise(record.reload(), "reload board", BOARD_RELOAD_MS).then(function(reloaded) { note_board_done(_this.get('sync_progress'), id, record.get('key')); return reloaded; }, function(err) { return keep_stored_board(record, err, board_statuses, id, function(rec) { return _this.find('board', rec.get('global_id') || rec.get('id')).then(function(row) { return usable_copy(row) ? row : RSVP.reject({error: 'no usable copy'}); }); }); }); // #1212 (utils/sync_board_fallback.js): by global id, a key lookup scans every board row
           }
         } else {
-          board_statuses.push({id: id, key: record.get('key'), status: 'downloaded'});
+          board_statuses.push({id: id, key: record.get('key'), status: 'downloaded'}); note_board_done(_this.get('sync_progress'), id, record.get('key')); // utils/sync_rollup.js
           record.set('button_set_needs_reload', true);
           return record;
         }
@@ -4984,7 +4984,7 @@ import { queue_eventual_store } from '../utils/eventual_store_queue';
 import { is_permanent_upload_url } from '../utils/permanent_upload';
 import { on_uploads_cdn, is_web_page } from '../utils/direct_fetch';
 import { picture_kept_in_database, usable_database_copy } from '../utils/database_picture';
-import { BOARD_RELOAD_MS, USER_RELOAD_MS, keep_stored_board, claim_board_retry, note_device_boards, known_on_device } from '../utils/sync_board_fallback'; import { create_parking, register_parking, wake_parked, retry_delay, when_slot_free } from '../utils/board_retry'; import { note_board_root, root_for_link, with_errors } from '../utils/sync_rollup'; import { record_sync_log, restore_sync_log } from '../utils/sync_log_store';
+import { BOARD_RELOAD_MS, USER_RELOAD_MS, keep_stored_board, claim_board_retry, note_device_boards, known_on_device } from '../utils/sync_board_fallback'; import { create_parking, register_parking, wake_parked, retry_delay, when_slot_free } from '../utils/board_retry'; import { note_board_root, root_for_link, with_errors, note_board_done, confirmed_statuses, live_board_errors } from '../utils/sync_rollup'; import { record_sync_log, restore_sync_log } from '../utils/sync_log_store';
 import { usable_copy } from '../utils/board_device_copy';
 import { reason_is_automatic, merge_follow_up } from '../utils/sync_follow_up';
 
@@ -5112,10 +5112,17 @@ persistence.reopen({
   // Section 22 of docs/task-management/2026-11-10_offline-followup-proposals.md. Returns true when it ended the sync.
   end_canceled_sync: function(sync_id, user_id, user_name, force) {
     if(!sync_id || this._canceled_sync_id !== sync_id) { return false; }
+    // What the cancelled sync saved and what failed, read before sync_progress is cleared: as the failure branch, only
+    // downloads that finished count as saved, and every user's recorded errors are kept with the roots (Sync Details'
+    // stopped cards; PR #1328's offline list hides another owner's liked board on its error).
+    var progress = this.get('sync_progress');
+    var reached = Utils.uniq(confirmed_statuses((progress && progress.board_statuses) || [], progress), function(s) { return s.id; });
+    var statuses = with_errors(reached, live_board_errors(progress));
+    var roots = (progress && progress.board_roots) || {};
     this.set('sync_progress', null);
     if(this._active_root_sync_id === sync_id && this.sync_status_is_for_signed_in_user(user_id)) { this.set('sync_status', null); }
     var log = [].concat(this.get('sync_log') || []);
-    log.push({ user_id: user_name, manual: force, canceled: true, finished: new Date(), statuses: [], summary: i18n.t('sync_canceled_summary', "Sync canceled") });
+    log.push({ user_id: user_name, manual: force, canceled: true, finished: new Date(), statuses: statuses, roots: roots, summary: i18n.t('sync_canceled_summary', "Sync canceled") });
     this.set('sync_log', record_sync_log(this, log)); // utils/sync_log_store.js
     this.set('sync_log_rand', Math.random());
     this.set('last_sync_event_at', (new Date()).getTime());

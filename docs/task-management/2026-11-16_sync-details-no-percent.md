@@ -357,3 +357,27 @@ Red runs before the code: all 7 new non-pin tests failed for the right reasons (
 Still to do: re-run; diagnose (2) if it remains; mutants (no note on :2782; no confirm in either stop path; copy-only
 errors; root's array only; roots dropped; `statuses: []`); unit T (the `content` tag, here and in #1328, whose push needs
 Scot's OK for a third review round); lint gate; final review; Traci's answer on item B; then a PR.
+
+### Part 2, session 2 (2026-11-18): units H and A verified
+
+- The new describe alone (port 7462): 2/2. Full filter `/sync|persistence|offline board list|board retry|revocation/i`:
+  595 tests, 586 pass, 9 skipped (the same 9 as before), 0 fail.
+  After the guarded reads, the M2 test and the comment move, the same filter: 596 tests, 587 pass, 9 skipped, 0 fail.
+- The leak failure ("LingoLinq.Board.refresh_data_urls was replaced and not restored", charged to the failure-branch
+  test): CONFIRMED as fallout from the Cancel test DYING. Reproduced under mutant M8: the Cancel test threw a TypeError
+  (`by['me/core-parked'][0]` undefined), the beforeEach stub stayed, and the leak check charged it to the next test. The
+  new tests now read rows guarded (`((by[k] || [])[0] || {}).status`), so a wrong value fails an assertion instead.
+  That a dying synchronous test leaves the beforeEach stubs is a pre-existing harness trait, not changed here.
+- Saved-at-lookup is sound: the adapter's find resolves only after `store_eventually` resolves, and rejects with
+  "failed to delayed-persist to local db" otherwise (`services/persistence.js:4534-4538`). So a finished reload or fresh
+  fetch was saved on the device. CONFIRMED.
+- Mutants (filter `/stopped sync's log entry|board reloads under a slow server|sync rollup/i`, 40 to 41 tests):
+  M1 no note on reload success: killed (1). M2 no note on fresh download: SURVIVED at first (no test reached that line);
+  added "marks a freshly downloaded board finished", then killed (1). M3 failure branch without `confirmed_statuses`:
+  killed (1). M4 Cancel without it: killed (1). M5 failure branch reading only the copy: killed (1). M6
+  `live_board_errors` reading only the first user: killed (3). M7 roots dropped: killed (1). M8 `statuses: []`: killed
+  (1, by assertion, after the guarded reads).
+- `with_errors`' comment had been left above the new helpers; moved back above `with_errors`.
+- persistence.js hunks above 4465 one-for-one (2439-2440, 2782, 2785, 4987); +7 at 5115.
+- H and A are one commit: one import line, the Cancel path (A) calls H's `confirmed_statuses`, and the describe's two
+  tests check both. An H-only commit would be a state no run verified.

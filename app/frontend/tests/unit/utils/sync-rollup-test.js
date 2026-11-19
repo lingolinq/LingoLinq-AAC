@@ -1,6 +1,6 @@
 import { module, test } from 'qunit';
 import EmberObject from '@ember/object';
-import { note_board_root, root_for_link, rollup, with_errors, summary_for, current_root_name, only_parked_left } from 'frontend/utils/sync_rollup';
+import { note_board_root, root_for_link, rollup, with_errors, summary_for, current_root_name, only_parked_left, note_board_done, confirmed_statuses, live_board_errors } from 'frontend/utils/sync_rollup';
 import { ready_title } from 'frontend/utils/sync_progress';
 
 /* Sync results grouped by the boards a person knows (utils/sync_rollup.js): one row per home, sidebar or liked
@@ -145,5 +145,48 @@ module('Unit | Utility | sync rollup', function() {
     assert.false(only_parked_left({ parked: 2, to_visit: 5 }), 'other boards are still downloading');
     assert.false(only_parked_left({ parked: 0, to_visit: 0 }));
     assert.false(only_parked_left(null));
+  });
+
+  // docs/task-management/2026-11-16_sync-details-no-percent.md Part 2 (H): at a stop, a download row counts as saved
+  // only when board_lookup finished it or the device database confirmed it; otherwise it is 'not_saved' (not an error).
+  test('confirmed_statuses: unconfirmed downloads at a stop are not saved', function(assert) {
+    var sp = { device_boards: { '1_3': true, 'me/kept-on-device': true } };
+    note_board_done(sp, '1_1', 'me/done');
+    var rows = confirmed_statuses([
+      { id: '1_1', key: 'me/done', status: 're-downloaded' },
+      { id: '1_2', key: 'me/parked', status: 're-downloaded' },
+      { id: '1_3', key: 'me/batch', status: 'downloaded' },
+      { id: '1_4', key: 'me/kept-on-device', status: 'downloaded' },
+      { id: '1_5', key: 'me/in-flight', status: 'downloaded' },
+      { id: '1_6', key: 'me/cached', status: 'cached' },
+      { id: '1_7', key: 'me/kept', status: 'kept' },
+      { id: '1_8', key: 'me/failed', error: 'board me/failed failed retrieval for syncing' }
+    ], sp);
+    assert.deepEqual(rows.map((r) => r.status || 'error:' + r.error.slice(0, 12)), ['re-downloaded', 'not_saved', 'downloaded', 'downloaded', 'not_saved', 'cached', 'kept', 'error:board me/fai']);
+    assert.false(rows.some((r) => r.status === 'not_saved' && r.error), 'not an error');
+    var grouped = rollup(rows, {});
+    assert.strictEqual(grouped.overall.saved, 5, 'the two unconfirmed downloads and the failure are not counted as saved');
+    assert.deepEqual(confirmed_statuses(null, sp), []);
+    assert.strictEqual(confirmed_statuses([{ id: '9', key: 'x/y', status: 'downloaded' }], null)[0].status, 'not_saved', 'no progress: nothing is confirmed');
+  });
+
+  test('note_board_done marks by id and key, and ignores a missing progress', function(assert) {
+    var sp = {};
+    note_board_done(sp, '1_1', null);
+    note_board_done(sp, null, 'me/k');
+    note_board_done(null, '1_2', 'me/x');
+    assert.deepEqual(confirmed_statuses([{ id: '1_1', status: 'downloaded' }, { key: 'me/k', status: 're-downloaded' }], sp).map((r) => r.status), ['downloaded', 're-downloaded']);
+  });
+
+  // Part 2 (A): the errors a stopped sync recorded are read from the live per-user arrays (the sync_progress.errors copy
+  // is refreshed only at each walk step), every user's, plus any copy entry not among them, each once.
+  test('live_board_errors: every user\'s live array, plus copy entries not already there, each once', function(assert) {
+    var a = { board_id: '1_4', board_key: 'me/x', error: 'board me/x failed retrieval for syncing' };
+    var b = { board_id: '1_5', board_key: 'kid/y', error: 'board kid/y failed retrieval for syncing' };
+    var c = { board_id: '1_6', board_key: 'me/z', error: 'board me/z failed retrieval for syncing' };
+    var sp = { progress_for: { u1: { board_errors: [a] }, u2: { board_errors: [b] } }, errors: [a, c] };
+    assert.deepEqual(live_board_errors(sp), [a, b, c]);
+    assert.deepEqual(live_board_errors({ errors: [c] }), [c], 'no live arrays: the copy');
+    assert.deepEqual(live_board_errors(null), []);
   });
 });
