@@ -110,4 +110,17 @@ module('Unit | Utility | sync rollup', function() {
     assert.false(only_parked_left({ parked: 0, to_visit: 0 }));
     assert.false(only_parked_left(null));
   });
+
+  test('a board saved without its picture is still ready, and its group names it', function(assert) {
+    var w = walk();
+    w.statuses.push({ id: '1_20', key: 'me/keyboard', status: 'cached', warning: 'board me/keyboard saved without its picture: x' });
+    var r = rollup(w.statuses, w.sp.board_roots);
+    var kb = r.groups[1];
+    assert.true(kb.ready, 'a warning is not a failure');
+    assert.deepEqual(kb.pictures_missing, ['Keyboard']);
+    assert.deepEqual(r.groups[0].pictures_missing, []);
+    assert.strictEqual(r.overall.warned, 1);
+    assert.strictEqual(r.overall.missing, 1, 'the missing count is unchanged');
+    assert.strictEqual(rollup(walk().statuses, w.sp.board_roots).overall.warned, 0);
+  });
 });

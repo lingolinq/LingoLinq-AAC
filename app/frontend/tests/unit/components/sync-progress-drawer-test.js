@@ -131,4 +131,18 @@ module('Unit | Component | sync-progress-drawer', function(hooks) {
     assert.strictEqual(line(3, 1), '2 folders are left. They will be tried again automatically. 1 folder is saved, but some of its pictures or sounds are not. They will be tried again automatically.', 'both kinds, each said as it is');
     assert.strictEqual(line(2, 0), '2 folders are left. They will be tried again automatically.', 'boards only: as before');
   });
+
+  test('all ready, with a warning for a folder saved without its picture, and Try again offered', function(assert) {
+    var roots = { 'me/kb': { root: 'me/kb', name: 'Keyboard', role: 'sidebar board', key: 'me/kb' }, 'me/fun': { root: 'me/fun', name: 'Fun', role: 'liked board', key: 'me/fun' } };
+    var one = build_with(this, { status: 'done', kind: 'succeeded' }, null, [{ statuses: [{ key: 'me/kb', status: 'cached', warning: 'w' }, { key: 'me/fun', status: 'downloaded' }], roots: roots }]);
+    assert.strictEqual(one.get('stage'), 'ready');
+    assert.strictEqual(one.get('result_title'), 'All your boards are ready offline');
+    assert.strictEqual(one.get('result_detail'), "2 boards and folders are saved on this device. 1 folder's picture couldn't be saved. It shows a plain square until a later sync gets it.");
+    assert.true(one.get('offer_try_again'));
+    var two = build_with(this, { status: 'done', kind: 'succeeded' }, null, [{ statuses: [{ key: 'me/kb', status: 'cached', warning: 'w' }, { key: 'me/fun', status: 'downloaded', warning: 'w' }], roots: roots }]);
+    assert.strictEqual(two.get('result_detail'), "2 boards and folders are saved on this device. 2 folders' pictures couldn't be saved. They show a plain square until a later sync gets them.");
+    var none = build_with(this, { status: 'done', kind: 'succeeded' }, null, [{ statuses: [{ key: 'me/kb', status: 'cached' }], roots: roots }]);
+    assert.strictEqual(none.get('result_detail'), '1 board is saved on this device.');
+    assert.false(none.get('offer_try_again'), 'nothing to try again');
+  });
 });

@@ -1,7 +1,7 @@
 import { module, test } from 'qunit';
 import RSVP from 'rsvp';
 import {
-  failure_cause, content_failure, settle_content, claim_content_retry, content_entry, content_error, retry_content, is_content_entry
+  failure_cause, content_failure, settle_content, claim_content_retry, content_entry, content_error, retry_content, is_content_entry, only_optional, content_warning
 } from 'frontend/utils/board_content_retry';
 import { claim_board_retry, MAX_BOARD_RETRIES } from 'frontend/utils/sync_board_fallback';
 
@@ -88,13 +88,14 @@ module('Unit | Utility | board content retry', function() {
   });
 
   function ctx_for(answers) {
-    var log = { stored: [], parked: [], failed: [], saved: [], then: 0 };
+    var log = { stored: [], parked: [], failed: [], saved: [], warned: [], then: 0 };
     var ctx = {
       sync_progress: {},
       store: function(item) { log.stored.push(item.url); return answers[item.url](); },
       saved: function(board) { log.saved.push(board); },
       park: function(entry, retry) { log.parked.push({ entry: entry, retry: retry }); },
       fail: function(err) { log.failed.push(err); },
+      warn: function(w) { log.warned.push(w); },
       then: function() { log.then++; }
     };
     return { ctx: ctx, log: log };
@@ -141,5 +142,44 @@ module('Unit | Utility | board content retry', function() {
     assert.deepEqual(r.log.parked, []);
     assert.deepEqual(r.log.failed, [{ error: 'board fred/home failed to sync completely: button image failed to sync, a, linked from home board', board_id: '145', board_key: 'fred/home' }]);
     assert.strictEqual(r.log.then, 1);
+  });
+
+  // A liked or sidebar folder's icon (Traci, 2026-11-18): when it is all that failed, the folder is saved with a warning.
+  test('only_optional: every failure is an optional save', function(assert) {
+    var icon = content_failure('icon', { fakeXHR: { status: 400 } }, { url: 'i', type: 'image', optional: true });
+    var button = content_failure('button', { fakeXHR: { status: 400 } }, { url: 'b', type: 'image' });
+    assert.true(only_optional([icon]));
+    assert.true(only_optional([icon, icon]));
+    assert.false(only_optional([icon, button]), 'a button picture failed too: the board fails');
+    assert.false(only_optional([]));
+    assert.false(only_optional([{ error: 'not a content failure' }]));
+  });
+
+  test('the warning names the board and what did not save', function(assert) {
+    assert.deepEqual(content_warning({ key: 'fred/side', visit_source: 'sidebar board' }, { error: 'sidebar icon url failed to sync, i' }),
+      { warning: 'board fred/side saved without its picture: sidebar icon url failed to sync, i, linked from sidebar board', board_id: 'fred/side', board_key: 'fred/side' });
+    assert.strictEqual(content_warning({ id: '146' }, 'oops').warning, 'board 146 saved without its picture: oops');
+  });
+
+  test('a retried icon that fails for good warns and records the board as complete, instead of failing it', async function(assert) {
+    var icon_entry = { id: 'fred/side', key: 'fred/side', visit_source: 'sidebar board', content_board: { id: '1_146', full_set_revision: 'r2' },
+      content_retry: [{ url: 'i', type: 'image', keep_big: false, optional: true, message: 'sidebar icon url failed to sync, i' }] };
+    var r = ctx_for({ i: function() { return RSVP.reject({ fakeXHR: { status: 400 } }); } });
+    await retry_content(icon_entry, r.ctx);
+    assert.deepEqual(r.log.failed, []);
+    assert.deepEqual(r.log.parked, []);
+    assert.deepEqual(r.log.warned, [{ warning: 'board fred/side saved without its picture: sidebar icon url failed to sync, i, linked from sidebar board', board_id: 'fred/side', board_key: 'fred/side' }]);
+    assert.deepEqual(r.log.saved, [{ id: '1_146', full_set_revision: 'r2' }]);
+    assert.strictEqual(r.log.then, 1);
+  });
+
+  test('an icon cut off again is still parked while retries are left', async function(assert) {
+    var icon_entry = { id: 'fred/side', key: 'fred/side', content_board: null,
+      content_retry: [{ url: 'i', type: 'image', optional: true, message: 'm' }] };
+    var r = ctx_for({ i: function() { return RSVP.reject({ fakeXHR: { status: 0 } }); } });
+    await retry_content(icon_entry, r.ctx);
+    assert.strictEqual(r.log.parked.length, 1);
+    assert.true(r.log.parked[0].entry.content_retry[0].optional, 'still known as optional on its next try');
+    assert.deepEqual(r.log.warned, []);
   });
 });

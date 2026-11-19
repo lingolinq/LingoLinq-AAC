@@ -7760,6 +7760,59 @@ describe("persistence-sync", function() {
         });
       });
     });
+
+    // A liked or sidebar folder's icon is not the folder (Traci, 2026-11-18): when it cannot be saved, the folder is
+    // saved, the sync succeeds, and the finished sync carries a warning naming it (the icon shows the placeholder).
+    function warningFor(id) {
+      var log = persistence.get('sync_log') || [];
+      var rows = ((log[0] && log[0].statuses) || []).filter(function(s) { return (s.id == id || s.key == id) && s.warning; });
+      return rows.length ? rows.map(function(s) { return s.warning; }).join(' | ') : undefined;
+    }
+    var SIDEBAR_WARNING = 'board fred/side saved without its picture: sidebar icon url failed to sync, ' + SIDEBAR + ', linked from sidebar board';
+
+    it("warns, and does not fail the folder, when a sidebar icon still fails after the retries", function() {
+      db_wait(function() {
+        var state = syncWith(SIDEBAR, function() { return dropped(); });
+        waitsFor(function() { return finished(state); });
+        runs(function() {
+          expect(state.calls).toEqual(4); // still tried again on a dropped link, as any picture
+          expect(errorFor('fred/side')).toEqual(undefined);
+          expect(warningFor('fred/side')).toEqual(SIDEBAR_WARNING);
+          var entry = (persistence.get('sync_log') || [])[0];
+          expect(entry.issues).toNotEqual(true);
+          expect(entry.warned).toEqual(true);
+          expect(persistence.get('sync_status')).toEqual('succeeded');
+          done();
+        });
+      });
+    });
+
+    it("warns at once for a sidebar icon the server cannot get", function() {
+      db_wait(function() {
+        var state = syncWith(SIDEBAR, function() { return RSVP.reject({error: 'URL lookup failed during proxy', fakeXHR: {status: 400}}); });
+        waitsFor(function() { return finished(state); });
+        runs(function() {
+          expect(state.calls).toEqual(1);
+          expect(errorFor('fred/side')).toEqual(undefined);
+          expect(warningFor('fred/side')).toEqual(SIDEBAR_WARNING);
+          expect((persistence.get('sync_log') || [])[0].warned).toEqual(true);
+          expect(persistence.get('sync_status')).toEqual('succeeded');
+          done();
+        });
+      });
+    });
+
+    it("gives no warning when nothing failed", function() {
+      db_wait(function() {
+        var state = syncWith(SIDEBAR, function(n) { return saved(n); });
+        waitsFor(function() { return finished(state); });
+        runs(function() {
+          expect(warningFor('fred/side')).toEqual(undefined);
+          expect((persistence.get('sync_log') || [])[0].warned).toNotEqual(true);
+          done();
+        });
+      });
+    });
   });
 });
 // Every sync also starts from Crisis Vocabulary (#1221, utils/offline_sync_seeds.js), so the tests that run a
