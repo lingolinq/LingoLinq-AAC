@@ -536,3 +536,25 @@ Red (the committed pre-F2 code, the corrected tests): 3/3 fail on `storage_faile
 describes; full sync filter 603 tests, 594 pass, 9 skipped, 0 fail; lint only the known false positive. Mutants: F2a
 failure branch without the flag: killed (1); F2b :2376 not passing `writes_before`: killed (1); F2c Cancel checking with
 no start count: killed (1); F2d Cancel entry without the flag: killed (2).
+
+### Stop point (2026-11-19, Rule #0.13: three self-inflicted errors close together)
+The errors: the wrong "saved at lookup" CONFIRMED claim (corrected above); a log command that hung on a stray `cat`
+(its empty file removed); the first F2 tests failing for the wrong reason (harness trap above). F2 is committed and
+verified (cee927b8f). Remaining, in order:
+1. Unit F1 (the revised plan in "Review of the Part 3 proposal"): red tests first, including the two approved setup
+   changes (the stubbed reload/fetch stores `{board: {id: '1_1212', key: 'example/slow'}}` through the real path;
+   assertions kept) and their no-write / failed-write siblings; utils-copy tests through DSExtend `findRecord` under
+   `sync_testing` (`tests/unit/utils/adapter-board-find-test.js`), and a board write failed at
+   `lingoLinqExtras.storage.store` (NOT dbman: the harness trap). Then the hook (both `store` copies, after `resolve`,
+   try/catch, reading `obj[store] || obj`), remove :2782/:2785 notes and the import, move :2975's note into the hook.
+   Mutants: no hook in each copy separately; hook reading `record`; hook creating `device_boards`; :2975 left in place;
+   a throwing helper.
+2. The four Lows (all re-checked real, 2026-11-19): 3 (kept-on-retry reads not_saved: F1's hook covers it if the kept
+   path's board was written, else note on keep), 4 (retry-limit failures untagged like refusals; #1328 hides on them:
+   a `passing` tag, or tag refusals), 5 (running count drops after Cancel), 6 (technical list has no "not saved" or
+   "kept" case). Traci to choose which go in this PR.
+3. Re-run the final dual review on the new range, then /pr-preflight, then ask before pushing.
+"Not covered" for the PR so far: pictures dropped by a cancel; a Cancel 2 s in replacing an earlier failed sync's
+cards; a cancel during priming (rows with no roots); item B; the :3359 walk line untested; queued-save failures not
+counted (`note_failed_write` not in the utils `store`); 'cached' rows trusted by the `retrieved` stamp; a fresh board
+served from memory with no device read; a renamed key; a board queued at Cancel that lands a second later.
