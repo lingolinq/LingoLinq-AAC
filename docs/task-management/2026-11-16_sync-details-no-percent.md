@@ -368,9 +368,13 @@ Scot's OK for a third review round); lint gate; final review; Traci's answer on 
   (`by['me/core-parked'][0]` undefined), the beforeEach stub stayed, and the leak check charged it to the next test. The
   new tests now read rows guarded (`((by[k] || [])[0] || {}).status`), so a wrong value fails an assertion instead.
   That a dying synchronous test leaves the beforeEach stubs is a pre-existing harness trait, not changed here.
-- Saved-at-lookup is sound: the adapter's find resolves only after `store_eventually` resolves, and rejects with
-  "failed to delayed-persist to local db" otherwise (`services/persistence.js:4534-4538`). So a finished reload or fresh
-  fetch was saved on the device. CONFIRMED.
+- WRONG, corrected 2026-11-19 (the final adversary review): "Saved-at-lookup is sound: the adapter's find resolves only
+  after `store_eventually` resolves ... so a finished reload or fresh fetch was saved on the device. CONFIRMED." I read
+  the adapter's `.then` (`services/persistence.js:4534-4538`) but not what it waits on. `store_eventually` returns
+  `RSVP.resolve(obj)` as soon as the save is QUEUED (`services/persistence.js:652-663`; the adapter mixes in the utils
+  copy, `adapters/application.js:2`, :48, `utils/persistence.js:646-656`), and the queue writes one entry per 200 ms. So
+  `note_board_done` means "fetched and queued", not "on the device". Still narrower than before H (every looked-up row
+  counted), but not the guarantee claimed. See the final review section below.
 - Mutants (filter `/stopped sync's log entry|board reloads under a slow server|sync rollup/i`, 40 to 41 tests):
   M1 no note on reload success: killed (1). M2 no note on fresh download: SURVIVED at first (no test reached that line);
   added "marks a freshly downloaded board finished", then killed (1). M3 failure branch without `confirmed_statuses`:
@@ -403,3 +407,22 @@ using the helper: SURVIVED (the accepted gap); T7 merge on an error-only row: ki
 ### Item B decided (Traci, 2026-11-19): not done
 A stopped sync does not record "revoked". The recommendation above stands. Record the remaining case (on a trusted device, a
 liked board unshared since the last clean sync stays listed until a clean sync) in the PR's "Not covered".
+
+### Final review (2026-11-19)
+PII pre-flight exit 0. REVIEWED=range 46dddb59195cdd1ceda3382f4b44da54054b3001 (46dddb59195cdd1ceda3382f4b44da54054b3001) ... HEAD (ff0699ae903f0940c7648622df85e950ac63a1ae) in /home/tracid/LingoLinq-AAC-sync-details
+- `/review-pr` (senior pass): Approve. Its 2 Mediums and 1 Low were checked and dismissed: `end_canceled_sync` sees only
+  the cancelled sync's own `sync_progress` (:2040-2049 absorb rule, :4905, :5114, :2376); the failure branch dedupes by
+  id (:2462); `la-sync-card--saved` is unstyled on purpose (the base card is neutral; `--ready` has no rule either).
+- `/adversary-review`: ship with conditions. Verified here:
+  1. Medium, CONFIRMED: `store_eventually` resolves on queueing (above), so `note_board_done` overstates "saved".
+  2. Medium, CONFIRMED: the stop paths never check failed writes. `writes_before` (:2042) is read only by the success
+     branch (:2399, :2426); the failure branch and `end_canceled_sync` do not set `storage_failed`, so
+     `partial_result`'s exclusion cannot fire for a stopped entry. A full device plus Cancel can show "saved before the
+     sync stopped".
+  3. Low (reported CONFIRMED, not yet re-checked): a board kept on a retry (`keep_stored_board`) can read `not_saved`
+     (uniq keeps the first, unconfirmed row; nothing notes the kept one).
+  4. Low, PLAUSIBLE (not re-checked): "failed retrieval" after the retry limit is untagged like a refusal; the
+     `board_unauthorized` flag is dropped by `with_errors`/merge/`entry_copy`.
+  5. Low (not re-checked): the running rollup counts in-flight downloads, so the count can drop after Cancel.
+  6. Low (not re-checked): the technical list has no "not saved" case for `not_saved` rows.
+  Open: Traci to decide the scope before any change (findings 1 and 2 need the /fix-proposal process).

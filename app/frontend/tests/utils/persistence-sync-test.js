@@ -6421,8 +6421,8 @@ describe("persistence-sync", function() {
       });
     });
 
-    // board_lookup's other finishing path: a board the server just sent (fresh), with no reload. The adapter's find
-    // resolves only after the device save (services/persistence.js store_eventually), so it counts as saved at a stop.
+    // board_lookup's other finishing path: a board the server just sent (fresh), with no reload. Noted as finished: its
+    // device save is queued (store_eventually resolves on queueing, not on the write; see the task log, final review).
     it("marks a freshly downloaded board finished", function() {
       persistence.set('sync_progress', {});
       var rec = storedBoard(true);
