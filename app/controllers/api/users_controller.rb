@@ -168,7 +168,7 @@ class Api::UsersController < ApplicationController
       org = Organization.find_by_global_id(params['org_id'])
       return unless allowed?(org, 'edit')
       lookup = org.attached_users('all')
-    elsif !Organization.admin_manager?(@api_user)
+    elsif !(Organization.admin_manager?(@api_user) && full_sign_in?)
       return api_error 400, {error: 'admins only'}
     end
     if !params['q']
@@ -1291,6 +1291,13 @@ class Api::UsersController < ApplicationController
     elsif params['action_2fa'] == 'confirm'
       ts = user.valid_2fa?(params['code_2fa'])
       return api_error 400, {error: "invalid code: #{params['code_2fa']}"} unless ts
+      # The device this code was entered on stays signed in; the account's other sign-ins
+      # made before 2FA are signed out (Device#predates_2fa?).
+      device = Device.find_by_global_id(@api_device_id) if @api_device_id
+      if device && device.user_id == user.id
+        device.settings['2fa'] = (device.settings['2fa'] || {}).except('pending').merge('last_otp' => ts)
+        device.save
+      end
     else
       return api_error 400, {error: "unregognized action: #{params['action_2fa']}"}
     end

@@ -18,7 +18,7 @@ class Api::TelemetryController < ApplicationController
     return unless exists?(org, params[:organization_id])
 
     if params[:scope].to_s == 'none'
-      return api_error 403, {error: 'Not authorized'} unless @api_user&.admin?
+      return api_error 403, {error: 'Not authorized'} unless admin_sign_in?(@api_user)
 
       return render json: TelemetryStats.dashboard(
         scope: 'none',
@@ -28,7 +28,7 @@ class Api::TelemetryController < ApplicationController
     end
 
     if params[:scope].to_s == 'global'
-      return api_error 403, {error: 'Not authorized'} unless @api_user&.admin?
+      return api_error 403, {error: 'Not authorized'} unless admin_sign_in?(@api_user)
 
       return render json: TelemetryStats.dashboard(
         scope: 'global',
@@ -55,7 +55,7 @@ class Api::TelemetryController < ApplicationController
   private
 
   def require_telemetry_admin
-    return if @api_user&.admin?
+    return if admin_sign_in?(@api_user)
 
     api_error 403, {error: 'Not authorized'}
   end
@@ -88,7 +88,7 @@ class Api::TelemetryController < ApplicationController
   end
 
   def require_telemetry_admin_panel
-    return if @api_user&.admin?
+    return if admin_sign_in?(@api_user)
     return if FeatureFlags.feature_enabled_for?('telemetry_admin_panel', @api_user)
 
     api_error 403, {error: 'Not authorized'}

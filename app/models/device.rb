@@ -101,6 +101,16 @@ class Device < ApplicationRecord
     false
   end
 
+  # A sign-in made before its account started requiring 2FA: generate_token! records
+  # settings['2fa'] whenever it asks for a code and deletes it while the account has no 2FA, so
+  # such a device has none. Device.check_token signs these out so the next sign-in asks for a
+  # code. Modeling (valet) sign-ins are never asked for one.
+  def predates_2fa?
+    settings = self.settings || {}
+    return false if settings['valet'] || settings['2fa']
+    !!(self.user && self.user.state_2fa[:required])
+  end
+
   def confirm_2fa!(code, manually_approve=false)
     ts = Time.now.to_i if code == :approve && manually_approve
     ts ||= self.user && self.user.valid_2fa?(code)
@@ -376,6 +386,12 @@ class Device < ApplicationRecord
         res[:skip_on_token_check] = true
         res[:can_refresh] = true if needs_refresh && device && !device.disabled?
         res[:invalid_token] = true
+      elsif device.predates_2fa?
+        res[:error] = "Invalid token"
+        res[:skip_on_token_check] = true
+        res[:invalid_token] = true
+        device_id = nil
+        user_id = nil
       end
       valet_mode = true if device && device.settings['valet']
       scopes = PermissionScopesNormalize.for_api(device && device.permission_scopes)

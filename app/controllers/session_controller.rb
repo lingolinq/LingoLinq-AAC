@@ -252,7 +252,7 @@ class SessionController < ApplicationController
 
   def auth_admin
     success = false
-    if @api_user && @api_user.admin?
+    if admin_sign_in?(@api_user)
       admin_token = GoSecure.nonce('admin_token')
       cookies[:admin_token] = admin_token
       Permissions.setex(Permissable.permissions_redis, '/admin/auth/' + admin_token, 2.hours.to_i, @api_user.global_id, true)

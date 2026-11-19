@@ -316,6 +316,31 @@ class ApplicationController < ActionController::Base
   def admin_support_actions_allowed?(user=@api_user)
     user && Organization.admin_manager?(user) && !user.valet_mode?
   end
+
+  # True when the request comes from the account holder's own full sign-in: a token this app
+  # issued (not one issued to a developer key or a connected integration), not a modeling (valet)
+  # sign-in, not disabled or waiting for its second-factor code, and, when the account uses 2FA,
+  # one that entered a code (Device#confirm_2fa! records last_otp). Under masquerade it checks
+  # the person acting (@true_user). It reads the device row itself because Device.check_token
+  # can answer from its token cache.
+  def full_sign_in?
+    actor = @true_user || @api_user
+    return false unless actor && @api_device_id && !actor.valet_mode?
+    device = Device.find_by_global_id(@api_device_id)
+    return false unless device && device.user_id == actor.id
+    return false if device.disabled? || (device.settings || {})['valet']
+    return false if device.user_integration_id || (device.developer_key_id || 0) != 0
+    two_factor = (device.settings || {})['2fa'] || {}
+    return false if two_factor['pending']
+    return false if actor.state_2fa[:required] && !two_factor['last_otp']
+    true
+  end
+
+  # An admin (User#admin?) acting through a full sign-in (full_sign_in?). Admin pages and other
+  # admin-only entry points check this instead of the role alone.
+  def admin_sign_in?(user)
+    !!(user && user.admin? && full_sign_in?)
+  end
   
   def api_error(status_code, hash)
     hash[:status] = status_code
