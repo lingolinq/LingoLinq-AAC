@@ -1,6 +1,6 @@
 ---
 name: fix-proposal
-description: The LingoLinq-AAC discipline for a bug fix or behaviour change, from diagnosis to landed test. Write the three facts (where the value is read, every shape it can hold, whether each cross-file claim is true), label each CONFIRMED or ASSUMED, write the red test first, propose at least two candidate fixes with risks and unresolved questions, put the proposal through adversarial review before editing code, and falsify the test after the fix lands. Required for fixes in data handling, auth, sync and offline, and the dual-review areas; optional for everything else (UI, styling, copy, docs, small isolated fixes, backend logic outside that list). Invoke as /fix-proposal.
+description: The LingoLinq-AAC discipline for a bug fix or behaviour change, from diagnosis to landed test. Write the three facts (where the value is read, every shape it can hold, whether each cross-file claim is true), label each CONFIRMED or ASSUMED, write the red test first, propose at least two candidate fixes with risks and unresolved questions, put the proposal through adversarial review before editing code when it touches auth, account isolation or billing, and falsify the test after the fix lands. Required for fixes in data handling, auth, sync and offline, and the dual-review areas; optional for everything else (UI, styling, copy, docs, small isolated fixes, backend logic outside that list). Invoke as /fix-proposal.
 allowed-tools: Read, Grep, Glob, Bash, Agent
 ---
 
@@ -51,8 +51,11 @@ before running it.
 
 ## 3. The proposal
 
-Write it down and put it through `/adversary-review` before editing any code. It must
-contain:
+Write it down before editing any code. Put it through `/adversary-review` first only
+when the fix touches authentication or sessions, account isolation (one user's or
+organization's data reaching another) or billing. Any other fix in scope, sync and
+offline included, needs no separate proposal review: the PR's own review covers it, once
+per PR, not once per change (Scot, 2026-11-15). The proposal must contain:
 
 - the **diagnosis**, verified in code, with `file:line`;
 - **at least two candidate fixes** where two exist, the trade-off between them, and the
@@ -60,7 +63,7 @@ contain:
 - **the risks you can see** and explicitly **the questions you could not resolve**;
 - the **test** that accompanies the fix, and **the mutation that must make it fail**.
 
-Apply only what survives the review, with the changes it demands. A review is evidence to
+When a review ran, apply only what survives it, with the changes it demands. A review is evidence to
 verify, not a verdict: check each finding yourself and say so when you disagree.
 
 ## 4. After the fix lands
