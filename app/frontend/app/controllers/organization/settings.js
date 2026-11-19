@@ -187,6 +187,7 @@ export default Controller.extend({
       var org = _this.get('model');
       var changed = (org && typeof org.changedAttributes === 'function' && org.changedAttributes()) || {};
       _this.set('model.ai_authorized_changed', !!changed.ai_authorized);
+      if(org && typeof org.markAiDisclosureShown === 'function') { org.markAiDisclosureShown(); }
       _this.set('status', {saving: true});
       org.save().then(function() {
         _this.set('_home_board_key_lines', undefined);

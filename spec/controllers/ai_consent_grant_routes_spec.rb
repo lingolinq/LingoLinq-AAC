@@ -78,9 +78,25 @@ describe 'AI data-sharing consent: who can record one (#1136)' do
     end
 
     describe 'POST ai_consent (one click for an existing account)' do
-      it 'records the consent for the signed-in account acting on itself' do
+      it 'refuses a request that does not say which disclosure version it showed' do
         token_user
         post :ai_consent, params: { user_id: @user.global_id }
+        expect(response.status).to eq(400)
+        expect(JSON.parse(response.body)['error']).to eq('disclosure_version_stale')
+        expect(@user.reload.ai_consent_granted?).to eq(false)
+      end
+
+      it 'refuses a page that showed an older disclosure version' do
+        token_user
+        post :ai_consent, params: { user_id: @user.global_id, disclosure_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION - 1 }
+        expect(response.status).to eq(400)
+        expect(JSON.parse(response.body)['error']).to eq('disclosure_version_stale')
+        expect(@user.reload.ai_consent_granted?).to eq(false)
+      end
+
+      it 'records the consent for the signed-in account acting on itself' do
+        token_user
+        post :ai_consent, params: { user_id: @user.global_id, disclosure_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION }
         json = assert_success_json
         expect(json).to eq({ 'ai_consent_granted' => true, 'disclosures_version' => current_version })
         c = @user.reload.settings['ai_consent']
@@ -91,15 +107,15 @@ describe 'AI data-sharing consent: who can record one (#1136)' do
 
       it 'is a 200 on a repeat click and writes no second audit event' do
         token_user
-        post :ai_consent, params: { user_id: @user.global_id }
-        post :ai_consent, params: { user_id: @user.global_id }
+        post :ai_consent, params: { user_id: @user.global_id, disclosure_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION }
+        post :ai_consent, params: { user_id: @user.global_id, disclosure_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION }
         assert_success_json
         expect(AuditEvent.where(event_type: 'ai_consent_grant', user_key: @user.global_id).count).to eq(1)
       end
 
       it 'requires a token' do
         u = User.create
-        post :ai_consent, params: { user_id: u.global_id }
+        post :ai_consent, params: { user_id: u.global_id, disclosure_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION }
         assert_missing_token
       end
 
@@ -107,7 +123,7 @@ describe 'AI data-sharing consent: who can record one (#1136)' do
         token_user
         other = User.create
         User.link_supervisor_to_user(@user, other, nil, true)
-        post :ai_consent, params: { user_id: other.global_id }
+        post :ai_consent, params: { user_id: other.global_id, disclosure_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION }
         expect(response).to have_http_status(403)
         expect(JSON.parse(response.body)['error']).to eq('account_holder_required')
         expect(other.reload.settings['ai_consent']).to be_blank
@@ -119,7 +135,7 @@ describe 'AI data-sharing consent: who can record one (#1136)' do
         admin_org.add_manager(@user.user_name, true)
         target = User.create
         request.headers['X-As-User-Id'] = target.global_id
-        post :ai_consent, params: { user_id: target.global_id }
+        post :ai_consent, params: { user_id: target.global_id, disclosure_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION }
         expect(response).to have_http_status(403)
         expect(JSON.parse(response.body)['error']).to eq('account_holder_required')
         expect(target.reload.settings['ai_consent']).to be_blank
@@ -127,14 +143,14 @@ describe 'AI data-sharing consent: who can record one (#1136)' do
 
       it 'refuses a limited-scope token' do
         token_user(['read_profile'])
-        post :ai_consent, params: { user_id: @user.global_id }
+        post :ai_consent, params: { user_id: @user.global_id, disclosure_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION }
         expect(response).not_to be_successful
         expect(@user.reload.settings['ai_consent']).to be_blank
       end
 
       it 'refuses a valet login' do
         valet_token_user
-        post :ai_consent, params: { user_id: @user.global_id }
+        post :ai_consent, params: { user_id: @user.global_id, disclosure_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION }
         expect(response).not_to be_successful
         expect(@user.reload.settings['ai_consent']).to be_blank
       end
@@ -143,7 +159,7 @@ describe 'AI data-sharing consent: who can record one (#1136)' do
         token_user
         org = Organization.create(settings: { 'total_licenses' => 1 })
         org.add_user(@user.user_name, false)
-        post :ai_consent, params: { user_id: @user.global_id }
+        post :ai_consent, params: { user_id: @user.global_id, disclosure_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION }
         expect(response).to have_http_status(400)
         expect(JSON.parse(response.body)['error']).to eq('org_authorization_required')
         expect(@user.reload.settings['ai_consent']).to be_blank
@@ -153,7 +169,7 @@ describe 'AI data-sharing consent: who can record one (#1136)' do
         token_user
         @user.settings['coppa'] = { 'pending_parent_consent' => true, 'parent_consent_granted_at' => Time.now.utc.iso8601 }
         @user.save!
-        post :ai_consent, params: { user_id: @user.global_id }
+        post :ai_consent, params: { user_id: @user.global_id, disclosure_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION }
         expect(response).to have_http_status(400)
         expect(JSON.parse(response.body)['error']).to eq('parental_consent_required')
         expect(@user.reload.settings['ai_consent']).to be_blank
@@ -163,7 +179,7 @@ describe 'AI data-sharing consent: who can record one (#1136)' do
         token_user
         @user.settings['school_authorization'] = { 'basis' => 'school_official', 'organization_id' => '1_999' }
         @user.save!
-        post :ai_consent, params: { user_id: @user.global_id }
+        post :ai_consent, params: { user_id: @user.global_id, disclosure_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION }
         expect(response).to have_http_status(400)
         expect(JSON.parse(response.body)['error']).to eq('parental_consent_required')
         expect(@user.reload.settings['ai_consent']).to be_blank
@@ -174,7 +190,7 @@ describe 'AI data-sharing consent: who can record one (#1136)' do
         @user.settings['school_authorization'] = { 'basis' => 'school_official', 'organization_id' => '1_999' }
         @user.settings['compliance'] = { 'birth_month' => 1, 'birth_year' => Time.now.utc.year - 30 }
         @user.save!
-        post :ai_consent, params: { user_id: @user.global_id }
+        post :ai_consent, params: { user_id: @user.global_id, disclosure_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION }
         expect(response).to have_http_status(200)
         expect(@user.reload.ai_consent_granted?).to eq(true)
       end
@@ -354,10 +370,31 @@ describe 'AI data-sharing consent: who can record one (#1136)' do
       expect(assert_success_json['organization']['ai_authorized']).to eq(false)
     end
 
+    it 'refuses to turn the switch on from a page that does not state the current disclosure version, and saves nothing' do
+      token_user
+      org.add_manager(@user.user_name, true)
+      put :update, params: { id: org.global_id, organization: { 'name' => 'Renamed District', 'ai_authorized' => true, 'ai_authorized_changed' => true } }
+      expect(response.status).to eq(400)
+      expect(JSON.parse(response.body)['error']).to eq('disclosure_version_stale')
+      put :update, params: { id: org.global_id, organization: { 'ai_authorized' => true, 'ai_authorized_changed' => true, 'ai_disclosure_version' => LingoLinq::AiConsentDisclosures::CURRENT_VERSION - 1 } }
+      expect(response.status).to eq(400)
+      expect(org.reload.ai_authorized?).to eq(false)
+      expect(org.settings['name']).to_not eq('Renamed District')
+    end
+
+    it 'does not ask for a version to turn the switch off' do
+      token_user
+      org.add_manager(@user.user_name, true)
+      org.authorize_ai!(authorized_by: @user)
+      put :update, params: { id: org.global_id, organization: { 'ai_authorized' => false, 'ai_authorized_changed' => true } }
+      expect(response).to be_successful
+      expect(org.reload.ai_authorized?).to eq(false)
+    end
+
     it 'lets a full manager authorize and later withdraw, recording who did it' do
       token_user
       org.add_manager(@user.user_name, true)
-      put :update, params: { id: org.global_id, organization: { 'ai_authorized' => true, 'ai_authorized_changed' => true } }
+      put :update, params: { id: org.global_id, organization: { 'ai_authorized' => true, 'ai_authorized_changed' => true, 'ai_disclosure_version' => LingoLinq::AiConsentDisclosures::CURRENT_VERSION } }
       expect(assert_success_json['organization']['ai_authorized']).to eq(true)
       a = org.reload.settings['ai_authorization']
       expect(a['authorized_by']).to eq(@user.global_id)

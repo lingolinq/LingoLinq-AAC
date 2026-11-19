@@ -1065,7 +1065,10 @@ class Api::UsersController < ApplicationController
   #   (`org_authorization_required`);
   # - an account on the parent route is refused by grant_ai_consent! itself
   #   (`parental_consent_required`).
-  # Source and version are server constants, never read from the request.
+  # Source and version are server constants, never read from the request. The request
+  # only has to say which disclosure version its notice showed: a page left open across
+  # a version change showed the old text, so it is refused (`disclosure_version_stale`)
+  # and records nothing, the same rule signup follows.
   def ai_consent
     user = User.find_by_path(params['user_id'])
     return unless exists?(user, params['user_id'])
@@ -1073,6 +1076,10 @@ class Api::UsersController < ApplicationController
     own_account = @api_user && user.id == @api_user.id && !@true_user
     return api_error(403, {error: 'account_holder_required'}) unless own_account
     return api_error(400, {error: 'org_authorization_required'}) if Organization.ai_consent_orgs_for(user).any?
+    shown = params['disclosure_version'].to_s
+    unless shown =~ /\A\d+\z/ && shown.to_i == LingoLinq::AiConsentDisclosures::CURRENT_VERSION
+      return api_error(400, {error: 'disclosure_version_stale', disclosures_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION})
+    end
     begin
       user.grant_ai_consent!(
         disclosures_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION,

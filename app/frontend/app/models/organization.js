@@ -9,6 +9,7 @@ import modal from '../utils/modal';
 import Subscription from '../utils/subscription';
 import Utils from '../utils/misc';
 import { computed, observer } from '@ember/object';
+import { AI_CONSENT_REGISTRATION_VERSION } from '../utils/article50_gate';
 
 LingoLinq.Organization = BaseModel.extend({
   init() {
@@ -73,6 +74,12 @@ LingoLinq.Organization = BaseModel.extend({
   // server ignores ai_authorized without it, so a page loaded earlier cannot undo
   // another manager's change.
   ai_authorized_changed: attr('boolean'),
+  // Write-only: the disclosure version the settings page linked to when the switch
+  // was turned on. The server refuses a version that is no longer current.
+  ai_disclosure_version: attr('number'),
+  markAiDisclosureShown: function() {
+    this.set('ai_disclosure_version', AI_CONSENT_REGISTRATION_VERSION);
+  },
   preferred_symbols: attr('string'),
   start_codes: attr('raw'),
   custom_domain: attr('boolean'),

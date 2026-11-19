@@ -407,6 +407,21 @@ describe('ai-disclosure', function() {
       });
     });
 
+    it('agree tells the server which disclosure version the notice showed', function() {
+      build(this.owner);
+      user.set('ai_consent_disclosures_version', 2);
+      var sent = [];
+      stub(persistence, 'ajax', function(url, opts) {
+        sent.push(opts.data);
+        return RSVP.resolve({ai_consent_granted: true, disclosures_version: 2});
+      });
+      built.send('agree');
+      waitsFor(function() { return closeCalls === 1; });
+      runs(function() {
+        expect(sent).toEqual([{disclosure_version: 2}]);
+      });
+    });
+
     it('agree records consent THEN the Article 50 acknowledgement when both are needed, then closes once', function() {
       build(this.owner, {article_50_disclosure_required: true});
       var posted = [];

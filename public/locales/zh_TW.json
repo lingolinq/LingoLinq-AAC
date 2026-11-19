@@ -8298,7 +8298,7 @@
   "link_expired_title": "此連結已失效 [[ This link is no longer valid",
   "link_expired_body": "為了您的安全，課程連結會在一段時間後失效。請從課程清單中重新開啟課程，或聯絡分享者索取新的連結。 [[ For your security, lesson links stop working after a while. Please open the lesson again from your lessons list, or ask whoever shared it to send you a new link.",
   "link_expired_home": "前往 LingoLinq [[ Go to LingoLinq",
-  "privacy_special_ai_board_suggestions_note": "人工智慧輔助的版塊建議（例如，輸入“動物園”之類的主題以獲取詞彙建議）不在此第二項同意範圍內。 LingoLinq 會在使用主題文字之前自動刪除姓名和其他識別訊息，而且主題本身通常只是一個主題，不包含您孩子的個人資訊。 [[ AI-assisted board suggestions and focus words (for example, typing a topic like \"the zoo\" to get word ideas) are covered by this same authorization. LingoLinq automatically removes names and other identifying details from that topic text before it is used, and the topic itself is ordinarily just a subject, not information about your child.",
+  "privacy_special_ai_board_suggestions_note": "*** AI-assisted board suggestions and focus words (for example, typing a topic like \"the zoo\" to get word ideas) are covered by this same authorization. LingoLinq automatically removes names and other identifying details from that topic text before it is used, and the topic itself is ordinarily just a subject, not information about your child.",
   "choose_locale": "[選擇語言] [[ [Choose a Language]",
   "board_preview_error": "無法載入此板塊的預覽。 [[ Couldn't load a preview for this board.",
   "open_board": "開放式董事會 [[ Open Board",

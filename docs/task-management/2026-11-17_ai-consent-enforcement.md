@@ -367,3 +367,34 @@ These fixes were made after the second review round and have not had a review of
   records nothing. The controller has the state to hide it on the main terms step
   (`start_code`, `euUnder16Registration`); the Google fallback step only has a proxy.
 - Twelve locale files carry English text for the 15 new keys.
+
+## Review round 3 (2026-11-18, on the open draft PR, approved by Scot)
+
+Both passes said request changes.
+
+Fixed:
+- **Signup recorded consent without showing the sentence when the age question is on.** The page
+  sent the disclosure version on every signup, but `register.hbs` rendered the AI sentence only in
+  the layout used when the age question is off, and the age question is on by default. The
+  sentence now sits outside that conditional on both forms. Guard:
+  `spec/templates/signup_ai_consent_note_spec.rb` (goes red with the old template). The same file
+  ties the page's version constant to the server's current version.
+- **One click and the organization switch did not say which version they showed.** Both now send
+  it, and the server refuses a version that is not current (`disclosure_version_stale`) before
+  saving anything. Turning the switch off needs no version.
+- **Twelve locale files still said board suggestions are "not covered".** The stale translations
+  are replaced with the untranslated marker, so readers get the current English sentence.
+- **CI `audit-artifacts-integrity`:** four Capability Ledger anchors pointed at lines this branch
+  moved. Anchors updated, ledger and document register re-rendered. No claim changed.
+
+Lesson: a "the client says what it showed" check proves nothing unless a test ties the request
+field to the element being on the page in every layout.
+
+Not fixed, for Scot:
+- A HubSpot send in flight while its account is deleted can leave the contact behind (one
+  reviewer rated this High, the earlier round Medium). Needs a record that outlives the account.
+- A parent approval link records the AI consent on the same link open as the account approval,
+  and mail scanners open links.
+- Children approved before this change have no route to this consent.
+- A concurrent organization save can restore a withdrawn switch (settings are one column).
+- The edited-email check accepts the AI sentence anywhere in the body, including hidden markup.

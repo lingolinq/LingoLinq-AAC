@@ -893,6 +893,20 @@ class Api::OrganizationsController < ApplicationController
     end
     org_data.delete('ai_authorized_changed') if org_data
     org_data.delete(:ai_authorized_changed) if org_data
+    # Turning the switch on is an authorization against the current disclosure, so the
+    # page has to say which version it linked to. A page left open across a version
+    # change is refused before anything is saved.
+    shown_version = nil
+    if org_data
+      shown_version = org_data.delete('ai_disclosure_version')
+      alt = org_data.delete(:ai_disclosure_version)
+      shown_version = alt if shown_version.nil?
+    end
+    if ai_authorized == true && !org.ai_authorized?
+      unless shown_version.to_s =~ /\A\d+\z/ && shown_version.to_i == LingoLinq::AiConsentDisclosures::CURRENT_VERSION
+        return api_error(400, {error: 'disclosure_version_stale', disclosures_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION})
+      end
+    end
     if org.process(org_data, {'updater' => @api_user})
       if ai_authorized == true
         org.authorize_ai!(authorized_by: @api_user, ip: request.remote_ip)

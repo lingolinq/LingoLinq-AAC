@@ -180,8 +180,13 @@ export default Component.extend({
       this.set('ack_error', false);
       var consentStep = RSVP.resolve();
       if (needsAiConsent(appState)) {
+        // The version this notice linked to. The server refuses a version that is no
+        // longer current (a page left open across a disclosure change), and the
+        // refusal shows as the same "could not save" error with Try Again.
+        var shownVersion = parseInt(user.get('ai_consent_disclosures_version'), 10);
         consentStep = persistence.ajax('/api/v1/users/' + userId + '/ai_consent', {
-          type: 'POST'
+          type: 'POST',
+          data: { disclosure_version: isNaN(shownVersion) ? null : shownVersion }
         }).then(function() {
           user.set('ai_consent_required', false);
           clearAiConsentDeferral(user);
