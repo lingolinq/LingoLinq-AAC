@@ -5022,6 +5022,9 @@ describe Api::UsersController, :type => :controller do
     it "should allow resetting" do
       token_user
       @user.assert_2fa!
+      # This sign-in entered a code, as one made after the account turned on 2FA would have.
+      @device.settings['2fa'] = {'last_otp' => Time.now.to_i}
+      @device.save!
       post :update_2fa, params: {'user_id' => @user.global_id, 'action_2fa' => 'reset'}
       json = assert_success_json
       expect(json['updated']).to eq(true)
@@ -5058,6 +5061,9 @@ describe Api::UsersController, :type => :controller do
     it "should allow disabling" do
       token_user
       @user.assert_2fa!
+      # This sign-in entered a code, as one made after the account turned on 2FA would have.
+      @device.settings['2fa'] = {'last_otp' => Time.now.to_i}
+      @device.save!
       post :update_2fa, params: {'user_id' => @user.global_id, 'action_2fa' => 'disable'}
       json = assert_success_json
       expect(json['updated']).to eq(true)
