@@ -172,3 +172,20 @@ Facts:
 - CONFIRMED: a later sync tries a missing icon again. :3160 is gated only by `store_url_quick_check` (already stored), not by `safely_cached` (:3123), and the seeds are walked every sync.
 - CONFIRMED placeholder coverage: `components/board-icon.hbs:115-117` and `templates/user/board-detail.hbs:2223-2233` have `onerror="button_broken_image(this);"`; the classic sidebar `templates/application.hbs:1686, 1692, 1703` does NOT.
 - Existing Try again: drawer `attention` stage (`sync-progress-drawer.hbs:42-44`, `try_again` :143 starts `sync('self', true)`); Sync Details missing group (`sync-details.hbs:123-125`).
+
+### Proposal (icon warning)
+
+More facts:
+- CONFIRMED `persistence.js:3343-3362`: when a board saves, the success branch records `full_set_revisions` and walks on. On a failure with no retry claimed, the rejection pushes a board error (:3359).
+- CONFIRMED `persistence.js:2382-2397`: at the end, `sync_progress.errors` are merged into `statuses` rows as `error`. `errors.length > 0` sets status 'finished' and the log's `issues`; otherwise 'succeeded'.
+- CONFIRMED `utils/sync_log_store.js:42-52` `entry_copy` keeps only the listed entry keys and the row keys `id, key, status, error`. A new `warning` row field and a `warned` entry key must be added there, or they are lost on reload.
+- CONFIRMED `utils/sync_rollup.js:67-113` `rollup`: a group is `ready` from `board_missing` and `folders_missing` only; `final_rows` keeps `error`/`status`.
+- CONFIRMED drawer `ready` stage = notice 'succeeded' and missing 0 (`sync-progress-drawer.js:24`). Sync Details opens the first not-ready card by default (`sync-details.js:104`).
+- CONFIRMED a liked/sidebar folder is a seed at depth 1, so it is its own group (`offline_sync_seeds.js:48,59`; `note_board_root`).
+
+Candidates:
+- C1 (chosen): the icon save's failure item is marked `optional`. Retries are unchanged (a dropped link is tried again about 10/30/90 s). When the board would be reported (no retry claimed, either at the first judgment :3349 or in `retry_content`'s final failure) and EVERY failure is optional, record a warning `{warning, board_id, board_key}` in `board_warnings` instead of a board error, and record the board as complete (`full_set_revisions`), as a save does. A mix with a real button picture or sound failure is still a board error. `update_sync_progress` sums `sync_progress.warnings`. At the end they are merged into the rows as `warning`, and the log entry gets `warned`. The status stays 'succeeded'. The rollup gives each group `pictures_missing: [names]` and `overall.warned`; `ready` is unchanged. Drawer `ready` + warned: the detail adds "1 folder's picture couldn't be saved. It shows a plain square until a later sync gets it." Buttons: Sync Details (primary), Try again (secondary); the X still dismisses. Sync Details card: a note section with the folder names and Try again (hidden while syncing), shown with or without subfolders. The default-open card falls back to the first warned card. Classic sidebar `<img>`s get `onerror="button_broken_image(this);"` (the placeholder `images/square.svg`, precached).
+  - Risk: recording the revision hides nothing. The next sync's icon save is gated only by `store_url_quick_check` (confirmed :3160), so it tries again.
+  - Risk: line-neutral edits in persistence.js (all appended to existing lines).
+- C2: the icon save never rejects; warn at once, no retry. Simpler, but a short drop gives a warning the C1 retry would have avoided. Rejected.
+- C3: silent like the board's own icon (:3137). Rejected by Traci (she wants a warning).
