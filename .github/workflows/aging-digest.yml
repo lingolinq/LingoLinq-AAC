@@ -2,7 +2,8 @@ name: PR + Issue Aging Digest
 
 # Weekly (Monday) digest of open PRs and issues bucketed by age. Posts to
 # Google Chat. Daily posting repeated a number that barely moved, and the
-# CEO daily brief email already carries a one-line PR aging count. Skips silently if every bucket is empty (don't be noisy).
+# CEO daily brief email already carries a one-line PR aging count.
+# Skips silently if every bucket is empty (don't be noisy).
 #
 # Excluded from buckets:
 #   - PRs/issues with the `wip` label
