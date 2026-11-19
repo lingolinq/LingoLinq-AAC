@@ -490,3 +490,31 @@ the old spec ("marks a board finished when its reload finished", "marks a freshl
 lookup); they must change with it: needs Traci's OK (Rule #0.14).
 Mutants: no hook in either store copy; hook creating `device_boards`; :2975 note left in place; no `storage_failed` in
 each stop path; utils `store` without `note_failed_write`.
+
+### Review of the Part 3 proposal (adversary, 2026-11-19, at c89734c6d): proceed with changes
+Every CONFIRMED fact held. Verified here: `dbman.store` rewrites the record it is handed (`utils/dbman.js:146-159`:
+`record.id` becomes "board::<id>", `record.raw` is encrypted), so the hook must read the CALLER's `obj`, unwrapped
+(`obj[store] || obj`), never `record`; the utils proxy sends `persistence.store` to the service copy
+(`utils/persistence.js:4590-4600`), so a test through the proxy never reaches the utils `store`; the batch fills
+`key_lookups` before it stores (:2972-2973), so a failed batch write is NOT downloaded again in the same sync.
+Correction to the proposal (Rule #0.10): "a later lookup in the same sync downloads it again" was false: the batch's
+cached lookup is reused (:2758-2759); moving the :2975 note costs nothing.
+Revised plan:
+- Hook `note_board_written(root, store, obj)` reads `obj[store] || obj`; called AFTER `resolve(obj)` on the same line in
+  both `store` copies, inside try/catch, so it can never hang a write (the batch waits on it, :2974-2978).
+- Utils-copy tests drive the adapter path (DSExtend `findRecord` under `sync_testing`, as
+  `tests/unit/utils/adapter-board-find-test.js`); the "no hook" mutant runs on each copy separately.
+- `end_canceled_sync` gets `writes_before` from :2376; a missing one means "do not check" (the counter is never reset,
+  and `writes_failed_since(root, undefined)` compares with 0).
+- Drop `note_board_done` from the services import once its two calls go.
+- Recommended NOT in this unit: `note_failed_write` in the utils `store`. With A, a failed board write is already not
+  counted as saved; `failed_writes` is device- and session-wide, so counting every adapter write (user, buttonset,
+  image rows, browsing, an earlier sync's queue) could fail finished syncs for writes that are not this sync's boards,
+  with no evidence yet of how often adapter writes fail. For Traci.
+- "Not covered" additions: a 'cached' row trusted by the `retrieved` stamp (queued, not confirmed); a fresh board
+  served from memory with no device read (when `board_revisions` fails) reads not_saved though it is on the device;
+  a board looked up by a key that was renamed; a board queued at Cancel that lands a second later still reads not
+  saved in that entry.
+- The two existing tests: the smallest change keeps their assertions and changes only the fixture (the stubbed reload
+  or find stores `{board: {id: '1_1212', key: 'example/slow'}}` through the real path); new siblings pin the no-write
+  case. Needs Traci's OK.
