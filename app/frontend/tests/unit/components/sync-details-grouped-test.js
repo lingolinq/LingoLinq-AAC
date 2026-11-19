@@ -118,7 +118,7 @@ module('Unit | Component | sync-details grouped view', function(hooks) {
     var mixed = [{ key: 'me/kb', status: 'cached', warning: 'w' }, { key: 'me/core', status: 'downloaded' }, { key: 'me/core-feel', status: 'downloaded' }, { key: 'me/core-go', error: 'failed retrieval' }];
     var c = build(this, [{ statuses: mixed, roots: roots }]);
     assert.strictEqual(c.get('current_tab'), 'attention');
-    assert.strictEqual(c.get('picture_warning_line'), "The picture for Keyboard couldn't be saved. It shows a plain square until a later sync gets it.");
+    assert.strictEqual(c.get('picture_warning_line'), "The picture for Keyboard couldn't be saved. It shows a placeholder picture until a later sync gets it.");
     assert.true(c.get('cards')[0].open, 'the board that needs attention is still the one opened');
     c.get('tabs')[2].pick();
     assert.strictEqual(c.get('picture_warning_line'), null, 'on All boards its card says it');

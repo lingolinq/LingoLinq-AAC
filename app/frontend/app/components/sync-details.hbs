@@ -156,7 +156,7 @@
                       <div class="la-sync-folder-group-head">
                         <span>
                           <h4 class="la-sync-folder-group-title">{{card.pictures_title}}</h4>
-                          <span class="la-sync-folder-group-note">{{t "These work offline and show a plain square for now. Try again when the connection is better." key="sync_picture_not_saved_note"}}</span>
+                          <span class="la-sync-folder-group-note">{{t "These work offline and show a placeholder picture for now. Try again when the connection is better." key="sync_picture_not_saved_note"}}</span>
                         </span>
                         {{#unless (persistence-value 'syncing')}}
                           <button type="button" class="la-sync-details-secondary-btn" {{on "click" (this.ctrlAction "sync")}}>{{t "Try again" key="try_again"}}</button>

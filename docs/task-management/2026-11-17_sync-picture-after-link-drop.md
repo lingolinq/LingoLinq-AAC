@@ -240,3 +240,16 @@ Device check on the warning code (6ab2823d1, served on 5089): 5 more WebKit runs
 - Final-review F4 (Traci: yes): the warning names the folder(s): "The picture for Keyboard couldn't be saved. ..."; plural "Pictures for 2 folders couldn't be saved: Keyboard, Fun. ..." (group order). F5 (Traci: yes): `only_optional` and its test removed.
 - Test corrections while landing it, both mistakes in my new expectations, not the code: the names come in group order (sidebar before liked), not alphabetically; a "failed sync" case had no earlier finished sync, so the warning is rightly new; the case now has one.
 - 3 mutants, one build, each red: `parked_content` = size; `new_warnings` ignoring the person; the warning not naming the folder. Filter `sync` 418 passed, 0 failed, 2 skipped; `persistence` 340/0/9.
+
+### UI check (2026-11-19) and a wording correction
+
+UI test (Playwright, Chromium 1280x900, PR head served on 5089, synth_big with 6 liked folders; requests for the default board icon blocked during the first sync). Script: session scratchpad `ui/ui-warning.js`. 15 of 16 checks passed:
+- the waiting stage read "6 folders' pictures or sounds are still downloading";
+- the sync "succeeded", the drawer was ready and named all 6 folders, its buttons were Sync Details then Try again, and the log had 6 warnings and no errors;
+- the card was still up after 10 s;
+- Sync Details showed "Picture not saved · 4" with Try again on Big Core's card (folders 1 and 2 are on their own cards; the card a folder lands on depends on walk order);
+- Try again in Sync Details ran a clean sync: "succeeded", no warning, and its card closed on its own;
+- the classic sidebar's blocked picture showed `square.svg`.
+The one failure was the test itself: the other sidebar picture was the device's saved `filesystem:` copy, which the block rule did not cover, and it loaded normally.
+
+Correction: `images/square.svg` is NOT a plain square. It is a brand-coloured photo glyph (frame, sun, mountains). The strings said "a plain square" because I described it that way without opening the file. Now: "It shows a placeholder picture until a later sync gets it." (3 strings, tests and locales). Lesson: open an asset before describing it in user-facing copy.

@@ -30,6 +30,6 @@ export function sync_progress_line(progress) {
 // not listed.
 export function picture_warning(names) {
   if(!names || !names.length) { return null; }
-  return names.length === 1 ? i18n.t('sync_picture_warning_one', "The picture for %{name} couldn't be saved. It shows a plain square until a later sync gets it.", { name: names[0] }) :
-    i18n.t('sync_picture_warning_many', "Pictures for %{n} folders couldn't be saved: %{names}. They show a plain square until a later sync gets them.", { n: names.length, names: names.join(', ') });
+  return names.length === 1 ? i18n.t('sync_picture_warning_one', "The picture for %{name} couldn't be saved. It shows a placeholder picture until a later sync gets it.", { name: names[0] }) :
+    i18n.t('sync_picture_warning_many', "Pictures for %{n} folders couldn't be saved: %{names}. They show a placeholder picture until a later sync gets them.", { n: names.length, names: names.join(', ') });
 }

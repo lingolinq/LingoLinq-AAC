@@ -9763,7 +9763,7 @@
   "sync_drawer_waiting_content_one": "*** 1 folder's pictures or sounds are still downloading. They will be tried again automatically.",
   "sync_drawer_waiting_content_many": "*** %{n} folders' pictures or sounds are still downloading. They will be tried again automatically.",
   "sync_picture_not_saved_n": "*** Picture not saved · %{n}",
-  "sync_picture_warning_one": "*** The picture for %{name} couldn't be saved. It shows a plain square until a later sync gets it.",
-  "sync_picture_warning_many": "*** Pictures for %{n} folders couldn't be saved: %{names}. They show a plain square until a later sync gets them.",
-  "sync_picture_not_saved_note": "*** These work offline and show a plain square for now. Try again when the connection is better."
+  "sync_picture_warning_one": "*** The picture for %{name} couldn't be saved. It shows a placeholder picture until a later sync gets it.",
+  "sync_picture_warning_many": "*** Pictures for %{n} folders couldn't be saved: %{names}. They show a placeholder picture until a later sync gets them.",
+  "sync_picture_not_saved_note": "*** These work offline and show a placeholder picture for now. Try again when the connection is better."
 }
