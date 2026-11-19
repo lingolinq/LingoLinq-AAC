@@ -75,11 +75,6 @@ export function is_content_entry(item) {
   return !!(item && item.content_retry);
 }
 
-// Whether every failure is an optional save.
-export function only_optional(failures) {
-  return !!failures.length && failures.every(function(f) { return !!(f && f.item && f.item.optional); });
-}
-
 // What to do with a board's failed saves (`failures`, in the order they failed): `park` (the items to try again, with
 // `retry` their retry number), `warn` (optional failures to report as warnings now) and `fail` (the failure that
 // words the board error, or null). An optional save already on the device by now (`on_device(item)`: a picture

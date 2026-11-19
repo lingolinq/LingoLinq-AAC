@@ -20,7 +20,7 @@ export function on_board_page(route_name) {
 // or 'result' (the plain result card, when the sync left nothing to group, such as a failure before any board).
 // The result line, and after it the warning for folders saved without their picture (utils/sync_progress.js).
 function with_picture_warning(line, summary) {
-  var warning = picture_warning(summary && summary.overall && summary.overall.warned);
+  var warning = picture_warning(summary && summary.overall && summary.overall.pictures_missing);
   return warning ? line + ' ' + warning : line;
 }
 
@@ -97,7 +97,8 @@ export default Component.extend({
 
   // Two kinds of parked work (services/persistence.js sync_boards): a folder not saved yet, and a saved folder whose
   // pictures or sounds were cut off (utils/board_content_retry.js). Each is said as it is; the folder is not "left"
-  // when only its pictures wait.
+  // when only its pictures wait, and not "saved" either, since the result card says "didn't save" if their retries run
+  // out (Traci, 2026-11-19).
   waiting_line: computed('persistence.sync_progress.{parked,parked_content}', function() {
     var content = this.get('persistence.sync_progress.parked_content') || 0;
     var boards = Math.max(0, (this.get('persistence.sync_progress.parked') || 0) - content);
@@ -107,8 +108,8 @@ export default Component.extend({
         i18n.t('sync_drawer_waiting_many', "%{n} folders are left. They will be tried again automatically.", { n: boards }));
     }
     if(content) {
-      lines.push(content === 1 ? i18n.t('sync_drawer_waiting_content_one', "1 folder is saved, but some of its pictures or sounds are not. They will be tried again automatically.") :
-        i18n.t('sync_drawer_waiting_content_many', "%{n} folders are saved, but some of their pictures or sounds are not. They will be tried again automatically.", { n: content }));
+      lines.push(content === 1 ? i18n.t('sync_drawer_waiting_content_one', "1 folder's pictures or sounds are still downloading. They will be tried again automatically.") :
+        i18n.t('sync_drawer_waiting_content_many', "%{n} folders' pictures or sounds are still downloading. They will be tried again automatically.", { n: content }));
     }
     return lines.join(' ');
   }),

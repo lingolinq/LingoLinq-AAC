@@ -122,13 +122,13 @@ module('Unit | Component | sync-progress-drawer', function(hooks) {
     assert.notOk(progress.canceled, 'not cancelled');
   });
 
-  test('a saved folder whose pictures or sounds wait is not said to be left', function(assert) {
+  test('a folder whose pictures or sounds wait is not said to be left, nor saved', function(assert) {
     var line = function(parked, parked_content) {
       return build_with(this, { status: 'syncing' }, { parked: parked, parked_content: parked_content, to_visit: parked }, []).get('waiting_line');
     }.bind(this);
-    assert.strictEqual(line(1, 1), '1 folder is saved, but some of its pictures or sounds are not. They will be tried again automatically.');
-    assert.strictEqual(line(3, 3), '3 folders are saved, but some of their pictures or sounds are not. They will be tried again automatically.');
-    assert.strictEqual(line(3, 1), '2 folders are left. They will be tried again automatically. 1 folder is saved, but some of its pictures or sounds are not. They will be tried again automatically.', 'both kinds, each said as it is');
+    assert.strictEqual(line(1, 1), "1 folder's pictures or sounds are still downloading. They will be tried again automatically.");
+    assert.strictEqual(line(3, 3), "3 folders' pictures or sounds are still downloading. They will be tried again automatically.");
+    assert.strictEqual(line(3, 1), "2 folders are left. They will be tried again automatically. 1 folder's pictures or sounds are still downloading. They will be tried again automatically.", 'both kinds, each said as it is');
     assert.strictEqual(line(2, 0), '2 folders are left. They will be tried again automatically.', 'boards only: as before');
   });
 
@@ -137,10 +137,10 @@ module('Unit | Component | sync-progress-drawer', function(hooks) {
     var one = build_with(this, { status: 'done', kind: 'succeeded' }, null, [{ statuses: [{ key: 'me/kb', status: 'cached', warning: 'w' }, { key: 'me/fun', status: 'downloaded' }], roots: roots }]);
     assert.strictEqual(one.get('stage'), 'ready');
     assert.strictEqual(one.get('result_title'), 'All your boards are ready offline');
-    assert.strictEqual(one.get('result_detail'), "2 boards and folders are saved on this device. 1 folder's picture couldn't be saved. It shows a plain square until a later sync gets it.");
+    assert.strictEqual(one.get('result_detail'), "2 boards and folders are saved on this device. The picture for Keyboard couldn't be saved. It shows a plain square until a later sync gets it.");
     assert.true(one.get('offer_try_again'));
     var two = build_with(this, { status: 'done', kind: 'succeeded' }, null, [{ statuses: [{ key: 'me/kb', status: 'cached', warning: 'w' }, { key: 'me/fun', status: 'downloaded', warning: 'w' }], roots: roots }]);
-    assert.strictEqual(two.get('result_detail'), "2 boards and folders are saved on this device. 2 folders' pictures couldn't be saved. They show a plain square until a later sync gets them.");
+    assert.strictEqual(two.get('result_detail'), "2 boards and folders are saved on this device. Pictures for 2 folders couldn't be saved: Keyboard, Fun. They show a plain square until a later sync gets them.");
     var none = build_with(this, { status: 'done', kind: 'succeeded' }, null, [{ statuses: [{ key: 'me/kb', status: 'cached' }], roots: roots }]);
     assert.strictEqual(none.get('result_detail'), '1 board is saved on this device.');
     assert.false(none.get('offer_try_again'), 'nothing to try again');
@@ -150,7 +150,7 @@ module('Unit | Component | sync-progress-drawer', function(hooks) {
     var roots = { 'me/core': { root: 'me/core', name: 'Quick Core 60', role: 'home board', key: 'me/core' }, 'me/kb': { root: 'me/kb', name: 'Keyboard', role: 'sidebar board', key: 'me/kb' } };
     var drawer = build_with(this, { status: 'done', kind: 'finished' }, null, [{ statuses: [{ key: 'me/core', error: 'failed' }, { key: 'me/kb', status: 'cached', warning: 'w' }], roots: roots }]);
     assert.strictEqual(drawer.get('stage'), 'attention');
-    assert.strictEqual(drawer.get('result_detail'), "1 board didn't save. It still opens while you're online. 1 folder's picture couldn't be saved. It shows a plain square until a later sync gets it.");
+    assert.strictEqual(drawer.get('result_detail'), "1 board didn't save. It still opens while you're online. The picture for Keyboard couldn't be saved. It shows a plain square until a later sync gets it.");
     assert.false(drawer.get('offer_try_again'), 'Try again already leads');
   });
 });

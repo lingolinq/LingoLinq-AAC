@@ -159,6 +159,7 @@ module('Unit | Service | sync-notice', function(hooks) {
   test('a success with a new warning stays; the same warning again goes away on its own', function(assert) {
     var timers = [];
     stub(window, 'setTimeout', function(fn) { timers.push(fn); return timers.length; });
+    stub(this.notice, '_signed_in_user_name', function() { return 'me'; });
     var saved_log = this.persistence.get('sync_log');
     var warned = { user_id: 'me', statuses: [{ key: 'me/kb', status: 'cached', warning: 'w' }] };
     this.persistence.set('sync_status', 'syncing');
@@ -176,6 +177,11 @@ module('Unit | Service | sync-notice', function(hooks) {
     this.persistence.set('sync_log', [warned, { user_id: 'me', statuses: [{ key: 'me/kb', status: 'cached' }] }]);
     timers[timers.length - 1]();
     assert.strictEqual(this.notice.get('status'), null, 'no warning: dismissed');
+    this.persistence.set('sync_status', 'syncing');
+    this.persistence.set('sync_status', 'succeeded');
+    this.persistence.set('sync_log', [{ user_id: 'me', statuses: [{ key: 'me/kb', status: 'cached' }] }, warned, { user_id: 'you', statuses: [{ key: 'you/x', status: 'cached' }] }]);
+    timers[timers.length - 1]();
+    assert.strictEqual(this.notice.get('status'), 'done', 'someone else\'s sync finished last: still the signed-in person\'s new warning');
     this.persistence.set('sync_log', saved_log);
   });
 });

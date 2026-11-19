@@ -97,7 +97,7 @@ export default Component.extend({
   // On Needs attention the ready boards are not listed, so a folder saved without its picture is named here instead.
   picture_warning_line: computed('summary', 'current_tab', function() {
     var s = this.get('summary');
-    return s && this.get('current_tab') === 'attention' ? picture_warning(s.overall.warned) : null;
+    return s && this.get('current_tab') === 'attention' ? picture_warning(s.overall.pictures_missing) : null;
   }),
 
   cards: computed('summary', 'current_tab', 'open_cards', 'all_saved_cards', function() {

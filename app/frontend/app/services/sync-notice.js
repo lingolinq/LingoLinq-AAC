@@ -101,6 +101,13 @@ export default Service.extend({
     this._sync_status_changed();
   },
 
+  // The signed-in person's user name, as their sync log entries name them (services/persistence.js user_id: user_name).
+  _signed_in_user_name() {
+    var stashes = this.get('persistence.stashes');
+    var auth = stashes && typeof stashes.get_object === 'function' ? stashes.get_object('auth_settings', true) : null;
+    return (auth && auth.user_name) || null;
+  },
+
   _sync_status_changed() {
     var p = this.get('persistence');
     var now = this._effective_status();
@@ -116,7 +123,7 @@ export default Service.extend({
     if(now === 'succeeded') {
       this.setProperties({ status: 'done', kind: 'succeeded' });
       var _this = this;
-      this._success_timer = setTimeout(function() { _this._success_timer = null; if(_this.get('kind') === 'succeeded' && !new_warnings(_this.get('persistence.sync_log')).length) { _this.dismiss(); } }, SUCCESS_CARD_MS);
+      this._success_timer = setTimeout(function() { _this._success_timer = null; if(_this.get('kind') === 'succeeded' && !new_warnings(_this.get('persistence.sync_log'), _this._signed_in_user_name()).length) { _this.dismiss(); } }, SUCCESS_CARD_MS);
     } else if(now === 'finished') {
       this.setProperties({ status: 'done', kind: 'finished' });
     } else if(now === 'failed' && !p.get('root_sync_canceled')) {

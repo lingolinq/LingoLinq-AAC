@@ -6528,6 +6528,31 @@ describe("persistence-sync", function() {
       });
     });
 
+    // The drawer tells boards still to get from saved boards whose pictures wait (services/persistence.js parked_content);
+    // a board whose lookup is parked is NOT saved, and must never be counted as content (review of a28508b74).
+    it("counts a board waiting to be looked up again as not saved, for the drawer", function() {
+      db_wait(function() {
+        var seen = [];
+        var real = persistence.update_sync_progress;
+        stubOnPersistence('update_sync_progress', function() {
+          var res = real.apply(this, arguments);
+          var p = this.get('sync_progress');
+          if(p && p.parked) { seen.push([p.parked, p.parked_content]); }
+          return res;
+        });
+        var response = answers([{ reject: { error: 'timeout' } }, { resolve: board167 }]);
+        var state = syncWithBoard167(response);
+        waitsFor(function() { return waitForSyncDoneAndSettled(state.result) && state.tailDone; });
+        runs(function() {
+          expect(seen.length > 0).toEqual(true); // the walk reported the parked board while it waited
+          expect(seen.every(function(s) { return s[0] === 1 && s[1] === 0; })).toEqual(true);
+          cancelSyncTailWork();
+          persistence.set('sync_progress', null);
+          LingoLinq.sync_testing_real_boards = false;
+        });
+      });
+    });
+
     it("should try a timed-out board three more times, then report it", function() { // was "once more"; changed with Traci's approval 2026-11-14 (utils/board_retry.js)
       db_wait(function() {
         var response = answers([{ reject: { error: 'timeout' } }]);

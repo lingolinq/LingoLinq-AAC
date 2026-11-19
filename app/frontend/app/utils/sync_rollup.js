@@ -65,7 +65,7 @@ function short_name(key) {
 // The groups for `statuses` (rows of {id, key, status, error}) with `roots` (sync_progress.board_roots or a log
 // entry's `roots`). Each group: {key, name, role, board_saved, board_missing, folders_saved: [names],
 // folders_missing: [names], folder_count, saved_count, ready, pictures_missing: [names of its boards saved without
-// their picture]}. And overall: {saved, total, pct, missing, warned}. A warning does not make a board missing; a
+// their picture]}. And overall: {saved, total, pct, missing, warned, pictures_missing: [every group's, in group order]}. A warning does not make a board missing; a
 // board that failed is missing, whatever warning it also has.
 export function rollup(statuses, roots) {
   roots = roots || {};
@@ -109,14 +109,14 @@ export function rollup(statuses, roots) {
     if(ra !== rb) { return ra - rb; }
     return order.indexOf(a.key) - order.indexOf(b.key);
   });
-  var total = 0, saved = 0, missing = 0, warned = 0;
+  var total = 0, saved = 0, missing = 0, warned = 0, pictures_missing = [];
   list.forEach(function(g) {
-    warned += g.pictures_missing.length;
+    warned += g.pictures_missing.length; pictures_missing = pictures_missing.concat(g.pictures_missing);
     total += g.folder_count + 1;
     saved += g.saved_count + (g.board_missing ? 0 : 1);
     missing += g.folders_missing.length + (g.board_missing ? 1 : 0);
   });
-  return { groups: list, overall: { saved: saved, total: total, missing: missing, warned: warned, pct: total ? Math.floor(100 * saved / total) : 100 } };
+  return { groups: list, overall: { saved: saved, total: total, missing: missing, warned: warned, pictures_missing: pictures_missing, pct: total ? Math.floor(100 * saved / total) : 100 } };
 }
 
 // A board saved without its picture (utils/board_content_retry.js content_warning): the warning goes on the board's
@@ -142,16 +142,27 @@ function warned_keys(entry) {
   return keys;
 }
 
-// The boards of the newest finished sync in `log` saved without their picture that the finished sync before it, for
-// the same person, did not warn about (services/sync-notice.js keeps a success card with a new warning until it is dismissed;
-// the same warning again goes away on its own, as any success, Traci 2026-11-18).
-export function new_warnings(log) {
+// A finished sync with rows, as last_result (utils/sync_log_store.js): a failed or cancelled one stopped part way.
+function finished_entry(e) {
+  return !!e && !e.errored && !e.canceled && (e.statuses || []).length > 0;
+}
+
+// The boards of `user_name`'s newest finished sync in `log` saved without their picture that their finished sync before
+// it did not warn about (services/sync-notice.js keeps a success card with a new warning until it is dismissed; the
+// same warning again goes away on its own, as any success, Traci 2026-11-18). The log also holds other people's syncs
+// (a supervisor syncs a communicator), so the newest entry is not necessarily theirs; with no `user_name`, the newest
+// finished entry's person.
+export function new_warnings(log, user_name) {
   log = log || [];
-  var latest = log[log.length - 1];
-  if(!latest) { return []; }
+  var at = -1;
+  for(var j = log.length - 1; j >= 0; j--) {
+    if(finished_entry(log[j]) && (user_name == null || log[j].user_id === user_name)) { at = j; break; }
+  }
+  if(at < 0) { return []; }
+  var latest = log[at];
   var prev = null;
-  for(var i = log.length - 2; i >= 0; i--) {
-    if(log[i] && log[i].user_id === latest.user_id && !log[i].errored && !log[i].canceled && (log[i].statuses || []).length) { prev = log[i]; break; } // a finished sync, as last_result (utils/sync_log_store.js): a failed or cancelled one stopped part way
+  for(var i = at - 1; i >= 0; i--) {
+    if(finished_entry(log[i]) && log[i].user_id === latest.user_id) { prev = log[i]; break; }
   }
   var before = warned_keys(prev);
   return Object.keys(warned_keys(latest)).filter(function(k) { return !before[k]; });

@@ -1,7 +1,7 @@
 import { module, test } from 'qunit';
 import RSVP from 'rsvp';
 import {
-  failure_cause, content_failure, settle_content, claim_content_retry, content_entry, content_error, retry_content, is_content_entry, only_optional, content_warning, judge_content
+  failure_cause, content_failure, settle_content, claim_content_retry, content_entry, content_error, retry_content, is_content_entry, content_warning, judge_content
 } from 'frontend/utils/board_content_retry';
 import { claim_board_retry, MAX_BOARD_RETRIES } from 'frontend/utils/sync_board_fallback';
 
@@ -145,16 +145,6 @@ module('Unit | Utility | board content retry', function() {
   });
 
   // A liked or sidebar folder's icon (Traci, 2026-11-18): when it is all that failed, the folder is saved with a warning.
-  test('only_optional: every failure is an optional save', function(assert) {
-    var icon = content_failure('icon', { fakeXHR: { status: 400 } }, { url: 'i', type: 'image', optional: true });
-    var button = content_failure('button', { fakeXHR: { status: 400 } }, { url: 'b', type: 'image' });
-    assert.true(only_optional([icon]));
-    assert.true(only_optional([icon, icon]));
-    assert.false(only_optional([icon, button]), 'a button picture failed too: the board fails');
-    assert.false(only_optional([]));
-    assert.false(only_optional([{ error: 'not a content failure' }]));
-  });
-
   test('the warning names the board and what did not save', function(assert) {
     assert.deepEqual(content_warning({ key: 'fred/side', visit_source: 'sidebar board' }, { error: 'sidebar icon url failed to sync, i' }),
       { warning: 'board fred/side saved without its picture: sidebar icon url failed to sync, i, linked from sidebar board', board_id: 'fred/side', board_key: 'fred/side' });

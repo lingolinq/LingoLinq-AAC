@@ -120,6 +120,7 @@ module('Unit | Utility | sync rollup', function() {
     assert.deepEqual(kb.pictures_missing, ['Keyboard']);
     assert.deepEqual(r.groups[0].pictures_missing, []);
     assert.strictEqual(r.overall.warned, 1);
+    assert.deepEqual(r.overall.pictures_missing, ['Keyboard'], 'by name, for the warning');
     assert.strictEqual(r.overall.missing, 1, 'the missing count is unchanged');
     assert.strictEqual(rollup(walk().statuses, w.sp.board_roots).overall.warned, 0);
   });
@@ -161,5 +162,10 @@ module('Unit | Utility | sync rollup', function() {
     assert.deepEqual(new_warnings([entry('me', [plain])]), []);
     assert.deepEqual(new_warnings([]), []);
     assert.deepEqual(new_warnings(null), []);
+    var you = { key: 'you/fun', status: 'cached' };
+    assert.deepEqual(new_warnings([entry('me', [kb]), entry('me', [kb]), entry('you', [you])], 'me'), [], 'someone else\'s sync last: the signed-in person\'s own two are compared');
+    assert.deepEqual(new_warnings([entry('me', [plain]), entry('me', [kb]), entry('you', [you])], 'me'), ['me/kb']);
+    assert.deepEqual(new_warnings([entry('me', [kb]), entry('me', [kb]), Object.assign(entry('me', [plain]), { errored: true })], 'me'), [], 'their newest finished sync is the one before a failure, compared with the one before it');
+    assert.deepEqual(new_warnings([entry('you', [kb])], 'me'), [], 'no sync of theirs');
   });
 });
