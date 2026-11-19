@@ -185,4 +185,3 @@ module('Unit | Service | sync-notice', function(hooks) {
     this.persistence.set('sync_log', saved_log);
   });
 });
-
