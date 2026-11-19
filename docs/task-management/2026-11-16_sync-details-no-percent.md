@@ -426,3 +426,67 @@ PII pre-flight exit 0. REVIEWED=range 46dddb59195cdd1ceda3382f4b44da54054b3001 (
   5. Low (not re-checked): the running rollup counts in-flight downloads, so the count can drop after Cancel.
   6. Low (not re-checked): the technical list has no "not saved" case for `not_saved` rows.
   Open: Traci to decide the scope before any change (findings 1 and 2 need the /fix-proposal process).
+
+## Part 3 (2026-11-19): findings 1 and 2 of the final review (fix-proposal)
+
+### Fact sheet
+(a) READ: `confirmed_statuses` (`utils/sync_rollup.js`) reads `sync_progress.boards_done` and `sync_progress.device_boards`
+at a stop: failure branch (`services/persistence.js:2439`), `end_canceled_sync` (:5119). `partial_result` reads
+`entry.storage_failed` (`utils/sync_log_store.js:137-147`). CONFIRMED.
+(b) SHAPES of a 'downloaded'/'re-downloaded' row at a stop, with the writer of each:
+  1. Fetched by `board_lookup` (reload or fresh), save QUEUED, not yet written. The adapter is the utils DSExtend: the
+     service's `DSExtend` is a static on the Service class (`services/persistence.js:4243`), so the proxy's
+     `prop in window.persistence` misses and falls back to the utils module (`utils/persistence.js:4569-4600`, :4233).
+     Its find calls the utils `store_eventually` (:4392), which queues and resolves at once (:646-656). Today counted
+     saved (`note_board_done`, :2782, :2785). CONFIRMED.
+  2. Same, write done: on the device. CONFIRMED.
+  3. Same, write FAILED: the utils `store` logs to `root.errors` and resolves (:759-771) and does NOT call
+     `note_failed_write` (only the service `store` does, `services/persistence.js:772`), so `failed_writes` never counts
+     it, and today it is counted saved. CONFIRMED.
+  4. Batch step: 'downloaded' (:2971), the service `store`, and `note_device_boards` in its success handler (:2975),
+     which runs on a FAILED write too (`store` resolves on failure, :772-777). Failure IS counted (`note_failed_write`).
+     Today counted saved. CONFIRMED.
+  5. The queue keeps draining after the stop (`utils/persistence.js:670-694`, a 200 ms timer that does not look at the
+     sync), so a shape-1 board usually lands seconds later unless the app closes or the write fails. CONFIRMED.
+  `device_boards` is created by the first `note_device_boards` call, which also sets `device_boards_read_at`
+  (`utils/sync_board_fallback.js:63-66`); `known_on_device` treats an existing map as "the device was read"
+  (:85-90). So nothing may CREATE that map except the device read. CONFIRMED.
+(c) Cross-file: `writes_before` is set in `sync` (:2042) and is in scope in the failure branch (the success branch uses
+it at :2399). `end_canceled_sync` gets no writes count (:2376 call). Lines above 4465 in services/persistence.js must stay
+one-for-one; utils/persistence.js's last baselined row is 4358 (`.eslint-todo`), so its `store` (~:760) and its import
+lines must be edited one-for-one too. CONFIRMED.
+
+### Proposal
+Finding 1, candidates:
+- A (recommended). Confirm on the WRITE, not the fetch. One helper, `note_board_written(root, store, obj)`
+  (utils/sync_rollup.js), called on the "Successfully stored object" line of BOTH `store` copies (same line): for
+  store 'board' with a live `sync_progress`, mark `boards_done[id/key]`, and add to `device_boards` only if that map
+  already exists (never create it). Remove the two `note_board_done` calls at :2782/:2785 (queue-time). Move :2975's
+  `note_device_boards` into the same hook (it then runs only on a written board; a failed batch write is no longer
+  noted, so a later lookup in the same sync downloads it again, which is correct). Effect: at a stop, a queued or
+  failed write reads 'not_saved'. Cost: a board queued at Cancel that lands a second later still reads "not saved"
+  in that entry (true at the stop; the next sync corrects it). Covers shapes 1, 3, 4.
+- C (the review's). At the stop, demote boards still in the utils `eventual_store` queue. Rejected as the main fix:
+  misses failed writes (shape 3) and the batch failure (shape 4), and reads another object's private queue.
+- B. A, plus hold the stopped entry until the queue drains (bounded). Rejected: both stop paths are synchronous, Sync
+  Details reads the log at once, and a bounded wait still guesses.
+- D. A, plus flip a stopped entry's 'not_saved' row when its write lands later. Rejected for now: a log write on the
+  store hot path; possible follow-up.
+Finding 2: the failure branch computes `writes_failed_since(_this_sync, writes_before)` and sets `storage_failed` on its
+entry (same line); `end_canceled_sync` takes `writes_before` from its caller (:2376) and does the same. And the utils
+`store` calls `note_failed_write(root, error)` like the service copy, so a failed adapter write is counted (this also
+makes a FINISHED sync whose only failures were adapter writes end as failed, which is #1268's intent; a behaviour change
+on the success branch, for the review).
+Risks: the store hot path gains a cheap call per write; `known_on_device` sees batch boards only after their write (one
+extra download possible where a write failed); the utils counter change can turn a finished sync into "failed" on
+devices where adapter writes fail today unnoticed.
+Unresolved: is a 'cached' row trusted by the `retrieved` stamp (`known_on_device`) the same hole? (fetched since the
+device read = queued, not written). Proposed: out of scope, record in "Not covered".
+Tests (red first): unit `note_board_written` (marks done, adds to an existing map, never creates one, ignores other
+stores); #1212 harness: a reload that finished but whose write has not run is NOT saved at a stop, and IS after the
+service `store` writes it; a failed write is not; the failure branch and Cancel set `storage_failed` after a failed write
+(and `partial_result` returns null); the utils `store` counts a failed write. Two EXISTING tests on this branch encode
+the old spec ("marks a board finished when its reload finished", "marks a freshly downloaded board finished": saved at
+lookup); they must change with it: needs Traci's OK (Rule #0.14).
+Mutants: no hook in either store copy; hook creating `device_boards`; :2975 note left in place; no `storage_failed` in
+each stop path; utils `store` without `note_failed_write`.
