@@ -618,6 +618,13 @@ describe Passwords, :type => :model do
   end
 
   describe "valid_2fa? for a new secret" do
+    include ActiveSupport::Testing::TimeHelpers
+
+    # Ten seconds into a 30-second TOTP window, away from hour and day boundaries.
+    around(:each) do |example|
+      travel_to(Time.utc(2026, 11, 3, 15, 20, 10)) { example.run }
+    end
+
     it "returns the code's time when confirming a temporary secret" do
       u = User.create
       u.assert_2fa!(true)
@@ -625,6 +632,14 @@ describe Passwords, :type => :model do
       res = u.valid_2fa?(code)
       expect(res).to be_a(Integer)
       expect(u.settings['2fa']['last_otp']).to eq(res)
+    end
+
+    it "returns false when the confirmed secret cannot be saved" do
+      u = User.create
+      u.assert_2fa!(true)
+      code = ROTP::TOTP.new(u.settings['tmp_2fa']['secret'], issuer: 'LingoLinq').now
+      expect(u).to receive(:save).and_return(false)
+      expect(u.valid_2fa?(code)).to eq(false)
     end
   end
 end
