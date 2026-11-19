@@ -2373,7 +2373,7 @@ var persistence = Service.extend({
 
       var complete_sync = track_buttons.then(function() {
         var last_sync = (new Date()).getTime() / 1000;
-        if(_this_sync.get('sync_progress.root_user') == user_id && !_this_sync.end_canceled_sync(sync_id, user_id, user_name, force)) { // a cancelled sync whose walk resolved ends as cancelled, before anything below moves the stamps or the clock
+        if(_this_sync.get('sync_progress.root_user') == user_id && !_this_sync.end_canceled_sync(sync_id, user_id, user_name, force, writes_before)) { // a cancelled sync whose walk resolved ends as cancelled, before anything below moves the stamps or the clock
           var sync_stamps = _this_sync.get('sync_progress.sync_stamps'); var board_roots = _this_sync.get('sync_progress.board_roots') || {}; // which board each one was reached from, for Sync Details (utils/sync_rollup.js)
           var statuses = _this_sync.get('sync_progress.board_statuses') || [];
           if(_this_sync.get('sync_progress.last_sync_stamp')) {
@@ -2384,12 +2384,12 @@ var persistence = Service.extend({
             if(error.board_key || error.board_id) {
               var status = statuses.find(function(s) { return (s.key && s.key == error.board_key); });
               if(status) {
-                status.error = error.error;
+                status.error = error.error; if(error.content) { status.content = true; } else { delete status.content; } // utils/sync_rollup.js content_error
               } else {
                 statuses.push({
                   id: error.board_id || error.board_key,
                   key: error.board_key || error.board_id,
-                  error: error.error
+                  error: error.error, ...(error.content ? { content: true } : {})
                 });
               }
             }
@@ -2423,7 +2423,7 @@ var persistence = Service.extend({
             user_id: user_name,
             reason: sync_reason,
             manual: force,
-            issues: errors.length > 0,
+            issues: errors.length > 0, errored: storage_failed ? true : undefined, storage_failed: storage_failed ? true : undefined, // the boards' writes failed: it did not finish (Sync Details, utils/sync_log_store.js partial_result)
             finished: new Date(),
             statuses: statuses, roots: board_roots,
             summary: sync_message
@@ -2436,8 +2436,8 @@ var persistence = Service.extend({
       return complete_sync;
     }, function(err) {
       if(_this_sync.get('sync_progress.root_user') == user_id) {
-        var statuses = _this_sync.get('sync_progress.board_statuses') || [];
-        var stamps = _this_sync.get('sync_progress.sync_stamps');
+        var statuses = confirmed_statuses(_this_sync.get('sync_progress.board_statuses') || [], _this_sync.get('sync_progress')); // a download not finished at the stop is not saved (utils/sync_rollup.js)
+        var stamps = _this_sync.get('sync_progress.sync_stamps'); var stopped_roots = _this_sync.get('sync_progress.board_roots') || {}; var stopped_errors = live_board_errors(_this_sync.get('sync_progress')); // kept in its log entry, for Sync Details' cards after a stop
         _this_sync.set('sync_progress', null);
         if(_this_sync._canceled_sync_id === sync_id) { if(_this_sync._active_root_sync_id === sync_id && _this_sync.sync_status_is_for_signed_in_user(user_id)) { _this_sync.set('sync_status', null); } } else if(_this_sync.sync_status_is_for_signed_in_user(user_id)) { _this_sync.set('sync_status', 'failed'); }
         // if last sync attempt ended in failure and this attempt also
@@ -2464,9 +2464,9 @@ var persistence = Service.extend({
         log.push({
           user_id: user_name,
           manual: force,
-          errored: _this_sync._canceled_sync_id !== sync_id, canceled: _this_sync._canceled_sync_id === sync_id || undefined, // a cancel that ended through this branch is still a cancel (docs/task-management/2026-11-15_persist-sync-log.md)
+          errored: _this_sync._canceled_sync_id !== sync_id, canceled: _this_sync._canceled_sync_id === sync_id || undefined, storage_failed: writes_failed_since(_this_sync, writes_before) || undefined, // a board write failed: none of its rows is shown as saved (utils/sync_log_store.js partial_result) // a cancel that ended through this branch is still a cancel (docs/task-management/2026-11-15_persist-sync-log.md)
           finished: new Date(),
-          statuses: statuses,
+          statuses: with_errors(statuses, stopped_errors), roots: stopped_roots, // grouped and with the failures it recorded, as the finished sync's entry (utils/sync_rollup.js)
           summary: _this_sync._canceled_sync_id === sync_id ? i18n.t('sync_canceled_summary', "Sync canceled") : i18n.t('error_syncing_user', "Error syncing %{user_id}: ", {user_id: user_name}) + message
         });
         _this_sync.set('last_sync_event_at', (new Date()).getTime());
@@ -2779,10 +2779,10 @@ var persistence = Service.extend({
           } else {
             board_statuses.push({id: id, key: record.get('key'), status: 're-downloaded'});
             record.set('button_set_needs_reload', true);
-            return _this.time_promise(record.reload(), "reload board", BOARD_RELOAD_MS).then(null, function(err) { return keep_stored_board(record, err, board_statuses, id, function(rec) { return _this.find('board', rec.get('global_id') || rec.get('id')).then(function(row) { return usable_copy(row) ? row : RSVP.reject({error: 'no usable copy'}); }); }); }); // #1212 (utils/sync_board_fallback.js): by global id, a key lookup scans every board row
+            return _this.time_promise(record.reload(), "reload board", BOARD_RELOAD_MS).then(function(reloaded) { note_board_done(_this.get('sync_progress'), id, record.get('key')); return reloaded; }, function(err) { return keep_stored_board(record, err, board_statuses, id, function(rec) { return _this.find('board', rec.get('global_id') || rec.get('id')).then(function(row) { return usable_copy(row) ? row : RSVP.reject({error: 'no usable copy'}); }); }); }); // #1212 (utils/sync_board_fallback.js): by global id, a key lookup scans every board row
           }
         } else {
-          board_statuses.push({id: id, key: record.get('key'), status: 'downloaded'});
+          board_statuses.push({id: id, key: record.get('key'), status: 'downloaded'}); note_board_done(_this.get('sync_progress'), id, record.get('key')); // utils/sync_rollup.js
           record.set('button_set_needs_reload', true);
           return record;
         }
@@ -3356,7 +3356,7 @@ var persistence = Service.extend({
                 if(source) {
                    msg = msg + ", linked from " + source;
                 }
-                board_errors.push({error: msg, board_id: id, board_key: key});
+                board_errors.push(content_error(msg, id, key)); // tagged content: the board was reached (utils/sync_rollup.js)
                 schedule_sync_board_step(function() {
                   nextBoard(defer);
                 }, 75);
@@ -4978,13 +4978,13 @@ export default persistence;
 // Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
 import boardRevocation from '../utils/board_revocation';
 import { keep_queued_keys, replay_save_options } from '../utils/preference_save';
-import { note_failed_write, failed_write_count, end_sync_if_storage_failed } from '../utils/storage_failures';
+import { note_failed_write, failed_write_count, end_sync_if_storage_failed, writes_failed_since } from '../utils/storage_failures';
 import offlineSyncSeeds from '../utils/offline_sync_seeds';
 import { queue_eventual_store } from '../utils/eventual_store_queue';
 import { is_permanent_upload_url } from '../utils/permanent_upload';
 import { on_uploads_cdn, is_web_page } from '../utils/direct_fetch';
 import { picture_kept_in_database, usable_database_copy } from '../utils/database_picture';
-import { BOARD_RELOAD_MS, USER_RELOAD_MS, keep_stored_board, claim_board_retry, note_device_boards, known_on_device } from '../utils/sync_board_fallback'; import { create_parking, register_parking, wake_parked, retry_delay, when_slot_free } from '../utils/board_retry'; import { note_board_root, root_for_link } from '../utils/sync_rollup'; import { record_sync_log, restore_sync_log } from '../utils/sync_log_store';
+import { BOARD_RELOAD_MS, USER_RELOAD_MS, keep_stored_board, claim_board_retry, note_device_boards, known_on_device } from '../utils/sync_board_fallback'; import { create_parking, register_parking, wake_parked, retry_delay, when_slot_free } from '../utils/board_retry'; import { note_board_root, root_for_link, with_errors, note_board_done, confirmed_statuses, live_board_errors, content_error } from '../utils/sync_rollup'; import { record_sync_log, restore_sync_log } from '../utils/sync_log_store';
 import { usable_copy } from '../utils/board_device_copy';
 import { reason_is_automatic, merge_follow_up } from '../utils/sync_follow_up';
 
@@ -5110,12 +5110,22 @@ persistence.reopen({
   // result and moves neither the sync clock nor the stamps (the next sync must still run). It records the event time
   // (as the failure branch does) so the automatic check does not restart a sync right after Cancel, and logs the cancel.
   // Section 22 of docs/task-management/2026-11-10_offline-followup-proposals.md. Returns true when it ended the sync.
-  end_canceled_sync: function(sync_id, user_id, user_name, force) {
+  end_canceled_sync: function(sync_id, user_id, user_name, force, writes_before) {
     if(!sync_id || this._canceled_sync_id !== sync_id) { return false; }
+    // What the cancelled sync saved and what failed, read before sync_progress is cleared: as the failure branch, only
+    // downloads that finished count as saved, and every user's recorded errors are kept with the roots (Sync Details'
+    // stopped cards; PR #1328's offline list hides another owner's liked board on its error).
+    var progress = this.get('sync_progress');
+    var reached = Utils.uniq(confirmed_statuses((progress && progress.board_statuses) || [], progress), function(s) { return s.id; });
+    var statuses = with_errors(reached, live_board_errors(progress));
+    var roots = (progress && progress.board_roots) || {};
+    // A board write failed since the sync began (`writes_before`, from sync): as the failure branch. Not told when it
+    // began, nothing is checked (the count lasts the session, utils/storage_failures.js).
+    var storage_failed = writes_before !== undefined && writes_failed_since(this, writes_before);
     this.set('sync_progress', null);
     if(this._active_root_sync_id === sync_id && this.sync_status_is_for_signed_in_user(user_id)) { this.set('sync_status', null); }
     var log = [].concat(this.get('sync_log') || []);
-    log.push({ user_id: user_name, manual: force, canceled: true, finished: new Date(), statuses: [], summary: i18n.t('sync_canceled_summary', "Sync canceled") });
+    log.push({ user_id: user_name, manual: force, canceled: true, finished: new Date(), statuses: statuses, roots: roots, storage_failed: storage_failed || undefined, summary: i18n.t('sync_canceled_summary', "Sync canceled") });
     this.set('sync_log', record_sync_log(this, log)); // utils/sync_log_store.js
     this.set('sync_log_rand', Math.random());
     this.set('last_sync_event_at', (new Date()).getTime());

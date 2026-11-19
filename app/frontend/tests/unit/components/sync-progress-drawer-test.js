@@ -111,6 +111,16 @@ module('Unit | Component | sync-progress-drawer', function(hooks) {
     assert.strictEqual(plain.get('result_title'), 'plain message', "the sync notice's own message");
   });
 
+  // docs/task-management/2026-11-16_sync-details-no-percent.md: Sync Details shows a stopped sync's boards when no sync
+  // has finished; the drawer still reports only the sync that just ended, with its own message.
+  test('a failed first sync keeps the plain card, though Sync Details shows its boards', function(assert) {
+    var statuses = [{ key: 'me/a', status: 'cached' }, { key: 'me/b', status: 'downloaded' }];
+    var drawer = build_with(this, { status: 'done', kind: 'failed' }, null, [{ errored: true, statuses: statuses, roots: {} }]);
+    assert.strictEqual(drawer.get('summary'), null);
+    assert.strictEqual(drawer.get('stage'), 'result');
+    assert.strictEqual(drawer.get('result_title'), 'plain message');
+  });
+
   test('Try now wakes the parked boards without cancelling the sync', function(assert) {
     var woke = 0;
     var progress = { parked: 1, to_visit: 1, retry_wakers: [function() { woke++; }] };

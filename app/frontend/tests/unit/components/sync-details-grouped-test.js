@@ -21,9 +21,9 @@ module('Unit | Component | sync-details grouped view', function(hooks) {
     { key: 'me/core-go', error: 'failed retrieval' }
   ];
 
-  function build(context, log) {
+  function build(context, log, extra) {
     context.owner.unregister('service:persistence');
-    context.owner.register('service:persistence', Service.extend({ syncing: false, sync_log: log }));
+    context.owner.register('service:persistence', Service.extend(Object.assign({ syncing: false, sync_log: log }, extra || {})));
     return context.owner.factoryFor('component:sync-details').create();
   }
 
@@ -40,7 +40,7 @@ module('Unit | Component | sync-details grouped view', function(hooks) {
     assert.deepEqual(cards[0].folders_missing, ['Go']);
     assert.deepEqual(cards[0].folders_saved, ['Feel']);
     assert.strictEqual(c.get('save_missing_label'), 'Save it now');
-    assert.strictEqual(c.get('summary_pct'), 75);
+    assert.strictEqual(c.get('headline'), '1 of 2 boards are ready offline', 'the drawer\'s wording, no percentage (Traci, 2026-11-16)');
   });
 
   test('switching tabs and opening a card', function(assert) {
@@ -97,5 +97,66 @@ module('Unit | Component | sync-details grouped view', function(hooks) {
     assert.strictEqual(build(this, [{ statuses: statuses, roots: roots, errored: true }]).get('restored_lead'), "The last sync didn't finish. Some boards may not be ready offline.");
     assert.strictEqual(build(this, [{ statuses: statuses, roots: roots, issues: true }]).get('restored_lead'), "The last sync finished, but some boards didn't save.");
     assert.strictEqual(build(this, [{ statuses: statuses, roots: roots }]).get('restored_lead'), null, 'a clean sync keeps the usual line');
+  });
+
+  /* docs/task-management/2026-11-16_sync-details-no-percent.md (Traci, 2026-11-16): Sync Details never shows a
+   * percentage; after a sync it says what the drawer says; while a sync runs, and after a sync that stopped with no
+   * finished one before it, the cards carry no Ready labels and there are no tabs. */
+  test('while a sync runs: no headline, no tabs, and cards without Ready labels', function(assert) {
+    var c = build(this, [], { syncing: true, sync_progress: { board_statuses: statuses, board_roots: roots, visited: 3 } });
+    assert.strictEqual(c.get('headline'), null);
+    assert.false(c.get('show_tabs'));
+    c.set('tab', 'ready');
+    assert.deepEqual(c.get('cards').map(function(card) { return card.name; }), ['Quick Core 60', 'Keyboard'], 'every board, whatever tab was picked before');
+    assert.deepEqual(c.get('cards').map(function(card) { return card.status; }), [null, null], 'no Ready labels');
+    assert.strictEqual(c.get('cards')[0].count, '1 folder saved');
+    assert.strictEqual(c.get('cards')[0].folders_inside, null, 'no total of folders while it is not known');
+    assert.strictEqual(c.get('summary_line'), null, 'the status line says how many are saved so far');
+  });
+
+  test('a finished sync: the drawer\'s wording, and all ready when nothing is missing', function(assert) {
+    var clean = statuses.filter(function(s) { return !s.error; });
+    var c = build(this, [{ statuses: clean, roots: roots }]);
+    assert.strictEqual(c.get('headline'), 'All your boards are ready offline');
+    assert.true(c.get('show_tabs'));
+    assert.strictEqual(c.get('cards')[0].status, 'Ready offline');
+  });
+
+  test('cards from an earlier finished sync carry no ready headline (Traci, 2026-11-16)', function(assert) {
+    var c = build(this, [{ statuses: statuses, roots: roots, finished: new Date(1700000000000) }, { errored: true, statuses: [{ key: 'me/kb', status: 'cached' }], roots: roots, finished: new Date(1700000100000) }]);
+    assert.true(c.get('summary.from_earlier'));
+    assert.strictEqual(c.get('headline'), null);
+    assert.true(c.get('show_tabs'), 'the earlier sync finished, so its cards keep their labels');
+  });
+
+  test('no finished sync: what the stopped sync saved, under its own heading', function(assert) {
+    var c = build(this, [{ errored: true, statuses: statuses, roots: roots, finished: new Date(1700000000000) }]);
+    assert.true(c.get('stopped'));
+    assert.strictEqual(c.get('headline'), null);
+    assert.false(c.get('show_tabs'));
+    c.set('tab', 'attention');
+    var cards = c.get('cards');
+    assert.deepEqual(cards.map(function(card) { return card.name; }), ['Quick Core 60', 'Keyboard'], 'every board saved before the stop');
+    assert.deepEqual(cards.map(function(card) { return card.status; }), [null, null], 'no Ready labels');
+    assert.strictEqual(cards[0].count, '1 folder saved');
+    assert.deepEqual(cards[0].folders_missing, ['Go'], 'a failure recorded before the stop still shows');
+    assert.notOk(/\d+ boards open|saved separately/.test(cards[0].intro_text), 'no total of folders it did not reach');
+    assert.strictEqual(cards[1].no_folders_text, 'No folders were saved before the sync stopped.');
+    assert.strictEqual(c.get('summary_line'), '3 boards and folders are saved on this device.');
+    assert.strictEqual(c.get('missing_count'), 0, 'no "Save the N now": only the failures it reached are known');
+  });
+
+  // Part 2 (2026-11-17): a cancelled sync now logs its rows (services/persistence.js end_canceled_sync); a download its
+  // lookup never finished is 'not_saved', which reads as not saved, not as a failure.
+  test('no finished sync, the last one cancelled: what it saved, under the stopped heading; an unfinished download is not counted', function(assert) {
+    var parked_roots = Object.assign({ 'me/core-parked': { root: 'me/core', name: 'Parked', key: 'me/core-parked' } }, roots);
+    var rows = statuses.concat([{ key: 'me/core-parked', status: 'not_saved' }]);
+    var c = build(this, [{ canceled: true, statuses: rows, roots: parked_roots, finished: new Date(1700000000000) }]);
+    assert.true(c.get('stopped'));
+    assert.strictEqual(c.get('headline'), null);
+    assert.false(c.get('show_tabs'));
+    assert.strictEqual(c.get('summary_line'), '3 boards and folders are saved on this device.', 'the unfinished download is not counted');
+    assert.deepEqual(c.get('cards')[0].folders_missing, ['Go', 'Parked']);
+    assert.strictEqual(c.get('restored_lead'), 'The last sync was canceled.');
   });
 });

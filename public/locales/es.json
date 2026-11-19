@@ -9764,5 +9764,11 @@
   "sync_drawer_waiting": "Esperando una mejor conexión [[ Waiting for a better connection",
   "try_now": "Inténtalo ahora [[ Try now",
   "sync_see_details": "Ver detalles [[ See details",
-  "gif_search_no_results": "*** No GIFs found. Try different words in your sentence and search again."
+  "gif_search_no_results": "*** No GIFs found. Try different words in your sentence and search again.",
+  "sync_card_one_folder_saved": "*** 1 folder saved",
+  "sync_card_n_folders_saved_only": "*** %{n} folders saved",
+  "sync_folders_intro_unfinished": "*** These open from folder buttons on %{name}.",
+  "sync_no_folders_saved_before_stop": "*** No folders were saved before the sync stopped.",
+  "sync_no_folders_saved_yet": "*** No folders are saved yet.",
+  "sync_saved_before_stopped": "*** Saved before the sync stopped"
 }

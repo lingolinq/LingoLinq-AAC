@@ -5852,6 +5852,26 @@ describe("persistence-sync", function() {
     });
   });
 
+  // docs/task-management/2026-11-16_sync-details-no-percent.md (R2): a sync whose board writes failed ends through the
+  // success branch. Its log entry says it did not finish, or Sync Details reads its rows as "ready offline" while the
+  // drawer says the sync failed.
+  it("should log a sync whose boards could not be saved as failed, for Sync Details", function() {
+    db_wait(function() {
+      var state = syncWithFailingWrites({error: 'error storing record in db', quota: true});
+      waitsFor(function() { return state.done && persistence.get('sync_status') !== 'syncing'; });
+      runs(function() {
+        var log = persistence.get('sync_log') || [];
+        var last = log[log.length - 1] || {};
+        expect(last.errored).toEqual(true);
+        expect(last.storage_failed).toEqual(true);
+        stashes.persist('last_sync_status', null);
+        persistence.set('sync_status_error', null);
+        cancelSyncTailWork();
+        persistence.set('sync_progress', null);
+      });
+    });
+  });
+
   // The sync stamps say which boards are already on the device, so after failed writes they stay as
   // they were and the next sync saves those boards again. The last sync time moves on, so automatic
   // syncs keep their usual pace instead of retrying a full download every half hour.
@@ -6369,6 +6389,55 @@ describe("persistence-sync", function() {
       return list.length ? list[list.length - 1].status : null;
     }
     var xhrError = function(status, body) { return { fakeXHR: { status: status, responseJSON: body || {} }, message: 'error', result: 'error' }; };
+
+    // docs/task-management/2026-11-16_sync-details-no-percent.md Part 2 (H): a stopped sync's entry may count a
+    // re-downloaded board as saved only when its reload finished. A memory-only board whose reload timed out (parked by
+    // the walk, dropped at the stop) must read as not saved.
+    it("does not mark a board finished when its reload failed and the device has no copy", function() {
+      var failing = lookupFailing(true, { error: 'timeout' }, false);
+      waitsFor(function() { return failing.done; });
+      runs(function() {
+        expect(!!failing.error).toEqual(true);
+        expect(lastStatus()).toEqual('re-downloaded');
+        var rows = confirmed_statuses(persistence.get('sync_progress.board_statuses'), persistence.get('sync_progress'));
+        expect(rows[rows.length - 1].status).toEqual('not_saved');
+        persistence.set('sync_progress', null);
+      });
+    });
+
+    it("marks a board finished when its reload finished", function() {
+      persistence.set('sync_progress', {});
+      var rec = storedBoard(true);
+      stub(rec, 'reload', function() { return RSVP.resolve(rec); });
+      var res = { done: false };
+      persistence.board_lookup('1_1212', {}).then(function() { res.done = true; }, function() { res.done = true; res.failed = true; });
+      waitsFor(function() { return res.done; });
+      runs(function() {
+        expect(res.failed).toEqual(undefined);
+        expect(lastStatus()).toEqual('re-downloaded');
+        var rows = confirmed_statuses(persistence.get('sync_progress.board_statuses'), persistence.get('sync_progress'));
+        expect(rows[rows.length - 1].status).toEqual('re-downloaded');
+        persistence.set('sync_progress', null);
+      });
+    });
+
+    // board_lookup's other finishing path: a board the server just sent (fresh), with no reload. Noted as finished: its
+    // device save is queued (store_eventually resolves on queueing, not on the write; see the task log, final review).
+    it("marks a freshly downloaded board finished", function() {
+      persistence.set('sync_progress', {});
+      var rec = storedBoard(true);
+      rec.set('fresh', true);
+      var res = { done: false };
+      persistence.board_lookup('1_1212', {}).then(function() { res.done = true; }, function() { res.done = true; res.failed = true; });
+      waitsFor(function() { return res.done; });
+      runs(function() {
+        expect(res.failed).toEqual(undefined);
+        expect(lastStatus()).toEqual('downloaded');
+        var rows = confirmed_statuses(persistence.get('sync_progress.board_statuses'), persistence.get('sync_progress'));
+        expect(rows[rows.length - 1].status).toEqual('downloaded');
+        persistence.set('sync_progress', null);
+      });
+    });
 
     it("should give a board reload longer than the adapter's own request limit", function() {
       expect(BOARD_RELOAD_MS > 15000).toEqual(true); // the adapter rejects a server request at 15 s
@@ -7312,6 +7381,314 @@ describe("persistence-sync", function() {
     });
   });
 
+  // docs/task-management/2026-11-16_sync-details-no-percent.md (R1): with no finished sync, Sync Details shows what a
+  // stopped sync saved, grouped by board. Only the finished sync's entry used to keep the groups (`roots`) and the
+  // failures recorded so far; a stopped one now keeps them too.
+  describe("a failed sync's log entry, for Sync Details", function() {
+    it("keeps which board each row was reached from, and the failures recorded before it stopped", function() {
+      db_wait(function() {
+        cancelSyncTailWork();
+        unloadSyncStoreRecords();
+        persistence.set('sync_progress', null);
+        persistence.set('sync_status', null);
+        persistence._canceled_sync_id = null;
+        var saved = { last_sync_status: stashes.get('last_sync_status'), last_sync_at: persistence.get('last_sync_at') };
+        stub(modal, 'error', function() { });
+        stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+        stubOnPersistence('sync_user', function() { return RSVP.resolve(); });
+        var roots = {
+          '1_1': { root: 'me/core', name: 'Quick Core 60', role: 'home board', key: 'me/core', id: '1_1' },
+          'me/core': { root: 'me/core', name: 'Quick Core 60', role: 'home board', key: 'me/core', id: '1_1' },
+          '1_10': { root: 'me/core', name: 'Feel', key: 'me/core-feel', id: '1_10' },
+          'me/core-feel': { root: 'me/core', name: 'Feel', key: 'me/core-feel', id: '1_10' }
+        };
+        stubOnPersistence('sync_boards', function() {
+          persistence.set('sync_progress.board_statuses', [{ id: '1_1', key: 'me/core', status: 'downloaded' }, { id: '1_10', key: 'me/core-feel', status: 're-downloaded' }]);
+          persistence.set('sync_progress.board_roots', roots);
+          persistence.set('sync_progress.errors', [{ board_id: '1_10', board_key: 'me/core-feel', error: 'board me/core-feel failed retrieval for syncing, linked from me/core' }]);
+          return RSVP.reject({error: 'failed to sync boards'});
+        });
+        queryLog.defineFixture({ method: 'GET', type: 'user', response: RSVP.resolve({user: {id: '1372', user_name: 'fred'}}), id: '1372' });
+        var done = null;
+        persistence.sync('1372').then(function() { done = 'resolved'; }, function() { done = 'rejected'; });
+        waitsFor(function() { return done && syncSettled(); });
+        runs(function() {
+          var log = persistence.get('sync_log') || [];
+          var last = log[log.length - 1] || {};
+          expect(last.errored).toEqual(true);
+          expect((last.roots || {})['me/core-feel']).toEqual(roots['me/core-feel']);
+          var feel = (last.statuses || []).filter(function(row) { return row.key === 'me/core-feel'; });
+          expect(feel.some(function(row) { return !!row.error; })).toEqual(true);
+          stashes.persist('last_sync_status', saved.last_sync_status); // the failure branch writes these (services/persistence.js)
+          persistence.set('sync_status_error', null);
+          persistence.set('last_sync_at', saved.last_sync_at);
+          cancelSyncTailWork();
+          persistence.set('sync_progress', null);
+          persistence.set('sync_status', null);
+        });
+      });
+    });
+  });
+
+  // docs/task-management/2026-11-16_sync-details-no-percent.md Part 2: a stopped sync's entry (Cancel or failure) keeps
+  // only what was really saved (a download its lookup never finished reads 'not_saved', not an error), the errors every
+  // user's walk recorded, read from the live arrays (the sync_progress.errors copy is refreshed only at each walk step),
+  // and the roots. PR #1328's offline list hides another owner's liked board on such an error.
+  describe("a stopped sync's log entry: only what was saved, and every failure recorded", function() {
+    var feel_error = 'board kid/feel failed retrieval for syncing, linked from kid/home';
+    var parked_root = { root: 'me/core', name: 'Parked', key: 'me/core-parked', id: '1_2' };
+    function planted() {
+      return {
+        board_statuses: [{ id: '1_1', key: 'me/core', status: 're-downloaded' }, { id: '1_2', key: 'me/core-parked', status: 're-downloaded' }, { id: '1_1', key: 'me/core', status: 're-downloaded' }],
+        board_roots: { 'me/core-parked': parked_root, '1_2': parked_root },
+        boards_done: { '1_1': true, 'me/core': true },
+        progress_for: { '1_root': { board_errors: [] }, '1_kid': { board_errors: [{ board_id: '1_9', board_key: 'kid/feel', error: feel_error }] } },
+        errors: [] // the copy, not yet refreshed: the kid's error is only in the live array
+      };
+    }
+    function rows_by_key(entry) {
+      var by = {};
+      (entry.statuses || []).forEach(function(r) { (by[r.key] = by[r.key] || []).push(r); });
+      return by;
+    }
+
+    it("a cancel that resolves logs what it saved, what it did not, every user's failures and the roots", function() {
+      var svc = persistenceTarget() || persistence; // the service: utils/persistence has no end_canceled_sync
+      var prior = { log: svc.get('sync_log'), canceled: svc._canceled_sync_id, event_at: svc.get('last_sync_event_at') };
+      try {
+        svc._canceled_sync_id = 'S-part2';
+        svc.set('sync_progress', planted());
+        expect(svc.end_canceled_sync('S-part2', 'self', 'fred', false)).toEqual(true);
+        var log = svc.get('sync_log') || [];
+        var last = log[log.length - 1] || {};
+        expect(last.canceled).toEqual(true);
+        expect(svc.get('sync_progress')).toEqual(null);
+        var by = rows_by_key(last);
+        expect((by['me/core'] || []).length).toEqual(1);
+        expect(((by['me/core'] || [])[0] || {}).status).toEqual('re-downloaded');
+        expect(((by['me/core-parked'] || [])[0] || {}).status).toEqual('not_saved'); // guarded reads: a wrong entry fails here instead of dying (a death leaves the beforeEach stubs to the next test)
+        expect(!!((by['me/core-parked'] || [])[0] || {}).error).toEqual(false);
+        expect(((by['kid/feel'] || [])[0] || {}).error).toEqual(feel_error);
+        expect((last.roots || {})['me/core-parked']).toEqual(parked_root);
+      } finally {
+        svc._canceled_sync_id = prior.canceled;
+        svc.set('sync_log', prior.log);
+        svc.set('last_sync_event_at', prior.event_at);
+        svc.set('sync_progress', null);
+      }
+    });
+
+    it("a failed sync logs only confirmed downloads, live errors, and a copy-only error once", function() {
+      db_wait(function() {
+        cancelSyncTailWork();
+        unloadSyncStoreRecords();
+        persistence.set('sync_progress', null);
+        persistence.set('sync_status', null);
+        persistence._canceled_sync_id = null;
+        var saved = { last_sync_status: stashes.get('last_sync_status'), last_sync_at: persistence.get('last_sync_at') };
+        var copy_only = { board_id: '1_7', board_key: 'me/only-in-copy', error: 'board me/only-in-copy failed retrieval for syncing' };
+        stub(modal, 'error', function() { });
+        stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+        stubOnPersistence('sync_user', function() { return RSVP.resolve(); });
+        stubOnPersistence('sync_boards', function() {
+          var p = planted();
+          Object.keys(p).forEach(function(k) { if(k !== 'errors') { persistence.set('sync_progress.' + k, p[k]); } });
+          persistence.set('sync_progress.errors', [copy_only]);
+          return RSVP.reject({error: 'failed to sync boards'});
+        });
+        queryLog.defineFixture({ method: 'GET', type: 'user', response: RSVP.resolve({user: {id: '1373', user_name: 'fred'}}), id: '1373' });
+        var done = null;
+        persistence.sync('1373').then(function() { done = 'resolved'; }, function() { done = 'rejected'; });
+        waitsFor(function() { return done && syncSettled(); });
+        runs(function() {
+          var log = persistence.get('sync_log') || [];
+          var last = log[log.length - 1] || {};
+          expect(last.errored).toEqual(true);
+          var by = rows_by_key(last);
+          expect(((by['me/core'] || [])[0] || {}).status).toEqual('re-downloaded');
+          expect(((by['me/core-parked'] || [])[0] || {}).status).toEqual('not_saved');
+          expect(((by['kid/feel'] || [])[0] || {}).error).toEqual(feel_error);
+          expect((by['me/only-in-copy'] || []).length).toEqual(1);
+          stashes.persist('last_sync_status', saved.last_sync_status);
+          persistence.set('sync_status_error', null);
+          persistence.set('last_sync_at', saved.last_sync_at);
+          cancelSyncTailWork();
+          persistence.set('sync_progress', null);
+          persistence.set('sync_status', null);
+        });
+      });
+    });
+  });
+
+  // Part 2 unit T: a finished sync's entry keeps the content tag on a board whose pictures or sounds did not all save,
+  // both on the board's own row and on a row added for an error alone; a lookup failure gets none (PR #1328 hides
+  // another owner's liked board only on that).
+  describe("a finished sync's log entry: content failures tagged", function() {
+    it("keeps content on the board's row and on an error-only row, and none on a lookup failure", function() {
+      db_wait(function() {
+        cancelSyncTailWork();
+        unloadSyncStoreRecords();
+        persistence.set('sync_progress', null);
+        persistence.set('sync_status', null);
+        persistence._canceled_sync_id = null;
+        var saved = { last_sync_status: stashes.get('last_sync_status'), last_sync_at: persistence.get('last_sync_at'), last_sync_stamp: persistence.get('last_sync_stamp'), last_sync_event_at: persistence.get('last_sync_event_at') };
+        var core_error = 'board me/core failed to sync completely: button image failed to sync, http://example.com/p.png';
+        var pics_error = 'board me/pics failed to sync completely: button image failed to sync, http://example.com/q.png';
+        var gone_error = 'board me/gone failed retrieval for syncing, linked from me/core';
+        stub(modal, 'error', function() { });
+        stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+        stubOnPersistence('sync_user', function() { return RSVP.resolve(); });
+        stubOnPersistence('sync_boards', function() {
+          persistence.set('sync_progress.board_statuses', [{ id: '1_1', key: 'me/core', status: 'downloaded' }]);
+          persistence.set('sync_progress.errors', [
+            { board_id: '1_1', board_key: 'me/core', error: core_error, content: true },
+            { board_id: '1_3', board_key: 'me/pics', error: pics_error, content: true },
+            { board_id: '1_5', board_key: 'me/gone', error: gone_error }
+          ]);
+          return RSVP.resolve({});
+        });
+        queryLog.defineFixture({ method: 'GET', type: 'user', response: RSVP.resolve({user: {id: '1374', user_name: 'fred'}}), id: '1374' });
+        var done = null;
+        persistence.sync('1374').then(function() { done = 'resolved'; }, function() { done = 'rejected'; });
+        waitsFor(function() { return done && syncSettled(); });
+        runs(function() {
+          var log = persistence.get('sync_log') || [];
+          var last = log[log.length - 1] || {};
+          var row = function(k) { return (last.statuses || []).filter(function(r) { return r.key === k; })[0] || {}; };
+          expect(!!last.canceled || !!last.errored).toEqual(false);
+          expect(row('me/core').error).toEqual(core_error);
+          expect(row('me/core').content).toEqual(true);
+          expect(row('me/pics').content).toEqual(true);
+          expect(row('me/gone').error).toEqual(gone_error);
+          expect('content' in row('me/gone')).toEqual(false);
+          stashes.persist('last_sync_status', saved.last_sync_status);
+          persistence.set('sync_status_error', null);
+          persistence.set('last_sync_at', saved.last_sync_at);
+          persistence.set('last_sync_stamp', saved.last_sync_stamp); persistence.set('last_sync_event_at', saved.last_sync_event_at);
+          cancelSyncTailWork();
+          persistence.set('sync_progress', null);
+          persistence.set('sync_status', null);
+        });
+      });
+    });
+  });
+
+  // Part 3, unit F2 (docs/task-management/2026-11-16_sync-details-no-percent.md): a sync that stops after a board write
+  // failed (a full device) is logged storage_failed, as a finished one is, so Sync Details never shows its rows as
+  // "Saved before the sync stopped" (utils/sync_log_store.js partial_result).
+  describe("a stopped sync after a failed write: storage_failed", function() {
+    // The suite's harness (primeSyncHarness) stubs lingoLinqExtras.storage.store so only 'settings' writes reach the
+    // device database; a dbman stub never sees a board write here. Fail the board write at the layer persistence.store
+    // calls, and let every other store through, so only the board's write fails.
+    function failing_writes() {
+      var prior = lingoLinqExtras.storage.store;
+      stub(lingoLinqExtras.storage, 'store', function(store, record, key) {
+        if(store === 'board') { return RSVP.reject({error: 'error storing record in db', quota: true}); }
+        return prior.call(lingoLinqExtras.storage, store, record, key);
+      });
+    }
+    function start(id) {
+      cancelSyncTailWork();
+      unloadSyncStoreRecords();
+      persistence.set('sync_progress', null);
+      persistence.set('sync_status', null);
+      persistence._canceled_sync_id = null;
+      stub(modal, 'error', function() { });
+      stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+      stubOnPersistence('sync_user', function() { return RSVP.resolve(); });
+      queryLog.defineFixture({ method: 'GET', type: 'user', response: RSVP.resolve({user: {id: id, user_name: 'fred'}}), id: id });
+    }
+    function counters() { var svc = persistenceTarget() || persistence; return { svc: svc, failed: svc.failed_writes, quota: svc.failed_writes_quota }; }
+    function restore(saved, c) {
+      c.svc.failed_writes = c.failed; c.svc.failed_writes_quota = c.quota;
+      stashes.persist('last_sync_status', saved.last_sync_status);
+      persistence.set('sync_status_error', null);
+      persistence.set('last_sync_at', saved.last_sync_at);
+      cancelSyncTailWork();
+      persistence.set('sync_progress', null);
+      persistence.set('sync_status', null);
+    }
+
+    it("a failed sync logs storage_failed and is not shown as saved before it stopped", function() {
+      db_wait(function() {
+        var c = counters();
+        var saved = { last_sync_status: stashes.get('last_sync_status'), last_sync_at: persistence.get('last_sync_at') };
+        start('1375');
+        failing_writes();
+        stubOnPersistence('sync_boards', function() {
+          return persistence.store('board', {id: '1_77', key: 'fred/full'}, 'fred/full').then(function() {
+            persistence.set('sync_progress.board_statuses', [{ id: '1_77', key: 'fred/full', status: 'downloaded' }]);
+            return RSVP.reject({error: 'failed to sync boards'});
+          });
+        });
+        var done = null;
+        persistence.sync('1375').then(function() { done = 'resolved'; }, function() { done = 'rejected'; });
+        waitsFor(function() { return done && syncSettled(); });
+        runs(function() {
+          var log = persistence.get('sync_log') || [];
+          var last = log[log.length - 1] || {};
+          expect(last.errored).toEqual(true);
+          expect(last.storage_failed).toEqual(true);
+          expect(partial_result([last])).toEqual(null);
+          restore(saved, c);
+        });
+      });
+    });
+
+    it("a cancelled sync that resolves after a failed write logs storage_failed", function() {
+      db_wait(function() {
+        var c = counters();
+        var saved = { last_sync_status: stashes.get('last_sync_status'), last_sync_at: persistence.get('last_sync_at') };
+        start('1376');
+        failing_writes();
+        stubOnPersistence('sync_boards', function() {
+          return persistence.store('board', {id: '1_78', key: 'fred/full2'}, 'fred/full2').then(function() {
+            persistence.set('sync_progress.board_statuses', [{ id: '1_78', key: 'fred/full2', status: 'downloaded' }]);
+            persistence.cancel_sync();
+            return RSVP.resolve({});
+          });
+        });
+        var done = null;
+        persistence.sync('1376').then(function() { done = 'resolved'; }, function() { done = 'rejected'; });
+        waitsFor(function() { return done && syncSettled(); });
+        runs(function() {
+          var log = persistence.get('sync_log') || [];
+          var last = log[log.length - 1] || {};
+          expect(last.canceled).toEqual(true);
+          expect(last.storage_failed).toEqual(true);
+          expect(partial_result([last])).toEqual(null);
+          restore(saved, c);
+        });
+      });
+    });
+
+    it("end_canceled_sync checks only failures since its sync began, and none when it is not told when that was", function() {
+      var svc = persistenceTarget() || persistence; // the service: utils/persistence has no end_canceled_sync
+      var prior = { log: svc.get('sync_log'), canceled: svc._canceled_sync_id, event_at: svc.get('last_sync_event_at'), failed: svc.failed_writes, quota: svc.failed_writes_quota };
+      var last = function() { var log = svc.get('sync_log') || []; return log[log.length - 1] || {}; };
+      var plant = function() { svc.set('sync_progress', { board_statuses: [{ id: '1_1', key: 'me/core', status: 'cached' }] }); };
+      try {
+        svc.failed_writes = 5; // failures from before this sync (the counter lasts the session)
+        svc._canceled_sync_id = 'S-f2a'; plant();
+        expect(svc.end_canceled_sync('S-f2a', 'self', 'fred', false)).toEqual(true);
+        expect(last().storage_failed).toEqual(undefined);
+        svc._canceled_sync_id = 'S-f2b'; plant();
+        expect(svc.end_canceled_sync('S-f2b', 'self', 'fred', false, 5)).toEqual(true);
+        expect(last().storage_failed).toEqual(undefined);
+        svc.failed_writes = 6;
+        svc._canceled_sync_id = 'S-f2c'; plant();
+        expect(svc.end_canceled_sync('S-f2c', 'self', 'fred', false, 5)).toEqual(true);
+        expect(last().storage_failed).toEqual(true);
+      } finally {
+        svc.failed_writes = prior.failed; svc.failed_writes_quota = prior.quota;
+        svc._canceled_sync_id = prior.canceled;
+        svc.set('sync_log', prior.log);
+        svc.set('last_sync_event_at', prior.event_at);
+        svc.set('sync_progress', null);
+      }
+    });
+  });
+
   // A cancelled sync whose board walk resolves (the walk resolves on cancel, services/persistence.js nextBoard) ended in
   // the success branch: 'succeeded' with "ready for offline use" in the drawer right after Cancel, the stash and the
   // sync clocks moved as if the boards were saved (section 22 of docs/task-management/2026-11-10_offline-followup-proposals.md).
@@ -7629,6 +8006,8 @@ import boardRevocation from '../../utils/board_revocation';
 import * as emberDebug from '@ember/debug';
 import { BOARD_RELOAD_MS } from '../../utils/sync_board_fallback';
 import offlineSyncSeeds from '../../utils/offline_sync_seeds';
+import { confirmed_statuses } from '../../utils/sync_rollup';
+import { partial_result } from '../../utils/sync_log_store';
 
 // Run first in the top-level afterEach. Puts back what a test may leave when its own clean-up does not run (a sync that
 // never settles): window.persistence while a utils-copy case ran (utilsSyncWindow), which a retry of the test would

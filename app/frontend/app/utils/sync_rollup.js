@@ -1,4 +1,4 @@
-import { last_result } from './sync_log_store';
+import { last_result, partial_result } from './sync_log_store';
 
 // Sync results grouped by the boards a person knows (Traci, 2026-11-14; mockups "Sync Status Mockups", the combined
 // design). A sync saves the home board, the sidebar boards, the liked boards and Crisis Vocabulary, and each one's
@@ -112,13 +112,70 @@ export function rollup(statuses, roots) {
   return { groups: list, overall: { saved: saved, total: total, missing: missing, pct: total ? Math.floor(100 * saved / total) : 100 } };
 }
 
+// A board whose lookup finished during this sync (services/persistence.js board_lookup: its reload resolved, or it was
+// downloaded). At a stop, only such a download, or one the device database confirmed (sync_progress.device_boards,
+// utils/sync_board_fallback.js note_device_boards), counts as saved (docs/task-management/2026-11-16_sync-details-no-
+// percent.md Part 2).
+export function note_board_done(sync_progress, id, key) {
+  if(!sync_progress) { return; }
+  sync_progress.boards_done = sync_progress.boards_done || {};
+  if(id) { sync_progress.boards_done[id] = true; }
+  if(key) { sync_progress.boards_done[key] = true; }
+}
+
+var UNCONFIRMED_UNTIL_DONE = { 'downloaded': true, 're-downloaded': true };
+
+// A stopped sync's rows: a download recorded before it finished (board_lookup records 're-downloaded' before the
+// reload; the batch step 'downloaded' before its store) and never confirmed reads 'not_saved': not an error, so it is
+// neither counted as saved (rollup) nor taken as a refusal. A board waiting for a retry, or still loading, when the sync
+// stopped is not on the device. Other rows are unchanged; a finished sync does not use this (its walk resolved them all).
+export function confirmed_statuses(statuses, sync_progress) {
+  var done = (sync_progress && sync_progress.boards_done) || {};
+  var device = (sync_progress && sync_progress.device_boards) || {};
+  var ok = function(s) { return !!((s.id && (done[s.id] || device[s.id])) || (s.key && (done[s.key] || device[s.key]))); };
+  return (statuses || []).map(function(s) {
+    if(!s || s.error || !UNCONFIRMED_UNTIL_DONE[s.status] || ok(s)) { return s; }
+    return Object.assign({}, s, { status: 'not_saved' });
+  });
+}
+
+// The errors a stopped sync recorded: every user's live array (sync_progress.progress_for[*].board_errors; the walk
+// pushes there), then any entry of the sync_progress.errors copy not already among them (update_sync_progress refreshes
+// that copy only at each walk step, so it can miss the last errors, and a test or older caller may set only it). Each
+// once.
+export function live_board_errors(sync_progress) {
+  var list = [];
+  var seen = {};
+  var add = function(e) {
+    if(!e) { return; }
+    var k = [e.board_id, e.board_key, e.error].join('|');
+    if(seen[k]) { return; }
+    seen[k] = true;
+    list.push(e);
+  };
+  var per_user = (sync_progress && sync_progress.progress_for) || {};
+  Object.keys(per_user).forEach(function(u) { ((per_user[u] && per_user[u].board_errors) || []).forEach(add); });
+  ((sync_progress && sync_progress.errors) || []).forEach(add);
+  return list;
+}
+
+// The error for a board the walk reached whose pictures or sounds did not all save ("failed to sync completely",
+// services/persistence.js sync_boards). Tagged `content`: the board itself was not refused, so PR #1328's offline list
+// does not hide another owner's liked board on it (docs/task-management/2026-11-16_sync-details-no-percent.md Part 2, T).
+export function content_error(msg, id, key) {
+  return { error: msg, board_id: id, board_key: key, content: true };
+}
+
 // A board's errors as the sync keeps them while it runs (sync_progress.progress_for[*].board_errors), merged into its
-// status rows the way the finished sync does (services/persistence.js sync, before its log entry).
+// status rows the way the finished sync does (services/persistence.js sync, before its log entry). A content error's
+// tag is kept; other rows get no `content` key.
 export function with_errors(statuses, errors) {
   var rows = (statuses || []).slice();
   (errors || []).forEach(function(error) {
     if(error && (error.board_key || error.board_id)) {
-      rows.push({ id: error.board_id || error.board_key, key: error.board_key || error.board_id, error: error.error });
+      var row = { id: error.board_id || error.board_key, key: error.board_key || error.board_id, error: error.error };
+      if(error.content) { row.content = true; }
+      rows.push(row);
     }
   });
   return rows;
@@ -127,19 +184,30 @@ export function with_errors(statuses, errors) {
 // The summary Sync Details and the sync drawer show: the running sync while one runs (its rows so far, with the
 // failures it has recorded), otherwise a finished sync on this device. Sync Details takes the newest one with rows
 // (utils/sync_log_store.js last_result), so a cancelled sync does not empty it, and marks it `from_earlier` when a
-// later sync had no rows. The drawer reports the sync that just ended, so it passes `latest_only`. Null when there is
-// nothing to group.
+// later sync had no rows. With no finished sync at all it takes the newest stopped one (partial_result), marked
+// `stopped`. A running or stopped summary is `unfinished`: its rows are only the boards reached so far, so nothing in
+// it may be called ready (Traci, 2026-11-16). The drawer reports the sync that just ended, so it passes `latest_only`
+// and never gets an earlier or stopped one. Null when there is nothing to group.
 export function summary_for(persistence, opts) {
   if(!persistence || typeof persistence.get !== 'function') { return null; }
   if(persistence.get('syncing') && persistence.get('sync_progress')) {
-    return rollup(with_errors(persistence.get('sync_progress.board_statuses'), persistence.get('sync_progress.errors')), persistence.get('sync_progress.board_roots'));
+    var running = rollup(with_errors(persistence.get('sync_progress.board_statuses'), persistence.get('sync_progress.errors')), persistence.get('sync_progress.board_roots'));
+    running.unfinished = true;
+    return running;
   }
+  var latest_only = !!(opts && opts.latest_only);
   var log = persistence.get('sync_log') || [];
   var found = last_result(log);
-  if(!found || (found.from_earlier && opts && opts.latest_only)) { return null; }
+  var stopped = false;
+  if(!found && !latest_only) {
+    found = partial_result(log);
+    stopped = !!found;
+  }
+  if(!found || (found.from_earlier && latest_only)) { return null; }
   var summary = rollup(found.entry.statuses, found.entry.roots);
   summary.from_earlier = found.from_earlier;
   summary.finished = found.entry.finished || null;
+  if(stopped) { summary.unfinished = true; summary.stopped = true; }
   return summary;
 }
 
