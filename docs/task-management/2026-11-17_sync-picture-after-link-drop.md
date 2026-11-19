@@ -253,3 +253,20 @@ UI test (Playwright, Chromium 1280x900, PR head served on 5089, synth_big with 6
 The one failure was the test itself: the other sidebar picture was the device's saved `filesystem:` copy, which the block rule did not cover, and it loaded normally.
 
 Correction: `images/square.svg` is NOT a plain square. It is a brand-coloured photo glyph (frame, sun, mountains). The strings said "a plain square" because I described it that way without opening the file. Now: "It shows a placeholder picture until a later sync gets it." (3 strings, tests and locales). Lesson: open an asset before describing it in user-facing copy.
+
+### Translations (2026-11-19)
+
+`rake extras:translate_ui_locales LOCALE=all` (Google Translate), run by Traci in her terminal. 1Password sessions live in the terminal that signed in, so `op run` from the agent's shell reports "not signed in". The run was given only the `GOOGLE_TRANSLATE_TOKEN` reference, against the local e2e database with no AWS keys.
+
+- First run: only the 6 new strings were kept, and the other ~94 were reverted. Traci then asked for all of them, with the 20 broken placeholders fixed by hand and the quality fixed. The reverted results were not saved, and the task does not cache them (`WordData.query_translations` calls Google and returns), so it had to be run a second time. Lesson: copy the raw output of a paid or external run before editing it.
+- 20 strings came back with mangled placeholders: Google drops the underscores of `_TR7B_`, so `restore` never matches (zh/zh_TW "Step/Item/Trial %{n} of %{total}" counters, ja `confirm_partial_board_message`, ar `report_change_down_pct`). They were fixed by hand.
+- Quality fixes by hand (103 strings in total, script `translate-fix.py` in the session scratchpad):
+  - "These work offline" had become "these apps/links/options" (fr, pt, ru, ar), and is now "these folders";
+  - word order ("las carpetas %{n}" is now "%{n} carpetas"; pt "da pasta 1" read as "folder number 1");
+  - one term for the placeholder picture per language;
+  - uk "default email address" is now "default email";
+  - ga "comhlachtaí" (organisational bodies) is now "coirp" (email bodies), and "Taispeánann sé" ("he shows") is now "Taispeántar";
+  - trailing periods on labels (es, ru);
+  - a missing noun in zh/zh_TW, and mixed 正文/內文 and 發送/傳送 in zh_TW.
+- Validation: 155 strings changed, 0 placeholder mismatches, 0 leftover tokens, the source after `[[` equals en.json, and only previously untranslated or new keys changed.
+- Confidence: es, fr, de, pt, pl, ru, uk, ja, zh, zh_TW reviewed; ar and ga corrected where clearly wrong, but they need a native speaker's review. Irish counts after a variable number cannot carry the right mutation.
