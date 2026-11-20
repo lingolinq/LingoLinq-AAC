@@ -611,3 +611,20 @@ device..." until something else re-runs `update_selected`. CONFIRMED by reading.
 - Red test: offline, start a device read held on a deferred; flip `list_id` (as `update_selected` does online); resolve
   the read; expect `offline_boards` to be the device list (today: still `{loading:true}`). Second test: two device
   reads, older resolves last; expect the newer list kept. Mutation: put the `list_id` comparison back.
+
+### Codex P2: review of the proposal and the result (2026-11-20)
+Adversary: finding CONFIRMED (node simulation of the real controller code); A as written would have rewritten the
+existing test "a device read that ends after a newer request is dropped" (Rule 14) and dropped the right-page checks.
+It found two more ways to the same stuck view, both in this PR: another person's page online kept the previous
+person's device list (the M1 exit ran only offline), and Prior Home Boards requests no server list
+(`update_selected` has no branch for it), so the view never ended online. Built its option C instead:
+`end_device_view_online` (`controllers/user/index.js`), called by `update_selected` online, leaves the view unless the
+list on screen is this page's person's finished device list and the tab requests a server list. The list_id guard and
+its test are unchanged. Red first (3 of 4 new tests failed on HEAD; the flaky-link fallback test passed, a guard).
+84/84 on the offline and user/index filters. Mutants all KILLED: P1 no online exit (3 tests), P2 any person counts,
+P3 every tab gets a list, P4 always leave online (4). `.eslint-todo`: three rows moved down one line (the added call).
+Open from that review, Low: the online fallback now shows "You're offline" copy while the server list is slow or
+fails, for this person's own finished list (the intended fallback; the copy is the device list's).
+Not done from round 4: the liked heart Low. Its `title` equals its name, which accname does not announce twice, and a
+separate "Liked" item before the tile is a normal status-icon pattern; changing it means passing a new argument to
+BoardIcon on three grids. Left for Traci's call.

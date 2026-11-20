@@ -574,11 +574,11 @@ app/controllers/user/history.js|ember/require-computed-property-dependencies|18|
 app/controllers/user/index.js|ember/no-incorrect-calls-with-inline-anonymous-functions|315|20|1|2da67c91d637
 app/controllers/user/index.js|ember/no-runloop|1245|11|2|5addc2170315
 app/controllers/user/index.js|ember/no-runloop|1290|9|2|5addc2170315
-app/controllers/user/index.js|ember/no-runloop|1546|7|2|9ccbb762d93a
-app/controllers/user/index.js|ember/no-runloop|1815|11|2|5addc2170315
+app/controllers/user/index.js|ember/no-runloop|1547|7|2|9ccbb762d93a
+app/controllers/user/index.js|ember/no-runloop|1816|11|2|5addc2170315
 app/controllers/user/index.js|ember/no-runloop|315|5|2|ab6701509d85
 app/controllers/user/index.js|ember/no-runloop|318|9|2|5addc2170315
-app/controllers/user/index.js|ember/require-computed-property-dependencies|1422|31|1|81b4dc430a0b
+app/controllers/user/index.js|ember/require-computed-property-dependencies|1423|31|1|81b4dc430a0b
 app/controllers/user/index.js|ember/require-computed-property-dependencies|682|15|1|47ba9d6d5536
 app/controllers/user/index.js|ember/require-return-from-computed|1171|5|1|8c8d53fa71e0
 app/controllers/user/log.js|ember/no-runloop|312|9|2|5addc2170315
