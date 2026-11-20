@@ -1292,12 +1292,14 @@ class Api::UsersController < ApplicationController
       ts = user.valid_2fa?(params['code_2fa'])
       return api_error 400, {error: "invalid code: #{params['code_2fa']}"} unless ts
       # The device this code was entered on stays signed in; the account's other sign-ins
-      # made before 2FA are signed out (Device#predates_2fa?).
+      # made before 2FA are signed out (Passwords#refresh_device_sign_ins!).
       device = Device.find_by_global_id(@api_device_id) if @api_device_id
-      if device && device.user_id == user.id
+      device = nil unless device && device.user_id == user.id
+      if device
         device.settings['2fa'] = (device.settings['2fa'] || {}).except('pending').merge('last_otp' => ts)
         device.save
       end
+      user.refresh_device_sign_ins!(keep: device)
     else
       return api_error 400, {error: "unregognized action: #{params['action_2fa']}"}
     end

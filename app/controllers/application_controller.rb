@@ -336,10 +336,12 @@ class ApplicationController < ActionController::Base
     true
   end
 
-  # An admin (User#admin?) acting through a full sign-in (full_sign_in?). Admin pages and other
-  # admin-only entry points check this instead of the role alone.
+  # An admin (User#admin?) acting through a full sign-in (full_sign_in?). Under masquerade the
+  # person acting (@true_user) must be an admin too. Admin pages and other admin-only entry points
+  # check this instead of the role alone.
   def admin_sign_in?(user)
-    !!(user && user.admin? && full_sign_in?)
+    actor = @true_user || @api_user
+    !!(user && user.admin? && actor && actor.admin? && full_sign_in?)
   end
   
   def api_error(status_code, hash)

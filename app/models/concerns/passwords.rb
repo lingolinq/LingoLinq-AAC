@@ -91,12 +91,19 @@ module Passwords
     true
   end
 
-  # Drops the cached token checks for this account's devices, so each one is checked again on its
-  # next request. Called when the account starts requiring 2FA: Device.check_token then signs out
-  # any sign-in that never entered a code (Device#predates_2fa?).
-  def refresh_device_sign_ins!
+  # Called when the account starts requiring 2FA. Revokes the tokens of every device that has never
+  # entered a code (Device#predates_2fa?), and drops the cached token checks of the others so each is
+  # checked again on its next request. `keep` is the device the code was just entered on.
+  def refresh_device_sign_ins!(keep: nil)
     return unless self.id
-    Device.where(user_id: self.id).find_each(&:invalidate_cached_keys)
+    Device.where(user_id: self.id).find_each do |device|
+      next if keep && device.id == keep.id
+      if device.predates_2fa?
+        device.revoke_all_tokens!
+      else
+        device.invalidate_cached_keys
+      end
+    end
   end
 
   def random_2fa
@@ -158,9 +165,7 @@ module Passwords
         'secret' => tmp_secret,
         'last_otp' => ts
       }
-      self.save
-      refresh_device_sign_ins!
-      ts
+      self.save ? ts : false
     elsif ts && ts > last_otp
       self.settings.delete('tmp_2fa')
       self.settings['2fa']['last_otp'] = ts
