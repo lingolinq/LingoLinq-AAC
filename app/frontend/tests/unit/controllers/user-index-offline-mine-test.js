@@ -236,4 +236,33 @@ module('Unit | Controller | user/index offline boards view', function(hooks) {
     assert.strictEqual(c.reads, 2, 'read again');
     assert.deepEqual(keys(c.get('offline_boards')), ['larry/home']);
   });
+
+  // Review round 3, M1: the controller is shared across boards pages and the route does not reset it
+  // (routes/user/boards.js setupController). A page whose device list is refused must not keep the previous page's.
+  test('moving offline to a page whose list is refused does not keep the previous page\'s list', async function(assert) {
+    var c = page(this.owner);
+    c.update_selected();
+    await tick();
+    assert.deepEqual(keys(c.get('offline_boards')), ['larry/home'], 'larry\'s own page: his list');
+    // What the route's setupController does on the next page: a new model, then update_selected.
+    c.set('model', EmberObject.create({ id: '9911_8', user_name: 'sam', permissions: { supervise: true }, preferences: {}, stats: {} }));
+    c.update_selected();
+    await tick();
+    assert.false(c.get('offline_view'), 'not the device view on a page it refuses');
+    assert.strictEqual(c.get('offline_boards'), null, 'larry\'s list is not left on sam\'s page');
+  });
+
+  test('when the open database stops being the signed-in person\'s, the list on screen goes', async function(assert) {
+    var owner_now = 'larry';
+    var c = page(this.owner);
+    c.device_db_user = function() { return owner_now; };
+    c.update_selected();
+    await tick();
+    assert.deepEqual(keys(c.get('offline_boards')), ['larry/home']);
+    owner_now = null; // signed out, or another person signed in without a reload
+    c.update_selected();
+    await tick();
+    assert.false(c.get('offline_view'));
+    assert.strictEqual(c.get('offline_boards'), null);
+  });
 });

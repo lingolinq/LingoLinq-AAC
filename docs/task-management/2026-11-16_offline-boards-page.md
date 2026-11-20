@@ -439,3 +439,33 @@ PII pre-flight exit 0. REVIEWED=PR lingolinq/LingoLinq-AAC#1328 at a4bbd354fab87
   look-alikes refused, a stand-in owner gets no list, unknown trust counts as shared, no SPA user switch without a
   reload except the accepted sign-in path, sync-log identity checks, the teardown fix, i18n in 13 locales.
 Open: Traci to choose what to fix before merge (M1 is in the visibility area: /fix-proposal).
+
+### M1 fix proposal (2026-11-19; Traci: fix only if real, adversarial review of the fix before making it)
+Facts:
+- (a) READ: the template shows `BoardsBrowser` with `this.offline_view` and `this.offline_boards`
+  (`templates/user/boards.hbs:207`); the hero subtitle and Getting Started also read `offline_view` (:47, :81).
+  CONFIRMED.
+- (b) WRITERS of `offline_view`/`offline_boards`: `show_device_boards` (`controllers/user/index.js:1938-1960`, set true
+  and the list); the online server list (`generate_or_append_to_list`, :1210 `offline_view` false; the list stays until
+  replaced). The route's `setupController` (`routes/user/boards.js:59-92`) resets neither, then calls
+  `update_selected`, which offline goes straight to `show_device_boards` (:1379). CONFIRMED.
+- (c) The refusal returns in `show_device_boards`: no model or destroyed (:1941), boards page not active (:1941), no
+  `user_name` (:1943), no device owner or someone else's page without model permission (:1945). Each leaves both values
+  as they were. CONFIRMED.
+Real: yes. Two red tests (larry's list, then sam's page with no model permission; and the device owner becoming null)
+fail on the current code (`offline_view` stays true, larry's list stays). The 15 existing tests pass.
+Candidates:
+- A (recommended): on the two PERSON refusals only (no `user_name`; the owner check), set `offline_view: false` and
+  `offline_boards: null` before returning. Not on "no model" or "page not active": an observer can call this while
+  another page is showing (`persistence.online`), and clearing there would throw away the kept list, breaking "coming
+  back to the page offline keeps the list, without reading the database again". After a refusal the page shows its
+  ordinary view, as it did for that page before #1328.
+- B: reset both in the route's `setupController` when the person changes. Rejected: it misses the sign-out case (same
+  model, owner becomes null) and splits one rule across two files.
+- C: the template shows the device view only when `offline_boards.user_name` matches the model. Rejected: hides the
+  symptom, leaves stale state that other readers (:47, :81) still see.
+- B2 (not now): a refused line in the device view, as Basic has (`deviceBoardsRefused`). Needs a new string and
+  template; possible follow-up.
+Risks: a refused page offline shows its ordinary view, which may hold that person's list from a snapshot the route
+hydrated earlier online (pre-existing, `routes/user/boards.js:80-90`). A read in flight from the previous page is already
+dropped by its `list_id` check (:1953). Mutants: no clear on each of the two returns separately.
