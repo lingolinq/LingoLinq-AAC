@@ -97,7 +97,8 @@ export function known_on_device(sync_progress, record) {
 // parks the board (claim_board_retry below), and the late answer is still saved to the device with `retrieved` set to
 // when it was stored (utils/board_download.js store_late_board). The retry, after the walk, found that copy past the
 // freshness window (`fresh`, models/base.js: 5 minutes, or a later `appState.refresh_stamp`) and reloaded it by key
-// (services/persistence.js board_lookup). Measured at 0.8 Mbps: 80.6 MB and 869 s instead of 43 MB and 478 s.
+// (services/persistence.js board_lookup). Measured in desktop Chromium at 0.8 Mbps: 80.6 MB and 869 s, where the code
+// before #1322 took 43 MB and 478 s.
 //
 // True when `row`, a device row, is a complete copy (it opens offline, with permissions and image urls) stored during
 // this sync: stamped no earlier than the later of the sync's start (`started_at`, services/persistence.js sync) and its

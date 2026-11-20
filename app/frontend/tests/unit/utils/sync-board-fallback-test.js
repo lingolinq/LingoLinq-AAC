@@ -70,7 +70,6 @@ module('Unit | Utility | sync board fallback: copies stored during this sync', f
     assert.strictEqual(found, null);
   });
 
-
   test('a retried board reads its device row and answers it when stored during this sync', async function(assert) {
     var reads = [];
     var found = await stored_this_sync(progress(), '1_7', record('1_7'), function(rec) { reads.push(rec.get('id')); return RSVP.resolve(row()); });
