@@ -488,3 +488,20 @@ Green after: 123/123 (this module, Basic's device boards, the integration test, 
 `npm run lint:js:ci` clean apart from the known false positive. Mutants: M1a no clear on the no-name return: killed
 (1); M1b no clear on the owner check: killed (2); M1c clearing on "page not active" too: killed (1). File restored and
 compared byte for byte.
+
+### Round 3 follow-through (2026-11-19, Traci: copies of private boards accepted and recorded; cheap Lows only if real)
+- Liked heart not announced (real: a named role-less span is skipped by screen readers): `role="img"` on all three
+  hearts (the device grid and, pre-existing, the online page's two). ea82bc880. Red first; 28/28.
+- Loop listed a folder as its own tile (real): the fallback enters a loop at its first member by key. 879afd8fd. Red
+  first; 49/49.
+- Gitleaks anchors: not changed (no realistic match inside a real secret).
+- Basic's "can't be shown" line: the device-list block moved unchanged into `dashboard/device-boards` and rendered in
+  every state (ebd572994). Red first; 75/75 with Basic's dashboard tests.
+- Basic at phone width: the Boards tab is NOT hidden there; the tab strip becomes the section dropdown (<=550px,
+  `_classic-home.scss`), which always offers Boards (`utils/basic_dashboard_sections.js:18`). Checked in Chromium at
+  390x844 (touch) on a production build of this head, served locally (port 5081, synthetic users): the strip hidden and
+  the dropdown shown; Boards reached through it; "Boards on This Device" with both device boards (names; the synthetic
+  boards have no pictures, so the placeholder shows) in Gentle and Focused; on a Shared Device sign-in, an offline tap
+  on Crisis Vocabulary opened it (3 buttons, no "isn't saved"); back online, Browse Boards and its tabs returned.
+  Script: this session's scratchpad `offline-boards/phone.js` (adapted from the 2026-11-17 matrix.js).
+- Cold offline start on a shared device: still needs a native build; no emulator or adb on this machine.
