@@ -776,6 +776,30 @@ describe("persistence", function() {
         });
       });
     });
+    // The sync tries a picture again only when its failure passes (utils/board_content_retry.js), so the proxy's
+    // failure keeps its cause: the request's status, or that the app is offline. Nothing else from the request.
+    [
+      ['a dropped link', {fakeXHR: {status: 0, responseText: 'secret'}, stack: 'x'}, {fakeXHR: {status: 0}}],
+      ['the app being offline', {offline: true, error: 'not online', short_circuit: true}, {offline: true}],
+      ['a picture the server could not get', {fakeXHR: {status: 400, responseJSON: {original_url: 'x'}}}, {fakeXHR: {status: 400}}]
+    ].forEach(function(row) {
+      it("should keep only the cause of a failed API call: " + row[0], function() {
+        db_wait(function() {
+          stubOnPersistence( 'ajax', function(options) {
+            return RSVP.reject(row[1]);
+          });
+          var result = null;
+          persistence.store_url("http://www.example.com/pic.png", 'image').then(function() { dbg(); }, function(res) {
+            result = res;
+          });
+          waitsFor(function() { return result; });
+          runs(function() {
+            var expected = Object.assign({error: 'URL lookup failed during proxy for http://www.example.com/pic.png'}, row[2]);
+            expect(result).toEqual(expected);
+          });
+        });
+      });
+    });
     it("should error on a failed data storage", function() {
       db_wait(function() {
         stubOnPersistence( 'ajax', function(options) {

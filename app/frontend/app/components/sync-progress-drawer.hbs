@@ -44,7 +44,12 @@
             <button type="button" class="ll-copy-drawer__btn" {{on "click" this.onDetails}}>{{t "See details" key="sync_see_details"}}</button>
           {{else}}
             <button type="button" class="ll-copy-drawer__btn ll-copy-drawer__btn--primary" {{on "click" this.onDetails}}>{{t "Sync Details" key="sync_details"}}</button>
-            <button type="button" class="ll-copy-drawer__btn" {{on "click" this.onDismiss}}>{{t "Dismiss" key="dismiss"}}</button>
+            {{#if this.offer_try_again}}
+              {{!-- A folder saved without its picture: try again, secondary; the close button still dismisses. --}}
+              <button type="button" class="ll-copy-drawer__btn" {{on "click" this.onTryAgain}}>{{t "Try again" key="try_again"}}</button>
+            {{else}}
+              <button type="button" class="ll-copy-drawer__btn" {{on "click" this.onDismiss}}>{{t "Dismiss" key="dismiss"}}</button>
+            {{/if}}
           {{/if}}
         </div>
       </div>
