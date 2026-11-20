@@ -504,4 +504,8 @@ compared byte for byte.
   boards have no pictures, so the placeholder shows) in Gentle and Focused; on a Shared Device sign-in, an offline tap
   on Crisis Vocabulary opened it (3 buttons, no "isn't saved"); back online, Browse Boards and its tabs returned.
   Script: this session's scratchpad `offline-boards/phone.js` (adapted from the 2026-11-17 matrix.js).
-- Cold offline start on a shared device: still needs a native build; no emulator or adb on this machine.
+- Cold offline start on a shared device: still needs a native build. CORRECTED 2026-11-19: "no emulator or adb on this
+  machine" was wrong (I checked PATH only). An Android SDK is at `/home/tracid/android-tools/sdk` (adb, emulator, AVD
+  `ll_trace`; used 2026-11-17 for Chrome on the emulator), and an emulator was running, apparently another session's.
+  What is missing is a native build toolchain (no cordova, java or gradle), and Chrome on the emulator is a browser,
+  where a shared sign-in removes the offline shell worker; so this still needs a native build.
