@@ -5008,23 +5008,23 @@ describe Api::UsersController, :type => :controller do
       assert_unauthorized
     end
 
-    it "should allow enabling" do
+    it "should not let a supervisor turn on 2FA for someone else" do
       token_user
       u = User.create
       User.link_supervisor_to_user(@user, u, nil, true)
       post :update_2fa, params: {'user_id' => u.global_id, 'action_2fa' => 'enable'}
-      json = assert_success_json
-      expect(json['updated']).to eq(true)
-      expect(json['state']).to eq({'required' => true, 'verified' => false})
-      expect(json['uri']).to eq(nil)
+      assert_error('only the account holder can turn on 2FA', 400)
+      u.reload
+      expect(u.settings['2fa']).to eq(nil)
+      expect(u.settings['tmp_2fa']).to eq(nil)
     end
     
     it "should allow resetting" do
       token_user
-      @user.assert_2fa!
       # This sign-in entered a code, as one made after the account turned on 2FA would have.
       @device.settings['2fa'] = {'last_otp' => Time.now.to_i}
       @device.save!
+      @user.assert_2fa!
       post :update_2fa, params: {'user_id' => @user.global_id, 'action_2fa' => 'reset'}
       json = assert_success_json
       expect(json['updated']).to eq(true)
@@ -5038,15 +5038,39 @@ describe Api::UsersController, :type => :controller do
       assert_error('unregognized action: reset')
     end
 
-    it "should send a config URI if there is a temp config" do
+    it "should not let a supervisor reset or confirm 2FA for someone else" do
       token_user
       u = User.create
+      u.assert_2fa!
+      secret = u.reload.settings['2fa']['secret']
       User.link_supervisor_to_user(@user, u, nil, true)
-      post :update_2fa, params: {'user_id' => u.global_id, 'action_2fa' => 'enable'}
+      post :update_2fa, params: {'user_id' => u.global_id, 'action_2fa' => 'reset'}
+      assert_error('only the account holder can turn on 2FA', 400)
+      post :update_2fa, params: {'user_id' => u.global_id, 'action_2fa' => 'confirm', 'code_2fa' => ROTP::TOTP.new(secret).now}
+      assert_error('only the account holder can turn on 2FA', 400)
+      expect(u.reload.settings['2fa']['secret']).to eq(secret)
+    end
+
+    it "should still let a supervisor turn off 2FA for someone else" do
+      token_user
+      u = User.create
+      u.assert_2fa!
+      User.link_supervisor_to_user(@user, u, nil, true)
+      post :update_2fa, params: {'user_id' => u.global_id, 'action_2fa' => 'disable'}
       json = assert_success_json
-      expect(json['updated']).to eq(true)
-      expect(json['state']).to eq({'required' => true, 'verified' => false})
-      expect(json['uri']).to eq(nil)
+      expect(json['state']).to eq({'required' => false})
+    end
+
+    it "should not turn on 2FA while acting as another user" do
+      admin_org = Organization.admin || Organization.create!(admin: true)
+      token_user
+      admin_org.add_manager(@user.user_name, true)
+      u = User.create
+      post :update_2fa, params: {'user_id' => u.global_id, 'as_user_id' => u.global_id, 'action_2fa' => 'enable'}
+      assert_error('only the account holder can turn on 2FA', 400)
+      u.reload
+      expect(u.settings['2fa']).to eq(nil)
+      expect(u.settings['tmp_2fa']).to eq(nil)
     end
 
     it "should not set enablement as required without code confirmation" do
@@ -5060,10 +5084,10 @@ describe Api::UsersController, :type => :controller do
 
     it "should allow disabling" do
       token_user
-      @user.assert_2fa!
       # This sign-in entered a code, as one made after the account turned on 2FA would have.
       @device.settings['2fa'] = {'last_otp' => Time.now.to_i}
       @device.save!
+      @user.assert_2fa!
       post :update_2fa, params: {'user_id' => @user.global_id, 'action_2fa' => 'disable'}
       json = assert_success_json
       expect(json['updated']).to eq(true)

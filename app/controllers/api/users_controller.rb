@@ -1282,8 +1282,14 @@ class Api::UsersController < ApplicationController
     user = User.find_by_path(params['user_id'])
     return unless exists?(user, params['user_id'])
     return unless allowed?(user, 'edit')
+    # Only the account holder turns 2FA on, resets it or confirms a new secret, and not while
+    # acting as another user. Anyone with edit can still turn it off.
+    own_account = user.global_id == @api_user.global_id && !@true_user
+    if %w[enable reset confirm].include?(params['action_2fa']) && !own_account
+      return api_error 400, {error: "only the account holder can turn on 2FA"}
+    end
     if params['action_2fa'] == 'enable' || (params['action_2fa'] == 'reset' && (user.settings['2fa'] || user.settings['tmp_2fa']))
-      user.assert_2fa!(user.global_id == @api_user.global_id)
+      user.assert_2fa!(true)
     elsif params['action_2fa'] == 'disable'
       user.settings.delete('2fa')
       user.settings.delete('tmp_2fa')
