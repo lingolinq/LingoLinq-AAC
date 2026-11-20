@@ -85,4 +85,19 @@ QUnit.module('Integration | boards on this device', function(hooks) {
     assert.dom('[role="status"]').includesText("Your boards can't be shown right now.");
     assert.dom('.ub-boards-page__empty-title').doesNotExist('not "No boards are saved on this device yet"');
   });
+
+  // Review round 3: the liked heart's name was on a role-less span, which screen readers skip (a generic element cannot
+  // be named, ARIA 1.2). As an image it is announced as "Liked".
+  QUnit.test('offline: a liked board\'s heart is announced as "Liked"', async function(assert) {
+    assert.timeout(30000);
+    var store = this.owner.lookup('service:store');
+    var liked = [store.push({ data: { id: '1_3', type: 'board', attributes: { key: 'other/liked', name: 'Liked One', starred: true } } })];
+    liked.done = true;
+    liked.from_device = true;
+    this.set('liked', liked);
+    await render(hbs`<BoardsBrowser @boardsCtrl={{this.boardsCtrl}} @offlineView={{true}} @offlineBoards={{this.liked}} />`);
+    assert.dom('.ub-boards-page__board-item-heart').exists({ count: 1 });
+    assert.dom('.ub-boards-page__board-item-heart').hasAttribute('role', 'img');
+    assert.dom('.ub-boards-page__board-item-heart').hasAttribute('aria-label', 'Liked');
+  });
 });
