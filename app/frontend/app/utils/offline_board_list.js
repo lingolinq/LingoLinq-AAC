@@ -135,9 +135,27 @@ export function pick_device_boards(rows, user, sync_log, opts) {
   });
   var roots = own.filter(function(raw) { return !linked_from_own[raw.id]; });
   roots.forEach(walk);
-  own.slice().sort(function(a, b) { return String(a.key).localeCompare(String(b.key)); }).forEach(function(raw) {
-    if(roots.indexOf(raw) === -1 && !reached[raw.id]) { roots.push(raw); reached[raw.id] = true; walk(raw); }
-  });
+  // What is left is only reachable from loops (each board is linked from another own board). A set that is a loop is
+  // entered at its first loop member by key; a board that is not on a loop (a folder off it) is reached from there, so
+  // it never becomes a tile of its own. The second pass is a safety net for anything still unreached.
+  var on_loop = function(start) {
+    var seen = {};
+    var queue = [start];
+    while(queue.length) {
+      var links = followable_links(queue.shift());
+      for(var idx = 0; idx < links.length; idx++) {
+        var next = find(links[idx]);
+        if(!next) { continue; }
+        if(next.id === start.id) { return true; }
+        if(!seen[next.id]) { seen[next.id] = true; queue.push(next); }
+      }
+    }
+    return false;
+  };
+  var by_key = own.slice().sort(function(a, b) { return String(a.key).localeCompare(String(b.key)); });
+  var enter = function(raw) { roots.push(raw); reached[raw.id] = true; walk(raw); };
+  by_key.forEach(function(raw) { if(roots.indexOf(raw) === -1 && !reached[raw.id] && on_loop(raw)) { enter(raw); } });
+  by_key.forEach(function(raw) { if(roots.indexOf(raw) === -1 && !reached[raw.id]) { enter(raw); } });
   roots.sort(function(a, b) { return String(a.name || a.key).localeCompare(String(b.name || b.key)); }).forEach(take);
   take(crisis);
   return picked;
