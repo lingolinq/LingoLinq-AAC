@@ -784,6 +784,13 @@ describe ApplicationController, :type => :controller do
       expect(controller.send(:admin_sign_in?, target)).to eq(false)
     end
 
+    it "accepts an admin acting as another admin through a full sign-in" do
+      operator, operator_device = admin_and_device
+      target, target_device = admin_and_device
+      sign_in_with(target, operator_device, true_user: operator)
+      expect(controller.send(:admin_sign_in?, target)).to eq(true)
+    end
+
     it "checks the role of the person acting, not only the account being viewed" do
       operator, operator_device = admin_and_device
       operator.settings.delete('admin')

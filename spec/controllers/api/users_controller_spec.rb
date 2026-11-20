@@ -5534,6 +5534,52 @@ describe Api::UsersController, :type => :controller do
         assert_error 'admins only'
       end
     end
+
+    it "should refuse the user search to someone acting as an admin manager who is not one" do
+      admin_org = Organization.admin || Organization.create!(admin: true)
+      target = User.create
+      admin_org.add_manager(target.user_name, true)
+      org = Organization.create
+      token_user
+      org.add_manager(@user.user_name, true)
+      org.add_user(target.user_name, false, false)
+      get :index, params: {q: 'bob', as_user_id: target.global_id}
+      expect(assigns[:true_user]).to eq(@user)
+      expect(assigns[:api_user]).to eq(target)
+      assert_error 'admins only'
+    end
+  end
+
+  describe "update_2fa where 2FA is mandatory" do
+    before(:each) do
+      allow(Passwords).to receive(:mandatory_admin_2fa_environment?).and_return(true)
+    end
+
+    it "does not let the account holder turn it off" do
+      token_user
+      @device.settings['2fa'] = {'last_otp' => Time.now.to_i}
+      @device.save!
+      @user.settings['admin'] = true
+      @user.save!
+      expect(@user.state_2fa[:mandatory]).to eq(true)
+      secret = @user.reload.settings['2fa']['secret']
+      post :update_2fa, params: {'user_id' => @user.global_id, 'action_2fa' => 'disable'}
+      assert_error('2FA is required for this account', 400)
+      expect(@user.reload.settings['2fa']['secret']).to eq(secret)
+    end
+
+    it "does not let someone else turn it off" do
+      token_user
+      target = User.create
+      target.settings['admin'] = true
+      target.save!
+      User.link_supervisor_to_user(@user, target, nil, true)
+      expect(target.state_2fa[:mandatory]).to eq(true)
+      secret = target.reload.settings['2fa']['secret']
+      post :update_2fa, params: {'user_id' => target.global_id, 'action_2fa' => 'disable'}
+      assert_error('2FA is required for this account', 400)
+      expect(target.reload.settings['2fa']['secret']).to eq(secret)
+    end
   end
 
   describe "update_2fa on the device in use" do

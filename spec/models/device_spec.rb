@@ -1036,6 +1036,18 @@ describe Device, :type => :model do
       expect(res[:user]).to eq(nil)
     end
 
+    it "refuses and revokes a sign-in made before 2FA when 2FA was switched on without the sign-out sweep" do
+      u = User.create
+      d = Device.create(user: u, developer_key_id: 0, device_key: 'no-sweep')
+      token = d.tokens[0]
+      u.settings['2fa'] = {'secret' => ROTP::Base32.random}
+      u.save!
+      res = Device.check_token(token, nil)
+      expect(res[:error]).to eq('Invalid token')
+      expect(RedisInit.permissions.exists?("revoked_token/#{token}")).to eq(true)
+      expect(d.reload.settings['keys'].map { |k| k['value'] }).to_not include(token)
+    end
+
     it "signs out a sign-in made before 2FA that once sent a wrong code" do
       u = User.create
       d = Device.create(user: u, developer_key_id: 0, device_key: 'wrong-code')
