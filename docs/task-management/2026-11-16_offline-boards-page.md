@@ -535,3 +535,34 @@ four script mistakes). The SPA sign-out/sign-in ran without a reload; which devi
 `window.capabilities` (not the module the owner check reads), so unknown; offline, the page showed "Basic Access" or a
 Boards tab the script could not click. Script: this session's scratchpad `offline-boards/spa.js`. Next: read the open
 database the way `current_device_db_user` does, stay on the dashboard online before dropping the connection.
+
+## Round 4 Lows (2026-11-20, Traci: "make the low fixes"; revert pushed a44d593ff; Codex asked to review the PR)
+
+### Home-mark render test
+`tests/integration/components/dashboard/device-boards-test.js` now asserts one `.board-icon__home-glyph`, in the first
+cell. Mutation that must fail it: drop `@homeBoardKey` from `dashboard/device-boards.hbs`.
+
+### Loop grouping: fact sheet (for the full fix process)
+- (a) Read: `pick_device_boards` (`utils/offline_board_list.js:125-141`). `roots` = own boards no other own board links
+  to (:129-136); the fallback (:138-140) then takes unreached own boards in KEY order, one at a time. CONFIRMED.
+- (b) Shapes of the own-board link graph: a tree (fine), a loop alone (fine: first member by key, its walk reaches the
+  rest), a loop with a folder off it whose key sorts first (folder listed as its own tile and again inside the loop),
+  a loop below a loop (the lower loop's first board is a tile and also inside the top loop). CONFIRMED by red tests:
+  "a loop with a folder hanging off it" and "a loop below a loop" fail on HEAD; "loops and sets together" passes (guard).
+- (c) The reverted attempt (879afd8fd) redeclared `var by_key` and was quadratic. CONFIRMED (round 4).
+
+### Proposal
+- **A (chosen): strongly connected components.** Group the own boards (edges: followable own-to-own links, as
+  :130-135 builds them) into loops with an iterative Tarjan (no recursion, so a long chain cannot overflow the stack;
+  O(boards + links)). An entry is a group no other group links into; it is listed by its first member by key (the
+  existing rule for a loop, kept). Then walk each entry as now. Every own board is in a group reachable from some entry
+  group, so none is left out. New helper `entry_boards(own, links_of)` in the same file, exported for a unit test.
+- **B (rejected): keep the key-order fallback and drop a tile later reached by another tile's walk.** The walks share
+  `reached`, so it needs one visited set per walk: quadratic, the round-4 problem again.
+- **Simplest alternative rejected:** enter a loop at its member with the most links. Does not fix a loop below a loop.
+- Risks: a different board of a loop could become the entry than today (first by key, unchanged for a loop alone);
+  the existing test "a cycle is still listed once" pins that.
+- Unresolved (pre-existing, not changed): an own board reached only through ANOTHER owner's board from a root is both a
+  tile and inside that root's set, since own-to-own links decide the entries. Left as is; noted.
+- Mutations that must fail the tests: (1) treat every group as an entry; (2) enter a group at its last member by key;
+  (3) count links from a group to itself as incoming (a loop alone then has no entry and disappears).

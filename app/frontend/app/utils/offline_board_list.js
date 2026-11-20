@@ -109,12 +109,14 @@ export function pick_device_boards(rows, user, sync_log, opts) {
     take(raw);
   });
 
+  // The boards a board's followable links find on the device (nulls for those not there); the seed walk and the
+  // grouping below both read links through this, so they cannot disagree.
+  var next_of = function(raw) { return followable_links(raw).map(find); };
   var reached = {};
   var walk = function(start) {
     var queue = [start];
     while(queue.length) {
-      followable_links(queue.shift()).forEach(function(link) {
-        var next = find(link);
+      next_of(queue.shift()).forEach(function(next) {
         if(next && !reached[next.id]) { reached[next.id] = true; queue.push(next); }
       });
     }
@@ -122,25 +124,89 @@ export function pick_device_boards(rows, user, sync_log, opts) {
   picked.forEach(walk);
   if(crisis) { walk(crisis); }
 
-  var own = Object.keys(by_id).map(function(id) { return by_id[id]; }).filter(function(raw) {
-    return !listed[raw.id] && !reached[raw.id] && (!crisis || raw.id !== crisis.id) &&
-      typeof raw.key === 'string' && raw.key.indexOf(user_name + '/') === 0 && opens(raw);
+  // The person's own boards nothing listed reaches, as sets. The grouping sees every such board, own or not, so a link
+  // through another owner's board still makes an own board a folder (as the walk above would follow it).
+  var rest = Object.keys(by_id).map(function(id) { return by_id[id]; }).filter(function(raw) {
+    return !listed[raw.id] && !reached[raw.id] && (!crisis || raw.id !== crisis.id);
   });
-  var linked_from_own = {};
-  own.forEach(function(raw) {
-    followable_links(raw).forEach(function(link) {
-      var next = find(link);
-      if(next && next.id !== raw.id) { linked_from_own[next.id] = true; }
-    });
-  });
-  var roots = own.filter(function(raw) { return !linked_from_own[raw.id]; });
-  roots.forEach(walk);
-  own.slice().sort(function(a, b) { return String(a.key).localeCompare(String(b.key)); }).forEach(function(raw) {
-    if(roots.indexOf(raw) === -1 && !reached[raw.id]) { roots.push(raw); reached[raw.id] = true; walk(raw); }
-  });
-  roots.sort(function(a, b) { return String(a.name || a.key).localeCompare(String(b.name || b.key)); }).forEach(take);
+  var is_own = function(raw) { return typeof raw.key === 'string' && raw.key.indexOf(user_name + '/') === 0 && opens(raw); };
+  entry_boards(rest, next_of, is_own)
+    .sort(function(a, b) { return String(a.name || a.key).localeCompare(String(b.name || b.key)); }).forEach(take);
   take(crisis);
   return picked;
+}
+
+var by_key_order = function(a, b) { return String(a.key).localeCompare(String(b.key)); };
+
+// The boards to list as sets, from `boards` (those nothing listed reaches) and `next_of(raw)` (the boards a board's
+// followable links find; nulls allowed). Boards that open each other (a loop) form one group: an iterative Tarjan, so a
+// long chain cannot overflow the stack, reading each board's links once. A group is an entry when it holds an own
+// board (`is_own`) and no group above it does; it is listed by its first own board by key. So every own board is in an
+// entry's set or below one, and no entry is inside another entry's set. Only own boards are ever returned.
+export function entry_boards(boards, next_of, is_own) {
+  var node = {};
+  boards.forEach(function(raw) { node[raw.id] = { raw: raw, index: -1, low: 0, on_stack: false, group: null }; });
+  var edges = {};
+  boards.forEach(function(raw) {
+    edges[raw.id] = (next_of(raw) || []).filter(function(next) { return next && node[next.id] && next.id !== raw.id; })
+      .map(function(next) { return next.id; });
+  });
+
+  var groups = []; // Tarjan finishes a group only after every group below it
+  var stack = [];
+  var counter = 0;
+  boards.forEach(function(start) {
+    if(node[start.id].index !== -1) { return; }
+    var frames = [{ id: start.id, i: 0 }];
+    node[start.id].index = node[start.id].low = counter++;
+    stack.push(start.id);
+    node[start.id].on_stack = true;
+    while(frames.length) {
+      var frame = frames[frames.length - 1];
+      var v = node[frame.id];
+      var out = edges[frame.id];
+      if(frame.i < out.length) {
+        var w_id = out[frame.i++];
+        var w = node[w_id];
+        if(w.index === -1) {
+          w.index = w.low = counter++;
+          stack.push(w_id);
+          w.on_stack = true;
+          frames.push({ id: w_id, i: 0 });
+        } else if(w.on_stack) {
+          v.low = Math.min(v.low, w.index);
+        }
+        continue;
+      }
+      frames.pop();
+      if(frames.length) {
+        var parent = node[frames[frames.length - 1].id];
+        parent.low = Math.min(parent.low, v.low);
+      }
+      if(v.low === v.index) {
+        var group = { members: [], own_above: false };
+        var m_id;
+        do {
+          m_id = stack.pop();
+          node[m_id].on_stack = false;
+          node[m_id].group = group;
+          group.members.push(node[m_id].raw);
+        } while(m_id !== frame.id);
+        groups.push(group);
+      }
+    }
+  });
+
+  var entries = [];
+  groups.reverse().forEach(function(group) { // top groups first, so all a group's parents are decided before it
+    var own = group.members.filter(is_own);
+    if(own.length && !group.own_above) { entries.push(own.sort(by_key_order)[0]); }
+    if(!own.length && !group.own_above) { return; }
+    group.members.forEach(function(raw) {
+      edges[raw.id].forEach(function(id) { if(node[id].group !== group) { node[id].group.own_above = true; } });
+    });
+  });
+  return entries;
 }
 
 // A list the page treats as finished, marked as from the device.
