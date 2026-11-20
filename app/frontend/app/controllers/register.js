@@ -5,6 +5,7 @@ import { computed, observer } from '@ember/object';
 import persistence from '../utils/persistence';
 import capabilities from '../utils/capabilities';
 import i18n from '../utils/i18n';
+import { AI_CONSENT_REGISTRATION_VERSION } from '../utils/article50_gate';
 
 // TODO: Maybe a pretty img they can send/embed to share with users
 
@@ -621,6 +622,7 @@ export default Controller.extend({
           user_name: (_this.get('googleSignupUserName') || '').trim(),
           registration_type: _this.get('googleSignupRegistrationType') || 'communicator',
           terms_agree: _this.get('googleSignupTerms') ? 'true' : 'false',
+          ai_disclosure_version: AI_CONSENT_REGISTRATION_VERSION,
           product_improvement_opt_in: optIn ? 'true' : 'false',
           signup_name: (function() {
             try { return sessionStorage.getItem('ll_signup_name') || ''; }

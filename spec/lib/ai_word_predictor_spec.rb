@@ -3,6 +3,10 @@
 require 'spec_helper'
 
 describe AiWordPredictor do
+  # These examples test other things at the AI call sites; the consent check (#1136) has its
+  # own specs. See spec/support/ai_consent.rb.
+  include_context 'ai data-sharing consent given'
+
   # The account assertion must not sit in front of the response cache: a FAILED
   # check re-probes every 60s while holding a process-global mutex, which would
   # stall requests that were about to return instantly from CACHE.

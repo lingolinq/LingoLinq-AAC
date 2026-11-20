@@ -316,6 +316,30 @@ module FeatureFlags
     user.coppa_parental_consent_blocks_access?
   end
 
+  # AI data-sharing consent hard-gate (#1136). Default ON.
+  # Set AI_CONSENT_HARD_GATE=false in env for emergency rollback only.
+  def self.ai_consent_hard_gate_enabled?
+    ENV['AI_CONSENT_HARD_GATE'].to_s.downcase != 'false'
+  end
+
+  # True when AI calls must be blocked for this account because no current AI
+  # data-sharing consent covers it. Checked at every AI call site, before any cache
+  # read, PiiScrubber call or provider request.
+  # - An account a district manages (an accepted org_user attachment) is covered by
+  #   the district's own authorization, and only by that: every such district must
+  #   have a current, unrevoked one (Organization#ai_authorized?).
+  # - Any other account is covered by its own record (User#ai_consent_granted?).
+  # A nil user is not blocked here, the same as coppa_blocks_ai_for?: there is no
+  # account whose consent could be read.
+  def self.ai_consent_blocks_ai_for?(user)
+    return false unless ai_consent_hard_gate_enabled?
+    return false unless user
+    orgs = Organization.ai_consent_orgs_for(user)
+    return !orgs.all?(&:ai_authorized?) if orgs.any?
+    return true unless user.respond_to?(:ai_consent_granted?)
+    !user.ai_consent_granted?
+  end
+
   # EU under-16 AI parental-consent hard-gate. Default ON.
   # Set EU_AI_PARENTAL_HARD_GATE=false in env for emergency rollback only.
   def self.eu_ai_parental_hard_gate_enabled?
