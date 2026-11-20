@@ -168,7 +168,7 @@ class Api::UsersController < ApplicationController
       org = Organization.find_by_global_id(params['org_id'])
       return unless allowed?(org, 'edit')
       lookup = org.attached_users('all')
-    elsif !(Organization.admin_manager?(@api_user) && full_sign_in?)
+    elsif !(Organization.admin_manager?(@api_user) && Organization.admin_manager?(@true_user || @api_user) && full_sign_in?)
       return api_error 400, {error: 'admins only'}
     end
     if !params['q']
@@ -1291,6 +1291,8 @@ class Api::UsersController < ApplicationController
     if params['action_2fa'] == 'enable' || (params['action_2fa'] == 'reset' && (user.settings['2fa'] || user.settings['tmp_2fa']))
       user.assert_2fa!(true)
     elsif params['action_2fa'] == 'disable'
+      # Accounts that must use 2FA (Passwords#state_2fa) keep it on.
+      return api_error 400, {error: "2FA is required for this account"} if user.state_2fa[:mandatory]
       user.settings.delete('2fa')
       user.settings.delete('tmp_2fa')
       user.save
