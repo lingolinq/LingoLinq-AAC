@@ -9,9 +9,10 @@
 // the iOS Simulator on a Mac, is still the check for iOS.
 //
 // Every page reaches the server through the sync link (support/sync-link.js), so a spec can slow it or take
-// it down. Pictures are on the symbol CDN host the app fetches directly; the specs answer that host
-// themselves (routePictures), so nothing leaves this machine.
+// it down. Pictures are on the symbol CDN host the app fetches directly; the specs answer that host, and the
+// server's picture proxy for it, themselves (routePictures), so nothing leaves this machine.
 
+const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const base = require('@playwright/test');
@@ -34,14 +35,27 @@ function adb() {
 
 // Answer the picture host from a local file. A picture honours the link: refused while it is down, delayed by
 // its latency. counter.served counts pictures answered.
+//
+// The server's picture proxy is answered the same way for the picture host. When a direct download fails, the app
+// asks the proxy instead (services/persistence.js store_url_now); the real proxy would fetch the real picture, but the
+// local server would fetch this host for real, where the test pictures do not exist, and turn the 403 into a refusal
+// the app reports at once. That happened on Android Chrome, which saves one picture at a time, so a picture whose
+// direct download failed while the link was down reached the proxy after the link came back.
 async function routePictures(context, link, counter) {
-  await context.route(PICTURE_HOST + '**', async (route) => {
+  const answer = async (route, fulfill) => {
     if (link.isDown()) { await route.abort('internetdisconnected'); return; }
     if (link.delay()) { await new Promise((r) => setTimeout(r, link.delay() * 2)); }
     if (link.isDown()) { await route.abort('internetdisconnected'); return; }
     counter.served += 1;
-    await route.fulfill({ path: PICTURE_FILE, contentType: 'image/png', headers: { 'access-control-allow-origin': '*' } });
-  });
+    await fulfill();
+  };
+  await context.route(PICTURE_HOST + '**', (route) => answer(route, () => route.fulfill({
+    path: PICTURE_FILE, contentType: 'image/png', headers: { 'access-control-allow-origin': '*' },
+  })));
+  const proxied = (url) => url.pathname === '/api/v1/search/proxy' && (url.searchParams.get('url') || '').startsWith(PICTURE_HOST);
+  await context.route(proxied, (route) => answer(route, () => route.fulfill({
+    json: { content_type: 'image/png', data: 'data:image/png;base64,' + fs.readFileSync(PICTURE_FILE).toString('base64') },
+  })));
 }
 
 // What a fresh device holds: nothing. Used on the emulator, whose browser keeps its data between tests.
@@ -65,6 +79,7 @@ async function clearSite(page) {
 
 const test = base.test.extend({
   // A new link for each test, on the port every platform uses.
+  // eslint-disable-next-line no-empty-pattern -- Playwright requires a destructured first argument, even for a fixture with no dependencies
   syncLink: async ({}, use) => {
     assertLocalStack();
     const link = await startSyncLink({ target: serverURL(), port: LINK_PORT });
@@ -72,6 +87,7 @@ const test = base.test.extend({
     await link.close();
   },
 
+  // eslint-disable-next-line no-empty-pattern -- as syncLink above
   pictures: async ({}, use) => { await use({ served: 0 }); },
 
   // The page a sync spec drives, with the picture host answered and the app reached through the link.
