@@ -216,8 +216,12 @@ async function openBoard(page, key) {
   await page.waitForFunction((k) => location.pathname.endsWith('/' + k.split('/')[1]) && document.querySelectorAll('.md-board-detail-grid__cell').length > 1, key, { timeout: 120_000 });
 }
 
-// A board button by its accessible name (the label), as a person using a screen reader would find it.
+// A board button by its accessible name (the label), as a person using a screen reader would find it. On a phone a
+// board wider than 8 columns first shows "Larger screen recommended" (templates/user/board-detail.hbs,
+// portrait_overlay_active); a person taps "Continue Anyway", and so does this.
 async function tapCell(page, label) {
+  const overlay = page.locator('.md-board-detail-portrait-overlay [data-bd-action="dismiss_portrait_overlay"]');
+  if (await overlay.isVisible().catch(() => false)) { await overlay.click(); }
   await page.locator('.md-board-detail-grid').getByRole('button', { name: label, exact: true }).first().click();
 }
 
