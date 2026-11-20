@@ -3,6 +3,7 @@ import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { addObserver, removeObserver } from '@ember/object/observers';
 import i18n from '../utils/i18n';
+import { new_warnings } from '../utils/sync_rollup';
 
 /**
  * State for the sync drawer (<SyncProgressDrawer />, mounted from application.hbs so it survives route
@@ -17,7 +18,9 @@ import i18n from '../utils/i18n';
  *
  * The result card waits to be dismissed except after a clean success, which goes away on its own: automatic
  * syncs succeed many times a day and a card that needs answering each time would be noise; a failure or a
- * sync with problems is worth an answer.
+ * sync with problems is worth an answer. A success with a NEW warning (a folder saved without its picture that the
+ * sync before did not warn about, utils/sync_rollup.js new_warnings) waits too (Traci, 2026-11-18); it is read when
+ * the timer fires, since the sync writes its log after its status.
  */
 export var SUCCESS_CARD_MS = 8000;
 
@@ -98,6 +101,13 @@ export default Service.extend({
     this._sync_status_changed();
   },
 
+  // The signed-in person's user name, as their sync log entries name them (services/persistence.js user_id: user_name).
+  _signed_in_user_name() {
+    var stashes = this.get('persistence.stashes');
+    var auth = stashes && typeof stashes.get_object === 'function' ? stashes.get_object('auth_settings', true) : null;
+    return (auth && auth.user_name) || null;
+  },
+
   _sync_status_changed() {
     var p = this.get('persistence');
     var now = this._effective_status();
@@ -113,7 +123,7 @@ export default Service.extend({
     if(now === 'succeeded') {
       this.setProperties({ status: 'done', kind: 'succeeded' });
       var _this = this;
-      this._success_timer = setTimeout(function() { _this._success_timer = null; if(_this.get('kind') === 'succeeded') { _this.dismiss(); } }, SUCCESS_CARD_MS);
+      this._success_timer = setTimeout(function() { _this._success_timer = null; if(_this.get('kind') === 'succeeded' && !new_warnings(_this.get('persistence.sync_log'), _this._signed_in_user_name()).length) { _this.dismiss(); } }, SUCCESS_CARD_MS);
     } else if(now === 'finished') {
       this.setProperties({ status: 'done', kind: 'finished' });
     } else if(now === 'failed' && !p.get('root_sync_canceled')) {

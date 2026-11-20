@@ -3,7 +3,7 @@ import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
-import { sync_progress_line } from '../utils/sync_progress';
+import { sync_progress_line, picture_warning } from '../utils/sync_progress';
 import { summary_for, current_root_name, only_parked_left } from '../utils/sync_rollup';
 import { wake_parked } from '../utils/board_retry';
 
@@ -18,6 +18,12 @@ export function on_board_page(route_name) {
 // 'saving' while the sync walks; 'waiting' when all it has left are boards waiting to be tried again
 // (utils/board_retry.js); after it, 'ready' (all saved), 'attention' (some folders or boards did not save),
 // or 'result' (the plain result card, when the sync left nothing to group, such as a failure before any board).
+// The result line, and after it the warning for folders saved without their picture (utils/sync_progress.js).
+function with_picture_warning(line, summary) {
+  var warning = picture_warning(summary && summary.overall && summary.overall.pictures_missing);
+  return warning ? line + ' ' + warning : line;
+}
+
 export function drawer_stage(notice_status, notice_kind, sync_progress, summary) {
   if(notice_status === 'syncing') { return only_parked_left(sync_progress) ? 'waiting' : 'saving'; }
   if(!summary || notice_kind === 'failed') { return 'result'; }
@@ -89,10 +95,29 @@ export default Component.extend({
     return p ? current_root_name(p.board_statuses, p.board_roots) : null;
   }),
 
-  waiting_line: computed('persistence.sync_progress.parked', function() {
-    var n = this.get('persistence.sync_progress.parked') || 0;
-    return n === 1 ? i18n.t('sync_drawer_waiting_one', "1 folder is left. It will be tried again automatically.") :
-      i18n.t('sync_drawer_waiting_many', "%{n} folders are left. They will be tried again automatically.", { n: n });
+  // Two kinds of parked work (services/persistence.js sync_boards): a folder not saved yet, and a saved folder whose
+  // pictures or sounds were cut off (utils/board_content_retry.js). Each is said as it is; the folder is not "left"
+  // when only its pictures wait, and not "saved" either, since the result card says "didn't save" if their retries run
+  // out (Traci, 2026-11-19).
+  waiting_line: computed('persistence.sync_progress.{parked,parked_content}', function() {
+    var content = this.get('persistence.sync_progress.parked_content') || 0;
+    var boards = Math.max(0, (this.get('persistence.sync_progress.parked') || 0) - content);
+    var lines = [];
+    if(boards || !content) {
+      lines.push(boards === 1 ? i18n.t('sync_drawer_waiting_one', "1 folder is left. It will be tried again automatically.") :
+        i18n.t('sync_drawer_waiting_many', "%{n} folders are left. They will be tried again automatically.", { n: boards }));
+    }
+    if(content) {
+      lines.push(content === 1 ? i18n.t('sync_drawer_waiting_content_one', "1 folder's pictures or sounds are still downloading. They will be tried again automatically.") :
+        i18n.t('sync_drawer_waiting_content_many', "%{n} folders' pictures or sounds are still downloading. They will be tried again automatically.", { n: content }));
+    }
+    return lines.join(' ');
+  }),
+
+  // A ready sync with a folder saved without its picture offers Try again beside Sync Details (Traci, 2026-11-18); a
+  // sync that needs attention already leads with it.
+  offer_try_again: computed('stage', 'summary.overall.warned', function() {
+    return this.get('stage') === 'ready' && !!(this.get('summary.overall.warned'));
   }),
 
   result_title: computed('stage', 'summary', 'sync_notice.message', function() {
@@ -111,19 +136,19 @@ export default Component.extend({
     var stage = this.get('stage');
     if(stage === 'ready') {
       var n = s.overall.saved;
-      return n === 1 ? i18n.t('sync_drawer_saved_one', "1 board is saved on this device.") :
-        i18n.t('sync_drawer_saved_many', "%{n} boards and folders are saved on this device.", { n: n });
+      return with_picture_warning(n === 1 ? i18n.t('sync_drawer_saved_one', "1 board is saved on this device.") :
+        i18n.t('sync_drawer_saved_many', "%{n} boards and folders are saved on this device.", { n: n }), s);
     }
     if(stage === 'attention') {
       var missing = s.groups.filter(function(g) { return !g.ready; });
       var only = missing.length === 1 ? missing[0] : null;
       if(only && !only.board_missing) {
         var f = only.folders_missing.length;
-        return f === 1 ? i18n.t('sync_drawer_one_folder_of', "1 folder of %{board} didn't save. It still opens while you're online.", { board: only.name }) :
-          i18n.t('sync_drawer_n_folders_of', "%{n} folders of %{board} didn't save. They still open while you're online.", { n: f, board: only.name });
+        return with_picture_warning(f === 1 ? i18n.t('sync_drawer_one_folder_of', "1 folder of %{board} didn't save. It still opens while you're online.", { board: only.name }) :
+          i18n.t('sync_drawer_n_folders_of', "%{n} folders of %{board} didn't save. They still open while you're online.", { n: f, board: only.name }), s);
       }
-      return s.overall.missing === 1 ? i18n.t('sync_drawer_one_missing', "1 board didn't save. It still opens while you're online.") :
-        i18n.t('sync_drawer_n_missing', "%{n} boards and folders didn't save. They still open while you're online.", { n: s.overall.missing });
+      return with_picture_warning(s.overall.missing === 1 ? i18n.t('sync_drawer_one_missing', "1 board didn't save. It still opens while you're online.") :
+        i18n.t('sync_drawer_n_missing', "%{n} boards and folders didn't save. They still open while you're online.", { n: s.overall.missing }), s);
     }
     return this.get('sync_notice.detail');
   }),

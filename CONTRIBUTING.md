@@ -234,7 +234,11 @@ adversary, red-team, review) before merge if it touches any of:
   PR, or get explicit sign-off to defer with a tracked follow-up issue.
 - **Medium**: surface to the approver for triage.
 - **Low**: log and continue.
-- **Rounds**: at most two review rounds on any PR; a third needs Scot's OK.
+- **Rounds**: up to two review rounds by default. The responsible senior developer may run
+  additional rounds when needed, recording the reason in the PR; an agent never decides this
+  itself and runs an extra round only when that developer asked. Additional reviews
+  do not authorize merging; existing privacy checks, review requirements, Critical/High
+  blockers, GitHub checks, and merge approvals still apply.
 
 ## Commit Messages
 
