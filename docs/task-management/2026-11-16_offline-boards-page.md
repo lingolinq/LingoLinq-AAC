@@ -409,3 +409,33 @@ the module's afterEach did not reset it. `utils/board_detail_cache.js` `_wait_wh
 :869) then holds every later prefetch for up to 120 s, polling with runLater, so the next tests time out until the cap
 (15 s x 7, then offline_shell at about 6 s). Fix: the module's afterEach also calls `setMineListBusy(false)` (teardown
 only; no fixture or assertion changed). The same reproduction: 184/184. The leak check does not see module-level flags.
+
+## Review round 3 (2026-11-19, at Traci's request; dual review)
+PII pre-flight exit 0. REVIEWED=PR lingolinq/LingoLinq-AAC#1328 at a4bbd354fab8787de3b93e9d394b3e588c0ff043
+(No Codex connector review was ever posted on #1328, at any head.)
+- `/review-pr` (senior pass, diff only): Approve with comments. Checked here:
+  - M1, Medium, CONFIRMED: a refused `show_device_boards` (`controllers/user/index.js:1938-1946`) leaves `offline_view`
+    and `offline_boards` as they were, and the route's `setupController` (`routes/user/boards.js:59-91`) resets
+    neither. Offline, moving from your own boards page to a person you cannot model for keeps your list on their page;
+    after an SPA sign-out (behind `auth_spa_transition`, off) the previous person's board names stay. Basic already
+    clears on refusal (`classic-view.js`, `deviceBoardsRefused`).
+  - M2, dismissed (CONFIRMED not real): `within` turns a rejection into `null` (`utils/board_device_copy.js:154`), so
+    `library_copy_here` answers false, never rejects.
+  - M3, Medium, PLAUSIBLE: Basic's kept list lives on the dashboard component, so each return to the home page offline
+    may re-read every board row (per visit, not per offline spell). Extends the existing follow-up.
+  - Lows: fixed 30 ms `tick` waits in two test files; untested branches (the snapshot skip, the boards.hbs hidden
+    hero/Getting Started, Basic's refused line); the heart's `aria-label` on a role-less span; `available_boards`
+    removed from en.json only; gitleaks entries unanchored; observer coalescing of a fast offline/online/offline (fails
+    safe); the log's "Entering clears Set Home mode" has no code in the diff.
+- `/adversary-review` (red team, repo access): ship. No Critical/High/Medium introduced. Lows:
+  - Shallow-clone rows (`larry/my:therapist:feelings`) count as own on a shared device (`opens_here` judges by the key
+    prefix, `utils/offline_board_list.js:70-71`), unlike `library_board`; the own-page route already opens them, so a
+    pre-existing gap in the rule, not a new leak. Policy call for Traci.
+  - The cycle fallback can list a folder as its own tile and hide the set's root (`offline_board_list.js:138-140`).
+  - Gitleaks entries should be anchored (`^...$`; the match target is the secret).
+  - The `content` tag is pinned only by fixtures; `entry_copy` drops it until #1336 merges (fails safe). Add one
+    end-to-end test once both are in develop.
+  Checked and holding: deep links (the `/*key` route redirects to board-detail, so `_device_owner` runs), library-key
+  look-alikes refused, a stand-in owner gets no list, unknown trust counts as shared, no SPA user switch without a
+  reload except the accepted sign-in path, sync-log identity checks, the teardown fix, i18n in 13 locales.
+Open: Traci to choose what to fix before merge (M1 is in the visibility area: /fix-proposal).
