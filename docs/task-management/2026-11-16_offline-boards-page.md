@@ -509,3 +509,29 @@ compared byte for byte.
   `ll_trace`; used 2026-11-17 for Chrome on the emulator), and an emulator was running, apparently another session's.
   What is missing is a native build toolchain (no cordova, java or gradle), and Chrome on the emulator is a browser,
   where a shared sign-in removes the offline shell worker; so this still needs a native build.
+
+## Review round 4 (2026-11-19, at Traci's request: the four code commits after round 3)
+PII pre-flight exit 0 on both ranges (the develop merge with #1334 left out; it was reviewed in its own PR):
+REVIEWED=range 2199d0843 (2199d08434e2baccbc984beef6794557281d0403) ... 14dfb458c (14dfb458c19688ba198f48e9898ad2ffe2b3028e) in /home/tracid/LingoLinq-AAC-offline-boards
+REVIEWED=range 0a3d8775c (0a3d8775c34eb14e1adfe3cbbc0b51948fc7a2c8) ... ee32a572c (ee32a572cd0c22cfbf9afc9337f9daab6cc5889a) in /home/tracid/LingoLinq-AAC-offline-boards
+- `/review-pr` (senior pass, diffs only): approve with comments. Its Medium (a template-only component would add a
+  wrapper div in the grid) is NOT real: `template-only-glimmer-components` is true (`config/optional-features.json`).
+- `/adversary-review` (red team): ship with conditions. Verified here:
+  - Low, CONFIRMED, a REGRESSION from my loop fix (879afd8fd): it declared a second `var by_key` (:155) in the function
+    whose key index `find` reads (:87, :95); `no-redeclare` is off (`.eslintrc.js:57`). After :155 a link that names a
+    board only by key cannot be followed. Display only. The new `on_loop` is also quadratic (about 1 s at 1000 chained
+    boards in node). REVERTED (Rule #0.5: suspect the attempt, revert before trying again). The original loop duplicate
+    is back as a recorded Low; the right fix is grouping boards into loops (Tarjan) and giving a tile only to loops
+    nothing else links into, a new unit with the full process.
+  - Low: a loop below another loop still listed twice (both reviewers) and the set's main board can stay hidden: covered
+    by the Tarjan follow-up.
+  - Low: the device-boards render test does not check the home-board mark (a lost `@homeBoardKey` would pass). Open.
+  - Low: the liked heart is its own stop, and its `title` repeats the label. Follow-up (put ", Liked" in the tile's
+    name, as the home mark does, and hide the heart).
+  - Holding: M1 (no remaining offline path keeps a previous person's list), the template-only move (no wrapper, same
+    keys, the i18n generator scans `app/frontend/app/**/*.hbs`), `role="img"` valid and breaks no test.
+Browser check of Basic's "can't be shown" line through the real SPA sign-in: NOT verified (stopped, Rule #0.13, after
+four script mistakes). The SPA sign-out/sign-in ran without a reload; which device database stayed open was read from
+`window.capabilities` (not the module the owner check reads), so unknown; offline, the page showed "Basic Access" or a
+Boards tab the script could not click. Script: this session's scratchpad `offline-boards/spa.js`. Next: read the open
+database the way `current_device_db_user` does, stay on the dashboard online before dropping the connection.
