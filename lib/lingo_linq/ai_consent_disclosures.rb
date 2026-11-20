@@ -163,13 +163,13 @@ module LingoLinq
           'messaging) keeps working normally without AI features.'
       }.freeze
 
-    # Version 2 (2026-11-18, #1136). AI board suggestions and focus words are now
+    # Version 2 (2026-11-19, #1136). AI board suggestions and focus words are now
     # covered by this consent, so a withdrawal stops them too. Version 1 said they
     # were outside it. Everything not overridden here is unchanged from version 1:
     # same companies, same model, same retention windows, and AI-drafted
     # evaluation narration is still inactive.
     V2 = V1.merge(
-      'effective_date' => '2026-11-18',
+      'effective_date' => '2026-11-19',
       'vendors' => V1['vendors'].map do |vendor|
         vendor.merge(
           'models' => ['Claude Haiku 4.5 (claude-haiku-4-5-20251001) for word prediction, board suggestions and focus words'],
