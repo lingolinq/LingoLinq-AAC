@@ -1964,6 +1964,99 @@ describe('editManager', function() {
       });
     });
 
+    describe("when a manual image supersedes the automatic symbol", function() {
+      var autoResult = [{license: 'private', image_url: 'https://example.com/test-auto.png', id: 'test_auto_pic'}];
+      var autoImage = function() {
+        return EmberObject.create({id: 'test-auto', url: 'https://example.com/test-auto.png'});
+      };
+      var manualImage = function() {
+        return EmberObject.create({id: 'test-manual', url: 'https://example.com/test-manual.png', check_for_editable_license: function() { }});
+      };
+      var startLucky = function(button, saves) {
+        editManager.setup(board);
+        setEditMode(true);
+        board.set('ordered_buttons', [[button]]);
+        var search = RSVP.defer();
+        stubPictureSearch(function() { return search.promise; });
+        stubPictureGrabber('save_image_preview', function(preview) {
+          var save = RSVP.defer();
+          saves[preview.url.match(/test-manual/) ? 'manual' : 'auto'] = save;
+          return save.promise;
+        });
+        editManager.lucky_symbol(1);
+        expect(button.get('pending_image')).toEqual(true);
+        search.resolve(autoResult);
+      };
+
+      it("should clear pending_image when the automatic save finishes after the manual image", function() {
+        var button = Button.create({id: 1, label: "ham"});
+        var saves = {};
+        var autoSettled = false;
+        startLucky(button, saves);
+        waitsFor(function() { return saves.auto; });
+        runs(function() {
+          editManager.change_button(1, {image: manualImage(), image_id: 'test-manual', _picked_display_url: 'https://example.com/test-manual.png'});
+          saves.auto.promise.then(function() { autoSettled = true; });
+          saves.auto.resolve(autoImage());
+        });
+        waitsFor(function() { return autoSettled; });
+        runs(function() {
+          expect(button.get('image_id')).toEqual('test-manual');
+          expect(button.get('pending_image')).toEqual(false);
+        });
+      });
+
+      it("should keep the manual image when the automatic save was replacing a placeholder", function() {
+        var button = Button.create({id: 1, label: "ham", local_image_url: 'https://example.com/test-empty_22_g.png'});
+        button.set('image', EmberObject.create({id: 'test-placeholder', url: 'https://example.com/test-empty_22_g.png'}));
+        button.set('image_id', 'test-placeholder');
+        var saves = {};
+        var autoSettled = false;
+        startLucky(button, saves);
+        waitsFor(function() { return saves.auto; });
+        runs(function() {
+          editManager.change_button(1, {image: manualImage(), image_id: 'test-manual', _picked_display_url: 'https://example.com/test-manual.png'});
+          saves.auto.promise.then(function() { autoSettled = true; });
+          saves.auto.resolve(autoImage());
+        });
+        waitsFor(function() { return autoSettled; });
+        runs(function() {
+          expect(button.get('image_id')).toEqual('test-manual');
+          expect(button.get('image.id')).toEqual('test-manual');
+          expect(button.get('pending_image')).toEqual(false);
+        });
+      });
+
+      it("should keep pending_image set until both the manual and the automatic saves finish", function() {
+        var button = Button.create({id: 1, label: "ham"});
+        var saves = {};
+        var manualSettled = false;
+        var autoSettled = false;
+        var settingsController = EmberObject.create({model: button});
+        startLucky(button, saves);
+        waitsFor(function() { return saves.auto; });
+        runs(function() {
+          contentGrabbers.pictureGrabber.setup(button, settingsController);
+          settingsController.set('image_preview', {url: 'https://example.com/test-manual.png', license: {type: 'private'}});
+          contentGrabbers.pictureGrabber.select_image_preview().then(function() { manualSettled = true; }, function() { manualSettled = true; });
+          saves.manual.resolve(manualImage());
+        });
+        waitsFor(function() { return manualSettled; });
+        runs(function() {
+          expect(button.get('image_id')).toEqual('test-manual');
+          expect(button.get('pending_image')).toEqual(true);
+          saves.auto.promise.then(function() { autoSettled = true; });
+          saves.auto.resolve(autoImage());
+        });
+        waitsFor(function() { return autoSettled; });
+        runs(function() {
+          contentGrabbers.unlink();
+          expect(button.get('image_id')).toEqual('test-manual');
+          expect(button.get('pending_image')).toEqual(false);
+        });
+      });
+    });
+
     it("should search the last library selected by the user", function() {
       stashesForTests().set('last_image_library', 'lessonpix');
       stashesForTests().set('last_image_library_at', String((new Date()).getTime()));

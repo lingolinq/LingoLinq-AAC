@@ -490,6 +490,82 @@ describe('pictureGrabber', function() {
       runs();
     });
 
+    describe('pending_image on the button the save started from', function() {
+      var startSave = function(save, changes) {
+        pictureGrabber.setup(button, controller);
+        controller.set('image_preview', {url: 'https://example.com/test-picked.png', width: 100, height: 100});
+        stub(pictureGrabber, 'save_image_preview', function() { return save.promise; });
+        stub(editManager, 'change_button', function(id, args) { changes.push({id: id, image_id: args.image_id}); });
+        var state = {settled: false};
+        pictureGrabber.select_image_preview().then(function() { state.settled = true; }, function() { state.settled = true; });
+        return state;
+      };
+      var savedImage = function() {
+        return EmberObject.create({id: '123', url: 'https://example.com/test-picked.png'});
+      };
+
+      it('should clear pending_image after a successful save while settings stay open', function() {
+        var save = RSVP.defer();
+        var changes = [];
+        var model = controller.get('model');
+        var state = startSave(save, changes);
+        expect(model.get('pending_image')).toEqual(true);
+        save.resolve(savedImage());
+        waitsFor(function() { return state.settled; });
+        runs(function() {
+          expect(model.get('pending_image')).toEqual(false);
+          expect(model.get('image.id')).toEqual('123');
+          expect(changes[0]).toEqual({id: '456', image_id: '123'});
+        });
+      });
+
+      it('should clear pending_image after a failed save while settings stay open', function() {
+        stub(window, 'alert', function() { });
+        var save = RSVP.defer();
+        var changes = [];
+        var model = controller.get('model');
+        var state = startSave(save, changes);
+        expect(model.get('pending_image')).toEqual(true);
+        save.reject({error: 'test failure'});
+        waitsFor(function() { return state.settled; });
+        runs(function() {
+          expect(model.get('pending_image')).toEqual(false);
+          expect(changes.length).toEqual(0);
+        });
+      });
+
+      it('should clear pending_image when settings close before the save succeeds', function() {
+        var save = RSVP.defer();
+        var changes = [];
+        var model = controller.get('model');
+        var state = startSave(save, changes);
+        expect(model.get('pending_image')).toEqual(true);
+        controller.destroy();
+        save.resolve(savedImage());
+        waitsFor(function() { return state.settled; });
+        runs(function() {
+          expect(changes[0]).toEqual({id: '456', image_id: '123'});
+          expect(model.get('pending_image')).toEqual(false);
+        });
+      });
+
+      it('should clear pending_image when settings close before the save fails', function() {
+        stub(window, 'alert', function() { });
+        var save = RSVP.defer();
+        var changes = [];
+        var model = controller.get('model');
+        var state = startSave(save, changes);
+        expect(model.get('pending_image')).toEqual(true);
+        controller.destroy();
+        save.reject({error: 'test failure'});
+        waitsFor(function() { return state.settled; });
+        runs(function() {
+          expect(changes.length).toEqual(0);
+          expect(model.get('pending_image')).toEqual(false);
+        });
+      });
+    });
+
     describe('save_image_preview', function() {
       var valid_image = function() {
         var canvas = document.createElement('canvas');
