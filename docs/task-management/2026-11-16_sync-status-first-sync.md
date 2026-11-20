@@ -150,3 +150,19 @@ added "already on the device is not queued again" and the `picture_ms_left` arit
 `timingStrict=1`. Mutants, one combined run, each killed: drop the whole-wait limit (the never-answers test red at
 3023 ms), drop the quick-check gate (red), drop the 1 ms floor (red). Lint gate: only the known `sync-details.js:220`
 false positive.
+
+## E2E sync suite against 9e68fc8d1 (2026-11-16, local)
+
+Production build of 9e68fc8d1 on :5089 (private e2e DB, existing `sync_e2e_*` users, no reseed), spec from
+`~/LingoLinq-AAC-sync-e2e` (traci/test/sync-e2e-suite + its uncommitted `tapCell` fix), link on :5090. Projects:
+desktop Chrome, Firefox, Safari (WebKit), Android Chrome (Pixel 7 profile), iPhone, iPad. Browser emulation, not
+simulators; the Android emulator was in use by another session (#1326 device check) and was not used.
+
+- 48 passed, 6 failed (35.6 min). Each project 8/9; develop baseline (handoff): Chrome/Safari/iPhone/iPad 8/9,
+  Firefox 7/9, Android Chrome 7/9.
+- The 6 failures are all "the link drops during a sync and comes back", and the failure changed: on develop the sync
+  FAILED ("Error syncing sync_e2e_basic: failed to save user avatar", 4 rows); on 9e68fc8d1 it FINISHES with every board
+  processed (10-12 rows) and 1 error: a home-board button picture cut off by the drop (5 projects), or the Crisis
+  Vocabulary sidebar icon `/images/square.svg` (iPhone). Board pictures are not optional pictures and are not retried
+  when the link returns (the retry parks boards, not their pictures): separate, not this PR.
+- The seeded users have no supervisor and no tags, so those two paths are covered by the unit tests only.
