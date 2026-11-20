@@ -167,3 +167,37 @@ boards were retried), which suggests few or no retries and so little or no use o
 by board. One run cannot say whether the 8 s is real.
 
 Comparison page (private until shared): https://claude.ai/artifact/FX6pAnfHqqpxv57Y27cr8J
+
+### Android emulator (2026-11-19 and 2026-11-20)
+
+Chrome 124 on AVD `ll_trace`, synth_big (home + 56 folders of ~0.75 MB), driven over CDP
+(`compare-android.js`, kept in `~/offline-sync-handoff/2026-11-19-emulator/` with the traces). Link throttled from the
+first board, the user step unthrottled, a fresh link port and a cleared HTTP cache for each run. The #1330 runs used
+this branch merged with develop 9d96df96f (:5097); "develop" is the server named in each row. One run per row.
+
+| Run | Code | Rate | Seconds | MB | Requests | Boards saved | Board GETs by key |
+|---|---|---|---|---|---|---|---|
+| emu-dev-cold | develop e13291c88 | 0.8 Mbps | 506 | 44.4 | 116 | 57/57 | 8 |
+| emu-fixed-cold2 | #1330 | 0.8 Mbps | 464 | 44.6 | not recorded | 57/57 | 18 (small) |
+| emu-dev-400 | develop 9d96df96f | 0.4 Mbps | 1333 | 63.3 | 286 | 39/57 | 25 |
+| emu-fixed-400 | #1330 | 0.4 Mbps | 1171 | 56.5 | 240 | 36/57 | 0 |
+
+At 0.8 Mbps no board timed out on the emulator (fewer parallel downloads than desktop), so the changed code did not
+run there: those rows show no regression on Android, not that the fix works on Android.
+
+**0.4 Mbps: develop fails the same way, so the missing boards are not caused by #1330.** Both syncs end "finished"
+with about 20 boards missing, each with "failed retrieval for syncing" after its retries. At 0.4 Mbps one 0.76 MB board
+needs at least 15 s with the link to itself, the same as the adapter's 15 s caller limit (`utils/board_download.js`
+`find_limits.caller_ms`), and several downloads share the link, so most first tries and many retries time out. This is
+the existing slow-link limit (4 tries per board), not this change: it belongs with the sync proposal's Phase 1.2
+"stall timeouts" item.
+
+What one run each can and cannot say:
+- 36 vs 39 boards saved: not distinguishable from run-to-run variation with one run each. The starting state also
+  differed (6 boards in memory before the sync on the #1330 run, 1 on develop), which changes which path each board
+  takes (reload vs find).
+- The 25 by-key board GETs on develop and none with #1330 match what #1330 removes (a parked board's late copy reloaded
+  by key). #1330 used 6.8 MB and 162 s less, consistent with that, but one run each.
+- Of the #1330 run's 56.5 MB, 25.3 MB is the 35 board downloads that finished. The rest went on downloads that did not
+  finish in time: the trace records only finished requests (`requestfinished`), so they are not itemised.
+- Develop's log has 28 "kept" statuses with nothing on the device before the sync; not traced board by board.
