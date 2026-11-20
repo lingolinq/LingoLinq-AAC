@@ -5580,6 +5580,18 @@ describe Api::UsersController, :type => :controller do
       assert_error('2FA is required for this account', 400)
       expect(target.reload.settings['2fa']['secret']).to eq(secret)
     end
+
+    it "still lets an account that is not an admin turn it off" do
+      token_user
+      @device.settings['2fa'] = {'last_otp' => Time.now.to_i}
+      @device.save!
+      @user.assert_2fa!
+      expect(@user.state_2fa[:mandatory]).to eq(nil)
+      post :update_2fa, params: {'user_id' => @user.global_id, 'action_2fa' => 'disable'}
+      json = assert_success_json
+      expect(json['state']).to eq({'required' => false})
+      expect(@user.reload.settings['2fa']).to eq(nil)
+    end
   end
 
   describe "update_2fa on the device in use" do
