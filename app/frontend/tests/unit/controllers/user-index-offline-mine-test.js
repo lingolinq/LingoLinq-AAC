@@ -295,4 +295,63 @@ module('Unit | Controller | user/index offline boards view', function(hooks) {
     assert.false(c.get('offline_view'));
     assert.strictEqual(c.get('offline_boards'), null);
   });
+  // Codex review of a44d593ff (P2): back online, the view must not wait for a list that cannot come. A server list that
+  // fails sends nothing; a device read that lands after the newer request is dropped (the test above).
+  function failing_store(owner) {
+    var real = owner.lookup('service:store');
+    return { query: function() { return RSVP.reject({ error: 'offline' }); }, peekRecord: real.peekRecord.bind(real), push: real.push.bind(real) };
+  }
+
+  test('back online before the first device read ends, and the server list fails: not stuck on "Finding"', async function(assert) {
+    var release = null;
+    var c = page(this.owner, { find_all: function() { return new RSVP.Promise((r) => { release = r; }); } });
+    c.update_selected();
+    await tick();
+    assert.true(c.get('offline_view'));
+    c.set('store', failing_store(this.owner));
+    c.set('persistence.online', true); // update_selected runs (the observer) with a new list_id
+    await tick();
+    release(rows());
+    await tick();
+    assert.false(c.get('offline_view'), 'the device view ended');
+    assert.notOk(c.get('offline_boards.loading'), 'no "Finding the boards" left behind');
+  });
+
+  test('back online on another person\'s page with a failing server list: the previous person\'s list is not shown', async function(assert) {
+    var c = page(this.owner);
+    c.update_selected();
+    await tick();
+    assert.deepEqual(keys(c.get('offline_boards')), ['larry/home']);
+    c.set('store', failing_store(this.owner));
+    c.set('persistence.online', true);
+    c.set('model', EmberObject.create({ id: '9911_8', user_name: 'sam', permissions: { supervise: true }, preferences: {}, stats: {} }));
+    c.update_selected(); // routes/user/boards.js setupController
+    await tick();
+    assert.false(c.get('offline_view'));
+    assert.strictEqual(c.get('offline_boards'), null);
+  });
+
+  test('back online on a tab with no server list (Prior Home Boards): the device view ends', async function(assert) {
+    var c = page(this.owner);
+    c.set('selected', 'prior_home');
+    c.update_selected();
+    await tick();
+    assert.true(c.get('offline_view'));
+    c.set('store', pending_store(this.owner));
+    c.set('persistence.online', true);
+    await tick();
+    assert.false(c.get('offline_view'));
+  });
+
+  test('back online, the same person\'s list stays while the server list fails (the fallback on a flaky link)', async function(assert) {
+    var c = page(this.owner);
+    c.update_selected();
+    await tick();
+    var first = c.get('offline_boards');
+    c.set('store', failing_store(this.owner));
+    c.set('persistence.online', true);
+    await tick();
+    assert.true(c.get('offline_view'));
+    assert.strictEqual(c.get('offline_boards'), first);
+  });
 });

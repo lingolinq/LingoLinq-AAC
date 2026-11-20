@@ -1381,6 +1381,7 @@ var UserIndexController = Controller.extend({
     if(!_this.get('selected') && model) {
       default_key = model.get('permissions.supervise') ? 'mine' : 'public';
     }
+    this.end_device_view_online(model, _this.get('selected') || default_key); // (reopen below)
     /* Visible top tabs are now only `mine` and `public` (Root + Liked
        moved into the More... dropdown per design). Anything else
        counts as `other_selected` so the More trigger highlights and
@@ -1924,7 +1925,7 @@ import backend_user_id, { same_person } from '../../utils/backend_user_id';
    read that fails keeps it. On a device not marked "Trust this Device" (or before its trust is known) only the boards
    that open there are listed (utils/offline_board_list.js opens_here). A read that ends after a newer request
    (list_id) is dropped. The view ends when a server list arrives (generate_or_append_to_list), not on every `online`
-   flip. */
+   flip, unless no server list is coming or the list on screen is not this page's person's (end_device_view_online). */
 UserIndexController.reopen({
   // Whose device database is open (only the signed-in person's counts), and where its boards are read from; tests
   // set these on their own controller instead of replacing shared singletons.
@@ -1937,11 +1938,21 @@ UserIndexController.reopen({
     if(this.get('persistence.online')) { this.incrementProperty('offline_spell'); }
   }),
   // A page whose person's device list is refused must not keep the previous page's list: this controller is shared by
-  // every boards page and the route does not reset it (routes/user/boards.js setupController). Only a refused person
-  // clears it; "no model" and "page not active" do not (an observer can call show_device_boards while another page
-  // shows, and the list is kept for coming back in the same offline spell).
+  // every boards page and the route does not reset it (routes/user/boards.js setupController). Offline, only a refused
+  // person clears it; "no model" and "page not active" do not (an observer can call show_device_boards while another
+  // page shows, and the list is kept for coming back in the same offline spell). Online, end_device_view_online does.
   leave_device_view: function() {
     this.setProperties({ offline_view: false, offline_boards: null });
+  },
+  // Back online, the device list stays on screen until a server list arrives (generate_or_append_to_list :1227) only
+  // when one is coming and the list on screen is this page's person's; otherwise nothing would end the view (Codex
+  // review of a44d593ff). A tab with no server request (Prior Home Boards) gets no list; a first device read still
+  // running is dropped by its list_id guard (show_device_boards), leaving "Finding..." over a failed server list.
+  end_device_view_online: function(model, tab) {
+    if(!this.get('offline_view')) { return; }
+    var list = this.get('offline_boards');
+    var own_list = !!(list && list.from_device && !list.read_failed && model && list.user_name === model.get('user_name'));
+    if(!own_list || TABS_WITH_SERVER_LIST.indexOf(tab) === -1) { this.leave_device_view(); }
   },
   show_device_boards: function(list_id) {
     var _this = this;
@@ -1971,3 +1982,5 @@ UserIndexController.reopen({
 });
 import { device_board_list, current_device_db_user } from '../../utils/offline_board_list';
 import offline_shell from '../../utils/offline_shell';
+// The tabs update_selected requests a server list for (its key loop); Prior Home Boards has none.
+var TABS_WITH_SERVER_LIST = ['mine', 'public', 'private', 'root', 'starred', 'tagged', 'shared'];
