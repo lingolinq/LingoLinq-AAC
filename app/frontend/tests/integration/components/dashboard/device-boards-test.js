@@ -45,5 +45,8 @@ QUnit.module('Integration | Component | dashboard/device-boards', function(hooks
     await render(hbs`<Dashboard::DeviceBoards @boards={{this.boards}} @homeBoardKey="tester/home" />`);
     assert.dom('.ch-boards__cell').exists({ count: 2 });
     assert.dom('.ch-empty').doesNotExist();
+    // Only the home board carries the home mark (board-icon.hbs `board-icon__home-glyph`), so a lost @homeBoardKey fails.
+    assert.dom('.board-icon__home-glyph').exists({ count: 1 });
+    assert.dom('.ch-boards__cell:first-child .board-icon__home-glyph').exists();
   });
 });
