@@ -234,10 +234,17 @@ async function openBoard(page, key) {
 
 // A board button by its accessible name (the label), as a person using a screen reader would find it. On a phone a
 // board wider than 8 columns first shows "Larger screen recommended" (templates/user/board-detail.hbs,
-// portrait_overlay_active); a person taps "Continue Anyway", and so does this.
+// portrait_overlay_active); a person taps "Continue Anyway", and so does this. The overlay appears only after the
+// buttons are measured, which waits for resizing to settle (controllers/user/board-detail.js portrait_overlay_eligible),
+// so it can appear just after the board shows: a locator handler taps it whenever it appears, not only when a check
+// happens to see it.
+const largerScreenHandled = new WeakSet();
 async function tapCell(page, label) {
-  const overlay = page.locator('.md-board-detail-portrait-overlay [data-bd-action="dismiss_portrait_overlay"]');
-  if (await overlay.isVisible().catch(() => false)) { await overlay.click(); }
+  if (!largerScreenHandled.has(page)) {
+    largerScreenHandled.add(page);
+    const overlay = page.locator('.md-board-detail-portrait-overlay [data-bd-action="dismiss_portrait_overlay"]');
+    await page.addLocatorHandler(overlay, async () => { await overlay.click(); });
+  }
   await page.locator('.md-board-detail-grid').getByRole('button', { name: label, exact: true }).first().click();
 }
 
