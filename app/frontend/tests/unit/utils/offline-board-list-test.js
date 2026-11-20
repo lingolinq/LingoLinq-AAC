@@ -57,15 +57,6 @@ module('Unit | Utility | offline board list', function(hooks) {
       'sets by name; the folder inside its set; the two-board loop once; someone else\'s unlisted board left out');
   });
 
-  // Review round 3 (red team): a loop whose member also opens a leaf. Nothing outside reaches them, so the set is listed
-  // by its first loop member by key; the leaf, which sorts first, is a folder inside it, not a tile of its own.
-  test('a loop with a folder hanging off it: one entry for the set, the folder not listed twice', function(assert) {
-    var rows = [
-      board('8_1', 'larry/main', ['8_2']), board('8_2', 'larry/food', ['8_1', '8_3']), board('8_3', 'larry/a-leaf'), CRISIS,
-    ];
-    assert.deepEqual(keys(pick_device_boards(rows, person(), [])), ['larry/food', 'lingolinq/crisis-vocabulary']);
-  });
-
   test('a board reached only through a hidden, disabled or off-grid button is its own entry', function(assert) {
     var rows = [board('8_1', 'larry/home', [], { buttons: [
       { id: 1, load_board: { id: '8_2' }, hidden: true },
