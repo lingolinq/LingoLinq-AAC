@@ -445,3 +445,32 @@ An `adversary` review at 07bd4f5f1 found 13 issues.
 | A backfill on the `slow` queue can trigger queue-pressure mode (over 20,000 jobs) | Medium | Phase 2 rework: a self-rescheduling batch job with a queue-depth ceiling; estimate S3 and CPU cost from the `ButtonImage` count |
 | Section 6 request counts inconsistent after phase 1 batching; the 4-worker gain not yet justified | Low | Noted: section 6 is an upper bound to re-estimate from phase 0 measurements |
 | Phase 0: name the measurement environment (staging shares dev's database); a client byte counter sees decoded sizes | Low | Accepted: phase 0 runs on a private local e2e database with synthetic accounts; transfer bytes are taken from the server side or the test link (`e2e/support/sync-link.js`) |
+
+## 11. Status (2026-11-19)
+
+The proposal is kept as written above; this section records what happened since, so it is not read as a plan of
+record for work already done or overtaken.
+
+Shipped to develop:
+- #1326: each parked board keeps its own retry wait; a resumed retry goes through `add_thread`'s limit.
+- #1327: a profile, supervisor, contact or tag picture never fails the sync (phase 1 item 6, wider than proposed:
+  `sync_contacts` and `sync_tags` also read `this` inside callbacks, so any supervisor with a picture failed every
+  sync of a communicator).
+- #1334: a picture cut off by a dropped link is tried again.
+
+Open PRs: #1328 (offline, the boards page and Basic's Boards tab list "Boards on This Device"), #1330 (a board saved
+late in a sync is not downloaded again on slow links), #1336 (Sync Details: no percentage, the drawer's wording).
+
+Measured (local, synthetic account `synth_big`: home board and 56 folders of about 0.75 MB; Chrome with a Pixel 7
+profile; a local link with a shared bandwidth cap and 100 ms latency; the old code is develop just before #1322):
+
+| Link | Old | New (#1322) |
+|---|---|---|
+| 4 Mbps | 92 s, 41.9 MB, 57/57 boards | 91 s, 41.9 MB, 57/57 |
+| 1.5 Mbps | 301-335 s, 51-56 MB, 57/57 | 240 s, 42 MB, 57/57 |
+| 0.8 Mbps | 478 s, 43 MB, 57/57 | 869 s, 80.6 MB, 57/57 |
+
+The 0.8 Mbps result was a regression in #1322: boards that timed out while still downloading were parked, their late
+answers stored, and the retry after the walk downloaded each again by key (traced: 56 requests by id, then 53 by key).
+#1330 fixes it. Locally the old code never failed a board, so the phone's original failure (9 Core 60 folders of
+0.9 to 2 MB) is not reproduced by this setup; phase 0's on-device measurement is still the missing evidence.
