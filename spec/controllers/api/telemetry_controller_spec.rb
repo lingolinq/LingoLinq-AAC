@@ -130,4 +130,32 @@ describe Api::TelemetryController, :type => :controller do
       expect(json['heatmap']['max_touches']).to eq(1)
     end
   end
+
+  describe "admin sign-in" do
+    LimitedSignInHelpers::KINDS.each do |kind, wording|
+      it "should refuse global telemetry to an admin whose sign-in #{wording}" do
+        limited_admin_token(kind)
+        get :index
+        assert_error 'Not authorized', 403
+      end
+
+      it "should refuse the admin panel to an admin whose sign-in #{wording}" do
+        limited_admin_token(kind)
+        org = Organization.create
+        get :organization, params: {organization_id: org.global_id}
+        assert_error 'Not authorized', 403
+      end
+
+      it "should refuse global and no-organization scopes to a panel user whose admin sign-in #{wording}" do
+        limited_admin_token(kind)
+        @user.settings['feature_flags'] = {'telemetry_admin_panel' => true}
+        @user.save!
+        org = Organization.create
+        get :organization, params: {organization_id: org.global_id, scope: 'global'}
+        assert_error 'Not authorized', 403
+        get :organization, params: {organization_id: org.global_id, scope: 'none'}
+        assert_error 'Not authorized', 403
+      end
+    end
+  end
 end

@@ -50,7 +50,7 @@ class Api::TelemetryEventsController < ApplicationController
   end
 
   def require_product_telemetry
-    return if @api_user&.admin?
+    return if admin_sign_in?(@api_user)
     return if FeatureFlags.feature_enabled_for?('product_telemetry', @api_user)
 
     api_error 403, {error: 'Not authorized'}

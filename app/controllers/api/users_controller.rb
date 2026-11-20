@@ -168,7 +168,7 @@ class Api::UsersController < ApplicationController
       org = Organization.find_by_global_id(params['org_id'])
       return unless allowed?(org, 'edit')
       lookup = org.attached_users('all')
-    elsif !Organization.admin_manager?(@api_user)
+    elsif !(Organization.admin_manager?(@api_user) && Organization.admin_manager?(@true_user || @api_user) && full_sign_in?)
       return api_error 400, {error: 'admins only'}
     end
     if !params['q']
@@ -1331,15 +1331,32 @@ class Api::UsersController < ApplicationController
     user = User.find_by_path(params['user_id'])
     return unless exists?(user, params['user_id'])
     return unless allowed?(user, 'edit')
+    # Only the account holder turns 2FA on, resets it or confirms a new secret, and not while
+    # acting as another user. Anyone with edit can turn it off, unless the account must use 2FA.
+    own_account = user.global_id == @api_user.global_id && !@true_user
+    if %w[enable reset confirm].include?(params['action_2fa']) && !own_account
+      return api_error 400, {error: "only the account holder can turn on 2FA"}
+    end
     if params['action_2fa'] == 'enable' || (params['action_2fa'] == 'reset' && (user.settings['2fa'] || user.settings['tmp_2fa']))
-      user.assert_2fa!(user.global_id == @api_user.global_id)
+      user.assert_2fa!(true)
     elsif params['action_2fa'] == 'disable'
+      # Accounts that must use 2FA (Passwords#state_2fa) keep it on.
+      return api_error 400, {error: "2FA is required for this account"} if user.state_2fa[:mandatory]
       user.settings.delete('2fa')
       user.settings.delete('tmp_2fa')
       user.save
     elsif params['action_2fa'] == 'confirm'
       ts = user.valid_2fa?(params['code_2fa'])
       return api_error 400, {error: "invalid code: #{params['code_2fa']}"} unless ts
+      # The device this code was entered on stays signed in; the account's other sign-ins
+      # made before 2FA are signed out (Passwords#refresh_device_sign_ins!).
+      device = Device.find_by_global_id(@api_device_id) if @api_device_id
+      device = nil unless device && device.user_id == user.id
+      if device
+        device.settings['2fa'] = (device.settings['2fa'] || {}).except('pending').merge('last_otp' => ts)
+        device.save
+      end
+      user.refresh_device_sign_ins!(keep: device)
     else
       return api_error 400, {error: "unregognized action: #{params['action_2fa']}"}
     end

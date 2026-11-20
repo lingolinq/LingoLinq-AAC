@@ -5008,19 +5008,22 @@ describe Api::UsersController, :type => :controller do
       assert_unauthorized
     end
 
-    it "should allow enabling" do
+    it "should not let a supervisor turn on 2FA for someone else" do
       token_user
       u = User.create
       User.link_supervisor_to_user(@user, u, nil, true)
       post :update_2fa, params: {'user_id' => u.global_id, 'action_2fa' => 'enable'}
-      json = assert_success_json
-      expect(json['updated']).to eq(true)
-      expect(json['state']).to eq({'required' => true, 'verified' => false})
-      expect(json['uri']).to eq(nil)
+      assert_error('only the account holder can turn on 2FA', 400)
+      u.reload
+      expect(u.settings['2fa']).to eq(nil)
+      expect(u.settings['tmp_2fa']).to eq(nil)
     end
     
     it "should allow resetting" do
       token_user
+      # This sign-in entered a code, as one made after the account turned on 2FA would have.
+      @device.settings['2fa'] = {'last_otp' => Time.now.to_i}
+      @device.save!
       @user.assert_2fa!
       post :update_2fa, params: {'user_id' => @user.global_id, 'action_2fa' => 'reset'}
       json = assert_success_json
@@ -5035,15 +5038,39 @@ describe Api::UsersController, :type => :controller do
       assert_error('unregognized action: reset')
     end
 
-    it "should send a config URI if there is a temp config" do
+    it "should not let a supervisor reset or confirm 2FA for someone else" do
       token_user
       u = User.create
+      u.assert_2fa!
+      secret = u.reload.settings['2fa']['secret']
       User.link_supervisor_to_user(@user, u, nil, true)
-      post :update_2fa, params: {'user_id' => u.global_id, 'action_2fa' => 'enable'}
+      post :update_2fa, params: {'user_id' => u.global_id, 'action_2fa' => 'reset'}
+      assert_error('only the account holder can turn on 2FA', 400)
+      post :update_2fa, params: {'user_id' => u.global_id, 'action_2fa' => 'confirm', 'code_2fa' => ROTP::TOTP.new(secret).now}
+      assert_error('only the account holder can turn on 2FA', 400)
+      expect(u.reload.settings['2fa']['secret']).to eq(secret)
+    end
+
+    it "should still let a supervisor turn off 2FA for someone else" do
+      token_user
+      u = User.create
+      u.assert_2fa!
+      User.link_supervisor_to_user(@user, u, nil, true)
+      post :update_2fa, params: {'user_id' => u.global_id, 'action_2fa' => 'disable'}
       json = assert_success_json
-      expect(json['updated']).to eq(true)
-      expect(json['state']).to eq({'required' => true, 'verified' => false})
-      expect(json['uri']).to eq(nil)
+      expect(json['state']).to eq({'required' => false})
+    end
+
+    it "should not turn on 2FA while acting as another user" do
+      admin_org = Organization.admin || Organization.create!(admin: true)
+      token_user
+      admin_org.add_manager(@user.user_name, true)
+      u = User.create
+      post :update_2fa, params: {'user_id' => u.global_id, 'as_user_id' => u.global_id, 'action_2fa' => 'enable'}
+      assert_error('only the account holder can turn on 2FA', 400)
+      u.reload
+      expect(u.settings['2fa']).to eq(nil)
+      expect(u.settings['tmp_2fa']).to eq(nil)
     end
 
     it "should not set enablement as required without code confirmation" do
@@ -5057,6 +5084,9 @@ describe Api::UsersController, :type => :controller do
 
     it "should allow disabling" do
       token_user
+      # This sign-in entered a code, as one made after the account turned on 2FA would have.
+      @device.settings['2fa'] = {'last_otp' => Time.now.to_i}
+      @device.save!
       @user.assert_2fa!
       post :update_2fa, params: {'user_id' => @user.global_id, 'action_2fa' => 'disable'}
       json = assert_success_json
@@ -5495,4 +5525,101 @@ describe Api::UsersController, :type => :controller do
     end
   end
 
+  describe "index admin sign-in" do
+    LimitedSignInHelpers::KINDS.each do |kind, wording|
+      it "should refuse the user search to an admin manager whose sign-in #{wording}" do
+        limited_admin_token(kind, admin_org_manager: true)
+        expect(Organization.admin_manager?(@user)).to eq(true)
+        get :index, params: {q: 'bob'}
+        assert_error 'admins only'
+      end
+    end
+
+    it "should refuse the user search to someone acting as an admin manager who is not one" do
+      admin_org = Organization.admin || Organization.create!(admin: true)
+      target = User.create
+      admin_org.add_manager(target.user_name, true)
+      org = Organization.create
+      token_user
+      org.add_manager(@user.user_name, true)
+      org.add_user(target.user_name, false, false)
+      get :index, params: {q: 'bob', as_user_id: target.global_id}
+      expect(assigns[:true_user]).to eq(@user)
+      expect(assigns[:api_user]).to eq(target)
+      assert_error 'admins only'
+    end
+  end
+
+  describe "update_2fa where 2FA is mandatory" do
+    before(:each) do
+      allow(Passwords).to receive(:mandatory_admin_2fa_environment?).and_return(true)
+    end
+
+    it "does not let the account holder turn it off" do
+      token_user
+      @device.settings['2fa'] = {'last_otp' => Time.now.to_i}
+      @device.save!
+      @user.settings['admin'] = true
+      @user.save!
+      expect(@user.state_2fa[:mandatory]).to eq(true)
+      secret = @user.reload.settings['2fa']['secret']
+      post :update_2fa, params: {'user_id' => @user.global_id, 'action_2fa' => 'disable'}
+      assert_error('2FA is required for this account', 400)
+      expect(@user.reload.settings['2fa']['secret']).to eq(secret)
+    end
+
+    it "does not let someone else turn it off" do
+      token_user
+      target = User.create
+      target.settings['admin'] = true
+      target.save!
+      User.link_supervisor_to_user(@user, target, nil, true)
+      expect(target.state_2fa[:mandatory]).to eq(true)
+      secret = target.reload.settings['2fa']['secret']
+      post :update_2fa, params: {'user_id' => target.global_id, 'action_2fa' => 'disable'}
+      assert_error('2FA is required for this account', 400)
+      expect(target.reload.settings['2fa']['secret']).to eq(secret)
+    end
+
+    it "still lets an account that is not an admin turn it off" do
+      token_user
+      @device.settings['2fa'] = {'last_otp' => Time.now.to_i}
+      @device.save!
+      @user.assert_2fa!
+      expect(@user.state_2fa[:mandatory]).to eq(nil)
+      post :update_2fa, params: {'user_id' => @user.global_id, 'action_2fa' => 'disable'}
+      json = assert_success_json
+      expect(json['state']).to eq({'required' => false})
+      expect(@user.reload.settings['2fa']).to eq(nil)
+    end
+  end
+
+  describe "update_2fa on the device in use" do
+    it "keeps the device that confirmed the code signed in" do
+      token_user
+      token = @device.tokens[0]
+      post :update_2fa, params: {'user_id' => @user.global_id, 'action_2fa' => 'enable'}
+      assert_success_json
+      code = ROTP::TOTP.new(@user.reload.settings['tmp_2fa']['secret'], issuer: 'LingoLinq').now
+      post :update_2fa, params: {'user_id' => @user.global_id, 'action_2fa' => 'confirm', 'code_2fa' => code}
+      json = assert_success_json
+      expect(json['state']).to eq({'required' => true, 'verified' => true})
+      expect(@device.reload.settings['2fa']['last_otp']).to be_a(Integer)
+      res = Device.check_token(token, nil)
+      expect(res[:error]).to eq(nil)
+      expect(res[:user]).to eq(@user)
+    end
+
+    it "signs out the account's other devices when it turns on 2FA" do
+      token_user
+      other = Device.create(user: @user, developer_key_id: 0, device_key: 'other-device')
+      other_token = other.tokens[0]
+      expect(Device.check_token(other_token, nil)[:user]).to eq(@user)
+      post :update_2fa, params: {'user_id' => @user.global_id, 'action_2fa' => 'enable'}
+      code = ROTP::TOTP.new(@user.reload.settings['tmp_2fa']['secret'], issuer: 'LingoLinq').now
+      post :update_2fa, params: {'user_id' => @user.global_id, 'action_2fa' => 'confirm', 'code_2fa' => code}
+      assert_success_json
+      expect(Device.check_token(other_token, nil)[:error]).to eq('Invalid token')
+    end
+  end
 end

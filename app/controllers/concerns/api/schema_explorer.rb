@@ -72,12 +72,10 @@ module Api::SchemaExplorer
     model.column_names - stripped
   end
 
-  # Gate for both explorer endpoints. Global admins always pass; everyone else
-  # must clear admin_support_actions_allowed? (an admin-org manager who is not in
-  # valet/eval mode), the tightened check introduced on staging in #334. We defer
-  # to that ApplicationController helper rather than the older
-  # allows?(user, 'admin_support_actions') call so both endpoints share one
-  # authorization definition that stays in lockstep with the rest of the app.
+  # Gate for both explorer endpoints: an admin (settings['admin'] or a full
+  # manager of the admin organization) acting through a full sign-in, the same
+  # ApplicationController#admin_sign_in? check every admin entry point uses, so
+  # a 2FA-pending, modeling (valet) or third-party token does not pass.
   #
   # Authorize the ACTING identity, not the account being viewed. Under admin
   # masquerade (?as_user_id=...), ApplicationController reassigns @api_user to the
@@ -88,8 +86,7 @@ module Api::SchemaExplorer
   # keeps the authorization decision booked to the same person as the audit trail.
   def require_schema_explorer_access
     actor = @true_user || @api_user
-    return if actor&.admin?
-    return if admin_support_actions_allowed?(actor)
+    return if admin_sign_in?(actor)
 
     api_error 403, {error: 'Not authorized'}
   end
