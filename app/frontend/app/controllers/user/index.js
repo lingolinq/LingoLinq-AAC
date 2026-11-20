@@ -1936,14 +1936,21 @@ UserIndexController.reopen({
   next_offline_spell: observer('persistence.online', function() {
     if(this.get('persistence.online')) { this.incrementProperty('offline_spell'); }
   }),
+  // A page whose person's device list is refused must not keep the previous page's list: this controller is shared by
+  // every boards page and the route does not reset it (routes/user/boards.js setupController). Only a refused person
+  // clears it; "no model" and "page not active" do not (an observer can call show_device_boards while another page
+  // shows, and the list is kept for coming back in the same offline spell).
+  leave_device_view: function() {
+    this.setProperties({ offline_view: false, offline_boards: null });
+  },
   show_device_boards: function(list_id) {
     var _this = this;
     var model = this.get('model');
     if(!model || model.isDestroyed || !boardsPageListCache.isBoardsPageActive()) { return; }
     var user_name = model.get('user_name');
-    if(!user_name) { return; }
+    if(!user_name) { this.leave_device_view(); return; }
     var me = this.device_db_user();
-    if(!me || (me !== user_name && !model.get('permissions.model'))) { return; }
+    if(!me || (me !== user_name && !model.get('permissions.model'))) { this.leave_device_view(); return; }
     this.set('offline_view', true);
     var spell = this.get('offline_spell');
     var shared = offline_shell.device_trust(this.get('appState.sessionUser')) !== 'trusted';

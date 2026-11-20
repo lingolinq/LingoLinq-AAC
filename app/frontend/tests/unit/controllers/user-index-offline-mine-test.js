@@ -252,6 +252,36 @@ module('Unit | Controller | user/index offline boards view', function(hooks) {
     assert.strictEqual(c.get('offline_boards'), null, 'larry\'s list is not left on sam\'s page');
   });
 
+  test('a page whose person has no user name does not keep the previous page\'s list', async function(assert) {
+    var c = page(this.owner);
+    c.update_selected();
+    await tick();
+    assert.deepEqual(keys(c.get('offline_boards')), ['larry/home']);
+    c.set('model', EmberObject.create({ id: '9911_7', user_name: null, permissions: { supervise: true, model: true }, preferences: {}, stats: {} }));
+    c.update_selected();
+    await tick();
+    assert.false(c.get('offline_view'));
+    assert.strictEqual(c.get('offline_boards'), null);
+  });
+
+  // The list is kept on purpose while another page shows (an observer can call this then): leaving the boards page and
+  // coming back in the same offline spell shows it again without reading the device. Only a refused PERSON clears it.
+  test('leaving the boards page and coming back offline keeps the list, without reading the device again', async function(assert) {
+    var c = page(this.owner);
+    c.update_selected();
+    await tick();
+    var first = c.get('offline_boards');
+    assert.strictEqual(c.reads, 1);
+    boardsPageListCache.setBoardsPageActive(false); // another page
+    c.update_selected();
+    await tick();
+    boardsPageListCache.setBoardsPageActive(true); // back on the boards page
+    c.update_selected();
+    await tick();
+    assert.strictEqual(c.get('offline_boards'), first, 'the same list');
+    assert.strictEqual(c.reads, 1, 'not read again');
+  });
+
   test('when the open database stops being the signed-in person\'s, the list on screen goes', async function(assert) {
     var owner_now = 'larry';
     var c = page(this.owner);

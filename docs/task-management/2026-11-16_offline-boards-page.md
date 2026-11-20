@@ -469,3 +469,22 @@ Candidates:
 Risks: a refused page offline shows its ordinary view, which may hold that person's list from a snapshot the route
 hydrated earlier online (pre-existing, `routes/user/boards.js:80-90`). A read in flight from the previous page is already
 dropped by its `list_id` check (:1953). Mutants: no clear on each of the two returns separately.
+
+### M1 fix: review of the proposal and the result (2026-11-19)
+Adversary review of the proposal (at c0a14a8f2): proceed with changes. Taken:
+- The `!user_name` return was not reached by either red test; a third red test added (a page whose person has no user
+  name). Rare in practice (`routes/user.js` returns loaded records), but now pinned.
+- The reason for NOT clearing on "page not active" was not pinned; a test added: leaving the boards page and coming back
+  offline keeps the same list with one device read.
+Scoped out (recorded follow-up, not M1): the ONLINE route. `show_device_boards` runs only offline (:1379); online the
+device view ends only when a server list or a fresh snapshot arrives (:1210, :1227), so a previous person's device list
+can stay on the next page while that page's query is slow or failing. Crosses people only under `auth_spa_transition`
+(off). Fix when that flag rolls out: in `update_selected`, before the online/offline split, end the view when
+`offline_boards.user_name` differs from `model.user_name` (stamp the loading placeholder with the user name too).
+Accepted cost (from the review): going back to a page after a refused one re-reads the device (its list was cleared).
+Change: `leave_device_view()` (`controllers/user/index.js`, sets `offline_view` false and `offline_boards` null), called on
+the two person refusals in `show_device_boards`. Red before: the three refusal tests failed, the keep test passed.
+Green after: 123/123 (this module, Basic's device boards, the integration test, and the modules that timed out in CI);
+`npm run lint:js:ci` clean apart from the known false positive. Mutants: M1a no clear on the no-name return: killed
+(1); M1b no clear on the owner check: killed (2); M1c clearing on "page not active" too: killed (1). File restored and
+compared byte for byte.
