@@ -1640,7 +1640,7 @@ var persistence = Service.extend({
             };
             return RSVP.resolve(object);
           }, function(xhr) {
-            reject({error: "URL lookup failed during proxy for " + url});
+            reject(Object.assign({error: "URL lookup failed during proxy for " + url}, failure_cause(xhr))); // only the status and offline flag (utils/board_content_retry.js)
           });
         });
       });
@@ -1973,14 +1973,14 @@ var persistence = Service.extend({
     var progresses = (this.get('sync_progress') || {}).progress_for || {};
     var visited = 0;
     var to_visit = 0;
-    var errors = []; var parked = 0; // boards waiting to be tried again (utils/board_retry.js): the drawer's "waiting for a better connection"
+    var errors = []; var parked = 0; var parked_content = 0; // boards waiting to be tried again (utils/board_retry.js): the drawer's "waiting for a better connection"
     for(var idx in progresses) {
       visited = visited + progresses[idx].visited;
       to_visit = to_visit + progresses[idx].to_visit;
-      errors = errors.concat(progresses[idx].board_errors || []); parked = parked + (progresses[idx].parked || 0);
+      errors = errors.concat(progresses[idx].board_errors || []); parked = parked + (progresses[idx].parked || 0); parked_content = parked_content + (progresses[idx].parked_content || 0);
     }
     if(this.get('sync_progress')) {
-      this.set('sync_progress.visited', visited); this.set('sync_progress.parked', parked);
+      this.set('sync_progress.visited', visited); this.set('sync_progress.parked', parked); this.set('sync_progress.parked_content', parked_content);
       this.set('sync_progress.to_visit', to_visit);
       this.set('sync_progress.total', to_visit + visited);
       this.set('sync_progress.errored', errors.length);
@@ -2482,15 +2482,15 @@ var persistence = Service.extend({
     return sync_promise;
   },
   sync_tags: function(user) {
-    var store_image_promises = [];
+    var store_image_promises = []; var _this = this; var started = Date.now(); // `this` is undefined in the callbacks below (ES module); `started`: utils/optional_picture.js picture_ms_left
     var queue_tags = new RSVP.Promise(function(resolve, reject) {
       var tag_ids = user.get('preferences.tag_ids') || [];
       var next_tag = function() {
         var tag_id = tag_ids.pop();
         if(tag_id) {
           LingoLinq.store.findRecord('tag', tag_id).then(function(tag) {
-            if(tag.get('button.image_url')) {
-              store_image_promises.push(this.store_url(tag.get('button.image_url'), 'image', false, false));
+            if(tag.get('button.image_url') && !_this.store_url_quick_check(tag.get('button.image_url'), 'image')) { // a picture already on the device is not queued again (as sync_contacts)
+              store_image_promises.push(_this.store_url(tag.get('button.image_url'), 'image', false, false));
               runLater(next_tag, 500);
             } else {
               runLater(next_tag, 500);
@@ -2506,26 +2506,26 @@ var persistence = Service.extend({
       runLater(next_tag, 500);
     });
     return this.time_promise(queue_tags, "sync tags for " + user.get('user_name')).then(function() {
-      return RSVP.all_wait(store_image_promises).then(null, function(err) {
+      return optional_picture(RSVP.all_wait(store_image_promises), _this.time_promise, picture_ms_left(started, _this.get('optional_picture_ms'))).then(null, function(err) { // tag pictures never hold "syncing tags" past its 30 s
         return RSVP.resolve([]);
       });
     });
   },
   sync_contacts: function(user) {
-    var wait = RSVP.resolve();
+    var wait = RSVP.resolve(); var _this = this; var sync_id = this.get('sync_progress.sync_id'); // utils/optional_picture.js
     if(user.get('all_connections_promise')) {
       wait = this.time_promise(user.get('all_connections_promise'), "waiting for connections for " + user.get('user_name'));
     }
     var retrieve_list = wait.then(null, function() { return RSVP.resolve(); }).then(function() {
       var all_store_images = [];
       (user.get('supervisors') || []).forEach(function(sup) {
-        if(LingoLinq.remote_url(sup.avatar_url) && !this.store_url_quick_check(sup.avatar_url, 'image')) {
-          all_store_images.push(this.store_url_now(sup.avatar_url, 'image'));
+        if(LingoLinq.remote_url(sup.avatar_url) && !_this.store_url_quick_check(sup.avatar_url, 'image')) {
+          all_store_images.push(optional_picture(_this.store_url(sup.avatar_url, 'image', false, false, sync_id), _this.time_promise, _this.get('optional_picture_ms')));
         }
       });
       (user.get('contacts') || []).forEach(function(contact) {
-        if(LingoLinq.remote_url(contact.image_url) && !this.store_url_quick_check(contact.image_url, 'image')) {
-          all_store_images.push(this.store_url_now(contact.image_url, 'image'));
+        if(LingoLinq.remote_url(contact.image_url) && !_this.store_url_quick_check(contact.image_url, 'image')) {
+          all_store_images.push(optional_picture(_this.store_url(contact.image_url, 'image', false, false, sync_id), _this.time_promise, _this.get('optional_picture_ms')));
         }
       });
       return all_store_images;
@@ -3084,7 +3084,7 @@ var persistence = Service.extend({
             p_for[user.get('id')] = {
               visited: visited_boards.length,
               to_visit: to_visit_boards.length + parking.size(), // a parked board is still to do
-              board_errors: board_errors, parked: parking.size()
+              board_errors: board_errors, parked: parking.size(), parked_content: parking.count(is_content_entry) // parked_content: saved boards whose pictures or sounds wait (utils/board_content_retry.js)
             };
           }
           _sync.update_sync_progress();
@@ -3092,7 +3092,7 @@ var persistence = Service.extend({
           var id = next && (next.id || next.key);
           var key = next && next.key;
           var source = next && next.visit_source;
-          if(next && next.depth < 20 && id && !visited_boards.find(function(i) { return i == id; }) && !boardRevocation.skip_board(_this, user.get('id'), next)) {
+          if(next && next.content_retry) { retry_content(next, { sync_progress: _sync.get('sync_progress'), store: function(item) { return _sync.store_url(item.url, item.type, item.keep_big, force, sync_id); }, saved: function(board) { full_set_revisions[board.id] = board.full_set_revision; }, park: function(entry, retry) { parking.park(entry, retry); }, fail: function(board_error) { board_errors.push(board_error); }, warn: function(warning) { note_warning(_sync.get('sync_progress.board_statuses'), warning); }, on_device: function(item) { return _sync.store_url_quick_check(item.url, item.type); }, then: function() { schedule_sync_board_step(function() { nextBoard(defer); }, 75); } }); } else if(next && next.depth < 20 && id && !visited_boards.find(function(i) { return i == id; }) && !boardRevocation.skip_board(_this, user.get('id'), next)) { // first branch: a board's parked content, only its failed saves again; the board is not walked again (utils/board_content_retry.js)
             var local_full_set_revision = null;
 
             // check if there's a local copy that's already been loaded
@@ -3160,8 +3160,8 @@ var persistence = Service.extend({
               if(next.image && !_sync.store_url_quick_check(next.image, 'image')) {
                 content_promises++;
                 visited_board_promises.push(//this.queue_sync_action('store_sidebar_image', sync_id, function() {
-                  /*return*/ _sync.store_url(next.image, 'image', false, force, sync_id).then(null, function() {
-                    return RSVP.reject({error: "sidebar icon url failed to sync, " + next.image});
+                  /*return*/ _sync.store_url(next.image, 'image', false, force, sync_id).then(null, function(err) {
+                    return RSVP.reject(content_failure("sidebar icon url failed to sync, " + next.image, err, {url: next.image, type: 'image', keep_big: false, optional: true})); // utils/board_content_retry.js; optional: a liked or sidebar folder's icon warns, never fails its folder
                   })
                /*})*/);
                 importantIds.push("dataCache_" + next.image);
@@ -3192,8 +3192,8 @@ var persistence = Service.extend({
                   if(!_sync.store_url_quick_check(personalized, 'image')) {
                     content_promises++;
                     visited_board_promises.push(//_sync.queue_sync_action('store_button_image', sync_id, function() {
-                      /*return*/ _sync.store_url(personalized, 'image', keep_big, force, sync_id).then(null, function() {
-                        return RSVP.reject({error: "button image failed to sync, " + image.url});
+                      /*return*/ _sync.store_url(personalized, 'image', keep_big, force, sync_id).then(null, function(err) {
+                        return RSVP.reject(content_failure("button image failed to sync, " + image.url, err, {url: personalized, type: 'image', keep_big: keep_big}));
                       })
                   /*})*/);
                     importantIds.push("dataCache_" + image.url);
@@ -3206,8 +3206,8 @@ var persistence = Service.extend({
                   if(!_sync.image_filename_cache[image_filename]) {
                     content_promises++;
                     visited_board_promises.push(
-                      _sync.store_url(image.url, 'image', keep_big, force, sync_id).then(null, function() {
-                        return RSVP.reject({error: "missing button image failed to sync, " + image.url});
+                      _sync.store_url(image.url, 'image', keep_big, force, sync_id).then(null, function(err) {
+                        return RSVP.reject(content_failure("missing button image failed to sync, " + image.url, err, {url: image.url, type: 'image', keep_big: keep_big}));
                       })
                    );
                   }
@@ -3225,8 +3225,8 @@ var persistence = Service.extend({
                 importantIds.push("sound_" + sound.id);
                 if(LingoLinq.remote_url(sound.url) && !_sync.store_url_quick_check(sound.url, 'sound')) {
                   visited_board_promises.push(//this.queue_sync_action('store_button_sound', sync_id, function() {
-                     /*return*/ _sync.store_url(sound.url, 'sound', false, force, sync_id).then(null, function() {
-                      return RSVP.reject({error: "button sound failed to sync, " + sound.url});
+                     /*return*/ _sync.store_url(sound.url, 'sound', false, force, sync_id).then(null, function(err) {
+                      return RSVP.reject(content_failure("button sound failed to sync, " + sound.url, err, {url: sound.url, type: 'sound', keep_big: false}));
                      })
                   /*})*/);
                   importantIds.push("dataCache_" + sound.url);
@@ -3341,12 +3341,12 @@ var persistence = Service.extend({
               if(safely_cached && content_promises > 0) {
                 console.log("EXPECTED NO BOARD CONTENT SAVES BUT THERE WERE " + content_promises);
               }
-              RSVP.all_wait(visited_board_promises).then(function() {
+              var content_failures = []; settle_content(visited_board_promises, content_failures).then(function() { // every save settles before the board is judged (utils/board_content_retry.js)
                 full_set_revisions[board.get('id')] = board.get('full_set_revision');
                 schedule_sync_board_step(function() {
                   nextBoard(defer);
                 }, safely_cached && visited_board_promises.length === 0 ? 50 : 75);
-              }, function(err) {
+              }, function(err) { var judged = judge_content(content_failures, _sync.get('sync_progress'), id, function(item) { return _sync.store_url_quick_check(item.url, item.type); }); judged.warn.forEach(function(f) { note_warning(_sync.get('sync_progress.board_statuses'), content_warning({id: id, key: key || board.get('key'), visit_source: source}, f)); }); if(judged.retry) { parking.park(content_entry(next, judged.park, {id: board.get('id'), full_set_revision: board.get('full_set_revision')}), judged.retry); schedule_sync_board_step(function() { nextBoard(defer); }, 75); return; } if(!judged.fail) { full_set_revisions[board.get('id')] = board.get('full_set_revision'); schedule_sync_board_step(function() { nextBoard(defer); }, 75); return; } err = judged.fail; // utils/board_content_retry.js judge_content: passing failures parked and tried again; an optional save (the folder's icon) only warns, and the board is complete; otherwise the board error, worded by its first required failure
                 var msg = "board " + (key || id) + " failed to sync completely";
                 if(typeof err == 'string') {
                   msg = msg + ": " + err;
@@ -3388,7 +3388,7 @@ var persistence = Service.extend({
             // TODO: mark this defer's promise as waiting (needs to be unmarked at each
             // nextBoard call), then set a longer timeout before calling nextBoard,
             // and only resolve when *all* the promises are waiting.
-            if(!parking.wait(retry_delay, function() { _this.active_board_threads--; }, function(back) { _this.active_board_threads++; to_visit_boards.unshift.apply(to_visit_boards, back); nextBoard(defer); })) { defer.resolve(); } // parked boards: one thread waits for them, its slot given back (utils/board_retry.js); otherwise this thread ends
+            if(!parking.wait(retry_delay, function() { _this.active_board_threads--; }, function(back, kept_slot) { to_visit_boards.unshift.apply(to_visit_boards, back); if(kept_slot) { nextBoard(defer); return; } when_slot_free(function() { return _this.active_board_threads > n_threads; }, schedule_sync_board_step, function() { _this.active_board_threads++; nextBoard(defer); }); })) { defer.resolve(); } // parked boards: one thread waits for them, its slot given back (utils/board_retry.js); otherwise this thread ends
           } else {
             schedule_sync_board_step(function() {
               nextBoard(defer);
@@ -3482,7 +3482,7 @@ var persistence = Service.extend({
         }
         var url = user.get('avatar_url');
         if(url && !_this.store_url_quick_check(url, 'image')) {
-          return _this.store_url_now(url, 'image');
+          return optional_picture(_this.store_url_now(url, 'image'), _this.time_promise, _this.get('optional_picture_ms')); // never fails the sync, unless storage is full
         } else {
           return RSVP.resolve({});
         }
@@ -4984,7 +4984,7 @@ import { queue_eventual_store } from '../utils/eventual_store_queue';
 import { is_permanent_upload_url } from '../utils/permanent_upload';
 import { on_uploads_cdn, is_web_page } from '../utils/direct_fetch';
 import { picture_kept_in_database, usable_database_copy } from '../utils/database_picture';
-import { BOARD_RELOAD_MS, USER_RELOAD_MS, keep_stored_board, claim_board_retry, note_device_boards, known_on_device, stored_this_sync } from '../utils/sync_board_fallback'; import { create_parking, register_parking, wake_parked, retry_delay } from '../utils/board_retry'; import { note_board_root, root_for_link } from '../utils/sync_rollup'; import { record_sync_log, restore_sync_log } from '../utils/sync_log_store';
+import { BOARD_RELOAD_MS, USER_RELOAD_MS, keep_stored_board, claim_board_retry, note_device_boards, known_on_device, stored_this_sync } from '../utils/sync_board_fallback'; import { create_parking, register_parking, wake_parked, retry_delay, when_slot_free } from '../utils/board_retry'; import { note_board_root, root_for_link, note_warning } from '../utils/sync_rollup'; import { record_sync_log, restore_sync_log } from '../utils/sync_log_store';
 import { usable_copy } from '../utils/board_device_copy';
 import { reason_is_automatic, merge_follow_up } from '../utils/sync_follow_up';
 
@@ -5157,3 +5157,5 @@ persistence.reopen({
   }
 });
 import { is_stale_item, drop_stale_head } from '../utils/url_store_queue';
+import { optional_picture, picture_ms_left } from '../utils/optional_picture';
+import { failure_cause, content_failure, settle_content, content_entry, retry_content, is_content_entry, judge_content, content_warning } from '../utils/board_content_retry';

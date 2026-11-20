@@ -597,6 +597,9 @@ class SessionController < ApplicationController
     begin
       if @api_user
         params['access_token'] = @token if @token && @tmp_token
+        # A query token still wins. Header-only checks have none, so use the
+        # bearer token check_api_token already accepted (application_controller.rb:154).
+        params['access_token'] = @token if @token && params['access_token'].blank?
         device = Device.find_by_global_id(@api_device_id)
         valid = device && device.valid_token?(params['access_token'], request.headers['X-LingoLinq-Version'])
         expired = device && (device.instance_variable_get('@expired_keys') || {})[params['access_token']]
