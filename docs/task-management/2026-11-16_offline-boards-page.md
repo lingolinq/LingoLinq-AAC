@@ -566,3 +566,48 @@ cell. Mutation that must fail it: drop `@homeBoardKey` from `dashboard/device-bo
   tile and inside that root's set, since own-to-own links decide the entries. Left as is; noted.
 - Mutations that must fail the tests: (1) treat every group as an entry; (2) enter a group at its last member by key;
   (3) count links from a group to itself as incoming (a loop alone then has no entry and disappears).
+
+### Loop fix: review of the proposal and what was built (2026-11-20)
+Adversary: proceed with changes (prototype in node: 20,000 random own-only graphs, never worse than HEAD). Applied:
+3-board loop test and a seeded 200-graph property test; key-only, stale-id and hidden own-to-own link tests; one
+`next_of` shared by the walk and the grouping; entries only from own members (test with another owner's refused board
+in a loop, trusted and shared); links pass through another owner's board (so `root -> other/x -> own loop` is one set;
+the doc's "pre-existing, not changed" was wrong for loops); the entry walk removed (nothing read `reached` after it);
+the link map built once, on-stack tracked by a flag. Kept open: inside a loop the entry is the first own board by key,
+not necessarily the set's top board (`copy_id` might pick it; unverified on device rows). Pre-existing, recorded: on a
+shared device the seed walk passes through boards that do not open there. 62/62 on the offline filters.
+
+Mutants (each one undo of a piece of the fix), all KILLED: L1 every group an entry (6 tests), L2 last own board by
+key (6), L3 no parent low-link update (3-board loop), L4 no on-stack check, L5 own-only edges, L6 links by id only,
+L7 only own groups pass down, L8 another owner as entry, L9 walk ignores the hidden rule, H1 home mark lost.
+The property test was VACUOUS at first: its LCG multiplied past 2^53, the low bits came out zero, `rand(4)` was always
+0, every board was another owner's and nothing was listed. Fixed (Park-Miller, exact) with two non-vacuity asserts
+(own boards listed, loops present); alone it now kills L1, L3, L4 and L7.
+
+## Codex review of a44d593ff (2026-11-20, requested by Traci): one P2
+`controllers/user/index.js:1964`: the connection returns while the first device read is pending; `update_selected`
+(:1375) sets a new `list_id`, the finished read is dropped by the `list_id` guard, `offline_boards` stays
+`{loading: true}` and `offline_view` true; if the server query then fails, its rejection (:1302-1315) touches neither,
+and the boards page (`boards-browser.hbs:12`, gated on `@offlineView` only) shows "Finding the boards on this
+device..." until something else re-runs `update_selected`. CONFIRMED by reading.
+
+### Fact sheet
+- (a) Read: the device view renders on `offline_view` alone (`boards-browser.hbs:12`, `:39`); the list shown is
+  `offline_boards`. `offline_view` is cleared only by a server list (:1210, :1227) or `leave_device_view` (:1943).
+- (b) Shapes of `offline_boards` on a stale read: `{loading:true}` (first read, different person), an earlier list of
+  this person (kept, so no hang), a failed read (not kept). Only the first hangs.
+- (c) The `list_id` guard also stops an OLDER device read overwriting a NEWER one (two offline reads, e.g. trust
+  changed mid-spell). Any fix must keep that.
+
+### Proposal
+- **A (chosen):** guard the device read with its own counter, not `list_id`: `show_device_boards` bumps
+  `device_read_id`; the result is dropped only if a newer device read started or `offline_view` went false (a server
+  list arrived). So a read that finishes after the connection returned still fills the view, and a failed server query
+  leaves the device list on screen (the right fallback on a flaky link).
+- **B (rejected):** in the server query's rejection, leave the device view or re-read the device. The rejection path is
+  shared by every tab and by background refreshes; touching it widens the change, and re-reading duplicates work.
+- Risks: a device list applied while `offline_view` is true but online; that is the screen already showing, now with
+  boards instead of a spinner. Unresolved: none known.
+- Red test: offline, start a device read held on a deferred; flip `list_id` (as `update_selected` does online); resolve
+  the read; expect `offline_boards` to be the device list (today: still `{loading:true}`). Second test: two device
+  reads, older resolves last; expect the newer list kept. Mutation: put the `list_id` comparison back.

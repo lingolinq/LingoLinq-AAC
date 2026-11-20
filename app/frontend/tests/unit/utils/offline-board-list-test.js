@@ -136,7 +136,10 @@ module('Unit | Utility | offline board list', function(hooks) {
   test('random link graphs: every own board reachable from the list, no entry inside another', function(assert) {
     var seed = 20261120;
     var failures = [];
-    var rand = function(n) { seed = (seed * 1103515245 + 12345) % 2147483648; return seed % n; };
+    // Park-Miller: the product stays below 2^53, so every step is exact (a larger multiplier loses the low bits).
+    var rand = function(n) { seed = (seed * 48271) % 2147483647; return seed % n; };
+    var listed_total = 0;
+    var rounds_with_a_loop = 0;
     for(var round = 0; round < 200; round++) {
       var count = 2 + rand(7);
       var links = {};
@@ -148,6 +151,8 @@ module('Unit | Utility | offline board list', function(hooks) {
         rows.push(board('8_' + i, (rand(4) === 0 ? 'other' : 'larry') + '/b' + i, to));
       }
       var listed = pick_device_boards(rows, person(), []).map(function(r) { return r.id; });
+      listed_total += listed.length;
+      if(Object.keys(links).some(function(a) { return links[a].some(function(b) { return links[b].indexOf(a) !== -1; }); })) { rounds_with_a_loop++; }
       var opens_from = function(start) {
         var seen = {};
         var queue = [start];
@@ -172,6 +177,8 @@ module('Unit | Utility | offline board list', function(hooks) {
       problems.forEach(function(p) { failures.push(at + p); });
     }
     assert.deepEqual(failures.slice(0, 3), [], '200 random graphs');
+    assert.ok(listed_total > 200, 'the graphs list own boards (' + listed_total + ')');
+    assert.ok(rounds_with_a_loop > 20, 'the graphs include loops (' + rounds_with_a_loop + ')');
   });
 
   test('a board reached only through a hidden, disabled or off-grid button is its own entry', function(assert) {
