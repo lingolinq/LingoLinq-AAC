@@ -1683,13 +1683,13 @@
       {{#if board.alert}}
         <a href="#" {{on "click" (this.ctrlAction "alert" "sidebar")}} class='sidebar_item'>
           <span class="glyphicon glyphicon-bullhorn"></span>
-          <img src={{board.image}} class='pic' alt="">
+          <img src={{board.image}} class='pic' alt="" onerror="button_broken_image(this);">
           {{board.name}}
         </a>
       {{else if board.special}}
         <a href="#" {{on "click" (this.ctrlAction "special")}} class='sidebar_item'>
           <span class="glyphicon glyphicon-flash"></span>
-          <img src={{board.image}} class='pic' alt="">
+          <img src={{board.image}} class='pic' alt="" onerror="button_broken_image(this);">
           {{board.name}}
         </a>
       {{else}}
@@ -1700,7 +1700,7 @@
           {{#if board.fenced}}
             <span class="glyphicon glyphicon-map-marker"></span>
           {{/if}}
-          <img src={{board.image}} class='pic' alt="">
+          <img src={{board.image}} class='pic' alt="" onerror="button_broken_image(this);">
           {{board.name}}
         </a>
       {{/if}}

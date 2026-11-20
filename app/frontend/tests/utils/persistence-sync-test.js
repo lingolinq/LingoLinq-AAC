@@ -6528,6 +6528,31 @@ describe("persistence-sync", function() {
       });
     });
 
+    // The drawer tells boards still to get from saved boards whose pictures wait (services/persistence.js parked_content);
+    // a board whose lookup is parked is NOT saved, and must never be counted as content (review of a28508b74).
+    it("counts a board waiting to be looked up again as not saved, for the drawer", function() {
+      db_wait(function() {
+        var seen = [];
+        var real = persistence.update_sync_progress;
+        stubOnPersistence('update_sync_progress', function() {
+          var res = real.apply(this, arguments);
+          var p = this.get('sync_progress');
+          if(p && p.parked) { seen.push([p.parked, p.parked_content]); }
+          return res;
+        });
+        var response = answers([{ reject: { error: 'timeout' } }, { resolve: board167 }]);
+        var state = syncWithBoard167(response);
+        waitsFor(function() { return waitForSyncDoneAndSettled(state.result) && state.tailDone; });
+        runs(function() {
+          expect(seen.length > 0).toEqual(true); // the walk reported the parked board while it waited
+          expect(seen.every(function(s) { return s[0] === 1 && s[1] === 0; })).toEqual(true);
+          cancelSyncTailWork();
+          persistence.set('sync_progress', null);
+          LingoLinq.sync_testing_real_boards = false;
+        });
+      });
+    });
+
     it("should try a timed-out board three more times, then report it", function() { // was "once more"; changed with Traci's approval 2026-11-14 (utils/board_retry.js)
       db_wait(function() {
         var response = answers([{ reject: { error: 'timeout' } }]);
@@ -7596,6 +7621,278 @@ describe("persistence-sync", function() {
         persistence.set('sync_progress', null);
         persistence.set('sync_status', null);
         LingoLinq.sync_testing_real_boards = false;
+      });
+    });
+  });
+  // A picture cut off by a dropped link (docs/task-management/2026-11-17_sync-picture-after-link-drop.md): the board was
+  // saved, one of its button pictures was still downloading when the link went, and the board was reported failed and
+  // never tried again, though the link came back. A passing failure (utils/sync_board_fallback.js passing_failure) is
+  // now tried again later in the same sync; a picture that does not exist is still reported.
+  describe("a picture cut off by a dropped link", function() {
+    var BUTTON = 'http://example.com/button.png';
+    var SOUND = 'http://example.com/sound.mp3';
+    var SIDEBAR = 'http://example.com/sidebar.png';
+    // How often this harness asks for the board in a sync with no retry: 3, measured with a picture that is not retried
+    // (the 400 case below). A retry that walked the board again would ask more.
+    var BOARD_145_REQUESTS = 3;
+    // `failing`: the URL whose save `answer(n)` answers (the n-th try); every other save succeeds. `opts.answers`: more
+    // URLs answered the same way, each counted in state.calls_for[url]; `opts.side`: more of fred/side's board record.
+    function syncWith(failing, answer, opts) {
+      opts = opts || {};
+      cancelSyncTailWork();
+      unloadSyncStoreRecords();
+      resetSyncTestCaches();
+      var state = { tailDone: false, result: null, calls: 0, types: [], sync_ids: [], calls_for: {} };
+      enableRealSyncBoards(stubOnPersistence, function() { state.tailDone = true; });
+      persistence.set('sync_log', null);
+      persistence.set('sync_progress', null);
+      persistence.set('sync_status', null);
+      stubStoreUrl(function(url, type, keep_big, force, sync_id) {
+        if(opts.answers && opts.answers[url]) { state.calls_for[url] = (state.calls_for[url] || 0) + 1; return opts.answers[url](state.calls_for[url]); }
+        if(url !== failing) { return RSVP.resolve({url: url}); }
+        state.calls++; state.types.push(type); state.sync_ids.push(sync_id); // a retry saves as the first try did (Cancel drops a queued save by its sync_id)
+        return answer(state.calls);
+      });
+      stub(modal, 'error', function() { });
+      stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+      queryLog.defineFixture({ method: 'GET', type: 'user', id: '1340', response: RSVP.resolve({user: {
+        id: '1340', user_name: 'fred', avatar_url: 'http://example.com/pic.png',
+        preferences: {home_board: {id: '145'}, sidebar_boards: [{key: 'fred/side', image: SIDEBAR}]}
+      }})});
+      queryLog.defineFixture({ method: 'GET', type: 'board', id: '145', response: RSVP.resolve({board: {
+        id: '145', image_url: 'http://example.com/board.png', image_urls: {'2': BUTTON}, sound_urls: {'3': SOUND},
+        buttons: [{id: '1', label: 'hi', image_id: '2', sound_id: '3'}], grid: {rows: 1, columns: 1, order: [['1']]}
+      }})});
+      queryLog.defineFixture({ method: 'GET', type: 'board', id: 'fred/side', response: RSVP.resolve({board: Object.assign({
+        id: '1_146', key: 'fred/side', image_url: 'http://example.com/board.png', buttons: [], grid: {rows: 1, columns: 1, order: [[null]]}
+      }, opts.side || {})})});
+      cacheStoredUrl('http://example.com/pic.png');
+      cacheStoredUrl('http://example.com/board.png'); defineCrisisVocabularyFixture();
+      persistence.sync(1340).then(function(res) { state.result = res; });
+      return state;
+    }
+    function dropped() { return RSVP.reject({error: 'URL lookup failed during proxy', fakeXHR: {status: 0}}); }
+    function offline() { return RSVP.reject({error: 'URL lookup failed during proxy', offline: true}); }
+    function saved(n) { return RSVP.resolve({url: 'saved-' + n}); }
+    // A board whose content failed has two rows: its download, and the error (services/persistence.js board_errors).
+    function errorFor(id) {
+      var log = persistence.get('sync_log') || [];
+      var rows = ((log[0] && log[0].statuses) || []).filter(function(s) { return (s.id == id || s.key == id) && s.error; });
+      return rows.length ? rows.map(function(s) { return s.error; }).join(' | ') : undefined;
+    }
+    function requestsFor(id) { return queryLog.filter(function(l) { return l.id === id; }).length; }
+    function finished(state) { return waitForSyncDoneAndSettled(state.result) && state.tailDone; }
+    function done() {
+      cancelSyncTailWork();
+      persistence.set('sync_progress', null);
+      LingoLinq.sync_testing_real_boards = false;
+    }
+
+    it("tries a button picture again when the link dropped while it downloaded, and does not report the board", function() {
+      db_wait(function() {
+        var state = syncWith(BUTTON, function(n) { return n === 1 ? dropped() : saved(n); });
+        waitsFor(function() { return finished(state); });
+        runs(function() {
+          expect(state.calls).toEqual(2);
+          expect(errorFor('145')).toEqual(undefined);
+          expect((persistence.get('sync_log') || [])[0].issues).toNotEqual(true);
+          expect(requestsFor('145')).toEqual(BOARD_145_REQUESTS); // the board is not asked for again; only the picture
+          expect(state.types).toEqual(['image', 'image']);
+          expect(state.sync_ids[0]).toNotEqual(undefined);
+          expect(state.sync_ids[1]).toEqual(state.sync_ids[0]);
+          done();
+        });
+      });
+    });
+
+    it("counts the waiting picture's board as saved content, not a board still to get, for the drawer", function() {
+      db_wait(function() {
+        var seen = [];
+        var real = persistence.update_sync_progress;
+        stubOnPersistence('update_sync_progress', function() {
+          var res = real.apply(this, arguments);
+          var p = this.get('sync_progress');
+          if(p && p.parked) { seen.push([p.parked, p.parked_content]); }
+          return res;
+        });
+        var state = syncWith(BUTTON, function(n) { return n === 1 ? dropped() : saved(n); });
+        waitsFor(function() { return finished(state); });
+        runs(function() {
+          expect(state.calls).toEqual(2);
+          expect(seen.length > 0).toEqual(true); // the walk reported the parked picture while it waited
+          expect(seen.every(function(s) { return s[0] === 1 && s[1] === 1; })).toEqual(true);
+          done();
+        });
+      });
+    });
+
+    it("tries a button picture again when the app counted itself offline", function() {
+      db_wait(function() {
+        var state = syncWith(BUTTON, function(n) { return n === 1 ? offline() : saved(n); });
+        waitsFor(function() { return finished(state); });
+        runs(function() {
+          expect(state.calls).toEqual(2);
+          expect(errorFor('145')).toEqual(undefined);
+          done();
+        });
+      });
+    });
+
+    it("tries a button sound again", function() {
+      db_wait(function() {
+        var state = syncWith(SOUND, function(n) { return n === 1 ? dropped() : saved(n); });
+        waitsFor(function() { return finished(state); });
+        runs(function() {
+          expect(state.calls).toEqual(2);
+          expect(state.types).toEqual(['sound', 'sound']);
+          expect(errorFor('145')).toEqual(undefined);
+          done();
+        });
+      });
+    });
+
+    it("tries a sidebar board's icon again", function() {
+      db_wait(function() {
+        var state = syncWith(SIDEBAR, function(n) { return n === 1 ? dropped() : saved(n); });
+        waitsFor(function() { return finished(state); });
+        runs(function() {
+          expect(state.calls).toEqual(2);
+          expect(errorFor('fred/side')).toEqual(undefined);
+          done();
+        });
+      });
+    });
+
+    it("reports the board when the picture still fails after the retries", function() {
+      db_wait(function() {
+        var state = syncWith(BUTTON, function() { return dropped(); });
+        waitsFor(function() { return finished(state); });
+        runs(function() {
+          expect(state.calls).toEqual(4); // the first try, then three more (utils/board_retry.js), as for a board
+          expect(errorFor('145')).toEqual('board 145 failed to sync completely: button image failed to sync, ' + BUTTON + ', linked from home board');
+          done();
+        });
+      });
+    });
+
+    it("reports a picture that does not exist at once, without trying it again", function() {
+      db_wait(function() {
+        // the proxy answers 400 for any picture it could not get (search_controller.rb)
+        var state = syncWith(BUTTON, function() { return RSVP.reject({error: 'URL lookup failed during proxy', fakeXHR: {status: 400}}); });
+        waitsFor(function() { return finished(state); });
+        runs(function() {
+          expect(state.calls).toEqual(1);
+          expect(errorFor('145')).toEqual('board 145 failed to sync completely: button image failed to sync, ' + BUTTON + ', linked from home board');
+          expect(requestsFor('145')).toEqual(BOARD_145_REQUESTS);
+          done();
+        });
+      });
+    });
+
+    // A liked or sidebar folder's icon is not the folder (Traci, 2026-11-18): when it cannot be saved, the folder is
+    // saved, the sync succeeds, and the finished sync carries a warning naming it (the icon shows the placeholder).
+    function warningFor(id) {
+      var log = persistence.get('sync_log') || [];
+      var rows = ((log[0] && log[0].statuses) || []).filter(function(s) { return (s.id == id || s.key == id) && s.warning; });
+      return rows.length ? rows.map(function(s) { return s.warning; }).join(' | ') : undefined;
+    }
+    var SIDEBAR_WARNING = 'board fred/side saved without its picture: sidebar icon url failed to sync, ' + SIDEBAR + ', linked from sidebar board';
+
+    it("warns, and does not fail the folder, when a sidebar icon still fails after the retries", function() {
+      db_wait(function() {
+        var state = syncWith(SIDEBAR, function() { return dropped(); });
+        waitsFor(function() { return finished(state); });
+        runs(function() {
+          expect(state.calls).toEqual(4); // still tried again on a dropped link, as any picture
+          expect(errorFor('fred/side')).toEqual(undefined);
+          expect(warningFor('fred/side')).toEqual(SIDEBAR_WARNING);
+          expect((persistence.get('sync_log') || [])[0].issues).toNotEqual(true);
+          expect(persistence.get('sync_status')).toEqual('succeeded'); // no board error: board_revocation finish_sync gets none for an icon (it used to block its marks)
+          done();
+        });
+      });
+    });
+
+    it("warns at once for a sidebar icon the server cannot get", function() {
+      db_wait(function() {
+        var state = syncWith(SIDEBAR, function() { return RSVP.reject({error: 'URL lookup failed during proxy', fakeXHR: {status: 400}}); });
+        waitsFor(function() { return finished(state); });
+        runs(function() {
+          expect(state.calls).toEqual(1);
+          expect(errorFor('fred/side')).toEqual(undefined);
+          expect(warningFor('fred/side')).toEqual(SIDEBAR_WARNING);
+          expect(persistence.get('sync_status')).toEqual('succeeded');
+          done();
+        });
+      });
+    });
+
+    it("gives no warning when nothing failed", function() {
+      db_wait(function() {
+        var state = syncWith(SIDEBAR, function(n) { return saved(n); });
+        waitsFor(function() { return finished(state); });
+        runs(function() {
+          expect(warningFor('fred/side')).toEqual(undefined);
+          done();
+        });
+      });
+    });
+
+    // One board with both: its icon and a button picture (Traci, 2026-11-18; final review F2).
+    var SIDE_BUTTON = 'http://example.com/side-button.png';
+    var SIDE_WITH_BUTTON = {image_urls: {'5': SIDE_BUTTON}, buttons: [{id: '1', label: 'hey', image_id: '5'}], grid: {rows: 1, columns: 1, order: [['1']]}};
+    function dead() { return RSVP.reject({error: 'URL lookup failed during proxy', fakeXHR: {status: 400}}); }
+
+    it("still tries a folder's button picture again when its icon cannot be saved", function() {
+      db_wait(function() {
+        var answers = {}; answers[SIDE_BUTTON] = function(n) { return n === 1 ? dropped() : saved(n); };
+        var state = syncWith(SIDEBAR, function() { return dead(); }, {side: SIDE_WITH_BUTTON, answers: answers});
+        waitsFor(function() { return finished(state); });
+        runs(function() {
+          expect(state.calls_for[SIDE_BUTTON]).toEqual(2); // the dead icon did not hold back the button picture's retry
+          expect(errorFor('fred/side')).toEqual(undefined);
+          expect(warningFor('fred/side')).toEqual(SIDEBAR_WARNING);
+          done();
+        });
+      });
+    });
+
+    it("words a folder's error by its button picture, not its icon", function() {
+      db_wait(function() {
+        var answers = {}; answers[SIDE_BUTTON] = function() { return dead(); };
+        var state = syncWith(SIDEBAR, function() { return dropped(); }, {side: SIDE_WITH_BUTTON, answers: answers});
+        waitsFor(function() { return finished(state); });
+        runs(function() {
+          expect(state.calls_for[SIDE_BUTTON]).toEqual(1);
+          expect(errorFor('fred/side')).toEqual('board fred/side failed to sync completely: button image failed to sync, ' + SIDE_BUTTON + ', linked from sidebar board');
+          done();
+        });
+      });
+    });
+
+    it("tries the icon again on the next sync after a warning", function() {
+      db_wait(function() {
+        var state = syncWith(SIDEBAR, function(n) { return n === 1 ? RSVP.reject({error: 'URL lookup failed during proxy', fakeXHR: {status: 400}}) : saved(n); }, {side: {full_set_revision: 'side-rev-1'}});
+        var second = {result: null};
+        var revisions = null;
+        waitsFor(function() { return finished(state); });
+        runs(function() {
+          expect(warningFor('fred/side')).toEqual(SIDEBAR_WARNING);
+          persistence.find('settings', 'synced_full_set_revisions').then(function(r) { revisions = r; }, function() { revisions = {}; });
+        });
+        waitsFor(function() { return revisions; });
+        runs(function() {
+          expect(revisions['fred/side']).toEqual('side-rev-1'); // the warned board is recorded as complete (this harness keys the record by its key), so the next sync finds it cached
+          persistence.sync(1340).then(function(res) { second.result = res; }); // its icon is not on the device, so it is tried again
+        });
+        waitsFor(function() { return waitForSyncDoneAndSettled(second.result); });
+        runs(function() {
+          expect(state.calls).toEqual(2);
+          var log = persistence.get('sync_log') || [];
+          expect(log.length).toEqual(2);
+          expect(log[1].statuses.filter(function(st) { return st.key === 'fred/side' && st.warning; }).length).toEqual(0); // the newest sync: saved, no warning
+          done();
+        });
       });
     });
   });

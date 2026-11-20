@@ -98,4 +98,29 @@ module('Unit | Component | sync-details grouped view', function(hooks) {
     assert.strictEqual(build(this, [{ statuses: statuses, roots: roots, issues: true }]).get('restored_lead'), "The last sync finished, but some boards didn't save.");
     assert.strictEqual(build(this, [{ statuses: statuses, roots: roots }]).get('restored_lead'), null, 'a clean sync keeps the usual line');
   });
+
+  test('a board saved without its picture: ready, opened, and its picture named with Try again', function(assert) {
+    var warned = [{ key: 'me/kb', status: 'cached', warning: 'board me/kb saved without its picture: x' }, { key: 'me/core', status: 'downloaded' }, { key: 'me/core-feel', status: 'downloaded' }, { key: 'me/core-go', status: 'downloaded' }];
+    var c = build(this, [{ statuses: warned, roots: roots }]);
+    var cards = c.get('cards');
+    var kb = cards.find(function(card) { return card.name === 'Keyboard'; });
+    assert.true(kb.ready, 'still ready offline');
+    assert.strictEqual(kb.status, 'Ready offline');
+    assert.true(kb.open, 'with nothing that needs attention, the board with a warning is opened');
+    assert.true(kb.has_picture_warning);
+    assert.deepEqual(kb.pictures_missing, ['Keyboard']);
+    var core = cards.find(function(card) { return card.name === 'Quick Core 60'; });
+    assert.false(core.has_picture_warning);
+    assert.false(core.open);
+  });
+
+  test('on Needs attention, a folder saved without its picture is named above the cards', function(assert) {
+    var mixed = [{ key: 'me/kb', status: 'cached', warning: 'w' }, { key: 'me/core', status: 'downloaded' }, { key: 'me/core-feel', status: 'downloaded' }, { key: 'me/core-go', error: 'failed retrieval' }];
+    var c = build(this, [{ statuses: mixed, roots: roots }]);
+    assert.strictEqual(c.get('current_tab'), 'attention');
+    assert.strictEqual(c.get('picture_warning_line'), "The picture for Keyboard couldn't be saved. It shows a placeholder picture until a later sync gets it.");
+    assert.true(c.get('cards')[0].open, 'the board that needs attention is still the one opened');
+    c.get('tabs')[2].pick();
+    assert.strictEqual(c.get('picture_warning_line'), null, 'on All boards its card says it');
+  });
 });
