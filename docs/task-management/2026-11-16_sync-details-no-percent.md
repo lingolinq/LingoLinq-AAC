@@ -759,3 +759,20 @@ Next session, in order:
 5. Unit R (retry-path content tag; Rule #0.14 OK given for :76-82 and :143).
 6. Dual review on the new range, /pr-preflight, ask before pushing. Then ask about #1328's one-line change
    (`seen_by_last_sync`: hide only on `s.refused`).
+
+### Unit L4 verified (2026-11-20, resumed in the same session at Traci's request)
+- Corrected real-transport test alone, before the code: 1 fail, on `refused` only (the denied GET of other/shared is
+  in the browser log, so `fetched_revoked` passed; row count and error text passed).
+- Code (5c999917d), `services/persistence.js` one-for-one: `var refused = boardRevocation.real_denial(err)` on the
+  failure branch's first line (before the unwrap); `refused: true` on the deleted row; spread on the failed-retrieval
+  row; the finished-sync merge sets or deletes it on an existing row and spreads it on an error-only row.
+  `with_errors` copies it; `entry_copy` keeps it.
+- Green: `/refused|refusals tagged|retries ran out|sync rollup|sync log store|content failures tagged/i` 60/60.
+- Mutants: L4a no tag on failed retrieval: killed (1, real transport); L4b every error tagged: killed (1, retries ran
+  out); L4c with_errors drops it: killed (1); L4d entry_copy drops it: killed (1); L4e merge keeps a stale tag: killed
+  (1); L4f merge error-only drops it: killed (2); L4g tag from `board_unauthorized`: killed (1, real transport);
+  L4h tag computed after the unwrap: SURVIVED, equivalent: `denial_body` already looks in `err` and `err.error`
+  (`utils/board_revocation.js:604`), so `real_denial` answers the same on either side of the unwrap. The review's
+  "before the unwrap" condition is met but not load-bearing.
+- Wider: `/sync|persistence|board content retry/i` 621 tests (616 + 5 new), 612 pass, 9 skip, 0 fail.
+  `lint:js:ci`: the four worktree false positives only.
