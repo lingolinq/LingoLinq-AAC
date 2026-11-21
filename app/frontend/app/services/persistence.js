@@ -2384,12 +2384,12 @@ var persistence = Service.extend({
             if(error.board_key || error.board_id) {
               var status = statuses.find(function(s) { return (s.key && s.key == error.board_key); });
               if(status) {
-                status.error = error.error; if(error.content) { status.content = true; } else { delete status.content; } // utils/sync_rollup.js content_error
+                status.error = error.error; if(error.content) { status.content = true; } else { delete status.content; } if(error.refused) { status.refused = true; } else { delete status.refused; } // utils/sync_rollup.js content_error; refused: the walk's failure branch
               } else {
                 statuses.push({
                   id: error.board_id || error.board_key,
                   key: error.board_key || error.board_id,
-                  error: error.error, ...(error.content ? { content: true } : {})
+                  error: error.error, ...(error.content ? { content: true } : {}), ...(error.refused ? { refused: true } : {})
                 });
               }
             }
@@ -3370,14 +3370,14 @@ var persistence = Service.extend({
                   nextBoard(defer);
                 }, 75);
               } else {
-                unreachable_boards[id] = true; if(key) { unreachable_boards[key] = true; } note_board_root(_sync.get('sync_progress'), next, {id: id, key: key}); // TODO: if a board has been deleted
+                unreachable_boards[id] = true; if(key) { unreachable_boards[key] = true; } note_board_root(_sync.get('sync_progress'), next, {id: id, key: key}); var refused = boardRevocation.real_denial(err); // refused: read from the error as it arrived, before the unwrap below (utils/board_revocation.js real_denial; PR #1328 hides a liked board only on it). TODO: if a board has been deleted
                 if(err.error && err.error.error) {
                   err = err.error;
                 }
                 if(err && err.error == "Record not found" && err.deleted) {
-                  board_errors.push({error: "board " + (key || id) + " has been deleted, linked from " + source, board_unauthorized: board_unauthorized, board_id: id, board_key: key});
+                  board_errors.push({error: "board " + (key || id) + " has been deleted, linked from " + source, board_unauthorized: board_unauthorized, board_id: id, board_key: key, refused: true});
                 } else {
-                  board_errors.push({error: "board " + (key || id) + " failed retrieval for syncing, linked from " + source, board_unauthorized: board_unauthorized, board_id: id, board_key: key});
+                  board_errors.push({error: "board " + (key || id) + " failed retrieval for syncing, linked from " + source, board_unauthorized: board_unauthorized, board_id: id, board_key: key, ...(refused ? { refused: true } : {})});
                 }
                 schedule_sync_board_step(function() {
                   nextBoard(defer);

@@ -248,6 +248,7 @@ export function with_errors(statuses, errors) {
     if(error && (error.board_key || error.board_id)) {
       var row = { id: error.board_id || error.board_key, key: error.board_key || error.board_id, error: error.error };
       if(error.content) { row.content = true; }
+      if(error.refused) { row.refused = true; } // the walk's refusal tag (services/persistence.js); PR #1328 hides only on it
       rows.push(row);
     }
   });
