@@ -201,7 +201,9 @@ var UNCONFIRMED_UNTIL_DONE = { 'downloaded': true, 're-downloaded': true };
 // A stopped sync's rows: a download recorded before it finished (board_lookup records 're-downloaded' before the
 // reload; the batch step 'downloaded' before its store) and never confirmed reads 'not_saved': not an error, so it is
 // neither counted as saved (rollup) nor taken as a refusal. A board waiting for a retry, or still loading, when the sync
-// stopped is not on the device. Other rows are unchanged; a finished sync does not use this (its walk resolved them all).
+// stopped is not on the device. Other rows are unchanged. A finished sync does not use this: its walk resolved every
+// lookup, but a save the adapter only queued (store_eventually) may still be pending, and a later failure of that write
+// is not counted (docs/task-management/2026-11-16_sync-details-no-percent.md, "Not covered").
 export function confirmed_statuses(statuses, sync_progress) {
   var done = (sync_progress && sync_progress.boards_done) || {};
   var device = (sync_progress && sync_progress.device_boards) || {};

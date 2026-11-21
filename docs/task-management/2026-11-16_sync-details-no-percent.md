@@ -796,3 +796,25 @@ also gets a 're-downloaded' row from `board_lookup` before its reload fails (two
 "has been deleted" branch never runs on real errors (Ember Data wraps them), so a deleted board lands as failed
 retrieval, untagged; #1328's matching change (`seen_by_last_sync` hides only on `refused`) is a separate change on
 #1328.
+
+### Final review, round 1 of the new range (2026-11-20)
+PII pre-flight exit 0. REVIEWED=range origin/develop (f581c0066c2d77231ab168b8f829bf732c7b206c) ... HEAD
+(367834ff780e6f3285c7af3b724ecabf4fb15a2a) in /home/tracid/LingoLinq-AAC-sync-details
+`/review-pr` (senior pass, a fresh agent on the diff file only): Approve with comments; no Critical, High or Medium.
+Its answer on #1330's reused copy: nothing makes a stopped sync misread it or count an unwritten board as saved.
+Lows, checked here:
+1. Running cards count queued writes as saved (not passed through `confirmed_statuses`): this is Low 5 (declined
+   2026-11-20). Not changed.
+2. `confirmed_statuses`' comment said a finished sync's walk "resolved them all", overstating it (queued saves):
+   comment corrected, no code change.
+3. The two stop paths dedupe differently (`end_canceled_sync` `Utils.uniq` by id; the failure branch does not):
+   CONFIRMED by the reviewer; for Traci.
+4. A stopped entry with no saved row still shows "Saved before the sync stopped" and "0 boards and folders are saved
+   on this device." (`partial_result` takes any stopped entry with rows): CONFIRMED (`utils/sync_log_store.js`
+   partial_result); for Traci.
+5. Drawer title empty without a summary: DISMISSED. `stage` is 'ready' or 'attention' only from a summary
+   (`components/sync-progress-drawer.js:30-31`), so `ready_title` always gets one.
+6. Content error text (with a picture URL that can carry a token) is now also kept for stopped syncs: pre-existing for
+   finished syncs; device-local, the signed-in person's own log. Follow-up candidate, not changed.
+7. Double quotes on non-user-facing template literals (`sync-details.hbs`): attribute values in templates, not JS
+   strings; not changed.
