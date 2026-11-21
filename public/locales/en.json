@@ -4471,6 +4471,7 @@
   "n_uses": "0 uses || 1 use || %{n} uses",
   "must_be_logged_for_board_state": "Must be logged in to see board stats",
   "not_online": "Not Online",
+  "boards_on_this_device": "Boards on This Device",
   "boards_aliases_aria": "also called Vocabularies or Page-Sets",
   "boards_aliases_parenthetical": "(Vocabularies & Page-Sets)",
   "create_first_board": "Create Your First Board",
@@ -5150,7 +5151,8 @@
   "eval_history_link": "Eval History",
   "no_matching_supervisees": "No one matches that filter.",
   "no_supervisors_explainer": "You have not been added as a supervisor for any communicators. For privacy reasons, supervisors must be added from the communicator's account.",
-  "available_boards": "Recent boards",
+  "device_boards_loading": "Finding the boards on this device...",
+  "device_boards_empty_basic": "No boards are saved on this device yet. Connect to the internet and sync to use your boards offline.",
   "classic_filter_boards_placeholder": "Filter boards",
   "classic_filter_boards": "Filter the boards shown below",
   "help_me_choose_a_home_board": "Help Me Choose a Home Board",
@@ -5205,6 +5207,9 @@
   "classic_switch_explainer_card": "You're using the Basic view. Modern View arranges the same tools as cards you can rearrange.",
   "classic_switch_to_card_view": "Switch to Modern View",
   "boards_in_this_account": "%app_name% Boards in this Account:",
+  "device_boards_note": "You're offline. These boards are saved on this device and open without internet.",
+  "device_boards_empty": "No boards are saved on this device yet",
+  "device_boards_empty_subtitle": "Connect to the internet and sync to use your boards offline.",
   "last_used": "last used",
   "remove_device": "Remove device",
   "display_style": "Display Style",
@@ -8779,5 +8784,6 @@
   "n_orgs": "0 orgs || 1 org || %{n} orgs",
   "org_name_lower": "org name",
   "admin_user_name_lower": "admin user name",
-  "add_org": "Add Organization"
+  "add_org": "Add Organization",
+  "device_boards_not_shown": "Your boards can't be shown right now. Close and reopen the app, or connect to the internet."
 }
