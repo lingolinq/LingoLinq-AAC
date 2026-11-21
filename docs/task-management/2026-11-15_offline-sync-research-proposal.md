@@ -593,8 +593,8 @@ infra or deploy config.
   (Traci 2026-11-20: fixed here). **Policy needed first (review round 3, F5):** board copies keep the original's
   picture ids (`app/cloners/board_cloner.rb:101`), and the S3 file is removed once no ButtonImage row shares its url
   (`uploadable.rb:144-152`), so deleting a person's picture records strips every copy of their boards, public ones
-  included. Options: move pictures that other people's boards still use onto their copies, or delete and accept the
-  loss. Decided with Traci, Scot and legal before coding; spec with a public board someone else copied. **(dual review: another
+  included. Decided (Traci 2026-11-20): pictures other people's boards still use are handed over to those copies'
+  owners and kept; the rest is deleted. Scot's and legal's OK before 2.3 merges; spec with a public board someone else copied. **(dual review: another
   user's data)**: a picture record can be shared by boards that other people copied (to check in the fact sheet).
 - 2.4 Safari and Firefox (no file storage), in two releases (review round 3, F2): first ship a build that reads a
   Blob first (`find_url`, `usable_database_copy`, and new `prime_caches` code for the no-file path, which today
@@ -640,7 +640,7 @@ Ordering rules from review round 3 (F11): the 2.3 erasure helper exists before t
 orphaned renditions); the backfill's ceiling stays under both `QUEUE_SLOW_BOG` and `queue_pressure?`'s QUEUE_MAX/2
 (`config/initializers/resque.rb:203-228`), and the pre-existing Integer-vs-ENV-string comparison at `resque.rb:206` is
 fixed first; every new device-format writer (2.1 renditions, 2.2 hash rows, 2.4 Blobs) has a server-side off switch,
-so a rollback can stop new rows without a client release (not a UI flag; Traci to confirm, 12.6).
+so a rollback can stop new rows without a client release (not a UI flag; Traci 2026-11-20).
 5. Measure the whole set (0.2) before and after; update section 6 with measured numbers.
 
 Rough effort: about 5 to 6 weeks of work, plus the waits for Scot and devices (*estimate*). The branch lands as one
@@ -658,16 +658,19 @@ PR (Traci's instruction); review is sized to it: `/review-pr` plus `/adversary-r
   log for support and diagnosis. The wording and layout are mocked up for Traci's OK before they are built.
 - **The erasure gap is fixed inside 2.3**, in this branch (not as a separate fix ahead of it).
 
-**Also needed from Traci (review round 3):**
-- Server-side off switches for the new device-format writers (2.1, 2.2, 2.4), as a rollback tool, not a UI flag.
-- The 2.3 policy for pictures other people's copied boards still use (with Scot and legal).
+**Also decided by Traci (2026-11-20, after review round 3):**
+- **Erasure policy (2.3):** when an account is deleted, pictures that other people's copied boards still use are
+  handed over to those copies' owners and kept; everything else is deleted. Needs Scot's and legal's OK before 2.3
+  merges.
+- **Server-side off switches** for each new device-format writer (2.1 renditions, 2.2 hash rows, 2.4 Blobs): one
+  setting each, on by default, as a rollback tool (not a user-facing flag).
 
 **From Scot:**
 - Compression on Cloud Run (1.4), CPU budget, and the proxy route.
 - `Cache-Control` and CDN behaviour for uploads (2.6); a read-only check of a direct button-set request (2.5).
 - Storage and CPU cost of renditions for every ButtonImage, and the backfill's pace (2.1).
 - Why dev's pictures are inline (0.4).
-- The erasure gap's register entry (the fix itself is in 2.3, Traci 2026-11-20).
+- The erasure gap's register entry, and an OK (with legal) for 2.3's hand-over policy.
 
 **Devices:** an iPhone or iPad with the native app (1.2), a low-end Android phone (1.3), both native apps (1.4),
 folded into #1314's device test.
