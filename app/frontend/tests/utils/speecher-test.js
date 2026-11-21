@@ -1251,3 +1251,78 @@ function endClonedPlayback(clone) {
   waitsFor(function() { return ended; });
   runs();
 }
+
+/* THE FIRST WORD SPOKEN ON ANDROID STARTS LATE (docs/task-management/2026-11-21_android-first-word-delay.md):
+ * speecher.warm_voice loads the person's voice with a silent utterance on a touch before the first word. */
+describe('speecher warm_voice', function() {
+  var synth, aussie, natives;
+  beforeEach(function() {
+    aussie = { voiceURI: 'English Australia', name: 'English Australia', lang: 'en-AU' };
+    natives = [{ voiceURI: 'Bulgarian Bulgaria', name: 'Bulgarian Bulgaria', lang: 'bg-BG' }, aussie];
+    synth = { spoken: [], speaking: false, pending: false, getVoices: function() { return natives; } };
+    synth.speak = function(u) { synth.spoken.push(u); };
+    var Utterance = function(text) { this.text = text; this.volume = 1; };
+    stub(speecher, 'scope', { speechSynthesis: synth, SpeechSynthesisUtterance: Utterance });
+    stub(capabilities, 'system', 'Android');
+    stub(speecher, 'appState', null);
+    stub(speecher, 'voiceURI', 'English Australia');
+    stub(speecher, '_warmed_voice', null);
+    stub(speecher, 'find_voice_by_uri', function(uri) { return uri == 'English Australia' ? aussie : (uri == 'tts:x' ? { voiceURI: 'tts:x' } : null); });
+  });
+
+  it('speaks a silent comma in the person\'s device voice on Android', function() {
+    expect(speecher.warm_voice()).toEqual(true);
+    expect(synth.spoken.length).toEqual(1);
+    expect(synth.spoken[0].text).toEqual(',');
+    expect(synth.spoken[0].volume).toEqual(0);
+    expect(synth.spoken[0].voice).toEqual(aussie);
+  });
+
+  it('warms each voice once, and again when the voice changes', function() {
+    speecher.warm_voice();
+    expect(speecher.warm_voice()).toEqual(false);
+    expect(synth.spoken.length).toEqual(1);
+    var other = { voiceURI: 'English UK', name: 'English UK', lang: 'en-GB' };
+    natives.push(other);
+    speecher.find_voice_by_uri = function() { return other; };
+    expect(speecher.warm_voice()).toEqual(true);
+    expect(synth.spoken.length).toEqual(2);
+    expect(synth.spoken[1].voice).toEqual(other);
+  });
+
+  it('does nothing on iOS, where utterance volume is ignored, or on other systems', function() {
+    capabilities.system = 'iOS';
+    expect(speecher.warm_voice()).toEqual(false);
+    capabilities.system = 'Windows';
+    expect(speecher.warm_voice()).toEqual(false);
+    expect(synth.spoken.length).toEqual(0);
+  });
+
+  it('does nothing for a voice speechSynthesis does not speak, or one the device does not list', function() {
+    speecher.voiceURI = 'tts:x';
+    expect(speecher.warm_voice()).toEqual(false);
+    speecher.voiceURI = 'missing';
+    expect(speecher.warm_voice()).toEqual(false);
+    natives = [];
+    speecher.voiceURI = 'English Australia';
+    expect(speecher.warm_voice()).toEqual(false);
+    expect(synth.spoken.length).toEqual(0);
+  });
+
+  it('does not mark the voice warmed when the engine is busy, so a later touch tries again', function() {
+    synth.speaking = true;
+    expect(speecher.warm_voice()).toEqual(false);
+    synth.speaking = false;
+    expect(speecher.warm_voice()).toEqual(true);
+    expect(synth.spoken.length).toEqual(1);
+  });
+
+  it('runs on a pointerdown anywhere on the page once setup has run', function() {
+    var calls = 0;
+    stub(speecher, 'warm_voice', function() { calls++; });
+    speecher.warm_voice_on_touch();
+    speecher.warm_voice_on_touch();
+    document.body.dispatchEvent(new window.PointerEvent('pointerdown', { bubbles: true }));
+    expect(calls).toEqual(1);
+  });
+});
