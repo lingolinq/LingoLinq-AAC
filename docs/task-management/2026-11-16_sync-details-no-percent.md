@@ -854,3 +854,55 @@ device." Traci (2026-11-20): fix the Lows that are real in this PR.
   killed (1). `lint:js:ci`: the four worktree false positives; `ember-template-lint` clean on sync-details.hbs.
 - /pr-preflight: P2 to P4 do not apply (no access change, no compliance docs); P1 and P5: PR body rewritten against
   this head; P6: everything after Part 1 is tests only, manual check requested (three steps).
+
+## Part 5 (2026-11-21): Codex's two P2s on 7cad69d0f (fix-proposal)
+Codex connector review on 7cad69d0f: two P2 findings, both re-checked real. Traci (2026-11-21): fix both; this is an
+extra review round beyond the default two, at her request (CLAUDE.md "Rounds"), recorded in the PR.
+
+### Fact sheet
+(a) READ. Sync Details reads a stopped entry only through `partial_result` (`utils/sync_log_store.js:138`), called
+from `summary_for` (`utils/sync_rollup.js:279`) when no finished entry exists. It skips `storage_failed` entries.
+CONFIRMED.
+(b) SHAPES of a stopped entry `partial_result` can be handed, with the writer of each:
+  1. This branch's failure branch (`services/persistence.js:2469`): rows through `confirmed_statuses`, `roots` set
+     (`board_roots || {}`), `storage_failed` when a write failed since the start. CONFIRMED.
+  2. This branch's `end_canceled_sync` (:5128): the same, `roots` set. CONFIRMED.
+  3. An entry the OLD code wrote and the device still holds (the log keeps 5, restored through `entry_copy`):
+     develop's failure branch logged unconfirmed rows with NO `roots`; develop's cancel path logged `statuses: []`
+     (origin/develop `services/persistence.js` end_canceled_sync). CONFIRMED.
+  Only the service writes `roots` on an entry (:2428 finished, :2469, :5128); `entry_copy` keeps it
+  (`utils/sync_log_store.js:44`). CONFIRMED.
+(c) CROSS-FILE.
+  - Batch step (`services/persistence.js:2971-2978`): it pushes 'downloaded', calls the service `store`, and in that
+    promise's success handler calls `note_device_boards(sp, [board_json])`. The service `store` resolves on a failed
+    write too (:772-777), so a failed batch write is noted as on the device, and `confirmed_statuses` would confirm
+    its row. That is why F2's `storage_failed` exclusion was load-bearing (Unit F1, "Deviation"). CONFIRMED.
+  - The batch runs inside the `.then` of the device read `find_all('board')` (:2904), so `device_boards` already
+    exists when it writes; F1's hook (`note_board_written`, :769) marks `boards_done` and adds to that existing map,
+    by id and key, only on a successful write. CONFIRMED.
+  - Tests encoding the exclusion: `tests/unit/utils/sync-log-store-test.js:175`; `tests/utils/persistence-sync-test.js`
+    :8107 and :8134 (`partial_result([last])` is null after a failed write). CONFIRMED.
+
+### Proposal
+P2-1 (one failed write hides every confirmed save of a stopped sync):
+- A (recommended): remove the batch step's `note_device_boards` from the store's success handler (the hook already
+  notes a written board, by id and key, into the existing map), then drop the `storage_failed` exclusion from
+  `partial_result`. A stopped entry with a failed write then shows only the rows that were written. `storage_failed`
+  stays on the entry (#1328's required read uses it).
+- B: keep the exclusion and add a "device full" message instead. Rejected: still hides the boards that are offline.
+- Simplest alternative rejected: drop the exclusion only. The batch step would then confirm a failed write.
+Tests: red, a stopped entry with `storage_failed` and a written board shows that board under "Saved before the sync
+stopped" and not the failed one; harness, a batch write that fails is not confirmed at a stop (`not_saved`), and one
+that succeeds is. The three tests above change from "null" to "shows only what was written" (needs Traci's Rule #0.14
+OK: the specification changed). Mutants: the batch note back in the success handler; the exclusion back.
+P2-2 (an old entry's unconfirmed rows shown as saved):
+- A (recommended): `partial_result` takes a stopped entry only when it has `roots`, which only this branch's stop
+  paths write, in the same change that confirms their rows. No new field, no fixture changes (the tests' entries
+  already carry roots). A comment at `partial_result` names `roots` as the marker and points at both writers.
+- B: an explicit marker (`confirmed: true`) on both stop paths, kept by `entry_copy`, required by `partial_result`.
+  Clearer, but every stopped-entry fixture (about 26) gains the field.
+Tests: red, an errored entry with rows and no `roots` is not taken; a restored entry keeps `roots`. Mutant: the
+`roots` check removed.
+Risks: P2-1 shows boards on a device that is full (true: they were written); P2-2 A couples "confirmed" to `roots`
+(a later writer adding roots without confirming would re-open the hole; the comment and a test guard it).
+Unresolved: none found.
