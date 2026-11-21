@@ -718,7 +718,8 @@ stale tag in the merge, with its mutant; write down the twin decision.
 - L4-B chosen (tag refusals, `refused: true`; #1328 hides only on it). Utils twin: left untagged, as Unit T left it (the
   app runs the service's sync); the harness covers the service only.
 - Rule #0.14 OK given for `tests/unit/utils/board-content-retry-test.js:76-82` (the retry-path content error gains
-  `content: true`). The review found a second test encoding the same shape (:143); its OK is still to be asked.
+  `content: true`). The review found a second test encoding the same shape (:143); Traci gave the same OK for it
+  (2026-11-20). Both expected objects gain `content: true`; nothing else in either test changes.
 
 ### Unit L4 (2026-11-20): red tests written; code NOT started
 Tests (new only, no existing test changed):
@@ -755,6 +756,6 @@ Next session, in order:
 3. Green on the filter above; mutants: no tag at :3380; tag on every error; `with_errors` drops it; `entry_copy` drops
    it; merge existing-row keeps a stale tag; merge error-only row drops it; tag from `board_unauthorized` instead.
 4. Wider filter `/sync|persistence|board content retry/i` (baseline 616/607/9/0 plus the new tests), lint gate.
-5. Unit R (retry-path content tag) after Traci's OK for :143.
+5. Unit R (retry-path content tag; Rule #0.14 OK given for :76-82 and :143).
 6. Dual review on the new range, /pr-preflight, ask before pushing. Then ask about #1328's one-line change
    (`seen_by_last_sync`: hide only on `s.refused`).
