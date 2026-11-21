@@ -1,4 +1,5 @@
 import RSVP from 'rsvp';
+import { usable_copy } from './board_device_copy';
 
 // What the sync does when refreshing a board fails (#1212, PR #1268).
 //
@@ -89,6 +90,36 @@ export function known_on_device(sync_progress, record) {
   var fetched_at = record.get('retrieved');
   if(fetched_at && fetched_at >= (sync_progress.device_boards_read_at || 0)) { return true; }
   return !!(known[record.get('global_id')] || known[record.get('id')] || known[record.get('key')]);
+}
+
+// A board saved late in a sync was downloaded again by the same sync (docs/task-management/
+// 2026-11-16_sync-late-copy-current.md). On a slow link a board's request outlives the adapter's 15 s limit, the sync
+// parks the board (claim_board_retry below), and the late answer is still saved to the device with `retrieved` set to
+// when it was stored (utils/board_download.js store_late_board). The retry, after the walk, found that copy past the
+// freshness window (`fresh`, models/base.js: 5 minutes, or a later `appState.refresh_stamp`) and reloaded it by key
+// (services/persistence.js board_lookup). Measured in desktop Chromium at 0.8 Mbps: 80.6 MB and 869 s, where the code
+// before #1322 took 43 MB and 478 s.
+//
+// True when `row`, a device row, is a complete copy (it opens offline, with permissions and image urls) stored during
+// this sync: stamped no earlier than the later of the sync's start (`started_at`, services/persistence.js sync) and its
+// read of the device's boards (known_on_device's rule above: a stamp from before that read proves nothing). It says
+// "stored during this sync", not "requested during it". When the server's revisions list names the board
+// (`listed_revision`), the row must be that revision: it is judged on the row, since a lite record in memory may carry
+// no revision.
+export function copy_from_this_sync(sync_progress, row, listed_revision) {
+  var start = sync_progress && sync_progress.started_at;
+  if(!start || !usable_copy(row) || !row.permissions || !row.image_urls || !row.retrieved) { return false; }
+  if(listed_revision && listed_revision != row.current_revision) { return false; }
+  return row.retrieved >= Math.max(start, sync_progress.device_boards_read_at || 0);
+}
+
+// For a board this sync is trying again (a parked retry), the device row when copy_from_this_sync holds, or null. The
+// row is read from the device, not judged from `record`: a record Modern view pushed from a /tree answer has no stamp
+// and no image urls (utils/board_detail_cache.js), and store_late_board writes only the device. `find_row(record)`
+// resolves the device's usable copy or rejects (services/persistence.js device_board_row).
+export function stored_this_sync(sync_progress, id, record, find_row, listed_revision) {
+  if(!sync_progress || !id || !(sync_progress.retried_lookups || {})[id]) { return RSVP.resolve(null); }
+  return RSVP.resolve(find_row(record)).then(function(row) { return copy_from_this_sync(sync_progress, row, listed_revision) ? row : null; }, function() { return null; });
 }
 
 // A first sync has no stored copy to keep, so a board whose lookup failed was lost with its folders. When the failure
