@@ -308,9 +308,9 @@ describe SystemEmailPlaceholders do
         'user_mailer/lesson_assigned' => '<%= @lesson_url %>',
         'subscription_mailer/gift_created' => '<%= @gift.code %> <%= @gift_redeem_url %>',
         'user_mailer/confirm_registration' => '<%= @user.registration_code %>',
-        'user_mailer/parental_consent_request' => '<%= @consent_url %> <%= @privacy_url %> <%= @decline_url %>',
+        'user_mailer/parental_consent_request' => '<%= @consent_url %> <%= @privacy_url %> <%= @decline_url %> <%= @ai_disclosure_url %>',
         'supervisor_mailer/consent_request' => '<%= @approve_url %> <%= @deny_url %>',
-        'user_mailer/eu_ai_parental_consent_request' => '<%= @consent_url %> <%= @privacy_url %>',
+        'user_mailer/eu_ai_parental_consent_request' => '<%= @consent_url %> <%= @privacy_url %> <%= @ai_disclosure_url %>',
         'user_mailer/parental_consent_confirmation' => '<%= @revoke_url %>',
         'user_mailer/eu_ai_parental_consent_confirmation' => '<%= @revoke_url %>'
       }.each do |key, required|
@@ -325,10 +325,14 @@ describe SystemEmailPlaceholders do
       key = 'user_mailer/parental_consent_request'
       expect { described_class.validate!('<p><%= @consent_url %></p>', key) }.to raise_error(SystemEmailPlaceholders::InvalidTemplate, /@privacy_url/)
       expect { described_class.validate!('<p><%= @consent_url %> <%= @privacy_url %></p>', key) }.to raise_error(SystemEmailPlaceholders::InvalidTemplate, /@decline_url/)
-      expect { described_class.validate!('<p><%= @consent_url %> <%= @privacy_url %> <%= @decline_url %></p>', key) }.not_to raise_error
+      expect { described_class.validate!('<p><%= @consent_url %> <%= @privacy_url %> <%= @decline_url %></p>', key) }.to raise_error(SystemEmailPlaceholders::InvalidTemplate, /@ai_disclosure_url/)
+      expect { described_class.validate!('<p><%= @consent_url %> <%= @privacy_url %> <%= @decline_url %> <%= @ai_disclosure_url %></p>', key) }.not_to raise_error
       eu = 'user_mailer/eu_ai_parental_consent_request'
       expect { described_class.validate!('<p><%= @consent_url %></p>', eu) }.to raise_error(SystemEmailPlaceholders::InvalidTemplate, /@privacy_url/)
-      expect { described_class.validate!('<p><%= @consent_url %> <%= @privacy_url %></p>', eu) }.not_to raise_error
+      # Approving either request records AI data-sharing consent (#1136), so an edited body
+      # must keep the link to the disclosure that consent rests on.
+      expect { described_class.validate!('<p><%= @consent_url %> <%= @privacy_url %></p>', eu) }.to raise_error(SystemEmailPlaceholders::InvalidTemplate, /@ai_disclosure_url/)
+      expect { described_class.validate!('<p><%= @consent_url %> <%= @privacy_url %> <%= @ai_disclosure_url %></p>', eu) }.not_to raise_error
     end
 
     it 'does not require links in a preview' do

@@ -33,3 +33,13 @@ export function ready_title(summary) {
   var ready = summary.groups.filter(function(g) { return g.ready; }).length;
   return i18n.t('sync_drawer_n_of_m_ready', "%{ready} of %{total} boards are ready offline", { ready: ready, total: summary.groups.length });
 }
+
+// The warning for folders a finished sync saved without their picture, by name (`names`: utils/sync_rollup.js
+// overall.pictures_missing; Traci, 2026-11-18/19): offline they show the placeholder until a later sync saves the
+// picture. Null for none. The sync drawer adds it to its result line; Sync Details shows it where the ready boards are
+// not listed.
+export function picture_warning(names) {
+  if(!names || !names.length) { return null; }
+  return names.length === 1 ? i18n.t('sync_picture_warning_one', "The picture for %{name} couldn't be saved. It shows a placeholder picture until a later sync gets it.", { name: names[0] }) :
+    i18n.t('sync_picture_warning_many', "Pictures for %{n} folders couldn't be saved: %{names}. They show a placeholder picture until a later sync gets them.", { n: names.length, names: names.join(', ') });
+}

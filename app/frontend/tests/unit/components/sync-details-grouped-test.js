@@ -159,4 +159,41 @@ module('Unit | Component | sync-details grouped view', function(hooks) {
     assert.deepEqual(c.get('cards')[0].folders_missing, ['Go', 'Parked']);
     assert.strictEqual(c.get('restored_lead'), 'The last sync was canceled.');
   });
+
+  test('a board saved without its picture: ready, opened, and its picture named with Try again', function(assert) {
+    var warned = [{ key: 'me/kb', status: 'cached', warning: 'board me/kb saved without its picture: x' }, { key: 'me/core', status: 'downloaded' }, { key: 'me/core-feel', status: 'downloaded' }, { key: 'me/core-go', status: 'downloaded' }];
+    var c = build(this, [{ statuses: warned, roots: roots }]);
+    var cards = c.get('cards');
+    var kb = cards.find(function(card) { return card.name === 'Keyboard'; });
+    assert.true(kb.ready, 'still ready offline');
+    assert.strictEqual(kb.status, 'Ready offline');
+    assert.true(kb.open, 'with nothing that needs attention, the board with a warning is opened');
+    assert.true(kb.has_picture_warning);
+    assert.deepEqual(kb.pictures_missing, ['Keyboard']);
+    var core = cards.find(function(card) { return card.name === 'Quick Core 60'; });
+    assert.false(core.has_picture_warning);
+    assert.false(core.open);
+  });
+
+  test('on Needs attention, a folder saved without its picture is named above the cards', function(assert) {
+    var mixed = [{ key: 'me/kb', status: 'cached', warning: 'w' }, { key: 'me/core', status: 'downloaded' }, { key: 'me/core-feel', status: 'downloaded' }, { key: 'me/core-go', error: 'failed retrieval' }];
+    var c = build(this, [{ statuses: mixed, roots: roots }]);
+    assert.strictEqual(c.get('current_tab'), 'attention');
+    assert.strictEqual(c.get('picture_warning_line'), "The picture for Keyboard couldn't be saved. It shows a placeholder picture until a later sync gets it.");
+    assert.true(c.get('cards')[0].open, 'the board that needs attention is still the one opened');
+    c.get('tabs')[2].pick();
+    assert.strictEqual(c.get('picture_warning_line'), null, 'on All boards its card says it');
+  });
+
+  // Merge of develop (#1334) into this branch: while unfinished there are no tabs and every board is listed, so the
+  // picture warning stays on its card, not above the cards, even though current_tab still reads 'attention'.
+  test('no finished sync: a folder saved without its picture is named on its card, not above the cards', function(assert) {
+    var mixed = [{ key: 'me/kb', status: 'cached', warning: 'w' }, { key: 'me/core', status: 'downloaded' }, { key: 'me/core-feel', status: 'downloaded' }, { key: 'me/core-go', error: 'failed retrieval' }];
+    var c = build(this, [{ errored: true, statuses: mixed, roots: roots, finished: new Date(1700000000000) }]);
+    assert.true(c.get('unfinished'));
+    assert.strictEqual(c.get('current_tab'), 'attention', 'the tab still reads attention, as the guard expects');
+    assert.strictEqual(c.get('picture_warning_line'), null);
+    var kb = c.get('cards').find(function(card) { return card.name === 'Keyboard'; });
+    assert.true(kb.has_picture_warning, 'its card names it');
+  });
 });

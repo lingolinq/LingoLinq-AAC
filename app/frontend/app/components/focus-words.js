@@ -324,7 +324,7 @@ export default Component.extend({
     };
     article50Gate.presentBlockingGate(this.get('appState')).then(function() {
       modal.open('modals/focus-words', Object.assign({}, settings, { art50_resume: resume }));
-    }, function() {
+    }, function(gate_err) { if (gate_err && gate_err.ai_consent_gate && !gate_err.replaced) { modal.open('modals/focus-words', Object.assign({}, settings, { art50_resume: resume, ai_consent_refused: true })); } /* "Not now" on the AI data-sharing agreement (#1136): nothing replaced the notice, so re-open with the draft and the reason */
       // Bumped by another modal, so no acknowledgement was recorded and the AI
       // call must not proceed. The user is looking at whatever replaced the
       // disclosure; fail-closed with no extra error surface, matching
@@ -448,7 +448,7 @@ export default Component.extend({
       this.set('ai_prompt', null);
       this.set('ai_word_count', 20);
       this.set('ai_generating', false);
-      this.set('ai_generate_error', null);
+      this.set('ai_generate_error', this.get('model.ai_consent_refused') ? article50Gate.aiConsentRefusalMessage(this.get('appState')) : null); // set when the person came back from "Not now" on the AI data-sharing agreement (#1136)
       this.set('ai_focus_word_set_id', null);
       // Restore the authored draft after an Article 50(1) disclosure round-trip.
       // _presentArticle50Gate re-opens this modal with art50_resume because
@@ -607,7 +607,7 @@ export default Component.extend({
       // ai-disclosure destroys this component and everything the user entered.
       // _presentArticle50Gate therefore captures the form state itself and
       // re-opens focus-words with it restored.
-      if (article50Gate.needsAcknowledgement(this.get('appState'))) {
+      if (article50Gate.needsAcknowledgement(this.get('appState')) || article50Gate.needsAiConsent(this.get('appState'))) { // the same notice also asks for AI data-sharing consent (#1136)
         this._presentArticle50Gate();
         return;
       }
@@ -635,7 +635,7 @@ export default Component.extend({
         if (_this.isDestroyed || _this.isDestroying) { return; }
         let msg = i18n.t('generate_failed', "Generation failed");
         const resp = (err && err.fakeXHR && err.fakeXHR.responseJSON) || (err && err.responseJSON) || null;
-        if (resp && resp.error === 'article_50_disclosure_required') {
+        if (article50Gate.isAiConsentRefusal(err)) { msg = article50Gate.aiConsentRefusalMessage(_this.get('appState')); /* no AI data-sharing consent (#1136): say who can fix it */ } else if (resp && resp.error === 'article_50_disclosure_required') {
           // The server-side Article 50(1) backstop refused this call
           // (ApplicationController#require_article_50_disclosure!). Reaching here
           // means the client gate above did NOT fire, which happens when the local

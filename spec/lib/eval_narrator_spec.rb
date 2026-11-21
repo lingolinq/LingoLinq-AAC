@@ -3,6 +3,10 @@
 require 'spec_helper'
 
 describe EvalNarrator do
+  # These examples test other things at the AI call sites; the consent check (#1136) has its
+  # own specs. See spec/support/ai_consent.rb.
+  include_context 'ai data-sharing consent given'
+
   def anthropic_response(text)
     usage = double('usage', input_tokens: 10, output_tokens: 20)
     block = double('text_block', type: 'text', text: text)

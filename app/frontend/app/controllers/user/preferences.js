@@ -18,7 +18,7 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { htmlSafe } from '@ember/template';
 import editManager from '../../utils/edit_manager';
-import { art50DisclosureUrl } from '../../utils/article50_gate';
+import { art50DisclosureUrl, needsAiConsent } from '../../utils/article50_gate';
 
 var sidebarActionCodeTemplates = {
   ':timer': ':timer(30s)',
@@ -1311,6 +1311,19 @@ export default Controller.extend({
     },
     resend_eu_ai_parental_consent: function() {
       this.send('open_eu_ai_parental_consent_modal', 'ai_features_enabled');
+    },
+    // Opens the one-time AI notice, which also asks the account holder to agree to
+    // the AI data-sharing disclosure (#1136). The model here can be a different record
+    // from the session user's, so once the agreement is recorded (the notice clears
+    // needsAiConsent on the session user) clear the line shown on this page too.
+    open_ai_consent: function() {
+      var _this = this;
+      modal.open('ai-disclosure', { scannable: true }).then(function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        if(!needsAiConsent(_this.get('appState'))) {
+          _this.set('model.ai_consent_required', false);
+        }
+      }, function() { });
     },
     cancelSave: function() {
       this.set('advanced', false);
