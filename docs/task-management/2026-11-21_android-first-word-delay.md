@@ -89,3 +89,20 @@ changed: removing those cancels would let a word queue behind the warm-up.
 
 Not covered: a real Android phone or tablet (audio start-up on real hardware), other TTS engines (Samsung), and the
 Android app (Capacitor WebView; same `speechSynthesis` path, not run).
+
+## Review (Codex on #1351, 2026-11-21): two P2 findings, both CONFIRMED and fixed (`4f8c2415c`)
+
+1. The voice was cached as warmed when the warm-up was QUEUED. On a first touch that is a button, `activateButton`
+   calls `unlock_speech`, which cancels it ~50 ms later; for a button that speaks nothing (a link, or vocalization
+   skipped) the voice never loads, and the cache stopped every later touch from trying again. Now the voice counts
+   as warmed only on the warm-up's `start` event (`warm_voice`'s `on_start`); while one is queued, the
+   speaking/pending check keeps a second from being added.
+2. With the alternate voice on for buttons (`utils/utterance.js` `speak_button`: `alternate_voice.enabled &&
+   for_buttons === true`), button speech uses `alternate_voiceURI`, but the warm-up always used the main voice. Now
+   `speecher.button_voice_uri()` picks the same voice; `force_default` (no voice named) is skipped.
+
+Tests: 3 new (`cancelled before it started`, `alternate voice`, `force_default`) and 1 unit test for `on_start`;
+the "warms each voice once" test now fires `start`, since caching on queue was the defect. 86 tests, 82 pass, 4
+skipped (existing). Mutations: caching on queue again (red: the cancelled test); ignoring the alternate voice (red:
+the alternate-voice test). The emulator timings above were taken before this change; the warm-up is queued the same
+way, only when it is counted changed.
