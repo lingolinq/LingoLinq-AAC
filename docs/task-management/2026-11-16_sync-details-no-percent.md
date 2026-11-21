@@ -611,3 +611,78 @@ The comment said to keep `content` "in `final_rows`". This branch never put `con
 (`utils/sync_rollup.js`, CONFIRMED at 78e8094f7); it lives on the log entry's rows (`entry_copy`), `with_errors` and the
 status merge, and nothing reads it from `final_rows`. Only `warning` (#1334) is in `final_rows`. Everything else in
 that comment held when re-checked against `pull/1336/head` and origin/develop.
+
+## Merge of develop (2026-11-20, 077bade83)
+#1334 and #1342 merged in. Resolutions are in the merge commit's message. One semantic choice: develop's
+`picture_warning_line` (Sync Details) is off while a sync is unfinished, because there are no tabs then and every card
+names its own missing picture (develop's own comment: the line is for "where the ready boards are not listed"). Test
+added; mutant G1 (guard removed) killed. After the merge, `/sync|persistence|board content retry/i`: 616 tests, 607
+pass, 9 skip, 0 fail. `lint:js:ci`: only the worktree false positive (`no-orphaned-action` reads the MAIN checkout's
+templates: `toggle_technical`, and develop's `agree`, `notNow`, `open_ai_consent`, all referenced in this worktree's
+templates). F1's unit test had a real `qunit/no-assert-logical-expression` (`&&` in one assertion): split in two
+(9af72de2e), 22/22.
+
+## Part 4 (2026-11-20): (R) the retry path's content error, and (L4) Low 4 (fix-proposal)
+
+### Fact sheet
+(a) READ. #1328's `seen_by_last_sync` (`utils/offline_board_list.js:57,59`, on #1328's branch only) treats a row with
+`error` and no `content` as a refusal and hides another owner's liked board on it. Rows reach the log from
+`with_errors` (`utils/sync_rollup.js`, stop paths) and the finished-sync merge (`services/persistence.js:2383-2394`);
+both copy only `error` and `content` from an error; `entry_copy` keeps `content` and `warning`
+(`utils/sync_log_store.js:49`). CONFIRMED.
+(b) SHAPES. Every board error the service walk writes (`services/persistence.js`):
+  1. :3359 the walk's content failure, `content_error(msg, id, key)`: tagged `content`. CONFIRMED.
+  2. :3095 the retry path's content failure: `retry_content` calls `ctx.fail(content_error(entry, judged.fail))`
+     (`utils/board_content_retry.js:150`, its own `content_error` at :119), and `fail` pushes onto the same
+     `board_errors` (:3095). NOT tagged. CONFIRMED.
+  3. :3378 "has been deleted": a 404 with `deleted`. CONFIRMED.
+  4. :3380 "failed retrieval for syncing": everything else that reaches the failure branch. It is reached by (i) a real
+     refusal (400 "Not authorized", `permission: 'view'`, the shape in the "revoked boards" tests,
+     `tests/utils/persistence-sync-test.js:5222`); (ii) a 404 without `deleted`, or any unknown shape (not passing,
+     `utils/sync_board_fallback.js:20-33`); (iii) a passing failure (timeout, offline, 0, 429, 5xx) once
+     `claim_board_retry` returns 0, that is after MAX_BOARD_RETRIES (3) retries (:102-110), or with no id or no
+     sync_progress. All three are logged the same, untagged. CONFIRMED.
+  The utils copy of the walk (`utils/persistence.js:3377`, :3405, :3407) is left as Unit T left it: the app runs the
+  service's sync.
+(c) CROSS-FILE. Revocation itself does not read error shapes: `settled_decision` applies the server's revoked list
+only after an error-free sync (`utils/board_revocation.js:237-240`). `real_denial(err)` (:615-621) recognises a real
+"Not authorized" for view wherever the transport left the body (`denial_body`, :602-611), and rejects valet, device-scope,
+scope-limited and token refusals. `board_content_retry.js` can import `sync_rollup.js` with no cycle (`sync_rollup`
+imports only `sync_log_store`). An existing test encodes the untagged retry-path shape:
+`tests/unit/utils/board-content-retry-test.js:76-82` ("the board error is worded as the walk words it", `deepEqual`).
+CONFIRMED.
+
+### Proposal (R): the retry path's content error is tagged like the walk's
+- R-A (recommended): `board_content_retry.js` `content_error(entry, err)` keeps building its message and returns
+  `sync_rollup.js`'s `content_error(msg, id, key)` (imported under another name), so the tag has one source.
+- R-B: add `content: true` to its returned object. Simpler; the tag then lives in two places.
+- R-C, rejected: tag at the `fail` callback (`services/persistence.js:3095`). Leaves the helper's result untagged for any
+  other caller, and splits the rule from both helpers.
+Test (red first): `retry_content` whose required failure is left after its retries calls `fail` with `content: true`.
+The existing `deepEqual` test above must gain `content: true` in its two expected objects: the specification changed
+(Rule #0.14: needs Traci's OK). Mutant: the helper returns its own untagged object again.
+
+### Proposal (L4): a board that failed only because its retries ran out does not read as refused
+The question #1328 asks of an error row is "did the server refuse this board?". Today the log cannot answer it.
+- L4-A: tag the passing failures. At :3380, when the original error is passing (`passing_failure`, before :3373-3374
+  unwrap it), add `passing: true`; carry it in `with_errors`, both branches of the finished-sync merge, and
+  `entry_copy`. #1328 then also skips `passing`. Unknown shapes and 404s without `deleted` still hide the board
+  (today's behaviour). Old log entries keep today's meaning.
+- L4-B: tag the refusals. At :3378 (deleted) and at :3380 when `real_denial(err)`, add `refused: true`; carry it in the
+  same three places. #1328 hides only on `refused`. A bad connection, an unknown shape or a new error kind never hides a
+  liked board; a board stays listed if its refusal is ever logged without the tag. Revocation (server verdict,
+  `settled_decision`) is unchanged and remains the main guard. Log entries written before the change carry no tag, so
+  their refusals stop hiding until the next sync (the log keeps 5 entries).
+- L4-C, rejected: #1328 matches the message text. Refusals and passing failures share "failed retrieval".
+Recommendation: L4-B (the AAC user keeps a liked board unless the server said no), if the review finds no refusal
+shape that `real_denial` misses in the sync's own lookups; otherwise L4-A. Traci decides.
+Tests (red first), for whichever is chosen: unit, `with_errors` and `entry_copy` keep the tag; harness, a board refused
+with the 400 body is logged with the tag (B) or without `passing` (A), and a board whose lookups time out past the
+retries is logged with `passing` (A) or without `refused` (B); the finished-sync merge keeps it on an existing row and
+on an error-only row. Mutants: no tag at the write; tag on every error; `with_errors` drops it; `entry_copy` drops it;
+each merge branch drops it.
+Risks: the tag must be computed from the error before :3373-3374 rewrite it; `board_unauthorized` (:3365) is computed
+before that unwrap and can miss a nested body (pre-existing, not changed here). #1328 needs a matching one-line change,
+asked for separately.
+Unresolved: does any refusal the sync sees arrive in a shape `real_denial` does not recognise (B's risk)? Does any error
+reach :3380 with no id, skipping the retries (A and B both log it as today)?
