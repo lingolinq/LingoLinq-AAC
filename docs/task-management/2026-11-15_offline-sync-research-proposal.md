@@ -1,6 +1,6 @@
 # Offline board sync: research and proposal (2026-11-15)
 
-Author: Traci Day, with Claude (opus-5.5). Status: proposal, revised after review rounds 1 and 2 (2026-11-16; sections 9 and 10). Phases 0 and 1 are ready to implement with the corrections below; phases 2 and 3 need rework, and a further review round needs Scot's OK.
+Author: Traci Day, with Claude (opus-5.5). Status: being implemented, every phase together (Traci, 2026-11-20). Section 12 is the plan of record and wins where it differs from sections 5 to 10.
 Nothing here is built. Follows #1322, which fixed the specific failures on Traci's Android phone without changing the
 sync design. #1322 is not yet in develop: statements about `board_download.js`, the 60 s board attempt, parked
 retries and the saved sync log describe #1322's branch, not develop 9728d6bd1.
@@ -474,3 +474,163 @@ The 0.8 Mbps result was a regression in #1322: boards that timed out while still
 answers stored, and the retry after the walk downloaded each again by key (traced: 56 requests by id, then 53 by key).
 #1330 fixes it. Locally the old code never failed a board, so the phone's original failure (9 Core 60 folders of
 0.9 to 2 MB) is not reproduced by this setup; phase 0's on-device measurement is still the missing evidence.
+
+## 12. Implementation plan: every phase, as one design (2026-11-20)
+
+Traci chose to build phases 0 to 3 together (2026-11-20): "we really need to be taking a holistic overview of
+everything when implementing." This section is the plan of record. Where it differs from sections 5 to 10, this
+section wins. Facts were re-checked against develop f581c0066 on 2026-11-20 (four read-only researchers, key claims
+re-read; log: `2026-11-20_sync-proposal-implementation.md`). Labels as before: *Verified* (read at f581c0066),
+*Traced* (researcher, re-checked in each item's fact sheet before it carries a fix), *Estimate*.
+
+### 12.1 What changed since section 5 was written
+
+- **Done:** phase 1 item 6 (a failed avatar no longer fails the sync; #1327, `optional_picture`). #1330 merged.
+- **Wider than written:**
+  - Only the utils copy's single-board `findRecord` got the 60 s attempt (`utils/board_download.js:19`). The 25-board
+    batches, `board_revisions` and the proxy still run on 8 s then 20 s (`utils/extras.js`). Phase 1.2 covers them.
+  - `persist()` has a second, ungated caller: `requestQuota` maps to `navigator.storage.persist()`
+    (`utils/capabilities.js:56`), reached from `root_dir` on Chrome. Phase 1.5 must gate it too.
+  - `image_urls` are personalised for the **caller** (a supervisor syncing a supervisee gets the supervisor's
+    variant). *Traced*. Phase 3's viewer key must name the caller, as today, until a decision says otherwise.
+- **Found, new:**
+  - **Out-of-date picture rows (defect).** `find` sets `record.raw.important` (`services/persistence.js:425`) but
+    tests `record.important` (:429), so every row persisted over a week ago is `outdated`, and
+    `usable_database_copy` rejects it. On browsers with no file storage this likely re-downloads week-old pictures
+    on every sync (*to measure in phase 0*). New item 1.7.
+  - **Pictures survive account deletion (existing erasure gap, not caused by this work).** `flush_user_content`
+    sweeps ButtonSounds and UserVideos by `user_id` but not ButtonImages (`lib/flusher.rb:456-461`); boards reach
+    images only through `BoardButtonImage` rows, which nothing writes (`app/models/board.rb:1717`). Not in the
+    findings register. Phase 2's erasure work depends on the fix; how it is tracked is Scot's call (12.6).
+  - **Device storage facts that shape phase 2** (*Traced*, spot-checked): one picture folder per device shared by
+    every user; file names are a deterministic function of the URL plus the content type's extension; nothing deletes
+    picture files and nothing counts references; `dataCache` rows are free-form JSON in `raw`, so new fields need no
+    `dbversion` bump (4); on the no-file path `url_cache` is never filled.
+  - `button_images.file_hash` exists and is unused: phase 2's content hash goes there (no migration for the column).
+  - Button sets stay on the proxy only because a direct request "has not been tried against production"
+    (`utils/direct_fetch.js:6-8`); the file is client-encrypted at a secret-derived CDN path. No signed URL is needed.
+
+### 12.2 Before any of this lands (prerequisites)
+
+1. **#1336 (Sync Details) merges first.** It is a draft, conflicts with develop, and rewrites the places phase 0
+   writes: the `log.push` sites in `sync` and `end_canceled_sync`, `sync_log_store.entry_copy`, and Technical details.
+   Another session owns it.
+2. **#1328 (Boards on This Device) merges before phase 3:** phase 3 changes which device rows are current, and
+   `offline_board_list` reads them, including #1336's `content` tag.
+3. **Test hygiene in `persistence-sync-test.js` (#1121, #589) before phase 1:** every item adds tests to that file.
+   Fold the fix in here rather than file it again.
+
+Work that does not depend on these (the server side of phases 2 and 3, the measurement seed, the erasure fix) starts
+now, on this branch.
+
+### 12.3 Shared building blocks (built once, used by several phases)
+
+| Block | Used by | Where |
+|---|---|---|
+| **Sync counters**: start time, duration, requests, bytes (transfer size where the browser reports it, decoded size otherwise, labelled), peak concurrent requests, failures by kind; carried through `entry_copy` | 0, and the before/after evidence for every later item | `services/persistence.js` (+ utils copy), `utils/sync_log_store.js`, a new `utils/sync_counters.js` |
+| **Transport limits**: one module for every sync request's timing (header deadline, no-bytes clock, total ceiling), with an iOS-app rule | 1.2, 1.1 (batch budget), 3 (manifest) | new `utils/sync_transport.js`; `utils/extras.js`, `utils/board_download.js`, `store_url_now` |
+| **Platform helper**: `is_ios_app()` from `window.Capacitor.getPlatform()` | 1.2, 1.3 | `utils/ipad_detect.js` or a new `utils/platform.js` |
+| **Picture key on the device**: everything a reader needs is under the ORIGINAL url's key; a rendition or a de-duplicated file is a pointer in that row (`raw.file`, `raw.rendition`), never a second key | 1.7, 2.1, 2.2, 2.4 | `store_url_now`, `find_url`, `prime_caches` |
+| **Erasure of every derived file**: one server helper that deletes an upload and every sibling it owns (`.raster.png`, renditions), with a spec per suffix | 2.1, 2.3, the account-deletion fix | `lib/uploader.rb`, `uploadable.rb`, `lib/flusher.rb` |
+| **One permission rule** for "which boards may this device hold": `BoardRevisionsAccess` (current shares) | 1.1 batches, 3 manifest | `users_controller.rb`, `app/services/board_revisions_access.rb` |
+| **Synthetic measurement seed**: a supervisor with three supervisees on different skins and symbol sets, sounds, a large caseload; extends `e2e/support/sync-users.rb` | 0, and every item's before/after | `app/frontend/e2e/support/` |
+
+### 12.4 The work, item by item
+
+Each item is sync, offline or data work: fact sheet, red test first, adversarial review of the item's proposal,
+falsification after it lands (`/fix-proposal`). Items marked **(dual review)** touch access to other users' data,
+infra or deploy config.
+
+**Phase 0: measure**
+- 0.1 Sync counters (12.3), shown in Technical details as plain counts and times (no percentages, Traci 2026-11-16).
+- 0.2 The measurement seed and a scripted run of the e2e suite that records the counters for each shape and link
+  speed, before and after each phase. Local private database only.
+- 0.3 Measure item 1.7's effect (a second sync more than a week later, simulated clock) and the first-sync share of
+  public catalog boards (#1221).
+- 0.4 Dev's inline pictures: Scot (12.6). Nothing on this branch writes to dev or staging data.
+
+**Phase 1: quick wins**
+- 1.1 Batches: one batch slot per device (supervisee syncs share it), `next_batch` once per response (after the
+  store push, not after device writes), cancel and sync-id checks, a time budget after which the walk starts anyway,
+  then lift the 100-board cap. **Blocked on a decision:** #1221's public catalog seeds (12.6), since lifting the cap
+  without it downloads more catalog boards. Folds in #1341's "a save that never settles holds the walk".
+- 1.2 Transport limits (12.3) for single boards, batches, `board_revisions`, the proxy and pictures: the no-bytes
+  clock starts at headers; a header deadline above `Rack::Timeout` (16 s); total ceiling only in the iOS app. Device
+  check on iOS.
+- 1.3 Android picture concurrency: measure the bridge first (0.2 on the emulator, then a low-end phone), then raise
+  `max_watchers` for Android to the measured value.
+- 1.4 Compression **(dual review: infra)**: gzip only when the request carries a header new clients send, an ENV off
+  switch, the proxy route decided, CPU measured, both native apps checked. Needs Scot's yes before merge.
+- 1.5 Storage: request `persist()` only on a trusted device (the existing gate), and route the `requestQuota` path
+  through the same gate; show `estimate()` in Technical details; detect a missing device database and say so.
+- 1.7 Out-of-date picture rows: read the flag where it is set, so important rows stay usable. Red test first.
+
+**Phase 2: pictures (redesigned)**
+- 2.1 Renditions: the server makes a display-sized lossless WebP for raster pictures (never SVG) and every skin
+  variant, stored as a sibling of the original key (`<key>.r400.webp`), in a self-rescheduling batch job with a
+  queue-depth ceiling (stays under `QUEUE_SLOW_BOG`). Board JSON gains an additive map, original url to rendition url,
+  only for renditions that exist. **The device stores the rendition's bytes under the ORIGINAL url's key** (12.3), so
+  every reader and every older build that shares the device finds the picture. A url with no rendition, or an older
+  client, stores the original as today. The skin tone is chosen from the original url.
+- 2.2 De-duplication: the server fills `button_images.file_hash` (on upload and by the 2.1 job) and sends it only in
+  authenticated board JSON. The client keeps a hash-to-file map **per person** (in that person's database) and, for a
+  url whose hash it already has, writes a row pointing at the existing file instead of downloading. Nothing deletes
+  picture files today; any future deletion must count references first (written as an invariant with a test).
+- 2.3 Erasure: the 12.3 helper deletes renditions with their original; account deletion deletes the person's
+  ButtonImages and every sibling. **Depends on 12.6's decision** about the existing gap. **(dual review: another
+  user's data)**: a picture record can be shared by boards that other people copied (to check in the fact sheet).
+- 2.4 Safari and Firefox (no file storage): keep the picture as a Blob on the IndexedDB record (outside `raw`, which
+  is JSON), fill `url_cache` with an object URL at prime time, and keep the data-URI row readable for older shells.
+  SQLite (native) is unchanged.
+- 2.5 Button sets direct: request the encrypted file from the uploads CDN like a picture (type `json`), with the
+  proxy as fallback; verified first with a read-only request against production (12.6).
+- 2.6 Caching headers: long-lived `Cache-Control` on renditions and non-SVG originals at upload; SVGs short. CDN
+  behaviour is Scot's (12.6).
+
+**Phase 3: one manifest per sync (redesigned)**
+- 3.1 `GET /users/:id/sync_manifest`, paged per root, compressed when 1.4 allows: every board the device should
+  hold (id, key, `current_revision`), the button-set revision, revoked ids, and a **viewer key**: a hash of what
+  personalises pictures for the caller (enabled protected sources, preferred symbols, supporter role, skin
+  preferences). **No precomputed picture lists**: pictures still come in board JSON, so licences and supervision
+  changes need no invalidation scheme; when the viewer key changes, the client re-fetches the boards' JSON. **(dual
+  review: another user's data)**.
+- 3.2 One permission rule (12.3) for the manifest and `users#boards`; a spec that shares then unshares inside the
+  30-minute window.
+- 3.3 Client: diff the manifest against the device database (not memory); fetch changed boards through 1.1's serial
+  batches; fetch missing pictures by 2.2's hashes; boards the manifest no longer lists are **marked, not deleted**,
+  as revocation does today, and never a board with unsynced local edits (#1301); the walk stays as the fallback.
+- 3.4 Limits: the largest synthetic caseload's manifest page stays under Cloud Run's 32 MiB cap and `Rack::Timeout`;
+  shares the picture-lookup cost work with #1219.
+
+**Phase 4** stays undecided until phase 3 is measured (section 5).
+
+### 12.5 Order of work
+
+1. Now, on this branch: 0.2 (seed and measurement harness), 0.1 (counters, behind #1336's log shape), the server
+   halves of 2.1 to 2.3 and 3.1 to 3.2, item 1.7.
+2. After #1336 merges: 0.1's log and Technical details, 1.5, 1.2.
+3. After the test hygiene fix: 1.1 (after the #1221 decision), 1.3.
+4. After #1328 merges: 3.3; then 2.2 and 2.4 on the client, 2.5, 3.4.
+5. Measure the whole set (0.2) before and after; update section 6 with measured numbers.
+
+Rough effort: about 5 to 6 weeks of work, plus the waits for Scot and devices (*estimate*). The branch lands as one
+PR (Traci's instruction); review is sized to it: `/review-pr` plus `/adversary-review`, and a security review for 1.4,
+2.3, 3.1 and 3.2.
+
+### 12.6 Decisions and help needed
+
+**From Traci:**
+- #1221: should the first sync keep downloading public catalog boards (up to 100 + 50 roots today)? Needed before
+  1.1 lifts the cap.
+- What Technical details shows for 0.1 and 1.5 (counts, times, storage used): a UI choice.
+- The erasure gap: raise it with Scot now, as its own fix, or fold it into 2.3.
+
+**From Scot:**
+- Compression on Cloud Run (1.4), CPU budget, and the proxy route.
+- `Cache-Control` and CDN behaviour for uploads (2.6); a read-only check of a direct button-set request (2.5).
+- Storage and CPU cost of renditions for every ButtonImage, and the backfill's pace (2.1).
+- Why dev's pictures are inline (0.4).
+- The erasure gap's tracking (register entry) and whether the fix ships ahead of this branch.
+
+**Devices:** an iPhone or iPad with the native app (1.2), a low-end Android phone (1.3), both native apps (1.4),
+folded into #1314's device test.
