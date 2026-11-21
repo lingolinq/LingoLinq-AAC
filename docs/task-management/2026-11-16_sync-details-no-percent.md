@@ -807,8 +807,10 @@ Lows, checked here:
    2026-11-20). Not changed.
 2. `confirmed_statuses`' comment said a finished sync's walk "resolved them all", overstating it (queued saves):
    comment corrected, no code change.
-3. The two stop paths dedupe differently (`end_canceled_sync` `Utils.uniq` by id; the failure branch does not):
-   CONFIRMED by the reviewer; for Traci.
+3. The two stop paths dedupe differently: WRONG (correction, Rule #0.10). The failure branch dedupes too,
+   `services/persistence.js:2462` `Utils.uniq(statuses, ... s.id)`, after building its rows and before `with_errors`
+   (:2469), the same order as `end_canceled_sync` (:5119-5120). Both keep the first row per id (the declined Low 3
+   class). Re-checked here and by the adversary. No change.
 4. A stopped entry with no saved row still shows "Saved before the sync stopped" and "0 boards and folders are saved
    on this device." (`partial_result` takes any stopped entry with rows): CONFIRMED (`utils/sync_log_store.js`
    partial_result); for Traci.
@@ -818,3 +820,26 @@ Lows, checked here:
    finished syncs; device-local, the signed-in person's own log. Follow-up candidate, not changed.
 7. Double quotes on non-user-facing template literals (`sync-details.hbs`): attribute values in templates, not JS
    strings; not changed.
+
+### Final review, red team on the new range (adversary, 2026-11-20, at f83ae4ea0): ship with changes
+Verified here:
+- Medium, CONFIRMED: this PR sets `errored: true` on a FINISHED sync with `storage_failed`
+  (`services/persistence.js:2426`, commit 333999188; develop sets only `issues`), and `last_result` skips errored
+  entries (`utils/sync_log_store.js`). #1328's `seen_by_last_sync` takes its `ok` marks only from `last_result(mine)`
+  (`utils/offline_board_list.js:54-57` on #1328's branch). So one failed write in a sync (any service-store write,
+  a picture row included) hides that entry from #1328, and another owner's liked board drops off "Boards on This
+  Device" though the server never refused it; after 5 such syncs no clean entry is left. The adversary reproduced it
+  with the real functions. Decision: the hiding is #1328's read, so the fix is a REQUIRED part of #1328's refused-only
+  change: take `ok` from the newest entry that is not cancelled and has rows, counting an entry whose only failure is
+  storage (`!e.canceled && (!e.errored || e.storage_failed)`), with the test: a clean entry from before the like, then a
+  storage-failed entry that reached the board: listed. `last_result` stays as it is for Sync Details. Not changed here.
+- Low, CONFIRMED: the stop paths' tag hand-off is not pinned at its first step: `live_board_errors`' unit test and the
+  planted stop-path tests use untagged errors, so a `live_board_errors` that copied only `{board_id, board_key,
+  error}` passes every test. Action: new tests with tagged errors (below).
+- Low: round-1 Low 3 was wrong: corrected above.
+- Held up (adversary, read-only): F1's hook only on a committed IndexedDB write (`utils/dbman.js:470-495`); #1330's
+  reused copy marked by the utils store; L4-B consistent across supervisee walks (`key_lookups` keeps the rejected
+  promise); merges intact; the content error text uses `image.url`, not the token-carrying personalized URL
+  (`services/persistence.js:3196`), so round-1 Low 6 does not apply to it.
+Round-1 Low 4 (zero-saved stopped entry) re-checked real: the heading and "0 boards and folders are saved on this
+device." Traci (2026-11-20): fix the Lows that are real in this PR.
