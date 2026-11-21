@@ -133,13 +133,14 @@ export function last_result(log) {
 // What Sync Details shows when no sync has finished (last_result is null), such as a new account whose first sync
 // failed: the newest sync that stopped (failed or cancelled) and has rows, and whether a later one came after it
 // (Traci, 2026-11-16; docs/task-management/2026-11-16_sync-details-no-percent.md). Its rows are only the boards it
-// reached, so the view says "Saved before the sync stopped" and claims nothing ready. A sync whose board writes failed
-// (`storage_failed`, services/persistence.js) saved nothing it lists, so it is never this result.
+// reached, so the view says "Saved before the sync stopped" and claims nothing ready. A stop after a failed write
+// (`storage_failed`) is still this result: its rows count a board as saved only once written (utils/sync_rollup.js
+// confirmed_statuses), so it shows what was written and not the failed board.
 export function partial_result(log) {
   var list = Array.isArray(log) ? log : [];
   for(var i = list.length - 1; i >= 0; i--) {
     var e = list[i];
-    if(e && (e.errored || e.canceled) && e.confirmed && !e.storage_failed && e.statuses && e.statuses.length) { // confirmed: written only by the two stop paths, whose rows went through confirmed_statuses (services/persistence.js sync, end_canceled_sync); an entry the old code wrote, or a finished sync whose writes failed, has none
+    if(e && (e.errored || e.canceled) && e.confirmed && e.statuses && e.statuses.length) { // confirmed: written only by the two stop paths, whose rows went through confirmed_statuses (services/persistence.js sync, end_canceled_sync); an entry the old code wrote, or a finished sync whose writes failed, has none
       return { entry: e, from_earlier: i < list.length - 1 };
     }
   }

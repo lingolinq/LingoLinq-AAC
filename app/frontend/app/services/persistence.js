@@ -2972,7 +2972,7 @@ var persistence = Service.extend({
                       lookups[board_json.id] = RSVP.resolve(board_record);
                       lookups[board_json.key] = lookups[board_json.id]
                       _this_sync_boards.store('board', board_json, board_json.key).then(function(str) {
-                        note_device_boards(_this_sync_boards.get('sync_progress'), [board_json]); next_batch();
+                        next_batch(); // a written board is noted by the store's own hook (utils/sync_rollup.js note_board_written); this handler also runs on a failed write
                       }, function(err) {
                         next_batch();
                       });

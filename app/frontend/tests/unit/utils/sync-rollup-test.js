@@ -150,7 +150,7 @@ module('Unit | Utility | sync rollup', function() {
   // docs/task-management/2026-11-16_sync-details-no-percent.md Part 2 (H): at a stop, a download row counts as saved
   // only when board_lookup finished it or the device database confirmed it; otherwise it is 'not_saved' (not an error).
   test('confirmed_statuses: unconfirmed downloads at a stop are not saved', function(assert) {
-    var sp = { device_boards: { '1_3': true, 'me/kept-on-device': true } };
+    var sp = { device_boards: { '1_3': true, 'me/kept-on-device': true, '1_6': true, 'me/cached': true } }; // me/cached: a cached row is one the device read found (Part 5)
     note_board_done(sp, '1_1', 'me/done');
     var rows = confirmed_statuses([
       { id: '1_1', key: 'me/done', status: 're-downloaded' },
@@ -168,6 +168,15 @@ module('Unit | Utility | sync rollup', function() {
     assert.strictEqual(grouped.overall.saved, 5, 'the two unconfirmed downloads and the failure are not counted as saved');
     assert.deepEqual(confirmed_statuses(null, sp), []);
     assert.strictEqual(confirmed_statuses([{ id: '9', key: 'x/y', status: 'downloaded' }], null)[0].status, 'not_saved', 'no progress: nothing is confirmed');
+  });
+
+  // Part 5 (review of the proposal): at a stop, a 'cached' row trusted by the `retrieved` stamp may be only a queued
+  // save, so once the device was read it needs the same confirmation as a download; with no device read it is unchanged.
+  test('confirmed_statuses: a cached row needs confirmation once the device was read', function(assert) {
+    var rows = [{ id: '1_1', key: 'me/on-device', status: 'cached' }, { id: '1_2', key: 'me/written', status: 'cached' }, { id: '1_3', key: 'me/queued', status: 'cached' }];
+    var sp = { device_boards: { '1_1': true }, boards_done: { 'me/written': true } };
+    assert.deepEqual(confirmed_statuses(rows, sp).map((r) => r.status), ['cached', 'cached', 'not_saved']);
+    assert.deepEqual(confirmed_statuses(rows, { boards_done: {} }).map((r) => r.status), ['cached', 'cached', 'cached'], 'no device read: unchanged');
   });
 
   test('note_board_done marks by id and key, and ignores a missing progress', function(assert) {

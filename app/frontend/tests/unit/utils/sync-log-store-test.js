@@ -172,7 +172,7 @@ module('Unit | Utility | sync log store', function() {
     assert.true(r2.from_earlier, 'a later stop saved nothing');
     assert.strictEqual(partial_result([entry(1, { errored: true, confirmed: true }), entry(2)]).entry.summary, 'sync 1', 'a finished sync is never the partial one');
     assert.strictEqual(partial_result([entry(1)]), null);
-    assert.strictEqual(partial_result([entry(1, { errored: true, storage_failed: true })]), null, 'boards the device could not save are not shown as saved');
+    assert.strictEqual(partial_result([entry(1, { errored: true, storage_failed: true, confirmed: true })]).entry.summary, 'sync 1', 'a stop after a failed write still shows what it wrote (Part 5; its rows are confirmed, so the failed board reads not saved)');
     assert.strictEqual(partial_result(null), null);
   });
 

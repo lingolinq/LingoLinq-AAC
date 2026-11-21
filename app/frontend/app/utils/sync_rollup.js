@@ -201,15 +201,18 @@ var UNCONFIRMED_UNTIL_DONE = { 'downloaded': true, 're-downloaded': true };
 // A stopped sync's rows: a download recorded before it finished (board_lookup records 're-downloaded' before the
 // reload; the batch step 'downloaded' before its store) and never confirmed reads 'not_saved': not an error, so it is
 // neither counted as saved (rollup) nor taken as a refusal. A board waiting for a retry, or still loading, when the sync
-// stopped is not on the device. Other rows are unchanged. A finished sync does not use this: its walk resolved every
+// stopped is not on the device. Once the device was read (`device_boards`), a 'cached' row needs the same
+// confirmation: one trusted by its `retrieved` stamp may be only a queued save. Other rows are unchanged. A finished
+// sync does not use this: its walk resolved every
 // lookup, but a save the adapter only queued (store_eventually) may still be pending, and a later failure of that write
 // is not counted (docs/task-management/2026-11-16_sync-details-no-percent.md, "Not covered").
 export function confirmed_statuses(statuses, sync_progress) {
   var done = (sync_progress && sync_progress.boards_done) || {};
   var device = (sync_progress && sync_progress.device_boards) || {};
   var ok = function(s) { return !!((s.id && (done[s.id] || device[s.id])) || (s.key && (done[s.key] || device[s.key]))); };
+  var read = !!(sync_progress && sync_progress.device_boards); // a 'cached' row trusted by its `retrieved` stamp may be a queued save only: once the device was read, it needs confirmation too
   return (statuses || []).map(function(s) {
-    if(!s || s.error || !UNCONFIRMED_UNTIL_DONE[s.status] || ok(s)) { return s; }
+    if(!s || s.error || ok(s) || !(UNCONFIRMED_UNTIL_DONE[s.status] || (read && s.status === 'cached'))) { return s; }
     return Object.assign({}, s, { status: 'not_saved' });
   });
 }

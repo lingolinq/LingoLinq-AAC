@@ -8106,7 +8106,9 @@ describe("persistence-sync", function() {
           var last = log[log.length - 1] || {};
           expect(last.errored).toEqual(true);
           expect(last.storage_failed).toEqual(true);
-          expect(partial_result([last])).toEqual(null);
+          var shown = partial_result([last]); // Part 5: shown, with only what was written: the failed board is not saved
+          expect(!!shown && shown.entry === last).toEqual(true);
+          expect(((last.statuses || []).filter(function(r) { return r.key === 'fred/full'; })[0] || {}).status).toEqual('not_saved');
           restore(saved, c);
         });
       });
@@ -8133,7 +8135,9 @@ describe("persistence-sync", function() {
           var last = log[log.length - 1] || {};
           expect(last.canceled).toEqual(true);
           expect(last.storage_failed).toEqual(true);
-          expect(partial_result([last])).toEqual(null);
+          var shown = partial_result([last]); // Part 5: shown, with only what was written: the failed board is not saved
+          expect(!!shown && shown.entry === last).toEqual(true);
+          expect(((last.statuses || []).filter(function(r) { return r.key === 'fred/full2'; })[0] || {}).status).toEqual('not_saved');
           restore(saved, c);
         });
       });
