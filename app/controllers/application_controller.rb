@@ -72,6 +72,14 @@ class ApplicationController < ActionController::Base
   end
   helper_method :compliance_kernel_injection
 
+  # Logged-out screens (login and register) have no user payload. This is the
+  # site default from SystemFeatureSettings, so an admin change shows up without
+  # a new asset build. Callers merge it into a fresh settings hash.
+  def enabled_frontend_features_injection
+    { 'enabled_frontend_features' => SystemFeatureSettings.default_enabled_features }
+  end
+  helper_method :enabled_frontend_features_injection
+
   # Best jurisdiction signal available for THIS request, using only signals that
   # already exist (no IP geolocation). This is best-effort BROWSER-LOCALE
   # detection: an explicit ?locale= param, then the Accept-Language header.
