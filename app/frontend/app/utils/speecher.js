@@ -1601,21 +1601,30 @@ speecher.reapply_user_voice = function() {
   speecher.set_voice(user.get('preferences.device.voice'), user.get('preferences.device.alternate_voice'));
 };
 
-// On Android, load the person's voice with a silent utterance on a touch, so the first word is not held up while
-// the device loads it (utils/speech_warmup.js). Once per voice: a later touch warms again only when the voice
-// changed. Android only: iOS Safari ignores utterance volume, and the delay was measured on Android.
+// On Android, load the voice buttons speak with, using a silent utterance on a touch, so the first word is not held
+// up while the device loads it (utils/speech_warmup.js). Android only: iOS Safari ignores utterance volume, and the
+// delay was measured on Android.
+// - The button voice: the alternate voice when it is on for buttons (utils/utterance.js speak_button), as speak_text
+//   then uses alternate_voiceURI; otherwise the main voice.
+// - Once per voice, counted only when the warm-up STARTS: a warm-up cancelled before it starts (unlock_speech or
+//   stop() on the same tap, for a button that speaks nothing) loaded nothing, so the next touch tries again. While
+//   one is queued, warm_voice's speaking/pending check keeps a second from being added.
+speecher.button_voice_uri = function() {
+  var alt = speecher.alternate_voice;
+  return (alt && alt.enabled && alt.for_buttons === true) ? speecher.alternate_voiceURI : speecher.voiceURI;
+};
 speecher.warm_voice = function() {
   var scope = speecher.scope;
   if(capabilities.system != 'Android' || !scope || !scope.speechSynthesis || !scope.SpeechSynthesisUtterance) { return false; }
+  var uri = speecher.button_voice_uri();
+  if(uri == 'force_default') { return false; } // speak_text names no voice for it
   var appState = live_service(speecher.appState);
   var locale = appState && appState.get && appState.get('vocalization_locale');
-  var voice = speecher.find_voice_by_uri(speecher.voiceURI, locale, true);
+  var voice = speecher.find_voice_by_uri(uri, locale, true);
   if(!voice || is_custom_voice(voice)) { return false; }
   var native_voice = native_voice_for(scope.speechSynthesis.getVoices(), voice);
   if(!native_voice || speecher._warmed_voice === native_voice.voiceURI) { return false; }
-  if(!warm_voice(scope.speechSynthesis, scope.SpeechSynthesisUtterance, native_voice)) { return false; }
-  speecher._warmed_voice = native_voice.voiceURI;
-  return true;
+  return warm_voice(scope.speechSynthesis, scope.SpeechSynthesisUtterance, native_voice, function() { speecher._warmed_voice = native_voice.voiceURI; });
 };
 
 // Called from setup(). One capture listener for the page: every pointerdown is a user gesture, which Chrome

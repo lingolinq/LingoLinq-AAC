@@ -25,13 +25,15 @@ export function native_voice_for(native_voices, voice) {
 }
 
 // Speaks the silent warm-up in `native_voice`. Skipped (false) while anything is speaking or queued, so it never
-// delays or cuts off a word; true when it was handed to the engine.
-export function warm_voice(synth, Utterance, native_voice) {
+// delays or cuts off a word; true when it was handed to the engine. `on_start` runs when the engine starts it, the
+// sign the voice was loaded; a warm-up cancelled before that never calls it.
+export function warm_voice(synth, Utterance, native_voice, on_start) {
   if(!synth || !Utterance || !native_voice || synth.speaking || synth.pending) { return false; }
   var u = new Utterance(WARMUP_TEXT);
   u.volume = 0;
   u.voice = native_voice;
   u.lang = native_voice.lang;
+  if(on_start && u.addEventListener) { u.addEventListener('start', on_start); }
   synth.speak(u);
   return true;
 }

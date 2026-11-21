@@ -29,6 +29,18 @@ module('Unit | Utility | speech warmup', function() {
     assert.strictEqual(u.lang, 'en-AU');
   });
 
+  test('on_start runs when the engine starts the warm-up, and not before', function(assert) {
+    var synth = fakeSynth();
+    var started = 0;
+    function Listening(text) { this.text = text; this.handlers = {}; }
+    Listening.prototype.addEventListener = function(type, fn) { this.handlers[type] = fn; };
+    warm_voice(synth, Listening, aussie, function() { started++; });
+    assert.strictEqual(started, 0, 'queued is not started');
+    synth.spoken[0].handlers.start();
+    assert.strictEqual(started, 1);
+    assert.notOk(synth.spoken[0].handlers.error, 'a cancelled warm-up reports nothing');
+  });
+
   test('nothing is spoken while a word is speaking or queued', function(assert) {
     var speaking = fakeSynth({ speaking: true });
     assert.false(warm_voice(speaking, Utterance, aussie));
