@@ -48,6 +48,9 @@ designed; Firefox draws the symbols again.
   hidden from layout and assistive technology, added once, and the initializer installs them.
 - `ember test --query timingStrict=1 --filter "/symbol filters|leak check|board-detail|button/i"`: 655 tests, 651
   pass, 4 skipped (existing), 0 fail.
+- Mutations (together): `install_symbol_filters` never attaches the `<svg>`, and the initializer does nothing. Red: the
+  "adds both filters", "added once" and "initializer installs them" tests; the markup-attributes test stays green, as
+  it checks the element, not where it is. Restored with `git checkout`.
 - `npm run lint:js:ci`: no finding in the changed files (the 4 known worktree `no-orphaned-action` false positives).
 
 ## Screenshots (production build of this branch on :5112 against develop on :5097)
