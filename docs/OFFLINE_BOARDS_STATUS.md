@@ -1,6 +1,8 @@
 # Offline boards: status and what's left
 
-Last updated: 2026-11-11. Branch: `feat/scot-offline-app-shell-7a29ac97` (PR #1268, draft, targets `develop`).
+Last updated: 2026-11-20. PR #1268 merged into `develop` on 2026-11-14 (`eafc1d244`). The offline app shell is
+on in dev and off in staging and production (see "Where it is switched on").
+Sections below headed "on this branch" or "in #1268" describe what that PR shipped, as written before the merge.
 Detailed working log, with every review, decision and test run: `docs/task-management/2026-11-05_offline-boards-sync.md`.
 Scot's own log for the offline app shell: `docs/task-management/2026-11-03_offline-app-shell.md`.
 
@@ -11,7 +13,18 @@ and their boards with no network: on a bus, at a school with weak Wi-Fi, in airp
 voice, so "synced" has to mean the boards are really on the device, and the app has to open without the
 server.
 
-## How it works now (on this branch)
+## Where it is switched on (checked 2026-11-20)
+
+| Environment | `APP_OFFLINE_APP_SHELL` (GitHub environment variable) | State |
+|---|---|---|
+| dev | `on` (set 2026-11-15; dev redeployed with #1268 the same minute) | On: `dev.lingolinq.com` sets `window.offline_shell_enabled = true` and serves the real `/sw.js` |
+| staging | not set | Off |
+| production | not set | Off. Turned on only after the device checks in #1314 pass (see "Before the shell goes on in production") |
+
+The not-saved board fallback (#1209) and the device-copy board pages do not depend on this setting; they run in
+every environment, native apps included.
+
+## How it works now (on develop)
 
 Three layers, all needed for an offline launch:
 
@@ -46,7 +59,7 @@ code. The app now says this where people like a board, on the boards page's Like
 The `background_board_prefetch` setting no longer affects what is saved offline. It only loads boards into
 memory ahead of time while online, so they open faster.
 
-## Done on this branch
+## Done on this branch (shipped in #1268)
 
 Each item below has tests, except where an item says otherwise (#1201's iPad wiring has none yet); the PR's "Fix
 status" table lists the exact spec for each.
@@ -164,42 +177,56 @@ status" table lists the exact spec for each.
 | Ask "Trust this Device" on Home Screen sign-ins | Scot | 2026-11-05 |
 | Ask it only where the offline shell is on | Scot (suggestion), Traci | 2026-11-07 |
 | Earlier trusted Home Screen iPads: keep Scot's manual workaround for now; code fix is Scot's call (#1285) | Traci | 2026-11-07 |
+| No code fix for Home Screen iPads trusted before #1268: no real users are affected (#1285 closed as not planned) | Scot | 2026-11-19 |
+| A board not saved on the device goes to the home board if saved, else Always-Available Boards (`/offline-boards`), instead of the boards page the issue asked for; accepted as #1209's fix | Traci | 2026-11-19 |
+| #1213, #1209 and #1205 stay open until their own device checks pass | Traci | 2026-11-19 |
 | Offline sync saves home, sidebar, liked boards and Crisis Vocabulary; like a board to keep it offline | Traci | 2026-11-08 |
 | Keep "Like" in both views (Modern's "Set as Favorite" renamed) and add the offline wording | Traci | 2026-11-08 |
 | The first 50 liked boards are kept offline (the server listed only 25, so later likes never synced; first set to 100 on 2026-11-09, then 50). The liked-list home grid shows every listed liked board, so up to 50 (holding it at 25 with a "Show more" tile was dropped the same day: not needed at a limit of 50); a message when a like is past the limit, hiding boards a person can no longer view and clearing deleted ones are a follow-up PR | Traci | 2026-11-10 |
 
 ## What's left
 
-### Before merge (needs a person)
+### Merged (2026-11-14)
 
-- **`data-bearing-paths` check.** It passes on `980a92772` (checked 2026-11-10). If it fails after a later push, a
-  person with write access looks at the changed data files and adds the `synthetic-data` label. Agents must not.
-- **CI.** `security-scan` fails on `develop` too (known; needs a Rails 8 upgrade). The three #1205 tests that kept
-  the Ember check red are fixed (`407ef94ac`).
-- **Decided and built 2026-11-10 (Traci):** the app opens from the device on a server error page (5xx or 429).
-  A hang still waits for the network: Traci kept what review round 2 approved rather than regress it (a 4-second
-  limit was built and withdrawn the same day; Scot was told on the PR).
-- **Not in this PR (Traci, 2026-11-10):** making Modern view match Basic view offline (Edit, Set as home, "Use this board"). Tracked in #1301; see "Decisions made".
-- **The dual review** (`/review-pr` and `/adversary-review`), because the PR touches sign-in.
-- **A sync with many liked boards, measured** (time, requests, failed saves): a condition from the review of the
-  50-board limit.
-- **Scot's review** of the parts of his PR that changed after he handed it over.
+#1268 merged into `develop` as `eafc1d244`. After the merge, #1206, #1229, #1230 and #1034 were closed with
+comments (#1034's remaining home-board paths are #1312). #1285 was closed by Scot on 2026-11-19 as not planned (see
+"Decisions made").
 
-### Needs a real device (after merge to `develop`, on dev.lingolinq.com)
+Kept open on purpose (Traci, 2026-11-19): **#1213, #1209 and #1205**. Their code is merged, but each issue's own
+simulator, emulator or device checks are not done. Close each only after its checks pass.
 
-- **The device checklist** in the PR text (iPad, Android, Chromebook):
-  1. Add to Home Screen.
-  2. Sign in, "Trust this Device".
-  3. Sync.
-  4. Airplane mode.
-  5. Open boards and pictures.
-  6. Try a shared sign-in.
-- **#1201:** check the iPad reports `system=iOS` (needs a simulator or device).
+### Needs a real device (on dev.lingolinq.com)
+
+- **#1314, the device test** (iPad Home Screen web app, Android in Chrome, Chromebook, a shared-device sign-in),
+  with the step added for #1334 (a sync whose connection drops and comes back). Results go as comments on #1314.
+  - Android: dev's manifest (`/manifest.webmanifest`) has `display: standalone`, but its largest icon is
+    180x180. Chrome on Android usually wants 192 and 512 px icons before it offers "Install app", so the test may
+    only get a shortcut. If so, adding those two icons is a small follow-up.
+- **#1201:** check an iPad reports `capabilities.system` = "iOS" and `capabilities.mobile` = true (Safari Web
+  Inspector on a Mac; no screen in the app shows it).
 - **#1205:** force a database setup failure and check the on-screen message.
-- **Sounds** on synced boards offline (never tested).
+- **#1209:** iOS simulator and Android emulator, offline cold start, Speak Mode with the home board saved, not
+  saved, and unset.
+- **#1213:** Modern view offline on a device; also check buttons speak and show pictures offline, and "Go to Home
+  Board" works.
+- **#1219:** one signed-in `/tree` of the largest board tree on dev (status 200 and its time; the Cloud Run logs
+  show no "Response size was too large").
+- **#1212:** a full sync in a staging build of the iOS or Android app with a large account, compared with the
+  issue's 246-error first sync.
+- **Android emulator gaps** (local server): Basic view offline; opening a folder by tapping it offline; pictures
+  and sounds offline; word suggestions and Find a Button offline; a board not saved (the #1209 fallback); a liked
+  board past the 25th through a real sync.
 - **One unexplained WebKit stall:** once in 15 sign-ins in Safari's engine, "Trust this Device" did not finish (no
   save request went out). Not reproduced since; a real iPad will tell.
-- **The `dev` environment needs `APP_OFFLINE_APP_SHELL=on`** (GitHub environment variable) for the shell to be on there.
+- **#1221, after release:** measure the first sync on production with a real Android device and an iPad.
+
+### Before the shell goes on in production
+
+1. The device checks on #1314 pass.
+2. Set `APP_OFFLINE_APP_SHELL=on` in the GitHub `production` environment.
+3. Redeploy: Actions > Deploy to Cloud Run > Run workflow on `main`; a reviewer approves the production deployment.
+
+#1285 no longer blocks this (closed 2026-11-19).
 
 ### Code work still to do (priority order)
 
@@ -290,29 +317,41 @@ status" table lists the exact spec for each.
     hardware-accelerated Android device and an iPad; the board count on a real account; one first sync checked
     board by board for missing boards.
 
-### Translations (after this PR's work, likely its own PR under #1234)
+### Translations
 
-The new messages are in English only. Steps:
+Before the merge, #1268 machine-translated every waiting UI string in the 12 other languages. The translation task
+had broken placeholder markers in some strings (for example `TR5B` in place of `%{limit}`); 201 were repaired by
+mapping them back to their placeholders, and 29 were reset to `***` so English shows. The task's bug is #1316.
+
+Counted on `develop` on 2026-11-20, these strings are still `***` (the app shows English for them): ar 80, de 286,
+es 155, fr 268, ga 160, ja 99, pl 177, pt 191, ru 97, uk 108, zh 77, zh_TW 79. Remaining translations: #1234. A
+native speaker's review of the machine translations: #1340.
+
+The steps, for a later run:
 
 1. `ruby i18n_generator.rb --generate` checks the English file against the code.
 2. `ruby i18n_generator.rb --merge` adds `***` placeholders to the 12 other languages.
 3. `op run --env-file=.env.op.local -- bundle exec rake extras:translate_ui_locales LOCALE=all` machine-translates
    them. It needs 1Password signed in for the Google Translate key.
 
-`es.json` alone already has 701 strings waiting, most from before this work. A native speaker should review the
-important languages.
-
 ### Decisions still open
 
-- **#1285 (Scot):** should iPads that were trusted on a Home Screen sign-in before this PR be asked again by code,
-  instead of the manual workaround (Preferences > Session Timeout on each iPad)? A design and a standards write-up
-  are in the issue and in `docs/task-management/2026-11-07_aac-device-trust-research.md`. Decision requested from
-  Scot on the issue in plain language on 2026-11-11 (workaround or code fix; if the fix, here or its own PR before
-  the shell goes on in production); he is assigned. Not a merge blocker: the shell is off in production.
 - **Liking in Modern view (Traci, UI):** Like is only in Edit mode (Board Actions). Now that liking is how a board is
   kept offline, a Like on Modern's board page outside Edit may be wanted. Traci, 2026-11-11: left as is for now,
   to be decided later (it belongs with the Modern catch-up in #1301 if it goes ahead).
+- **The liked-boards follow-up PR (Traci):** when to start it (the limit message, hiding boards a person can no
+  longer view, clearing deleted ones; see the 2026-11-10 row in "Decisions made").
 - **Scot's open review items** in the PR text (the four Low items left as known limits).
+
+### Follow-ups filed
+
+- #1312: two more ways to set a home board start no sync.
+- #1301: Modern view offline matches what Basic view can do.
+- #1316: the translation task leaves placeholder markers.
+- #1234: remaining translations; #1340: native-speaker review.
+- #1341: known gaps after #1334 (sync picture retry, liked-icon warning).
+- PR #1328 (open): "Boards on This Device", the boards page lists the boards saved on the device while offline
+  (#1209's step 3).
 
 ## Known limits
 
@@ -360,19 +399,24 @@ Notes:
 
 ## Related issues
 
-| Issue | Topic | State on this branch |
+Issue states checked on GitHub 2026-11-20.
+
+| Issue | Topic | State |
 |---|---|---|
-| #1201 | iPads detected as Macs | Partly fixed (`mobile`); `system` needs a device check |
-| #1205 | Failed database setup hangs storage | Fixed in unit tests; device check pending |
-| #1206 | iOS SQLite shim row | Fixed on this branch; device check pending |
-| #1209 | Not-saved board is a dead end | Fixed |
-| #1212 | Board requests time out under load | Client side done, including production pictures from the CDN; cause on staging not established; not measured on staging or production |
-| #1213 | Modern view never loads from the device | Fixed |
-| #1219 | `/tree` fails on large boards | Built on this branch; closes after one signed-in `/tree` on dev or staging |
-| #1221 | First offline sync too slow | Code work done (board selection, duplicate writes, doubled button list, pictures written again); verification on production and real devices is item 10 |
-| #1229 | Retry gaps after a failed sync | Fixed on this branch |
-| #1230 | Modern "Sync failed" notice | Fixed on this branch |
-| #1034 | "Pick for home" claims | Fixed on this branch |
-| #1234 | Translations for the 12 locales | Open (steps above) |
-| #1285 | Earlier trusted Home Screen iPads | Waiting on Scot |
-| #1301 | Modern view offline: match Basic view | Open; not part of this PR |
+| #1201 | iPads detected as Macs | Open: partly fixed (`mobile`); `system` needs a device check |
+| #1205 | Failed database setup hangs storage | Open: fixed in unit tests; device check pending |
+| #1206 | iOS SQLite shim row | Closed |
+| #1209 | Not-saved board is a dead end | Open: fallback merged; simulator and emulator checks pending; step 3 is PR #1328 |
+| #1212 | Board requests time out under load | Open: client side done; cause on staging not established; not measured on staging or production |
+| #1213 | Modern view never loads from the device | Open: fixed; device checks pending |
+| #1219 | `/tree` fails on large boards | Open: merged; closes after one signed-in `/tree` on dev or staging |
+| #1221 | First offline sync too slow | Open: code work done; verification on production and real devices is item 10 |
+| #1229 | Retry gaps after a failed sync | Closed |
+| #1230 | Modern "Sync failed" notice | Closed |
+| #1034 | "Pick for home" claims | Closed (remaining paths: #1312) |
+| #1234 | Translations for the 12 locales | Open |
+| #1285 | Earlier trusted Home Screen iPads | Closed as not planned (Scot, 2026-11-19) |
+| #1301 | Modern view offline: match Basic view | Open |
+| #1312 | Two more home-board paths start no sync | Open |
+| #1314 | Device test of the offline app shell | Open |
+| #1316 | Translation task placeholder markers | Open |
