@@ -477,6 +477,26 @@ class ApplicationController < ActionController::Base
       !@api_user.article_50_disclosure_shown?
   end
 
+  # AI data-sharing consent backstop (#1136). Returns true when the request may
+  # go on, or false after rendering 403 `ai_consent_required` itself, the same
+  # early-return convention as require_article_50_disclosure!. Checks @api_user.
+  def require_ai_consent!
+    if ai_consent_missing?
+      api_error(403, ai_consent_required_payload)
+      return false
+    end
+    true
+  end
+
+  # The pure check, for callers that render their own response shape.
+  def ai_consent_missing?
+    FeatureFlags.ai_consent_blocks_ai_for?(@api_user)
+  end
+
+  def ai_consent_required_payload
+    { error: 'ai_consent_required', disclosures_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION }
+  end
+
   # Normalized token scopes for Permissable (same rules as +allowed?+).
   def api_permission_scopes
     scopes = ['full']

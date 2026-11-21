@@ -6,6 +6,7 @@ import modalUtil from '../utils/modal';
 import editManager from '../utils/edit_manager';
 import i18n from '../utils/i18n';
 import { board_view_route } from '../utils/board_view';
+import { isAiConsentRefusal, aiConsentRefusalMessage } from '../utils/article50_gate';
 
 /**
  * Generate board with AI modal.
@@ -241,7 +242,11 @@ export default Component.extend({
         var resp = (err && err.fakeXHR && err.fakeXHR.responseJSON) || (err && err.responseJSON) || (err && err.responseText ? (function() {
           try { return JSON.parse(err.responseText); } catch (e) { return null; }
         })() : null);
-        if (resp && resp.error) {
+        if (isAiConsentRefusal(err)) {
+          // No AI data-sharing consent on the account (#1136): say who can fix it,
+          // not the raw error code.
+          msg = aiConsentRefusalMessage(_this.get('appState'));
+        } else if (resp && resp.error) {
           msg = resp.error;
           if (resp.error_kind) { msg += ' [' + resp.error_kind + ']'; }
           if (resp.error_detail) { msg += ' - ' + resp.error_detail; }

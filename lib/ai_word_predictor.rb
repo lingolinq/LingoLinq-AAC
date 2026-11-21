@@ -70,6 +70,10 @@ module AiWordPredictor
       # EU under-16 AI parental-consent hard-gate.
       return [] if FeatureFlags.eu_under16_blocks_ai_for?(user)
 
+      # AI data-sharing consent (#1136). Above the cache lookup below, so an account
+      # with no current consent is not served a cached AI result either.
+      return [] if FeatureFlags.ai_consent_blocks_ai_for?(user)
+
       ctx = normalize_context(context)
 
       # Configure blocklist with the user's name so it cannot leak verbatim.

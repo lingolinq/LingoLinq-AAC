@@ -46,6 +46,11 @@ module('Unit | Utility | sync log store', function() {
     assert.deepEqual(entry_copy({ errored: true, finished: e.finished }).statuses, [], 'an entry without rows gets an empty list');
   });
 
+  test('a saved entry keeps its warnings', function(assert) {
+    var copy = entry_copy({ finished: new Date(), statuses: [{ id: '1_2', key: 'me/side', status: 'cached', warning: 'board me/side saved without its picture: x' }] });
+    assert.deepEqual(copy.statuses, [{ id: '1_2', key: 'me/side', status: 'cached', warning: 'board me/side saved without its picture: x' }]);
+  });
+
   test('a finished sync is saved, newest 5, in the owner\'s record', function(assert) {
     var p = service('me', 'me');
     var storage = fake_storage();

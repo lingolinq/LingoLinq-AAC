@@ -2572,19 +2572,19 @@ export default Component.extend({
           if(_this.isDestroyed || _this.isDestroying || gen !== _this.get('_ai_gen_seq')) { return; }
           var msg = i18n.t('generate_failed', "Generation failed");
           var resp = (err && err.fakeXHR && err.fakeXHR.responseJSON) || (err && err.responseJSON) || null;
-          if(resp && resp.error) {
+          if(article50Gate.isAiConsentRefusal(err)) { msg = article50Gate.aiConsentRefusalMessage(_this.get('appState')); /* no AI data-sharing consent (#1136): say who can fix it */ } else if(resp && resp.error) {
             msg = resp.error;
             if(resp.error_detail) { msg += ' - ' + resp.error_detail; }
           }
           _this.set('ai_generating', false);
           _this.set('ai_generate_error', msg);
         });
-      }, function() {
+      }, function(gate_err) { /* gate_err.ai_consent_gate: "Not now" on the AI data-sharing agreement (#1136) */
         // Art.50 gate not acknowledged. Fail-closed: no generation request fires.
         // Surface a reason rather than leaving the button looking broken.
         if(_this.isDestroyed || _this.isDestroying || gen !== _this.get('_ai_gen_seq')) { return; }
         _this.set('ai_generating', false);
-        _this.set('ai_generate_error', i18n.t('generate_disclosure_required', "Please review the AI transparency notice before generating a board with AI."));
+        _this.set('ai_generate_error', (gate_err && gate_err.ai_consent_gate) ? article50Gate.aiConsentRefusalMessage(_this.get('appState')) : i18n.t('generate_disclosure_required', "Please review the AI transparency notice before generating a board with AI."));
       });
       });
     },

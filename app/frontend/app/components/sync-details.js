@@ -5,7 +5,7 @@ import { computed } from '@ember/object';
 import { htmlSafe } from '@ember/template';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
-import { sync_progress_line } from '../utils/sync_progress';
+import { sync_progress_line, picture_warning } from '../utils/sync_progress';
 import { summary_for } from '../utils/sync_rollup';
 import { restored_lead_kind } from '../utils/sync_log_store';
 
@@ -94,6 +94,12 @@ export default Component.extend({
       return t;
     });
   }),
+  // On Needs attention the ready boards are not listed, so a folder saved without its picture is named here instead.
+  picture_warning_line: computed('summary', 'current_tab', function() {
+    var s = this.get('summary');
+    return s && this.get('current_tab') === 'attention' ? picture_warning(s.overall.pictures_missing) : null;
+  }),
+
   cards: computed('summary', 'current_tab', 'open_cards', 'all_saved_cards', function() {
     var self = this;
     var s = this.get('summary');
@@ -101,7 +107,7 @@ export default Component.extend({
     var tab = this.get('current_tab');
     var open = this.get('open_cards') || {};
     var all_saved = this.get('all_saved_cards') || {};
-    var first_attention = (s.groups.find(function(g) { return !g.ready; }) || {}).key;
+    var first_attention = (s.groups.find(function(g) { return !g.ready; }) || s.groups.find(function(g) { return g.pictures_missing.length > 0; }) || {}).key; // nothing needs attention: the first board saved without its picture
     return s.groups.filter(function(g) {
       return tab === 'all' || (tab === 'attention' ? !g.ready : g.ready);
     }).map(function(g) {
@@ -125,6 +131,9 @@ export default Component.extend({
         folders_missing: g.folders_missing,
         folders_saved: show_all ? g.folders_saved : g.folders_saved.slice(0, SAVED_SHOWN),
         has_missing: missing > 0,
+        pictures_missing: g.pictures_missing,
+        has_picture_warning: g.pictures_missing.length > 0,
+        pictures_title: i18n.t('sync_picture_not_saved_n', "Picture not saved · %{n}", { n: g.pictures_missing.length }),
         has_saved: g.saved_count > 0,
         has_more_saved: g.saved_count > SAVED_SHOWN,
         more_label: show_all ? i18n.t('sync_show_fewer', "Show fewer") : i18n.t('sync_show_all_saved_n', "Show all %{n} saved folders", { n: g.saved_count }),

@@ -1009,6 +1009,9 @@ class SessionController < ApplicationController
       return api_error 400, {error: error}
     end
     UserBoardProvisioner.provision_for(user)
+    # AI data-sharing consent (#1136): the Google signup agreed to the terms too. The
+    # version comes from this final request, which the signup page itself sends.
+    user.record_registration_ai_consent!(shown_version: params['ai_disclosure_version'], ip: request.remote_ip, user_agent: request.user_agent)
     unless user.coppa_parental_consent_pending?
       UserMailer.schedule_delivery(:confirm_registration, user.global_id)
       UserMailer.schedule_delivery(:new_user_registration, user.global_id)

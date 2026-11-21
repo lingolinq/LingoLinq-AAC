@@ -284,6 +284,13 @@ class Api::UsersController < ApplicationController
       start_progress = res[:progress]
       start_code_org = res[:target] if res.is_a?(Hash) && res[:target].is_a?(Organization)
     end
+    # AI data-sharing consent (#1136): a self-signup agrees to it with the terms. Only
+    # for a public signup (nobody signed in) with no start code: a start code attaches
+    # the account to a district in a background job, and that district's authorization
+    # is then what covers it.
+    if @api_user.nil? && !(user_data && user_data['start_code'].present?)
+      user.record_registration_ai_consent!(shown_version: user_data && user_data['ai_disclosure_version'], ip: request.remote_ip, user_agent: request.user_agent)
+    end
     UserBoardProvisioner.provision_for(user)
     # Org-authored (school-official) creation: emit the immutable authorization audit
     # now that the user is persisted. process_params recorded the basis in settings
@@ -1046,6 +1053,48 @@ class Api::UsersController < ApplicationController
     render json: {
       article_50_disclosure_shown: true,
       disclosures_version: LingoLinq::Article50Disclosures::CURRENT_VERSION
+    }
+  end
+
+  # Records the AI data-sharing consent (#1136) of an existing account with one click.
+  # Only the signed-in account holder acting on their own account can do this:
+  # - a supervisor, or an admin or manager acting as the account (masquerade), is
+  #   refused below with `account_holder_required`;
+  # - a valet login or a limited-scope token is refused by allowed?(user, 'edit');
+  # - a district-managed account is covered by its district instead
+  #   (`org_authorization_required`);
+  # - an account on the parent route is refused by grant_ai_consent! itself
+  #   (`parental_consent_required`).
+  # Source and version are server constants, never read from the request. The request
+  # only has to say which disclosure version its notice showed: a page left open across
+  # a version change showed the old text, so it is refused (`disclosure_version_stale`)
+  # and records nothing, the same rule signup follows.
+  def ai_consent
+    user = User.find_by_path(params['user_id'])
+    return unless exists?(user, params['user_id'])
+    return unless allowed?(user, 'edit')
+    own_account = @api_user && user.id == @api_user.id && !@true_user
+    return api_error(403, {error: 'account_holder_required'}) unless own_account
+    return api_error(400, {error: 'org_authorization_required'}) if Organization.ai_consent_orgs_for(user).any?
+    shown = params['disclosure_version'].to_s
+    unless shown =~ /\A\d+\z/ && shown.to_i == LingoLinq::AiConsentDisclosures::CURRENT_VERSION
+      return api_error(400, {error: 'disclosure_version_stale', disclosures_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION})
+    end
+    begin
+      user.grant_ai_consent!(
+        disclosures_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION,
+        granted_by: 'account_holder',
+        source: 'in_app',
+        ip: request.remote_ip,
+        user_agent: request.user_agent,
+        granted_by_user_id: user.global_id
+      )
+    rescue ArgumentError => e
+      return api_error 400, {error: e.message}
+    end
+    render json: {
+      ai_consent_granted: user.ai_consent_granted?,
+      disclosures_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION
     }
   end
 
