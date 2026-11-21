@@ -2466,7 +2466,7 @@ var persistence = Service.extend({
           manual: force,
           errored: _this_sync._canceled_sync_id !== sync_id, canceled: _this_sync._canceled_sync_id === sync_id || undefined, storage_failed: writes_failed_since(_this_sync, writes_before) || undefined, // a board write failed: none of its rows is shown as saved (utils/sync_log_store.js partial_result) // a cancel that ended through this branch is still a cancel (docs/task-management/2026-11-15_persist-sync-log.md)
           finished: new Date(),
-          statuses: with_errors(statuses, stopped_errors), roots: stopped_roots, // grouped and with the failures it recorded, as the finished sync's entry (utils/sync_rollup.js)
+          statuses: with_errors(statuses, stopped_errors), roots: stopped_roots, confirmed: true, // grouped and with the failures it recorded, as the finished sync's entry (utils/sync_rollup.js); confirmed: its rows went through confirmed_statuses (utils/sync_log_store.js partial_result)
           summary: _this_sync._canceled_sync_id === sync_id ? i18n.t('sync_canceled_summary', "Sync canceled") : i18n.t('error_syncing_user', "Error syncing %{user_id}: ", {user_id: user_name}) + message
         });
         _this_sync.set('last_sync_event_at', (new Date()).getTime());
@@ -5125,7 +5125,7 @@ persistence.reopen({
     this.set('sync_progress', null);
     if(this._active_root_sync_id === sync_id && this.sync_status_is_for_signed_in_user(user_id)) { this.set('sync_status', null); }
     var log = [].concat(this.get('sync_log') || []);
-    log.push({ user_id: user_name, manual: force, canceled: true, finished: new Date(), statuses: statuses, roots: roots, storage_failed: storage_failed || undefined, summary: i18n.t('sync_canceled_summary', "Sync canceled") });
+    log.push({ user_id: user_name, manual: force, canceled: true, finished: new Date(), statuses: statuses, roots: roots, confirmed: true, storage_failed: storage_failed || undefined, summary: i18n.t('sync_canceled_summary', "Sync canceled") });
     this.set('sync_log', record_sync_log(this, log)); // utils/sync_log_store.js
     this.set('sync_log_rand', Math.random());
     this.set('last_sync_event_at', (new Date()).getTime());

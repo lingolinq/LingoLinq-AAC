@@ -130,7 +130,7 @@ module('Unit | Component | sync-details grouped view', function(hooks) {
   });
 
   test('no finished sync: what the stopped sync saved, under its own heading', function(assert) {
-    var c = build(this, [{ errored: true, statuses: statuses, roots: roots, finished: new Date(1700000000000) }]);
+    var c = build(this, [{ errored: true, confirmed: true, statuses: statuses, roots: roots, finished: new Date(1700000000000) }]);
     assert.true(c.get('stopped'));
     assert.strictEqual(c.get('headline'), null);
     assert.false(c.get('show_tabs'));
@@ -151,7 +151,7 @@ module('Unit | Component | sync-details grouped view', function(hooks) {
   test('no finished sync, the last one cancelled: what it saved, under the stopped heading; an unfinished download is not counted', function(assert) {
     var parked_roots = Object.assign({ 'me/core-parked': { root: 'me/core', name: 'Parked', key: 'me/core-parked' } }, roots);
     var rows = statuses.concat([{ key: 'me/core-parked', status: 'not_saved' }]);
-    var c = build(this, [{ canceled: true, statuses: rows, roots: parked_roots, finished: new Date(1700000000000) }]);
+    var c = build(this, [{ canceled: true, confirmed: true, statuses: rows, roots: parked_roots, finished: new Date(1700000000000) }]);
     assert.true(c.get('stopped'));
     assert.strictEqual(c.get('headline'), null);
     assert.false(c.get('show_tabs'));
@@ -189,7 +189,7 @@ module('Unit | Component | sync-details grouped view', function(hooks) {
   // picture warning stays on its card, not above the cards, even though current_tab still reads 'attention'.
   test('no finished sync: a folder saved without its picture is named on its card, not above the cards', function(assert) {
     var mixed = [{ key: 'me/kb', status: 'cached', warning: 'w' }, { key: 'me/core', status: 'downloaded' }, { key: 'me/core-feel', status: 'downloaded' }, { key: 'me/core-go', error: 'failed retrieval' }];
-    var c = build(this, [{ errored: true, statuses: mixed, roots: roots, finished: new Date(1700000000000) }]);
+    var c = build(this, [{ errored: true, confirmed: true, statuses: mixed, roots: roots, finished: new Date(1700000000000) }]);
     assert.true(c.get('unfinished'));
     assert.strictEqual(c.get('current_tab'), 'attention', 'the tab still reads attention, as the guard expects');
     assert.strictEqual(c.get('picture_warning_line'), null);
@@ -201,7 +201,7 @@ module('Unit | Component | sync-details grouped view', function(hooks) {
   // stopped" over "0 boards and folders are saved on this device."; its recorded failures still show.
   test('no finished sync, the stopped one saved nothing: it says nothing was saved, and its failures still show', function(assert) {
     var none = [{ key: 'me/kb', status: 'not_saved' }, { key: 'me/core', status: 'not_saved' }, { key: 'me/core-go', error: 'failed retrieval' }];
-    var c = build(this, [{ canceled: true, statuses: none, roots: roots, finished: new Date(1700000000000) }]);
+    var c = build(this, [{ canceled: true, confirmed: true, statuses: none, roots: roots, finished: new Date(1700000000000) }]);
     assert.true(c.get('stopped'));
     assert.true(c.get('nothing_saved'));
     assert.strictEqual(c.get('summary_line'), 'No boards are saved on this device yet.');
@@ -210,7 +210,7 @@ module('Unit | Component | sync-details grouped view', function(hooks) {
   });
 
   test('a stopped sync that saved something keeps its heading and count', function(assert) {
-    var c = build(this, [{ errored: true, statuses: statuses, roots: roots, finished: new Date(1700000000000) }]);
+    var c = build(this, [{ errored: true, confirmed: true, statuses: statuses, roots: roots, finished: new Date(1700000000000) }]);
     assert.false(c.get('nothing_saved'));
     assert.strictEqual(c.get('summary_line'), '3 boards and folders are saved on this device.');
   });

@@ -164,16 +164,30 @@ module('Unit | Utility | sync log store', function() {
   // docs/task-management/2026-11-16_sync-details-no-percent.md (Traci, 2026-11-16): with no finished sync, Sync Details
   // shows what the newest stopped sync saved, under "Saved before the sync stopped".
   test('the newest stopped sync with rows, for when no sync has finished', function(assert) {
-    var r = partial_result([entry(1, { errored: true }), entry(2, { canceled: true })]);
+    var r = partial_result([entry(1, { errored: true, confirmed: true }), entry(2, { canceled: true, confirmed: true })]);
     assert.strictEqual(r.entry.summary, 'sync 2');
     assert.false(r.from_earlier);
-    var r2 = partial_result([entry(1, { errored: true }), entry(2, { errored: true, statuses: [] })]);
+    var r2 = partial_result([entry(1, { errored: true, confirmed: true }), entry(2, { errored: true, statuses: [], confirmed: true })]);
     assert.strictEqual(r2.entry.summary, 'sync 1');
     assert.true(r2.from_earlier, 'a later stop saved nothing');
-    assert.strictEqual(partial_result([entry(1, { errored: true }), entry(2)]).entry.summary, 'sync 1', 'a finished sync is never the partial one');
+    assert.strictEqual(partial_result([entry(1, { errored: true, confirmed: true }), entry(2)]).entry.summary, 'sync 1', 'a finished sync is never the partial one');
     assert.strictEqual(partial_result([entry(1)]), null);
     assert.strictEqual(partial_result([entry(1, { errored: true, storage_failed: true })]), null, 'boards the device could not save are not shown as saved');
     assert.strictEqual(partial_result(null), null);
+  });
+
+  // Codex P2 on 7cad69d0f (Part 5): only an entry a stop path wrote (its rows confirmed) is a partial result. An entry
+  // the old code wrote, or a finished sync whose writes failed, carries no marker and is never shown as saved.
+  test('partial_result takes only a stopped entry its stop path marked confirmed', function(assert) {
+    assert.strictEqual(partial_result([entry(1, { errored: true })]), null, 'a stopped entry the old code wrote');
+    assert.strictEqual(partial_result([entry(1, { canceled: true })]), null, 'a cancelled one too');
+    assert.strictEqual(partial_result([entry(1, { errored: true, storage_failed: true })]), null, 'a finished sync whose writes failed (errored, storage_failed, raw rows)');
+    assert.strictEqual(partial_result([entry(1, { errored: true, confirmed: true })]).entry.summary, 'sync 1');
+  });
+
+  test('a saved entry keeps its confirmed marker', function(assert) {
+    assert.true(entry_copy(entry(1, { errored: true, confirmed: true })).confirmed);
+    assert.strictEqual(entry_copy(entry(1)).confirmed, undefined);
   });
 
   test('a saved entry keeps whether the device could not save its boards', function(assert) {

@@ -41,7 +41,7 @@ function defaults(deps) {
 // (components/sync-details.js `details`: idx, status flags, sorted_statuses, toggled) are left out.
 export function entry_copy(entry) {
   var copy = {};
-  ['user_id', 'reason', 'manual', 'issues', 'errored', 'canceled', 'storage_failed', 'finished', 'summary', 'roots'].forEach(function(k) {
+  ['user_id', 'reason', 'manual', 'issues', 'errored', 'canceled', 'storage_failed', 'confirmed', 'finished', 'summary', 'roots'].forEach(function(k) {
     if(entry[k] !== undefined) { copy[k] = entry[k]; }
   });
   copy.statuses = (Array.isArray(entry.statuses) ? entry.statuses : []).filter(function(s) { return s && typeof s === 'object'; }).map(function(s) {
@@ -139,7 +139,7 @@ export function partial_result(log) {
   var list = Array.isArray(log) ? log : [];
   for(var i = list.length - 1; i >= 0; i--) {
     var e = list[i];
-    if(e && (e.errored || e.canceled) && !e.storage_failed && e.statuses && e.statuses.length) {
+    if(e && (e.errored || e.canceled) && e.confirmed && !e.storage_failed && e.statuses && e.statuses.length) { // confirmed: written only by the two stop paths, whose rows went through confirmed_statuses (services/persistence.js sync, end_canceled_sync); an entry the old code wrote, or a finished sync whose writes failed, has none
       return { entry: e, from_earlier: i < list.length - 1 };
     }
   }

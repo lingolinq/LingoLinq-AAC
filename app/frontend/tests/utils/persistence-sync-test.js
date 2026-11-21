@@ -7887,6 +7887,7 @@ describe("persistence-sync", function() {
         svc.set('sync_progress', planted_tagged());
         expect(svc.end_canceled_sync('S-tags', 'self', 'fred', false)).toEqual(true);
         var log = svc.get('sync_log') || [];
+        expect((log[log.length - 1] || {}).confirmed).toEqual(true); // its rows went through confirmed_statuses (Part 5)
         var by = rows_by_key(log[log.length - 1] || {});
         expect(((by['kid/feel'] || [])[0] || {}).refused).toEqual(true);
         expect('content' in ((by['kid/feel'] || [])[0] || {})).toEqual(false);
@@ -7924,6 +7925,7 @@ describe("persistence-sync", function() {
           var log = persistence.get('sync_log') || [];
           var last = log[log.length - 1] || {};
           expect(last.errored).toEqual(true);
+          expect(last.confirmed).toEqual(true); // its rows went through confirmed_statuses (Part 5)
           var by = rows_by_key(last);
           expect(((by['kid/feel'] || [])[0] || {}).refused).toEqual(true);
           expect(((by['kid/pics'] || [])[0] || {}).content).toEqual(true);

@@ -103,7 +103,7 @@ module('Unit | Utility | sync rollup', function() {
   // earlier or stopped sync.
   test('with no finished sync, the summary is the newest stopped one, unfinished', function(assert) {
     var w = walk();
-    var p = EmberObject.create({ sync_log: [{ errored: true, statuses: w.statuses, roots: w.sp.board_roots, finished: new Date(1700000000000) }] });
+    var p = EmberObject.create({ sync_log: [{ errored: true, confirmed: true, statuses: w.statuses, roots: w.sp.board_roots, finished: new Date(1700000000000) }] });
     var s = summary_for(p);
     assert.true(s.unfinished);
     assert.true(s.stopped);
