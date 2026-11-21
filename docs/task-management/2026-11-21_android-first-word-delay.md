@@ -65,6 +65,27 @@ the word; measured below.
 - `ember test --query timingStrict=1 --filter "/speech warmup|speecher/i"`: 82 tests, 78 pass, 4 skipped (existing
   `xit`), 0 fail.
 
+- Mutations (all four at once; each turned exactly its own tests red, 5 of 11): warm-up at volume 1 (the two
+  "comma at volume 0" tests); no Android gate (the iOS test); a skipped warm-up counted as warmed (the busy test);
+  no listener installed (the pointerdown test). Restored with `git checkout`; `git diff HEAD` empty.
+- `npm run lint:js:ci`: no finding in the changed files. It prints 4 `no-orphaned-action` findings in
+  `ai-disclosure.js`, `sync-details.js` and `preferences.js`, the known worktree false positive (the lint plugin
+  reads the main checkout's templates).
+
 ## Verification on the emulator with the fix
 
-(below)
+This branch built for production and served on :5111 (same database), Chrome and the TTS engine force-stopped
+before each run, no warm-up injected by the probe (`WARM=touchonly` only makes the blank touch).
+
+| First word: speech starts after the tap | develop | this branch |
+|---|---|---|
+| any earlier touch (here a blank spot, 3 s before) | +928, +980 ms | **+103, +88 ms** |
+| the very first touch is the word | +928, +980 ms | +688, +596 ms |
+| later words | +65 to +252 ms | +65 to +252 ms |
+
+With any earlier touch the first word is as quick as later ones. When the word is the first touch, the warm-up starts
+at pointerdown and is cancelled a few ms later by `unlock_speech` and `stop()`, so the gain is about 0.3 s. Not
+changed: removing those cancels would let a word queue behind the warm-up.
+
+Not covered: a real Android phone or tablet (audio start-up on real hardware), other TTS engines (Samsung), and the
+Android app (Capacitor WebView; same `speechSynthesis` path, not run).

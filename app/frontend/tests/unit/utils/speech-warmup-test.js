@@ -16,6 +16,7 @@ module('Unit | Utility | speech warmup', function() {
   var aussie = { voiceURI: 'English Australia', name: 'English Australia', lang: 'en-AU' };
 
   test('a comma at volume 0 in the given voice is handed to the engine, and not cancelled', function(assert) {
+    assert.expect(7); // an eighth assertion (in cancel) would mean the warm-up was cancelled
     var synth = fakeSynth();
     synth.cancel = function() { assert.ok(false, 'cancel must not be called'); };
     assert.true(warm_voice(synth, Utterance, aussie));
