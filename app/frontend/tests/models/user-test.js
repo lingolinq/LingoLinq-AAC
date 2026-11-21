@@ -991,3 +991,18 @@ describe('User', function() {
     });
   });
 });
+
+describe('User ai consent attrs (#1136)', function() {
+  it("should expose ai_consent_required, ai_consent_route and ai_consent_disclosures_version", function() {
+    var u = LingoLinq.store.createRecord('user');
+    expect(u.get('ai_consent_required')).toEqual(undefined);
+    expect(u.get('ai_consent_route')).toEqual(undefined);
+    expect(u.get('ai_consent_disclosures_version')).toEqual(undefined);
+    u.set('ai_consent_required', true);
+    u.set('ai_consent_route', 'self');
+    u.set('ai_consent_disclosures_version', 1);
+    expect(u.get('ai_consent_required')).toEqual(true);
+    expect(u.get('ai_consent_route')).toEqual('self');
+    expect(u.get('ai_consent_disclosures_version')).toEqual(1);
+  });
+});

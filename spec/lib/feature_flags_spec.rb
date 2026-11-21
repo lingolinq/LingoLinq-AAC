@@ -98,6 +98,89 @@ describe FeatureFlags do
     end
   end
 
+  describe "ai_consent_blocks_ai_for?" do
+    around(:each) do |example|
+      old = ENV['AI_CONSENT_HARD_GATE']
+      ENV.delete('AI_CONSENT_HARD_GATE')
+      example.run
+    ensure
+      ENV['AI_CONSENT_HARD_GATE'] = old
+    end
+
+    let(:current_version) { LingoLinq::AiConsentDisclosures::CURRENT_VERSION }
+
+    def consent(overrides = {})
+      { 'granted_at' => '2026-11-01T00:00:00Z', 'disclosures_version' => LingoLinq::AiConsentDisclosures::CURRENT_VERSION }.merge(overrides)
+    end
+
+    it "does not block a nil user, matching the sibling gates (no account, no account data)" do
+      expect(FeatureFlags.ai_consent_blocks_ai_for?(nil)).to eq(false)
+    end
+
+    it "blocks an account with no consent record" do
+      expect(FeatureFlags.ai_consent_blocks_ai_for?(User.new(settings: {}))).to eq(true)
+      expect(FeatureFlags.ai_consent_blocks_ai_for?(User.new(settings: nil))).to eq(true)
+    end
+
+    it "blocks a consent recorded against an older disclosure version" do
+      u = User.new(settings: { 'ai_consent' => consent('disclosures_version' => current_version - 1) })
+      expect(FeatureFlags.ai_consent_blocks_ai_for?(u)).to eq(true)
+    end
+
+    it "blocks a revoked consent" do
+      u = User.new(settings: { 'ai_consent' => consent('revoked_at' => '2026-11-02T00:00:00Z') })
+      expect(FeatureFlags.ai_consent_blocks_ai_for?(u)).to eq(true)
+    end
+
+    it "allows a current, unrevoked consent" do
+      u = User.new(settings: { 'ai_consent' => consent })
+      expect(FeatureFlags.ai_consent_blocks_ai_for?(u)).to eq(false)
+    end
+
+    it "is switched off only by AI_CONSENT_HARD_GATE=false" do
+      u = User.new(settings: {})
+      ENV['AI_CONSENT_HARD_GATE'] = 'true'
+      expect(FeatureFlags.ai_consent_blocks_ai_for?(u)).to eq(true)
+      ENV['AI_CONSENT_HARD_GATE'] = 'FALSE'
+      expect(FeatureFlags.ai_consent_blocks_ai_for?(u)).to eq(false)
+    end
+
+    describe "for an account a district manages" do
+      let(:org) { Organization.create(settings: { 'total_licenses' => 2 }) }
+      let(:manager) { User.create }
+      let(:managed) do
+        u = User.create
+        org.add_user(u.user_name, false)
+        u.reload
+      end
+
+      it "blocks until the district has authorized AI, even when the account has its own consent" do
+        managed.settings['ai_consent'] = consent
+        expect(managed.managing_organization).to eq(org)
+        expect(FeatureFlags.ai_consent_blocks_ai_for?(managed)).to eq(true)
+      end
+
+      it "allows once the district has authorized AI, with no consent on the account itself" do
+        org.authorize_ai!(authorized_by: manager)
+        expect(managed.settings['ai_consent']).to eq(nil)
+        expect(FeatureFlags.ai_consent_blocks_ai_for?(managed)).to eq(false)
+      end
+
+      it "blocks again when the district withdraws its authorization" do
+        org.authorize_ai!(authorized_by: manager)
+        org.revoke_ai_authorization!(revoked_by: manager)
+        expect(FeatureFlags.ai_consent_blocks_ai_for?(managed)).to eq(true)
+      end
+
+      it "blocks when the district authorized an older disclosure version" do
+        org.authorize_ai!(authorized_by: manager)
+        org.settings['ai_authorization']['disclosures_version'] = current_version - 1
+        org.save!
+        expect(FeatureFlags.ai_consent_blocks_ai_for?(managed)).to eq(true)
+      end
+    end
+  end
+
   describe "coppa_blocks_ai_for?" do
     around(:each) do |example|
       old = ENV['COPPA_AI_HARD_GATE']

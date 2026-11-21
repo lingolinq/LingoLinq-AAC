@@ -90,4 +90,4 @@ function takeInstalledMark(name) {
   return state;
 }
 
-module.exports = { CACHE_PREFIX, baseURL, markInstalled, openProfile, profileDir, takeInstalledMark, workerState };
+module.exports = { CACHE_PREFIX, IPAD_AS_MAC, baseURL, markInstalled, openProfile, profileDir, takeInstalledMark, workerState };

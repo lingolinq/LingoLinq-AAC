@@ -211,6 +211,7 @@ class Api::SystemEmailTemplatesController < ApplicationController
     helper.instance_variable_set(:@consent_url, sample_consent_url)
     helper.instance_variable_set(:@revoke_url, sample_revoke_url)
     helper.instance_variable_set(:@privacy_url, "#{JsonApi::Json.absolute_host}/privacy")
+    helper.instance_variable_set(:@ai_disclosure_url, "#{JsonApi::Json.absolute_host}/ai_consent/disclosures/#{LingoLinq::AiConsentDisclosures::CURRENT_VERSION}")
     helper.instance_variable_set(:@contact_url, "#{JsonApi::Json.absolute_host}/contact")
     helper.instance_variable_set(:@child_name, user.display_name)
     helper.instance_variable_set(:@child_username, user.display_user_name)

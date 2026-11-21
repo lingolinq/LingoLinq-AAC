@@ -78,4 +78,41 @@ describe('Organization', function() {
       expect(o.get('external_ai_processing')).toEqual(true);
     });
   });
+
+  describe("ai_authorized", function() {
+    it("should expose the ai_authorized attr, off until a manager turns it on", function() {
+      var o = LingoLinq.store.createRecord('organization');
+      expect(o.get('ai_authorized')).toEqual(undefined);
+      o.set('ai_authorized', true);
+      expect(o.get('ai_authorized')).toEqual(true);
+      o.set('ai_authorized', false);
+      expect(o.get('ai_authorized')).toEqual(false);
+    });
+
+    it("should be sent on save as organization[ai_authorized] like the other attrs", function() {
+      var o = LingoLinq.store.createRecord('organization');
+      o.set('ai_authorized', true);
+      var json = o.serialize();
+      expect(json.ai_authorized).toEqual(true);
+    });
+
+    // The server ignores ai_authorized unless the save says the switch was changed on
+    // this page, so a page loaded earlier cannot undo another manager's change.
+    it("should send the disclosure version the settings page showed", function() {
+      var o = LingoLinq.store.createRecord('organization');
+      expect(o.serialize().ai_disclosure_version == null).toEqual(true);
+      o.markAiDisclosureShown();
+      expect(o.serialize().ai_disclosure_version).toEqual(2);
+    });
+
+    it("should send ai_authorized_changed with the save", function() {
+      var o = LingoLinq.store.createRecord('organization');
+      expect(o.serialize().ai_authorized_changed).not.toEqual(true);
+      o.set('ai_authorized', true);
+      o.set('ai_authorized_changed', !!o.changedAttributes().ai_authorized);
+      var json = o.serialize();
+      expect(json.ai_authorized).toEqual(true);
+      expect(json.ai_authorized_changed).toEqual(true);
+    });
+  });
 });

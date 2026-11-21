@@ -1,6 +1,10 @@
 require 'spec_helper'
 
 describe Api::WordsController, :type => :controller do
+  # These examples test other things at the AI call sites; the consent check (#1136) has its
+  # own specs. See spec/support/ai_consent.rb.
+  include_context 'ai data-sharing consent given'
+
   describe "get 'reachable_core'" do
     it "should not require an api token" do
       get 'reachable_core', params: {'user_id' => 'aaa', 'utterance_id' => 'qqq'}
