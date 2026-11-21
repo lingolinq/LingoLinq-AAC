@@ -542,7 +542,8 @@ falsification after it lands (`/fix-proposal`). Items marked **(dual review)** t
 infra or deploy config.
 
 **Phase 0: measure**
-- 0.1 Sync counters (12.3), shown in Technical details as plain counts and times (no percentages, Traci 2026-11-16).
+- 0.1 Sync counters (12.3). Technical details shows a plain-language summary (12.6); the full counters go in the
+  sync log. No percentages (Traci 2026-11-16).
 - 0.2 The measurement seed and a scripted run of the e2e suite that records the counters for each shape and link
   speed, before and after each phase. Local private database only.
 - 0.3 Measure item 1.7's effect (a second sync more than a week later, simulated clock) and the first-sync share of
@@ -552,8 +553,7 @@ infra or deploy config.
 **Phase 1: quick wins**
 - 1.1 Batches: one batch slot per device (supervisee syncs share it), `next_batch` once per response (after the
   store push, not after device writes), cancel and sync-id checks, a time budget after which the walk starts anyway,
-  then lift the 100-board cap. **Blocked on a decision:** #1221's public catalog seeds (12.6), since lifting the cap
-  without it downloads more catalog boards. Folds in #1341's "a save that never settles holds the walk".
+  then lift the 100-board cap. First, the sync stops seeding public catalog boards (#1221; Traci 2026-11-20, 12.6). Folds in #1341's "a save that never settles holds the walk".
 - 1.2 Transport limits (12.3) for single boards, batches, `board_revisions`, the proxy and pictures: the no-bytes
   clock starts at headers; a header deadline above `Rack::Timeout` (16 s); total ceiling only in the iOS app. Device
   check on iOS.
@@ -577,7 +577,7 @@ infra or deploy config.
   url whose hash it already has, writes a row pointing at the existing file instead of downloading. Nothing deletes
   picture files today; any future deletion must count references first (written as an invariant with a test).
 - 2.3 Erasure: the 12.3 helper deletes renditions with their original; account deletion deletes the person's
-  ButtonImages and every sibling. **Depends on 12.6's decision** about the existing gap. **(dual review: another
+  ButtonImages and every sibling, closing the existing gap (Traci 2026-11-20: fixed here). **(dual review: another
   user's data)**: a picture record can be shared by boards that other people copied (to check in the fact sheet).
 - 2.4 Safari and Firefox (no file storage): keep the picture as a Blob on the IndexedDB record (outside `raw`, which
   is JSON), fill `url_cache` with an object URL at prime time, and keep the data-URI row readable for older shells.
@@ -609,7 +609,7 @@ infra or deploy config.
 1. Now, on this branch: 0.2 (seed and measurement harness), 0.1 (counters, behind #1336's log shape), the server
    halves of 2.1 to 2.3 and 3.1 to 3.2, item 1.7.
 2. After #1336 merges: 0.1's log and Technical details, 1.5, 1.2.
-3. After the test hygiene fix: 1.1 (after the #1221 decision), 1.3.
+3. After the test hygiene fix: 1.1 (starting with the #1221 seed change), 1.3.
 4. After #1328 merges: 3.3; then 2.2 and 2.4 on the client, 2.5, 3.4.
 5. Measure the whole set (0.2) before and after; update section 6 with measured numbers.
 
@@ -619,18 +619,21 @@ PR (Traci's instruction); review is sized to it: `/review-pr` plus `/adversary-r
 
 ### 12.6 Decisions and help needed
 
-**From Traci:**
-- #1221: should the first sync keep downloading public catalog boards (up to 100 + 50 roots today)? Needed before
-  1.1 lifts the cap.
-- What Technical details shows for 0.1 and 1.5 (counts, times, storage used): a UI choice.
-- The erasure gap: raise it with Scot now, as its own fix, or fold it into 2.3.
+**Decided by Traci (2026-11-20):**
+- **#1221: the first sync downloads only the person's own boards:** home, sidebar, liked, supervisees' boards and
+  Crisis Vocabulary. Public catalog boards download when someone opens or likes one. This lands in 1.1, before the
+  cap is lifted.
+- **Technical details shows a plain-language summary**, informative but not technical (for example, how long it
+  took, how many boards, how much was downloaded, problems found, storage used). The full counters go in the sync
+  log for support and diagnosis. The wording and layout are mocked up for Traci's OK before they are built.
+- **The erasure gap is fixed inside 2.3**, in this branch (not as a separate fix ahead of it).
 
 **From Scot:**
 - Compression on Cloud Run (1.4), CPU budget, and the proxy route.
 - `Cache-Control` and CDN behaviour for uploads (2.6); a read-only check of a direct button-set request (2.5).
 - Storage and CPU cost of renditions for every ButtonImage, and the backfill's pace (2.1).
 - Why dev's pictures are inline (0.4).
-- The erasure gap's tracking (register entry) and whether the fix ships ahead of this branch.
+- The erasure gap's register entry (the fix itself is in 2.3, Traci 2026-11-20).
 
 **Devices:** an iPhone or iPad with the native app (1.2), a low-end Android phone (1.3), both native apps (1.4),
 folded into #1314's device test.

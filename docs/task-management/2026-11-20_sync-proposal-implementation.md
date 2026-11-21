@@ -77,3 +77,7 @@ symbols (2026-11-16).
     secret-derived CDN paths, with no client-facing signed URL, and stay on the proxy on purpose
     (`utils/direct_fetch.js`); no compression and no `Cache-Control` on uploads; `current_revision` excludes image
     URLs, and subscription or supervision changes touch no board; no sync route has been added since 2026-11-15.
+- 2026-11-20: Traci's decisions: (1) #1221: the first sync downloads only the person's own boards; catalog boards
+  on open or like. (2) Technical details: a plain-language summary for the person, full counters in the sync log;
+  mock up the wording for her OK first. (3) The erasure gap is fixed inside phase 2.3. Recorded in section 12.6.
+  Section 12 committed (89db2125d) and sent to the adversary agent for review.
