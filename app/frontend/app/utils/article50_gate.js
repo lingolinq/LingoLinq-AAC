@@ -1,6 +1,7 @@
 import RSVP from 'rsvp';
 import modal from './modal';
 import i18n from './i18n';
+import { prefAllowsAi } from './ai_feature_gate';
 
 /**
  * Shared EU AI Act Article 50(1) first-AI-use gate helper (F1/F2, D-02: ONE
@@ -32,6 +33,15 @@ import i18n from './i18n';
  */
 export var ART50_CURRENT_VERSION = 1;
 export var ART50_DISCLOSURE_URL = '/ai_consent/disclosures/art50_v' + ART50_CURRENT_VERSION;
+
+/**
+ * The AI data-sharing disclosure version the registration page shows next to the
+ * agreement, kept in sync with LingoLinq::AiConsentDisclosures::CURRENT_VERSION.
+ * Signup sends it, and the server records the registration consent only when it
+ * matches its own current version, so a page built for an older version creates
+ * the account and records nothing.
+ */
+export var AI_CONSENT_REGISTRATION_VERSION = 2;
 
 /**
  * The notice URL with the reader's current locale attached. ALWAYS use this
@@ -139,12 +149,154 @@ export function needsAcknowledgement(appState) {
 }
 
 /**
+ * AI data-sharing consent (#1136). True only when the gate subject (art50Subject,
+ * the authenticated account, for the same reason as above) has no current consent
+ * AND is the account that can give it: ai_consent_route === 'self'. A district
+ * account ('organization') or a parent-route account ('parent') cannot agree for
+ * itself, so the notice is never opened for them; the server's refusal is
+ * explained in plain words instead (aiConsentRefusalMessage below).
+ *
+ * Both fields come from the session user's own JSON (lib/json_api/user.rb) and
+ * are absent on any other record, which reads as "not required".
+ */
+export function needsAiConsent(appState) {
+  if (!appState || typeof appState.get !== 'function') { return false; }
+  var user = art50Subject(appState);
+  if (!user || typeof user.get !== 'function') { return false; }
+  if (!user.get('ai_consent_required')) { return false; }
+  return user.get('ai_consent_route') === 'self';
+}
+
+/**
+ * The AI data-sharing disclosure page for the version the server reported for
+ * this account (ai_consent_disclosures_version), or the server's current
+ * version when it is absent.
+ */
+export function aiConsentDisclosureUrl(user) {
+  var version = user && typeof user.get === 'function' ? parseInt(user.get('ai_consent_disclosures_version'), 10) : NaN;
+  return '/ai_consent/disclosures/' + (version > 0 ? version : 'current');
+}
+
+/**
+ * Plain-language messages for "AI data-sharing consent is missing" (#1136).
+ *
+ * The server refuses an AI call from an account with no current consent: the five
+ * AI endpoints answer 403 {error: 'ai_consent_required'}, and evaluation narration
+ * answers 200 with the local template plus ai_consent_required: true. A caller that
+ * showed the raw error code or "Generation failed" would leave the person guessing,
+ * so every caller reads its message from here. Who can fix it depends on the
+ * account's route (ai_consent_route on the session user's record): the account
+ * itself ('self'), its district ('organization') or a parent or guardian ('parent').
+ */
+
+/**
+ * True when a rejected request is the server's "no AI consent" refusal. Reads the
+ * shapes the app's $.ajax wrapper (utils/extras.js) produces: { fakeXHR, result }
+ * where `result` is the error string for an HTTP error status or the parsed body
+ * for a 200-with-error reply, plus the raw xhr shapes some callers already read
+ * (`responseJSON`, `responseText`).
+ */
+export function isAiConsentRefusal(err) {
+  if (!err) { return false; }
+  var wanted = 'ai_consent_required';
+  if (err.result === wanted) { return true; }
+  if (err.result && typeof err.result === 'object' && err.result.error === wanted) { return true; }
+  var bodies = [err.fakeXHR && err.fakeXHR.responseJSON, err.responseJSON];
+  for (var i = 0; i < bodies.length; i++) {
+    if (bodies[i] && bodies[i].error === wanted) { return true; }
+  }
+  if (typeof err.responseText === 'string') {
+    try {
+      var parsed = JSON.parse(err.responseText);
+      if (parsed && parsed.error === wanted) { return true; }
+    } catch (e) { }
+  }
+  return false;
+}
+
+/**
+ * What to tell the signed-in person when their own account has no AI consent.
+ * Route comes from the gate subject (the authenticated account, same one the
+ * server checked). An absent route, which a stale local record can have, gets a
+ * neutral message rather than a guess about who can fix it.
+ */
+export function aiConsentRefusalMessage(appState) {
+  var user = art50Subject(appState);
+  var route = user && typeof user.get === 'function' ? user.get('ai_consent_route') : null;
+  if (route === 'organization') {
+    return i18n.t('ai_consent_off_organization', "AI features are off because your organization has not turned them on yet. A manager of the organization needs to turn them on.");
+  } else if (route === 'parent') {
+    return i18n.t('ai_consent_off_parent', "AI features are off until a parent or guardian approves them for this account.");
+  } else if (route === 'self') {
+    return i18n.t('ai_consent_off_self', "AI features are off until you agree to the AI data-sharing disclosure. You can agree in Preferences, under AI Features.");
+  }
+  return i18n.t('ai_consent_off_unknown', "AI features are off for this account until AI data sharing is agreed to. The account holder, a parent or guardian, or the organization can do that.");
+}
+
+/**
+ * Evaluation narration checks the STUDENT's consent, not the clinician's, so the
+ * clinician's own route says nothing about who can fix it. The server has already
+ * returned the standard (non-AI) summary when it sets ai_consent_required.
+ */
+export function aiConsentNarrationMessage() {
+  return i18n.t('ai_consent_narration_off', "A standard summary was written instead, because AI features are not turned on for this student's account.");
+}
+
+/**
+ * "Not now" memory, per user, per device. It only stops the SESSION-ENTRY notice
+ * from re-opening on every page load; a blocking AI action (presentBlockingGate)
+ * ignores it and asks again. localStorage can throw (private mode, quota, a
+ * disabled store), so every access is wrapped: a failure means "not remembered",
+ * which errs toward asking, never toward silently skipping a gate.
+ */
+function aiConsentDeferralKey(user) {
+  var id = art50UserId(user);
+  return id ? 'ai_consent_not_now_' + id : null;
+}
+
+export function aiConsentDeferred(user) {
+  var key = aiConsentDeferralKey(user);
+  if (!key) { return false; }
+  try {
+    return window.localStorage.getItem(key) === '1';
+  } catch (e) {
+    return false;
+  }
+}
+
+export function deferAiConsent(user) {
+  var key = aiConsentDeferralKey(user);
+  if (!key) { return false; }
+  try {
+    window.localStorage.setItem(key, '1');
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+export function clearAiConsentDeferral(user) {
+  var key = aiConsentDeferralKey(user);
+  if (!key) { return; }
+  try {
+    window.localStorage.removeItem(key);
+  } catch (e) { }
+}
+
+/**
  * Rejection reason handed to a caller whose gate was bumped by another modal
  * before the user acknowledged. Exported so callers can tell "the user declined
  * / never saw it" apart from a genuine error and surface an explanation instead
  * of failing silently.
  */
 export var GATE_NOT_ACKNOWLEDGED = 'art50_gate_not_acknowledged';
+
+/**
+ * Rejection reason when the person chose "Not now" (or the modal closed) while AI
+ * data-sharing consent was still needed. Sits beside GATE_NOT_ACKNOWLEDGED, so a
+ * caller can say which one is outstanding.
+ */
+export var GATE_AI_CONSENT_NOT_GIVEN = 'ai_consent_gate_not_given';
 
 /**
  * BLOCK-mode gate for board generation / eval narration (D-03). Resolves
@@ -167,17 +319,31 @@ export var GATE_NOT_ACKNOWLEDGED = 'art50_gate_not_acknowledged';
  * inactivity setting (03-UI-SPEC.md 6.6): this modal must not self-dismiss
  * without recording an acknowledgement.
  */
-export function presentBlockingGate(appState) {
-  if (!needsAcknowledgement(appState)) {
+export function presentBlockingGate(appState, options) {
+  // The same modal also asks for AI data-sharing consent (#1136), so it opens for
+  // either need. An account that needs only the Article 50 acknowledgement gets
+  // exactly the behaviour below that it always had.
+  //
+  // options.skipAiConsent: the caller's AI call does not depend on THIS account's
+  // consent, so only the Article 50 acknowledgement is considered: with nothing but
+  // consent outstanding this resolves at once, and when the notice does open it is
+  // the Article 50 one alone (the modal is told through its options, not left to
+  // work it out again). Evaluation narration is the one caller: the server checks
+  // the STUDENT's consent there, not the clinician's.
+  var skipConsent = !!(options && options.skipAiConsent);
+  var consentNeeded = function() { return !skipConsent && needsAiConsent(appState); };
+  if (!needsAcknowledgement(appState) && !consentNeeded()) {
     return RSVP.resolve();
   }
   return new RSVP.Promise(function(resolve, reject) {
-    modal.open('ai-disclosure', { scannable: true }).then(function(result) {
+    modal.open('ai-disclosure', skipConsent ? { scannable: true, skipAiConsent: true } : { scannable: true }).then(function(result) {
       if (result && result.replaced) {
         // Bumped by another modal, not a genuine acknowledgement. The caller's
         // gated action must not proceed, but it DOES need to know why.
-        reject({ art50_gate: GATE_NOT_ACKNOWLEDGED });
-      } else if (needsAcknowledgement(appState)) {
+        var bumped = { art50_gate: GATE_NOT_ACKNOWLEDGED, replaced: true };
+        if (consentNeeded()) { bumped.ai_consent_gate = GATE_AI_CONSENT_NOT_GIVEN; }
+        reject(bumped);
+      } else if (needsAcknowledgement(appState) || consentNeeded()) {
         /* Resolved WITHOUT an acknowledgement being recorded. This branch used to
            resolve positively on any non-`replaced` result, including `resolve(null)` —
            and utils/modal.js#close resolves the pending promise with its `success`
@@ -185,8 +351,13 @@ export function presentBlockingGate(appState) {
            which closes whatever modal is open) satisfied the gate and let an AI request
            proceed for an EU user with no Art.50(1) acknowledgement on record.
            Only `@uncloseable` on the disclosure template was holding that shut; the gate
-           now verifies the outcome itself, against the same predicate it entered on. */
-        reject({ art50_gate: GATE_NOT_ACKNOWLEDGED });
+           now verifies the outcome itself, against the same predicate it entered on.
+           "Not now" on the consent step lands here too: it closes without recording
+           anything, so the gated AI action must not run. */
+        var refused = {};
+        if (needsAcknowledgement(appState)) { refused.art50_gate = GATE_NOT_ACKNOWLEDGED; }
+        if (consentNeeded()) { refused.ai_consent_gate = GATE_AI_CONSENT_NOT_GIVEN; }
+        reject(refused);
       } else {
         resolve(result);
       }
@@ -222,7 +393,9 @@ function asAppState(model) {
 
 /**
  * True when maybeShowSessionEntryGate() below would actually open the modal:
- * the model is really_fresh AND acknowledgement is genuinely needed.
+ * the model is really_fresh AND acknowledgement is genuinely needed, or AI
+ * data-sharing consent is needed, the account's "Allow AI features" preference is
+ * on, and it was not put off with "Not now" here.
  *
  * Exported as a read-only companion so a caller that is about to redirect AWAY
  * from one of the two gate-hosting routes (routes/index.js, routes/bento.js) can
@@ -234,7 +407,15 @@ function asAppState(model) {
 export function sessionEntryGatePending(model) {
   if (!model || typeof model.get !== 'function') { return false; }
   if (!model.get('really_fresh')) { return false; }
-  return needsAcknowledgement(asAppState(model));
+  var subject = asAppState(model);
+  if (needsAcknowledgement(subject)) { return true; }
+  // AI data-sharing consent (#1136) opens the same notice, but only for an account
+  // that has AI features turned on: AI is off by default, and asking someone who has
+  // not turned it on is a privacy step nobody needs. The master preference is read
+  // with utils/ai_feature_gate's own interpretation (absent, null and false are off).
+  // The Preferences button and a blocking AI action still ask whenever consent is
+  // needed. Not when the person chose "Not now" on this device either.
+  return needsAiConsent(subject) && prefAllowsAi(model, 'ai_features_enabled') && !aiConsentDeferred(model);
 }
 
 /**
@@ -269,6 +450,15 @@ export default {
   art50UserId: art50UserId,
   GATE_NOT_ACKNOWLEDGED: GATE_NOT_ACKNOWLEDGED,
   needsAcknowledgement: needsAcknowledgement,
+  needsAiConsent: needsAiConsent,
+  isAiConsentRefusal: isAiConsentRefusal,
+  aiConsentRefusalMessage: aiConsentRefusalMessage,
+  aiConsentNarrationMessage: aiConsentNarrationMessage,
+  aiConsentDisclosureUrl: aiConsentDisclosureUrl,
+  aiConsentDeferred: aiConsentDeferred,
+  deferAiConsent: deferAiConsent,
+  clearAiConsentDeferral: clearAiConsentDeferral,
+  GATE_AI_CONSENT_NOT_GIVEN: GATE_AI_CONSENT_NOT_GIVEN,
   presentBlockingGate: presentBlockingGate,
   sessionEntryGatePending: sessionEntryGatePending,
   maybeShowSessionEntryGate: maybeShowSessionEntryGate,

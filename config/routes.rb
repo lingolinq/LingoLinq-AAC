@@ -268,6 +268,7 @@ LingoLinq::Application.routes.draw do
       get 'external_nonce/:nonce_id' => 'users#external_nonce'
       post 'eu_ai_parental_consent' => 'users#request_eu_ai_parental_consent'
       post 'article_50_disclosure_ack' => 'users#article_50_disclosure_ack'
+      post 'ai_consent' => 'users#ai_consent'
     end
     
     resources :images do

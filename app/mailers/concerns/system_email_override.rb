@@ -38,7 +38,34 @@ module SystemEmailOverride
     end
   end
 
+  # The two parent request emails whose approval also records AI data-sharing consent
+  # (#1136), and the sentence that says so. An edited body that leaves the sentence out
+  # gets it added, so the consent never rests on an email that did not carry it.
+  AI_CONSENT_NOTICES = {
+    'user_mailer/parental_consent_request' => 'parental_consent_mailer.ai_notice',
+    'user_mailer/eu_ai_parental_consent_request' => 'eu_ai_parental_consent_mailer.ai_notice'
+  }.freeze
+
   private
+
+  def with_ai_consent_notice(body, key, format)
+    i18n_key = AI_CONSENT_NOTICES[key]
+    return body unless i18n_key
+
+    notice = I18n.t(i18n_key)
+    url = @ai_disclosure_url.to_s
+    if format.to_s == 'html'
+      notice = ERB::Util.html_escape(notice)
+      return body if body.include?(notice)
+
+      link = ERB::Util.html_escape(url)
+      "#{body}<p>#{notice}</p><p><a href=\"#{link}\">#{link}</a></p>"
+    else
+      return body if body.include?(notice)
+
+      "#{body}\n\n#{notice}\n#{url}\n"
+    end
+  end
 
   # The stored body filled from allowed values (lib/system_email_placeholders.rb), or nil
   # to send the default view. A body that no longer fits, or a value that cannot be read,
@@ -49,7 +76,7 @@ module SystemEmailOverride
     return nil unless SystemEmailPlaceholders.override_applies?(key, self)
 
     context = SystemEmailPlaceholders::Context.from_object(key, self)
-    SystemEmailPlaceholders.render(text, key, format, context)
+    with_ai_consent_notice(SystemEmailPlaceholders.render(text, key, format, context), key, format)
   rescue StandardError => e
     Rails.logger.warn("System email override not used for #{key} (#{format}): #{e.class}")
     nil

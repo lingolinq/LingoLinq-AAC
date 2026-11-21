@@ -627,6 +627,7 @@ class Api::BoardsController < ApplicationController
     unless FeatureFlags.ai_feature_enabled_for?('ai_board_generation', @api_user)
       return api_error(403, { error: 'Feature not available' })
     end
+    return unless require_ai_consent!
     # EU AI Act Article 50(1) server-side backstop (Phase 3 Plan 03-04, T-03-04-01;
     # shared helper LL-6723438462): a client that skips the ai-disclosure modal and
     # calls this endpoint directly must still be refused. The feature-flag check

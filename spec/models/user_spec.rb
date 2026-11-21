@@ -5676,11 +5676,16 @@ describe User, :type => :model do
     end
 
     it 'defaults disclosures_version: to LingoLinq::AiConsentDisclosures::CURRENT_VERSION when the kwarg is omitted (VPC Phase 2)' do
-      expect(LingoLinq::AiConsentDisclosures::CURRENT_VERSION).to eq(1)
+      current = LingoLinq::AiConsentDisclosures::CURRENT_VERSION
       u = User.create
-      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.grant_ai_consent!(disclosures_version: current, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
       u.reload
       expect(u.ai_consent_granted?).to eq(true)
+      # A grant at an older version no longer satisfies the default.
+      older = User.create
+      older.grant_ai_consent!(disclosures_version: current - 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link') if current > 1
+      older.reload
+      expect(older.ai_consent_granted?).to eq(false)
     end
 
     it 'the omitted-kwarg default still returns false for a user with no grant (does not silently pass)' do
@@ -5973,8 +5978,16 @@ describe User, :type => :model do
       expect(u.settings && u.settings['ai_consent']).to be_blank
     end
 
-    it 'raises ArgumentError when granted_by_user_id equals self.global_id (no self-grant)' do
+    # Rule changed 2026-11-17 (Scot, #1136): the account holder may grant for their own
+    # adult account in the app. The two examples that asserted `self_grant_forbidden` for
+    # source 'in_app' are rewritten to the rule that replaced it: a self-grant is still
+    # refused where the consent has to come from a parent, and the account itself is
+    # still refused as grantor on the parent's and admin's sources. The full matrix is in
+    # spec/models/user_ai_consent_self_grant_spec.rb.
+    it 'refuses a self-grant for an account whose consent has to come from a parent (no self-grant)' do
       u = User.create
+      u.settings['coppa'] = { 'pending_parent_consent' => true, 'parent_consent_granted_at' => Time.now.utc.iso8601 }
+      u.save!
       expect {
         u.grant_ai_consent!(
           disclosures_version: 1,
@@ -5982,18 +5995,18 @@ describe User, :type => :model do
           source: 'in_app',
           granted_by_user_id: u.global_id
         )
-      }.to raise_error(ArgumentError, 'self_grant_forbidden')
+      }.to raise_error(ArgumentError, 'parental_consent_required')
       u.reload
       expect(u.settings && u.settings['ai_consent']).to be_blank
     end
 
-    it 'raises ArgumentError when granted_by_user_id is the bare numeric self id (no self-grant bypass)' do
+    it 'raises ArgumentError when granted_by_user_id is the bare numeric self id on a parent or admin source (no self-grant bypass)' do
       u = User.create
       expect {
         u.grant_ai_consent!(
           disclosures_version: 1,
           granted_by: 'Self',
-          source: 'in_app',
+          source: 'email_link',
           granted_by_user_id: u.id
         )
       }.to raise_error(ArgumentError, 'self_grant_forbidden')
