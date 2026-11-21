@@ -354,4 +354,14 @@ module('Unit | Controller | user/index offline boards view', function(hooks) {
     assert.true(c.get('offline_view'));
     assert.strictEqual(c.get('offline_boards'), first);
   });
+  test('back online after a failed first device read, and the server list fails: the "can\'t be shown" view ends', async function(assert) {
+    var c = page(this.owner, { find_all: function() { throw new Error('The database connection is closing.'); } });
+    c.update_selected();
+    await tick();
+    assert.true(c.get('offline_boards.read_failed'));
+    c.set('store', failing_store(this.owner));
+    c.set('persistence.online', true);
+    await tick();
+    assert.false(c.get('offline_view'));
+  });
 });

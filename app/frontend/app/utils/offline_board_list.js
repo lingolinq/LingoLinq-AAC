@@ -124,10 +124,11 @@ export function pick_device_boards(rows, user, sync_log, opts) {
   picked.forEach(walk);
   if(crisis) { walk(crisis); }
 
-  // The person's own boards nothing listed reaches, as sets. The grouping sees every such board, own or not, so a link
-  // through another owner's board still makes an own board a folder (as the walk above would follow it).
+  // The person's own boards nothing listed reaches, as sets. The grouping sees every such board that opens here, own or
+  // not: a link through another owner's board that opens makes an own board a folder; one that does not open (a device
+  // not trusted, opens_here) reaches nothing, so the own boards behind it are listed.
   var rest = Object.keys(by_id).map(function(id) { return by_id[id]; }).filter(function(raw) {
-    return !listed[raw.id] && !reached[raw.id] && (!crisis || raw.id !== crisis.id);
+    return !listed[raw.id] && !reached[raw.id] && (!crisis || raw.id !== crisis.id) && opens(raw);
   });
   var is_own = function(raw) { return typeof raw.key === 'string' && raw.key.indexOf(user_name + '/') === 0 && opens(raw); };
   entry_boards(rest, next_of, is_own)

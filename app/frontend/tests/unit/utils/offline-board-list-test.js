@@ -131,6 +131,18 @@ module('Unit | Utility | offline board list', function(hooks) {
     assert.deepEqual(keys(pick_device_boards(rows, person(), [])), ['larry/root', 'lingolinq/crisis-vocabulary']);
   });
 
+  // Final review (both reviewers, 2026-11-20): on a device not marked "Trust this Device", another owner's board does
+  // not open (routes/user.js _device_owner), so a link through it reaches nothing; the own boards behind it are listed.
+  test('a shared device: own boards behind another owner\'s board are listed, since that board does not open', function(assert) {
+    var shared = { shared: true, me: 'larry' };
+    var leaf = [board('8_1', 'larry/root', ['4_1']), board('4_1', 'aaron/x', ['8_2']), board('8_2', 'larry/leaf')];
+    assert.deepEqual(keys(pick_device_boards(leaf, person(), [], shared)), ['larry/leaf', 'larry/root'], 'a board below it');
+    var loop = [board('8_1', 'larry/root', ['4_1']), board('4_1', 'other/x', ['8_2']),
+      board('8_2', 'larry/l1', ['8_3']), board('8_3', 'larry/l2', ['8_2'])];
+    assert.deepEqual(keys(pick_device_boards(loop, person(), [], shared)), ['larry/l1', 'larry/root'], 'a loop below it');
+    assert.deepEqual(keys(pick_device_boards(loop, person(), [])), ['larry/root'], 'trusted: it opens, so the loop is a folder');
+  });
+
   // Property check over random link graphs (seeded, so a failure repeats): only own boards are listed, each once; every
   // own board is listed or opens from a listed one; no listed board opens from another listed board.
   test('random link graphs: every own board reachable from the list, no entry inside another', function(assert) {
