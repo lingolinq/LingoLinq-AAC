@@ -350,6 +350,9 @@ The steps, for a later run:
 - #1316: the translation task leaves placeholder markers.
 - #1234: remaining translations; #1340: native-speaker review.
 - #1341: known gaps after #1334 (sync picture retry, liked-icon warning).
+- #1350: a trusted device opens offline with no time limit. Decided direction (Traci, 2026-11-20): a 90-day
+  limit, a dashboard warning in the last 14 days (never in Speak Mode), then the Always-Available Boards instead of
+  the person's own boards until the device connects once.
 - PR #1328 (open): "Boards on This Device", the boards page lists the boards saved on the device while offline
   (#1209's step 3).
 
