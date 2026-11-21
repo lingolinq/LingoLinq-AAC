@@ -48,7 +48,7 @@
       "antiClaim": "NOT mandatory; do not claim enforced MFA for all users or admins.",
       "currentEvidence": {
         "file": "app/models/concerns/passwords.rb",
-        "line": 111,
+        "line": 137,
         "snippet": "totp = ROTP::TOTP.new(secret, issuer: \"LingoLinq\")"
       },
       "frameworks": [
