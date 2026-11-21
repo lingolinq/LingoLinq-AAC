@@ -196,4 +196,22 @@ module('Unit | Component | sync-details grouped view', function(hooks) {
     var kb = c.get('cards').find(function(card) { return card.name === 'Keyboard'; });
     assert.true(kb.has_picture_warning, 'its card names it');
   });
+
+  // Round-1 review Low 4 (2026-11-20): a stopped sync that saved nothing says so, instead of "Saved before the sync
+  // stopped" over "0 boards and folders are saved on this device."; its recorded failures still show.
+  test('no finished sync, the stopped one saved nothing: it says nothing was saved, and its failures still show', function(assert) {
+    var none = [{ key: 'me/kb', status: 'not_saved' }, { key: 'me/core', status: 'not_saved' }, { key: 'me/core-go', error: 'failed retrieval' }];
+    var c = build(this, [{ canceled: true, statuses: none, roots: roots, finished: new Date(1700000000000) }]);
+    assert.true(c.get('stopped'));
+    assert.true(c.get('nothing_saved'));
+    assert.strictEqual(c.get('summary_line'), 'No boards are saved on this device yet.');
+    var core = c.get('cards').find(function(card) { return card.name === 'Quick Core 60'; });
+    assert.deepEqual(core.folders_missing, ['Go'], 'the failure recorded before the stop still shows');
+  });
+
+  test('a stopped sync that saved something keeps its heading and count', function(assert) {
+    var c = build(this, [{ errored: true, statuses: statuses, roots: roots, finished: new Date(1700000000000) }]);
+    assert.false(c.get('nothing_saved'));
+    assert.strictEqual(c.get('summary_line'), '3 boards and folders are saved on this device.');
+  });
 });

@@ -190,6 +190,16 @@ module('Unit | Utility | sync rollup', function() {
     assert.deepEqual(live_board_errors(null), []);
   });
 
+  // Red-team review (2026-11-20): the errors come back whole, tags included, for both stop paths' rows.
+  test('live_board_errors keeps each error whole, with its refused or content tag', function(assert) {
+    var refused = { board_id: '1_4', board_key: 'other/shared', error: 'board other/shared failed retrieval for syncing', refused: true };
+    var content = { board_id: '1_5', board_key: 'me/pics', error: 'board me/pics failed to sync completely', content: true };
+    var rows = live_board_errors({ progress_for: { u1: { board_errors: [refused] } }, errors: [content] });
+    assert.deepEqual(rows, [refused, content]);
+    assert.true(rows[0].refused, 'refused kept');
+    assert.true(rows[1].content, 'content kept');
+  });
+
   // Part 2 unit T: a board that was reached but whose pictures or sounds did not all save ("failed to sync
   // completely") is tagged `content`, so PR #1328's offline list can tell it from a board the server refused.
   test('content_error: a board reached whose content did not all save is tagged content', function(assert) {

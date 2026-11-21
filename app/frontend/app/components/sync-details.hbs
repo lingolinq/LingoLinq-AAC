@@ -98,7 +98,11 @@
             <p class="la-sync-folder-group-note" data-test-sync-picture-warning>{{this.picture_warning_line}}</p>
           {{/if}}
           {{#if this.stopped}}
-            <h4 class="la-sync-folder-group-title">{{t "Saved before the sync stopped" key="sync_saved_before_stopped"}}</h4>
+            {{#if this.nothing_saved}}
+              <h4 class="la-sync-folder-group-title">{{t "Nothing was saved before the sync stopped" key="sync_nothing_saved_before_stopped"}}</h4>
+            {{else}}
+              <h4 class="la-sync-folder-group-title">{{t "Saved before the sync stopped" key="sync_saved_before_stopped"}}</h4>
+            {{/if}}
           {{/if}}
           {{#each this.cards as |card|}}
             <div class="la-sync-card la-sync-card--{{card.tone}}">

@@ -7866,6 +7866,77 @@ describe("persistence-sync", function() {
         });
       });
     });
+
+    // Red-team review (2026-11-20): the tags a walk put on its errors (`refused`, the walk's failure branch; `content`,
+    // utils/sync_rollup.js content_error) reach a stopped entry's rows through live_board_errors and with_errors, so
+    // PR #1328 reads a refusal recorded before a Cancel or a failure, and does not read a picture failure as one.
+    function planted_tagged() {
+      var p = planted();
+      p.progress_for['1_kid'].board_errors = [
+        { board_id: '1_9', board_key: 'kid/feel', error: feel_error, refused: true },
+        { board_id: '1_8', board_key: 'kid/pics', error: 'board kid/pics failed to sync completely: button image failed to sync, http://example.com/p.png', content: true }
+      ];
+      return p;
+    }
+
+    it("a cancel keeps the tags of the failures the walk recorded", function() {
+      var svc = persistenceTarget() || persistence; // the service: utils/persistence has no end_canceled_sync
+      var prior = { log: svc.get('sync_log'), canceled: svc._canceled_sync_id, event_at: svc.get('last_sync_event_at') };
+      try {
+        svc._canceled_sync_id = 'S-tags';
+        svc.set('sync_progress', planted_tagged());
+        expect(svc.end_canceled_sync('S-tags', 'self', 'fred', false)).toEqual(true);
+        var log = svc.get('sync_log') || [];
+        var by = rows_by_key(log[log.length - 1] || {});
+        expect(((by['kid/feel'] || [])[0] || {}).refused).toEqual(true);
+        expect('content' in ((by['kid/feel'] || [])[0] || {})).toEqual(false);
+        expect(((by['kid/pics'] || [])[0] || {}).content).toEqual(true);
+        expect('refused' in ((by['kid/pics'] || [])[0] || {})).toEqual(false);
+      } finally {
+        svc._canceled_sync_id = prior.canceled;
+        svc.set('sync_log', prior.log);
+        svc.set('last_sync_event_at', prior.event_at);
+        svc.set('sync_progress', null);
+      }
+    });
+
+    it("a failed sync keeps the tags of the failures the walk recorded", function() {
+      db_wait(function() {
+        cancelSyncTailWork();
+        unloadSyncStoreRecords();
+        persistence.set('sync_progress', null);
+        persistence.set('sync_status', null);
+        persistence._canceled_sync_id = null;
+        var saved = { last_sync_status: stashes.get('last_sync_status'), last_sync_at: persistence.get('last_sync_at') };
+        stub(modal, 'error', function() { });
+        stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+        stubOnPersistence('sync_user', function() { return RSVP.resolve(); });
+        stubOnPersistence('sync_boards', function() {
+          var p = planted_tagged();
+          Object.keys(p).forEach(function(k) { persistence.set('sync_progress.' + k, p[k]); });
+          return RSVP.reject({error: 'failed to sync boards'});
+        });
+        queryLog.defineFixture({ method: 'GET', type: 'user', response: RSVP.resolve({user: {id: '1373', user_name: 'fred'}}), id: '1373' });
+        var done = null;
+        persistence.sync('1373').then(function() { done = 'resolved'; }, function() { done = 'rejected'; });
+        waitsFor(function() { return done && syncSettled(); });
+        runs(function() {
+          var log = persistence.get('sync_log') || [];
+          var last = log[log.length - 1] || {};
+          expect(last.errored).toEqual(true);
+          var by = rows_by_key(last);
+          expect(((by['kid/feel'] || [])[0] || {}).refused).toEqual(true);
+          expect(((by['kid/pics'] || [])[0] || {}).content).toEqual(true);
+          expect('refused' in ((by['kid/pics'] || [])[0] || {})).toEqual(false);
+          stashes.persist('last_sync_status', saved.last_sync_status);
+          persistence.set('sync_status_error', null);
+          persistence.set('last_sync_at', saved.last_sync_at);
+          cancelSyncTailWork();
+          persistence.set('sync_progress', null);
+          persistence.set('sync_status', null);
+        });
+      });
+    });
   });
 
   // Part 2 unit T: a finished sync's entry keeps the content tag on a board whose pictures or sounds did not all save,

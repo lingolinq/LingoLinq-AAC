@@ -74,11 +74,14 @@ export default Component.extend({
     if(!s || this.get('unfinished') || s.from_earlier) { return null; }
     return ready_title(s);
   }),
+  // A stopped sync that saved nothing (every row not saved or failed): its heading and count say so (round-1 review Low 4).
+  nothing_saved: computed('summary', 'stopped', function() { var s = this.get('summary'); return !!(s && this.get('stopped') && s.overall.saved === 0); }),
   summary_line: computed('summary', 'unfinished', 'stopped', function() {
     var s = this.get('summary');
     if(!s) { return null; }
     if(this.get('stopped')) {
       var n = s.overall.saved;
+      if(n === 0) { return i18n.t('sync_drawer_saved_none', "No boards are saved on this device yet."); }
       return n === 1 ? i18n.t('sync_drawer_saved_one', "1 board is saved on this device.") :
         i18n.t('sync_drawer_saved_many', "%{n} boards and folders are saved on this device.", { n: n });
     }

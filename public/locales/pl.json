@@ -9786,5 +9786,7 @@
   "sync_folders_intro_unfinished": "*** These open from folder buttons on %{name}.",
   "sync_no_folders_saved_before_stop": "*** No folders were saved before the sync stopped.",
   "sync_no_folders_saved_yet": "*** No folders are saved yet.",
-  "sync_saved_before_stopped": "*** Saved before the sync stopped"
+  "sync_saved_before_stopped": "*** Saved before the sync stopped",
+  "sync_nothing_saved_before_stopped": "*** Nothing was saved before the sync stopped",
+  "sync_drawer_saved_none": "*** No boards are saved on this device yet."
 }

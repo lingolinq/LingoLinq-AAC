@@ -6736,6 +6736,8 @@
   "sync_now": "Sync Now",
   "cancel_sync": "Cancel Sync",
   "sync_saved_before_stopped": "Saved before the sync stopped",
+  "sync_nothing_saved_before_stopped": "Nothing was saved before the sync stopped",
+  "sync_drawer_saved_none": "No boards are saved on this device yet.",
   "sync_missing_folders_note": "These open while you're online. Try again when the connection is better.",
   "sync_picture_not_saved_note": "These work offline and show a placeholder picture for now. Try again when the connection is better.",
   "sync_tab_empty": "Nothing here right now.",
