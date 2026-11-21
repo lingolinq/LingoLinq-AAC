@@ -5373,6 +5373,31 @@ describe("persistence-sync", function() {
       });
     });
 
+    // Part 4 (L4-B, 2026-11-20): a real refusal, through the real transport, adapter and Ember Data, is logged as
+    // refused, so PR #1328's offline list can tell it from a bad connection (services/persistence.js, the walk's
+    // failure branch; utils/board_revocation.js real_denial).
+    it("logs the board the server refused as refused, through the real transport", function() {
+      db_wait(function() {
+        var outcome = {};
+        // Not revoked, but newer on the server than the device's copy: the sync reloads it and the server refuses.
+        runRevokedSync(function() {
+          return RSVP.resolve({revisions: {'1_145': 'current', 'fred/home': 'current', '1_167': 'current', 'fred/next': 'current', '1_178': 'newer', 'other/shared': 'newer'}, revoked_ids: []});
+        }, outcome, 'service');
+        runs(function() {
+          // The link carries only the id, so the refusal is its own error row, keyed by id (the merge matches by key).
+          var rows = ((outcome.last_log && outcome.last_log.statuses) || []).filter(function(s) { return s.error && (s.id === '1_178' || s.key === 'other/shared'); });
+          expect(outcome.fetched_revoked).toEqual(true);
+          expect(rows.length).toEqual(1);
+          expect(rows[0] && rows[0].error).toEqual('board 1_178 failed retrieval for syncing, linked from fred/next');
+          expect(rows[0] && rows[0].refused).toEqual(true);
+          cancelSyncTailWork();
+          persistence.set('sync_progress', null);
+          LingoLinq.sync_testing_real_boards = false;
+          boardRevocation.reset_for_tests();
+        });
+      });
+    });
+
     // utils/persistence.js: its own sync, request and sync_boards traversal. Its sync cannot
     // complete under LingoLinq.sync_testing (spread_out runs the step synchronously, before the
     // promise it names is assigned: a pre-existing test-mode defect), so this case covers the
@@ -6747,6 +6772,25 @@ describe("persistence-sync", function() {
       });
     });
 
+    // Part 4 (L4-B): a board that failed only because its retries ran out is not marked refused (PR #1328 keeps it).
+    it("does not mark a board refused when it failed only because its retries ran out", function() {
+      db_wait(function() {
+        var response = answers([{ reject: { error: 'timeout' } }]);
+        var state = syncWithBoard167(response, 'failing board first');
+        waitsFor(function() { return waitForSyncDoneAndSettled(state.result) && state.tailDone; });
+        runs(function() {
+          var log = persistence.get('sync_log') || [];
+          var rows = ((log[0] && log[0].statuses) || []).filter(function(s) { return s.id == '167'; });
+          expect(response.calls).toEqual(4);
+          expect(rows[0] && rows[0].error).toEqual('board fred/slow failed retrieval for syncing, linked from 145');
+          expect(!!rows[0] && 'refused' in rows[0]).toEqual(false);
+          cancelSyncTailWork();
+          persistence.set('sync_progress', null);
+          LingoLinq.sync_testing_real_boards = false;
+        });
+      });
+    });
+
     // Codex re-review of #1322 (P2): a thread coming back from a retry wait took a download slot directly, past the
     // limit on concurrent downloads. Here the limit is full when the board is parked (as when other walks hold every
     // slot): the retry must not start until a slot frees.
@@ -7660,6 +7704,62 @@ describe("persistence-sync", function() {
           expect(row('me/pics').content).toEqual(true);
           expect(row('me/gone').error).toEqual(gone_error);
           expect('content' in row('me/gone')).toEqual(false);
+          stashes.persist('last_sync_status', saved.last_sync_status);
+          persistence.set('sync_status_error', null);
+          persistence.set('last_sync_at', saved.last_sync_at);
+          persistence.set('last_sync_stamp', saved.last_sync_stamp); persistence.set('last_sync_event_at', saved.last_sync_event_at);
+          cancelSyncTailWork();
+          persistence.set('sync_progress', null);
+          persistence.set('sync_status', null);
+        });
+      });
+    });
+  });
+
+  // Part 4 (L4-B, 2026-11-20): the finished-sync merge (services/persistence.js sync) keeps a refusal's tag, as it
+  // keeps content, and clears it when a later untagged error overwrites the row.
+  describe("a finished sync's log entry: refusals tagged", function() {
+    it("keeps refused on the board's row and on an error-only row, none on an untagged error, and clears a stale one", function() {
+      db_wait(function() {
+        cancelSyncTailWork();
+        unloadSyncStoreRecords();
+        persistence.set('sync_progress', null);
+        persistence.set('sync_status', null);
+        persistence._canceled_sync_id = null;
+        var saved = { last_sync_status: stashes.get('last_sync_status'), last_sync_at: persistence.get('last_sync_at'), last_sync_stamp: persistence.get('last_sync_stamp'), last_sync_event_at: persistence.get('last_sync_event_at') };
+        var core_error = 'board me/core failed retrieval for syncing, linked from me/home';
+        var pics_error = 'board me/pics failed retrieval for syncing, linked from me/home'; var stale_error = 'board me/stale failed retrieval for syncing, linked from me/home';
+        var gone_error = 'board me/gone failed retrieval for syncing, linked from me/core';
+        stub(modal, 'error', function() { });
+        stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+        stubOnPersistence('sync_user', function() { return RSVP.resolve(); });
+        stubOnPersistence('sync_boards', function() {
+          persistence.set('sync_progress.board_statuses', [{ id: '1_1', key: 'me/core', status: 'downloaded' }, { id: '1_7', key: 'me/stale', status: 'downloaded' }]);
+          persistence.set('sync_progress.errors', [
+            { board_id: '1_1', board_key: 'me/core', error: core_error, refused: true },
+            { board_id: '1_3', board_key: 'me/pics', error: pics_error, refused: true },
+            { board_id: '1_7', board_key: 'me/stale', error: stale_error, refused: true },
+            { board_id: '1_7', board_key: 'me/stale', error: stale_error },
+            { board_id: '1_5', board_key: 'me/gone', error: gone_error }
+          ]);
+          return RSVP.resolve({});
+        });
+        queryLog.defineFixture({ method: 'GET', type: 'user', response: RSVP.resolve({user: {id: '1374', user_name: 'fred'}}), id: '1374' });
+        var done = null;
+        persistence.sync('1374').then(function() { done = 'resolved'; }, function() { done = 'rejected'; });
+        waitsFor(function() { return done && syncSettled(); });
+        runs(function() {
+          var log = persistence.get('sync_log') || [];
+          var last = log[log.length - 1] || {};
+          var row = function(k) { return (last.statuses || []).filter(function(r) { return r.key === k; })[0] || {}; };
+          expect(!!last.canceled || !!last.errored).toEqual(false);
+          expect(row('me/core').error).toEqual(core_error);
+          expect(row('me/core').refused).toEqual(true);
+          expect(row('me/pics').refused).toEqual(true);
+          expect(row('me/gone').error).toEqual(gone_error);
+          expect('refused' in row('me/gone')).toEqual(false);
+          expect(row('me/stale').error).toEqual(stale_error);
+          expect('refused' in row('me/stale')).toEqual(false); // a later untagged error overwrites the row and clears the tag
           stashes.persist('last_sync_status', saved.last_sync_status);
           persistence.set('sync_status_error', null);
           persistence.set('last_sync_at', saved.last_sync_at);

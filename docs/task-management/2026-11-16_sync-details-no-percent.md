@@ -713,3 +713,48 @@ Conditions: correct the revocation claim; pin B with the real-transport harness 
 board_revisions request fails", `tests/utils/persistence-sync-test.js:5354`, `$.realAjax` stub ~5276), asserting
 `refused` on `other/shared`; Rule #0.14 OK for :77-81 and :143; tag from the original error before the unwrap; clear a
 stale tag in the merge, with its mutant; write down the twin decision.
+
+### Traci's decisions (2026-11-20)
+- L4-B chosen (tag refusals, `refused: true`; #1328 hides only on it). Utils twin: left untagged, as Unit T left it (the
+  app runs the service's sync); the harness covers the service only.
+- Rule #0.14 OK given for `tests/unit/utils/board-content-retry-test.js:76-82` (the retry-path content error gains
+  `content: true`). The review found a second test encoding the same shape (:143); its OK is still to be asked.
+
+### Unit L4 (2026-11-20): red tests written; code NOT started
+Tests (new only, no existing test changed):
+- `persistence-sync revoked boards` "logs the board the server refused as refused, through the real transport":
+  revisions answer `1_178`/`other/shared` as 'newer' and not revoked, so the sync reloads it and `$.realAjax` answers
+  the real 400 denial body through extras.js, the adapter and Ember Data.
+- `board reloads under a slow server (#1212)` "does not mark a board refused when it failed only because its retries
+  ran out" (passes before the fix by design; guards a tag-every-error mutant).
+- `a finished sync's log entry: refusals tagged`: the merge keeps `refused` on an existing row and an error-only row,
+  adds none to an untagged error, and clears it when a later untagged error overwrites the row.
+- unit `with_errors` and `entry_copy` keep `refused`.
+Red run (`/refused|refusals tagged|retries ran out|sync rollup|sync log store/i`, 59 tests): 4 fail. Unit
+with_errors, entry_copy and the merge describe fail on the missing tag (right reason).
+Real-transport test, two wrong premises (Rule #0.13 stop: two self-inflicted errors close together):
+1. First version reused "marks nothing when the board_revisions request fails"'s failing revisions answer; with it the
+   sync trusts its stored revision and never fetches `other/shared` ("has already been cached locally"). Fixed by the
+   'newer' answer above; the run then showed "ember ajax error: 400: Not authorized (GET /api/v1/boards/other/shared)".
+2. It assumed one row for the board. Actual rows (debug line, removed): `{"id":"1_178","key":"other/shared","status":
+   "re-downloaded"}` and `{"id":"1_178","key":"1_178","error":"board 1_178 failed retrieval for syncing, linked from
+   fred/next"}`. The link carries only the id, so the error's `board_key` is empty and the merge (matching by key)
+   adds an error-only row. The assertion now targets the error row. NOT yet re-run in its corrected form.
+New pre-existing defect (out of scope, for "Not covered"): `board_lookup` records 're-downloaded' for a board BEFORE
+its reload fails, so a refused board also has a 're-downloaded' row under its key; Sync Details' `final_rows` (by
+key||id) then sees two boards. #1328 marks failure by id or key, so the error row's tag still reaches it.
+
+Next session, in order:
+1. Run the corrected real-transport test alone; it must fail ONLY on `refused` (expected true, got undefined).
+2. Code (`services/persistence.js` lines above 4465 one-for-one): in the walk's failure branch compute
+   `var refused = boardRevocation.real_denial(err)` from the ORIGINAL error, before :3373-3374 unwrap it; push
+   `...(refused ? {refused: true} : {})` at :3380 and `refused: true` at :3378 (dead on real errors, per the review);
+   finished-sync merge: existing row sets or deletes `refused` beside `content` (:2387), error-only row spreads it
+   (:2392); `with_errors` copies it; `entry_copy` keys gain 'refused'. Check `boardRevocation` is the service's import
+   name for utils/board_revocation (it is used at :2382).
+3. Green on the filter above; mutants: no tag at :3380; tag on every error; `with_errors` drops it; `entry_copy` drops
+   it; merge existing-row keeps a stale tag; merge error-only row drops it; tag from `board_unauthorized` instead.
+4. Wider filter `/sync|persistence|board content retry/i` (baseline 616/607/9/0 plus the new tests), lint gate.
+5. Unit R (retry-path content tag) after Traci's OK for :143.
+6. Dual review on the new range, /pr-preflight, ask before pushing. Then ask about #1328's one-line change
+   (`seen_by_last_sync`: hide only on `s.refused`).

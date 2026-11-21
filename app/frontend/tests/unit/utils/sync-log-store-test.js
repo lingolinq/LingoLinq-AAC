@@ -53,6 +53,13 @@ module('Unit | Utility | sync log store', function() {
     assert.deepEqual(entry_copy(e).statuses, [{ id: '1_1', key: 'me/core', status: 'downloaded', error: 'board me/core failed to sync completely', content: true }]);
   });
 
+  // Part 4 (L4-B): the refused tag survives a restart too.
+  test('a saved entry keeps the refused tag on a row', function(assert) {
+    var e = entry(1);
+    e.statuses = [{ id: '1_8', key: 'other/shared', error: 'board other/shared failed retrieval for syncing', refused: true }];
+    assert.deepEqual(entry_copy(e).statuses, [{ id: '1_8', key: 'other/shared', error: 'board other/shared failed retrieval for syncing', refused: true }]);
+  });
+
   test('a saved entry keeps its warnings', function(assert) {
     var copy = entry_copy({ finished: new Date(), statuses: [{ id: '1_2', key: 'me/side', status: 'cached', warning: 'board me/side saved without its picture: x' }] });
     assert.deepEqual(copy.statuses, [{ id: '1_2', key: 'me/side', status: 'cached', warning: 'board me/side saved without its picture: x' }]);

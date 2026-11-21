@@ -228,6 +228,18 @@ module('Unit | Utility | sync rollup', function() {
     ]);
   });
 
+  // Part 4 (L4-B, 2026-11-20): a refusal's tag survives into the stopped sync's rows (PR #1328 hides only on it).
+  test('with_errors keeps the refused tag, and adds none to other failures', function(assert) {
+    var rows = with_errors([], [
+      { board_id: '1_8', board_key: 'other/shared', error: 'board other/shared failed retrieval for syncing', refused: true },
+      { board_id: '1_9', board_key: 'kid/feel', error: 'board kid/feel failed retrieval for syncing' }
+    ]);
+    assert.deepEqual(rows, [
+      { id: '1_8', key: 'other/shared', error: 'board other/shared failed retrieval for syncing', refused: true },
+      { id: '1_9', key: 'kid/feel', error: 'board kid/feel failed retrieval for syncing' }
+    ]);
+  });
+
   test('a board saved without its picture is still ready, and its group names it', function(assert) {
     var w = walk();
     w.statuses.push({ id: '1_20', key: 'me/keyboard', status: 'cached', warning: 'board me/keyboard saved without its picture: x' });
