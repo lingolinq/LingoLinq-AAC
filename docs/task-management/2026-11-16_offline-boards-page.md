@@ -641,3 +641,24 @@ BoardIcon on three grids. Left for Traci's call.
   "Not covered" names it. Merge #1336 first, or accept the conservative hide until it lands.
 - Develop merged (e4dfdaab7): eight locale files conflicted at the file end (both sides added keys); kept both,
   JSON valid, no duplicate keys. Develop changed none of this PR's code files.
+
+## Final review of the post-round-4 code (2026-11-20/21, Traci: "yes")
+PII pre-flight exit 0: REVIEWED=range a44d593ff ... fcee38168 and REVIEWED=range e4dfdaab7 ... 0fab34757 (the develop
+merge left out: locale conflicts only).
+- `/review-pr` (senior pass): approve with comments. M1 = the red team's Medium below. M2 (a listed tab might not
+  request a list) NOT real: every tab in `TABS_WITH_SERVER_LIST` calls `generate_or_append_to_list`, whose fresh-
+  snapshot early return clears the view itself (`index.js:1210`). L2 (compare via a `same_person` helper) NOT real:
+  `show_device_boards` compares `user_name` the same way. L1 ("You're offline" copy while online on the fallback) is
+  the recorded Low. L3: the four-statement line, kept for the line-anchored lint rule.
+- `/adversary-review` (red team): ship with conditions. Medium, CONFIRMED, a REGRESSION from this round: the grouping
+  passed links through boards that do not open on a device not trusted, so `larry/root -> aaron/x -> larry/leaf`
+  hid `leaf` (a44d593ff listed it; 2503 of 20,000 untrusted fuzz rounds vs 237 before). Fixed (2476a8f37): `rest`
+  keeps only boards that open here (trusted: unchanged); red test (leaf and loop shapes, plus the trusted contrast).
+  Low: `!list.read_failed` in `end_device_view_online` untested; test added. Mutants R1 (grouping ignores opens), R2
+  (failed read counts as own): both KILLED. 86/86; lint gate adds nothing. The red team also fuzzed 90,000 graphs
+  against an exact oracle (0 mismatches) and killed every non-equivalent Tarjan mutant with the committed tests.
+- Codex on 0fab34757: one new P1, the `.gitleaks.toml` allowlist (AGENTS.md "never edit ... to make a check pass
+  without explicit human approval"). Traci approved it explicitly on 2026-11-19 after the 22 findings were checked to
+  be fixture board keys, not credentials (section "CI secret-detection on 09fd218be"). No change; a reply on the PR
+  needs Traci's OK. Its two earlier comments (the stuck view, the content tag) are the ones already handled.
+- CI on 0fab34757: all 13 checks green.
