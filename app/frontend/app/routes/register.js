@@ -2,6 +2,7 @@ import Route from '@ember/routing/route';
 import LingoLinq from '../app';
 import progress_tracker from '../utils/progress_tracker';
 import { inject as service } from '@ember/service';
+import { AI_CONSENT_REGISTRATION_VERSION } from '../utils/article50_gate';
 
 export default Route.extend({
   router: service(),
@@ -68,6 +69,7 @@ export default Route.extend({
         user.set('jurisdiction_declaration', country || null);
       }
       user.set('under_16', !!controller._classifyUnder16());
+      user.set('ai_disclosure_version', AI_CONSENT_REGISTRATION_VERSION);
       if(controller.get('coppa_age_group') === 'under_13') {
         user.set('coppa_under_13', true);
         user.set('parent_consent_email', (controller.get('parent_consent_email') || '').trim());

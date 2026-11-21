@@ -48,10 +48,9 @@ module LingoLinq
   # and should be paired with human review (Task 02-02.8) before any version
   # bump ships, not relied on as the sole gate.
   module AiConsentDisclosures
-    CURRENT_VERSION = 1
+    CURRENT_VERSION = 2
 
-    REGISTRY = {
-      1 => {
+    V1 = {
         'effective_date' => '2026-07-09',
         'vendors' => [
           {
@@ -163,7 +162,39 @@ module LingoLinq
           'consent and keep working either way. The rest of LingoLinq (boards, sync, ' \
           'messaging) keeps working normally without AI features.'
       }.freeze
-    }.freeze
+
+    # Version 2 (2026-11-19, #1136). AI board suggestions and focus words are now
+    # covered by this consent, so a withdrawal stops them too. Version 1 said they
+    # were outside it. Everything not overridden here is unchanged from version 1:
+    # same companies, same model, same retention windows, and AI-drafted
+    # evaluation narration is still inactive.
+    V2 = V1.merge(
+      'effective_date' => '2026-11-19',
+      'vendors' => V1['vendors'].map do |vendor|
+        vendor.merge(
+          'models' => ['Claude Haiku 4.5 (claude-haiku-4-5-20251001) for word prediction, board suggestions and focus words'],
+          'features' => %w[ai_word_predictor ai_board_generator]
+        ).freeze
+      end.freeze,
+      'data_categories' => [
+        V1['data_categories'][0],
+        'The topic or description typed when asking for AI board suggestions or focus ' \
+          'words (for example "the zoo"), and any words already suggested for that ' \
+          'request, so the next suggestions do not repeat them',
+        V1['data_categories'][1]
+      ].freeze,
+      'revocation_summary' => 'A parent, the account holder once old enough, or the ' \
+        'organization that manages the account can withdraw AI data-sharing consent at any ' \
+        'time. Once withdrawn, LingoLinq stops sending any further data from that account ' \
+        'to the AI provider for word prediction, board suggestions and focus words. ' \
+        'AI-drafted evaluation narration is currently inactive and sends nothing at all; if ' \
+        'it is switched on in future it would be covered by this same withdrawal. ' \
+        'Withdrawing consent cannot retract or delete anything already sent before the ' \
+        'withdrawal; it only stops future sending. The rest of LingoLinq (boards, sync, ' \
+        'messaging) keeps working normally without AI features.'
+    ).freeze
+
+    REGISTRY = { 1 => V1, 2 => V2 }.freeze
 
     # Returns JSON-serializable metadata for the given version, or nil when
     # the version is unknown. String keys throughout (matches Art50Marker).

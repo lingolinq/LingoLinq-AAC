@@ -83,6 +83,10 @@ class Api::EvalSessionsController < ApplicationController
     # EvalNarrator itself.
     return if payload['use_anthropic'] && !require_article_50_disclosure!
 
+    # AI data-sharing consent (#1136) is the STUDENT's: EvalNarrator refuses the
+    # external draft without it and returns the local template. Tell the screen
+    # why an AI draft that was asked for did not happen.
+    consent_refused = payload['use_anthropic'] && !!user && EvalNarrator.ai_consent_refuses?(user)
     result = EvalNarrator.draft_narrative(payload, user: user)
     # EU AI Act Article 50(2): the RAW signed marker (nil for the deterministic
     # template draft) is returned to the frontend at generation time so it can be
@@ -91,7 +95,9 @@ class Api::EvalSessionsController < ApplicationController
     # through boards_controller#generate_labels into board.settings. Read-side API
     # responses (lib/json_api/log.rb) expose only the non-secret public view via
     # Art50Marker.public_view -- never this raw form -- matching lib/json_api/board.rb.
-    render json: { 'narrative' => result['narrative'], 'ai_generated' => result['ai_generated'] }
+    json = { 'narrative' => result['narrative'], 'ai_generated' => result['ai_generated'] }
+    json['ai_consent_required'] = true if consent_refused
+    render json: json
   rescue EvalNarrator::NarrationError => e
     api_error 502, { error: e.message }
   end

@@ -4,7 +4,7 @@ import { inject as service } from '@ember/service';
 import i18n from '../utils/i18n';
 import prompt_hierarchy from '../utils/eval_prompt_hierarchy';
 import persistence from '../utils/persistence';
-import article50Gate from '../utils/article50_gate';
+import article50Gate, { aiConsentNarrationMessage } from '../utils/article50_gate';
 import aiFeatureGate from '../utils/ai_feature_gate';
 
 /*
@@ -380,7 +380,12 @@ export default Component.extend({
       // the notice would need a new ARTICLE_50_DISCLOSURE_SOURCES entry and would
       // make the audit trail less truthful, not more. Reviewed and settled
       // 2026-07-21; see docs/task-management/2026-07-21-art50-phase3-review-fixes.md.
-      article50Gate.presentBlockingGate(this.get('appState')).then(function() {
+      //
+      // CONSENT: the server checks the STUDENT's AI data-sharing consent for narration
+      // (EvalNarrator), not the clinician's, so the clinician is not asked for their own
+      // here (skipAiConsent). When the student's is missing the server returns the
+      // standard summary and says so; that is handled below.
+      article50Gate.presentBlockingGate(this.get('appState'), { skipAiConsent: true }).then(function() {
         if (_this.isDestroyed || _this.isDestroying) { return; }
         _this.set('aiBusy', true);
         _this.set('aiError', null);
@@ -410,6 +415,12 @@ export default Component.extend({
           // narrative (null for the deterministic template path) so it saves with
           // the log. See EvalSession#toLogPayload.
           session.set('aiGenerated', res.ai_generated || null);
+          // AI data-sharing consent (#1136) is the STUDENT's. When it is missing the
+          // server has already returned the standard (non-AI) summary above, so keep
+          // it, and say why no AI draft was made.
+          if (res.ai_consent_required) {
+            _this.set('aiError', aiConsentNarrationMessage());
+          }
           const onEvent = _this.get('onEvent');
           if (onEvent) {
             onEvent({
