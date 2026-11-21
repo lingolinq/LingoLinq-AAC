@@ -843,3 +843,14 @@ Verified here:
   (`services/persistence.js:3196`), so round-1 Low 6 does not apply to it.
 Round-1 Low 4 (zero-saved stopped entry) re-checked real: the heading and "0 boards and folders are saved on this
 device." Traci (2026-11-20): fix the Lows that are real in this PR.
+
+### Review fixes verified (2026-11-20/21, e88d5c21e)
+- Round-1 Low 4: red first (2 fail on the missing `nothing_saved`), then `nothing_saved` and the zero cases of the
+  stopped heading and `summary_line`; two new keys, `***` in the 12 other locales (byte format unchanged).
+- Red-team Low: new tests pin the tags through `live_board_errors` (unit) and both stop paths (Cancel, failure). They
+  passed before any code change, as expected (the code was right; only the pin was missing).
+- `/sync|persistence|board content retry/i`: 649 tests, 640 pass, 9 skip, 0 fail. Mutants: L5a `live_board_errors`
+  copying three fields: killed (3); Z1 no zero case in `summary_line`: killed (1); Z2 `nothing_saved` always false:
+  killed (1). `lint:js:ci`: the four worktree false positives; `ember-template-lint` clean on sync-details.hbs.
+- /pr-preflight: P2 to P4 do not apply (no access change, no compliance docs); P1 and P5: PR body rewritten against
+  this head; P6: everything after Part 1 is tests only, manual check requested (three steps).
