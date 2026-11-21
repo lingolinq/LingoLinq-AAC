@@ -2055,6 +2055,87 @@ describe('editManager', function() {
           expect(button.get('pending_image')).toEqual(false);
         });
       });
+
+      it("should keep a manual image that lands after the automatic save but before it is applied", function() {
+        var button = Button.create({id: 1, label: "ham"});
+        var saves = {};
+        var autoSettled = false;
+        startLucky(button, saves);
+        waitsFor(function() { return saves.auto; });
+        runs(function() {
+          // Registered after lucky_symbols' own handler, so this runs once the
+          // automatic result was accepted but before its afterRender applies it.
+          saves.auto.promise.then(function() {
+            editManager.change_button(1, {image: manualImage(), image_id: 'test-manual', _picked_display_url: 'https://example.com/test-manual.png'});
+            autoSettled = true;
+          });
+          saves.auto.resolve(autoImage());
+        });
+        waitsFor(function() { return autoSettled; });
+        runs(function() {
+          expect(button.get('image_id')).toEqual('test-manual');
+          expect(button.get('image.id')).toEqual('test-manual');
+          expect(button.get('pending_image')).toEqual(false);
+        });
+      });
+    });
+
+    it("should clear pending_image when starting the automatic save throws", function() {
+      editManager.setup(board);
+      setEditMode(true);
+      var button = Button.create({id: 1, label: "ham"});
+      board.set('ordered_buttons', [[button]]);
+      var search = RSVP.defer();
+      var threw = false;
+      stubPictureSearch(function() { return search.promise; });
+      stubPictureGrabber('save_image_preview', function() {
+        threw = true;
+        throw new Error('test synchronous failure');
+      });
+      editManager.lucky_symbol(1);
+      expect(button.get('pending_image')).toEqual(true);
+      search.resolve([{license: 'private', image_url: 'https://example.com/test-auto.png', id: 'test_auto_pic'}]);
+      waitsFor(function() { return threw && button.get('pending_image') === false; });
+      runs(function() {
+        expect(button.get('pending_image')).toEqual(false);
+        expect(button.get('image_id')).toEqual(undefined);
+      });
+    });
+
+    it("should clear pending_image once both lookups from Enter and blur finish", function() {
+      editManager.setup(board);
+      setEditMode(true);
+      var button = Button.create({id: 1, label: "ham"});
+      board.set('ordered_buttons', [[button]]);
+      var search = RSVP.defer();
+      var saves = [];
+      stubPictureSearch(function() { return search.promise; });
+      stubPictureGrabber('save_image_preview', function() {
+        var save = RSVP.defer();
+        saves.push(save);
+        return save.promise;
+      });
+      editManager.lucky_symbol(1);
+      editManager.lucky_symbol(1);
+      search.resolve([{license: 'private', image_url: 'https://example.com/test-auto.png', id: 'test_auto_pic'}]);
+      var settled = 0;
+      waitsFor(function() { return saves.length === 2; });
+      runs(function() {
+        saves[0].promise.then(function() { settled++; });
+        saves[0].resolve(EmberObject.create({id: 'test-auto', url: 'https://example.com/test-auto.png'}));
+      });
+      waitsFor(function() { return settled === 1; });
+      runs(function() {
+        expect(button.get('image_id')).toEqual('test-auto');
+        expect(button.get('pending_image')).toEqual(true);
+        saves[1].promise.then(function() { settled++; });
+        saves[1].resolve(EmberObject.create({id: 'test-auto-2', url: 'https://example.com/test-auto.png'}));
+      });
+      waitsFor(function() { return settled === 2; });
+      runs(function() {
+        expect(button.get('image_id')).toEqual('test-auto');
+        expect(button.get('pending_image')).toEqual(false);
+      });
     });
 
     it("should search the last library selected by the user", function() {
