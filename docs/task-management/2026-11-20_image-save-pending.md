@@ -169,3 +169,13 @@ lines. Linting develop's copy of each file against the branch: content-grabbers 
 edit_manager 11 = 11 findings with identical rule/column/severity/message, at constant offsets
 (+1, +8, +12 and +1, +10, +15). The new and changed test files and `pending_image.js` have none.
 Re-anchoring those rows is a baseline edit and waits for approval (`app/frontend/CLAUDE.md`).
+
+## Full suite (timing-strict shards, fixed build)
+
+- `pool=include`: 1786 tests, 1774 pass, 7 skip, 0 fail. `pool=exclude`: 3051 tests, 3020 pass,
+  30 skip, 1 fail. Selected 1786 + 3051 = 4837 = registered, so the run was complete.
+- The one failure, `session check_token - accepts the answer for the token this tab is sending
+  after another tab signed in` (expected `b_user`, got `null`), passes alone on both builds (17/17)
+  and also fails in the develop-baseline `exclude` shard (b441d2055 plus the red tests: 6 fail,
+  that test and the 5 red tests). A second fixed-build `exclude` run: 3051 tests, 3021 pass,
+  30 skip, 0 fail. Pre-existing and intermittent; not caused by this change.
