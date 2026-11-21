@@ -3763,7 +3763,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
     'sentence_parts.@each.label',
     'sentence_parts.@each.in_progress',
     'model.locale',
-    function() {
+    function() { if(!this._suggestions_update_due()) { return; }
       // Skip the lookup entirely when in edit mode or word prediction is off
       // (only an explicit `true` enables it; null/undefined = off).
       if(this.get('edit_mode') || this.get('app_state.referenced_user.preferences.word_suggestions') !== true) {
@@ -10500,6 +10500,29 @@ BoardDetailController.reopen({
       done();
       if(!_this.isDestroyed && !_this.isDestroying && _this.get('model.key') === key) { route.device_copy_fetch_failed(key, err, _this.get('model.id')); }
     });
+  },
+  /* One run of `updateSuggestions` per turn. A tap changes several of the keys that observer
+     watches at once (replacing the button list changes five), and each changed key calls it; every
+     call ran the whole lookup again for the same sentence. The first call in a turn queues one run
+     and returns false; the queued run calls the observer again with the flag set, and that call
+     is the one that does the work, reading whatever is current by then. Nothing is skipped: every
+     burst still ends in a run after its last change.
+     Down here, and the observer's own line unchanged in number, so the .eslint-todo rows above
+     keep their lines. */
+  _suggestions_update_due: function() {
+    if(this._suggestions_update_running) { return true; }
+    if(this._suggestions_update_queued) { return false; }
+    this._suggestions_update_queued = true;
+    var _this = this;
+    RSVP.resolve().then(function() {
+      /* Cleared BEFORE the body runs, and the running flag in a finally: if the body throws, the
+         next change must still be able to queue a run. */
+      _this._suggestions_update_queued = false;
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      _this._suggestions_update_running = true;
+      try { _this.updateSuggestions(); } finally { _this._suggestions_update_running = false; }
+    });
+    return false;
   },
   _trial_home: function() {
     var origin = this.get('try_origin_board') || this.get('app_state.home_copy_pending');
