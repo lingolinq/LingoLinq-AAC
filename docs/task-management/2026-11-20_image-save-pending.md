@@ -103,3 +103,69 @@ Tests (red before the fix)
   the same button finish.
 - Mutation: revert the content-grabbers / edit_manager hunks; the closed-settings tests
   and all three supersede tests go red.
+
+## Proposal review (adversary, before the fix)
+
+Six findings; each checked against the code before acting.
+- Medium, accepted: a synchronous throw inside a `lucky_symbols` success handler skipped every
+  clear (the success and failure handlers share one `.then`). With tokens that would no longer
+  self-heal on the next manual pick. Fixed: each operation finishes once at the end of its whole
+  chain, and the `picture_search` / `save_image_preview` calls are wrapped so a synchronous throw
+  becomes a rejection. Test: "should clear pending_image when starting the automatic save throws".
+- Medium, accepted: prev/next in button settings opens the next button after `save_pending`
+  resolves, before the upload finishes, and `setup` swaps `pictureGrabber.controller`. The first
+  save's success handler then wrote `model.image`, `fresh_picture_url` and `clear()` onto the
+  next button's settings. Fixed: those writes are gated on the controller the save started from.
+  Test: "should leave the next button's settings alone ...".
+- Low, kept by design: a superseded automatic save keeps the guard raised until it settles; a
+  running upload is still an operation on that button.
+- Low, accepted: tests added for the `afterRender` re-check, the editor branch and two lookups
+  from Enter then blur; each guard has its own mutation below.
+- Low, out of scope (follow-up): `edited_image_data` is never cleared, so the editor's "Use This"
+  on a later button can save the previous button's edit.
+- Low, accepted: the helper's comment now names the paths it covers and the direct writers it
+  does not.
+- Follow-up, not fixed here: while one save runs, a second button's "Use This" returns the first
+  save's `_activeImageSavePromise` (one slot on the singleton), so the second pick is not saved.
+
+## Verification
+
+Red run (fix absent, b441d2055 plus the new tests): 7 selected, 2 pass (settings open), 5 fail on
+the intended assertions (`pending_image` true after close; true after a superseded automatic save;
+`image_id` `test-auto` instead of `test-manual`; false while the automatic save still ran).
+
+Fixed build, `--filter "/editManager|pictureGrabber|pending image/i"`: 199 tests, 198 pass,
+1 skip, 0 fail.
+
+Mutations, one guard per build (targeted filter, 27 tests):
+- M1 finish gated on the start controller being alive: 3 red (close-before-success,
+  close-before-failure, next button).
+- M2 controller writes gated on "any live controller": 1 red (next button).
+- M3 editor branch's immediate `false` restored: 1 red (edited image).
+- M4 `image_id` supersede check removed: 1 red (placeholder keeps manual image).
+- M5 `afterRender` re-check removed: 1 red (manual lands before afterRender).
+- M6 rejection-path finish removed: 1 red (synchronous throw).
+- M7 any finish clears the flag: 4 red (two unit tests, manual+automatic, Enter+blur).
+
+The source-level harness from the earlier session, pointed at c4f727837 with the helper loaded,
+ends all four sequences with `pending=false` and the board save allowed.
+
+## Senior-dev review (Codex `gpt-6.1-sol`, effort high)
+
+`REVIEWED=range origin/develop (b441d20551ddf5ef060869e9e297a3d993f4b788) ... fix/scot-image-save-pending-4b5b4ff7 (c4f7278370e6b4251b4a412fefe595737006f2e3)`
+
+No Critical or High. One Medium, declined with evidence: "pending clears before the automatic
+image is applied" (finish runs before the `afterRender` that writes `image_id`). Ember schedules
+RSVP callbacks on the backburner `actions` queue (`ember-source` `runtime/lib/ext/rsvp.js`:
+"_backburner.schedule('actions', null, callback, promise)"), and the `afterRender` is queued in
+the same flush, which drains `actions` through `afterRender` synchronously; a board save is a
+user event and cannot run in between. develop has the same order (it writes
+`button.set('pending_image', false)` in that handler before the same `afterRender`).
+
+## ESLint baseline
+
+`npm run lint:js:ci` reports 23 "new" findings, all `.eslint-todo` rows shifted below the added
+lines. Linting develop's copy of each file against the branch: content-grabbers 12 = 12 and
+edit_manager 11 = 11 findings with identical rule/column/severity/message, at constant offsets
+(+1, +8, +12 and +1, +10, +15). The new and changed test files and `pending_image.js` have none.
+Re-anchoring those rows is a baseline edit and waits for approval (`app/frontend/CLAUDE.md`).
