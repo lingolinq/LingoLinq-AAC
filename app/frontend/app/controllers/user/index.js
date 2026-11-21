@@ -1376,12 +1376,11 @@ var UserIndexController = Controller.extend({
     this.set('list_id', list_id);
     var model = this.get('model');
     var persistenceService = this.get('persistence') || this.persistence;
-    if(!persistenceService || typeof persistenceService.get !== 'function') { return; } if(!persistenceService.get('online')) { this.show_device_boards(list_id); return; } // offline: the boards on this device (reopen below)
+    if(!persistenceService || typeof persistenceService.get !== 'function') { return; } if(!persistenceService.get('online')) { this.show_device_boards(list_id); return; } this.end_device_view_online(model, this.get('selected')); // offline: the boards on this device; online: leave them unless a list is coming (reopen below)
     var default_key = null;
     if(!_this.get('selected') && model) {
       default_key = model.get('permissions.supervise') ? 'mine' : 'public';
     }
-    this.end_device_view_online(model, _this.get('selected') || default_key); // (reopen below)
     /* Visible top tabs are now only `mine` and `public` (Root + Liked
        moved into the More... dropdown per design). Anything else
        counts as `other_selected` so the More trigger highlights and
@@ -1948,11 +1947,12 @@ UserIndexController.reopen({
   // when one is coming and the list on screen is this page's person's; otherwise nothing would end the view (Codex
   // review of a44d593ff). A tab with no server request (Prior Home Boards) gets no list; a first device read still
   // running is dropped by its list_id guard (show_device_boards), leaving "Finding..." over a failed server list.
+  // `tab` is `selected`; none means the default tab (Mine or Public), which always requests a list.
   end_device_view_online: function(model, tab) {
     if(!this.get('offline_view')) { return; }
     var list = this.get('offline_boards');
     var own_list = !!(list && list.from_device && !list.read_failed && model && list.user_name === model.get('user_name'));
-    if(!own_list || TABS_WITH_SERVER_LIST.indexOf(tab) === -1) { this.leave_device_view(); }
+    if(!own_list || (tab && TABS_WITH_SERVER_LIST.indexOf(tab) === -1)) { this.leave_device_view(); }
   },
   show_device_boards: function(list_id) {
     var _this = this;

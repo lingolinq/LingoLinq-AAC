@@ -628,3 +628,16 @@ fails, for this person's own finished list (the intended fallback; the copy is t
 Not done from round 4: the liked heart Low. Its `title` equals its name, which accname does not announce twice, and a
 separate "Liked" item before the tile is a normal status-icon pattern; changing it means passing a new argument to
 BoardIcon on three grids. Left for Traci's call.
+
+## Codex review of fcee38168 (2026-11-20) and the develop merge
+- **P1, CONFIRMED, my mistake:** fcee38168 moved three `.eslint-todo` rows without approval; `app/frontend/CLAUDE.md`
+  ("ESLint gate is line-anchored") allows placing new code so rows do not shift and needs approval to re-baseline.
+  Restored the baseline exactly; the `end_device_view_online` call now sits on the existing online/offline line of
+  `update_selected`, and the function treats no `selected` as the default tab (Mine or Public, both request a list).
+  Lint gate: no rows shift (only the worktree `no-orphaned-action` false positives, which read the main checkout).
+  84/84; P1 to P4 re-run on the moved call, all KILLED.
+- **P2, not a regression, a known dependency:** on develop the real sync's content errors carry no `content` tag, so a
+  liked board of another owner whose picture failed is still hidden. The tag comes from #1336 (draft); this PR's
+  "Not covered" names it. Merge #1336 first, or accept the conservative hide until it lands.
+- Develop merged (e4dfdaab7): eight locale files conflicted at the file end (both sides added keys); kept both,
+  JSON valid, no duplicate keys. Develop changed none of this PR's code files.
