@@ -2048,7 +2048,7 @@ var persistence = Service.extend({
       if(!_this_sync.get('sync_progress.root_user')) {
         _this_sync.set('sync_progress', {
           root_user: user_id,
-          sync_id: sync_id,
+          sync_id: sync_id, started_at: (new Date()).getTime(), // when this sync started (utils/sync_board_fallback.js copy_from_this_sync)
           progress_for: {
           }
         });
@@ -2196,7 +2196,7 @@ var persistence = Service.extend({
           if(!_this_sync.get('sync_progress.root_user') || _this_sync.get('sync_progress.root_user') == old_user_id) {
             _this_sync.set('sync_progress', {
               root_user: user.get('id'),
-              sync_id: _this_sync.get('sync_progress.sync_id'), canceled: _this_sync.get('sync_progress.canceled'), // a cancel pressed while caches primed must reach the board walk
+              sync_id: _this_sync.get('sync_progress.sync_id'), canceled: _this_sync.get('sync_progress.canceled'), started_at: _this_sync.get('sync_progress.started_at') || (new Date()).getTime(), // a cancel pressed while caches primed must reach the board walk, and the start time stays the sync's own
               progress_for: {
               }
             });
@@ -2777,9 +2777,9 @@ var persistence = Service.extend({
             board_statuses.push({id: id, key: record.get('key'), status: 'cached'});
             return record;
           } else {
-            board_statuses.push({id: id, key: record.get('key'), status: 're-downloaded'});
-            record.set('button_set_needs_reload', true);
-            return _this.time_promise(record.reload(), "reload board", BOARD_RELOAD_MS).then(null, function(err) { return keep_stored_board(record, err, board_statuses, id, function(rec) { return _this.find('board', rec.get('global_id') || rec.get('id')).then(function(row) { return usable_copy(row) ? row : RSVP.reject({error: 'no usable copy'}); }); }); }); // #1212 (utils/sync_board_fallback.js): by global id, a key lookup scans every board row
+            return (key_for_id ? RSVP.resolve(null) : _this.board_stored_this_sync(id, record, fresh_board_revisions && fresh_board_revisions[id])).then(function(copy) { if(copy) { board_statuses.push({id: id, key: copy.get('key'), status: 'downloaded'}); copy.set('button_set_needs_reload', true); return copy; } // a parked board whose late answer this sync stored is not downloaded again (board_stored_this_sync below); a lookup by key reloads as before, and so does a copy the server's revisions list says is old
+            board_statuses.push({id: id, key: record.get('key'), status: 're-downloaded'}); record.set('button_set_needs_reload', true);
+            return _this.time_promise(record.reload(), "reload board", BOARD_RELOAD_MS).then(null, function(err) { return keep_stored_board(record, err, board_statuses, id, function(rec) { return _this.device_board_row(rec); }); }); }); // #1212 (utils/sync_board_fallback.js)
           }
         } else {
           board_statuses.push({id: id, key: record.get('key'), status: 'downloaded'});
@@ -4984,7 +4984,7 @@ import { queue_eventual_store } from '../utils/eventual_store_queue';
 import { is_permanent_upload_url } from '../utils/permanent_upload';
 import { on_uploads_cdn, is_web_page } from '../utils/direct_fetch';
 import { picture_kept_in_database, usable_database_copy } from '../utils/database_picture';
-import { BOARD_RELOAD_MS, USER_RELOAD_MS, keep_stored_board, claim_board_retry, note_device_boards, known_on_device } from '../utils/sync_board_fallback'; import { create_parking, register_parking, wake_parked, retry_delay, when_slot_free } from '../utils/board_retry'; import { note_board_root, root_for_link, note_warning } from '../utils/sync_rollup'; import { record_sync_log, restore_sync_log } from '../utils/sync_log_store';
+import { BOARD_RELOAD_MS, USER_RELOAD_MS, keep_stored_board, claim_board_retry, note_device_boards, known_on_device, stored_this_sync } from '../utils/sync_board_fallback'; import { create_parking, register_parking, wake_parked, retry_delay, when_slot_free } from '../utils/board_retry'; import { note_board_root, root_for_link, note_warning } from '../utils/sync_rollup'; import { record_sync_log, restore_sync_log } from '../utils/sync_log_store';
 import { usable_copy } from '../utils/board_device_copy';
 import { reason_is_automatic, merge_follow_up } from '../utils/sync_follow_up';
 
@@ -5128,6 +5128,23 @@ persistence.reopen({
     this.drop_follow_up_syncs({error: "canceled"});
     if(this.get('sync_progress') && !this.get('sync_progress.canceled')) { this.pause_automatic_sync(); }
     return this._super(...arguments);
+  },
+  // The device's copy of a board, when it opens offline (utils/board_device_copy.js usable_copy), or a rejection. By
+  // global id: a key lookup scans every board row (#1212). Used by board_lookup's reload branch above.
+  device_board_row: function(record) {
+    return this.find('board', record.get('global_id') || record.get('id')).then(function(row) {
+      return usable_copy(row) ? row : RSVP.reject({error: 'no usable copy'});
+    });
+  },
+  // For a parked board being tried again (board_lookup's reload branch above), the device's complete copy stored
+  // during this sync, put in the store as the sync puts a cached row (sync_boards, "push already-cached record"), or
+  // null when there is none, or putting it in the store fails, and the board is downloaded as before
+  // (utils/sync_board_fallback.js stored_this_sync). `listed_revision` is the server's revision for the board, if listed.
+  board_stored_this_sync: function(id, record, listed_revision) {
+    var _this = this;
+    return stored_this_sync(this.get('sync_progress'), id, record, function(rec) { return _this.device_board_row(rec); }, listed_revision).then(function(row) {
+      return row ? LingoLinq.store.push({ data: { id: row.id, type: 'board', attributes: row } }) : null;
+    }).then(null, function() { return null; });
   },
   // The back-off that follows a failed automatic sync (sync_backoff_watcher): 30 minutes, doubling to 6 hours, reset by a
   // finished sync. It only gates check_for_needs_sync, so the Sync button and the syncs a person's own changes start

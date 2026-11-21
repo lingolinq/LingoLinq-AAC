@@ -6460,7 +6460,7 @@ describe("persistence-sync", function() {
 
     // A first sync has no stored copy to keep, so a board that timed out was lost with its folders. It is now tried
     // once more, later in the same sync (services/persistence.js nextBoard; utils/sync_board_fallback.js).
-    function syncWithBoard167(response, twoParents) {
+    function syncWithBoard167(response, twoParents, beforeSync) {
       cancelSyncTailWork();
       unloadSyncStoreRecords();
       resetSyncTestCaches();
@@ -6489,6 +6489,7 @@ describe("persistence-sync", function() {
       queryLog.defineFixture({ method: 'GET', type: 'board', id: '167', response: response });
       cacheStoredUrl('http://example.com/pic.png');
       cacheStoredUrl('http://example.com/board.png'); defineCrisisVocabularyFixture();
+      if(beforeSync) { beforeSync(); }
       persistence.sync(1340).then(function(res) { state.result = res; });
       return state;
     }
@@ -6520,6 +6521,36 @@ describe("persistence-sync", function() {
           // (tests/helpers/ember_helper.js) skips the adapter's `retrieved` stamp, so the board is never `fresh`.
           expect(response.calls).toEqual(3);
           expect(statusFor167().status).toEqual('re-downloaded');
+          expect(statusFor167().error).toEqual(undefined);
+          cancelSyncTailWork();
+          persistence.set('sync_progress', null);
+          LingoLinq.sync_testing_real_boards = false;
+        });
+      });
+    });
+
+    // The late answer of the timed-out request is stored on the device (utils/board_download.js store_late_board),
+    // stamped then; the retry uses that copy instead of downloading the board again (the old code reloaded it:
+    // 3 requests, 're-downloaded'). docs/task-management/2026-11-16_sync-late-copy-current.md.
+    it("should use the copy stored late by a timed-out request when the board is tried again", function() {
+      db_wait(function() {
+        var late = { at: null };
+        var base = answers([{ reject: { error: 'timeout' } }, { resolve: board167 }]);
+        var response = { calls: 0, then: function(ok, fail) { if(base.calls === 0) { late.at = (new Date()).getTime(); } var p = base.then(ok, fail); response.calls = base.calls; return p; } };
+        var state = syncWithBoard167(response, false, function() {
+          var target = persistenceTarget() || persistence;
+          var priorFind = target.find;
+          stubOnPersistence('find', function(store, key) {
+            if(store === 'board' && key == '167' && late.at) {
+              return RSVP.resolve({ id: '167', key: 'fred/slow', image_url: 'http://example.com/board.png', buttons: [], grid: { rows: 1, columns: 1, order: [[null]] }, permissions: { view: true }, image_urls: {}, retrieved: late.at });
+            }
+            return priorFind.apply(target, arguments);
+          });
+        });
+        waitsFor(function() { return waitForSyncDoneAndSettled(state.result) && state.tailDone; });
+        runs(function() {
+          expect(response.calls).toEqual(2); // the failed request, then the retry's find; no reload
+          expect(statusFor167().status).toEqual('downloaded');
           expect(statusFor167().error).toEqual(undefined);
           cancelSyncTailWork();
           persistence.set('sync_progress', null);
@@ -6850,6 +6881,180 @@ describe("persistence-sync", function() {
         expect(res.rec.reloaded).toEqual(undefined);
         expect(onlyStatus()).toEqual(['cached']);
         persistence.set('sync_progress', null);
+      });
+    });
+  });
+
+  // On a slow link a board's request outlives the adapter's 15 s limit, the sync parks the board (claim_board_retry),
+  // and the late answer is still saved to the device (utils/board_download.js store_late_board). The retry found that
+  // copy older than the 5-minute freshness window and reloaded it, by key, downloading the same board twice (0.8 Mbps:
+  // 80.6 MB instead of 43 MB; docs/task-management/2026-11-16_sync-late-copy-current.md). A retried board whose device
+  // row is complete and was stored during this sync is used as it is.
+  describe("a board saved late in a sync is not downloaded again", function() {
+    var MIN = 60 * 1000;
+    function lookupRetried(opts) {
+      opts = opts || {};
+      var now = (new Date()).getTime();
+      var id = opts.id || '1_1216';
+      var res = { reloads: 0, pushes: [], device_reads: [], done: false };
+      var progress = { started_at: now - 10 * MIN, device_boards: {}, device_boards_read_at: now - 10 * MIN + 1000, retried_lookups: {} };
+      if(opts.retried !== false) { progress.retried_lookups[id] = 1; }
+      persistence.set('sync_progress', progress);
+      // Default: a complete record served from the device row, its stamp past the freshness window.
+      var rec = EmberObject.create(Object.assign({ id: '1_1216', global_id: '1_1216', key: 'example/late', fresh: false, current_revision: 'r1', permissions: { view: true }, image_urls: {}, retrieved: now - 6 * MIN }, opts.inMemory || {}));
+      stub(rec, 'reload', function() { res.reloads++; return RSVP.resolve(rec); });
+      stub(LingoLinq.store, 'peekRecord', function() { return opts.peeked ? rec : null; });
+      stub(LingoLinq.store, 'findRecord', function(type, lookup) { if(type == 'board' && (lookup == '1_1216' || lookup == 'example/late')) { return RSVP.resolve(rec); } });
+      res.pushed = EmberObject.create({ id: '1_1216', key: 'example/late' });
+      stub(LingoLinq.store, 'push', function(json) { if(opts.pushFails) { throw new Error('push failed'); } res.pushes.push(json); return res.pushed; });
+      var target = persistenceTarget() || persistence;
+      var priorFind = target.find;
+      stubOnPersistence('find', function(store, key) {
+        if(store === 'board') {
+          res.device_reads.push(key);
+          var row = opts.row === undefined ? { id: '1_1216', key: 'example/late', buttons: [], permissions: { view: true }, image_urls: {}, current_revision: 'r1', retrieved: now - 6 * MIN } : opts.row;
+          return row ? RSVP.resolve(row) : RSVP.reject({ error: 'record not found: board ' + key });
+        }
+        return priorFind.apply(target, arguments);
+      });
+      res.rec = rec;
+      res.now = now;
+      persistence.board_lookup(id, {}, opts.revisions || {}).then(function(b) { res.board = b; res.done = true; }, function(e) { res.error = e; res.done = true; });
+      return res;
+    }
+    function statuses() {
+      return (persistence.get('sync_progress.board_statuses') || []).map(function(s) { return s.status; });
+    }
+    function expectReloaded(res) {
+      expect(res.error).toEqual(undefined);
+      expect(res.reloads).toEqual(1);
+      expect(res.pushes.length).toEqual(0);
+      expect(statuses()).toEqual(['re-downloaded']);
+    }
+
+    it("uses a retried board's complete copy stored during this sync, with no second download", function() {
+      var res = lookupRetried();
+      waitsFor(function() { return res.done; });
+      runs(function() {
+        expect(res.error).toEqual(undefined);
+        expect(res.reloads).toEqual(0);
+        expect(res.device_reads).toEqual(['1_1216']); // by global id: a key lookup scans every board row (#1212)
+        expect(res.pushes.length).toEqual(1);
+        var pushedData = (res.pushes[0] || {}).data || { attributes: {} };
+        expect(pushedData.id).toEqual('1_1216');
+        expect(pushedData.attributes.retrieved).toEqual(res.now - 6 * MIN);
+        expect(res.board).toEqual(res.pushed);
+        expect(res.pushed.get('button_set_needs_reload')).toEqual(true);
+        expect(statuses()).toEqual(['downloaded']);
+        persistence.set('sync_progress', null);
+      });
+    });
+
+    // Modern view pushes the open board's /tree folders into the store with no stamp and no image urls
+    // (utils/board_detail_cache.js); store_late_board writes only the device, so the record never learns of the copy.
+    it("uses the device's copy when the record in memory is the lite one from a /tree answer", function() {
+      var res = lookupRetried({ peeked: true, inMemory: { image_urls: undefined, retrieved: undefined } });
+      waitsFor(function() { return res.done; });
+      runs(function() {
+        expect(res.error).toEqual(undefined);
+        expect(res.reloads).toEqual(0);
+        expect(res.pushes.length).toEqual(1);
+        expect(res.board).toEqual(res.pushed);
+        expect(statuses()).toEqual(['downloaded']);
+        persistence.set('sync_progress', null);
+      });
+    });
+
+    it("uses the device's copy when the server's listed revision matches it, though the lite record has none", function() {
+      var res = lookupRetried({ peeked: true, inMemory: { image_urls: undefined, retrieved: undefined, current_revision: undefined }, revisions: { '1_1216': 'r1' } });
+      waitsFor(function() { return res.done; });
+      runs(function() {
+        expect(res.error).toEqual(undefined);
+        expect(res.reloads).toEqual(0);
+        expect(res.pushes.length).toEqual(1);
+        expect(statuses()).toEqual(['downloaded']);
+        persistence.set('sync_progress', null);
+      });
+    });
+
+    it("downloads the board as before when putting the device's copy in the store fails", function() {
+      var res = lookupRetried({ pushFails: true });
+      waitsFor(function() { return res.done; });
+      runs(function() {
+        expectReloaded(res);
+        persistence.set('sync_progress', null);
+      });
+    });
+
+    [
+      ['the board was not retried', { retried: false }],
+      ['the server lists a newer revision', { revisions: { '1_1216': 'r2' } }],
+      ['the device copy is partial', { row: { id: '1_1216', key: 'example/late', buttons: [], permissions: { view: true }, retrieved: (new Date()).getTime() - 6 * MIN } }],
+      ['the device copy was stored before this sync', { row: { id: '1_1216', key: 'example/late', buttons: [], permissions: { view: true }, image_urls: {}, retrieved: (new Date()).getTime() - 11 * MIN } }],
+      ['the device has no copy', { row: null }],
+      // Kept as before: by key, the lookup was not one a parked retry makes for a board it knows by id.
+      ['the board is looked up by key', { id: 'example/late' }]
+    ].forEach(function(row) {
+      it("downloads a stale board again when " + row[0], function() {
+        var res = lookupRetried(row[1]);
+        waitsFor(function() { return res.done; });
+        runs(function() {
+          expectReloaded(res);
+          persistence.set('sync_progress', null);
+        });
+      });
+    });
+
+    // The window is judged from when the sync started, so the sync must record it, and keep it when it re-creates its
+    // progress after the user refresh (services/persistence.js sync, "re-priming image cache"). The user's answer is
+    // held back 30 ms, so a start taken again at the re-creation would be later than that answer.
+    it("a sync records when it started and keeps it through the re-creation of its progress", function() {
+      db_wait(function() {
+        ensureBoardAbsentFromLocalDb('1_145');
+        var state = { tailDone: false, done: false, seen: [] };
+        primeBoardRevisionsSyncHarness(function() { state.tailDone = true; });
+        primeLocalSyncStorage([]);
+        var board = {id: '1_145', key: 'fred/home', full_set_revision: 'current', permissions: {}, current_revision: 'current', image_urls: {},
+          image_url: 'http://example.com/board.png', buttons: [], grid: {rows: 1, columns: 1, order: [[null]]}};
+        stubStoreUrl(function(url) { return RSVP.resolve({url: url}); });
+        chainPersistenceAjax(function(url) {
+          if(url == '/api/v1/users/1340/board_revisions') { return RSVP.resolve({revisions: {'1_145': 'current', 'fred/home': 'current'}, revoked_ids: []}); }
+        });
+        stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+        persistence.force_reload = null;
+        LingoLinq.all_wait = true;
+        queryLog.real_lookup = true;
+        stub(window.$, 'realAjax', function(options) {
+          if(isCrisisVocabularyRequest(options.url)) { return RSVP.resolve({board: crisisVocabularyBoard()}); }
+          if(options.url === '/api/v1/users/1340') {
+            state.user_answered_at = (new Date()).getTime();
+            return new RSVP.Promise(function(resolve) {
+              window.setTimeout(function() { resolve({user: {id: '1340', user_name: 'fred', avatar_url: 'http://example.com/pic.png', preferences: {home_board: {id: '1_145'}}}}); }, 30); // a plain timer: the waitsFor below waits for the sync
+            });
+          } else if(options.url == '/api/v1/boards/1_145') {
+            state.seen.push(persistence.get('sync_progress.started_at'));
+            return RSVP.resolve({board: board});
+          } else if(options.url && options.url.match(/\/api\/v1\/buttonsets\//)) {
+            return RSVP.resolve({ buttonset: { buttons: [], full_set_revision: 'current' } });
+          }
+          return RSVP.reject({});
+        });
+        persistence.set('sync_progress', null);
+        state.before = (new Date()).getTime();
+        var finish = function() { state.done = true; };
+        persistence.sync(1340).then(finish, finish);
+        waitsFor(function() { return waitForSyncDoneAndSettled(state.done) && state.tailDone; });
+        runs(function() {
+          expect(state.seen.length).toEqual(1);
+          expect(typeof state.seen[0]).toEqual('number');
+          expect(state.seen[0] >= state.before).toEqual(true);
+          expect(state.seen[0] <= state.user_answered_at).toEqual(true);
+          cancelSyncTailWork();
+          persistence.set('sync_progress', null);
+          LingoLinq.sync_testing_real_boards = false;
+          boardRevocation.reset_for_tests();
+          ensureBoardAbsentFromLocalDb('1_145');
+        });
       });
     });
   });
