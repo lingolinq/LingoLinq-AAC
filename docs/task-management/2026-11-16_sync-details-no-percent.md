@@ -776,3 +776,23 @@ Next session, in order:
   "before the unwrap" condition is met but not load-bearing.
 - Wider: `/sync|persistence|board content retry/i` 621 tests (616 + 5 new), 612 pass, 9 skip, 0 fail.
   `lint:js:ci`: the four worktree false positives only.
+
+### Unit R verified (2026-11-20)
+- Red (the three approved expectations gained `content: true`, `board-content-retry-test.js:78,81,143`; code
+  unchanged): `--filter "board content retry"` 17 tests, 2 fail, both on the missing tag.
+- Code (2fe9b823b): `utils/board_content_retry.js` `content_error(entry, err)` builds its message as before and returns
+  `sync_rollup.js`'s `content_error(msg, entry.id || entry.key, entry.key)` (imported as `tagged_content_error`); no
+  import cycle (`sync_rollup` imports only `sync_log_store`).
+- Green: `/sync|persistence|board content retry/i` 621 tests, 612 pass, 9 skip, 0 fail. Mutant R1 (the helper's own
+  untagged object back): killed by both (2). `lint:js:ci`: the four worktree false positives only.
+
+### Not covered (for the PR body, cumulative)
+Pictures dropped by a cancel; a Cancel 2 s in replacing an earlier failed sync's cards; a cancel during priming (rows
+with no roots); item B (not done, Traci 2026-11-19); the :3359 walk line untested (T6, accepted); queued-save failures
+not counted (`note_failed_write` not in the utils `store`); 'cached' rows trusted by the `retrieved` stamp; a fresh
+board served from memory with no device read; a renamed key; a board queued at Cancel that lands a second later;
+Lows 3, 5, 6 (Traci 2026-11-20); the utils twin of the walk stays untagged for `content` and `refused`; a refused board
+also gets a 're-downloaded' row from `board_lookup` before its reload fails (two rows under different keys); the
+"has been deleted" branch never runs on real errors (Ember Data wraps them), so a deleted board lands as failed
+retrieval, untagged; #1328's matching change (`seen_by_last_sync` hides only on `refused`) is a separate change on
+#1328.
