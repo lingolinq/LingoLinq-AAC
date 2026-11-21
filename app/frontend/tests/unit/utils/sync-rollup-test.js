@@ -205,7 +205,8 @@ module('Unit | Utility | sync rollup', function() {
     assert.deepEqual(sp.boards_done, { '1_5': true, 'me/x': true });
     assert.strictEqual(sp.device_boards, undefined, 'never creates the device map (it means "the device was read")');
     note_board_written(root, 'board', { id: '1_6', key: 'me/y' }); // the batch's raw board
-    assert.true(sp.boards_done['1_6'] && sp.boards_done['me/y']);
+    assert.true(sp.boards_done['1_6'], 'the raw board, by id');
+    assert.true(sp.boards_done['me/y'], 'the raw board, by key');
     sp.device_boards = {};
     note_board_written(root, 'board', { id: '1_7', key: 'me/z' });
     assert.deepEqual(sp.device_boards, { '1_7': true, 'me/z': true }, 'adds to a map the sync read');
