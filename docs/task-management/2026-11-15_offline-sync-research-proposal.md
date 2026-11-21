@@ -503,8 +503,9 @@ re-read; log: `2026-11-20_sync-proposal-implementation.md`). Labels as before: *
     images only through `BoardButtonImage` rows, which nothing writes (`app/models/board.rb:1717`). Not in the
     findings register. Phase 2's erasure work depends on the fix; how it is tracked is Scot's call (12.6).
   - **Device storage facts that shape phase 2** (*Traced*, spot-checked): one picture folder per device shared by
-    every user; file names are a deterministic function of the URL plus the content type's extension; nothing deletes
-    picture files and nothing counts references; `dataCache` rows are free-form JSON in `raw`, so new fields need no
+    every user; file names are a deterministic function of the URL plus the content type's extension; nothing counts
+    references, and `store_url_now` deletes the file at a url's name before every write (`services/persistence.js:1758`,
+    utils copy :1797; corrected after review round 3, F3); `dataCache` rows are free-form JSON in `raw`, so new fields need no
     `dbversion` bump (4); on the no-file path `url_cache` is never filled.
   - `button_images.file_hash` exists and is unused: phase 2's content hash goes there (no migration for the column).
   - Button sets stay on the proxy only because a direct request "has not been tried against production"
@@ -530,9 +531,9 @@ now, on this branch.
 | **Sync counters**: start time, duration, requests, bytes (transfer size where the browser reports it, decoded size otherwise, labelled), peak concurrent requests, failures by kind; carried through `entry_copy` | 0, and the before/after evidence for every later item | `services/persistence.js` (+ utils copy), `utils/sync_log_store.js`, a new `utils/sync_counters.js` |
 | **Transport limits**: one module for every sync request's timing (header deadline, no-bytes clock, total ceiling), with an iOS-app rule | 1.2, 1.1 (batch budget), 3 (manifest) | new `utils/sync_transport.js`; `utils/extras.js`, `utils/board_download.js`, `store_url_now` |
 | **Platform helper**: `is_ios_app()` from `window.Capacitor.getPlatform()` | 1.2, 1.3 | `utils/ipad_detect.js` or a new `utils/platform.js` |
-| **Picture key on the device**: everything a reader needs is under the ORIGINAL url's key; a rendition or a de-duplicated file is a pointer in that row (`raw.file`, `raw.rendition`), never a second key | 1.7, 2.1, 2.2, 2.4 | `store_url_now`, `find_url`, `prime_caches` |
+| **Device row contract** (review round 3, F1-F3): everything a reader needs is under the ORIGINAL url's key, in the fields every build already reads (`local_filename`, `local_url`, `data_uri`). New fields are metadata only, never the only path to the picture. A de-duplicated picture's file is hash-named and never rewritten by a url's store path; a row points at it only after checking it exists, and the hash entry is written only after the row commits, one row per hash. Tested by running the previous build's `find_url` (from `git show`) on new rows, offline | 1.7, 2.1, 2.2, 2.4 | `store_url_now`, `find_url`, `prime_caches` |
 | **Erasure of every derived file**: one server helper that deletes an upload and every sibling it owns (`.raster.png`, renditions), with a spec per suffix | 2.1, 2.3, the account-deletion fix | `lib/uploader.rb`, `uploadable.rb`, `lib/flusher.rb` |
-| **One permission rule** for "which boards may this device hold": `BoardRevisionsAccess` (current shares) | 1.1 batches, 3 manifest | `users_controller.rb`, `app/services/board_revisions_access.rb` |
+| **One permission rule** for "which boards may this device hold": `board_revisions`' four-part rule (public and not shallow; own; a shallow clone by `allows?`; otherwise current shares through `BoardRevisionsAccess`), moved into the service and used by `board_revisions`, `users#boards` and the manifest, with revoked ids built by the same `disclosed_ids` / `linked_from` logic (review round 3, F6). `boards#show` keeps the cached check: the one remaining 30-minute path, written down | 1.1 batches, 3 manifest | `users_controller.rb:798-812`, `app/services/board_revisions_access.rb` |
 | **Synthetic measurement seed**: a supervisor with three supervisees on different skins and symbol sets, sounds, a large caseload; extends `e2e/support/sync-users.rb` | 0, and every item's before/after | `app/frontend/e2e/support/` |
 
 ### 12.4 The work, item by item
@@ -553,7 +554,9 @@ infra or deploy config.
 **Phase 1: quick wins**
 - 1.1 Batches: one batch slot per device (supervisee syncs share it), `next_batch` once per response (after the
   store push, not after device writes), cancel and sync-id checks, a time budget after which the walk starts anyway,
-  then lift the 100-board cap. First, the sync stops seeding public catalog boards (#1221; Traci 2026-11-20, 12.6). Folds in #1341's "a save that never settles holds the walk".
+  then lift the 100-board cap. First, the sync stops seeding public catalog boards (#1221; Traci 2026-11-20, 12.6),
+  on the client's seed list only: `board_revisions` is shared by older clients and by revocation, so it is unchanged.
+  A batch still in flight when the time budget ends finishes and is stored; the walk skips boards it delivered. Folds in #1341's "a save that never settles holds the walk".
 - 1.2 Transport limits (12.3) for single boards, batches, `board_revisions`, the proxy and pictures: the no-bytes
   clock starts at headers; a header deadline above `Rack::Timeout` (16 s); total ceiling only in the iOS app. Device
   check on iOS.
@@ -561,27 +564,43 @@ infra or deploy config.
   `max_watchers` for Android to the measured value.
 - 1.4 Compression **(dual review: infra)**: gzip only when the request carries a header new clients send, an ENV off
   switch, the proxy route decided, CPU measured, both native apps checked. Needs Scot's yes before merge.
-- 1.5 Storage: request `persist()` only on a trusted device (the existing gate), and route the `requestQuota` path
-  through the same gate; show `estimate()` in Technical details; detect a missing device database and say so.
-- 1.7 Out-of-date picture rows: read the flag where it is set, so important rows stay usable. Red test first.
+- 1.5 Storage: request `persist()` only on a trusted device (the existing gate). On the `requestQuota` path gate only
+  the `persist()` call and leave `root_dir`'s result unchanged, so no device switches between file and no-file storage
+  (review round 3, F8); test both trust states against an existing file-backed row; show `estimate()` in Technical details; detect a missing device database and say so.
+- 1.7 Out-of-date picture rows: read the flag where it is set; key `importantIds` by the stored (personalised) url,
+  not `image.url`; and merge the lists across the root and supervisee syncs instead of each sync overwriting them
+  (`services/persistence.js:2348, 2618, 2621`; review round 3, F9). Red test first, including a supervisor device and
+  a skinned picture.
 
 **Phase 2: pictures (redesigned)**
-- 2.1 Renditions: the server makes a display-sized lossless WebP for raster pictures (never SVG) and every skin
-  variant, stored as a sibling of the original key (`<key>.r400.webp`), in a self-rescheduling batch job with a
+- 2.1 Renditions: the server makes a lossless WebP for raster pictures (never SVG) **on LingoLinq's own upload hosts
+  only** (library and skin-variant urls on other buckets keep the original), sized from the largest rendered button
+  times screen density, and never for boards the sync keeps big (`services/persistence.js:3184`). Licensed symbol
+  sets (PCS, SymbolStix) are excluded until their licences are checked (review round 3, F10). Stored as a sibling of
+  the original key (`<key>.r<size>.webp`), in a self-rescheduling batch job with a
   queue-depth ceiling (stays under `QUEUE_SLOW_BOG`). Board JSON gains an additive map, original url to rendition url,
   only for renditions that exist. **The device stores the rendition's bytes under the ORIGINAL url's key** (12.3), so
   every reader and every older build that shares the device finds the picture. A url with no rendition, or an older
   client, stores the original as today. The skin tone is chosen from the original url.
-- 2.2 De-duplication: the server fills `button_images.file_hash` (on upload and by the 2.1 job) and sends it only in
-  authenticated board JSON. The client keeps a hash-to-file map **per person** (in that person's database) and, for a
-  url whose hash it already has, writes a row pointing at the existing file instead of downloading. Nothing deletes
-  picture files today; any future deletion must count references first (written as an invariant with a test).
-- 2.3 Erasure: the 12.3 helper deletes renditions with their original; account deletion deletes the person's
-  ButtonImages and every sibling, closing the existing gap (Traci 2026-11-20: fixed here). **(dual review: another
+- 2.2 De-duplication: the server computes a hash of **the exact file each served url points at** and sends it only
+  when that url is the ButtonImage's own file (never for a skin variant, a library alternate or a personalised
+  rewrite), only in authenticated board JSON (review round 3, F4). Existing `button_images.file_hash` values are
+  untrusted (the column predates this work) and are recomputed. The client keeps one row per hash **per person**,
+  pointing at a hash-named device file that no url's store path rewrites; it checks the file exists before reusing
+  it and writes the hash row only after the picture row commits (12.3, F3). Test with skin variants. Any future file
+  deletion counts references first (an invariant with a test).
+- 2.3 Erasure: the 12.3 helper deletes renditions with their original; account deletion closes the existing gap
+  (Traci 2026-11-20: fixed here). **Policy needed first (review round 3, F5):** board copies keep the original's
+  picture ids (`app/cloners/board_cloner.rb:101`), and the S3 file is removed once no ButtonImage row shares its url
+  (`uploadable.rb:144-152`), so deleting a person's picture records strips every copy of their boards, public ones
+  included. Options: move pictures that other people's boards still use onto their copies, or delete and accept the
+  loss. Decided with Traci, Scot and legal before coding; spec with a public board someone else copied. **(dual review: another
   user's data)**: a picture record can be shared by boards that other people copied (to check in the fact sheet).
-- 2.4 Safari and Firefox (no file storage): keep the picture as a Blob on the IndexedDB record (outside `raw`, which
-  is JSON), fill `url_cache` with an object URL at prime time, and keep the data-URI row readable for older shells.
-  SQLite (native) is unchanged.
+- 2.4 Safari and Firefox (no file storage), in two releases (review round 3, F2): first ship a build that reads a
+  Blob first (`find_url`, `usable_database_copy`, and new `prime_caches` code for the no-file path, which today
+  returns early at `services/persistence.js:1301-1305`) while still writing data URIs; only after that build is the
+  oldest shell in use, write Blobs (outside `raw`, which is JSON) without the data URI. A write-then-read probe on
+  Safari falls back to data URIs. SQLite (native) is unchanged.
 - 2.5 Button sets direct: request the encrypted file from the uploads CDN like a picture (type `json`), with the
   proxy as fallback; verified first with a read-only request against production (12.6).
 - 2.6 Caching headers: long-lived `Cache-Control` on renditions and non-SVG originals at upload; SVGs short. CDN
@@ -589,16 +608,20 @@ infra or deploy config.
 
 **Phase 3: one manifest per sync (redesigned)**
 - 3.1 `GET /users/:id/sync_manifest`, paged per root, compressed when 1.4 allows: every board the device should
-  hold (id, key, `current_revision`), the button-set revision, revoked ids, and a **viewer key**: a hash of what
+  hold (id, key, `current_revision`), liked boards within the same 50-board cap the client seeds
+  (`User::LIKED_BOARD_REFS_LIMIT`, one shared constant), the button-set revision, revoked ids, and a **viewer key**: a hash of what
   personalises pictures for the caller (enabled protected sources, preferred symbols, supporter role, skin
   preferences). **No precomputed picture lists**: pictures still come in board JSON, so licences and supervision
-  changes need no invalidation scheme; when the viewer key changes, the client re-fetches the boards' JSON. **(dual
+  changes need no invalidation scheme; when the viewer key changes, the client re-fetches the boards' JSON. The picture pass covers every board on the
+  device on every sync, not only changed boards (a supervisee's skin change, a new supervisee; review round 3). **(dual
   review: another user's data)**.
 - 3.2 One permission rule (12.3) for the manifest and `users#boards`; a spec that shares then unshares inside the
   30-minute window.
 - 3.3 Client: diff the manifest against the device database (not memory); fetch changed boards through 1.1's serial
-  batches; fetch missing pictures by 2.2's hashes; boards the manifest no longer lists are **marked, not deleted**,
-  as revocation does today, and never a board with unsynced local edits (#1301); the walk stays as the fallback.
+  batches; fetch missing pictures by 2.2's hashes; only boards the server lists as **revoked** are marked (combining the root's and every supervisee's lists before
+  deciding); a board that is merely no longer listed (an old home set, a like past 50) is left alone, since a
+  revocation mark blocks opening it offline (`utils/board_revocation.js:25-31`; review round 3, F7). Nothing with
+  unsynced local edits is touched (#1301); the walk stays as the fallback.
 - 3.4 Limits: the largest synthetic caseload's manifest page stays under Cloud Run's 32 MiB cap and `Rack::Timeout`;
   shares the picture-lookup cost work with #1219.
 
@@ -610,7 +633,14 @@ infra or deploy config.
    halves of 2.1 to 2.3 and 3.1 to 3.2, item 1.7.
 2. After #1336 merges: 0.1's log and Technical details, 1.5, 1.2.
 3. After the test hygiene fix: 1.1 (starting with the #1221 seed change), 1.3.
-4. After #1328 merges: 3.3; then 2.2 and 2.4 on the client, 2.5, 3.4.
+4. After #1328 merges: 2.2 on the client, then 3.3 (it uses 2.2's hashes); 2.4's reader release, 2.5, 3.4; 2.4's
+   writer change only after its reader build is the oldest in use.
+
+Ordering rules from review round 3 (F11): the 2.3 erasure helper exists before the 2.1 rendition writer runs (no
+orphaned renditions); the backfill's ceiling stays under both `QUEUE_SLOW_BOG` and `queue_pressure?`'s QUEUE_MAX/2
+(`config/initializers/resque.rb:203-228`), and the pre-existing Integer-vs-ENV-string comparison at `resque.rb:206` is
+fixed first; every new device-format writer (2.1 renditions, 2.2 hash rows, 2.4 Blobs) has a server-side off switch,
+so a rollback can stop new rows without a client release (not a UI flag; Traci to confirm, 12.6).
 5. Measure the whole set (0.2) before and after; update section 6 with measured numbers.
 
 Rough effort: about 5 to 6 weeks of work, plus the waits for Scot and devices (*estimate*). The branch lands as one
@@ -628,6 +658,10 @@ PR (Traci's instruction); review is sized to it: `/review-pr` plus `/adversary-r
   log for support and diagnosis. The wording and layout are mocked up for Traci's OK before they are built.
 - **The erasure gap is fixed inside 2.3**, in this branch (not as a separate fix ahead of it).
 
+**Also needed from Traci (review round 3):**
+- Server-side off switches for the new device-format writers (2.1, 2.2, 2.4), as a rollback tool, not a UI flag.
+- The 2.3 policy for pictures other people's copied boards still use (with Scot and legal).
+
 **From Scot:**
 - Compression on Cloud Run (1.4), CPU budget, and the proxy route.
 - `Cache-Control` and CDN behaviour for uploads (2.6); a read-only check of a direct button-set request (2.5).
@@ -637,3 +671,28 @@ PR (Traci's instruction); review is sized to it: `/review-pr` plus `/adversary-r
 
 **Devices:** an iPhone or iPad with the native app (1.2), a low-end Android phone (1.3), both native apps (1.4),
 folded into #1314's device test.
+
+### 12.7 Review round 3 (2026-11-20)
+
+An `adversary` review of section 12 at 89db2125d returned "needs rework" with 12 findings (code at f581c0066). F3, F4,
+F5, F6 and F9 were re-read here before the corrections (*Verified*: `services/persistence.js:1758`,
+`lib/json_api/board.rb:294`, `app/cloners/board_cloner.rb:101`, `uploadable.rb:144-152`, `users_controller.rb:798-812`,
+`importantIds` in `services/persistence.js`).
+
+| Finding | Rating | Disposition |
+|---|---|---|
+| F1 New pointer fields unreadable by older shells or after a rollback | High | Accepted: 12.3 device row contract (existing fields carry the path; new fields metadata only; previous-build reader test) |
+| F2 Blobs outside `raw` blank pictures for older shells | High | Accepted: 2.4 in two releases (reader first), probe and fallback |
+| F3 `store_url_now` deletes the file before every write | High | Accepted: 12.1 corrected; hash-named files, existence check, write order, one row per hash |
+| F4 One hash per ButtonImage does not match served urls | High | Accepted: hash per exact served file; only the image's own url |
+| F5 Account erasure strips other people's copied boards | High | Accepted: policy decision before coding (12.6) |
+| F6 Wrong permission rule named | High | Accepted: the four-part rule moved into the service for all three endpoints; `boards#show` documented |
+| F7 "Marked" blocks boards that were never revoked | Medium | Accepted: only server-revoked ids, combined across users |
+| F8 Gating `requestQuota` flips file storage | Medium | Accepted: gate only `persist()` |
+| F9 Item 1.7 partial (overwritten lists, wrong key) | Medium | Accepted: key by stored url; merge across syncs |
+| F10 Rendition scope undefined (other buckets, keep-big, licences) | Medium | Accepted: own upload hosts only; skip keep-big; licensed sets excluded pending licences |
+| F11 Rollback and ordering | Medium | Accepted: server-side writer switches (Traci to confirm); helper before writer; 2.2 before 3.3; queue ceilings; `resque.rb:206` fixed first |
+| F12 Smaller gaps (old `file_hash` values, starred in manifest, picture pass scope, where #1221 lands, in-flight batches) | Low | Accepted: each written into its item |
+
+The reviewer's verdict also said phase 0, 1.2 and 1.4 can start now; 1.5, 1.7, F7 and F10 were named corrections, now
+made. A further review of the reworked 12.3, 2.2, 2.3 and the access rule follows before those items start.

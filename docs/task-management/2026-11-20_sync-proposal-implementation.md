@@ -81,3 +81,4 @@ symbols (2026-11-16).
   on open or like. (2) Technical details: a plain-language summary for the person, full counters in the sync log;
   mock up the wording for her OK first. (3) The erasure gap is fixed inside phase 2.3. Recorded in section 12.6.
   Section 12 committed (89db2125d) and sent to the adversary agent for review.
+- 2026-11-20: review round 3 (adversary, 89db2125d): needs rework, 12 findings. F3, F4, F5, F6, F9 re-read and confirmed. All accepted; section 12 reworked and section 12.7 added. Open for Traci: 2.3 policy for pictures used by other people's copies (with Scot and legal); server-side writer off switches. Phase 0, 1.2, 1.4 cleared to start.
