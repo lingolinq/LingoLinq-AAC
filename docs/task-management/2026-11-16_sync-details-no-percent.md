@@ -584,3 +584,30 @@ chained with `;` and started anyway; it was killed mid-mutant with F1a applied t
 the script's own backup, the diff checked against F1 (hook present, :2782/:2785 as above). Next session: run the
 narrow filter (the new sibling), then the six mutants (fix the F1f/F1g strings in the scratch script first), then the
 full filter, then the dual review on the new range, then mark #1336 ready.
+
+### Unit F1 verified (2026-11-20, new session)
+Picked up from the stop point above. Worktree clean at 78e8094f7; no process in it. Script copied from the 11-19
+scratchpad with F1f/F1g rewritten as `note_board_written(_this, 'board', {id: id, key: record.get('key')})` (the old
+strings used `note_board_done`, no longer imported) and an unmutated baseline first. Filter (unchanged):
+`/stopped sync's log entry|board reloads under a slow server|sync rollup/i`.
+- Baseline: 48/48 pass, including the new sibling "does not count a freshly downloaded board as saved while its save
+  has not run".
+- Mutants, all killed: F1a no hook in the service store (2); F1b no hook in the utils store (1); F1c no unwrap (4); F1d
+  hook creates `device_boards` (1); F1f reload noted again at lookup (2); F1g fresh download noted again at lookup (1,
+  by the new sibling). Worktree clean after.
+- Wider runs (the 11-19 "full sync filter" string was not recorded, so these are new baselines, not a comparison):
+  `--filter "sync"` 428 tests, 426 pass, 2 skip, 0 fail; `--filter "/sync|persistence/i"` 570 tests, 561 pass, 9 skip,
+  0 fail. Both with `--query timingStrict=1`. Use the second string for later runs.
+
+### Traci's decision on the Lows (2026-11-20)
+Only Low 4 (retry-limit failures untagged like refusals) goes in this PR. Lows 3, 5 and 6 stay out (record in "Not
+covered"). Low 4 spans two PRs: the tag is written here (sync walk, `with_errors`, the status merge, `entry_copy`, all
+this PR's), and read in #1328's `utils/offline_board_list.js` `seen_by_last_sync` (that file is not on develop or this
+branch). The proposal settles the tag once (tag passing failures, or tag refusals instead); #1328's change is asked
+for separately.
+
+### Correction (Rule #0.10) to the 2026-11-20 rebase notes posted on #1336
+The comment said to keep `content` "in `final_rows`". This branch never put `content` in `final_rows`
+(`utils/sync_rollup.js`, CONFIRMED at 78e8094f7); it lives on the log entry's rows (`entry_copy`), `with_errors` and the
+status merge, and nothing reads it from `final_rows`. Only `warning` (#1334) is in `final_rows`. Everything else in
+that comment held when re-checked against `pull/1336/head` and origin/develop.
