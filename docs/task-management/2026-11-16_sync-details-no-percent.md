@@ -906,3 +906,30 @@ Tests: red, an errored entry with rows and no `roots` is not taken; a restored e
 Risks: P2-1 shows boards on a device that is full (true: they were written); P2-2 A couples "confirmed" to `roots`
 (a later writer adding roots without confirming would re-open the hole; the comment and a test guard it).
 Unresolved: none found.
+
+### Review of the Part 5 proposal (adversary, 2026-11-21, at e8577af85): proceed with changes
+Verified here:
+- High, CONFIRMED: P2-2 A (roots as the marker) is wrong. The FINISHED path also writes `roots`
+  (`services/persistence.js:2428`) and, after a failed write, is `errored: true, storage_failed: true` (:2426) with
+  raw, unconfirmed rows. Today only `partial_result`'s `storage_failed` exclusion hides it; with A plus P2-1 it would
+  show a failed batch write as "Saved before the sync stopped". My fact sheet listed :2428 as a writer but left this
+  shape out of (b) (correction, Rule #0.10). Also: entries from this branch's own 11-17 builds have roots on stop paths
+  before the rows were confirmed (333999188 before 5ee640de8). Decision: B, an explicit marker set only by the two
+  stop paths.
+- Medium, CONFIRMED path: 'cached' rows pass `confirmed_statuses` unchanged; a key seed trusted by the `retrieved`
+  stamp is written only through a queued save, so on a full device it could read saved once the exclusion goes.
+  Decision: at a stop, a 'cached' row needs `boards_done` or `device_boards` too, but only when `device_boards` exists
+  (with no device read, every cached row would otherwise read not saved; that case stays as today, "Not covered").
+- Q1 held (CONFIRMED by the reviewer): removing the batch step's note is safe (lookups cached before the store;
+  device map always exists when the batch writes; the utils copy has no batch step).
+- Low: #1328's required read cannot tell the finished storage-failed entry from a stopped one; the marker helps there
+  too (noted for #1328). Low: a failure-branch stop never sets the out-of-storage message (wording gap, "Not covered").
+Revised plan:
+- P2-1: remove the batch step's `note_device_boards` from the store's success handler; drop the `storage_failed`
+  exclusion from `partial_result`; at a stop, 'cached' needs confirmation when the device map exists.
+- P2-2: `confirmed: true` on both stop paths' entries, kept by `entry_copy`, required by `partial_result`. The
+  finished storage-failed entry and old entries stay hidden.
+- Tests: the three approved assertion changes (Traci, Rule #0.14, 2026-11-21: `sync-log-store-test.js:175`,
+  `persistence-sync-test.js:8107`, `:8134`); unit `partial_result` (marked storage-failed stopped entry shown;
+  finished storage-failed entry and unmarked stopped entry not); unit `confirmed_statuses` for 'cached'; both stop
+  paths set the marker. Stopped-entry fixtures that must still show need the marker added (needs Traci's OK).
