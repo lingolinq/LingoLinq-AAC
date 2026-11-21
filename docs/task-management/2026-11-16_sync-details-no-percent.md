@@ -686,3 +686,30 @@ before that unwrap and can miss a nested body (pre-existing, not changed here). 
 asked for separately.
 Unresolved: does any refusal the sync sees arrive in a shape `real_denial` does not recognise (B's risk)? Does any error
 reach :3380 with no id, skipping the retries (A and B both log it as today)?
+
+### Review of the Part 4 proposal (adversary, 2026-11-20, at 5aed657df): proceed with changes, L4-B
+Verified here:
+- Medium, CONFIRMED: "revocation remains the main guard" is FALSE for the boards #1328 filters. `board_revisions` adds
+  liked roots only when `sync_starred_boards` is on (`app/controllers/api/users_controller.rb:776-777`), and that
+  preference is off unless set (`board-selection-tool.js:329`, preferences). For another owner's liked board, the walk's
+  refusal row is usually the only sign it was unshared; under B a missed tag leaves it listed with nothing to correct
+  it. Correction recorded (Rule #0.10); the same wrong claim was made to Traci in chat and corrected there.
+- Medium, CONFIRMED: a second existing test encodes the untagged retry-path shape:
+  `tests/unit/utils/board-content-retry-test.js:143` (`deepEqual(r.log.failed, ...)` through `retry_content`).
+  Traci's Rule #0.14 OK (2026-11-20) named one test (:76-82); :143 needs the same OK.
+- Reported CONFIRMED, not re-traced here (the harness test below verifies it): in production the adapter's error is
+  wrapped by Ember Data with `fakeXHR` kept, so `real_denial` matches a real refusal, while `err.error` is not
+  "Not authorized" and `deleted` is inside `fakeXHR.responseJSON`: `board_unauthorized` (:3365) is never true and the
+  "has been deleted" branch (:3377-3378) never runs on real errors. So the tag must be computed from the original
+  error with `real_denial`, never from `board_unauthorized`, and :3378 is not a tagged path in practice.
+- Q2 (favours B), reported CONFIRMED: under A, an invalid-token 400, valet/device-scope/scope-limited 400s,
+  `session changed`, parse errors and plain 404s still hide a liked board (a dead session in Speak Mode syncs on).
+- Low: the finished-sync merge's existing-row branch must clear a stale tag when it overwrites `error` (as it does for
+  `content`), with a mutant. Low: the utils twin stays untagged; the harness test covers the service only. Low,
+  PLAUSIBLE: a tokenless request to a private board yields a real_denial-shaped 400 (no change asked).
+- Unresolved questions closed: no error reaches :3380 without an id (:3095), nor with no sync_progress (:3078).
+  Wording: old entries stop hiding "until the next sync that reaches the board".
+Conditions: correct the revocation claim; pin B with the real-transport harness ("marks nothing when the
+board_revisions request fails", `tests/utils/persistence-sync-test.js:5354`, `$.realAjax` stub ~5276), asserting
+`refused` on `other/shared`; Rule #0.14 OK for :77-81 and :143; tag from the original error before the unwrap; clear a
+stale tag in the merge, with its mutant; write down the twin decision.
