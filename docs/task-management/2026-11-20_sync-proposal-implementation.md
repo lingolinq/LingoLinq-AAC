@@ -146,3 +146,44 @@ symbols (2026-11-16).
   #1330 36/57 (1171 s, 56.5 MB). Different from 2026-11-19: 37 boards were in memory before the sync (then 1), and the
   status counts show 106 "re-downloaded" (then 6): likely the Modern page's tree warm-up getting further ahead of the
   sync since #1328 (see item 1.8); to check in 1.8's fact sheet. Output, trace and the repointed probe: `~/offline-sync-handoff/2026-11-21-emulator/`.
+- 2026-11-22: **0.2 before-numbers** (app code = develop 4494d67ac; local :5077 production build; measure-desktop-chrome
+  then measure-android-chrome; 100 ms each way; the link limited from the start of the board walk; 32/32 tests
+  passed, 64 rows). Raw rows: `~/offline-sync-handoff/2026-11-21-measure/before-develop-4494d67ac.jsonl`. "Boards"
+  counts the device's board rows (the shape's boards plus the sidebar board); the denominator is the most any run saved.
+
+| Shape | Link | Desktop Chrome first sync | Android Chrome first sync | Repeat sync (desktop / Android) |
+|---|---|---|---|---|
+| big | full | 13.8 s, 73.2 MB, 52/58 boards, ok | 12.6 s, 43.9 MB, 57/58 boards, ok | 9.5 s, 11.4 MB, succeeded / 9.6 s, 0.0 MB, succeeded |
+| big | 4 Mbps | 89.2 s, 43.9 MB, 58/58 boards, ok | 89.7 s, 43.9 MB, 58/58 boards, ok | 9.6 s, 0.0 MB, succeeded / 9.6 s, 0.0 MB, succeeded |
+| big | 0.8 Mbps | 15.5 s, 1.6 MB, 0/58 boards, FAILED: failed to retrieve user details | 15.5 s, 1.6 MB, 0/58 boards, FAILED: failed to retrieve user details | 50 s, 6.1 MB, failed / 49.8 s, 4.9 MB, failed |
+| big | 0.4 Mbps | 1542.5 s, 77.1 MB, 29/58 boards, 39 errors | 1455.4 s, 72.8 MB, 25/58 boards, 34 errors | 0.6 s, 0.0 MB, failed / 817 s, 40.8 MB, finished |
+| core | full | 151.3 s, 36.4 MB, 62/62 boards, 2104/2104 pictures, ok | 449.7 s, 36.9 MB, 62/62 boards, 2104/2104 pictures, ok | 9.5 s, 0.0 MB, succeeded / 9.6 s, 0.0 MB, succeeded |
+| core | 4 Mbps | 151.8 s, 36.4 MB, 62/62 boards, 2104/2104 pictures, ok | 450.1 s, 36.9 MB, 62/62 boards, 2104/2104 pictures, ok | 9.5 s, 0.0 MB, succeeded / 9.5 s, 0.0 MB, succeeded |
+| core | 0.8 Mbps | 367.8 s, 36.7 MB, 62/62 boards, 2104/2104 pictures, ok | 460.2 s, 36.9 MB, 62/62 boards, 2104/2104 pictures, ok | 9.6 s, 0.0 MB, succeeded / 9.6 s, 0.0 MB, succeeded |
+| core | 0.4 Mbps | 749.5 s, 37.5 MB, 62/62 boards, 2104/2104 pictures, ok | 780.2 s, 37.7 MB, 62/62 boards, 2104/2104 pictures, ok | 9.6 s, 0.0 MB, succeeded / 9.6 s, 0.0 MB, succeeded |
+| supervisor | full | 56.2 s, 21.0 MB, 33/33 boards, 735/735 pictures, ok | 159 s, 20.7 MB, 33/33 boards, 735/735 pictures, ok | 11.1 s, 0.5 MB, succeeded / 11.1 s, 0.5 MB, succeeded |
+| supervisor | 4 Mbps | 67.2 s, 21.0 MB, 33/33 boards, 735/735 pictures, ok | 167 s, 20.7 MB, 33/33 boards, 735/735 pictures, ok | 11 s, 0.5 MB, succeeded / 11.1 s, 0.5 MB, succeeded |
+| supervisor | 0.8 Mbps | 215.5 s, 21.5 MB, 33/33 boards, 735/735 pictures, ok | 239.7 s, 21.2 MB, 33/33 boards, 735/735 pictures, ok | 11.1 s, 0.2 MB, succeeded / 11 s, 0.2 MB, succeeded |
+| supervisor | 0.4 Mbps | 434.4 s, 21.7 MB, 33/33 boards, 735/735 pictures, ok | 433.2 s, 21.4 MB, 33/33 boards, 735/735 pictures, ok | 11.1 s, 0.2 MB, succeeded / 11.1 s, 0.2 MB, succeeded |
+| caseload | full | 45.7 s, 20.1 MB, 44/52 boards, 588/698 pictures, ok | 127.5 s, 20.6 MB, 44/52 boards, 588/698 pictures, ok | 11.1 s, 0.6 MB, succeeded / 11.1 s, 0.6 MB, succeeded |
+| caseload | 4 Mbps | 54.7 s, 20.1 MB, 44/52 boards, 588/698 pictures, ok | 134.4 s, 20.7 MB, 44/52 boards, 588/698 pictures, ok | 11.1 s, 0.6 MB, succeeded / 11.1 s, 0.6 MB, succeeded |
+| caseload | 0.8 Mbps | 184.9 s, 18.4 MB, 36/52 boards, 478/698 pictures, ok | 249.8 s, 23.1 MB, 52/52 boards, 698/698 pictures, ok | 27.1 s, 2.3 MB, succeeded / 11 s, 0.3 MB, succeeded |
+| caseload | 0.4 Mbps | 309.2 s, 15.4 MB, 24/52 boards, 313/698 pictures, ok | 342 s, 17.0 MB, 28/52 boards, 368/698 pictures, ok | 134.9 s, 6.5 MB, succeeded / 120.4 s, 5.7 MB, succeeded |
+
+  Readings:
+  - Production shape: complete at every speed; time is set by the link below about 4 Mbps and by Android Chrome's one
+    picture at a time above it (450 s at full speed against desktop's 151 s). Phase 2 (smaller pictures) and 1.3
+    (Android concurrency) are the levers.
+  - Repeat sync with nothing changed: about 10 s and almost no bytes for every shape that completed.
+  - Dev shape: complete at full and 4 Mbps; at 0.4 Mbps 25 to 29 of 58 saved (1.2's target); at 0.8 Mbps both
+    projects failed at once with "failed to retrieve user details" (15.5 s, the adapter's 15 s limit). A re-run of
+    desktop at 0.8 Mbps passed with all 58 (15 min), so that failure is intermittent: the page's warm-up queued ahead
+    of the sync's first request on the shared link.
+  - Caseload (12 supervisees): 44 of 52 boards at full speed on both projects, repeats included, no warning: new
+    item 1.9 (the user JSON lists 10 supervisees). Fewer at 0.4 to 0.8 Mbps; the repeat sync then fills up to 44.
+- 2026-11-22: harness additions, verified with three desktop probes
+  (`~/offline-sync-handoff/2026-11-21-measure/probe-warnings.jsonl`): each row now records `before_sync` (pictures the
+  page fetched before the sync started) and `warnings` (console lines saying part of a sync failed). Results: core
+  full, 2,104 pictures before the sync and 2,104 during it, all direct (item 1.8 refined in the plan); caseload full,
+  44 boards and no warning (the cap, not a timeout); big at 0.8 Mbps, complete (the intermittent failure above). The
+  first probe attempt ran under an older Node from a non-login shell and Playwright refused it; run with nvm's Node 22.

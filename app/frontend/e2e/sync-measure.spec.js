@@ -61,7 +61,8 @@ function repeats(pictures) {
 }
 
 // One sync: limit the link once the board walk starts, wait for the end, read the link and the device.
-async function measuredSync(page, link, rate) {
+async function measuredSync(page, link, rate, warnings) {
+  warnings.length = 0;
   link.setRate(null);
   link.setDelay(0);
   link.resetStats();
@@ -87,14 +88,21 @@ async function measuredSync(page, link, rate) {
     failed: (end.failed || []).length,
     device_boards: (await deviceBoardKeys(page)).length,
     device_pictures: await devicePictureCount(page),
+    warnings: warnings.slice(0, 20),
   };
 }
+
+// Console lines that say part of a sync failed without failing it (services/persistence.js: a supervisee whose sync
+// failed is a warning and the sync still "finished without errors"; time_promise logs a step that took too long).
+const WARNING = /supervisee sync failed|promise timed out|took too long|failed to retrieve|failed retrieval/i;
 
 for (const shape of shapes) {
   for (const rate of rates) {
     test(`measure ${shape} at ${rate === 'full' ? 'full speed' : rate + ' kbps'}`, async ({ syncPage: page, syncLink, pictures }, testInfo) => {
       const who = SHAPES[shape];
       if (!who) { throw new Error(`unknown shape ${shape}: one of ${Object.keys(SHAPES).join(', ')}`); }
+      const warnings = [];
+      page.on('console', (msg) => { const text = msg.text(); if (WARNING.test(text)) { warnings.push(text.slice(0, 200)); } });
       await signIn(page, who.user, SEED);
       await waitForApp(page);
       await page.waitForLoadState('networkidle').catch(() => {});
@@ -102,12 +110,16 @@ for (const shape of shapes) {
         at: new Date().toISOString(), project: testInfo.project.name, shape, user: who.user, note: who.note,
         rate_kbps: rate, latency_ms: latency, build: process.env.E2E_MEASURE_BUILD || null,
       };
-      const first = await measuredSync(page, syncLink, rate);
+      // Pictures the page fetched before the sync started (its own warm-up of linked boards), then counted per sync.
+      const before = { pictures_before_sync: pictures.served, ...repeats(pictures) };
+      pictures.byUrl = {};
+      const servedAtStart = pictures.served;
+      const first = await measuredSync(page, syncLink, rate, warnings);
       if (pictures.samples) { fs.writeFileSync(OUT.replace(/\.jsonl$/, '') + '-samples.json', JSON.stringify(pictures.samples, null, 2)); }
-      record({ ...base, run: 'first', ...first, pictures_served: pictures.served, ...repeats(pictures) });
+      record({ ...base, run: 'first', ...first, pictures_served: pictures.served - servedAtStart, before_sync: before, ...repeats(pictures) });
       pictures.byUrl = {};
       const servedBefore = pictures.served;
-      const repeat = await measuredSync(page, syncLink, rate);
+      const repeat = await measuredSync(page, syncLink, rate, warnings);
       record({ ...base, run: 'repeat', ...repeat, pictures_served: pictures.served - servedBefore, ...repeats(pictures) });
       testInfo.annotations.push({ type: 'measure', description: JSON.stringify({ first, repeat }) });
     });

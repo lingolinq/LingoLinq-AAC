@@ -597,10 +597,30 @@ infra or deploy config.
   (`utils/board_detail_cache.js` `warm_images`, via `prefetch_linked` and the tree pages), which preloads the whole
   tree's pictures; `?cr=1` makes the sync's request a different address, so the browser's copy is never reused.
   Link bytes 72.5 MB for about 36 MB of pictures. On a slow link the warm-up also competes with the sync (#1212).
+  **Refined by the 0.2 baseline (2026-11-22):** a probe that counts pictures before the sync starts found all 2,104
+  plain loads happen after sign-in and BEFORE the sync (the page warms the whole tree as soon as the home board opens),
+  and the sync then downloads each picture again; in the baseline runs the link counted only the sync's 36.4 MB. The
+  72.5 MB run was one where the warm-up was still running when the sync began. So a first sign-in costs the device
+  about twice the picture bytes either way, and on a slow link the warm-up queues ahead of the sync's first requests
+  (the dev-shaped account's sync failed once at 0.8 Mbps with "failed to retrieve user details" after 15 s, the
+  adapter's limit, then passed on a re-run: intermittent).
   `?cr=1` exists on purpose (a comment in `store_url_now`: a cached non-CORS copy may lack the CORS header), so the
   fix needs its own fact sheet: candidates are warming with `crossorigin="anonymous"` so the cached copy is CORS-mode
   and dropping `?cr=1`, or holding the warm-up off while a sync downloads pictures. Measure on Android Chrome and the
   emulator first (0.2).
+- 1.9 **A supervisor with more than 10 communicators syncs only 10 of them, and the sync says "without errors"
+  (found by 0.2, 2026-11-22).** The user JSON lists `supervisees[0, 10]` (`lib/json_api/user.rb:247`); the full list
+  comes only from `/users/:id/supervisees`, which `models/user.js:849-863` fetches when a screen sets
+  `load_all_connections` (Caseload, supervision settings, the user picker), and the sync's own refresh of the root
+  user (`services/persistence.js` "reloading root user") puts the short list back. `sync_supervisees`
+  (`services/persistence.js:2589-2640`) then syncs only what `user.get('supervisees')` holds. Measured: the
+  12-supervisee account (`sync_m_caseload`) saved 44 of 52 boards and 588 of 698 pictures at full speed on both
+  projects, every run, repeat syncs included, with no warning; one Android Chrome run at 0.8 Mbps saved all 52 (a
+  screen's full-list fetch landed first). Separately, a supervisee whose sync fails becomes a pop-up warning and the
+  root sync still logs "without errors" (`services/persistence.js:2628-2633`): the counters (0.1) must count it. No
+  existing issue (searched 2026-11-22). Fix via /fix-proposal: the sync reads the full list (the paged index) for a
+  supervisor with 10 or more, without changing what the user JSON returns to other callers; red test first with the
+  12-supervisee shape. Touches access to other users' data, so it gets dual review.
 - 1.7 Out-of-date picture rows: read the flag where it is set; key `importantIds` by the stored (personalised) url,
   not `image.url`; and merge the lists across the root and supervisee syncs instead of each sync overwriting them
   (`services/persistence.js:2348, 2618, 2621`; review round 3, F9). Red test first, including a supervisor device and
