@@ -8,6 +8,7 @@ import i18n from '../utils/i18n';
 import { sync_progress_line, ready_title, picture_warning } from '../utils/sync_progress';
 import { summary_for } from '../utils/sync_rollup';
 import { restored_lead_kind } from '../utils/sync_log_store';
+import { summary_text, storage_line, counter_lines } from '../utils/sync_summary';
 
 // How many saved folders a card shows before "Show all".
 var SAVED_SHOWN = 8;
@@ -88,6 +89,13 @@ export default Component.extend({
     if(this.get('unfinished')) { return null; } // the status line says how many are saved so far
     return i18n.t('sync_saved_of_total', "%{saved} of %{total} boards and folders are saved on this device.", { saved: s.overall.saved, total: s.overall.total });
   }),
+  // How long the sync the cards describe took, what it downloaded and what could not be saved (item 0.1,
+  // utils/sync_summary.js). Shown under the status line; none while a sync runs.
+  run_summary: computed('summary', function() { return summary_text(this.get('summary')); }),
+  // How much the browser keeps for LingoLinq on this device (navigator.storage.estimate, read when Sync Details opens).
+  // Not in the installed app: its pictures are files the estimate may not count (to measure first, item 0.1 review).
+  storage_estimate: null,
+  storage_line: computed('storage_estimate', function() { return storage_line(this.get('storage_estimate')); }),
   // Only a finished sync knows what is missing; an unfinished one's failures are only those reached so far.
   missing_count: computed('summary', 'unfinished', function() { var s = this.get('summary'); return s && !this.get('unfinished') ? s.overall.missing : 0; }),
   save_missing_label: computed('missing_count', function() {
@@ -208,6 +216,7 @@ export default Component.extend({
         emberSet(sync, 'cached', sync.statuses.filter(function(s) { return s.status === 'cached'; }).length);
         emberSet(sync, 'downloaded', sync.statuses.filter(function(s) { return s.status === 'downloaded'; }).length);
         emberSet(sync, 're_downloaded', sync.statuses.filter(function(s) { return s.status === 're-downloaded'; }).length);
+        emberSet(sync, 'counter_lines', counter_lines(sync)); // utils/sync_summary.js: the sync's counters, for support
         sync.statuses.forEach(function(s, idx) { s.idx = idx; });
         emberSet(sync, 'sorted_statuses', sync.statuses.sort(function(a, b) {
           if (a.error && !b.error) { return -1; }
@@ -302,6 +311,16 @@ export default Component.extend({
     this.onClose = function() { self.send('close'); };
     this.onOpening = function() { self.send('opening'); };
     this.onClosing = function() { self.send('closing'); };
+    this.read_storage_estimate();
 },
+  read_storage_estimate() {
+    var self = this;
+    try {
+      if(this.get('appState.installed_app') || !window.navigator || !navigator.storage || typeof navigator.storage.estimate !== 'function') { return; }
+      navigator.storage.estimate().then(function(estimate) {
+        if(!self.isDestroyed && !self.isDestroying) { self.set('storage_estimate', estimate || null); }
+      }, function() { });
+    } catch(e) { /* no estimate: no storage line */ }
+  },
 
 });

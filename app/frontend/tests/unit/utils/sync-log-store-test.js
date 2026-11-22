@@ -46,6 +46,17 @@ module('Unit | Utility | sync log store', function() {
     assert.deepEqual(entry_copy({ errored: true, finished: e.finished }).statuses, [], 'an entry without rows gets an empty list');
   });
 
+  // Item 0.1: the sync's counters survive a restart, start time and all (Sync Details' summary line reads them).
+  test('a saved entry keeps its counters', function(assert) {
+    var counters = { started: 1700000000000, seconds: 120, requests: 90, peak: 6, open_at_end: 0, received_chars: 5000,
+      failures: { timeout: 0, offline: 1, limited: 0, server: 0, refused: 0, storage: 0, supervisee: 0, other: 0 },
+      pictures: { saved: 340, bytes: 18000000 }, sounds: { saved: 0, bytes: 0 } };
+    var copy = entry_copy(entry(1, { counters: counters }));
+    assert.deepEqual(copy.counters, counters);
+    var restored = merge_logs([JSON.parse(JSON.stringify(copy))], []);
+    assert.deepEqual(restored[0].counters, counters, 'and comes back from the device as saved');
+  });
+
   // Part 2 unit T: the content tag survives a restart, so PR #1328's list reads it from a restored entry too.
   test('a saved entry keeps the content tag on a row', function(assert) {
     var e = entry(1);

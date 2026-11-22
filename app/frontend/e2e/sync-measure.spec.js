@@ -89,6 +89,8 @@ async function measuredSync(page, link, rate, warnings) {
     device_boards: (await deviceBoardKeys(page)).length,
     device_pictures: await devicePictureCount(page),
     warnings: warnings.slice(0, 20),
+    // What the app itself counted for this sync (item 0.1, utils/sync_counters.js), beside the link's own counts above.
+    app_counters: await page.evaluate(() => { const log = window.persistence.get('sync_log') || []; return (log[log.length - 1] || {}).counters || null; }),
   };
 }
 
