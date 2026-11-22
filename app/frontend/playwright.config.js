@@ -24,6 +24,9 @@ const { IPAD_AS_MAC } = require('./e2e/support/offline-shell');
 // (e2e/support/sync-link.js) on this address, so the spec can slow it or cut it. E2E_BASE_URL is the server itself.
 const SYNC_LINK = `http://localhost:${process.env.E2E_SYNC_LINK_PORT || '5078'}`;
 const syncProject = (name, use) => ({ name, testMatch: /sync\.spec\.js/, timeout: 300_000, use: { ...use, baseURL: SYNC_LINK } });
+// Sync measurement (e2e/sync-measure.spec.js, phase 0.2 of the sync proposal): each shape synced at each link speed, with
+// pictures and sounds using the link's bandwidth too. Run on demand; the setup is at the top of that spec.
+const measureProject = (name, use) => ({ name, testMatch: /sync-measure\.spec\.js/, timeout: 3_600_000, use: { ...use, baseURL: SYNC_LINK, measureLink: true } });
 
 const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:8184';
 
@@ -153,5 +156,9 @@ module.exports = defineConfig({
     // Chrome on a real Android emulator or device (the first one `adb devices` lists), through Playwright's Android
     // API and `adb reverse` (e2e/support/sync.js). Start the emulator first; E2E_ADB is the path to adb.
     syncProject('sync-android-emulator', { ...devices['Desktop Chrome'] }),
+    measureProject('measure-desktop-chrome', { ...devices['Desktop Chrome'] }),
+    measureProject('measure-android-chrome', { ...devices['Pixel 7'] }),
+    measureProject('measure-iphone', { ...devices['iPhone 15'] }),
+    measureProject('measure-android-emulator', { ...devices['Desktop Chrome'] }),
   ],
 });

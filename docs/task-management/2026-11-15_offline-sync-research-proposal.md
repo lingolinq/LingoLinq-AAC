@@ -589,6 +589,18 @@ infra or deploy config.
 - 1.5 Storage: request `persist()` only on a trusted device (the existing gate). On the `requestQuota` path gate only
   the `persist()` call and leave `root_dir`'s result unchanged, so no device switches between file and no-file storage
   (review round 3, F8); test both trust states against an existing file-backed row; show `estimate()` in Technical details; detect a missing device database and say so.
+- 1.8 **Every picture downloaded twice on a first sync with a Modern board page open (found by 0.2, 2026-11-21).**
+  The production-shaped account (`sync_m_core`, desktop Chrome, full speed) served 4,208 picture requests for 2,104
+  pictures: each one once as the sync's direct download (`?cr=1`, `services/persistence.js` `store_url_now`) and once
+  as a plain image load from the board page (Playwright route samples: resource type `image`, frame
+  `/sync_m_core/board-detail/sync-m-core-home`). The plain loads are the Modern page's warm-up
+  (`utils/board_detail_cache.js` `warm_images`, via `prefetch_linked` and the tree pages), which preloads the whole
+  tree's pictures; `?cr=1` makes the sync's request a different address, so the browser's copy is never reused.
+  Link bytes 72.5 MB for about 36 MB of pictures. On a slow link the warm-up also competes with the sync (#1212).
+  `?cr=1` exists on purpose (a comment in `store_url_now`: a cached non-CORS copy may lack the CORS header), so the
+  fix needs its own fact sheet: candidates are warming with `crossorigin="anonymous"` so the cached copy is CORS-mode
+  and dropping `?cr=1`, or holding the warm-up off while a sync downloads pictures. Measure on Android Chrome and the
+  emulator first (0.2).
 - 1.7 Out-of-date picture rows: read the flag where it is set; key `importantIds` by the stored (personalised) url,
   not `image.url`; and merge the lists across the root and supervisee syncs instead of each sync overwriting them
   (`services/persistence.js:2348, 2618, 2621`; review round 3, F9). Red test first, including a supervisor device and

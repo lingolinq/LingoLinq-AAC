@@ -113,3 +113,19 @@ symbols (2026-11-16).
     #1345 merged, so the fix is the same: point `E2E` at a worktree with `app/frontend/node_modules`.
 - 2026-11-21: Traci chose the summary layout from a mockup: visible under the last sync result in the main Sync Details view, plus a storage line; older syncs and the per-board table stay in Technical details.
 - 2026-11-21: Traci: fold #1201 (iPad detected as Mac) into the plan as item 1.0, first in phase 1 (before 1.2). Full #1201 scope (every capabilities reader), via /fix-proposal.
+- 2026-11-21: phase 0.2 started.
+  - Seed `app/frontend/e2e/support/sync-measure.rb` (synthetic; private e2e database only): `sync_m_big` (the
+    emulator baseline's shape, ported from the scratch `seed_big_boards.rb`; a folder's JSON is 1.52 MB as
+    JsonApi::Board serializes it, not the 0.75 MB quoted in the handoff), `sync_m_core` (61 boards, 2,104 pictures),
+    `sync_m_supervisor` with 3 supervisees (skins default/medium/dark, 51 skin-tone pictures each, sounds on
+    sync_m_child_1), `sync_m_caseload` with 12 supervisees. Checked in the database after seeding.
+  - Harness gap found and fixed before measuring: self-answered pictures never used the link's bandwidth, so
+    picture bytes (about 99% of a sync) were neither throttled nor counted. `sync-link.js` gains `transfer(bytes)`;
+    `routePictures` uses it in measurement runs only (`measureLink` option), with a 16 KB picture (production's
+    average) and a sound for `.mp3`. The regular sync suite is unchanged.
+  - `e2e/sync-measure.spec.js` and four `measure-*` projects; the emulator path now covers `measure-android-emulator`.
+  - The proposal worktree's `npm ci` failed building sqlite3 (node-pre-gyp); lockfile identical to the main
+    checkout's, so `app/frontend/node_modules` is a symlink to it, as in the other worktrees.
+  - **Finding (item 1.8):** every picture downloaded twice on a first sync with the Modern home page open. Evidence in
+    section 12.4 item 1.8. One run's link bytes read 36.4 MB instead of 72.5 MB with the same 4,208 answers;
+    unexplained, to watch in the baseline runs.

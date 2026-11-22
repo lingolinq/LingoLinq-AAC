@@ -6,9 +6,10 @@
 // - setRate(kbps): one bandwidth limit shared by every connection, as on one phone link (null = unlimited);
 // - setDelay(ms): latency added each way;
 // - down() / up(): down drops every open connection and refuses new ones, as when a phone loses signal;
-// - stats(): bytes sent to the device, requests seen, connections open now and at most at once.
-// Picture requests never reach it (the specs answer the picture host themselves); they honour isDown()
-// and the delay (support/sync.js routePictures).
+// - stats(): bytes sent to the device, requests seen, connections open now and at most at once;
+// - transfer(bytes): spends a self-answered picture's or sound's bytes on the same shared link (measurement runs).
+// Picture requests never reach it as TCP (the specs answer the picture host themselves); they honour isDown()
+// and the delay (support/sync.js routePictures), and in a measurement run their bytes also go through transfer().
 //
 // Local only: it listens on 127.0.0.1 and forwards to the local server (support/local-session.js
 // assertLocalStack guards the target).
@@ -27,6 +28,7 @@ function startSyncLink(options) {
   let tokens = 0;
   let last = Date.now();
 
+  const transfers = new Set(); // answers the specs give themselves (pictures, sounds) that still use the link
   const queued = () => queue.reduce((n, q) => n + q.chunk.length, 0);
   const send = (sock, chunk) => { if (!sock.destroyed) { sock.write(chunk); stats.bytes += chunk.length; } };
 
@@ -89,7 +91,33 @@ function startSyncLink(options) {
     port,
     setRate(kbps) { state.rate = kbps || null; tokens = 0; last = Date.now(); },
     setDelay(ms) { state.delay = ms || 0; },
-    down() { state.down = true; queue.length = 0; pairs.forEach((p) => { p.client.destroy(); p.upstream.destroy(); }); pairs.clear(); stats.open = 0; },
+    down() {
+      state.down = true; queue.length = 0;
+      pairs.forEach((p) => { p.client.destroy(); p.upstream.destroy(); }); pairs.clear();
+      transfers.forEach((t) => t.cut()); transfers.clear();
+      stats.open = 0;
+    },
+    // Sends `bytes` the specs answer themselves (a picture or sound, support/sync.js routePictures) over the link's
+    // shared bandwidth, counted like a request on it. Resolves true when every byte has gone, false when the link
+    // went down first.
+    transfer(bytes) {
+      if (state.down) { stats.refused += 1; return Promise.resolve(false); }
+      stats.requests += 1;
+      stats.open += 1;
+      stats.peak = Math.max(stats.peak, stats.open);
+      return new Promise((resolve) => {
+        let left = bytes;
+        const t = {
+          destroyed: false,
+          write(chunk) { left -= chunk.length; if (left <= 0) { finish(true); } },
+          cut() { t.destroyed = true; resolve(false); },
+        };
+        const finish = (ok) => { if (transfers.delete(t)) { stats.open = Math.max(0, stats.open - 1); } t.destroyed = true; resolve(ok); };
+        transfers.add(t);
+        if (bytes <= 0) { finish(true); return; }
+        queue.push({ sock: t, chunk: Buffer.alloc(bytes) });
+      });
+    },
     up() { state.down = false; },
     isDown() { return state.down; },
     delay() { return state.delay; },

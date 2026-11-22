@@ -23,7 +23,13 @@ const { expect } = base;
 const LINK_PORT = parseInt(process.env.E2E_SYNC_LINK_PORT || '5078', 10);
 const PICTURE_HOST = 'https://d18vdu4p71yql0.cloudfront.net/e2e-sync/';
 const PICTURE_FILE = path.join(__dirname, '../../../../public/images/Bubble-come-here.png');
+// Measurement runs (e2e/sync-measure.spec.js): a picture the size of production's average (33 MB over 2,085 pictures in
+// Quick Core 60, about 16 KB; section 1 of the sync proposal), and a short sound.
+const MEASURE_PICTURE_FILE = path.join(__dirname, '../../../../public/images/eval-lib-help-b.png');
+const MEASURE_SOUND_FILE = path.join(__dirname, '../../../../public/sounds/beep.mp3');
 const EMULATOR_PROJECT = 'sync-android-emulator';
+// The sync suite's and the measurement run's emulator projects (playwright.config.js) both drive the real emulator.
+const isEmulatorProject = (name) => name === EMULATOR_PROJECT || name === 'measure-android-emulator';
 
 function serverURL() {
   return process.env.E2E_BASE_URL || 'http://localhost:5077';
@@ -41,21 +47,47 @@ function adb() {
 // local server would fetch this host for real, where the test pictures do not exist, and turn the 403 into a refusal
 // the app reports at once. That happened on Android Chrome, which saves one picture at a time, so a picture whose
 // direct download failed while the link was down reached the proxy after the link came back.
-async function routePictures(context, link, counter) {
-  const answer = async (route, fulfill) => {
+//
+// In a measurement run (`measure`), each answer is the size of a real one and its bytes go over the link's shared
+// bandwidth (sync-link.js transfer), so the link's rate and byte counts cover pictures and sounds as well as the API;
+// a `.mp3` is answered with a sound.
+async function routePictures(context, link, counter, measure) {
+  const body = (url) => {
+    if (!measure) { return { file: PICTURE_FILE, type: 'image/png' }; }
+    return /\.mp3(\?|$)/.test(url) ? { file: MEASURE_SOUND_FILE, type: 'audio/mpeg' } : { file: MEASURE_PICTURE_FILE, type: 'image/png' };
+  };
+  const answer = async (route, file, fulfill) => {
     if (link.isDown()) { await route.abort('internetdisconnected'); return; }
     if (link.delay()) { await new Promise((r) => setTimeout(r, link.delay() * 2)); }
+    if (measure && !(await link.transfer(fs.statSync(file).size))) { await route.abort('internetdisconnected'); return; }
     if (link.isDown()) { await route.abort('internetdisconnected'); return; }
     counter.served += 1;
+    if (measure) {
+      // Per address and method, so a measurement can say how many pictures were fetched more than once.
+      const key = `${route.request().method()} ${route.request().url()}`;
+      counter.byUrl = counter.byUrl || {};
+      counter.byUrl[key] = (counter.byUrl[key] || 0) + 1;
+      // E2E_MEASURE_SAMPLES: what sends a picture request that is not the app's direct download (off-screen pictures).
+      const req = route.request();
+      if (process.env.E2E_MEASURE_SAMPLES && !/[?&]cr=1/.test(req.url()) && !/-home-\d+\./.test(req.url()) && (counter.samples = counter.samples || []).length < 3) {
+        let from = 'unknown';
+        try { from = req.serviceWorker() ? 'service worker' : `frame ${req.frame().url()}`; } catch (e) { from = `no frame: ${e.message.split('\n')[0]}`; }
+        counter.samples.push({ url: req.url().split('/').pop(), type: req.resourceType(), from, headers: req.headers() });
+      }
+    }
     await fulfill();
   };
-  await context.route(PICTURE_HOST + '**', (route) => answer(route, () => route.fulfill({
-    path: PICTURE_FILE, contentType: 'image/png', headers: { 'access-control-allow-origin': '*' },
-  })));
+  await context.route(PICTURE_HOST + '**', (route) => {
+    const b = body(route.request().url());
+    return answer(route, b.file, () => route.fulfill({ path: b.file, contentType: b.type, headers: { 'access-control-allow-origin': '*' } }));
+  });
   const proxied = (url) => url.pathname === '/api/v1/search/proxy' && (url.searchParams.get('url') || '').startsWith(PICTURE_HOST);
-  await context.route(proxied, (route) => answer(route, () => route.fulfill({
-    json: { content_type: 'image/png', data: 'data:image/png;base64,' + fs.readFileSync(PICTURE_FILE).toString('base64') },
-  })));
+  await context.route(proxied, (route) => {
+    const b = body(new URL(route.request().url()).searchParams.get('url'));
+    return answer(route, b.file, () => route.fulfill({
+      json: { content_type: b.type, data: `data:${b.type};base64,` + fs.readFileSync(b.file).toString('base64') },
+    }));
+  });
 }
 
 // What a fresh device holds: nothing. Used on the emulator, whose browser keeps its data between tests.
@@ -90,15 +122,18 @@ const test = base.test.extend({
   // eslint-disable-next-line no-empty-pattern -- as syncLink above
   pictures: async ({}, use) => { await use({ served: 0 }); },
 
+  // A measurement run sets this (test.use({ measureLink: true })): pictures and sounds use the link's bandwidth.
+  measureLink: [false, { option: true }],
+
   // The page a sync spec drives, with the picture host answered and the app reached through the link.
-  syncPage: async ({ context, syncLink, pictures }, use, testInfo) => {
-    if (testInfo.project.name === EMULATOR_PROJECT) {
+  syncPage: async ({ context, syncLink, pictures, measureLink }, use, testInfo) => {
+    if (isEmulatorProject(testInfo.project.name)) {
       const devices = await base._android.devices();
       if (!devices.length) { throw new Error('no Android device: start the emulator first (adb devices lists none)'); }
       const device = devices[0];
       execFileSync(adb(), ['-s', device.serial(), 'reverse', `tcp:${LINK_PORT}`, `tcp:${LINK_PORT}`]);
       const emulated = await device.launchBrowser({ baseURL: syncLink.url });
-      await routePictures(emulated, syncLink, pictures);
+      await routePictures(emulated, syncLink, pictures, measureLink);
       const page = emulated.pages()[0] || await emulated.newPage();
       await page.goto('/login');
       await clearSite(page);
@@ -114,7 +149,7 @@ const test = base.test.extend({
         Object.defineProperty(Navigator.prototype, 'platform', { get: () => 'MacIntel', configurable: true });
       });
     }
-    await routePictures(context, syncLink, pictures);
+    await routePictures(context, syncLink, pictures, measureLink);
     await use(await context.newPage());
   },
 });
@@ -254,7 +289,7 @@ async function sentence(page) {
 }
 
 module.exports = {
-  test, expect, EMULATOR_PROJECT,
+  test, expect, EMULATOR_PROJECT, isEmulatorProject,
   waitForApp, startSync, waitForSyncEnd, syncState, deviceBoardKeys, devicePictureCount, dropDeviceBoards,
   openSyncDetails, closeSyncDetails, readSyncDetails, drawer, signOut, openBoard, tapCell, sentence,
 };
