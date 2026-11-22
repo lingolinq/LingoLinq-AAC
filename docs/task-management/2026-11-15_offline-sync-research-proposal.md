@@ -669,7 +669,11 @@ PR (Traci's instruction); review is sized to it: `/review-pr` plus `/adversary-r
   cap is lifted.
 - **Technical details shows a plain-language summary**, informative but not technical (for example, how long it
   took, how many boards, how much was downloaded, problems found, storage used). The full counters go in the sync
-  log for support and diagnosis. The wording and layout are mocked up for Traci's OK before they are built.
+  log for support and diagnosis. Layout chosen 2026-11-21 from a mockup: the summary is VISIBLE in the main Sync Details view,
+  under the last sync result (for example "Took 2 minutes · 61 boards ready offline · 12 boards and 340 pictures
+  downloaded (18 MB) · 1 picture couldn't be saved"), plus a storage line ("LingoLinq is using 412 MB on this device
+  (2.1 GB available)"). Older syncs and the per-board table stay in Technical details. No percentages. Final wording
+  goes through i18n and Traci's review in the built UI.
 - **The erasure gap is fixed inside 2.3**, in this branch (not as a separate fix ahead of it).
 
 **Also decided by Traci (2026-11-20, after review round 3):**

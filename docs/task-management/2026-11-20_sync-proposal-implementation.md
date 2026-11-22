@@ -111,3 +111,4 @@ symbols (2026-11-16).
     `sync-link` from `~/LingoLinq-AAC-sync-e2e/app/frontend` (`compare-android.js:18`, `check.js:5`,
     `compare-late.js:7`, `real.js:8`), not `~/LingoLinq-AAC-late-copy`. That worktree was removed on 2026-11-21 after
     #1345 merged, so the fix is the same: point `E2E` at a worktree with `app/frontend/node_modules`.
+- 2026-11-21: Traci chose the summary layout from a mockup: visible under the last sync result in the main Sync Details view, plus a storage line; older syncs and the per-board table stay in Technical details.
