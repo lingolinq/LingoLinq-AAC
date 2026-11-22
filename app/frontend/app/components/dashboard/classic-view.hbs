@@ -657,19 +657,15 @@
     {{else if this.index_nav.boards}}
       <div class="ch-tabpanel" role="tabpanel">
         {{#if this.showOffline}}
-          <h2 class="ch-panel__title">{{t "Recent boards" key="available_boards"}}</h2>
+          {{!-- Offline: every board the person can open from the device (classic-view.js load_device_boards; Traci,
+               2026-11-16), not only the recently opened ones. --}}
+          <h2 class="ch-panel__title">{{t "Boards on This Device" key="boards_on_this_device"}}</h2>
           {{!-- Focused View wraps the board tiles in a panel that carries the same surface as a
                communicator card, so the two collections read as the same kind of object. The
                div is rendered in BOTH views; only Focused styles it, so Gentle is unchanged. --}}
           <div class="ch-boards__panel">
             <div class="ch-boards__grid">
-              {{#if this.recentOfflineBoards}}
-                {{#each this.recentOfflineBoards as |board|}}
-                  {{#if board.key}}<div class="ch-boards__cell"><BoardIcon @board={{board}} @flag_home={{is_equal board.key this.homeBoardKey}} /></div>{{/if}}
-                {{/each}}
-              {{else}}
-                <p class="ch-empty">{{t "None found" key="none_found"}}</p>
-              {{/if}}
+              <Dashboard::DeviceBoards @boards={{this.deviceBoards}} @refused={{this.deviceBoardsRefused}} @homeBoardKey={{this.homeBoardKey}} />
             </div>
           </div>
         {{else}}

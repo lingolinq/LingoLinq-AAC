@@ -44,7 +44,7 @@
            position:absolute so it costs no layout. --}}
       <h1 class="la-hero-title">{{t "Let's " key="lets_prefix"}}<span class="sr-only">{{t "Communicate" key="communicate_word"}}</span><span class="ub-communicate" aria-hidden="true">{{letter-stagger (t "Communicate" key="communicate_word") start=0.25 step=0.06}}</span></h1>
     </div>
-    <p class="la-pricing-hero-subtitle">{{t "Manage your vocabularies and page-sets," key="ub_boards_subtitle_pre"}}<br>{{t "or create" key="ub_boards_subtitle_mid"}} <em><a href="#" class="ub-boards-page__subtitle-link" {{on "click" (this.ctrlAction "newBoard")}}>{{t "something new..." key="ub_boards_subtitle_em"}}</a></em></p>
+    {{#unless this.offline_view}}<p class="la-pricing-hero-subtitle">{{t "Manage your vocabularies and page-sets," key="ub_boards_subtitle_pre"}}<br>{{t "or create" key="ub_boards_subtitle_mid"}} <em><a href="#" class="ub-boards-page__subtitle-link" {{on "click" (this.ctrlAction "newBoard")}}>{{t "something new..." key="ub_boards_subtitle_em"}}</a></em></p>{{/unless}}
   </div>
 
   <div class="ub-boards-page__content">
@@ -78,7 +78,7 @@
   {{/if}}
 
   {{!-- Getting Started (hidden when home board is selected; wrapper ensures no layout space when hidden) --}}
-  <div class="ub-boards-page__getting-started-wrap {{if this.model.preferences.home_board.key "ub-boards-page__getting-started-wrap--hidden"}}" aria-hidden={{if this.model.preferences.home_board.key "true"}}>
+  <div class="ub-boards-page__getting-started-wrap {{if (or this.model.preferences.home_board.key this.offline_view) "ub-boards-page__getting-started-wrap--hidden"}}" aria-hidden={{if (or this.model.preferences.home_board.key this.offline_view) "true"}}>
     <section class="ub-boards-page__getting-started md-card md-card--getting-started" aria-label={{t "Choose a Home Board" key="ub_boards_choose_home_board"}}>
       <div class="md-card__head md-card__head--getting-started">
         <div class="md-card__head-left">
@@ -204,7 +204,7 @@
   {{/if}}
 
   {{!-- Available Boards --}}
-  <BoardsBrowser @boardsCtrl={{this}} />
+  <BoardsBrowser @boardsCtrl={{this}} @offlineView={{this.offline_view}} @offlineBoards={{this.offline_boards}} />
 
   </div>{{!-- /.ub-boards-page__content --}}
 

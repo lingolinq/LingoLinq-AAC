@@ -202,4 +202,10 @@ module('Unit | Utility | sync log store', function() {
     assert.strictEqual(restored_lead_kind([entry(1)]), null, 'a clean sync keeps the usual line');
     assert.strictEqual(restored_lead_kind([]), null);
   });
+
+  // The offline list reads `answered` (utils/offline_board_list.js), so a restored log keeps it.
+  test('entry_copy keeps the boards the server answered for', function(assert) {
+    var copy = entry_copy({ user_id: 'me', finished: 1, statuses: [{ id: 'other/liked', key: 'other/liked', status: 're-downloaded' }], answered: ['other/liked'] });
+    assert.deepEqual(copy.answered, ['other/liked']);
+  });
 });

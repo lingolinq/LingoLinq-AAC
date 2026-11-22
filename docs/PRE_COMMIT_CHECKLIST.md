@@ -89,9 +89,10 @@ Always re-run the whole `db:schema:load` step after a merge or any
   ESLint / ember-template-lint violation — treat lint as required.
 
 - Within `security-scan`, Brakeman and npm audit are advisory (`continue-on-error`)
-  and only `bundle-audit` can fail the job. It is not a required check on `main`,
-  `staging` or `develop` (checked 2026-11-12), so a red `security-scan` does not block a
-  merge; read it on every PR anyway. Note that
+  and only `bundle-audit` can fail the job. It is a required check on `main` and `develop`
+  (not on `staging`; branch protection read 2026-11-21), so a red `security-scan` blocks a
+  merge to either. A new advisory turns every open PR red at once: the fix is one bump PR,
+  after which each blocked branch merges `develop` in. Note that
   `bundle-audit check --update` fetches the advisory database at run time, so any PR
   can turn red overnight with no code change. `.bundler-audit.yml` ignores the
   Rails 7.2.3.2 advisories that have no 7.2.x fix, until the Rails 8.1 upgrade removes it; any
