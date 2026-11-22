@@ -325,3 +325,31 @@ No Critical or High. Each finding checked; all accepted. The revised design:
   that. Saving the running counters periodically is a candidate for later, not this item.
 - Storage line: web only in 0.1 (hidden in the installed app until measured); "available" is the browser's allowance
   minus usage, not free disk, so it is worded as how much more LingoLinq can save.
+
+### Item 0.1 built (2026-11-22, commit 56227e0b3)
+- New: `utils/sync_counters.js` (counting, tickets, closed failure list, `watch_jquery_request`, `base64_bytes`),
+  `utils/sync_summary.js` (the summary line, storage line, Technical details lines). Hooks: `$.realAjax` in
+  `utils/extras.js`; in `services/persistence.js` begin (root `sync_progress` created), W1/W2/W3 (`counters` on the
+  entry), the picture XHR and proxy in `store_url_now`, `media_saved` after the device write, the offline return of
+  `ajax`, `time_promise`'s timeout (both copies), `sync_supervisees`' catch. `entry_copy` keeps `counters`;
+  `summary_for` passes its `entry`. Sync Details: the summary line under the result, the storage line (web only), the
+  counters per sync in Technical details. The measurement harness records `app_counters` beside the link's counts.
+- The `utils/persistence.js` copies of `store_url_now` and the writers got no hooks: they are reached only through the
+  raw utils instance before the service exists (Proxy, `utils/persistence.js:4593-4600`; review round 1). Only its
+  `time_promise` is hooked, for parity.
+- **Every edit in `services/persistence.js`, `utils/persistence.js`, `utils/extras.js` and
+  `tests/utils/persistence-sync-test.js` is line-neutral** (only new import lines at the ends): `.eslint-todo`
+  fingerprints rows by line, and regenerating it is a Rule 14 act. The first attempt added lines; restored and redone.
+- Lint: ESLint gate new=4 both on the clean tree and with the change (the same 4 `no-orphaned-action` warnings, the
+  known worktree artifact: the plugin reads the main checkout); template lint clean.
+- Tests (one test build): new suites sync counters (10), sync counters wiring (6), sync summary (11), the log-store
+  counters test; with sync log store, sync rollup, Sync Details grouped, drawer, failed notice, saved pictures and
+  dead-session: 149/149. `persistence-sync`: 173 pass, 1 skip (a pre-existing `xit`), 0 fail. The W1, W2 and W3
+  assertions were added on existing lines of three existing tests (strengthened, nothing loosened).
+- Falsification (eight mutants in one build, each with a test only it breaks): request hook removed → the two $.ajax
+  wiring tests; picture request not started → the direct and write-failed wiring tests; `media_saved` removed → the
+  direct and proxy tests; ticket check loosened → "a request from an earlier sync"; `counters` dropped from
+  `entry_copy` → the log-store test; W1/W2/W3 counters removed → the board-failure, failure and cancel sync tests.
+  10 failures out of 209, exactly those; restored from the commit.
+- Left for this item: i18n generation for the new strings (with the next locale run), Traci's review of the wording
+  in the built UI, and the after-run of the harness to compare `app_counters` with the link's counts.
