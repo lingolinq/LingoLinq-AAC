@@ -8114,6 +8114,75 @@ describe("persistence-sync", function() {
       });
     });
 
+    // Round-2 review (2026-11-21): a stop after a failed write still counts the board it DID write as saved. The first
+    // board write goes through; the second fails, so only that board reads not saved.
+    function one_failing_board_write() {
+      var prior = lingoLinqExtras.storage.store;
+      var boards = 0;
+      stub(lingoLinqExtras.storage, 'store', function(store, record, key) {
+        if(store === 'board') { boards++; if(boards > 1) { return RSVP.reject({error: 'error storing record in db', quota: true}); } }
+        return prior.call(lingoLinqExtras.storage, store, record, key);
+      });
+    }
+    function written_then_failed(stop) {
+      return function() {
+        return persistence.store('board', {id: '1_80', key: 'fred/written'}, 'fred/written').then(function() {
+          return persistence.store('board', {id: '1_81', key: 'fred/full3'}, 'fred/full3');
+        }).then(function() {
+          persistence.set('sync_progress.board_statuses', [{ id: '1_80', key: 'fred/written', status: 'downloaded' }, { id: '1_81', key: 'fred/full3', status: 'downloaded' }]);
+          return stop();
+        });
+      };
+    }
+    function expect_written_kept(last) {
+      var row = function(k) { return (last.statuses || []).filter(function(r) { return r.key === k; })[0] || {}; };
+      expect(last.storage_failed).toEqual(true);
+      var shown = partial_result([last]);
+      expect(!!shown && shown.entry === last).toEqual(true);
+      expect(row('fred/written').status).toEqual('downloaded');
+      expect(row('fred/full3').status).toEqual('not_saved');
+    }
+
+    it("a failed sync after a failed write keeps the board it wrote as saved", function() {
+      db_wait(function() {
+        var c = counters();
+        var saved = { last_sync_status: stashes.get('last_sync_status'), last_sync_at: persistence.get('last_sync_at') };
+        start('1377');
+        one_failing_board_write();
+        stubOnPersistence('sync_boards', written_then_failed(function() { return RSVP.reject({error: 'failed to sync boards'}); }));
+        var done = null;
+        persistence.sync('1377').then(function() { done = 'resolved'; }, function() { done = 'rejected'; });
+        waitsFor(function() { return done && syncSettled(); });
+        runs(function() {
+          var log = persistence.get('sync_log') || [];
+          var last = log[log.length - 1] || {};
+          expect(last.errored).toEqual(true);
+          expect_written_kept(last);
+          restore(saved, c);
+        });
+      });
+    });
+
+    it("a cancelled sync after a failed write keeps the board it wrote as saved", function() {
+      db_wait(function() {
+        var c = counters();
+        var saved = { last_sync_status: stashes.get('last_sync_status'), last_sync_at: persistence.get('last_sync_at') };
+        start('1378');
+        one_failing_board_write();
+        stubOnPersistence('sync_boards', written_then_failed(function() { persistence.cancel_sync(); return RSVP.resolve({}); }));
+        var done = null;
+        persistence.sync('1378').then(function() { done = 'resolved'; }, function() { done = 'rejected'; });
+        waitsFor(function() { return done && syncSettled(); });
+        runs(function() {
+          var log = persistence.get('sync_log') || [];
+          var last = log[log.length - 1] || {};
+          expect(last.canceled).toEqual(true);
+          expect_written_kept(last);
+          restore(saved, c);
+        });
+      });
+    });
+
     it("a cancelled sync that resolves after a failed write logs storage_failed", function() {
       db_wait(function() {
         var c = counters();
