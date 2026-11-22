@@ -60437,6 +60437,24 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
   font-size: 18px;
   line-height: 1.5;
 }
+/* "Boards on This Device" status line (components/device-boards-grid.hbs). Its top margin collapses with the boards
+   header's 20px bottom margin, so -8px puts it 12px under the header's divider; 16px keeps it off the tiles. */
+.ub-boards-page__device-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: -8px 0 16px;
+  color: var(--md-muted);
+  font-size: 18px;
+  line-height: 1.5;
+}
+.ub-boards-page__device-note-icon {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin-top: 2px;
+  color: var(--md-teal, $brand-verdigris);
+}
 .board-picker__tabs,
 .ub-boards-page__tabs {
   list-style: none;

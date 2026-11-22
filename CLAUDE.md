@@ -62,7 +62,8 @@ everything else in this file.
     the Testing section below (RSpec).
 12. **For a bug fix or behaviour change in data handling, auth, sync and offline, or any
     area on the dual-review list in "Before a PR": establish the three facts, write the red
-    test first, and review the proposal before editing.** The full discipline is the
+    test first, and (for auth, account isolation or billing) review the proposal before
+    editing.** The full discipline is the
     `/fix-proposal` skill. In one line each: where is the value READ; what are ALL the
     shapes it can hold; is each cross-file claim TRUE. Label every fact CONFIRMED
     (`file:line`) or ASSUMED, and let nothing ASSUMED carry a fix. "This one is obvious" is
@@ -101,6 +102,13 @@ everything else in this file.
     `gh pr edit --add-label`), never post a `data-bearing-approval/*` status, and never
     ask for either to be done on your behalf. When a PR needs it, say so and let the
     reviewer add it after reading the data.
+16. **Stay in scope.** Fix only what the task or issue asks. Fixing the verified root cause is in scope, including shared callers and other defects with that same root cause. Do not add unrelated
+    hardening, compliance or privacy changes, refactors or cleanups to the PR, even in
+    files you touch. Log anything else you notice as a follow-up issue draft (title and
+    body) in the PR description. The one exception is a concrete, proven exposure of real
+    people's personal data in code the PR touches, meeting the evidence bar in the
+    `## Code Review Rules` section of `AGENTS.md`. A change should do one self-contained
+    thing (Google's code review guide), so the fix ships without waiting on unrelated work.
 
 ## Branching (mandatory before any code change)
 
@@ -242,6 +250,14 @@ Run `/pr-preflight`. Then review, sized to what the PR touches:
   do not authorize merging; existing privacy checks, review requirements, Critical/High
   blockers, GitHub checks, and merge approvals still apply.
 - A Critical or High finding from any review blocks the PR.
+- **Every review sorts its findings into two buckets** using the `## Code Review Rules`
+  section of `AGENTS.md`, which also holds the `Current stage:` line (the one place to
+  change it). Only "fix before merge" findings (the app breaks, data is lost or mixed
+  between accounts, a real security hole for current users, real personal-data exposure
+  shown by a reachable code path, or a change in the diff that breaks or bypasses one of
+  the safeguards `AGENTS.md` lists, at any stage) may be Critical or High. Other compliance,
+  privacy, shared-device and polish items are follow-ups: Medium or Low, listed one line
+  each (a full issue draft only where `AGENTS.md` allows), and they do not block.
 
 The `/review-pr` pass ships the diff to an external model on an account with no BAA, so run
 the PII pre-flight first and match the form to the argument: for a PR number,

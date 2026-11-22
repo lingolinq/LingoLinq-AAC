@@ -4,6 +4,20 @@ import modal from './modal';
 import { get as emberGet } from '@ember/object';
 import { board_view_route, opens_in_view_route } from './board_view';
 import { is_protected_board, route_refuses_local } from './board_revocation';
+import { CATALOG_ACCOUNT } from './board_prefetch_planner';
+
+// A board of the LingoLinq library account: the boards a person starts with (the default sidebar, the starter board,
+// Crisis Vocabulary; lib/system_board_sources.rb, app/models/user.rb default_sidebar_boards). They are public, so they
+// open offline on any device, trusted or not (Traci, 2026-11-16; docs/task-management/2026-11-16_offline-boards-page.md
+// Part 3). `raw` is a device copy or a board record. The owner must match exactly, the copy must say it is public (a
+// `lingolinq` user name can be registered where the library account has another name), and a `my:` key is a shallow
+// clone of another owner's board (app/models/concerns/global_id.rb:250-260), not a library board.
+export function library_board(raw) {
+  var key = raw && emberGet(raw, 'key');
+  if(typeof key !== 'string' || emberGet(raw, 'public') !== true) { return false; }
+  var parts = key.split('/');
+  return parts.length === 2 && parts[0] === CATALOG_ACCOUNT && parts[1].indexOf('my:') !== 0;
+}
 
 // The copy of a board the Modern board page falls back on when the server gives no usable answer
 // (#1213): the row saved on the device by sync, or the copy held in memory from this session.
@@ -60,13 +74,23 @@ export function device_has_board(persistence, board_cache, key) {
 // Offline, can this board open? Read before leaving the board on screen: the loading page clears it as
 // soon as a transition starts. A key with no owner (obf/, integrations/) has its own loader.
 // A shared device gets no owner from the device for someone else's board (routes/user.js
-// _device_owner), so that board cannot open offline there, whatever is saved.
+// _device_owner), so that board cannot open offline there, whatever is saved; a LingoLinq library board
+// (library_board above) is the exception, judged by its copy.
 export function board_saved_here(persistence, board_cache, key, appState) {
   if(persistence.get('online') !== false || !key || !opens_in_view_route(key)) { return RSVP.resolve(true); }
   var user = appState && (appState.get('sessionUser') || appState.get('currentUser'));
   var own = user && key.split('/')[0] === emberGet(user, 'user_name');
-  if(!own && emberGet(user || {}, 'preferences.device.long_token') !== true) { return RSVP.resolve(false); }
+  if(!own && emberGet(user || {}, 'preferences.device.long_token') !== true) { return library_copy_here(persistence, board_cache, key); }
   return device_has_board(persistence, board_cache, key);
+}
+
+// Whether a usable library board copy is in memory or on the device. Unlike device_has_board, a slow read is a no:
+// the board would not open on this device without that copy.
+function library_copy_here(persistence, board_cache, key) {
+  if(key.split('/')[0] !== CATALOG_ACCOUNT) { return RSVP.resolve(false); }
+  var memory = board_cache.peek(key);
+  var read = usable_copy(memory) ? RSVP.resolve(memory) : persistence.find('board', key);
+  return within(read, DEVICE_READ_WAIT_MS).then(function(copy) { return usable_copy(copy) && library_board(copy); });
 }
 
 export function warn_board_not_saved() {
