@@ -188,8 +188,13 @@ Only these may be Critical or High (P0 or P1 on the Codex connector):
   public page, a log that leaves the platform). "Could leak if someone later adds X" is
   speculation, not evidence, and goes to follow-up. Past exposure flags here have mostly
   been false alarms, so show the path or do not use this.
+- A defect this diff introduces that breaks or bypasses one of the safeguards listed under
+  "Judge what this diff changes" above, at any stage.
 
 ### Follow-up (never blocks; rate Medium or Low, never P0 or P1)
+
+None of these covers a safeguard this diff breaks or bypasses: that is fix-before-merge
+under "Judge what this diff changes" above, whichever item below it would otherwise fit.
 
 - Compliance and privacy items (FERPA, HIPAA, COPPA, GDPR, retention, consent wording,
   audit-trail gaps, disclosures) that do not meet the exposure test above.
