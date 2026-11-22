@@ -857,7 +857,10 @@ device." Traci (2026-11-20): fix the Lows that are real in this PR.
 
 ## Part 5 (2026-11-21): Codex's two P2s on 7cad69d0f (fix-proposal)
 Codex connector review on 7cad69d0f: two P2 findings, both re-checked real. Traci (2026-11-21): fix both; this is an
-extra review round beyond the default two, at her request (CLAUDE.md "Rounds"), recorded in the PR.
+extra review round beyond the default two. CLAUDE.md "Rounds" (this branch, after #1311) lets the responsible senior
+developer run additional rounds and record the reason in the PR; Traci asked for it. Whether Traci is the responsible
+senior developer for this PR was asked of her (2026-11-21). Traci: "that rule no longer applies -> i can request as
+many review as i deem necessary." Recorded as her decision.
 
 ### Fact sheet
 (a) READ. Sync Details reads a stopped entry only through `partial_result` (`utils/sync_log_store.js:138`), called
@@ -949,3 +952,25 @@ Revised plan:
   S4 the batch note back: SURVIVED, accepted: no harness drives the real batch step (the stop-path tests stub
   `sync_boards`); the removal rests on the review's confirmed reading (Q1) and the hook's own tests (F1). Recorded in
   "Not covered". `lint:js:ci`: the four worktree false positives.
+
+### Round-2 review of Part 5 (/review-pr, 2026-11-21)
+PII pre-flight exit 0. REVIEWED=range origin/traci/fix/sync-details-no-percent (7cad69d0f18b1d9f12d19cea94a23f6a87893aa1)
+... HEAD (0367612f633857f9e0a99ccd2a787819a1988cb5) in /home/tracid/LingoLinq-AAC-sync-details
+Approve with comments; no Critical or High. Checked here:
+1. Medium, rounds rule: the reviewer quoted the OLD rule (diff only); this branch's CLAUDE.md:239-241 lets the
+   responsible senior developer run more rounds. Traci (2026-11-21): the rule no longer applies; she can request as
+   many reviews as she deems necessary. Recorded above.
+2. Medium, CONFIRMED: the two changed tests proved the failed board reads not saved but not that a WRITTEN board stays
+   saved (a change turning every stopped row not_saved would pass). Added two sibling tests (failure branch, Cancel):
+   the first board write goes through, the second fails; the written board keeps 'downloaded', the failed one reads
+   'not_saved' (1b453a83b). Mutant W1 (every stopped row not saved) to falsify them.
+3. Low, CONFIRMED: the `storage_failed` comment at `services/persistence.js:2467` still said none of the rows shows:
+   corrected (1b453a83b).
+4. Low, checked: queued saves reach `note_board_written` through the utils store (F1's test "counts a board written by
+   the utils copy's store"); a failed device read creates no map (`note_device_boards` runs only on `find_all`
+   success, :2904). No change.
+5. Low (batch handler untested): already the recorded gap.
+6. Low, checked: `1_6` is the cached row's own id (`{ id: '1_6', key: 'me/cached', status: 'cached' }`); the fixture
+   change is no wider than approved.
+Verified (1b453a83b): `/sync|persistence|board content retry/i` 654 tests, 645 pass, 9 skip, 0 fail. Mutant W1 (every
+stopped row not saved): killed (10), including both new tests. `lint:js:ci`: the four worktree false positives.
