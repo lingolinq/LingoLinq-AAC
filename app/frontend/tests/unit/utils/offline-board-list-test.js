@@ -193,6 +193,48 @@ module('Unit | Utility | offline board list', function(hooks) {
       'in the older sync a refusal wins over its clean row');
   });
 
+  // Finding 1 (2026-11-21): rows in the shape the sync logs a liked seed (seeds carry only a key, so the row's id is the
+  // key too: services/persistence.js `id = next.id || next.key`). A finished entry lists the boards the server really
+  // answered (`answered`, utils/sync_board_fallback.js). A refusal still in the log hides the board until a real answer
+  // comes after it; a row with no answer behind it ('kept' after a timeout, a reload served from the device copy, an
+  // entry from before `answered`) lists it only when no refusal is in the log.
+  test('another owner\'s liked board, real row shape: a refusal holds until the server really answers again', function(assert) {
+    var K = 'therapist/feelings';
+    var rows = [board('4_1', K), CRISIS];
+    var user = person({ stats: { starred_board_refs: [{ key: K }] } });
+    var row = function(extra) { return Object.assign({ id: K, key: K }, extra); };
+    var whole = function(statuses, answered) { return { user_id: 'larry', issues: false, statuses: statuses, answered: answered ? [K] : undefined }; };
+    var seen = whole([row({ status: 're-downloaded' })], true);
+    var refused = whole([row({ status: 're-downloaded', error: 'board ' + K + ' failed retrieval for syncing', refused: true })]);
+    var only = ['lingolinq/crisis-vocabulary'];
+    var both = [K, 'lingolinq/crisis-vocabulary'];
+    assert.deepEqual(keys(pick_device_boards(rows, user, [seen])), both, 'seen');
+    assert.deepEqual(keys(pick_device_boards(rows, user, [seen, refused, whole([row({ status: 'kept' })])])), only, 'refused, then a timeout (kept)');
+    assert.deepEqual(keys(pick_device_boards(rows, user, [seen, refused, whole([row({ status: 're-downloaded' })])])), only, 'refused, then a reload served from the device copy');
+    assert.deepEqual(keys(pick_device_boards(rows, user, [seen, refused, whole([row({ status: 'kept', error: 'board ' + K + ' failed to sync completely', content: true })])])), only,
+      'refused, then kept with a picture that did not save');
+    assert.deepEqual(keys(pick_device_boards(rows, user, [seen, refused, whole([row({ status: 're-downloaded' })], true)])), both, 'refused, then the server answered again (shared again)');
+    assert.deepEqual(keys(pick_device_boards(rows, user, [seen, { user_id: 'larry', canceled: true, confirmed: true, statuses: [row({ error: 'x', refused: true })] }, whole([row({ status: 'kept' })])])), only,
+      'a refusal in a cancel between two whole syncs still counts');
+    assert.deepEqual(keys(pick_device_boards(rows, user, [seen, { user_id: 'larry', errored: true, confirmed: true, statuses: [row({ error: 'x', refused: true })] }])), only,
+      'a refusal in a stop after the last whole sync');
+    assert.deepEqual(keys(pick_device_boards(rows, user, [whole([row({ status: 'kept' })]), whole([row({ status: 'kept' })]), whole([row({ status: 'kept' })])])), both,
+      'only timeouts, no refusal: listed (slow links, a new like)');
+    assert.deepEqual(keys(pick_device_boards(rows, user, [refused, seen, whole([row({ error: 'x' })])])), both, 'refused, answered, then untagged: listed');
+    assert.deepEqual(keys(pick_device_boards(rows, user, [seen, refused, whole([row({ error: 'x' })])])), only, 'answered, refused, then untagged: hidden');
+    assert.deepEqual(keys(pick_device_boards(rows, user, [whole([row({ status: 're-downloaded' }), row({ error: 'x', refused: true })], true)])), only,
+      'in one sync, a refusal wins over an answered clean row');
+  });
+
+  // Finding 5 (2026-11-21): the walk from the listed boards does not pass through a board that does not open on this
+  // device (another owner's, on a device not trusted), so an own board behind it is listed, not counted as a folder.
+  test('a shared device: an own board reached from home only through another owner\'s board is listed', function(assert) {
+    var rows = [board('1_1', 'larry/home', ['4_1']), board('4_1', 'aaron/x', ['8_2']), board('8_2', 'larry/leaf'), board('9_99', 'lingolinq/crisis-vocabulary', [], { public: true })];
+    var user = person({ preferences: { home_board: { id: '1_1', key: 'larry/home' } } });
+    assert.deepEqual(keys(pick_device_boards(rows, user, [], { shared: true, me: 'larry' })), ['larry/home', 'larry/leaf', 'lingolinq/crisis-vocabulary'], 'shared');
+    assert.deepEqual(keys(pick_device_boards(rows, user, [])), ['larry/home', 'lingolinq/crisis-vocabulary'], 'trusted: it opens, so the leaf is a folder');
+  });
+
   // Property check over random link graphs (seeded, so a failure repeats): only own boards are listed, each once; every
   // own board is listed or opens from a listed one; no listed board opens from another listed board.
   test('random link graphs: every own board reachable from the list, no entry inside another', function(assert) {
@@ -280,7 +322,7 @@ module('Unit | Utility | offline board list', function(hooks) {
   });
 
   // Part 3 (docs/task-management/2026-11-16_offline-boards-page.md): only this person's syncs count, and a later sync
-  // that showed an error for the board hides it, finished or not.
+  // that refused the board (`refused`, #1336) hides it, finished or not.
   test('another owner\'s liked board: only this person\'s syncs count, and a later error hides it', function(assert) {
     var rows = [board('4_1', 'therapist/feelings'), CRISIS];
     var user = person({ stats: { starred_board_refs: [{ id: '4_1', key: 'therapist/feelings' }] } });
@@ -297,8 +339,8 @@ module('Unit | Utility | offline board list', function(hooks) {
   });
 
   // A board the sync reached whose pictures or sounds did not all save carries `content` on its error (the Sync Details
-  // branch, utils/sync_rollup.js content_error): the server did not refuse it, so it does not hide the board. An older
-  // untagged entry still hides it (the safe side).
+  // branch, utils/sync_rollup.js content_error): the server did not refuse it, so it does not hide the board. Only a
+  // `refused` row hides (#1336); an untagged error does not.
   test('another owner\'s liked board: a picture that did not save does not hide it', function(assert) {
     var rows = [board('4_1', 'therapist/feelings'), CRISIS];
     var user = person({ stats: { starred_board_refs: [{ id: '4_1', key: 'therapist/feelings' }] } });

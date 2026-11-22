@@ -43,45 +43,52 @@ var LIKED = { 'starred board': true, 'suggested board': true };
 
 // A sync that went through its whole walk: not cancelled, not stopped part way (the stop paths write `confirmed`,
 // services/persistence.js), and either clean or failed only on device writes (a finished sync with a failed write is
-// `errored` and `storage_failed`, #1336). Its rows say what the server answered for each board it reached.
+// `errored` and `storage_failed`, #1336).
 function walked_whole(e) {
   return !!(e && !e.canceled && !e.confirmed && (!e.errored || e.storage_failed) && e.statuses && e.statuses.length);
 }
 
-// Whether this person's last whole sync saw a board, and no later sync of theirs (finished or not) refused it (by id
-// or key). Only entries for `user_name` count (`user_id` is the synced person's user_name, services/persistence.js).
-// Only a row tagged `refused` (a real server refusal, #1336) hides a board; a row with no error or with a `content`
-// error (reached; a picture or sound did not save) shows it was seen. An untagged error (a bad connection, a timeout,
-// an unknown error) decides nothing: the board's verdict comes from the newest older whole sync that has a deciding
-// row for it, and with none it is not seen.
+// Whether another owner's board may be listed for this person, from their sync log (only entries for `user_name`:
+// `user_id` is the synced person's user_name, services/persistence.js). Per board (by id or key), the newest deciding
+// row wins:
+// - a row tagged `refused` (a real server refusal, #1336), in any entry, stops and cancels included: hidden;
+// - a row with no error, or a `content` error (reached; a picture or sound did not save), in a whole sync whose
+//   `answered` list names the board (the server really answered, utils/sync_board_fallback.js note_answered) and not
+//   'kept': listed.
+// With no deciding row, a whole sync's row with no answer behind it ('kept' after a timeout, a reload served from the
+// device copy, an entry from before `answered`) lists the board; an untagged error alone does not. So a refusal holds
+// until the server really answers for the board again, and slow links (timeouts, device copies) never hide a board
+// nothing refused (docs/task-management/2026-11-16_offline-boards-page.md, "Finding 1").
 function seen_by_last_sync(sync_log, user_name) {
   var mine = (sync_log || []).filter(function(e) { return e && e.user_id === user_name; });
-  var at = mine.length - 1;
-  while(at >= 0 && !walked_whole(mine[at])) { at--; }
-  var ok = {};
-  var failed = {};
-  var unsure = {};
+  var decided = {}; // token -> true (listed) or false (hidden), from the newest deciding row
+  var weak = {};
   var tokens = function(s) { return [s.id, s.key].filter(function(t) { return t; }); };
-  var seen = function(s) { return !s.refused && (!s.error || s.content); };
-  if(at >= 0) {
-    mine[at].statuses.forEach(function(s) {
-      if(s) { tokens(s).forEach(function(t) { if(s.refused) { failed[t] = true; } else if(seen(s)) { ok[t] = true; } else { unsure[t] = true; } }); }
-    });
-    // Older whole syncs decide only the boards still unsure; within one sync a refusal wins over a clean row, so its
-    // refusals are read before its clean rows close the board.
-    var open = function(t) { return unsure[t] && !ok[t] && !failed[t]; };
-    mine.slice(0, at).reverse().filter(walked_whole).forEach(function(e) {
-      var rows = e.statuses.filter(function(s) { return s; });
-      var refused_here = {};
-      rows.forEach(function(s) { if(s.refused) { tokens(s).forEach(function(t) { if(open(t)) { refused_here[t] = true; } }); } });
-      rows.forEach(function(s) { if(seen(s)) { tokens(s).forEach(function(t) { if(open(t)) { ok[t] = true; } }); } }); // a refusal in the same sync still hides (the final check)
-      Object.keys(refused_here).forEach(function(t) { failed[t] = true; });
-    });
-  }
-  mine.slice(at + 1).forEach(function(e) {
-    (e.statuses || []).forEach(function(s) { if(s && s.refused) { tokens(s).forEach(function(t) { failed[t] = true; }); } });
+  var positive = function(s) { return !s.refused && (!s.error || s.content); };
+  mine.slice().reverse().forEach(function(e) {
+    var rows = (e.statuses || []).filter(function(s) { return s; });
+    var whole = walked_whole(e);
+    var answered = {};
+    (whole && Array.isArray(e.answered) ? e.answered : []).forEach(function(t) { answered[t] = true; });
+    var here = {}; // decided in this entry; a refusal wins over a clean row of the same entry
+    rows.forEach(function(s) { if(s.refused) { tokens(s).forEach(function(t) { if(!(t in decided)) { here[t] = false; } }); } });
+    if(whole) {
+      rows.forEach(function(s) {
+        if(!positive(s)) { return; }
+        var real = s.status !== 'kept' && tokens(s).some(function(t) { return answered[t]; });
+        tokens(s).forEach(function(t) {
+          if(t in decided || here[t] === false) { return; }
+          if(real) { here[t] = true; } else { weak[t] = true; }
+        });
+      });
+    }
+    Object.keys(here).forEach(function(t) { decided[t] = here[t]; });
   });
-  return function(raw) { return !!(ok[raw.id] || ok[raw.key]) && !failed[raw.id] && !failed[raw.key]; };
+  return function(raw) {
+    var ts = [raw.id, raw.key];
+    if(ts.some(function(t) { return decided[t] === false; })) { return false; }
+    return ts.some(function(t) { return decided[t] === true || weak[t]; });
+  };
 }
 
 // On a device not marked "Trust this Device" (`opts.shared`), another owner's board cannot open offline
@@ -132,9 +139,10 @@ export function pick_device_boards(rows, user, sync_log, opts) {
     take(raw);
   });
 
-  // The boards a board's followable links find on the device (nulls for those not there); the seed walk and the
-  // grouping below both read links through this, so they cannot disagree.
-  var next_of = function(raw) { return followable_links(raw).map(find); };
+  // The boards a board's followable links find on the device and that open here (nulls for the rest: not on the device,
+  // or another owner's on a device not trusted, opens_here); the seed walk and the grouping below both read links
+  // through this, so they cannot disagree, and neither passes through a board that cannot be opened.
+  var next_of = function(raw) { return followable_links(raw).map(find).map(function(next) { return next && opens(next) ? next : null; }); };
   var reached = {};
   var walk = function(start) {
     var queue = [start];

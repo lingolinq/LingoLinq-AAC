@@ -5061,6 +5061,36 @@ describe("persistence-sync", function() {
       });
     });
 
+    // Finding 1 (docs/task-management/2026-11-16_offline-boards-page.md): a reload the adapter answered from the device
+    // copy (its old `retrieved` stamp) is not a server answer; only a record stamped after the ask is. The service's
+    // board_lookup records which (sync_progress.answered), and the finished entry carries it for the offline list.
+    it("records a reload as answered only when the server stamped it after the ask", function() {
+      var target = persistenceTarget() || persistence;
+      var long_ago = (new Date()).getTime() - 3600000;
+      var lookup = function(id, restamp) {
+        var rec = EmberObject.create({ id: id, key: 'other/' + id, fresh: false, retrieved: long_ago });
+        stub(rec, 'reload', function() { if(restamp) { rec.set('retrieved', (new Date()).getTime()); } return RSVP.resolve(rec); });
+        return rec;
+      };
+      var device_copy = lookup('1_d', false);
+      var answer = lookup('1_s', true);
+      stub(LingoLinq.store, 'findRecord', function(type, id) {
+        var rec = id == '1_d' ? device_copy : answer;
+        rec.set('permissions', {});
+        return RSVP.resolve(rec);
+      });
+      target.set('sync_progress', {});
+      var done = 0;
+      target.board_lookup('1_d', {}).then(function() { done++; });
+      target.board_lookup('1_s', {}).then(function() { done++; });
+      waitsFor(function() { return done == 2; });
+      runs(function() {
+        var answered = Object.keys(target.get('sync_progress.answered') || {}).sort();
+        expect(answered).toEqual(['1_s', 'other/1_s']);
+        target.set('sync_progress', null);
+      });
+    });
+
     it("should not reload if fresh, numerical id and not peeked", function() {
       persistence.set('sync_progress', {});
       var rec = EmberObject.create({
@@ -5365,6 +5395,27 @@ describe("persistence-sync", function() {
           expect(outcome.revoked_raw && outcome.revoked_raw.key).toEqual('other/shared');
           expect(outcome.revoked_raw && outcome.revoked_raw.revoked).toEqual(undefined);
           expect(outcome.own_raw && outcome.own_raw.revoked).toEqual(undefined);
+          cancelSyncTailWork();
+          persistence.set('sync_progress', null);
+          LingoLinq.sync_testing_real_boards = false;
+          boardRevocation.reset_for_tests();
+        });
+      });
+    });
+
+    // Finding 1 (docs/task-management/2026-11-16_offline-boards-page.md): the finished entry lists the boards the server
+    // really answered for (`answered`), through the real transport, and not the board it refused.
+    it("logs which boards the server answered for in the finished entry, through the real transport", function() {
+      db_wait(function() {
+        var outcome = {};
+        runRevokedSync(function() {
+          return RSVP.resolve({revisions: {'1_145': 'current', 'fred/home': 'current', '1_167': 'current', 'fred/next': 'current', '1_178': 'newer', 'other/shared': 'newer'}, revoked_ids: []});
+        }, outcome, 'service');
+        runs(function() {
+          var answered = (outcome.last_log && outcome.last_log.answered) || [];
+          expect(answered.length > 0).toEqual(true);
+          expect(answered.indexOf('1_178')).toEqual(-1);
+          expect(answered.indexOf('other/shared')).toEqual(-1);
           cancelSyncTailWork();
           persistence.set('sync_progress', null);
           LingoLinq.sync_testing_real_boards = false;

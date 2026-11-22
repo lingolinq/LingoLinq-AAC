@@ -715,3 +715,56 @@ error to hide a liked board (:40, :243, :244, :262, :264 of offline-board-list-t
   (liked roots are fetched every sync); revocation marks do not cover liked roots while `sync_starred_boards` is off.
 Mutants: S1-S8 and S9b (one pass in row order) KILLED; S9 (`!refused_here` in the clean pass) was equivalent, removed.
 743 tests on the sync and offline filters: 734 pass, 9 skipped (pre-existing), 0 fail. Lint gate adds nothing.
+
+## Review of the refused-only code (2026-11-21): six findings verified by a second adversary, all REAL
+Red team (code, 84b3fb2be): ship with conditions. A fresh adversary then tried to disprove each claim with the real
+code (scratchpad verify1328/): all six REAL.
+1. Medium (Risk High): a sync with no server answer for a liked board the device holds writes a row with no error,
+   which `seen()` counts as seen, so a board refused in sync N is listed again after sync N+1 cannot reach it.
+2. Medium (tests): every liked fixture uses `{id: '4_1'}`; the real sync logs a liked seed with the key in both
+   slots (`id = next.id || next.key`, persistence.js:3092). M1 (`ok[raw.id]` only) and M2 (`!failed[raw.id]` only)
+   survive every test; M1 would hide every other owner's liked board in production.
+3. Low: a refusal in a stop or cancel entry between two whole syncs is never read when the later whole sync has only
+   an untagged or 'kept' row.
+4. Low: three test comments still state the old rule.
+5. Low, NEW with this PR (not pre-existing: this file is not on develop): the seed walk passes through boards that do
+   not open on a device not trusted, so an own board behind one is neither listed nor reachable.
+6. Low: Modern's "You're offline." line shows while online when the device list stays up (Basic has no such line).
+
+Why the reviews kept finding things (Traci asked, 2026-11-21): each fix added code and each review saw only the new
+slice; #1328 reads the log #1336 writes, and that log changed three times while both were open; the tests used
+hand-written log rows instead of what the sync writes; and for the refused-only change I enumerated who writes
+errors and refusals but never who writes a CLEAN row (fix-proposal step (b), "count writers"). Plan agreed: list every
+writer first, fix 1-3 with a reviewed proposal and rows in the real shape, one final full-PR review with a written
+checklist and a stop rule (only Critical/High block), then freeze; later findings go to a follow-up PR.
+
+### Finding 1: every writer of a liked board's status row (services/persistence.js on this branch)
+| Writer | Row | Did the server answer for this board? |
+|---|---|---|
+| :2771 revision current (`safely_cached_boards`) | cached | Yes: board_revisions gives a revision only to boards the person can view (users_controller.rb:803) |
+| :2774 fresh revision current, known on device | cached | Yes, same source |
+| :2777 `allow_any_cached` (revisions failed for a supervisee, stamp current, :3005) | cached | NO |
+| :2780 stored by this sync (late answer, #1330) | downloaded | Yes |
+| :2781 then reload succeeds from the server | re-downloaded | Yes (`retrieved` set to now, utils/persistence.js:4377-4379) |
+| :2781 then reload resolves from the device copy (adapter fallback on 5xx, status 0, 401, `unauthorized`: utils/persistence.js:4316-4351) | re-downloaded | NO (`retrieved` keeps the old stamp) |
+| :2782 `keep_stored_board` (timeout, 429, offline, sync limit) | kept | NO |
+| :2785 fresh in memory, no reload (never for a liked seed: key-only seeds always reload, `key_for_id`) | downloaded | Earlier this session (pre-existing, #1336 "Not covered") |
+| :2930, :2971 batch path | cached / downloaded | Unreachable (after `return RSVP.resolve({})`, :2899) |
+| :2389 merge, `with_errors`, `end_canceled_sync` | error rows (`refused`, `content`) | Yes for `refused` |
+| stop paths, `confirmed_statuses` | not_saved | n/a (stops never decide) |
+
+### Proposal
+- Writer: a row whose board did not get a server answer reads 'kept' (Sync Details already treats 'kept' as saved,
+  utils/sync_rollup.js:17): the reload at :2782 records the time it asked and, when it resolves with a record whose
+  `retrieved` is older, marks the row 'kept' (a helper in utils/sync_board_fallback.js next to keep_stored_board,
+  sharing its row lookup); :2777 writes 'kept' instead of 'cached'. Both stay on their existing lines (8 baselined
+  rows below :2782).
+- Reader (`seen_by_last_sync`): 'kept' decides nothing (like an untagged error). The fallback reads refusals from every
+  older entry, stops and cancels included, and clean rows only from whole syncs.
+- Rejected: reader-only ('kept' undecided) misses the device-copy re-downloaded rows; treating 'kept' as hidden
+  brings back the over-hiding #1336 removed; checking `local_result` (not a board model attribute).
+- Tests in the real row shape (`{id: key, key: key}` against raw `{id: X, key: K}`): [seen, refused, kept] hidden;
+  [seen, kept] listed; [seen, cancel refused, whole kept] hidden; ordering of older syncs; harness: a liked seed's
+  reload answered from the device copy logs 'kept'. Mutants must include M1 and M2.
+- Unresolved: whether marking device-copy reloads 'kept' changes anything else that reads 're-downloaded'
+  (`confirmed_statuses`, F1 `note_board_written`, Sync Details counts): to be checked in review.
