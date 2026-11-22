@@ -73,45 +73,75 @@ these files. Labels: CONFIRMED (`file:line`) or ASSUMED (to be checked before it
   (`components/modal-dialog.hbs:6`), moves focus in (`modal-dialog.js:61-83`), traps Tab inside
   (`:115-130`) and returns focus to the opener on close (`:44-52`). The waiting dialog uses it.
 
-## Design (revised after the proposal review)
+## Design (revised twice: after the proposal review and the re-check)
 
-1. **Outcomes, not just ends.** `pending_image.js` becomes `pending_media.js` (re-exporting the
-   image API): tokens carry a field (`pending_image` or `pending_sound`) and finish with an
-   outcome (`landed`, `failed`, `abandoned`). `when_media_settled(buttons)` resolves with the
-   outcomes after `afterRender` + `next`. A field cleared with no live token never blocks.
-2. **A waiting dialog, not the overlay or a flash.** Save with media pending opens one modal on
-   both views: "Saving when your picture finishes uploading..." (media-neutral copy), with
-   "Back to editing" always and "Save without it" from 15 s (timer starts at the first click,
-   survives re-checks). Focus moves into it; the background is inert; text AAC-sized.
-3. **Identity at re-entry.** At defer time capture the controller, `model.id`, an edit-session
-   token (bumped by an `edit_mode` observer and on route exit) and `sessionUser.id`. The settled
-   callback saves only if all four still match; otherwise it closes the dialog and does nothing.
-4. **Failure cancels.** If any outcome is `failed`, no save: the dialog closes, the user is back
-   in edit mode with "A picture or sound did not upload. The board was not saved." (the
-   upload-failed alert already explains why).
-5. **Back to editing / Discard / route exit** mark the board's in-flight operations
-   `abandoned`, so their apply step writes nothing (closes the "picture lands after Discard" path).
-6. **Guard = any pending field**, not `image_id && pending_image`, so F4 (empty button) waits too.
-7. **Drag-and-drop joins the tokens** (`apply_dropped_image_to_button`).
-8. **Sounds:** convert `select_sound_preview` like #1346 did pictures, capturing the start
+1. **Outcomes.** `utils/pending_media.js` (with `utils/pending_image.js` re-exporting the image
+   API) tracks each picture or sound operation as a token `{button, field, kind}`: `field` is
+   `pending_image` or `pending_sound`; `kind` is `user` (settings pick, drop, sound) or `auto`
+   (the automatic symbol lookup). A token ends once with one outcome:
+   - `landed`: its picture or sound was applied;
+   - `failed`: it did not arrive (only a `user` failure blocks a save; an `auto` lookup that errors
+     or finds nothing is silent today, `edit_manager.js:2573-2576`, and stays non-blocking);
+   - `superseded`: something else replaced it (the automatic symbol after a manual pick);
+   - `cancelled`: the edit session it belonged to ended (Discard, route exit, board change,
+     "Save without it"). ONLY `cancelled` stops the apply step from writing.
+   Closing button settings or moving to the next button is none of these: the operation keeps
+   running and applies, as #1346 made it (`content-grabbers.js:1706-1734`).
+2. **Registry.** Besides the per-button flag bookkeeping, the module keeps a strong set of live
+   tokens, each deleted when it ends. `has_live_media()` and `when_media_settled()` read that set,
+   so a button object replaced by undo/redo (`edit_manager.js:1323-1344`) or a rebuild cannot hide
+   a running upload. `when_media_settled()` resolves after `afterRender` + `next` with counts per
+   outcome (`failed` counts `user` tokens only). `cancel_pending_media()` marks every live token
+   `cancelled` and ends it; it runs BEFORE any rebuild on Discard.
+3. **Every apply site checks `is_cancelled(token)`** before writing: drop
+   (`content-grabbers.js:618-622`), settings pick (`:1706-1710`) and its afterRender
+   (`:1716-1734`), automatic lookup (`edit_manager.js:2535-2558`), sound `change_button`. One
+   mutation per site.
+4. **The waiting dialog.** One modal on both views (the shared `modal-dialog`: `role="dialog"`,
+   `aria-modal`, focus in, Tab trap, focus return). Media-neutral, AAC-sized copy: "Saving when
+   your picture or recording finishes uploading...". Buttons: "Back to editing" always; "Save
+   without it" from 15 s (timer starts at the first Save click and survives re-checks). It is
+   opened `uncloseable`, so Escape and the backdrop do nothing. If another modal replaces it
+   (`{replaced: true}`, `utils/modal.js:135-145`), the deferred save is cancelled (treated as
+   "Back to editing"). Before re-entering `saveButtonChanges` the waiter closes it only if
+   `modal.is_open('<its template>')` (`utils/modal.js:232`), so a copy or purchase modal that
+   re-entry opens (copy_on_save, `board-detail.js:6255-6262`) is never closed by mistake.
+5. **"Back to editing" cancels only the deferred save.** Uploads keep running and apply; the
+   user stays in edit mode and the next Save includes them. Discard, route exit and a board
+   change call `cancel_pending_media()`. "Save without it" also cancels the pending operations
+   on both views, so nothing late reaches the saved board in Basic (which stays on its route).
+6. **Identity at re-entry.** At defer time the waiter captures the controller, `model.id`, an
+   edit-session counter and `sessionUser.id`; the settled callback saves only if all match. The
+   counter is bumped by an observer on each view's own edit flag (Basic: `appState.edit_mode`,
+   set at `app-state.js:767` and `:1633`; Modern: the controller's `edit_mode`), by a `model.id`
+   observer, and in Modern's edit route `resetController`. Basic checks identity before its own
+   `toggle_mode('edit')` (`board/index.js:346`).
+7. **Guard = any live token** (not `image_id && pending_image`), so F4's empty button waits too.
+8. **Drag-and-drop** begins and ends a `user` token (`apply_dropped_image_to_button`).
+9. **Sounds:** convert `select_sound_preview` as #1346 did pictures, capturing the start
    controller and `this.button`; attach to a board button only when the start controller was a
    live button-settings owner; gate `clear_sound_work` on still owning the controller; keep the
-   resolve/reject contract for `new-sound.js`; the sound license PUT does not hold Save (the
-   picture license branch writes no true either).
+   resolve/reject contract for `new-sound.js`; the sound license PUT takes no token.
 
 Rejected: reusing `board_saving` (stuck overlay over the speak board); chaining inside
 `board.save()` (the `process_for_saving` snapshot is taken first); "Save shows Uploading"
 (simpler and safer, not chosen: Traci wants one click to save).
 
 ## Tests (red first), each with its mutation
-Unit: outcomes; per-field tokens (finishing an image token never clears `pending_sound`); a
-flag with no token never blocks; waiter resolves after afterRender.
-Controller, both views, through the real Save paths (Modern: confirm-leave-edit then Save):
+Unit (`pending-media-test.js`): picture and sound tokens keep separate flags; outcomes counted,
+`failed` only for `user`; a flag with no token never blocks; operations begun while waiting are
+waited for; a token on a replaced button object is still waited for; `cancel_pending_media`
+ends every live token and marks it; the waiter resolves after `afterRender`.
+Controller, both views, through the real Save paths (Modern: confirm-leave-edit, then Save):
 F4 empty button waits and saves with the `image_id`; button with a picture waits and saves;
-Enter then Save carries the automatic symbol; two Saves, one save; failed upload, no save and
-back in edit mode; Back during the wait, no save and no overlay, grid visible; board change
-during the wait, the new board is not saved and no transition; Discard during the wait, the
-late picture is not applied; 15 s shows "Save without it", which saves at once; drag-and-drop
-waits; sound waits and saves `sound_id`; sound with settings closed or moved on lands on the
-right button and leaves the next button's preview alone; a recorder takeover gets no board sound.
-afterEach clears module waiters and the 15 s timer.
+Enter then Save carries the automatic symbol; a failed automatic lookup does not block; a
+failed user upload, no save, back in edit mode with the message; "Back to editing", then the
+upload lands and the next Save includes it; "Back to editing", then Discard while the upload is
+in flight, the late picture is not applied; route exit (edit route `resetController`) during the
+wait, no save, dialog closed, `board_saving` false; 15 s shows "Save without it", which saves and
+cancels the rest; Escape and backdrop do nothing; a replacing modal cancels the deferred save;
+copy_on_save re-entry leaves the copy dialog open; drag-and-drop waits; sound waits and saves
+`sound_id`; sound with settings closed or moved on lands on the right button and leaves the next
+button's preview alone; a recorder takeover gets no board sound. Defensive (UI blocks them): two
+Saves, one save; a programmatic board change, no save on the new board.
+afterEach clears the registry, waiters and the 15 s timer.
