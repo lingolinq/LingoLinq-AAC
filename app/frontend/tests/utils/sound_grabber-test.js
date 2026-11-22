@@ -410,7 +410,7 @@ describe('soundGrabber', function() {
   });
 
   describe('pending_sound on the button the sound started from', function() {
-    var model, save, changes, settledResult;
+    var model, save, changes, settledResult, uploadStarted;
     var startSound = function() {
       model = EmberObject.create({id: '456', findContentLocally: function() { return RSVP.resolve(true); }});
       controller.set('model', model);
@@ -418,7 +418,8 @@ describe('soundGrabber', function() {
       save = RSVP.defer();
       changes = [];
       settledResult = null;
-      stub(contentGrabbers, 'save_record', function() { return save.promise; });
+      uploadStarted = false;
+      stub(contentGrabbers, 'save_record', function() { uploadStarted = true; return save.promise; });
       stub(editManager, 'change_button', function(id, args) { changes.push({id: id, sound_id: args.sound_id}); });
       var state = {done: false, result: undefined};
       soundGrabber.select_sound_preview({url: wav_data_uri, name: 'test.wav'}).then(function(res) {
@@ -427,7 +428,7 @@ describe('soundGrabber', function() {
       return state;
     };
     var savedSound = function() {
-      return EmberObject.create({id: '123', url: 'https://example.com/test.wav', check_transcription: function() { }});
+      return EmberObject.create({id: '123', url: 'https://example.com/test.wav', check_transcription: function() { }, check_for_editable_license: function() { }});
     };
 
     afterEach(function() {
@@ -502,7 +503,10 @@ describe('soundGrabber', function() {
       stub(window, 'alert', function() { });
       var state = startSound();
       when_media_settled().then(function(res) { settledResult = res; });
-      save.reject({error: 'test failure'});
+      // Reject only once the upload has started: the duration check runs first, and a rejection
+      // nothing listens to yet is reported as unhandled.
+      waitsFor(function() { return uploadStarted; });
+      runs(function() { save.reject({error: 'test failure'}); });
       waitsFor(function() { return state.done && settledResult; });
       runs(function() {
         expect(changes.length).toEqual(0);
