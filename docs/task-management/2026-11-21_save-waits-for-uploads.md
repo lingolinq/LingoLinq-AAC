@@ -145,3 +145,35 @@ copy_on_save re-entry leaves the copy dialog open; drag-and-drop waits; sound wa
 button's preview alone; a recorder takeover gets no board sound. Defensive (UI blocks them): two
 Saves, one save; a programmatic board change, no save on the new board.
 afterEach clears the registry, waiters and the 15 s timer.
+
+## Verification (2026-11-21)
+
+Red run (tests committed at b0434dab5 and 62cff7449, empty `pending_media.js`/`save_after_media.js`
+shells): the new tests failed on their assertions. Two failed for the wrong reason first (a rendering
+test with no modal setup; Modern's shift-label observer on a thin stand-in board) and were fixed
+before the implementation landed.
+
+Green, targeted (`--filter "/pending media|pending image|save after media|save-waiting|Save waits
+for uploads|soundGrabber|pictureGrabber|editManager|contentGrabbers/i"`, Node 22): 330 tests,
+327 pass, 3 skip (pre-existing), 0 fail. The green runs caught real defects on the way: the dialog
+passed `@uncloseable={{true}}`, which renders an empty attribute that `modal.is_closeable()` reads as
+closeable (fixed to `"true"`, the convention); the drop path looked the button up through
+`find_button`, tying it to the open board (now a placeholder token).
+
+Lint caught one: removing the old guard also removed `var orderedButtons`, which Basic's save reads
+later (`board/index.js`); every Basic save would have thrown. Restored. No test reaches that line
+(the Basic tests stop at the wait), so `lint:js:ci` is the gate for it.
+
+Mutations, one build with temporary `window.__mut` switches (never committed), each run on its scoped
+filter; every one went red on the intended test:
+M1 cancelled not recognised (5 apply-site tests); M2 identity check (1); M3 failure stops the save
+(1); M4 Back to editing cancels uploads (1); M5 close without checking the dialog is ours (1, test
+added after it first survived); M6 automatic lookup failure counted (2); M7 resolve before
+afterRender (1); M8 Modern edit exit (1); M9 Basic edit exit (1); M10 no waiting at all (13); M11 drop
+cancel check (1); M12 sound written to the current controller (3); M13 automatic symbol cancel checks
+(1); M14 "Save without it" at once (2); M15 picture cancel checks (1).
+
+ESLint: `lint:js:ci` lists the existing `.eslint-todo` rows of board/index.js, board-detail.js,
+content-grabbers.js and edit_manager.js as new because they moved down. Linting develop's copy of each
+file against the branch gives identical findings (rule, column, message) in all four; the new files
+have none. Re-anchoring those rows is a baseline edit and waits for Traci's approval (Rule #0 item 14).
