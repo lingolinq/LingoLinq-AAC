@@ -662,3 +662,36 @@ merge left out: locale conflicts only).
   be fixture board keys, not credentials (section "CI secret-detection on 09fd218be"). No change; a reply on the PR
   needs Traci's OK. Its two earlier comments (the stuck view, the content tag) are the ones already handled.
 - CI on 0fab34757: all 13 checks green.
+
+## #1336's required change: hide only on `refused`; "seen" from the newest non-cancelled entry (2026-11-21)
+Traci: make #1336's requested changes now; approved changing the five existing assertions that expect an untagged
+error to hide a liked board (:40, :243, :244, :262, :264 of offline-board-list-test.js).
+
+### Fact sheet
+- (a) Read: `seen_by_last_sync` (`utils/offline_board_list.js:51-62`): `ok` marks from `last_result(mine)` (skips
+  `errored` and `canceled`, `utils/sync_log_store.js`); `failed` from an error without `content` in that entry and in
+  every later entry. CONFIRMED.
+- (b) Entry shapes on #1336 (7cad69d0f): finished clean or with issues (no `errored`); finished with a failed board
+  write (`errored: true, storage_failed: true`, `services/persistence.js:2426`, rows of the whole sync); stopped by an
+  error (`errored: true`, `storage_failed` if a write failed, rows only confirmed saves, :2467); cancelled
+  (`canceled: true`, :5128). Rows: `refused: true` only on a real server refusal (:3373-3380); `content: true` on a
+  picture or sound that did not save. CONFIRMED by reading #1336's branch.
+- (c) #1336's log (Final review, red team, 2026-11-20) states the required rule: `ok` from the newest entry that is
+  not cancelled and has rows, `!e.canceled && (!e.errored || e.storage_failed)`; `last_result` unchanged for Sync
+  Details. CONFIRMED (docs/task-management/2026-11-16_sync-details-no-percent.md on #1336's branch).
+
+### Proposal
+- **A (chosen):** a local `last_seen_entry(mine)` with #1336's rule replaces `last_result` here; in that entry a row
+  marks `failed` only when `refused`, otherwise (no error, a content error, any untagged error) `ok`; later entries mark
+  `failed` only on `refused`. A bad connection, an unknown error or a picture never hides; a board the sync did not
+  reach is still not `ok`.
+- **B (rejected):** change `last_result` in `sync_log_store.js`. Sync Details reads it, and #1336 owns that file.
+- Risks: until #1336 merges nothing is tagged `refused`, so no sync error hides a liked board (before this PR those
+  boards were not listed offline at all). A stopped-with-storage-failure entry (errored and storage_failed from the
+  failure branch) also qualifies under #1336's rule; its rows are only confirmed saves, so a liked board it did not
+  reach is not `ok` even if an earlier clean sync saw it (hidden: the safe side). Unresolved: whether that stopped
+  case should be skipped (#1336's rule includes it; kept as stated).
+- Tests (red first): a clean entry from before the like, then a finished storage-failed entry that reached the board:
+  listed; a later untagged error after a clean sync: listed; existing hide tests carry `refused: true`; :264 becomes
+  "an untagged error no longer hides it". Mutations: back to `last_result`; hide on any error without `content`;
+  ignore `refused` in later entries.

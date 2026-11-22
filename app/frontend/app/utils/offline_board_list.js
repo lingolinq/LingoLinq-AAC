@@ -10,7 +10,6 @@ import stashes from './_stashes';
 import lingoLinqExtras from './extras';
 import { is_revoked_raw } from './board_revocation';
 import { offline_sync_seeds } from './offline_sync_seeds';
-import { last_result } from './sync_log_store';
 import { library_board } from './board_device_copy';
 
 // The person whose device database is open, only when it is the signed-in person's (capabilities.setup_database
@@ -42,21 +41,44 @@ export function followable_links(raw) {
 
 var LIKED = { 'starred board': true, 'suggested board': true };
 
-// Whether this person's last clean sync saw a board without an error, and no later sync of theirs (finished or not)
-// showed an error for it (by id or key). Only entries for `user_name` count (`user_id` is the synced person's user_name,
-// services/persistence.js sync). A failed or cancelled sync logs only the boards it visited today; once the sync records
-// its errors when it stops (the Sync Details rework), those hide the board here too.
-// An error tagged `content` (the board was reached; a picture or sound did not save) is not a refusal: it neither hides
-// the board nor counts against it.
+// A sync that went through its whole walk: not cancelled, not stopped part way (the stop paths write `confirmed`,
+// services/persistence.js), and either clean or failed only on device writes (a finished sync with a failed write is
+// `errored` and `storage_failed`, #1336). Its rows say what the server answered for each board it reached.
+function walked_whole(e) {
+  return !!(e && !e.canceled && !e.confirmed && (!e.errored || e.storage_failed) && e.statuses && e.statuses.length);
+}
+
+// Whether this person's last whole sync saw a board, and no later sync of theirs (finished or not) refused it (by id
+// or key). Only entries for `user_name` count (`user_id` is the synced person's user_name, services/persistence.js).
+// Only a row tagged `refused` (a real server refusal, #1336) hides a board; a row with no error or with a `content`
+// error (reached; a picture or sound did not save) shows it was seen. An untagged error (a bad connection, a timeout,
+// an unknown error) decides nothing: the board's verdict comes from the newest older whole sync that has a deciding
+// row for it, and with none it is not seen.
 function seen_by_last_sync(sync_log, user_name) {
   var mine = (sync_log || []).filter(function(e) { return e && e.user_id === user_name; });
-  var found = last_result(mine);
+  var at = mine.length - 1;
+  while(at >= 0 && !walked_whole(mine[at])) { at--; }
   var ok = {};
   var failed = {};
-  var mark = function(s, into) { if(s.id) { into[s.id] = true; } if(s.key) { into[s.key] = true; } };
-  ((found && found.entry && found.entry.statuses) || []).forEach(function(s) { if(s) { mark(s, s.error && !s.content ? failed : ok); } });
-  mine.slice(found ? mine.indexOf(found.entry) + 1 : mine.length).forEach(function(e) {
-    (e.statuses || []).forEach(function(s) { if(s && s.error && !s.content) { mark(s, failed); } });
+  var unsure = {};
+  var tokens = function(s) { return [s.id, s.key].filter(function(t) { return t; }); };
+  var seen = function(s) { return !s.refused && (!s.error || s.content); };
+  if(at >= 0) {
+    mine[at].statuses.forEach(function(s) {
+      if(s) { tokens(s).forEach(function(t) { if(s.refused) { failed[t] = true; } else if(seen(s)) { ok[t] = true; } else { unsure[t] = true; } }); }
+    });
+    // Older whole syncs decide only the boards still unsure; within one sync a refusal wins over a clean row.
+    var open = function(t) { return unsure[t] && !ok[t] && !failed[t]; };
+    mine.slice(0, at).reverse().filter(walked_whole).forEach(function(e) {
+      var rows = e.statuses.filter(function(s) { return s; });
+      var refused_here = {};
+      rows.forEach(function(s) { if(s.refused) { tokens(s).forEach(function(t) { if(open(t)) { refused_here[t] = true; } }); } });
+      rows.forEach(function(s) { if(seen(s)) { tokens(s).forEach(function(t) { if(open(t) && !refused_here[t]) { ok[t] = true; } }); } });
+      Object.keys(refused_here).forEach(function(t) { failed[t] = true; });
+    });
+  }
+  mine.slice(at + 1).forEach(function(e) {
+    (e.statuses || []).forEach(function(s) { if(s && s.refused) { tokens(s).forEach(function(t) { failed[t] = true; }); } });
   });
   return function(raw) { return !!(ok[raw.id] || ok[raw.key]) && !failed[raw.id] && !failed[raw.key]; };
 }
@@ -76,7 +98,7 @@ function opens_here(opts) {
 // rules are tested without a database:
 // - the sync's seeds found on the device, in seed order (home, sidebar, liked); Crisis Vocabulary in sidebar order
 //   when the sidebar carries it, else last (Traci, 2026-11-16); another owner's liked board only if this person's
-//   last clean sync saw it without an error (not one unshared since);
+//   last whole sync saw it and no sync of theirs refused it since (seen_by_last_sync);
 // - then the person's own boards that none of those reaches, as sets: a board is a folder when a followable link from
 //   a listed board (or from another of these) reaches it; a set that is all a cycle is listed by its first board by
 //   key, so no set is left out. Sorted by name.

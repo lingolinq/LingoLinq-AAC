@@ -37,7 +37,7 @@ module('Unit | Utility | offline board list', function(hooks) {
     assert.deepEqual(keys(pick_device_boards(rows, user, [])), ['lingolinq/crisis-vocabulary'], 'no sync log: not offered');
     var seen = [{ user_id: 'larry', statuses: [{ id: '4_1', key: 'therapist/feelings', status: 'cached' }] }];
     assert.deepEqual(keys(pick_device_boards(rows, user, seen)), ['therapist/feelings', 'lingolinq/crisis-vocabulary']);
-    var refused = [{ user_id: 'larry', statuses: [{ id: '4_1', key: 'therapist/feelings', status: 'cached' }, { id: '4_1', key: 'therapist/feelings', error: 'Not authorized' }] }];
+    var refused = [{ user_id: 'larry', statuses: [{ id: '4_1', key: 'therapist/feelings', status: 'cached' }, { id: '4_1', key: 'therapist/feelings', error: 'Not authorized', refused: true }] }];
     assert.deepEqual(keys(pick_device_boards(rows, user, refused)), ['lingolinq/crisis-vocabulary'], 'refused since: not offered');
   });
 
@@ -120,7 +120,7 @@ module('Unit | Utility | offline board list', function(hooks) {
   test('another owner\'s board in a loop with an own board: the own board is listed, not the other', function(assert) {
     var rows = [board('8_1', 'larry/root', ['4_1']), board('4_1', 'aaron/unshared', ['8_1']), board('9_99', 'lingolinq/crisis-vocabulary', [], { public: true })];
     var user = person({ stats: { starred_board_refs: [{ id: '4_1', key: 'aaron/unshared' }] } });
-    var refused = [{ user_id: 'larry', statuses: [{ id: '4_1', key: 'aaron/unshared', error: 'Not authorized' }] }];
+    var refused = [{ user_id: 'larry', statuses: [{ id: '4_1', key: 'aaron/unshared', error: 'Not authorized', refused: true }] }];
     assert.deepEqual(keys(pick_device_boards(rows, user, refused)), ['larry/root', 'lingolinq/crisis-vocabulary'], 'trusted device');
     assert.deepEqual(keys(pick_device_boards(rows, user, refused, { shared: true, me: 'larry' })), ['larry/root', 'lingolinq/crisis-vocabulary'], 'shared device');
   });
@@ -141,6 +141,56 @@ module('Unit | Utility | offline board list', function(hooks) {
       board('8_2', 'larry/l1', ['8_3']), board('8_3', 'larry/l2', ['8_2'])];
     assert.deepEqual(keys(pick_device_boards(loop, person(), [], shared)), ['larry/l1', 'larry/root'], 'a loop below it');
     assert.deepEqual(keys(pick_device_boards(loop, person(), [])), ['larry/root'], 'trusted: it opens, so the loop is a folder');
+  });
+
+  // #1336 (2026-11-21): only a refusal hides another owner's liked board; a finished sync whose only failure was a
+  // device write still counts as the sync that saw it (#1336 marks it errored and storage_failed).
+  test('another owner\'s liked board: a sync whose only failure was a device write still saw it', function(assert) {
+    var rows = [board('4_1', 'therapist/feelings'), CRISIS];
+    var user = person({ stats: { starred_board_refs: [{ id: '4_1', key: 'therapist/feelings' }] } });
+    var before_the_like = { user_id: 'larry', statuses: [{ id: '5_5', key: 'larry/other', status: 'cached' }] };
+    var write_failed = { user_id: 'larry', issues: false, errored: true, storage_failed: true, statuses: [{ id: '4_1', key: 'therapist/feelings', status: 'downloaded' }] };
+    assert.deepEqual(keys(pick_device_boards(rows, user, [before_the_like, write_failed])), ['therapist/feelings', 'lingolinq/crisis-vocabulary']);
+    var stopped = { user_id: 'larry', errored: true, statuses: [{ id: '4_1', key: 'therapist/feelings', status: 'downloaded' }] };
+    assert.deepEqual(keys(pick_device_boards(rows, user, [before_the_like, stopped])), ['lingolinq/crisis-vocabulary'],
+      'a sync stopped by an error is not the one that saw it');
+  });
+
+  test('another owner\'s liked board: a bad connection or an unknown error does not hide it', function(assert) {
+    var rows = [board('4_1', 'therapist/feelings'), CRISIS];
+    var user = person({ stats: { starred_board_refs: [{ id: '4_1', key: 'therapist/feelings' }] } });
+    var ok = { user_id: 'larry', statuses: [{ id: '4_1', key: 'therapist/feelings', status: 'cached' }] };
+    var timeout = { id: '4_1', key: 'therapist/feelings', error: 'board therapist/feelings failed retrieval for syncing, linked from larry/home' };
+    var both = ['therapist/feelings', 'lingolinq/crisis-vocabulary'];
+    assert.deepEqual(keys(pick_device_boards(rows, user, [ok, { user_id: 'larry', errored: true, statuses: [timeout] }])), both, 'a later stopped sync');
+    assert.deepEqual(keys(pick_device_boards(rows, user, [{ user_id: 'larry', statuses: [{ id: '4_1', key: 'therapist/feelings', status: 'cached' }, timeout] }])), both,
+      'the same finished sync');
+  });
+
+  // Final review of the refused-only change (2026-11-21): which syncs decide, and what an untagged error does.
+  test('another owner\'s liked board: stopped and cancelled syncs never decide; untagged errors fall back to an older whole sync', function(assert) {
+    var rows = [board('4_1', 'therapist/feelings'), CRISIS];
+    var user = person({ stats: { starred_board_refs: [{ id: '4_1', key: 'therapist/feelings' }] } });
+    var row = function(extra) { return Object.assign({ id: '4_1', key: 'therapist/feelings' }, extra); };
+    var whole = function(statuses, extra) { return Object.assign({ user_id: 'larry', issues: false, statuses: statuses }, extra || {}); };
+    var refused = row({ error: 'Not authorized', refused: true });
+    var untagged = row({ error: 'board therapist/feelings failed retrieval for syncing' });
+    var other = { id: '5_5', key: 'larry/other', status: 'cached' };
+    var only = ['lingolinq/crisis-vocabulary'];
+    var both = ['therapist/feelings', 'lingolinq/crisis-vocabulary'];
+    var stopped_write_failed = { user_id: 'larry', errored: true, storage_failed: true, confirmed: true };
+    assert.deepEqual(keys(pick_device_boards(rows, user, [whole([refused]), Object.assign({ statuses: [row({ status: 're-downloaded' })] }, stopped_write_failed)])), only,
+      'a stop with a failed write is not the sync that saw it (its row was logged before the reload)');
+    assert.deepEqual(keys(pick_device_boards(rows, user, [whole([row({ status: 'cached' })]), Object.assign({ statuses: [other] }, stopped_write_failed)])), both,
+      'a stop with a failed write that did not reach it leaves the earlier whole sync in charge');
+    assert.deepEqual(keys(pick_device_boards(rows, user, [whole([refused]), { user_id: 'larry', canceled: true, statuses: [row({ status: 're-downloaded' })] }])), only,
+      'a cancel (an entry from before #1336, no `confirmed`) is not the sync that saw it');
+    assert.deepEqual(keys(pick_device_boards(rows, user, [whole([row({ status: 'cached' })]), whole([])])), both, 'an entry with no rows decides nothing');
+    assert.deepEqual(keys(pick_device_boards(rows, user, [whole([refused]), whole([untagged])])), only, 'refused, then only an untagged error: still hidden');
+    assert.deepEqual(keys(pick_device_boards(rows, user, [whole([untagged])])), only, 'only an untagged error ever: not seen');
+    assert.deepEqual(keys(pick_device_boards(rows, user, [whole([row({ status: 'cached' })]), whole([untagged])])), both, 'seen, then only an untagged error: listed');
+    assert.deepEqual(keys(pick_device_boards(rows, user, [whole([row({ status: 're-downloaded' }), refused]), whole([untagged])])), only,
+      'in the older sync a refusal wins over its clean row');
   });
 
   // Property check over random link graphs (seeded, so a failure repeats): only own boards are listed, each once; every
@@ -235,7 +285,7 @@ module('Unit | Utility | offline board list', function(hooks) {
     var rows = [board('4_1', 'therapist/feelings'), CRISIS];
     var user = person({ stats: { starred_board_refs: [{ id: '4_1', key: 'therapist/feelings' }] } });
     var ok = function(who) { return { user_id: who, statuses: [{ id: '4_1', key: 'therapist/feelings', status: 'cached' }] }; };
-    var err = function(who, extra) { return Object.assign({ user_id: who, statuses: [{ id: '4_1', key: 'therapist/feelings', error: 'board therapist/feelings failed retrieval for syncing' }] }, extra || {}); };
+    var err = function(who, extra) { return Object.assign({ user_id: who, statuses: [{ id: '4_1', key: 'therapist/feelings', error: 'board therapist/feelings failed retrieval for syncing', refused: true }] }, extra || {}); };
     var only = ['lingolinq/crisis-vocabulary'];
     var both = ['therapist/feelings', 'lingolinq/crisis-vocabulary'];
     assert.deepEqual(keys(pick_device_boards(rows, user, [ok('sam')])), only, 'someone else\'s sync saw it: not offered');
@@ -259,10 +309,10 @@ module('Unit | Utility | offline board list', function(hooks) {
     assert.deepEqual(keys(pick_device_boards(rows, user, [{ user_id: 'larry', statuses: [{ id: '4_1', key: 'therapist/feelings', status: 'downloaded' }, content] }])), both,
       'the last clean sync reached it, with a picture that did not save');
     assert.deepEqual(keys(pick_device_boards(rows, user, [ok, { user_id: 'larry', errored: true, statuses: [content] }])), both, 'a later sync: only a picture did not save');
-    assert.deepEqual(keys(pick_device_boards(rows, user, [ok, { user_id: 'larry', errored: true, statuses: [content, { id: '4_1', key: 'therapist/feelings', error: 'Not authorized' }] }])), only,
+    assert.deepEqual(keys(pick_device_boards(rows, user, [ok, { user_id: 'larry', errored: true, statuses: [content, { id: '4_1', key: 'therapist/feelings', error: 'Not authorized', refused: true }] }])), only,
       'a later refusal still hides it');
-    assert.deepEqual(keys(pick_device_boards(rows, user, [ok, { user_id: 'larry', errored: true, statuses: [Object.assign({}, content, { content: undefined })] }])), only,
-      'an older entry without the tag still hides it');
+    assert.deepEqual(keys(pick_device_boards(rows, user, [ok, { user_id: 'larry', errored: true, statuses: [Object.assign({}, content, { content: undefined })] }])), both,
+      'an untagged error no longer hides it (only `refused` does, #1336)');
   });
 
   // On a device not marked "Trust this Device", another owner's private board cannot open offline (routes/user.js

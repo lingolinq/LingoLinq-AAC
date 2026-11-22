@@ -23,7 +23,7 @@ import capabilities from '../../utils/capabilities';
 import contentGrabbers from '../../utils/content_grabbers';
 import LingoLinq from '../../app';
 import { run as emberRun, later, cancel as runCancel } from '@ember/runloop';
-import { persistenceTarget } from '../helpers/persistence-stub';
+import { persistenceTarget } from '../helpers/persistence-stub'; import { pick_device_boards } from '../../utils/offline_board_list'; // the offline list reads the sync log (contract tests below)
 import {
   syncSettled,
   cancelSyncTailWork,
@@ -5390,6 +5390,13 @@ describe("persistence-sync", function() {
           expect(rows.length).toEqual(1);
           expect(rows[0] && rows[0].error).toEqual('board 1_178 failed retrieval for syncing, linked from fred/next');
           expect(rows[0] && rows[0].refused).toEqual(true);
+          // PR #1328's offline list reads this entry: another owner's liked board the server refused is hidden, even
+          // though an earlier sync saw it (utils/offline_board_list.js seen_by_last_sync).
+          var liked = { data: { id: '1_178', raw: { id: '1_178', key: 'other/shared', name: 'Shared', user_name: 'other', buttons: [], grid: { order: [] } } } };
+          var seen_before = { user_id: outcome.last_log.user_id, statuses: [{ id: '1_178', key: 'other/shared', status: 'cached' }] };
+          var person = EmberObject.create({ user_name: outcome.last_log.user_id, preferences: {}, stats: { starred_board_refs: [{ id: '1_178', key: 'other/shared' }] } });
+          expect(pick_device_boards([liked], person, [seen_before]).map(function(b) { return b.key; })).toEqual(['other/shared']);
+          expect(pick_device_boards([liked], person, [seen_before, outcome.last_log]).map(function(b) { return b.key; })).toEqual([]);
           cancelSyncTailWork();
           persistence.set('sync_progress', null);
           LingoLinq.sync_testing_real_boards = false;
@@ -6815,6 +6822,12 @@ describe("persistence-sync", function() {
           expect(response.calls).toEqual(4);
           expect(rows[0] && rows[0].error).toEqual('board fred/slow failed retrieval for syncing, linked from 145');
           expect(!!rows[0] && 'refused' in rows[0]).toEqual(false);
+          // PR #1328's offline list reads this entry: a board that failed only on retries is not hidden when an earlier
+          // sync saw it (an untagged error decides nothing, utils/offline_board_list.js seen_by_last_sync).
+          var liked = { data: { id: '167', raw: { id: '167', key: 'fred/slow', name: 'Slow', user_name: 'other', buttons: [], grid: { order: [] } } } };
+          var person = EmberObject.create({ user_name: log[0].user_id, preferences: {}, stats: { starred_board_refs: [{ id: '167', key: 'fred/slow' }] } });
+          var seen_before = { user_id: log[0].user_id, statuses: [{ id: '167', key: 'fred/slow', status: 'cached' }] };
+          expect(pick_device_boards([liked], person, [seen_before, log[0]]).map(function(b) { return b.key; })).toEqual(['fred/slow']);
           cancelSyncTailWork();
           persistence.set('sync_progress', null);
           LingoLinq.sync_testing_real_boards = false;
