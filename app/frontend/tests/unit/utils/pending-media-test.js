@@ -1,6 +1,7 @@
 import { module, test } from 'qunit';
 import EmberObject from '@ember/object';
 import { settled } from '@ember/test-helpers';
+import { run, schedule } from '@ember/runloop';
 import {
   begin_pending_media,
   finish_pending_media,
@@ -152,5 +153,24 @@ module('Unit | Utility | pending media', function(hooks) {
     finish_pending_media(token, 'landed');
     await settled();
     assert.deepEqual(result, counts({failed: 1}));
+  });
+
+  test('the waiter answers only after an afterRender scheduled in the same run loop', async function(assert) {
+    // The automatic symbol lookup ends its operation BEFORE the afterRender that writes the
+    // button's image_id (utils/edit_manager.js lucky_symbols). A save that runs on the waiter's
+    // answer must see that write, so the answer has to come after the whole run loop.
+    var button = EmberObject.create({id: 'test-button'});
+    var token = begin_pending_media(button, 'pending_image', 'auto');
+    var applied = false;
+    var sawApplied = null;
+    when_media_settled().then(function() { sawApplied = applied; });
+    // eslint-disable-next-line ember/no-runloop
+    run(function() {
+      // eslint-disable-next-line ember/no-runloop
+      schedule('afterRender', function() { applied = true; });
+      finish_pending_media(token, 'landed');
+    });
+    await settled();
+    assert.true(sawApplied, 'the picture was applied before the save ran');
   });
 });
