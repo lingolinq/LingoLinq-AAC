@@ -129,3 +129,14 @@ symbols (2026-11-16).
   - **Finding (item 1.8):** every picture downloaded twice on a first sync with the Modern home page open. Evidence in
     section 12.4 item 1.8. One run's link bytes read 36.4 MB instead of 72.5 MB with the same 4,208 answers;
     unexplained, to watch in the baseline runs.
+- 2026-11-21: e2e suite on this branch (desktop Chrome): 8/9 with the harness changes; scenario 1 failed on
+  `expect(details.pct).toMatch(/100%/)`, a stale assertion since #1336 (da911bfde) replaced the percentage with "All
+  your boards are ready offline" (the assertion came from #1345, e0b8ae7c3, a day earlier; the suite is local-only, so
+  CI did not see it). Traci approved updating it (spec changed); it now also fails if a percentage returns (7fffb63d8).
+  Scenario 1 then passed.
+- 2026-11-21: emulator baseline for 1.2. The probe is a copy of `compare-android.js` in the session scratchpad with
+  `E2E` pointed at this worktree (originals untouched). Starting the emulator for it: `setsid
+  ~/android-tools/sdk/emulator/emulator -avd ll_trace -no-window -no-audio -no-snapshot-save -gpu swiftshader_indirect`,
+  wait for `getprop sys.boot_completed` = 1, then OPEN CHROME (`adb -s emulator-5554 shell am start -a
+  android.intent.action.VIEW -d about:blank com.android.chrome`) before the probe, or `connectOverCDP` fails with
+  "socket hang up". Chrome on the AVD is 124.0.6367.219, as in the 2026-11-19 runs.
