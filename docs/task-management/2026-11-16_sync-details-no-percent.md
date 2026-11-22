@@ -1,0 +1,976 @@
+# Sync Details: no percentage, the drawer's wording, and the cards after a failed first sync (2026-11-16)
+
+Traci's decisions (2026-11-16, memory "Offline/sync UI decisions"; a fix, no feature flag):
+- Sync Details never shows a percentage. While syncing: the drawer's moving bar and "Saved so far: N boards". After a
+  sync: the drawer's wording, "All your boards are ready offline" / "N of M boards are ready offline". The two screens
+  always agree.
+- After a failed first sync, Sync Details shows the grouped cards (same styling, not the old technical list) under
+  "Saved before the sync stopped", with no percentage and no Ready labels.
+
+These are items 3 and 4 of `docs/task-management/2026-11-16_sync-status-first-sync.md` (PR #1327), held there for
+Traci; her decisions replace the proposed "percentage capped at 99" (rejected: it mixes units and moves backward).
+
+Learnings consulted: LEARNINGS.md and learnings-archive/2026-11.md for "sync details", "drawer", "percent" (the
+#1327 review notes above; none other).
+
+## Fact sheet
+
+### (a) Where the values are read
+- CONFIRMED: the percentage is read in one place, `components/sync-details.hbs:15` (`{{this.summary_pct}}% ready
+  offline`), with its bar at :16 (`summary_bar_style`, `components/sync-details.js:64-65`). `summary_pct` has one
+  other reader: `tests/unit/components/sync-details-grouped-test.js:43`.
+- CONFIRMED: Sync Details' summary is `summary_for(persistence)` (`sync-details.js:52-54`); the drawer's is
+  `summary_for(persistence, {latest_only: true})` (`components/sync-progress-drawer.js:67`).
+- CONFIRMED: the drawer's wording is `result_title` (`sync-progress-drawer.js:96-104`): 'ready' → "All your boards are
+  ready offline"; 'attention' → "%{ready} of %{total} boards are ready offline" over `summary.groups`.
+- CONFIRMED: while syncing, Sync Details' lead already says "Syncing..." + `sync_progress_line` ("Saved so far: N
+  boards.", `utils/sync_progress.js`), `sync-details.hbs:35-37`; the drawer shows a moving bar
+  (`sync-progress-drawer.hbs:12-13`, `.ll-sync-drawer__bar`, reduced-motion handled in app.scss).
+- CONFIRMED: the cards render only `{{#if this.summary}}` (`sync-details.hbs:80`); pills from `card.status`
+  ("Ready offline", `sync-details.js:115`), the head's folder bar and "N of M folders saved" (:117-118), and the tabs
+  "Needs attention / Ready offline / All boards" (:80-95).
+
+### (b) Every shape the summary can hold (writers)
+1. Syncing: `rollup(sync_progress rows so far + errors)` (`utils/sync_rollup.js:134-136`). Partial by nature.
+2. A finished sync (clean or with problems), newest: `last_result` (`utils/sync_log_store.js:122-131`), `from_earlier`
+   false.
+3. A finished sync older than a later failed/canceled one: same, `from_earlier` true.
+4. No finished sync at all (only errored/canceled entries, e.g. a new account's failed first sync): `null` today, so
+   no cards; the old technical list is all there is. NEW SHAPE: the newest errored/canceled entry with rows, marked
+   `partial` and `stopped: 'failed' | 'canceled'`.
+5. No entries with rows: `null`.
+- CONFIRMED: a failed sync's rows stop at the failing step and carry no failures (`services/persistence.js` failure
+  branch), so in shape 4 every reached board reads "saved" and the totals are only what was reached:
+  "N of M" and "Ready" would overclaim (`tests/unit/utils/sync-log-store-test.js:134-143`).
+- The drawer passes `latest_only`, so shapes 3 and 4 never reach it (it stays as it is).
+
+### (c) Cross-file claims
+- CONFIRMED: no `.eslint-todo` or `.lint-todo` rows for sync-details, the drawer or sync_rollup (grep, 2026-11-16).
+- CONFIRMED: `.la-sync-card--ready` has no CSS rule; `--attention` has (app.scss ~33529-33603). The card head is a
+  5-column grid (40px / 1fr / 220px / 160px / 20px), stacked to 3 columns below 820px.
+
+## Proposal
+
+1. `utils/sync_log_store.js`: `partial_result(log)` → the newest errored or canceled entry with rows, used ONLY when
+   `last_result` is null. `last_result` and its tests are unchanged.
+2. `utils/sync_rollup.js` `summary_for`: when `last_result` is null and not `latest_only`, the partial entry's rollup
+   with `partial: true`, `stopped`, `finished`.
+3. One wording for both screens: `ready_title(summary)` (in `utils/sync_progress.js`, which already holds i18n sync
+   lines): missing 0 → "All your boards are ready offline", else "N of M boards are ready offline". The drawer's
+   `result_title` uses it for 'ready' and 'attention' (same strings, same keys); Sync Details uses it for shapes 2-3.
+4. Sync Details summary band:
+   - syncing: the drawer's moving bar (reuse `.ll-sync-drawer__bar`), then the existing lead ("Syncing... Saved so
+     far: N boards."). No percentage, no "X of Y saved" line (the total grows while it runs).
+   - shapes 2-3: `ready_title` in place of "N% ready offline" (same element), no bar; the "X of Y boards and folders
+     are saved on this device." line stays (counts, not a percentage).
+   - shape 4: no title, no bar; the lead says why it stopped (existing "Sync Failed..." / "The last sync didn't
+     finish..."); the line says "N boards and folders are saved on this device." (the drawer's existing keys).
+5. Shape 4 body: heading "Saved before the sync stopped", no tabs, every card; each card with no pill, no folder bar,
+   head line "Home board · N folders saved", the saved folder list as now, no "N of M", and for a board with no saved
+   folders "No folders were saved before the sync stopped." (not "has no folders inside", which may be false). A
+   `--saved` card modifier (no colour) with the 3-column head, on the same pattern as `--attention`.
+6. `summary_pct` and `summary_bar_style` removed (no reader left); the grouped test's `summary_pct` assertion is
+   replaced by one on the title (the specification changed: Traci, 2026-11-16).
+
+Alternatives:
+- B: show shape 4 with the normal cards and a "partial" banner. Rejected: the cards' "Ready offline" pills and "N of M"
+  would still overclaim, which the decision rules out.
+- C: keep a bar after a sync, filled to saved/total. Rejected: a filled bar is a percentage in another form.
+- Simplest: only hide the percentage. Rejected: leaves the failed-first-sync screen empty (the reported problem).
+
+## Risks and open questions
+
+- While a sync runs, the cards (with "Ready offline" pills and tabs) still show the rows so far. A board can read
+  "Ready offline" before all its folders are found. Not covered by the decisions; left as is and asked of Traci.
+- A canceled first sync gets shape 4 only when its entry has rows. The usual Cancel path logs `statuses: []` (`services/persistence.js` end_canceled_sync), so it shows no cards; a cancel that ends through the failure branch keeps its rows (corrected after the final review).
+- Shape 4 after an app restart: the log is restored (`restore_sync_log`), so the same view shows; the lead is
+  `restored_lead`'s "The last sync didn't finish...".
+- New strings need translations (i18n generator) for 13 locales.
+
+## Tests (red first) and mutations
+
+- sync-log-store: `partial_result` picks the newest errored/canceled entry with rows; null when none; ignored when a
+  finished entry exists (summary uses last_result). Mutation: drop the errored check → red.
+- sync-rollup: `summary_for` with only an errored entry → partial summary with its rows; with `latest_only` → null;
+  with a finished earlier entry → that one, not partial. Mutation: drop the fallback → red.
+- sync-progress (or rollup) `ready_title`: missing 0 → all ready; 1 of 2 → "1 of 2 boards are ready offline".
+- sync-details grouped: syncing → no title, `is_syncing` bar flag; finished → title from `ready_title`, no
+  `summary_pct`; partial → heading flag, no tabs, cards with no status/pill, "N folders saved", no "of", the
+  no-folders text. Mutations: pill back on partial → red; title from pct → red.
+- drawer: existing tests keep passing (wording unchanged).
+
+## Review (adversary, 2026-11-16): rethink shape 4; proceed with the percentage removal and the shared wording
+
+Each finding checked in the code before acting (cites at d6b3cc859):
+- High, CONFIRMED: the failure branch's log entry has no `roots` and merges no errors (`services/persistence.js`
+  :2463-2472; only the success branch writes `roots: board_roots`, :2428, and merges `sync_progress.errors`,
+  :2382-2396). Shape 4 would show one ungrouped card per board, each "Board" with no folders.
+- High, CONFIRMED: rows are written when a board is looked up, before its reload, so a board whose reload failed
+  later is still a "saved" row unless its error is merged.
+- High, CONFIRMED: a storage failure ends through the SUCCESS branch (`end_sync_if_storage_failed`, :2398) and its
+  entry carries only `issues: errors.length > 0`, so `last_result` treats it as finished and every row reads saved,
+  while the drawer reports 'failed'. "All your boards are ready offline" would be shown exactly there.
+- Medium, CONFIRMED: shape 3 (cards from an earlier finished sync after a failed one) would put a ready headline above
+  "Sync Failed". Asked of Traci (below).
+- Medium, PLAUSIBLE, accepted: after SYNC_LOG_KEEP (5) stops in a row the finished entry is gone and shape 4 can come
+  from an older stopped sync than the status line describes: mark it `from_earlier` when it is not the newest entry.
+- Medium, CONFIRMED: intro text counts only reached folders; the tabpanel's `aria-labelledby` would name a tab that
+  is not rendered; cards filter by `current_tab`, so a tab picked during a sync could empty shape 4.
+- Medium, CONFIRMED: test plan gaps (render test for pills/tabs/%; fixtures must match the real writer, which now
+  writes roots; a direct `partial_result` test; storage-failed, eviction and drawer errored-only tests).
+- Low, CONFIRMED: a `--saved` grid modifier is the override pattern Rule 0.7 forbids. Edit the original chevron rule.
+- Not taken: "dual review" for the persistence.js change. Sync is in Rule 0.12's fix-proposal scope, but not on the
+  dual-review list (auth, consent, other people's data, billing, AI, infra, data-bearing gate).
+
+## Traci's decisions (2026-11-16, after the review)
+
+- Shape 3: no ready headline; only the status line and "These results are from an earlier sync, ...".
+- While a sync runs: no Ready labels and no Needs attention / Ready tabs; labels return when it ends.
+- One PR for all of it.
+
+## Revised proposal
+
+Writers (`services/persistence.js`, line-neutral, all above the ESLint baseline's last row):
+- R1. Failure branch log entry: `statuses: with_errors(statuses, errors)` (the merge the success branch does, via
+  `utils/sync_rollup.js with_errors`; `final_rows` lets a later success win over an earlier error only when nothing
+  failed after it) and `roots: board_roots` read from `sync_progress` before it is cleared.
+- R2. Success branch: when `storage_failed`, the entry is `errored: true, storage_failed: true` (it did not save
+  boards; the drawer already says 'failed'). `entry_copy` keeps `storage_failed` so a restored log still knows.
+
+Readers:
+- R3. `utils/sync_log_store.js partial_result(log)`: the newest errored or canceled entry with rows that is not a
+  storage failure; `from_earlier` when it is not the newest entry. Used only when `last_result` is null.
+- R4. `utils/sync_rollup.js summary_for`: syncing → rollup with `unfinished: true`; last_result → as now; else (not
+  `latest_only`) partial_result → rollup with `unfinished: true, stopped: true, from_earlier`.
+- R5. `utils/sync_progress.js ready_title(summary)` → "All your boards are ready offline" / "%{ready} of %{total}
+  boards are ready offline" (groups), the drawer's existing keys; the drawer's `result_title` uses it.
+
+Sync Details:
+- Summary band: syncing → the moving bar (`.ll-sync-drawer__bar`) above the existing lead; finished and newest →
+  `ready_title`; finished but `from_earlier` → no headline (Traci); unfinished → no headline. The "X of Y boards and
+  folders are saved" line only for a finished summary; for a stopped one "N boards and folders are saved on this
+  device." (the drawer's keys); none while syncing.
+- Body, unfinished: no tabs, every card, no pill, no folder bar; the progress column holds "N folders saved"; the role
+  line is the role alone (no "N folders inside"); the folder intro says neither a total nor "Each one is saved
+  separately" over a partial list; a card with no saved folders says "No folders were saved before the sync stopped."
+  (stopped) or nothing extra (syncing). Missing folders (merged failures) still list under "Not saved yet". Stopped →
+  heading "Saved before the sync stopped" above the cards; tabpanel attributes only when tabs render.
+- Card tone: `ready` / `attention` / `saved` (no colour rule: the base card).
+- CSS: the chevron's own rule pins it to the head's last column on row 1, so a head without a pill keeps it at the
+  right; check both widths in the browser (this also moves it to row 1 on today's narrow cards).
+- `summary_pct` and `summary_bar_style` removed; the grouped test's `summary_pct` line becomes a `ready_title` check.
+
+Tests (red first): failure-branch entry has roots and merged errors (persistence-sync); storage-failed entry is
+errored + storage_failed and survives entry_copy; partial_result direct on [errored, finished] and [finished,
+errored], storage-failed skipped, from_earlier; summary_for shapes incl. latest_only; ready_title; Sync Details
+computed (syncing, finished newest, from_earlier, stopped); a render test of the modal for each shape (no "%", no
+pill/tabs when unfinished, heading when stopped); drawer with an errored-only log → 'result' stage (unchanged).
+
+## Implementation and verification (2026-11-17)
+
+- Red first: 12 new or changed tests failed for the expected reasons (missing helpers; the failed sync's entry had no
+  `roots` and no merged error; the storage-failed entry was not errored); the drawer's errored-only test was green
+  before and after (it pins unchanged behaviour).
+- Green: 209 of 210 on `--filter "/sync log store|sync rollup|sync-details grouped|sync-progress-drawer|failed sync's log entry|could not be saved as failed|storage|sync progress line|cancelled sync|sync-details/i"`
+  (the 1 skip is the existing filesystem fix_url test the "storage" filter matches).
+- Mutations, two runs, each mutant turning its own tests red:
+  - A: failure entry without roots; storage entry without `errored`; `partial_result` without the errored/canceled
+    check; `summary_for` without the `latest_only` gate; headline ignoring `from_earlier`.
+  - B: `partial_result` without the storage skip; tabs filtering while unfinished; a Ready label on unfinished cards;
+    failure entry without merged errors; `missing_count` for an unfinished summary.
+- No ModalDialog render test: rendering it costs 8-27 s per test and broke QUnit's ceiling
+  (`tests/integration/modal-close-button-test.js` header). Checked in a browser instead: production build served
+  locally, Playwright at 1280 px and Pixel 7, the modal opened in each state (finished with a missing folder,
+  finished all ready, earlier result, stopped first sync, running sync). In every state: no "%"; the headline only for
+  the newest finished sync ("1 of 2 boards are ready offline" / "All your boards are ready offline"); no tabs, pills
+  or `tabpanel` role when unfinished; "Saved before the sync stopped" only when stopped; the moving bar only while
+  syncing; the chevron 20 px from the right edge of the card head on its first row at both widths; no horizontal
+  overflow. The stopped heading first sat flush on the first card; moved inside the card list (12 px gap) and
+  re-checked.
+- Lint: `npm run lint:js:ci` only the known worktree false positive (`sync-details.js`, `toggle_technical`, now line
+  270); `ember-template-lint` clean on sync-details.hbs.
+- i18n: `i18n_generator.rb --generate` and `--merge`: 6 new keys, `sync_ready_offline_lower` dropped; the 12 other
+  locales carry `***` English placeholders (shown in English, `utils/i18n.js:448`). Machine translation not run:
+  1Password was signed out in this session (`extras:translate_ui_locales` needs GOOGLE_TRANSLATE_TOKEN).
+
+## Final review (adversary, 2026-11-17, at 5ec336455): ship with changes, no Critical or High
+
+All 8 earlier findings and every revised-proposal line confirmed implemented; persistence.js edits line-neutral; the
+other readers of `errored` (technical list, restored_lead_kind, entry_copy/merge_logs, drawer) behave as intended.
+Each finding checked:
+- Medium (CONFIRMED by reading, not executed): the headline can describe another person's sync when a root sync for
+  someone else (`controllers/user/index.js` `sync`, `persistence.sync(model.id, 'all_reload')`) logs a finished
+  entry after the person's own failed sync. Checked: no template calls that `sync` action (grep of
+  app/templates/user and the components), so no control reaches it today; the earlier review found the same. Not
+  changed; the log entry's `user_id` would be the gate if that action is ever wired to a control. Pre-existing source
+  ("87% ready" today).
+- Low: the earlier-sync band still shows "X of Y boards and folders are saved" and "Save the N now". Traci's answer
+  was about the ready headline only; kept as counts of that earlier sync under "These results are from an earlier
+  sync". Noted in the PR for her.
+- Low: "No folders are saved yet." for a running sync's card without folders was not in the proposal; kept (true, and
+  the finished text "has no folders inside" may be false mid-sync). Recorded here.
+- Low: no render test for the template guards. Not added: the stub approach (a pass-through modal-dialog) was not
+  tried here; the guards were checked in the browser in every state. Follow-up.
+- Low (PLAUSIBLE): errors recorded in the last ~75 ms before a stop may be missing from the stopped entry
+  (`sync_progress.errors` is refreshed by update_sync_progress on each nextBoard). Not changed: calling it in the
+  failure branch was not tested; a board missed this way reads saved under "Saved before the sync stopped".
+  Follow-up.
+- Low, fixed: the R1 test now restores `last_sync_status`, `sync_status_error` and `last_sync_at`; the "cancelled sync
+  that resolves" comment is back above its own describe; this log's canceled-first-sync line corrected above; the
+  card fields shared by finished and unfinished cards are written once (`finished_card` / `unfinished_card` + the
+  shared lists). `overall.pct` kept: `tests/unit/utils/sync-rollup-test.js:49` still asserts it.
+
+## A real failed first sync on four browsers (2026-11-17)
+
+Set-up: a synthetic user `sync_e2e_failfirst` (home board with 3 folders and a second-level folder, Crisis Vocabulary in
+the sidebar) with one contact whose picture is on a remote host (example.com address; private local e2e database). On
+develop that contact makes the contacts step throw after the boards are saved (`sync_contacts` calls
+`this.store_url_quick_check` with `this` undefined; fixed by #1327), so its first sync is a real failed first sync.
+Branch build served locally, the e2e harness's link and picture routing, a fresh device each time, Sync Now, then
+Sync Details. Opened through the dashboard's path (`modal.open('sync-details')`): Modern lands on the home board in
+Speak Mode, where the drawer stays hidden by design.
+
+| Browser | Sync | Log entry | Sync Details |
+|---|---|---|---|
+| Chromium, Pixel 7 profile | failed: "unspecified sync error" | errored, 6 rows, roots kept | "Sync Failed, see details below"; "6 boards and folders are saved on this device."; "Saved before the sync stopped"; 2 cards (home "4 folders saved", Crisis Vocabulary "Saved"); no %, tabs or pills |
+| WebKit, iPhone 15 profile | same | same | same |
+| Firefox, desktop | same | same | same |
+| Chrome 124 on the Android emulator (ll_trace, tablet) | same | same | same |
+
+Emulator note: Playwright's Android `launchBrowser` stalled on this AVD (new tabs stayed about:blank; the earlier
+unexplained TTS-probe stall looks the same). Chrome was driven over its DevTools socket instead (`adb forward
+tcp:9333 localabstract:chrome_devtools_remote`, a tab opened by intent, `connectOverCDP`), with DOM `click()` for
+buttons (pointer input over that connection timed out).
+
+Found on the way, not changed: `sync_logs` calls `this.store` inside plain callbacks (`services/persistence.js`
+sync_logs), which would throw; it is unreachable today, since only that function writes the `bigLogs` row it reads.
+Follow-up.
+
+## Part 2 (2026-11-17): the Cancel path logs what it saved and what failed (for #1328)
+
+Why: PR #1328 ("Boards on This Device", docs/task-management/2026-11-16_offline-boards-page.md in that branch) hides
+another owner's liked board when this person's newest clean sync saw it without an error AND no later sync of theirs
+shows an error for it (`utils/offline_board_list.js` `seen_by_last_sync`, reads `entry.statuses[].error`). This branch
+already gives the failure branch's entry the errors it recorded. The Cancel path still logs `statuses: []`, so a board
+refused during a sync the person cancelled stays listed. Traci (2026-11-17): close it on this branch, full process.
+develop merged first (e55026ccb: #1326, #1327; one import-line conflict, both sides kept).
+
+### Fact sheet
+- (a) READ: Sync Details `partial_result` / `summary_for` (`utils/sync_log_store.js`, `utils/sync_rollup.js`) and the
+  technical list read a canceled entry's `statuses`/`roots`; #1328 reads `statuses[].error` of every entry for the
+  person. CONFIRMED (this branch's files; #1328's at its head 09fd218be).
+- (b) Writers of a stopped entry (`services/persistence.js`, this branch):
+  - Cancel that resolves: `end_canceled_sync` (:5113-5124): `sync_progress` cleared first, then `statuses: []`, no
+    roots. Called from the success branch (:2376) while `sync_progress` is still set. CONFIRMED.
+  - Cancel or failure that rejects: the failure branch (:2440-2470): `with_errors(statuses, sync_progress.errors)`,
+    `roots`, `canceled` or `errored`. CONFIRMED.
+  - `sync_progress.errors` is a COPY refreshed only by `update_sync_progress` at the top of each walk step (:3089 via
+    :1972-1988); the live arrays are `sync_progress.progress_for[<user id>].board_errors` (:3070, :3087), pushed at
+    :3359, :3378, :3380. On a cancel the walk returns before refreshing (:3078-3081), so the copy can miss the last
+    board's error. CONFIRMED by reading (the earlier review's "~75 ms" Low).
+  - `entry_copy` keeps `statuses[].error` (`utils/sync_log_store.js:44-50`), so an error row survives a restart.
+    CONFIRMED.
+- (c) Cross-file: services/persistence.js's last baselined row is 4465, so :5113 may take new lines and the failure
+  branch must stay line-neutral. CONFIRMED (`.eslint-todo`).
+
+### Proposal (A)
+1. `utils/sync_rollup.js` `stopped_errors(progress)`: the concatenated live `board_errors` of every
+   `progress.progress_for` entry (empty for none). Pure.
+2. `end_canceled_sync`: BEFORE clearing `sync_progress`, read `board_statuses` (uniq by id, as the failure branch),
+   `stopped_errors(...)` and `board_roots`; log `statuses: with_errors(statuses, errors), roots`.
+3. The failure branch reads `stopped_errors(sync_progress)` instead of the `sync_progress.errors` copy (same line).
+Effect on Sync Details: a cancelled sync now has rows, so with no finished sync it shows the stopped cards
+(`stopped: 'canceled'`, already designed and tested on this branch); with a finished sync it is "from earlier" as
+before (`last_result` skips canceled entries).
+Candidates: (b) call `update_sync_progress()` before reading: rejected, it writes `sync_progress` fields and notifies
+the drawer on a sync that is ending; (c) leave the Cancel entry empty: rejected (the #1328 gap).
+Tests (red first): a cancel that resolves logs the visited board, an error recorded after the last refresh, and the
+roots (mutants: `statuses: []`; reading the `sync_progress.errors` copy); the failure branch picks up an error recorded
+after the last refresh (mutant: the copy); `stopped_errors` unit test.
+
+### Item B (liked boards the server reports as revoked): recommend NOT doing it
+`utils/board_revocation.js` `settled_decision` writes revocation marks only after a full, error-free, uncancelled sync of
+every synced person ("short of a full, error-free sync ... no decision"), because a partial answer must never take a
+board away from an AAC user (a supervisee's response covers only their own tree). Recording "revoked" from a stopped
+sync, or hiding a board in #1328's list on that partial verdict, reverses that safeguard. The case left: with
+"sync liked boards" on, a board unshared since the last clean sync, followed only by stopped syncs, stays listed on a
+TRUSTED device (shared devices already hide other owners' private boards), where its device copy already opens today.
+The next clean sync marks it. For Traci to confirm.
+
+### Review of Part 2's proposal (adversary, 2026-11-17): proceed with changes; Traci: the High + the Cancel path
+
+Checked: `board_lookup` records `'re-downloaded'` BEFORE the reload (`services/persistence.js:2780`); a passing failure
+with no device copy is parked with no error (:3363), and a stop drops it; `final_rows` counts the row as saved
+(`utils/sync_rollup.js:17`, `:52`). The batch step records `'downloaded'` before its store (:2971; the store's success
+calls `note_device_boards`). CONFIRMED. So a stopped entry (failure branch, already on this branch, and Cancel) can show
+boards as "saved on this device" that are not: High. Traci (2026-11-17): fix the High and the Cancel path; tag lookup
+failures so #1328 hides a liked board only on those (that #1328 push needs Scot's OK for a third review round); the
+non-error status for pictures dropped by a cancel is deferred.
+Corrections to Part 2's text: the "Why" line is inverted (#1328 LISTS the board when the newest clean sync saw it
+without an error and no later entry shows one, and hides it otherwise); `stopped` is a boolean (`utils/sync_rollup.js`),
+not 'canceled'; no test computes a cancelled stopped summary yet. Item B's reason: `settled_decision` guards writing
+device-wide marks; it says nothing about filtering one person's list, and the remaining case also covers "sync liked
+boards" off with a stop before the walk reaches the board, and a sync that finished WITH problems (no marks, though #1328
+then hides the board because the sync skipped it). The recommendation stands for Traci.
+
+Revised units (one commit each, red first):
+- H. `utils/sync_rollup.js` `note_board_done(sync_progress, id, key)` and `confirmed_statuses(statuses, sync_progress)`:
+  at a stop, a `'downloaded'`/`'re-downloaded'` row counts as saved only when `board_lookup` finished it
+  (`note_board_done`, called on the same lines as :2782's reload success and :2785) or the device database confirmed it
+  (`sync_progress.device_boards`, `note_device_boards`); otherwise its status becomes `'not_saved'` (not an error, so
+  #1328 does not hide on it; Sync Details counts it as not saved, `rollup` `ok = saved && !error`). Used by the failure
+  branch (same line) and the Cancel path.
+- A. `live_board_errors(sync_progress)` (not `stopped_errors`: that name is the failure branch's local): every
+  `progress_for[*].board_errors` entry plus any `sync_progress.errors` entry not already among them (so R1's planted
+  copy still counts, once; no fixture change). `end_canceled_sync` logs, before clearing `sync_progress`,
+  `with_errors(confirmed_statuses(uniq(board_statuses)), live_board_errors(...))` and `roots`. The failure branch reads
+  `live_board_errors` (same line).
+- T. Content errors ("failed to sync completely", :3359) carry `content: true`, kept by `with_errors`, the success
+  branch's merge (:2383-2394, line-neutral) and `entry_copy`; #1328's `seen_by_last_sync` ignores `content` rows
+  (older untagged entries still hide: the safe side).
+Tests: sync_rollup units (note/confirm/live errors, dedupe); `board_lookup` harness: a memory-only board whose reload
+times out is not done, a reload that succeeds is (mutant: no note); `end_canceled_sync` with planted progress (a
+supervisee's array alone holds an error; the copy is stale; one unconfirmed row; a specific roots key; mutants:
+`statuses: []`, copy only, root's array only, roots dropped, no confirm); the failure branch with an unconfirmed row and
+a live-only error (mutants: copy only, no confirm); grouped-test: a cancelled entry with rows (heading, summary line,
+restored lead).
+
+### Part 2 status when this session stopped (2026-11-17, Rule 0.13: three self-inflicted errors close together)
+
+UNCOMMITTED in this worktree (not verified; do not push as is):
+- `utils/sync_rollup.js`: `note_board_done`, `confirmed_statuses`, `live_board_errors` (H and A).
+- `services/persistence.js`: `note_board_done` on the reload-success and fresh-download lines (:2782, :2785, same
+  lines); the failure branch reads `confirmed_statuses` and `live_board_errors` (:2439-2440, same lines);
+  `end_canceled_sync` logs confirmed rows, live errors and roots (+7 lines at :5115, below the baseline's last row 4465;
+  every hunk above it is one-for-one, checked with `git diff -U0`); the import line.
+- Tests: `tests/unit/utils/sync-rollup-test.js` (3), `tests/utils/persistence-sync-test.js` (2 in the #1212 harness,
+  a new describe "a stopped sync's log entry" with 2), `tests/unit/components/sync-details-grouped-test.js` (1, a pin:
+  passes before and after).
+Last run (filter /sync|persistence|offline board list|board retry|revocation/i): 595 tests, 584 pass, 9 skipped
+(pre-existing), 2 fail, both in the new describe:
+1. the Cancel test called `persistence.end_canceled_sync` on the utils/persistence import (no such method there). Patched
+   to call `persistenceTarget() || persistence` (the service); NOT re-run.
+2. the failure-branch test failed the leak check: "LingoLinq.Board.refresh_data_urls was replaced and not restored".
+   Not diagnosed. R1, which it copies, passes the same check; it may be fallout from (1) dying first. Run the describe
+   alone after (1) is re-run.
+Red runs before the code: all 7 new non-pin tests failed for the right reasons (missing helpers; empty Cancel rows).
+Still to do: re-run; diagnose (2) if it remains; mutants (no note on :2782; no confirm in either stop path; copy-only
+errors; root's array only; roots dropped; `statuses: []`); unit T (the `content` tag, here and in #1328, whose push needs
+Scot's OK for a third review round); lint gate; final review; Traci's answer on item B; then a PR.
+
+### Part 2, session 2 (2026-11-18): units H and A verified
+
+- The new describe alone (port 7462): 2/2. Full filter `/sync|persistence|offline board list|board retry|revocation/i`:
+  595 tests, 586 pass, 9 skipped (the same 9 as before), 0 fail.
+  After the guarded reads, the M2 test and the comment move, the same filter: 596 tests, 587 pass, 9 skipped, 0 fail.
+- The leak failure ("LingoLinq.Board.refresh_data_urls was replaced and not restored", charged to the failure-branch
+  test): CONFIRMED as fallout from the Cancel test DYING. Reproduced under mutant M8: the Cancel test threw a TypeError
+  (`by['me/core-parked'][0]` undefined), the beforeEach stub stayed, and the leak check charged it to the next test. The
+  new tests now read rows guarded (`((by[k] || [])[0] || {}).status`), so a wrong value fails an assertion instead.
+  That a dying synchronous test leaves the beforeEach stubs is a pre-existing harness trait, not changed here.
+- WRONG, corrected 2026-11-19 (the final adversary review): "Saved-at-lookup is sound: the adapter's find resolves only
+  after `store_eventually` resolves ... so a finished reload or fresh fetch was saved on the device. CONFIRMED." I read
+  the adapter's `.then` (`services/persistence.js:4534-4538`) but not what it waits on. `store_eventually` returns
+  `RSVP.resolve(obj)` as soon as the save is QUEUED (`services/persistence.js:652-663`; the adapter mixes in the utils
+  copy, `adapters/application.js:2`, :48, `utils/persistence.js:646-656`), and the queue writes one entry per 200 ms. So
+  `note_board_done` means "fetched and queued", not "on the device". Still narrower than before H (every looked-up row
+  counted), but not the guarantee claimed. See the final review section below.
+- Mutants (filter `/stopped sync's log entry|board reloads under a slow server|sync rollup/i`, 40 to 41 tests):
+  M1 no note on reload success: killed (1). M2 no note on fresh download: SURVIVED at first (no test reached that line);
+  added "marks a freshly downloaded board finished", then killed (1). M3 failure branch without `confirmed_statuses`:
+  killed (1). M4 Cancel without it: killed (1). M5 failure branch reading only the copy: killed (1). M6
+  `live_board_errors` reading only the first user: killed (3). M7 roots dropped: killed (1). M8 `statuses: []`: killed
+  (1, by assertion, after the guarded reads).
+- `with_errors`' comment had been left above the new helpers; moved back above `with_errors`.
+- persistence.js hunks above 4465 one-for-one (2439-2440, 2782, 2785, 4987); +7 at 5115.
+- H and A are one commit: one import line, the Cancel path (A) calls H's `confirmed_statuses`, and the describe's two
+  tests check both. An H-only commit would be a state no run verified.
+
+### Unit T, this branch (2026-11-18/19): content errors tagged
+
+Facts (CONFIRMED by reading): the content error is pushed at `services/persistence.js:3359` as `{error, board_id,
+board_key}`; lookup failures (:3378 deleted, :3380 retrieval) stay untagged. `with_errors` built `{id, key, error}`;
+the success merge (:2383-2394) set `status.error` or pushed `{id, key, error}`; `entry_copy` kept `id, key, status,
+error`. Each dropped any tag.
+No test reaches :3359 (only a failed picture or sound save on the real walk does, and no harness drives one). Traci
+(2026-11-18): build the error with a pure helper (`utils/sync_rollup.js` `content_error`, used on :3359, same line) and
+unit-test it; accept that a mutant reverting :3359 to the literal survives (T6 below; for the PR's "Not covered").
+Change: `content_error`; `with_errors` copies `content` only when set (no `content: undefined` key); the success merge
+sets or clears it on an existing row and adds it to an error-only row (same lines); `entry_copy` keeps `content`.
+persistence.js hunks one-for-one (2387, 2392, 3359, 4987). The utils copy (`utils/persistence.js:3377`) has its own
+"failed to sync completely" line, untouched, as H and A left that copy (the app runs the service's sync).
+Red: 4 new tests failed for the missing tag or helper. Green: 31/31 on `/sync rollup|sync log store|content failures
+tagged/i`; full sync filter 600 tests, 591 pass, 9 skipped, 0 fail. Mutants: T1 helper without the tag: killed (1); T2 `with_errors` dropping it: killed (1); T3 tagging every
+error: killed (2); T4 `entry_copy` dropping it: killed (1); T5 merge onto an existing row: killed (1); T6 :3359 not
+using the helper: SURVIVED (the accepted gap); T7 merge on an error-only row: killed (1).
+
+### Item B decided (Traci, 2026-11-19): not done
+A stopped sync does not record "revoked". The recommendation above stands. Record the remaining case (on a trusted device, a
+liked board unshared since the last clean sync stays listed until a clean sync) in the PR's "Not covered".
+
+### Final review (2026-11-19)
+PII pre-flight exit 0. REVIEWED=range 46dddb59195cdd1ceda3382f4b44da54054b3001 (46dddb59195cdd1ceda3382f4b44da54054b3001) ... HEAD (ff0699ae903f0940c7648622df85e950ac63a1ae) in /home/tracid/LingoLinq-AAC-sync-details
+- `/review-pr` (senior pass): Approve. Its 2 Mediums and 1 Low were checked and dismissed: `end_canceled_sync` sees only
+  the cancelled sync's own `sync_progress` (:2040-2049 absorb rule, :4905, :5114, :2376); the failure branch dedupes by
+  id (:2462); `la-sync-card--saved` is unstyled on purpose (the base card is neutral; `--ready` has no rule either).
+- `/adversary-review`: ship with conditions. Verified here:
+  1. Medium, CONFIRMED: `store_eventually` resolves on queueing (above), so `note_board_done` overstates "saved".
+  2. Medium, CONFIRMED: the stop paths never check failed writes. `writes_before` (:2042) is read only by the success
+     branch (:2399, :2426); the failure branch and `end_canceled_sync` do not set `storage_failed`, so
+     `partial_result`'s exclusion cannot fire for a stopped entry. A full device plus Cancel can show "saved before the
+     sync stopped".
+  3. Low (reported CONFIRMED, not yet re-checked): a board kept on a retry (`keep_stored_board`) can read `not_saved`
+     (uniq keeps the first, unconfirmed row; nothing notes the kept one).
+  4. Low, PLAUSIBLE (not re-checked): "failed retrieval" after the retry limit is untagged like a refusal; the
+     `board_unauthorized` flag is dropped by `with_errors`/merge/`entry_copy`.
+  5. Low (not re-checked): the running rollup counts in-flight downloads, so the count can drop after Cancel.
+  6. Low (not re-checked): the technical list has no "not saved" case for `not_saved` rows.
+  Open: Traci to decide the scope before any change (findings 1 and 2 need the /fix-proposal process).
+
+## Part 3 (2026-11-19): findings 1 and 2 of the final review (fix-proposal)
+
+### Fact sheet
+(a) READ: `confirmed_statuses` (`utils/sync_rollup.js`) reads `sync_progress.boards_done` and `sync_progress.device_boards`
+at a stop: failure branch (`services/persistence.js:2439`), `end_canceled_sync` (:5119). `partial_result` reads
+`entry.storage_failed` (`utils/sync_log_store.js:137-147`). CONFIRMED.
+(b) SHAPES of a 'downloaded'/'re-downloaded' row at a stop, with the writer of each:
+  1. Fetched by `board_lookup` (reload or fresh), save QUEUED, not yet written. The adapter is the utils DSExtend: the
+     service's `DSExtend` is a static on the Service class (`services/persistence.js:4243`), so the proxy's
+     `prop in window.persistence` misses and falls back to the utils module (`utils/persistence.js:4569-4600`, :4233).
+     Its find calls the utils `store_eventually` (:4392), which queues and resolves at once (:646-656). Today counted
+     saved (`note_board_done`, :2782, :2785). CONFIRMED.
+  2. Same, write done: on the device. CONFIRMED.
+  3. Same, write FAILED: the utils `store` logs to `root.errors` and resolves (:759-771) and does NOT call
+     `note_failed_write` (only the service `store` does, `services/persistence.js:772`), so `failed_writes` never counts
+     it, and today it is counted saved. CONFIRMED.
+  4. Batch step: 'downloaded' (:2971), the service `store`, and `note_device_boards` in its success handler (:2975),
+     which runs on a FAILED write too (`store` resolves on failure, :772-777). Failure IS counted (`note_failed_write`).
+     Today counted saved. CONFIRMED.
+  5. The queue keeps draining after the stop (`utils/persistence.js:670-694`, a 200 ms timer that does not look at the
+     sync), so a shape-1 board usually lands seconds later unless the app closes or the write fails. CONFIRMED.
+  `device_boards` is created by the first `note_device_boards` call, which also sets `device_boards_read_at`
+  (`utils/sync_board_fallback.js:63-66`); `known_on_device` treats an existing map as "the device was read"
+  (:85-90). So nothing may CREATE that map except the device read. CONFIRMED.
+(c) Cross-file: `writes_before` is set in `sync` (:2042) and is in scope in the failure branch (the success branch uses
+it at :2399). `end_canceled_sync` gets no writes count (:2376 call). Lines above 4465 in services/persistence.js must stay
+one-for-one; utils/persistence.js's last baselined row is 4358 (`.eslint-todo`), so its `store` (~:760) and its import
+lines must be edited one-for-one too. CONFIRMED.
+
+### Proposal
+Finding 1, candidates:
+- A (recommended). Confirm on the WRITE, not the fetch. One helper, `note_board_written(root, store, obj)`
+  (utils/sync_rollup.js), called on the "Successfully stored object" line of BOTH `store` copies (same line): for
+  store 'board' with a live `sync_progress`, mark `boards_done[id/key]`, and add to `device_boards` only if that map
+  already exists (never create it). Remove the two `note_board_done` calls at :2782/:2785 (queue-time). Move :2975's
+  `note_device_boards` into the same hook (it then runs only on a written board; a failed batch write is no longer
+  noted, so a later lookup in the same sync downloads it again, which is correct). Effect: at a stop, a queued or
+  failed write reads 'not_saved'. Cost: a board queued at Cancel that lands a second later still reads "not saved"
+  in that entry (true at the stop; the next sync corrects it). Covers shapes 1, 3, 4.
+- C (the review's). At the stop, demote boards still in the utils `eventual_store` queue. Rejected as the main fix:
+  misses failed writes (shape 3) and the batch failure (shape 4), and reads another object's private queue.
+- B. A, plus hold the stopped entry until the queue drains (bounded). Rejected: both stop paths are synchronous, Sync
+  Details reads the log at once, and a bounded wait still guesses.
+- D. A, plus flip a stopped entry's 'not_saved' row when its write lands later. Rejected for now: a log write on the
+  store hot path; possible follow-up.
+Finding 2: the failure branch computes `writes_failed_since(_this_sync, writes_before)` and sets `storage_failed` on its
+entry (same line); `end_canceled_sync` takes `writes_before` from its caller (:2376) and does the same. And the utils
+`store` calls `note_failed_write(root, error)` like the service copy, so a failed adapter write is counted (this also
+makes a FINISHED sync whose only failures were adapter writes end as failed, which is #1268's intent; a behaviour change
+on the success branch, for the review).
+Risks: the store hot path gains a cheap call per write; `known_on_device` sees batch boards only after their write (one
+extra download possible where a write failed); the utils counter change can turn a finished sync into "failed" on
+devices where adapter writes fail today unnoticed.
+Unresolved: is a 'cached' row trusted by the `retrieved` stamp (`known_on_device`) the same hole? (fetched since the
+device read = queued, not written). Proposed: out of scope, record in "Not covered".
+Tests (red first): unit `note_board_written` (marks done, adds to an existing map, never creates one, ignores other
+stores); #1212 harness: a reload that finished but whose write has not run is NOT saved at a stop, and IS after the
+service `store` writes it; a failed write is not; the failure branch and Cancel set `storage_failed` after a failed write
+(and `partial_result` returns null); the utils `store` counts a failed write. Two EXISTING tests on this branch encode
+the old spec ("marks a board finished when its reload finished", "marks a freshly downloaded board finished": saved at
+lookup); they must change with it: needs Traci's OK (Rule #0.14).
+Mutants: no hook in either store copy; hook creating `device_boards`; :2975 note left in place; no `storage_failed` in
+each stop path; utils `store` without `note_failed_write`.
+
+### Review of the Part 3 proposal (adversary, 2026-11-19, at c89734c6d): proceed with changes
+Every CONFIRMED fact held. Verified here: `dbman.store` rewrites the record it is handed (`utils/dbman.js:146-159`:
+`record.id` becomes "board::<id>", `record.raw` is encrypted), so the hook must read the CALLER's `obj`, unwrapped
+(`obj[store] || obj`), never `record`; the utils proxy sends `persistence.store` to the service copy
+(`utils/persistence.js:4590-4600`), so a test through the proxy never reaches the utils `store`; the batch fills
+`key_lookups` before it stores (:2972-2973), so a failed batch write is NOT downloaded again in the same sync.
+Correction to the proposal (Rule #0.10): "a later lookup in the same sync downloads it again" was false: the batch's
+cached lookup is reused (:2758-2759); moving the :2975 note costs nothing.
+Revised plan:
+- Hook `note_board_written(root, store, obj)` reads `obj[store] || obj`; called AFTER `resolve(obj)` on the same line in
+  both `store` copies, inside try/catch, so it can never hang a write (the batch waits on it, :2974-2978).
+- Utils-copy tests drive the adapter path (DSExtend `findRecord` under `sync_testing`, as
+  `tests/unit/utils/adapter-board-find-test.js`); the "no hook" mutant runs on each copy separately.
+- `end_canceled_sync` gets `writes_before` from :2376; a missing one means "do not check" (the counter is never reset,
+  and `writes_failed_since(root, undefined)` compares with 0).
+- Drop `note_board_done` from the services import once its two calls go.
+- Recommended NOT in this unit: `note_failed_write` in the utils `store`. With A, a failed board write is already not
+  counted as saved; `failed_writes` is device- and session-wide, so counting every adapter write (user, buttonset,
+  image rows, browsing, an earlier sync's queue) could fail finished syncs for writes that are not this sync's boards,
+  with no evidence yet of how often adapter writes fail. For Traci.
+- "Not covered" additions: a 'cached' row trusted by the `retrieved` stamp (queued, not confirmed); a fresh board
+  served from memory with no device read (when `board_revisions` fails) reads not_saved though it is on the device;
+  a board looked up by a key that was renamed; a board queued at Cancel that lands a second later still reads not
+  saved in that entry.
+- The two existing tests: the smallest change keeps their assertions and changes only the fixture (the stubbed reload
+  or find stores `{board: {id: '1_1212', key: 'example/slow'}}` through the real path); new siblings pin the no-write
+  case. Needs Traci's OK.
+Traci (2026-11-19): change the two tests' setup (assertions kept; the stubbed reload/fetch stores through the real save
+path; siblings for no write and a failed write). Leave `note_failed_write` out of the utils `store` (record in "Not
+covered"). Order: unit F2 (storage_failed in both stop paths), then unit F1 (saved only on a written board).
+
+### Unit F2 (2026-11-19): storage_failed in both stop paths
+Code: the failure branch sets `storage_failed: writes_failed_since(_this_sync, writes_before) || undefined` (same line,
+:2467); the :2376 call passes `writes_before`; `end_canceled_sync(..., writes_before)` checks only when given it.
+Harness trap found on the way (CONFIRMED by a debug run): `primeSyncHarness` stubs `lingoLinqExtras.storage.store` so
+only 'settings' writes reach the device database (`tests/utils/persistence-sync-test.js:649-656`); every other write
+resolves without writing. A `capabilities.dbman.store_internal` stub therefore never sees a board write in this suite.
+My first version of the F2 tests used that stub: the failure-branch test failed (no write was ever counted), and the
+Cancel test passed for the wrong reason (a later 'settings' write failed). Rewritten to fail the 'board' write at
+`lingoLinqExtras.storage.store` and pass every other store through. The existing `syncWithFailingWrites` tests
+(:5801) also fail only a 'settings' write; noted, not changed.
+Red (the committed pre-F2 code, the corrected tests): 3/3 fail on `storage_failed`. Green: 16/16 on the stop-path
+describes; full sync filter 603 tests, 594 pass, 9 skipped, 0 fail; lint only the known false positive. Mutants: F2a
+failure branch without the flag: killed (1); F2b :2376 not passing `writes_before`: killed (1); F2c Cancel checking with
+no start count: killed (1); F2d Cancel entry without the flag: killed (2).
+
+### Stop point (2026-11-19, Rule #0.13: three self-inflicted errors close together)
+The errors: the wrong "saved at lookup" CONFIRMED claim (corrected above); a log command that hung on a stray `cat`
+(its empty file removed); the first F2 tests failing for the wrong reason (harness trap above). F2 is committed and
+verified (cee927b8f). Remaining, in order:
+1. Unit F1 (the revised plan in "Review of the Part 3 proposal"): red tests first, including the two approved setup
+   changes (the stubbed reload/fetch stores `{board: {id: '1_1212', key: 'example/slow'}}` through the real path;
+   assertions kept) and their no-write / failed-write siblings; utils-copy tests through DSExtend `findRecord` under
+   `sync_testing` (`tests/unit/utils/adapter-board-find-test.js`), and a board write failed at
+   `lingoLinqExtras.storage.store` (NOT dbman: the harness trap). Then the hook (both `store` copies, after `resolve`,
+   try/catch, reading `obj[store] || obj`), remove :2782/:2785 notes and the import, move :2975's note into the hook.
+   Mutants: no hook in each copy separately; hook reading `record`; hook creating `device_boards`; :2975 left in place;
+   a throwing helper.
+2. The four Lows (all re-checked real, 2026-11-19): 3 (kept-on-retry reads not_saved: F1's hook covers it if the kept
+   path's board was written, else note on keep), 4 (retry-limit failures untagged like refusals; #1328 hides on them:
+   a `passing` tag, or tag refusals), 5 (running count drops after Cancel), 6 (technical list has no "not saved" or
+   "kept" case). Traci to choose which go in this PR.
+3. Re-run the final dual review on the new range, then /pr-preflight, then ask before pushing.
+"Not covered" for the PR so far: pictures dropped by a cancel; a Cancel 2 s in replacing an earlier failed sync's
+cards; a cancel during priming (rows with no roots); item B; the :3359 walk line untested; queued-save failures not
+counted (`note_failed_write` not in the utils `store`); 'cached' rows trusted by the `retrieved` stamp; a fresh board
+served from memory with no device read; a renamed key; a board queued at Cancel that lands a second later.
+
+### Unit F1 (2026-11-19): a board counts as saved once its write succeeds. Code written; NOT fully verified
+Code: `utils/sync_rollup.js` `note_board_written(root, store, obj)` (reads `obj[store] || obj`; marks `boards_done`; adds
+to `device_boards` only when it exists); called after `resolve(obj)`, in try/catch, on the success line of both `store`
+copies (`services/persistence.js:769`, `utils/persistence.js:757`, same lines); the queue-time notes at :2782/:2785
+removed (both lines back to their pre-H form); the services import drops `note_board_done`; utils imports the helper
+(:4642, same line). Every hunk one-for-one.
+Deviation from the reviewed plan: :2975's `note_device_boards` is LEFT in place. A failed batch write is counted
+(service `store`, `note_failed_write`), so F2 marks the stopped entry `storage_failed` and `partial_result` skips it; the
+batch caches its lookups before storing (:2972-2973), so the map entry affects only `confirmed_statuses`. No test drives
+a batch write to success, so a move could not be falsified without a new heavy harness.
+Tests: the two approved setup changes (their reload/fetch now stores `{board: {id: '1_1212', key: 'example/slow'}}`
+through the real store; assertions unchanged); new: a reloaded board whose save has not run, or failed (board write
+failed at `lingoLinqExtras.storage.store`), is `not_saved`; a board written by the utils copy's own `store` (reached via
+`Object.getPrototypeOf(persistence).store`) is saved; unit `note_board_written`. Red before the code: 4 fail for the right
+reasons (missing helper; 're-downloaded' where 'not_saved' is expected; the utils write not counted). Green after: 64/64
+on the related describes.
+NOT yet run: the sibling "a freshly downloaded board ... while its save has not run" (added after the green run), the
+F1 mutants (F1a no hook in the service store; F1b no hook in the utils store; F1c no unwrap; F1d creating
+`device_boards`; F1f/F1g the old lookup-time notes back, written with `note_board_written(_this, 'board', {id, key})`
+because `note_board_done` is no longer imported), and the full sync filter.
+Stopped (Rule #0.13): a fourth self-inflicted error. A mutant-script edit failed its own assertion, but the run was
+chained with `;` and started anyway; it was killed mid-mutant with F1a applied to services/persistence.js. Restored from
+the script's own backup, the diff checked against F1 (hook present, :2782/:2785 as above). Next session: run the
+narrow filter (the new sibling), then the six mutants (fix the F1f/F1g strings in the scratch script first), then the
+full filter, then the dual review on the new range, then mark #1336 ready.
+
+### Unit F1 verified (2026-11-20, new session)
+Picked up from the stop point above. Worktree clean at 78e8094f7; no process in it. Script copied from the 11-19
+scratchpad with F1f/F1g rewritten as `note_board_written(_this, 'board', {id: id, key: record.get('key')})` (the old
+strings used `note_board_done`, no longer imported) and an unmutated baseline first. Filter (unchanged):
+`/stopped sync's log entry|board reloads under a slow server|sync rollup/i`.
+- Baseline: 48/48 pass, including the new sibling "does not count a freshly downloaded board as saved while its save
+  has not run".
+- Mutants, all killed: F1a no hook in the service store (2); F1b no hook in the utils store (1); F1c no unwrap (4); F1d
+  hook creates `device_boards` (1); F1f reload noted again at lookup (2); F1g fresh download noted again at lookup (1,
+  by the new sibling). Worktree clean after.
+- Wider runs (the 11-19 "full sync filter" string was not recorded, so these are new baselines, not a comparison):
+  `--filter "sync"` 428 tests, 426 pass, 2 skip, 0 fail; `--filter "/sync|persistence/i"` 570 tests, 561 pass, 9 skip,
+  0 fail. Both with `--query timingStrict=1`. Use the second string for later runs.
+
+### Traci's decision on the Lows (2026-11-20)
+Only Low 4 (retry-limit failures untagged like refusals) goes in this PR. Lows 3, 5 and 6 stay out (record in "Not
+covered"). Low 4 spans two PRs: the tag is written here (sync walk, `with_errors`, the status merge, `entry_copy`, all
+this PR's), and read in #1328's `utils/offline_board_list.js` `seen_by_last_sync` (that file is not on develop or this
+branch). The proposal settles the tag once (tag passing failures, or tag refusals instead); #1328's change is asked
+for separately.
+
+### Correction (Rule #0.10) to the 2026-11-20 rebase notes posted on #1336
+The comment said to keep `content` "in `final_rows`". This branch never put `content` in `final_rows`
+(`utils/sync_rollup.js`, CONFIRMED at 78e8094f7); it lives on the log entry's rows (`entry_copy`), `with_errors` and the
+status merge, and nothing reads it from `final_rows`. Only `warning` (#1334) is in `final_rows`. Everything else in
+that comment held when re-checked against `pull/1336/head` and origin/develop.
+
+## Merge of develop (2026-11-20, 077bade83)
+#1334 and #1342 merged in. Resolutions are in the merge commit's message. One semantic choice: develop's
+`picture_warning_line` (Sync Details) is off while a sync is unfinished, because there are no tabs then and every card
+names its own missing picture (develop's own comment: the line is for "where the ready boards are not listed"). Test
+added; mutant G1 (guard removed) killed. After the merge, `/sync|persistence|board content retry/i`: 616 tests, 607
+pass, 9 skip, 0 fail. `lint:js:ci`: only the worktree false positive (`no-orphaned-action` reads the MAIN checkout's
+templates: `toggle_technical`, and develop's `agree`, `notNow`, `open_ai_consent`, all referenced in this worktree's
+templates). F1's unit test had a real `qunit/no-assert-logical-expression` (`&&` in one assertion): split in two
+(9af72de2e), 22/22.
+
+## Part 4 (2026-11-20): (R) the retry path's content error, and (L4) Low 4 (fix-proposal)
+
+### Fact sheet
+(a) READ. #1328's `seen_by_last_sync` (`utils/offline_board_list.js:57,59`, on #1328's branch only) treats a row with
+`error` and no `content` as a refusal and hides another owner's liked board on it. Rows reach the log from
+`with_errors` (`utils/sync_rollup.js`, stop paths) and the finished-sync merge (`services/persistence.js:2383-2394`);
+both copy only `error` and `content` from an error; `entry_copy` keeps `content` and `warning`
+(`utils/sync_log_store.js:49`). CONFIRMED.
+(b) SHAPES. Every board error the service walk writes (`services/persistence.js`):
+  1. :3359 the walk's content failure, `content_error(msg, id, key)`: tagged `content`. CONFIRMED.
+  2. :3095 the retry path's content failure: `retry_content` calls `ctx.fail(content_error(entry, judged.fail))`
+     (`utils/board_content_retry.js:150`, its own `content_error` at :119), and `fail` pushes onto the same
+     `board_errors` (:3095). NOT tagged. CONFIRMED.
+  3. :3378 "has been deleted": a 404 with `deleted`. CONFIRMED.
+  4. :3380 "failed retrieval for syncing": everything else that reaches the failure branch. It is reached by (i) a real
+     refusal (400 "Not authorized", `permission: 'view'`, the shape in the "revoked boards" tests,
+     `tests/utils/persistence-sync-test.js:5222`); (ii) a 404 without `deleted`, or any unknown shape (not passing,
+     `utils/sync_board_fallback.js:20-33`); (iii) a passing failure (timeout, offline, 0, 429, 5xx) once
+     `claim_board_retry` returns 0, that is after MAX_BOARD_RETRIES (3) retries (:102-110), or with no id or no
+     sync_progress. All three are logged the same, untagged. CONFIRMED.
+  The utils copy of the walk (`utils/persistence.js:3377`, :3405, :3407) is left as Unit T left it: the app runs the
+  service's sync.
+(c) CROSS-FILE. Revocation itself does not read error shapes: `settled_decision` applies the server's revoked list
+only after an error-free sync (`utils/board_revocation.js:237-240`). `real_denial(err)` (:615-621) recognises a real
+"Not authorized" for view wherever the transport left the body (`denial_body`, :602-611), and rejects valet, device-scope,
+scope-limited and token refusals. `board_content_retry.js` can import `sync_rollup.js` with no cycle (`sync_rollup`
+imports only `sync_log_store`). An existing test encodes the untagged retry-path shape:
+`tests/unit/utils/board-content-retry-test.js:76-82` ("the board error is worded as the walk words it", `deepEqual`).
+CONFIRMED.
+
+### Proposal (R): the retry path's content error is tagged like the walk's
+- R-A (recommended): `board_content_retry.js` `content_error(entry, err)` keeps building its message and returns
+  `sync_rollup.js`'s `content_error(msg, id, key)` (imported under another name), so the tag has one source.
+- R-B: add `content: true` to its returned object. Simpler; the tag then lives in two places.
+- R-C, rejected: tag at the `fail` callback (`services/persistence.js:3095`). Leaves the helper's result untagged for any
+  other caller, and splits the rule from both helpers.
+Test (red first): `retry_content` whose required failure is left after its retries calls `fail` with `content: true`.
+The existing `deepEqual` test above must gain `content: true` in its two expected objects: the specification changed
+(Rule #0.14: needs Traci's OK). Mutant: the helper returns its own untagged object again.
+
+### Proposal (L4): a board that failed only because its retries ran out does not read as refused
+The question #1328 asks of an error row is "did the server refuse this board?". Today the log cannot answer it.
+- L4-A: tag the passing failures. At :3380, when the original error is passing (`passing_failure`, before :3373-3374
+  unwrap it), add `passing: true`; carry it in `with_errors`, both branches of the finished-sync merge, and
+  `entry_copy`. #1328 then also skips `passing`. Unknown shapes and 404s without `deleted` still hide the board
+  (today's behaviour). Old log entries keep today's meaning.
+- L4-B: tag the refusals. At :3378 (deleted) and at :3380 when `real_denial(err)`, add `refused: true`; carry it in the
+  same three places. #1328 hides only on `refused`. A bad connection, an unknown shape or a new error kind never hides a
+  liked board; a board stays listed if its refusal is ever logged without the tag. Revocation (server verdict,
+  `settled_decision`) is unchanged and remains the main guard. Log entries written before the change carry no tag, so
+  their refusals stop hiding until the next sync (the log keeps 5 entries).
+- L4-C, rejected: #1328 matches the message text. Refusals and passing failures share "failed retrieval".
+Recommendation: L4-B (the AAC user keeps a liked board unless the server said no), if the review finds no refusal
+shape that `real_denial` misses in the sync's own lookups; otherwise L4-A. Traci decides.
+Tests (red first), for whichever is chosen: unit, `with_errors` and `entry_copy` keep the tag; harness, a board refused
+with the 400 body is logged with the tag (B) or without `passing` (A), and a board whose lookups time out past the
+retries is logged with `passing` (A) or without `refused` (B); the finished-sync merge keeps it on an existing row and
+on an error-only row. Mutants: no tag at the write; tag on every error; `with_errors` drops it; `entry_copy` drops it;
+each merge branch drops it.
+Risks: the tag must be computed from the error before :3373-3374 rewrite it; `board_unauthorized` (:3365) is computed
+before that unwrap and can miss a nested body (pre-existing, not changed here). #1328 needs a matching one-line change,
+asked for separately.
+Unresolved: does any refusal the sync sees arrive in a shape `real_denial` does not recognise (B's risk)? Does any error
+reach :3380 with no id, skipping the retries (A and B both log it as today)?
+
+### Review of the Part 4 proposal (adversary, 2026-11-20, at 5aed657df): proceed with changes, L4-B
+Verified here:
+- Medium, CONFIRMED: "revocation remains the main guard" is FALSE for the boards #1328 filters. `board_revisions` adds
+  liked roots only when `sync_starred_boards` is on (`app/controllers/api/users_controller.rb:776-777`), and that
+  preference is off unless set (`board-selection-tool.js:329`, preferences). For another owner's liked board, the walk's
+  refusal row is usually the only sign it was unshared; under B a missed tag leaves it listed with nothing to correct
+  it. Correction recorded (Rule #0.10); the same wrong claim was made to Traci in chat and corrected there.
+- Medium, CONFIRMED: a second existing test encodes the untagged retry-path shape:
+  `tests/unit/utils/board-content-retry-test.js:143` (`deepEqual(r.log.failed, ...)` through `retry_content`).
+  Traci's Rule #0.14 OK (2026-11-20) named one test (:76-82); :143 needs the same OK.
+- Reported CONFIRMED, not re-traced here (the harness test below verifies it): in production the adapter's error is
+  wrapped by Ember Data with `fakeXHR` kept, so `real_denial` matches a real refusal, while `err.error` is not
+  "Not authorized" and `deleted` is inside `fakeXHR.responseJSON`: `board_unauthorized` (:3365) is never true and the
+  "has been deleted" branch (:3377-3378) never runs on real errors. So the tag must be computed from the original
+  error with `real_denial`, never from `board_unauthorized`, and :3378 is not a tagged path in practice.
+- Q2 (favours B), reported CONFIRMED: under A, an invalid-token 400, valet/device-scope/scope-limited 400s,
+  `session changed`, parse errors and plain 404s still hide a liked board (a dead session in Speak Mode syncs on).
+- Low: the finished-sync merge's existing-row branch must clear a stale tag when it overwrites `error` (as it does for
+  `content`), with a mutant. Low: the utils twin stays untagged; the harness test covers the service only. Low,
+  PLAUSIBLE: a tokenless request to a private board yields a real_denial-shaped 400 (no change asked).
+- Unresolved questions closed: no error reaches :3380 without an id (:3095), nor with no sync_progress (:3078).
+  Wording: old entries stop hiding "until the next sync that reaches the board".
+Conditions: correct the revocation claim; pin B with the real-transport harness ("marks nothing when the
+board_revisions request fails", `tests/utils/persistence-sync-test.js:5354`, `$.realAjax` stub ~5276), asserting
+`refused` on `other/shared`; Rule #0.14 OK for :77-81 and :143; tag from the original error before the unwrap; clear a
+stale tag in the merge, with its mutant; write down the twin decision.
+
+### Traci's decisions (2026-11-20)
+- L4-B chosen (tag refusals, `refused: true`; #1328 hides only on it). Utils twin: left untagged, as Unit T left it (the
+  app runs the service's sync); the harness covers the service only.
+- Rule #0.14 OK given for `tests/unit/utils/board-content-retry-test.js:76-82` (the retry-path content error gains
+  `content: true`). The review found a second test encoding the same shape (:143); Traci gave the same OK for it
+  (2026-11-20). Both expected objects gain `content: true`; nothing else in either test changes.
+
+### Unit L4 (2026-11-20): red tests written; code NOT started
+Tests (new only, no existing test changed):
+- `persistence-sync revoked boards` "logs the board the server refused as refused, through the real transport":
+  revisions answer `1_178`/`other/shared` as 'newer' and not revoked, so the sync reloads it and `$.realAjax` answers
+  the real 400 denial body through extras.js, the adapter and Ember Data.
+- `board reloads under a slow server (#1212)` "does not mark a board refused when it failed only because its retries
+  ran out" (passes before the fix by design; guards a tag-every-error mutant).
+- `a finished sync's log entry: refusals tagged`: the merge keeps `refused` on an existing row and an error-only row,
+  adds none to an untagged error, and clears it when a later untagged error overwrites the row.
+- unit `with_errors` and `entry_copy` keep `refused`.
+Red run (`/refused|refusals tagged|retries ran out|sync rollup|sync log store/i`, 59 tests): 4 fail. Unit
+with_errors, entry_copy and the merge describe fail on the missing tag (right reason).
+Real-transport test, two wrong premises (Rule #0.13 stop: two self-inflicted errors close together):
+1. First version reused "marks nothing when the board_revisions request fails"'s failing revisions answer; with it the
+   sync trusts its stored revision and never fetches `other/shared` ("has already been cached locally"). Fixed by the
+   'newer' answer above; the run then showed "ember ajax error: 400: Not authorized (GET /api/v1/boards/other/shared)".
+2. It assumed one row for the board. Actual rows (debug line, removed): `{"id":"1_178","key":"other/shared","status":
+   "re-downloaded"}` and `{"id":"1_178","key":"1_178","error":"board 1_178 failed retrieval for syncing, linked from
+   fred/next"}`. The link carries only the id, so the error's `board_key` is empty and the merge (matching by key)
+   adds an error-only row. The assertion now targets the error row. NOT yet re-run in its corrected form.
+New pre-existing defect (out of scope, for "Not covered"): `board_lookup` records 're-downloaded' for a board BEFORE
+its reload fails, so a refused board also has a 're-downloaded' row under its key; Sync Details' `final_rows` (by
+key||id) then sees two boards. #1328 marks failure by id or key, so the error row's tag still reaches it.
+
+Next session, in order:
+1. Run the corrected real-transport test alone; it must fail ONLY on `refused` (expected true, got undefined).
+2. Code (`services/persistence.js` lines above 4465 one-for-one): in the walk's failure branch compute
+   `var refused = boardRevocation.real_denial(err)` from the ORIGINAL error, before :3373-3374 unwrap it; push
+   `...(refused ? {refused: true} : {})` at :3380 and `refused: true` at :3378 (dead on real errors, per the review);
+   finished-sync merge: existing row sets or deletes `refused` beside `content` (:2387), error-only row spreads it
+   (:2392); `with_errors` copies it; `entry_copy` keys gain 'refused'. Check `boardRevocation` is the service's import
+   name for utils/board_revocation (it is used at :2382).
+3. Green on the filter above; mutants: no tag at :3380; tag on every error; `with_errors` drops it; `entry_copy` drops
+   it; merge existing-row keeps a stale tag; merge error-only row drops it; tag from `board_unauthorized` instead.
+4. Wider filter `/sync|persistence|board content retry/i` (baseline 616/607/9/0 plus the new tests), lint gate.
+5. Unit R (retry-path content tag; Rule #0.14 OK given for :76-82 and :143).
+6. Dual review on the new range, /pr-preflight, ask before pushing. Then ask about #1328's one-line change
+   (`seen_by_last_sync`: hide only on `s.refused`).
+
+### Unit L4 verified (2026-11-20, resumed in the same session at Traci's request)
+- Corrected real-transport test alone, before the code: 1 fail, on `refused` only (the denied GET of other/shared is
+  in the browser log, so `fetched_revoked` passed; row count and error text passed).
+- Code (5c999917d), `services/persistence.js` one-for-one: `var refused = boardRevocation.real_denial(err)` on the
+  failure branch's first line (before the unwrap); `refused: true` on the deleted row; spread on the failed-retrieval
+  row; the finished-sync merge sets or deletes it on an existing row and spreads it on an error-only row.
+  `with_errors` copies it; `entry_copy` keeps it.
+- Green: `/refused|refusals tagged|retries ran out|sync rollup|sync log store|content failures tagged/i` 60/60.
+- Mutants: L4a no tag on failed retrieval: killed (1, real transport); L4b every error tagged: killed (1, retries ran
+  out); L4c with_errors drops it: killed (1); L4d entry_copy drops it: killed (1); L4e merge keeps a stale tag: killed
+  (1); L4f merge error-only drops it: killed (2); L4g tag from `board_unauthorized`: killed (1, real transport);
+  L4h tag computed after the unwrap: SURVIVED, equivalent: `denial_body` already looks in `err` and `err.error`
+  (`utils/board_revocation.js:604`), so `real_denial` answers the same on either side of the unwrap. The review's
+  "before the unwrap" condition is met but not load-bearing.
+- Wider: `/sync|persistence|board content retry/i` 621 tests (616 + 5 new), 612 pass, 9 skip, 0 fail.
+  `lint:js:ci`: the four worktree false positives only.
+
+### Unit R verified (2026-11-20)
+- Red (the three approved expectations gained `content: true`, `board-content-retry-test.js:78,81,143`; code
+  unchanged): `--filter "board content retry"` 17 tests, 2 fail, both on the missing tag.
+- Code (2fe9b823b): `utils/board_content_retry.js` `content_error(entry, err)` builds its message as before and returns
+  `sync_rollup.js`'s `content_error(msg, entry.id || entry.key, entry.key)` (imported as `tagged_content_error`); no
+  import cycle (`sync_rollup` imports only `sync_log_store`).
+- Green: `/sync|persistence|board content retry/i` 621 tests, 612 pass, 9 skip, 0 fail. Mutant R1 (the helper's own
+  untagged object back): killed by both (2). `lint:js:ci`: the four worktree false positives only.
+
+### Not covered (for the PR body, cumulative)
+Pictures dropped by a cancel; a Cancel 2 s in replacing an earlier failed sync's cards; a cancel during priming (rows
+with no roots); item B (not done, Traci 2026-11-19); the :3359 walk line untested (T6, accepted); queued-save failures
+not counted (`note_failed_write` not in the utils `store`); 'cached' rows trusted by the `retrieved` stamp; a fresh
+board served from memory with no device read; a renamed key; a board queued at Cancel that lands a second later;
+Lows 3, 5, 6 (Traci 2026-11-20); the utils twin of the walk stays untagged for `content` and `refused`; a refused board
+also gets a 're-downloaded' row from `board_lookup` before its reload fails (two rows under different keys); the
+"has been deleted" branch never runs on real errors (Ember Data wraps them), so a deleted board lands as failed
+retrieval, untagged; #1328's matching change (`seen_by_last_sync` hides only on `refused`) is a separate change on
+#1328.
+
+### Final review, round 1 of the new range (2026-11-20)
+PII pre-flight exit 0. REVIEWED=range origin/develop (f581c0066c2d77231ab168b8f829bf732c7b206c) ... HEAD
+(367834ff780e6f3285c7af3b724ecabf4fb15a2a) in /home/tracid/LingoLinq-AAC-sync-details
+`/review-pr` (senior pass, a fresh agent on the diff file only): Approve with comments; no Critical, High or Medium.
+Its answer on #1330's reused copy: nothing makes a stopped sync misread it or count an unwritten board as saved.
+Lows, checked here:
+1. Running cards count queued writes as saved (not passed through `confirmed_statuses`): this is Low 5 (declined
+   2026-11-20). Not changed.
+2. `confirmed_statuses`' comment said a finished sync's walk "resolved them all", overstating it (queued saves):
+   comment corrected, no code change.
+3. The two stop paths dedupe differently: WRONG (correction, Rule #0.10). The failure branch dedupes too,
+   `services/persistence.js:2462` `Utils.uniq(statuses, ... s.id)`, after building its rows and before `with_errors`
+   (:2469), the same order as `end_canceled_sync` (:5119-5120). Both keep the first row per id (the declined Low 3
+   class). Re-checked here and by the adversary. No change.
+4. A stopped entry with no saved row still shows "Saved before the sync stopped" and "0 boards and folders are saved
+   on this device." (`partial_result` takes any stopped entry with rows): CONFIRMED (`utils/sync_log_store.js`
+   partial_result); for Traci.
+5. Drawer title empty without a summary: DISMISSED. `stage` is 'ready' or 'attention' only from a summary
+   (`components/sync-progress-drawer.js:30-31`), so `ready_title` always gets one.
+6. Content error text (with a picture URL that can carry a token) is now also kept for stopped syncs: pre-existing for
+   finished syncs; device-local, the signed-in person's own log. Follow-up candidate, not changed.
+7. Double quotes on non-user-facing template literals (`sync-details.hbs`): attribute values in templates, not JS
+   strings; not changed.
+
+### Final review, red team on the new range (adversary, 2026-11-20, at f83ae4ea0): ship with changes
+Verified here:
+- Medium, CONFIRMED: this PR sets `errored: true` on a FINISHED sync with `storage_failed`
+  (`services/persistence.js:2426`, commit 333999188; develop sets only `issues`), and `last_result` skips errored
+  entries (`utils/sync_log_store.js`). #1328's `seen_by_last_sync` takes its `ok` marks only from `last_result(mine)`
+  (`utils/offline_board_list.js:54-57` on #1328's branch). So one failed write in a sync (any service-store write,
+  a picture row included) hides that entry from #1328, and another owner's liked board drops off "Boards on This
+  Device" though the server never refused it; after 5 such syncs no clean entry is left. The adversary reproduced it
+  with the real functions. Decision: the hiding is #1328's read, so the fix is a REQUIRED part of #1328's refused-only
+  change: take `ok` from the newest entry that is not cancelled and has rows, counting an entry whose only failure is
+  storage (`!e.canceled && (!e.errored || e.storage_failed)`), with the test: a clean entry from before the like, then a
+  storage-failed entry that reached the board: listed. `last_result` stays as it is for Sync Details. Not changed here.
+- Low, CONFIRMED: the stop paths' tag hand-off is not pinned at its first step: `live_board_errors`' unit test and the
+  planted stop-path tests use untagged errors, so a `live_board_errors` that copied only `{board_id, board_key,
+  error}` passes every test. Action: new tests with tagged errors (below).
+- Low: round-1 Low 3 was wrong: corrected above.
+- Held up (adversary, read-only): F1's hook only on a committed IndexedDB write (`utils/dbman.js:470-495`); #1330's
+  reused copy marked by the utils store; L4-B consistent across supervisee walks (`key_lookups` keeps the rejected
+  promise); merges intact; the content error text uses `image.url`, not the token-carrying personalized URL
+  (`services/persistence.js:3196`), so round-1 Low 6 does not apply to it.
+Round-1 Low 4 (zero-saved stopped entry) re-checked real: the heading and "0 boards and folders are saved on this
+device." Traci (2026-11-20): fix the Lows that are real in this PR.
+
+### Review fixes verified (2026-11-20/21, e88d5c21e)
+- Round-1 Low 4: red first (2 fail on the missing `nothing_saved`), then `nothing_saved` and the zero cases of the
+  stopped heading and `summary_line`; two new keys, `***` in the 12 other locales (byte format unchanged).
+- Red-team Low: new tests pin the tags through `live_board_errors` (unit) and both stop paths (Cancel, failure). They
+  passed before any code change, as expected (the code was right; only the pin was missing).
+- `/sync|persistence|board content retry/i`: 649 tests, 640 pass, 9 skip, 0 fail. Mutants: L5a `live_board_errors`
+  copying three fields: killed (3); Z1 no zero case in `summary_line`: killed (1); Z2 `nothing_saved` always false:
+  killed (1). `lint:js:ci`: the four worktree false positives; `ember-template-lint` clean on sync-details.hbs.
+- /pr-preflight: P2 to P4 do not apply (no access change, no compliance docs); P1 and P5: PR body rewritten against
+  this head; P6: everything after Part 1 is tests only, manual check requested (three steps).
+
+## Part 5 (2026-11-21): Codex's two P2s on 7cad69d0f (fix-proposal)
+Codex connector review on 7cad69d0f: two P2 findings, both re-checked real. Traci (2026-11-21): fix both; this is an
+extra review round beyond the default two. CLAUDE.md "Rounds" (this branch, after #1311) lets the responsible senior
+developer run additional rounds and record the reason in the PR; Traci asked for it. Whether Traci is the responsible
+senior developer for this PR was asked of her (2026-11-21). Traci: "that rule no longer applies -> i can request as
+many review as i deem necessary." Recorded as her decision.
+
+### Fact sheet
+(a) READ. Sync Details reads a stopped entry only through `partial_result` (`utils/sync_log_store.js:138`), called
+from `summary_for` (`utils/sync_rollup.js:279`) when no finished entry exists. It skips `storage_failed` entries.
+CONFIRMED.
+(b) SHAPES of a stopped entry `partial_result` can be handed, with the writer of each:
+  1. This branch's failure branch (`services/persistence.js:2469`): rows through `confirmed_statuses`, `roots` set
+     (`board_roots || {}`), `storage_failed` when a write failed since the start. CONFIRMED.
+  2. This branch's `end_canceled_sync` (:5128): the same, `roots` set. CONFIRMED.
+  3. An entry the OLD code wrote and the device still holds (the log keeps 5, restored through `entry_copy`):
+     develop's failure branch logged unconfirmed rows with NO `roots`; develop's cancel path logged `statuses: []`
+     (origin/develop `services/persistence.js` end_canceled_sync). CONFIRMED.
+  Only the service writes `roots` on an entry (:2428 finished, :2469, :5128); `entry_copy` keeps it
+  (`utils/sync_log_store.js:44`). CONFIRMED.
+(c) CROSS-FILE.
+  - Batch step (`services/persistence.js:2971-2978`): it pushes 'downloaded', calls the service `store`, and in that
+    promise's success handler calls `note_device_boards(sp, [board_json])`. The service `store` resolves on a failed
+    write too (:772-777), so a failed batch write is noted as on the device, and `confirmed_statuses` would confirm
+    its row. That is why F2's `storage_failed` exclusion was load-bearing (Unit F1, "Deviation"). CONFIRMED.
+  - The batch runs inside the `.then` of the device read `find_all('board')` (:2904), so `device_boards` already
+    exists when it writes; F1's hook (`note_board_written`, :769) marks `boards_done` and adds to that existing map,
+    by id and key, only on a successful write. CONFIRMED.
+  - Tests encoding the exclusion: `tests/unit/utils/sync-log-store-test.js:175`; `tests/utils/persistence-sync-test.js`
+    :8107 and :8134 (`partial_result([last])` is null after a failed write). CONFIRMED.
+
+### Proposal
+P2-1 (one failed write hides every confirmed save of a stopped sync):
+- A (recommended): remove the batch step's `note_device_boards` from the store's success handler (the hook already
+  notes a written board, by id and key, into the existing map), then drop the `storage_failed` exclusion from
+  `partial_result`. A stopped entry with a failed write then shows only the rows that were written. `storage_failed`
+  stays on the entry (#1328's required read uses it).
+- B: keep the exclusion and add a "device full" message instead. Rejected: still hides the boards that are offline.
+- Simplest alternative rejected: drop the exclusion only. The batch step would then confirm a failed write.
+Tests: red, a stopped entry with `storage_failed` and a written board shows that board under "Saved before the sync
+stopped" and not the failed one; harness, a batch write that fails is not confirmed at a stop (`not_saved`), and one
+that succeeds is. The three tests above change from "null" to "shows only what was written" (needs Traci's Rule #0.14
+OK: the specification changed). Mutants: the batch note back in the success handler; the exclusion back.
+P2-2 (an old entry's unconfirmed rows shown as saved):
+- A (recommended): `partial_result` takes a stopped entry only when it has `roots`, which only this branch's stop
+  paths write, in the same change that confirms their rows. No new field, no fixture changes (the tests' entries
+  already carry roots). A comment at `partial_result` names `roots` as the marker and points at both writers.
+- B: an explicit marker (`confirmed: true`) on both stop paths, kept by `entry_copy`, required by `partial_result`.
+  Clearer, but every stopped-entry fixture (about 26) gains the field.
+Tests: red, an errored entry with rows and no `roots` is not taken; a restored entry keeps `roots`. Mutant: the
+`roots` check removed.
+Risks: P2-1 shows boards on a device that is full (true: they were written); P2-2 A couples "confirmed" to `roots`
+(a later writer adding roots without confirming would re-open the hole; the comment and a test guard it).
+Unresolved: none found.
+
+### Review of the Part 5 proposal (adversary, 2026-11-21, at e8577af85): proceed with changes
+Verified here:
+- High, CONFIRMED: P2-2 A (roots as the marker) is wrong. The FINISHED path also writes `roots`
+  (`services/persistence.js:2428`) and, after a failed write, is `errored: true, storage_failed: true` (:2426) with
+  raw, unconfirmed rows. Today only `partial_result`'s `storage_failed` exclusion hides it; with A plus P2-1 it would
+  show a failed batch write as "Saved before the sync stopped". My fact sheet listed :2428 as a writer but left this
+  shape out of (b) (correction, Rule #0.10). Also: entries from this branch's own 11-17 builds have roots on stop paths
+  before the rows were confirmed (333999188 before 5ee640de8). Decision: B, an explicit marker set only by the two
+  stop paths.
+- Medium, CONFIRMED path: 'cached' rows pass `confirmed_statuses` unchanged; a key seed trusted by the `retrieved`
+  stamp is written only through a queued save, so on a full device it could read saved once the exclusion goes.
+  Decision: at a stop, a 'cached' row needs `boards_done` or `device_boards` too, but only when `device_boards` exists
+  (with no device read, every cached row would otherwise read not saved; that case stays as today, "Not covered").
+- Q1 held (CONFIRMED by the reviewer): removing the batch step's note is safe (lookups cached before the store;
+  device map always exists when the batch writes; the utils copy has no batch step).
+- Low: #1328's required read cannot tell the finished storage-failed entry from a stopped one; the marker helps there
+  too (noted for #1328). Low: a failure-branch stop never sets the out-of-storage message (wording gap, "Not covered").
+Revised plan:
+- P2-1: remove the batch step's `note_device_boards` from the store's success handler; drop the `storage_failed`
+  exclusion from `partial_result`; at a stop, 'cached' needs confirmation when the device map exists.
+- P2-2: `confirmed: true` on both stop paths' entries, kept by `entry_copy`, required by `partial_result`. The
+  finished storage-failed entry and old entries stay hidden.
+- Tests: the three approved assertion changes (Traci, Rule #0.14, 2026-11-21: `sync-log-store-test.js:175`,
+  `persistence-sync-test.js:8107`, `:8134`); unit `partial_result` (marked storage-failed stopped entry shown;
+  finished storage-failed entry and unmarked stopped entry not); unit `confirmed_statuses` for 'cached'; both stop
+  paths set the marker. Stopped-entry fixtures that must still show need the marker added (needs Traci's OK).
+
+### Part 5 verified (2026-11-21)
+- Unit M (041280cc4): `confirmed: true` on both stop paths' entries (`services/persistence.js:2469`, `:5128`),
+  kept by `entry_copy`, required by `partial_result`. Red 4 (missing marker), green 59/59. Nine stopped-entry fixtures
+  gained the marker (Traci's Rule #0.14 OK, 2026-11-21).
+- Unit S (2770de503): `partial_result` no longer skips `storage_failed`; the batch step's store handler no longer
+  calls `note_device_boards` (it ran on a failed write; the store's hook notes a written board); at a stop, once the
+  device was read, a 'cached' row needs confirmation. Red 4 (right reasons). The three approved assertion changes
+  (`sync-log-store-test.js:175`, `persistence-sync-test.js:8107`, `:8134`: now shown, the failed board `not_saved`)
+  and the approved fixture line (`me/cached` in the device map) are in.
+- `/sync|persistence|board content retry/i`: 652 tests, 643 pass, 9 skip, 0 fail. Mutants: M1 partial_result ignoring
+  the marker: killed (1); M2 entry_copy dropping it: killed (1); M3/M4 a stop path without it: killed (2 each); S1
+  the exclusion back: killed (3); S2 no cached rule: killed (1); S3 cached rule with no device read: killed (1);
+  S4 the batch note back: SURVIVED, accepted: no harness drives the real batch step (the stop-path tests stub
+  `sync_boards`); the removal rests on the review's confirmed reading (Q1) and the hook's own tests (F1). Recorded in
+  "Not covered". `lint:js:ci`: the four worktree false positives.
+
+### Round-2 review of Part 5 (/review-pr, 2026-11-21)
+PII pre-flight exit 0. REVIEWED=range origin/traci/fix/sync-details-no-percent (7cad69d0f18b1d9f12d19cea94a23f6a87893aa1)
+... HEAD (0367612f633857f9e0a99ccd2a787819a1988cb5) in /home/tracid/LingoLinq-AAC-sync-details
+Approve with comments; no Critical or High. Checked here:
+1. Medium, rounds rule: the reviewer quoted the OLD rule (diff only); this branch's CLAUDE.md:239-241 lets the
+   responsible senior developer run more rounds. Traci (2026-11-21): the rule no longer applies; she can request as
+   many reviews as she deems necessary. Recorded above.
+2. Medium, CONFIRMED: the two changed tests proved the failed board reads not saved but not that a WRITTEN board stays
+   saved (a change turning every stopped row not_saved would pass). Added two sibling tests (failure branch, Cancel):
+   the first board write goes through, the second fails; the written board keeps 'downloaded', the failed one reads
+   'not_saved' (1b453a83b). Mutant W1 (every stopped row not saved) to falsify them.
+3. Low, CONFIRMED: the `storage_failed` comment at `services/persistence.js:2467` still said none of the rows shows:
+   corrected (1b453a83b).
+4. Low, checked: queued saves reach `note_board_written` through the utils store (F1's test "counts a board written by
+   the utils copy's store"); a failed device read creates no map (`note_device_boards` runs only on `find_all`
+   success, :2904). No change.
+5. Low (batch handler untested): already the recorded gap.
+6. Low, checked: `1_6` is the cached row's own id (`{ id: '1_6', key: 'me/cached', status: 'cached' }`); the fixture
+   change is no wider than approved.
+Verified (1b453a83b): `/sync|persistence|board content retry/i` 654 tests, 645 pass, 9 skip, 0 fail. Mutant W1 (every
+stopped row not saved): killed (10), including both new tests. `lint:js:ci`: the four worktree false positives.

@@ -754,7 +754,7 @@ var persistence = EmberObject.extend({
           // Only report the save as complete once the local write has actually
           // landed; resolving earlier lets a find() issued by the caller race
           // the write, miss, and poison known_missing for that record.
-          resolve(obj);
+          resolve(obj); try { note_board_written(root, store, obj); } catch(e) { } // a written board counts as saved at a stop (utils/sync_rollup.js); never blocks the write's promise
         }, function(error) {
           root.errors = root.errors || [];
           root.errors.push({error: error, message: "Failed to store object", object: obj, store: store, key: key});
@@ -4639,4 +4639,4 @@ import { queue_eventual_store } from './eventual_store_queue';
 import { is_permanent_upload_url } from './permanent_upload';
 import { on_uploads_cdn, is_web_page } from './direct_fetch';
 import { is_stale_item, drop_stale_head } from './url_store_queue';
-import { find_limits, board_transport_options, join_download, late_deps, store_late_board } from './board_download'; import { record_sync_log } from './sync_log_store'; import { request_identity } from './request_identity'; // at the end so no baselined lint row shifts (see .eslint-todo)
+import { find_limits, board_transport_options, join_download, late_deps, store_late_board } from './board_download'; import { record_sync_log } from './sync_log_store'; import { note_board_written } from './sync_rollup'; import { request_identity } from './request_identity'; // at the end so no baselined lint row shifts (see .eslint-todo)

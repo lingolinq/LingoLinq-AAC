@@ -14,6 +14,7 @@
 // offline the icon shows the placeholder. It neither blocks the retry of the board's other saves nor words its error.
 import RSVP from 'rsvp';
 import { passing_failure, MAX_BOARD_RETRIES } from './sync_board_fallback';
+import { content_error as tagged_content_error } from './sync_rollup';
 
 // What passing_failure reads from a failed request, and nothing else: the request itself is not kept (the proxy's
 // error body repeats the picture's URL, and a protected picture's URL carries a token).
@@ -115,7 +116,7 @@ export function content_warning(entry, err) {
   return { warning: msg, board_id: entry.id || entry.key, board_key: entry.key };
 }
 
-// The board error, worded as the walk words it (services/persistence.js, the board's content failure).
+// The board error, worded and tagged as the walk's (services/persistence.js, the board's content failure).
 export function content_error(entry, err) {
   var msg = "board " + (entry.key || entry.id) + " failed to sync completely";
   if(typeof err == 'string') {
@@ -126,7 +127,7 @@ export function content_error(entry, err) {
   if(entry.visit_source) {
     msg = msg + ", linked from " + entry.visit_source;
   }
-  return { error: msg, board_id: entry.id || entry.key, board_key: entry.key }; // as the walk: its id is next.id || next.key
+  return tagged_content_error(msg, entry.id || entry.key, entry.key); // as the walk: its id is next.id || next.key; tagged content like the walk's (utils/sync_rollup.js), so PR #1328 does not read it as a refusal
 }
 
 // A parked entry back on the walk: save its content again; park it again while its failures pass and a retry is
