@@ -140,3 +140,9 @@ symbols (2026-11-16).
   wait for `getprop sys.boot_completed` = 1, then OPEN CHROME (`adb -s emulator-5554 shell am start -a
   android.intent.action.VIEW -d about:blank com.android.chrome`) before the probe, or `connectOverCDP` fails with
   "socket hang up". Chrome on the AVD is 124.0.6367.219, as in the 2026-11-19 runs.
+- 2026-11-21: **1.2 baseline reproduced on this branch** (app code = develop 4494d67ac; emulator Chrome 124, AVD
+  ll_trace, synth_big, 0.4 Mbps, 100 ms, one run, cold): 1169 s, **38/57 boards saved**, 56.5 MB, 212 link requests;
+  19 missing, each "failed retrieval for syncing"; 23 failed rows. Earlier: develop 9d96df96f 39/57 (1333 s, 63.3 MB),
+  #1330 36/57 (1171 s, 56.5 MB). Different from 2026-11-19: 37 boards were in memory before the sync (then 1), and the
+  status counts show 106 "re-downloaded" (then 6): likely the Modern page's tree warm-up getting further ahead of the
+  sync since #1328 (see item 1.8); to check in 1.8's fact sheet. Output, trace and the repointed probe: `~/offline-sync-handoff/2026-11-21-emulator/`.
