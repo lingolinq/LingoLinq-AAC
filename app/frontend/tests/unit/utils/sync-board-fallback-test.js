@@ -1,6 +1,6 @@
 import { module, test } from 'qunit';
 import RSVP from 'rsvp';
-import { copy_from_this_sync, stored_this_sync } from 'frontend/utils/sync_board_fallback';
+import { copy_from_this_sync, stored_this_sync, note_answered, answered_refs } from 'frontend/utils/sync_board_fallback';
 
 /* A BOARD SAVED LATE IN A SYNC IS NOT DOWNLOADED AGAIN BY THE SAME SYNC
  * (docs/task-management/2026-11-16_sync-late-copy-current.md).
@@ -87,5 +87,29 @@ module('Unit | Utility | sync board fallback: copies stored during this sync', f
   test('an older row, or none, answers null', async function(assert) {
     assert.strictEqual(await stored_this_sync(progress(), '1_7', record('1_7'), function() { return RSVP.resolve(row({ retrieved: now - 20 * MIN })); }), null);
     assert.strictEqual(await stored_this_sync(progress(), '1_7', record('1_7'), function() { return RSVP.reject({ error: 'no usable copy' }); }), null);
+  });
+});
+
+/* Which boards the server really answered for in a sync (docs/task-management/2026-11-16_offline-boards-page.md,
+ * "Finding 1"). A reload can resolve from the device copy (the adapter's fallback on 5xx, status 0, 401) with its old
+ * `retrieved` stamp; only a record stamped after the ask is an answer. The finished entry carries the list
+ * (`answered`), so the offline list can tell a server answer from a device copy. */
+module('Unit | Utility | sync board fallback: boards the server answered', function() {
+  var rec = function(attrs) { return { get: function(k) { return attrs[k]; } }; };
+  test('a record stamped after the ask is an answer; an older, missing or future stamp is not', function(assert) {
+    var asked = (new Date()).getTime() - 1000; // a second ago, so 'stamped after' is not in the future
+    var sp = {};
+    note_answered(sp, rec({ id: '1_1', key: 'me/fresh', retrieved: asked + 5 }), asked);
+    note_answered(sp, rec({ id: '1_2', key: 'me/device-copy', retrieved: asked - 60000 }), asked);
+    note_answered(sp, rec({ id: '1_3', key: 'me/no-stamp' }), asked);
+    note_answered(sp, rec({ id: '1_4', key: 'me/future', retrieved: asked + 3600000 }), asked);
+    assert.deepEqual(answered_refs(sp).sort(), ['1_1', 'me/fresh']);
+  });
+  test('a copy this sync stored from a server answer counts without a stamp check; nothing noted is an empty list', function(assert) {
+    var sp = {};
+    assert.deepEqual(answered_refs(sp), []);
+    assert.deepEqual(answered_refs(null), []);
+    note_answered(sp, rec({ id: 'other/liked', key: 'other/liked' }));
+    assert.deepEqual(answered_refs(sp), ['other/liked']);
   });
 });

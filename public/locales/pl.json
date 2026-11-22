@@ -9759,6 +9759,13 @@
   "sync_drawer_waiting": "Czekam na lepsze połączenie [[ Waiting for a better connection",
   "try_now": "Spróbuj teraz [[ Try now",
   "sync_see_details": "Zobacz szczegóły [[ See details",
+  "boards_on_this_device": "*** Boards on This Device",
+  "device_boards_loading": "*** Finding the boards on this device...",
+  "device_boards_empty_basic": "*** No boards are saved on this device yet. Connect to the internet and sync to use your boards offline.",
+  "device_boards_note": "*** You're offline. These boards are saved on this device and open without internet.",
+  "device_boards_empty": "*** No boards are saved on this device yet",
+  "device_boards_empty_subtitle": "*** Connect to the internet and sync to use your boards offline.",
+  "device_boards_not_shown": "*** Your boards can't be shown right now. Close and reopen the app, or connect to the internet.",
   "gif_search_no_results": "Nie znaleziono GIF-ów. Spróbuj użyć innych słów w zdaniu i wyszukaj ponownie. [[ No GIFs found. Try different words in your sentence and search again.",
   "sync_drawer_waiting_content_one": "Obrazy lub dźwięki z 1 folderu są nadal pobierane. Pobieranie zostanie automatycznie ponowione. [[ 1 folder's pictures or sounds are still downloading. They will be tried again automatically.",
   "sync_drawer_waiting_content_many": "Obrazy lub dźwięki z %{n} folderów są nadal pobierane. Pobieranie zostanie automatycznie ponowione. [[ %{n} folders' pictures or sounds are still downloading. They will be tried again automatically.",
@@ -9788,5 +9795,6 @@
   "sync_no_folders_saved_yet": "*** No folders are saved yet.",
   "sync_saved_before_stopped": "*** Saved before the sync stopped",
   "sync_nothing_saved_before_stopped": "*** Nothing was saved before the sync stopped",
-  "sync_drawer_saved_none": "*** No boards are saved on this device yet."
+  "sync_drawer_saved_none": "*** No boards are saved on this device yet.",
+  "device_boards_note_online": "*** These boards are saved on this device."
 }

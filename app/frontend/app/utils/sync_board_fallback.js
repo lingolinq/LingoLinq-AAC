@@ -139,3 +139,23 @@ export function claim_board_retry(sync_progress, id, err) {
   if(sync_progress.key_lookups) { delete sync_progress.key_lookups[id]; }
   return done + 1;
 }
+
+// Which boards the server really answered for in this sync (docs/task-management/2026-11-16_offline-boards-page.md,
+// "Finding 1"). A reload can resolve from the device copy (the adapter's fallback on 5xx, status 0 or 401,
+// utils/persistence.js findRecord) with the copy's old `retrieved` stamp; the adapter stamps a server answer when it
+// arrives. So a record counts when it was stamped after `asked` (and not in the future: a device clock that was
+// ahead); with no `asked` (a copy this sync stored from a server answer) it counts as is. The finished entry carries
+// the list (`answered`, services/persistence.js), which the offline list reads (utils/offline_board_list.js).
+export function note_answered(sync_progress, record, asked) {
+  if(!sync_progress || !record || typeof record.get !== 'function') { return; }
+  if(asked !== undefined) {
+    var stamp = record.get('retrieved');
+    if(!(stamp >= asked && stamp <= (new Date()).getTime())) { return; }
+  }
+  var into = sync_progress.answered = sync_progress.answered || {};
+  [record.get('id'), record.get('key')].forEach(function(t) { if(t) { into[t] = true; } });
+}
+
+export function answered_refs(sync_progress) {
+  return Object.keys((sync_progress && sync_progress.answered) || {});
+}

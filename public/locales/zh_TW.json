@@ -9764,6 +9764,13 @@
   "sync_drawer_waiting": "等待更好的連接 [[ Waiting for a better connection",
   "try_now": "立即嘗試 [[ Try now",
   "sync_see_details": "看詳情 [[ See details",
+  "boards_on_this_device": "*** Boards on This Device",
+  "device_boards_loading": "*** Finding the boards on this device...",
+  "device_boards_empty_basic": "*** No boards are saved on this device yet. Connect to the internet and sync to use your boards offline.",
+  "device_boards_note": "*** You're offline. These boards are saved on this device and open without internet.",
+  "device_boards_empty": "*** No boards are saved on this device yet",
+  "device_boards_empty_subtitle": "*** Connect to the internet and sync to use your boards offline.",
+  "device_boards_not_shown": "*** Your boards can't be shown right now. Close and reopen the app, or connect to the internet.",
   "gif_search_no_results": "未找到 GIF 圖片。請嘗試在句子中使用不同的字詞並再次搜尋。 [[ No GIFs found. Try different words in your sentence and search again.",
   "sync_drawer_waiting_content_one": "1 個資料夾的圖片或聲音仍在下載中。系統會自動重試。 [[ 1 folder's pictures or sounds are still downloading. They will be tried again automatically.",
   "sync_drawer_waiting_content_many": "%{n} 個資料夾的圖片或聲音仍在下載中。系統會自動重試。 [[ %{n} folders' pictures or sounds are still downloading. They will be tried again automatically.",
@@ -9793,5 +9800,6 @@
   "sync_no_folders_saved_yet": "*** No folders are saved yet.",
   "sync_saved_before_stopped": "*** Saved before the sync stopped",
   "sync_nothing_saved_before_stopped": "*** Nothing was saved before the sync stopped",
-  "sync_drawer_saved_none": "*** No boards are saved on this device yet."
+  "sync_drawer_saved_none": "*** No boards are saved on this device yet.",
+  "device_boards_note_online": "*** These boards are saved on this device."
 }

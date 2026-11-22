@@ -41,7 +41,7 @@ function defaults(deps) {
 // (components/sync-details.js `details`: idx, status flags, sorted_statuses, toggled) are left out.
 export function entry_copy(entry) {
   var copy = {};
-  ['user_id', 'reason', 'manual', 'issues', 'errored', 'canceled', 'storage_failed', 'confirmed', 'finished', 'summary', 'roots'].forEach(function(k) {
+  ['user_id', 'reason', 'manual', 'issues', 'errored', 'canceled', 'storage_failed', 'confirmed', 'answered', 'finished', 'summary', 'roots'].forEach(function(k) {
     if(entry[k] !== undefined) { copy[k] = entry[k]; }
   });
   copy.statuses = (Array.isArray(entry.statuses) ? entry.statuses : []).filter(function(s) { return s && typeof s === 'object'; }).map(function(s) {
