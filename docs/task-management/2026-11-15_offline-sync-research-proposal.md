@@ -683,8 +683,9 @@ infra or deploy config.
 
 ### 12.5 Order of work
 
-1. Now, on this branch: 0.2 (seed and measurement harness) first, so 1.2 has before-and-after numbers; then 0.1
-   (counters; #1336 has merged, so its log shape is final); the server halves of 2.1 to 2.3 and 3.1 to 3.2; item 1.7.
+1. Now, on this branch: 0.2 (seed and measurement harness; before-numbers recorded 2026-11-22) first, so 1.2 has before-and-after numbers; then 0.1
+   (counters; #1336 has merged, so its log shape is final); the server halves of 2.1 to 2.3 and 3.1 to 3.2; item 1.7, then 1.9 (both change
+   what a supervisor's sync covers, so they share one fact sheet and one red-test setup).
 2. Next (#1336 has merged): 1.0 (#1201) before 1.2; 0.1's log and Technical details, 1.5, 1.2.
 3. After the test hygiene fix: 1.1 (starting with the #1221 seed change), 1.3.
 4. Next (#1328 has merged): 2.2 on the client, then 3.3 (it uses 2.2's hashes); 2.4's reader release, 2.5, 3.4; 2.4's
