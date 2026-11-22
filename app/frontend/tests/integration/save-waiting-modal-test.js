@@ -26,7 +26,7 @@ QUnit.module('Integration | modal-container save-waiting', function(hooks) {
   QUnit.test('it renders, offers Back to editing, and is uncloseable', async function(assert) {
     await render(hbs`<ModalContainer />`);
     var result = null;
-    modalUtil.open('save-waiting', {started_at: Date.now()}).then(function(res) { result = res; });
+    this.owner.lookup('service:modal').open('save-waiting', {started_at: Date.now()}).then(function(res) { result = res; });
     await settled();
     var dialog = document.querySelector('[role="dialog"]');
     assert.ok(dialog, 'the dialog is on screen');
@@ -41,7 +41,7 @@ QUnit.module('Integration | modal-container save-waiting', function(hooks) {
 
   QUnit.test('Save without it appears by itself when the 15 seconds run out while open', async function(assert) {
     await render(hbs`<ModalContainer />`);
-    modalUtil.open('save-waiting', {started_at: Date.now() - 14900});
+    this.owner.lookup('service:modal').open('save-waiting', {started_at: Date.now() - 14900});
     await settled();
     assert.dom(document.querySelector('[data-test-save-waiting-without]')).doesNotExist();
     await waitUntil(function() { return document.querySelector('[data-test-save-waiting-without]'); }, {timeout: 2000});
@@ -51,7 +51,7 @@ QUnit.module('Integration | modal-container save-waiting', function(hooks) {
   QUnit.test('after 15 seconds it offers Save without it', async function(assert) {
     await render(hbs`<ModalContainer />`);
     var result = null;
-    modalUtil.open('save-waiting', {started_at: Date.now() - 16000}).then(function(res) { result = res; });
+    this.owner.lookup('service:modal').open('save-waiting', {started_at: Date.now() - 16000}).then(function(res) { result = res; });
     await settled();
     assert.dom(document.querySelector('[data-test-save-waiting-without]')).exists();
     await click('[data-test-save-waiting-without]');

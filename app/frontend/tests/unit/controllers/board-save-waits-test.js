@@ -65,7 +65,9 @@ module('Unit | Controller | board Save waits for uploads', function(hooks) {
     var controller = owner.factoryFor('controller:user/board-detail').create({
       app_state: EmberObject.create({currentUser: EmberObject.create({id: 'test-user'})})
     });
-    controller.set('model', EmberObject.create({id: 'test-board', buttons: [], changedAttributes: function() { return {}; }}));
+    // contextualized_buttons: read by Modern's shift-label observer when ordered_buttons is set
+    // (board-detail.js _apply_shift_to_ordered_buttons); an empty list relabels nothing.
+    controller.set('model', EmberObject.create({id: 'test-board', buttons: [], changedAttributes: function() { return {}; }, contextualized_buttons: function() { return []; }}));
     return controller;
   }
 
