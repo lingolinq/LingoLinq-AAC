@@ -16,6 +16,7 @@ import Utils from '../utils/misc';
 import progress_tracker from '../utils/progress_tracker';
 import { board_view_route } from '../utils/board_view';
 import boardKeyFromInput from '../utils/board-key-from-input';
+import { begin_pending_image, finish_pending_image } from '../utils/pending_image';
 
 let appStateService;
 let stashesService;
@@ -1654,11 +1655,11 @@ var pictureGrabber = EmberObject.extend({
     if(this._activeImageSavePromise) {
       return this._activeImageSavePromise;
     }
-    this.controller.set('model.pending_image', true);
     var _this = this;
 
     if(this.controller.get('image_preview.editor')) {
       if(!url) {
+        // The recursive call starts the save and marks the button pending itself.
         if(_this.edited_image_data) {
           _this.select_image_preview(_this.edited_image_data);
         } else {
@@ -1667,16 +1668,27 @@ var pictureGrabber = EmberObject.extend({
           }, function() {
           });
         }
-        if(_this.controller && !_this.controller.isDestroyed && !_this.controller.isDestroying) {
-          _this.controller.set('model.pending_image', false);
-        }
         return this._activeImageSavePromise || RSVP.resolve();
       } else {
         emberSet(preview, 'url', url);
       }
     }
-    var save_image = this.save_image_preview(preview, force_content_type);
-    var button_id = _this.controller.get('model.id');
+    // The settings modal can close, or open another button, before this save
+    // settles (contentGrabbers.save_pending resolves first), so the pending
+    // flag and the controller writes use what this save started from.
+    var startController = this.controller;
+    var pendingButton = startController.get('model');
+    var pendingToken = begin_pending_image(pendingButton);
+    var ownsController = function() {
+      return _this.controller === startController && !startController.isDestroyed && !startController.isDestroying;
+    };
+    var save_image;
+    try {
+      save_image = this.save_image_preview(preview, force_content_type);
+    } catch(err) {
+      save_image = RSVP.reject(err);
+    }
+    var button_id = startController.get('model.id');
     this._activeImageSavePromise = save_image.then(function(image) {
       var pickedDisplayUrl = preview.save_url || preview.url || null;
       image = _this.resolveSavedImageRecord(image, pickedDisplayUrl);
@@ -1686,11 +1698,11 @@ var pictureGrabber = EmberObject.extend({
       if(image.invalidateCachedDisplayUrls) {
         image.invalidateCachedDisplayUrls();
       }
-      if(_this.controller && !_this.controller.isDestroyed && !_this.controller.isDestroying) {
+      if(ownsController()) {
         _this.controller.set('fresh_picture_url', pickedDisplayUrl);
         _this.controller.set('model.image', image);
+        _this.clear();
       }
-      _this.clear();
       // Synchronously mirror the image onto board.buttons so persistence (which may
       // serialize before afterRender fires) sees the updated image_id immediately.
       var syncServerId = (image.get && image.get('id')) || image.id;
@@ -1727,21 +1739,17 @@ var pictureGrabber = EmberObject.extend({
           }
         }
       });
-      if(_this.controller && !_this.controller.isDestroyed && !_this.controller.isDestroying) {
-        _this.controller.set('model.pending_image', false);
-      }
     }).then(null, function(err) {
       var errorMessage = window.cg.formatUploadError(err);
       lingoLinqExtras.track_error("upload failed: " + errorMessage);
       alert(i18n.t('upload_failed_with_error', "upload failed: " + errorMessage));
-      if(_this.controller && !_this.controller.isDestroyed && !_this.controller.isDestroying) {
-        _this.controller.set('model.pending_image', false);
-      }
       return RSVP.reject(err);
     }).then(function() {
       _this._activeImageSavePromise = null;
+      finish_pending_image(pendingButton, pendingToken);
     }, function() {
       _this._activeImageSavePromise = null;
+      finish_pending_image(pendingButton, pendingToken);
     });
     return this._activeImageSavePromise;
   },

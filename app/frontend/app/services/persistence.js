@@ -766,7 +766,7 @@ var persistence = Service.extend({
           // Only report the save as complete once the local write has actually
           // landed; resolving earlier lets a find() issued by the caller race
           // the write, miss, and poison known_missing for that record.
-          resolve(obj);
+          resolve(obj); try { note_board_written(root, store, obj); } catch(e) { } // a written board counts as saved at a stop (utils/sync_rollup.js); never blocks the write's promise
         }, function(error) {
           root.errors = root.errors || [];
           root.errors.push({error: error, message: "Failed to store object", object: obj, store: store, key: key}); note_failed_write(root, error); // a sync counts it (utils/storage_failures.js)
@@ -2048,7 +2048,7 @@ var persistence = Service.extend({
       if(!_this_sync.get('sync_progress.root_user')) {
         _this_sync.set('sync_progress', {
           root_user: user_id,
-          sync_id: sync_id,
+          sync_id: sync_id, started_at: (new Date()).getTime(), // when this sync started (utils/sync_board_fallback.js copy_from_this_sync)
           progress_for: {
           }
         });
@@ -2196,7 +2196,7 @@ var persistence = Service.extend({
           if(!_this_sync.get('sync_progress.root_user') || _this_sync.get('sync_progress.root_user') == old_user_id) {
             _this_sync.set('sync_progress', {
               root_user: user.get('id'),
-              sync_id: _this_sync.get('sync_progress.sync_id'), canceled: _this_sync.get('sync_progress.canceled'), // a cancel pressed while caches primed must reach the board walk
+              sync_id: _this_sync.get('sync_progress.sync_id'), canceled: _this_sync.get('sync_progress.canceled'), started_at: _this_sync.get('sync_progress.started_at') || (new Date()).getTime(), // a cancel pressed while caches primed must reach the board walk, and the start time stays the sync's own
               progress_for: {
               }
             });
@@ -2373,7 +2373,7 @@ var persistence = Service.extend({
 
       var complete_sync = track_buttons.then(function() {
         var last_sync = (new Date()).getTime() / 1000;
-        if(_this_sync.get('sync_progress.root_user') == user_id && !_this_sync.end_canceled_sync(sync_id, user_id, user_name, force)) { // a cancelled sync whose walk resolved ends as cancelled, before anything below moves the stamps or the clock
+        if(_this_sync.get('sync_progress.root_user') == user_id && !_this_sync.end_canceled_sync(sync_id, user_id, user_name, force, writes_before)) { // a cancelled sync whose walk resolved ends as cancelled, before anything below moves the stamps or the clock
           var sync_stamps = _this_sync.get('sync_progress.sync_stamps'); var board_roots = _this_sync.get('sync_progress.board_roots') || {}; // which board each one was reached from, for Sync Details (utils/sync_rollup.js)
           var statuses = _this_sync.get('sync_progress.board_statuses') || [];
           if(_this_sync.get('sync_progress.last_sync_stamp')) {
@@ -2384,12 +2384,12 @@ var persistence = Service.extend({
             if(error.board_key || error.board_id) {
               var status = statuses.find(function(s) { return (s.key && s.key == error.board_key); });
               if(status) {
-                status.error = error.error;
+                status.error = error.error; if(error.content) { status.content = true; } else { delete status.content; } if(error.refused) { status.refused = true; } else { delete status.refused; } // utils/sync_rollup.js content_error; refused: the walk's failure branch
               } else {
                 statuses.push({
                   id: error.board_id || error.board_key,
                   key: error.board_key || error.board_id,
-                  error: error.error
+                  error: error.error, ...(error.content ? { content: true } : {}), ...(error.refused ? { refused: true } : {})
                 });
               }
             }
@@ -2423,7 +2423,7 @@ var persistence = Service.extend({
             user_id: user_name,
             reason: sync_reason,
             manual: force,
-            issues: errors.length > 0,
+            issues: errors.length > 0, errored: storage_failed ? true : undefined, storage_failed: storage_failed ? true : undefined, // the boards' writes failed: it did not finish (Sync Details, utils/sync_log_store.js partial_result)
             finished: new Date(),
             statuses: statuses, roots: board_roots,
             summary: sync_message
@@ -2436,8 +2436,8 @@ var persistence = Service.extend({
       return complete_sync;
     }, function(err) {
       if(_this_sync.get('sync_progress.root_user') == user_id) {
-        var statuses = _this_sync.get('sync_progress.board_statuses') || [];
-        var stamps = _this_sync.get('sync_progress.sync_stamps');
+        var statuses = confirmed_statuses(_this_sync.get('sync_progress.board_statuses') || [], _this_sync.get('sync_progress')); // a download not finished at the stop is not saved (utils/sync_rollup.js)
+        var stamps = _this_sync.get('sync_progress.sync_stamps'); var stopped_roots = _this_sync.get('sync_progress.board_roots') || {}; var stopped_errors = live_board_errors(_this_sync.get('sync_progress')); // kept in its log entry, for Sync Details' cards after a stop
         _this_sync.set('sync_progress', null);
         if(_this_sync._canceled_sync_id === sync_id) { if(_this_sync._active_root_sync_id === sync_id && _this_sync.sync_status_is_for_signed_in_user(user_id)) { _this_sync.set('sync_status', null); } } else if(_this_sync.sync_status_is_for_signed_in_user(user_id)) { _this_sync.set('sync_status', 'failed'); }
         // if last sync attempt ended in failure and this attempt also
@@ -2464,9 +2464,9 @@ var persistence = Service.extend({
         log.push({
           user_id: user_name,
           manual: force,
-          errored: _this_sync._canceled_sync_id !== sync_id, canceled: _this_sync._canceled_sync_id === sync_id || undefined, // a cancel that ended through this branch is still a cancel (docs/task-management/2026-11-15_persist-sync-log.md)
+          errored: _this_sync._canceled_sync_id !== sync_id, canceled: _this_sync._canceled_sync_id === sync_id || undefined, storage_failed: writes_failed_since(_this_sync, writes_before) || undefined, // a board write failed: its written rows still show, and the failed board reads not saved (utils/sync_rollup.js confirmed_statuses; utils/sync_log_store.js partial_result) // a cancel that ended through this branch is still a cancel (docs/task-management/2026-11-15_persist-sync-log.md)
           finished: new Date(),
-          statuses: statuses,
+          statuses: with_errors(statuses, stopped_errors), roots: stopped_roots, confirmed: true, // grouped and with the failures it recorded, as the finished sync's entry (utils/sync_rollup.js); confirmed: its rows went through confirmed_statuses (utils/sync_log_store.js partial_result)
           summary: _this_sync._canceled_sync_id === sync_id ? i18n.t('sync_canceled_summary', "Sync canceled") : i18n.t('error_syncing_user', "Error syncing %{user_id}: ", {user_id: user_name}) + message
         });
         _this_sync.set('last_sync_event_at', (new Date()).getTime());
@@ -2777,9 +2777,9 @@ var persistence = Service.extend({
             board_statuses.push({id: id, key: record.get('key'), status: 'cached'});
             return record;
           } else {
-            board_statuses.push({id: id, key: record.get('key'), status: 're-downloaded'});
-            record.set('button_set_needs_reload', true);
-            return _this.time_promise(record.reload(), "reload board", BOARD_RELOAD_MS).then(null, function(err) { return keep_stored_board(record, err, board_statuses, id, function(rec) { return _this.find('board', rec.get('global_id') || rec.get('id')).then(function(row) { return usable_copy(row) ? row : RSVP.reject({error: 'no usable copy'}); }); }); }); // #1212 (utils/sync_board_fallback.js): by global id, a key lookup scans every board row
+            return (key_for_id ? RSVP.resolve(null) : _this.board_stored_this_sync(id, record, fresh_board_revisions && fresh_board_revisions[id])).then(function(copy) { if(copy) { board_statuses.push({id: id, key: copy.get('key'), status: 'downloaded'}); copy.set('button_set_needs_reload', true); return copy; } // a parked board whose late answer this sync stored is not downloaded again (board_stored_this_sync below); a lookup by key reloads as before, and so does a copy the server's revisions list says is old
+            board_statuses.push({id: id, key: record.get('key'), status: 're-downloaded'}); record.set('button_set_needs_reload', true);
+            return _this.time_promise(record.reload(), "reload board", BOARD_RELOAD_MS).then(null, function(err) { return keep_stored_board(record, err, board_statuses, id, function(rec) { return _this.device_board_row(rec); }); }); }); // #1212 (utils/sync_board_fallback.js)
           }
         } else {
           board_statuses.push({id: id, key: record.get('key'), status: 'downloaded'});
@@ -2972,7 +2972,7 @@ var persistence = Service.extend({
                       lookups[board_json.id] = RSVP.resolve(board_record);
                       lookups[board_json.key] = lookups[board_json.id]
                       _this_sync_boards.store('board', board_json, board_json.key).then(function(str) {
-                        note_device_boards(_this_sync_boards.get('sync_progress'), [board_json]); next_batch();
+                        next_batch(); // a written board is noted by the store's own hook (utils/sync_rollup.js note_board_written); this handler also runs on a failed write
                       }, function(err) {
                         next_batch();
                       });
@@ -3356,7 +3356,7 @@ var persistence = Service.extend({
                 if(source) {
                    msg = msg + ", linked from " + source;
                 }
-                board_errors.push({error: msg, board_id: id, board_key: key});
+                board_errors.push(content_error(msg, id, key)); // tagged content: the board was reached (utils/sync_rollup.js)
                 schedule_sync_board_step(function() {
                   nextBoard(defer);
                 }, 75);
@@ -3370,14 +3370,14 @@ var persistence = Service.extend({
                   nextBoard(defer);
                 }, 75);
               } else {
-                unreachable_boards[id] = true; if(key) { unreachable_boards[key] = true; } note_board_root(_sync.get('sync_progress'), next, {id: id, key: key}); // TODO: if a board has been deleted
+                unreachable_boards[id] = true; if(key) { unreachable_boards[key] = true; } note_board_root(_sync.get('sync_progress'), next, {id: id, key: key}); var refused = boardRevocation.real_denial(err); // refused: read from the error as it arrived, before the unwrap below (utils/board_revocation.js real_denial; PR #1328 hides a liked board only on it). TODO: if a board has been deleted
                 if(err.error && err.error.error) {
                   err = err.error;
                 }
                 if(err && err.error == "Record not found" && err.deleted) {
-                  board_errors.push({error: "board " + (key || id) + " has been deleted, linked from " + source, board_unauthorized: board_unauthorized, board_id: id, board_key: key});
+                  board_errors.push({error: "board " + (key || id) + " has been deleted, linked from " + source, board_unauthorized: board_unauthorized, board_id: id, board_key: key, refused: true});
                 } else {
-                  board_errors.push({error: "board " + (key || id) + " failed retrieval for syncing, linked from " + source, board_unauthorized: board_unauthorized, board_id: id, board_key: key});
+                  board_errors.push({error: "board " + (key || id) + " failed retrieval for syncing, linked from " + source, board_unauthorized: board_unauthorized, board_id: id, board_key: key, ...(refused ? { refused: true } : {})});
                 }
                 schedule_sync_board_step(function() {
                   nextBoard(defer);
@@ -4978,13 +4978,13 @@ export default persistence;
 // Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
 import boardRevocation from '../utils/board_revocation';
 import { keep_queued_keys, replay_save_options } from '../utils/preference_save';
-import { note_failed_write, failed_write_count, end_sync_if_storage_failed } from '../utils/storage_failures';
+import { note_failed_write, failed_write_count, end_sync_if_storage_failed, writes_failed_since } from '../utils/storage_failures';
 import offlineSyncSeeds from '../utils/offline_sync_seeds';
 import { queue_eventual_store } from '../utils/eventual_store_queue';
 import { is_permanent_upload_url } from '../utils/permanent_upload';
 import { on_uploads_cdn, is_web_page } from '../utils/direct_fetch';
 import { picture_kept_in_database, usable_database_copy } from '../utils/database_picture';
-import { BOARD_RELOAD_MS, USER_RELOAD_MS, keep_stored_board, claim_board_retry, note_device_boards, known_on_device } from '../utils/sync_board_fallback'; import { create_parking, register_parking, wake_parked, retry_delay, when_slot_free } from '../utils/board_retry'; import { note_board_root, root_for_link, note_warning } from '../utils/sync_rollup'; import { record_sync_log, restore_sync_log } from '../utils/sync_log_store';
+import { BOARD_RELOAD_MS, USER_RELOAD_MS, keep_stored_board, claim_board_retry, note_device_boards, known_on_device, stored_this_sync } from '../utils/sync_board_fallback'; import { create_parking, register_parking, wake_parked, retry_delay, when_slot_free } from '../utils/board_retry'; import { note_board_root, root_for_link, with_errors, confirmed_statuses, live_board_errors, content_error, note_board_written, note_warning } from '../utils/sync_rollup'; import { record_sync_log, restore_sync_log } from '../utils/sync_log_store';
 import { usable_copy } from '../utils/board_device_copy';
 import { reason_is_automatic, merge_follow_up } from '../utils/sync_follow_up';
 
@@ -5110,12 +5110,22 @@ persistence.reopen({
   // result and moves neither the sync clock nor the stamps (the next sync must still run). It records the event time
   // (as the failure branch does) so the automatic check does not restart a sync right after Cancel, and logs the cancel.
   // Section 22 of docs/task-management/2026-11-10_offline-followup-proposals.md. Returns true when it ended the sync.
-  end_canceled_sync: function(sync_id, user_id, user_name, force) {
+  end_canceled_sync: function(sync_id, user_id, user_name, force, writes_before) {
     if(!sync_id || this._canceled_sync_id !== sync_id) { return false; }
+    // What the cancelled sync saved and what failed, read before sync_progress is cleared: as the failure branch, only
+    // downloads that finished count as saved, and every user's recorded errors are kept with the roots (Sync Details'
+    // stopped cards; PR #1328's offline list hides another owner's liked board on its error).
+    var progress = this.get('sync_progress');
+    var reached = Utils.uniq(confirmed_statuses((progress && progress.board_statuses) || [], progress), function(s) { return s.id; });
+    var statuses = with_errors(reached, live_board_errors(progress));
+    var roots = (progress && progress.board_roots) || {};
+    // A board write failed since the sync began (`writes_before`, from sync): as the failure branch. Not told when it
+    // began, nothing is checked (the count lasts the session, utils/storage_failures.js).
+    var storage_failed = writes_before !== undefined && writes_failed_since(this, writes_before);
     this.set('sync_progress', null);
     if(this._active_root_sync_id === sync_id && this.sync_status_is_for_signed_in_user(user_id)) { this.set('sync_status', null); }
     var log = [].concat(this.get('sync_log') || []);
-    log.push({ user_id: user_name, manual: force, canceled: true, finished: new Date(), statuses: [], summary: i18n.t('sync_canceled_summary', "Sync canceled") });
+    log.push({ user_id: user_name, manual: force, canceled: true, finished: new Date(), statuses: statuses, roots: roots, confirmed: true, storage_failed: storage_failed || undefined, summary: i18n.t('sync_canceled_summary', "Sync canceled") });
     this.set('sync_log', record_sync_log(this, log)); // utils/sync_log_store.js
     this.set('sync_log_rand', Math.random());
     this.set('last_sync_event_at', (new Date()).getTime());
@@ -5128,6 +5138,23 @@ persistence.reopen({
     this.drop_follow_up_syncs({error: "canceled"});
     if(this.get('sync_progress') && !this.get('sync_progress.canceled')) { this.pause_automatic_sync(); }
     return this._super(...arguments);
+  },
+  // The device's copy of a board, when it opens offline (utils/board_device_copy.js usable_copy), or a rejection. By
+  // global id: a key lookup scans every board row (#1212). Used by board_lookup's reload branch above.
+  device_board_row: function(record) {
+    return this.find('board', record.get('global_id') || record.get('id')).then(function(row) {
+      return usable_copy(row) ? row : RSVP.reject({error: 'no usable copy'});
+    });
+  },
+  // For a parked board being tried again (board_lookup's reload branch above), the device's complete copy stored
+  // during this sync, put in the store as the sync puts a cached row (sync_boards, "push already-cached record"), or
+  // null when there is none, or putting it in the store fails, and the board is downloaded as before
+  // (utils/sync_board_fallback.js stored_this_sync). `listed_revision` is the server's revision for the board, if listed.
+  board_stored_this_sync: function(id, record, listed_revision) {
+    var _this = this;
+    return stored_this_sync(this.get('sync_progress'), id, record, function(rec) { return _this.device_board_row(rec); }, listed_revision).then(function(row) {
+      return row ? LingoLinq.store.push({ data: { id: row.id, type: 'board', attributes: row } }) : null;
+    }).then(null, function() { return null; });
   },
   // The back-off that follows a failed automatic sync (sync_backoff_watcher): 30 minutes, doubling to 6 hours, reset by a
   // finished sync. It only gates check_for_needs_sync, so the Sync button and the syncs a person's own changes start

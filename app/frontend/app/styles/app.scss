@@ -8740,7 +8740,7 @@ body > .popover.bottom {
 }
 
 /* Colored mode: white backing INSIDE the symbol's own outline. The
-   ll-symbol-white-backing SVG filter (index.html) floods white, clips it to
+   ll-symbol-white-backing SVG filter (utils/symbol_filters.js) floods white, clips it to
    the symbol's own alpha, then draws the symbol on top — so transparent /
    anti-aliased regions don't bleed the button fill, while white never extends
    past the symbol's outline (no halo, no square). Mirrors the board-detail
@@ -33299,13 +33299,6 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   font-size: 20px;
   font-weight: 700;
 }
-.la-sync-details-summary-num {
-  font-size: 40px;
-  font-weight: 800;
-  color: $brand-verdigris-ink;
-  font-variant-numeric: tabular-nums;
-  margin-right: 6px;
-}
 .la-sync-details-summary-line {
   margin: 6px 0 0;
   font-size: 16px;
@@ -33320,10 +33313,6 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 }
 .la-sync-details-bar--thin {
   height: 6px;
-}
-/* The summary band's bar: the status line follows it, then the grey details. */
-.la-sync-details-bar--summary {
-  margin-bottom: 14px;
 }
 .la-sync-details-bar-fill {
   display: block;
@@ -33586,7 +33575,11 @@ $la-sync-ready-tint: #e3f4f1;
   font-weight: 600;
   white-space: nowrap;
 }
+/* Pinned to the head's last column on its first row, so a card without a status pill (a sync that has not finished,
+   components/sync-details.js unfinished_card) keeps the chevron at the right, as do the stacked narrow cards. */
 .la-sync-card-chevron {
+  grid-column: -2 / -1;
+  grid-row: 1;
   color: $brand-slate-blue;
   transition: transform 0.2s ease;
 }
@@ -74765,7 +74758,7 @@ span.md-board-detail-modeling-btn--badge {
   transition: opacity 180ms ease, filter 180ms ease;
 }
 /* Colored mode: white backing INSIDE the symbol's own outline. The
-   ll-symbol-white-backing SVG filter (index.html) floods white, clips it to
+   ll-symbol-white-backing SVG filter (utils/symbol_filters.js) floods white, clips it to
    the symbol's own alpha, then draws the symbol on top — so transparent /
    anti-aliased regions don't bleed the Fitzgerald card color, while white
    never extends past the symbol's outline (no halo, no square). Because the
