@@ -695,3 +695,23 @@ error to hide a liked board (:40, :243, :244, :262, :264 of offline-board-list-t
   listed; a later untagged error after a clean sync: listed; existing hide tests carry `refused: true`; :264 becomes
   "an untagged error no longer hides it". Mutations: back to `last_result`; hide on any error without `content`;
   ignore `refused` in later entries.
+
+### Review of the refused-only proposal (adversary, 2026-11-21): proceed with changes; what was built
+#1336 merged during the review (da911bfde); develop merged here (b94a986a7, clean). Applied:
+- Medium 1, CONFIRMED: a stop entry with a failed write (errored + storage_failed + `confirmed`) qualified under the
+  stated rule, and its 're-downloaded' row is logged before the reload: it could list a refused board or hide a seen
+  one. `walked_whole` now also requires `!e.confirmed` (#1336 writes it on both stop paths).
+- Medium 2, CONFIRMED: an untagged error row counted as "seen" could undo an older refusal. Untagged rows now decide
+  nothing; such a board takes its verdict from the newest older whole sync with a deciding row (refused hides; a clean
+  or content row lists), none: not seen. Within one older sync, a refusal wins over its clean row.
+- Medium 4 (merge order): resolved, #1336 merged first. Contract tests added to `persistence-sync-test.js`: the real
+  refusal entry hides a liked board seen before; the retries-ran-out entry leaves it listed. The import sits on the
+  existing import line so the 44 baselined rows there do not shift.
+- Medium 6 (tests): Cancel (no `confirmed`, as before #1336), empty-entry, stop-with-failed-write (both directions),
+  fallback and same-sync-refusal assertions; `write_failed` fixture carries `issues`.
+- Recorded, not changed: Medium 3, a valet device never gets `refused` (`valet_blocked` makes `real_denial` false), so
+  an unshared liked board stays listed there; the fix belongs in the sync's tagging. Low 5: refusals logged before
+  #1336 are untagged, so after the upgrade they stop hiding until the next sync that reaches the board re-tags it
+  (liked roots are fetched every sync); revocation marks do not cover liked roots while `sync_starred_boards` is off.
+Mutants: S1-S8 and S9b (one pass in row order) KILLED; S9 (`!refused_here` in the clean pass) was equivalent, removed.
+743 tests on the sync and offline filters: 734 pass, 9 skipped (pre-existing), 0 fail. Lint gate adds nothing.

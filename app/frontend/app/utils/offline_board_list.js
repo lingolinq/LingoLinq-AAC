@@ -67,13 +67,14 @@ function seen_by_last_sync(sync_log, user_name) {
     mine[at].statuses.forEach(function(s) {
       if(s) { tokens(s).forEach(function(t) { if(s.refused) { failed[t] = true; } else if(seen(s)) { ok[t] = true; } else { unsure[t] = true; } }); }
     });
-    // Older whole syncs decide only the boards still unsure; within one sync a refusal wins over a clean row.
+    // Older whole syncs decide only the boards still unsure; within one sync a refusal wins over a clean row, so its
+    // refusals are read before its clean rows close the board.
     var open = function(t) { return unsure[t] && !ok[t] && !failed[t]; };
     mine.slice(0, at).reverse().filter(walked_whole).forEach(function(e) {
       var rows = e.statuses.filter(function(s) { return s; });
       var refused_here = {};
       rows.forEach(function(s) { if(s.refused) { tokens(s).forEach(function(t) { if(open(t)) { refused_here[t] = true; } }); } });
-      rows.forEach(function(s) { if(seen(s)) { tokens(s).forEach(function(t) { if(open(t) && !refused_here[t]) { ok[t] = true; } }); } });
+      rows.forEach(function(s) { if(seen(s)) { tokens(s).forEach(function(t) { if(open(t)) { ok[t] = true; } }); } }); // a refusal in the same sync still hides (the final check)
       Object.keys(refused_here).forEach(function(t) { failed[t] = true; });
     });
   }
