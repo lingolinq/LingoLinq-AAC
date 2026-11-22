@@ -9764,6 +9764,13 @@
   "sync_drawer_waiting": "Esperando una mejor conexión [[ Waiting for a better connection",
   "try_now": "Inténtalo ahora [[ Try now",
   "sync_see_details": "Ver detalles [[ See details",
+  "boards_on_this_device": "*** Boards on This Device",
+  "device_boards_loading": "*** Finding the boards on this device...",
+  "device_boards_empty_basic": "*** No boards are saved on this device yet. Connect to the internet and sync to use your boards offline.",
+  "device_boards_note": "*** You're offline. These boards are saved on this device and open without internet.",
+  "device_boards_empty": "*** No boards are saved on this device yet",
+  "device_boards_empty_subtitle": "*** Connect to the internet and sync to use your boards offline.",
+  "device_boards_not_shown": "*** Your boards can't be shown right now. Close and reopen the app, or connect to the internet.",
   "gif_search_no_results": "No se encontraron GIF. Prueba con otras palabras en tu frase y vuelve a buscar. [[ No GIFs found. Try different words in your sentence and search again.",
   "sync_drawer_waiting_content_one": "Las imágenes o los sonidos de 1 carpeta aún se están descargando. Se volverá a intentar automáticamente. [[ 1 folder's pictures or sounds are still downloading. They will be tried again automatically.",
   "sync_drawer_waiting_content_many": "Las imágenes o los sonidos de %{n} carpetas aún se están descargando. Se volverá a intentar automáticamente. [[ %{n} folders' pictures or sounds are still downloading. They will be tried again automatically.",
@@ -9793,5 +9800,6 @@
   "sync_no_folders_saved_yet": "Aún no se han guardado las carpetas. [[ No folders are saved yet.",
   "sync_saved_before_stopped": "Guardado antes de que se detuviera la sincronización. [[ Saved before the sync stopped",
   "sync_nothing_saved_before_stopped": "No se guardó nada antes de que se detuviera la sincronización. [[ Nothing was saved before the sync stopped",
-  "sync_drawer_saved_none": "Aún no hay placas guardadas en este dispositivo. [[ No boards are saved on this device yet."
+  "sync_drawer_saved_none": "Aún no hay placas guardadas en este dispositivo. [[ No boards are saved on this device yet.",
+  "device_boards_note_online": "*** These boards are saved on this device."
 }

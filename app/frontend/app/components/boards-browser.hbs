@@ -9,11 +9,17 @@
            color — so users coming from other systems recognize the
            section without the aliases competing with the heading. --}}
       <h2 id="{{this.headingId}}" class="ub-boards-page__boards-title">
-        <span class="ub-boards-page__boards-title-primary">{{t "Boards" key="boards"}}</span>
-        <span class="ub-boards-page__boards-title-aliases" aria-label={{t "also called Vocabularies or Page-Sets" key="boards_aliases_aria"}}>{{t "(Vocabularies & Page-Sets)" key="boards_aliases_parenthetical"}}</span>
+        {{#if @offlineView}}
+          {{!-- Offline (templates/user/boards.hbs passes @offlineView; the account page does not): one list of the
+               boards on this device instead of the tabs (Traci, 2026-11-16; components/device-boards-grid). --}}
+          <span class="ub-boards-page__boards-title-primary">{{t "Boards on This Device" key="boards_on_this_device"}}</span>
+        {{else}}
+          <span class="ub-boards-page__boards-title-primary">{{t "Boards" key="boards"}}</span>
+          <span class="ub-boards-page__boards-title-aliases" aria-label={{t "also called Vocabularies or Page-Sets" key="boards_aliases_aria"}}>{{t "(Vocabularies & Page-Sets)" key="boards_aliases_parenthetical"}}</span>
+        {{/if}}
       </h2>
     </div>
-    {{#if this.showNewBoard}}
+    {{#if (and this.showNewBoard (not @offlineView))}}
       <button class="ub-boards-page__new-board-btn" {{on "click" this.onNewBoard}}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         {{#if this.boardsCtrl.is_boards_empty}}
@@ -30,11 +36,17 @@
        then refines with the filter input. See that template for the
        rendered <ul class="ub-boards-page__tabs"> markup. --}}
 
-  {{#if this.boardsCtrl.starred_selected}}
-    <p class="ub-boards-page__offline-note">{{t "Liked boards are kept on this device for offline use, up to %{limit} of them." key="liked_boards_offline_note_limit" limit=(liked-boards-kept)}}</p>
+  {{#if @offlineView}}
+    <div class="ub-boards-page__boards-body">
+      <DeviceBoardsGrid @boards={{@offlineBoards}} @boardsCtrl={{this.boardsCtrl}} />
+    </div>
+  {{else}}
+    {{#if this.boardsCtrl.starred_selected}}
+      <p class="ub-boards-page__offline-note">{{t "Liked boards are kept on this device for offline use, up to %{limit} of them." key="liked_boards_offline_note_limit" limit=(liked-boards-kept)}}</p>
+    {{/if}}
+    {{!-- Board grid (Mine folders, filter, DnD) --}}
+    <div class="ub-boards-page__boards-body">
+      <AvailableBoardsSection @boardsCtrl={{this.boardsCtrl}} @filterInputId={{this.filterInputId}} />
+    </div>
   {{/if}}
-  {{!-- Board grid (Mine folders, filter, DnD) --}}
-  <div class="ub-boards-page__boards-body">
-    <AvailableBoardsSection @boardsCtrl={{this.boardsCtrl}} @filterInputId={{this.filterInputId}} />
-  </div>
 </section>

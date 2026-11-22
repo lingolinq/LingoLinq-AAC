@@ -557,6 +557,41 @@ module('Unit | Route | user/board-detail device copy', function(hooks) {
     }
   });
 
+  // Part 3 (Traci 2026-11-16): offline, a LingoLinq library board opens on any device, also after the session died;
+  // online, and for every other board, the dead-session rule is unchanged, and a server refusal still wins.
+  test('offline on a shared device with a dead session: a library board keeps its copy, no other board does', function(assert) {
+    assert.expect(8);
+    var session = this.route.get('session');
+    var prior = session.get('invalid_token');
+    this.appState.set('sessionUser.preferences.device.long_token', false);
+    var dead = {fakeXHR: {status: 400, responseJSON: {error: 'Not authorized', invalid_token: true, status: 400}}};
+    var lib = row({id: '1_8', key: 'lingolinq/yes-no', public: true});
+    try {
+      session.set('access_token', 'tok-dead');
+      this.persistenceService.set('online', false);
+      assert.false(this.route._copy_refused({board_key: 'lingolinq/yes-no', failures: [dead], copy: lib}), 'a library board, offline');
+      assert.strictEqual(this.route._dead_token, 'tok-dead', 'the dead session is still remembered');
+      assert.true(this.route._copy_refused({board_key: 'therapist/feelings', failures: [], copy: row({key: 'therapist/feelings', public: true})}), 'the next board, another owner\'s, stays refused');
+      assert.true(this.route._copy_refused({board_key: 'lingolinq/draft', failures: [], copy: row({key: 'lingolinq/draft', public: false})}), 'a library account board that is not public');
+      assert.false(this.route._session_known_dead(lib), 'a memory hit of a library board, offline');
+      assert.true(this.route._session_known_dead(row()), 'a memory hit of another board');
+      this.persistenceService.set('online', true);
+      assert.true(this.route._copy_refused({board_key: 'lingolinq/yes-no', failures: [], copy: lib}), 'online, the dead-session rule is unchanged');
+      assert.true(this.route._session_known_dead(lib), 'online, a memory hit asks the server');
+    } finally {
+      session.set('invalid_token', prior);
+      this.route._dead_token = null;
+    }
+  });
+
+  test('offline on a shared device: a library board the server refused for this token stays refused', function(assert) {
+    this.appState.set('sessionUser.preferences.device.long_token', false);
+    this.route.get('session').set('access_token', 'tok-x');
+    this.persistenceService.set('online', false);
+    this.route._refused()['lingolinq/yes-no'] = 'tok-x';
+    assert.true(this.route._copy_refused({board_key: 'lingolinq/yes-no', failures: [], copy: row({id: '1_8', key: 'lingolinq/yes-no', public: true})}));
+  });
+
   test('only one board of pictures is kept in memory', async function(assert) {
     this.persistenceService.set('local_system', {available: false});
     this.persistenceService.find_url = function() { return RSVP.resolve('data:x'); };

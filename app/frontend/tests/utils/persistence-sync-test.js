@@ -23,7 +23,7 @@ import capabilities from '../../utils/capabilities';
 import contentGrabbers from '../../utils/content_grabbers';
 import LingoLinq from '../../app';
 import { run as emberRun, later, cancel as runCancel } from '@ember/runloop';
-import { persistenceTarget } from '../helpers/persistence-stub';
+import { persistenceTarget } from '../helpers/persistence-stub'; import { pick_device_boards } from '../../utils/offline_board_list'; // the offline list reads the sync log (contract tests below)
 import {
   syncSettled,
   cancelSyncTailWork,
@@ -5061,6 +5061,36 @@ describe("persistence-sync", function() {
       });
     });
 
+    // Finding 1 (docs/task-management/2026-11-16_offline-boards-page.md): a reload the adapter answered from the device
+    // copy (its old `retrieved` stamp) is not a server answer; only a record stamped after the ask is. The service's
+    // board_lookup records which (sync_progress.answered), and the finished entry carries it for the offline list.
+    it("records a reload as answered only when the server stamped it after the ask", function() {
+      var target = persistenceTarget() || persistence;
+      var long_ago = (new Date()).getTime() - 3600000;
+      var lookup = function(id, restamp) {
+        var rec = EmberObject.create({ id: id, key: 'other/' + id, fresh: false, retrieved: long_ago });
+        stub(rec, 'reload', function() { if(restamp) { rec.set('retrieved', (new Date()).getTime()); } return RSVP.resolve(rec); });
+        return rec;
+      };
+      var device_copy = lookup('1_d', false);
+      var answer = lookup('1_s', true);
+      stub(LingoLinq.store, 'findRecord', function(type, id) {
+        var rec = id == '1_d' ? device_copy : answer;
+        rec.set('permissions', {});
+        return RSVP.resolve(rec);
+      });
+      target.set('sync_progress', {});
+      var done = 0;
+      target.board_lookup('1_d', {}).then(function() { done++; });
+      target.board_lookup('1_s', {}).then(function() { done++; });
+      waitsFor(function() { return done == 2; });
+      runs(function() {
+        var answered = Object.keys(target.get('sync_progress.answered') || {}).sort();
+        expect(answered).toEqual(['1_s', 'other/1_s']);
+        target.set('sync_progress', null);
+      });
+    });
+
     it("should not reload if fresh, numerical id and not peeked", function() {
       persistence.set('sync_progress', {});
       var rec = EmberObject.create({
@@ -5373,6 +5403,27 @@ describe("persistence-sync", function() {
       });
     });
 
+    // Finding 1 (docs/task-management/2026-11-16_offline-boards-page.md): the finished entry lists the boards the server
+    // really answered for (`answered`), through the real transport, and not the board it refused.
+    it("logs which boards the server answered for in the finished entry, through the real transport", function() {
+      db_wait(function() {
+        var outcome = {};
+        runRevokedSync(function() {
+          return RSVP.resolve({revisions: {'1_145': 'current', 'fred/home': 'current', '1_167': 'current', 'fred/next': 'current', '1_178': 'newer', 'other/shared': 'newer'}, revoked_ids: []});
+        }, outcome, 'service');
+        runs(function() {
+          var answered = (outcome.last_log && outcome.last_log.answered) || [];
+          expect(answered.length > 0).toEqual(true);
+          expect(answered.indexOf('1_178')).toEqual(-1);
+          expect(answered.indexOf('other/shared')).toEqual(-1);
+          cancelSyncTailWork();
+          persistence.set('sync_progress', null);
+          LingoLinq.sync_testing_real_boards = false;
+          boardRevocation.reset_for_tests();
+        });
+      });
+    });
+
     // Part 4 (L4-B, 2026-11-20): a real refusal, through the real transport, adapter and Ember Data, is logged as
     // refused, so PR #1328's offline list can tell it from a bad connection (services/persistence.js, the walk's
     // failure branch; utils/board_revocation.js real_denial).
@@ -5390,6 +5441,13 @@ describe("persistence-sync", function() {
           expect(rows.length).toEqual(1);
           expect(rows[0] && rows[0].error).toEqual('board 1_178 failed retrieval for syncing, linked from fred/next');
           expect(rows[0] && rows[0].refused).toEqual(true);
+          // PR #1328's offline list reads this entry: another owner's liked board the server refused is hidden, even
+          // though an earlier sync saw it (utils/offline_board_list.js seen_by_last_sync).
+          var liked = { data: { id: '1_178', raw: { id: '1_178', key: 'other/shared', name: 'Shared', user_name: 'other', buttons: [], grid: { order: [] } } } };
+          var seen_before = { user_id: outcome.last_log.user_id, statuses: [{ id: '1_178', key: 'other/shared', status: 'cached' }] };
+          var person = EmberObject.create({ user_name: outcome.last_log.user_id, preferences: {}, stats: { starred_board_refs: [{ id: '1_178', key: 'other/shared' }] } });
+          expect(pick_device_boards([liked], person, [seen_before]).map(function(b) { return b.key; })).toEqual(['other/shared']);
+          expect(pick_device_boards([liked], person, [seen_before, outcome.last_log]).map(function(b) { return b.key; })).toEqual([]);
           cancelSyncTailWork();
           persistence.set('sync_progress', null);
           LingoLinq.sync_testing_real_boards = false;
@@ -6815,6 +6873,12 @@ describe("persistence-sync", function() {
           expect(response.calls).toEqual(4);
           expect(rows[0] && rows[0].error).toEqual('board fred/slow failed retrieval for syncing, linked from 145');
           expect(!!rows[0] && 'refused' in rows[0]).toEqual(false);
+          // PR #1328's offline list reads this entry: a board that failed only on retries is not hidden when an earlier
+          // sync saw it (an untagged error decides nothing, utils/offline_board_list.js seen_by_last_sync).
+          var liked = { data: { id: '167', raw: { id: '167', key: 'fred/slow', name: 'Slow', user_name: 'other', buttons: [], grid: { order: [] } } } };
+          var person = EmberObject.create({ user_name: log[0].user_id, preferences: {}, stats: { starred_board_refs: [{ id: '167', key: 'fred/slow' }] } });
+          var seen_before = { user_id: log[0].user_id, statuses: [{ id: '167', key: 'fred/slow', status: 'cached' }] };
+          expect(pick_device_boards([liked], person, [seen_before, log[0]]).map(function(b) { return b.key; })).toEqual(['fred/slow']);
           cancelSyncTailWork();
           persistence.set('sync_progress', null);
           LingoLinq.sync_testing_real_boards = false;

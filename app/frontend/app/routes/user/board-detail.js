@@ -131,7 +131,7 @@ export default Route.extend({
         return b.get('key') === board_key;
       });
     }
-    if (cached_raw && cached_record && !cached_record.get('should_reload') && !this._session_known_dead()) { // item 9C: a dead session asks the server
+    if (cached_raw && cached_record && !cached_record.get('should_reload') && !this._session_known_dead(cached_raw)) { // item 9C: a dead session asks the server
       // Deep-clone so downstream consumers (normalize, _build_from_raw)
       // can mutate without poisoning the cached copy.
       var cached_copy = JSON.parse(JSON.stringify(cached_raw));
@@ -771,12 +771,18 @@ export default Route.extend({
   // The session is known to be dead: the token check said so, or a board request answered 400 with
   // invalid_token for this token (Speak Mode logs nobody out, so the route remembers). The memory cache
   // then stays unused, so a tap asks the server instead of showing a copy for the rest of its 5 minutes.
-  _session_known_dead: function() {
+  _session_known_dead: function(raw) {
     var session = this.session;
     // A trusted device keeps its copies on a dead session (the same policy as _copy_refused), so its memory
     // hit stands too; gating it would only add two failing requests before the same copy shows.
     if(offline_shell.device_trust(this.appState.get('sessionUser')) === 'trusted') { return false; }
+    if(this._library_copy_offline(raw)) { return false; }
     return !!(session.get('invalid_token') || (this._dead_token && this._dead_token === session.get('access_token')));
+  },
+  // Offline, a LingoLinq library board opens on any device, also after the session died (public; Traci, 2026-11-16;
+  // utils/board_device_copy.js library_board). Online the dead-session rule is unchanged.
+  _library_copy_offline: function(raw) {
+    return !!(this.persistence && this.persistence.get('online') === false && library_board(raw));
   },
   // A dead session is remembered per token: in Speak Mode nothing logs out (utils/extras.js), and the
   // next navigation may have no server answer to show it. Read even when there is no copy.
@@ -786,7 +792,7 @@ export default Route.extend({
     if(session.get('invalid_token') || nav.failures.some(function(err) { return session_ended(err, session); })) {
       this._dead_token = token;
     }
-    if(token && this._dead_token === token && offline_shell.device_trust(this.appState.get('sessionUser')) !== 'trusted') {
+    if(token && this._dead_token === token && offline_shell.device_trust(this.appState.get('sessionUser')) !== 'trusted' && !this._library_copy_offline(nav.copy)) {
       return true;
     }
     var copy_id = nav.copy && nav.copy.id;
@@ -823,7 +829,7 @@ export default Route.extend({
 });
 // Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
 import boardRevocation from '../../utils/board_revocation';
-import { DEVICE_COPY_WAIT_MS, DEVICE_READ_WAIT_MS, remaining_wait, board_kept_on_refusal, leave_unsaved_board, load_copy_images, read_device_copy, server_refused, session_ended, usable_copy, within } from '../../utils/board_device_copy';
+import { DEVICE_COPY_WAIT_MS, DEVICE_READ_WAIT_MS, remaining_wait, board_kept_on_refusal, leave_unsaved_board, load_copy_images, read_device_copy, server_refused, session_ended, usable_copy, within, library_board } from '../../utils/board_device_copy';
 import offline_shell from '../../utils/offline_shell';
 import { DEFAULT_WAIT_MS, wait_for_session_user } from '../../utils/session_user_wait';
 import { no_connection } from '../../utils/board_owner';
