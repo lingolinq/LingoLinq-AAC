@@ -188,6 +188,19 @@ module('Unit | Utility | save after media', function(hooks) {
     assert.strictEqual(dialog.closed, 1, 'only the waiting dialog was closed, before the save');
   });
 
+  test('a modal that replaced the dialog is not closed when the uploads land', async function(assert) {
+    var state = setup();
+    var up = upload();
+    save_after_media(state.opts);
+    // Another modal opened over the waiting dialog, and its {replaced: true} answer has not been
+    // handled yet when the upload lands.
+    dialog.current = 'other-modal';
+    finish_pending_media(up.token, 'landed');
+    await settled();
+    assert.strictEqual(dialog.closed, 0, 'only the waiting dialog may be closed');
+    assert.strictEqual(dialog.current, 'other-modal');
+  });
+
   test('the dialog is told when the first Save click happened', function(assert) {
     var state = setup();
     upload();
