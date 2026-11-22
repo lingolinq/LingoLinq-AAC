@@ -283,3 +283,45 @@ counters show in Technical details for each sync.
   nothing), a supervisor entry with a supervisee failure.
 - e2e (the 0.2 harness): each measured sync also records the entry's counters beside the link's own counts; requests
   and bytes should agree within the warm-up's share. This is the accuracy check.
+
+### Review round 1 (adversary, reviewed 4c7d22920): dispositions
+No Critical or High. Each finding checked; all accepted. The revised design:
+- **Every request carries a ticket.** `request_started(token)` returns `{sync_id}` or null; `request_ended(ticket, ...)`
+  counts only when the ticket's id is the counter's, and never lets "open" go below 0 (finding: a request a timed-out
+  step left running, ending in the next sync; follow-up syncs start as soon as one settles,
+  `services/persistence.js:5020-5031`).
+- **Counting is on only while the sync it belongs to is the one running:** `token(persistence)` gives the counter's id
+  only when `persistence.sync_progress.sync_id` is that id. A sync cleared without a writer (`clear_user_state`) stops
+  counting by itself; the next `begin` replaces the counter.
+- **Pictures and sounds saved** are counted once, for type image or sound only, after the device write resolves, with
+  the bytes of what was fetched (the blob's size, or the proxy's decoded size); JSON through the same XHR (button sets,
+  `/api/v1/lang`) is not a picture. **"Couldn't be saved"** comes from the entry's final rows (summary_for's
+  `pictures_missing`, the existing card data), not from failed attempts.
+- **Bytes, honestly worded:** the summary's "(18 MB)" is the saved pictures' and sounds' bytes only. Everything else is
+  `received_chars` (response text length of every request during the sync, a character count, labelled so) and shows
+  only in Technical details. Each response is counted in exactly one place.
+- **Failure kinds from a closed list** (`timeout`, `offline`, `limited` 429, `server` 5xx, `refused` other 4xx,
+  `storage`, `supervisee`, `other`), noted where they happen: the request hooks (status), `persistence.ajax`'s
+  offline return (`services/persistence.js:3883`), `time_promise`'s timeout (`utils/persistence.js:196`),
+  `sync_supervisees`' catch, and storage from `failed_write_count` at the end. No error text or url is stored
+  (proxy errors carry urls; lessonpix urls carry a token).
+- **`started` stored as epoch ms inside `counters`** (merge_logs rebuilds only `finished`); `entry_copy` keeps
+  `counters`.
+- **The summary says which sync it describes:** "Stopped after ..." for a stopped one; for cards from an earlier
+  sync, the line is for that earlier sync and says so. Boards downloaded = rows with status `downloaded` or
+  `re-downloaded`.
+- **Hook-wiring tests** stub at `$.realAjax` and at `XMLHttpRequest`, one mutant per hook call, because the sync test
+  harness stubs `persistence.ajax` and `store_url_now` and would pass with either hook deleted.
+- The `$.realAjax` hook is a separate two-handler `.then` on the raw result, guarded, before the existing chain; it
+  never changes arguments or results (some test stubs return RSVP promises without an xhr).
+- Fact-sheet corrections: W2's root-user check is `services/persistence.js:2438`; `end_canceled_sync` has no copy; the
+  `utils/persistence.js` copies of `sync` and `store_url_now` are not reached once the service exists (the Proxy hands
+  every service property to the service, `utils/persistence.js:4593-4600`, CONFIRMED). The archived lesson says to
+  change both copies; the hooks go in both for parity, and the service copy is the one tested. "Absorbed" syncs are
+  now mostly the follow-up queue (`services/persistence.js:5010`). The installed app sends absolute-url GETs through
+  CapacitorHttp per the reviewer (`lingolinq_mobile/capacitor.config.json`, not in this repo: UNVERIFIED); it affects
+  only candidate B's rejection, which holds on the web regardless.
+- Added to unresolved: an OS kill mid-sync leaves no entry at all (the case support most needs); 0.1 does not change
+  that. Saving the running counters periodically is a candidate for later, not this item.
+- Storage line: web only in 0.1 (hidden in the installed app until measured); "available" is the browser's allowance
+  minus usage, not free disk, so it is worded as how much more LingoLinq can save.
