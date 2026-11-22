@@ -3,7 +3,7 @@ import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
-import { sync_progress_line, picture_warning } from '../utils/sync_progress';
+import { sync_progress_line, ready_title, picture_warning } from '../utils/sync_progress';
 import { summary_for, current_root_name, only_parked_left } from '../utils/sync_rollup';
 import { wake_parked } from '../utils/board_retry';
 
@@ -120,14 +120,10 @@ export default Component.extend({
     return this.get('stage') === 'ready' && !!(this.get('summary.overall.warned'));
   }),
 
+  // The same words as Sync Details' headline (utils/sync_progress.js ready_title).
   result_title: computed('stage', 'summary', 'sync_notice.message', function() {
-    var s = this.get('summary');
     var stage = this.get('stage');
-    if(stage === 'ready') { return i18n.t('sync_drawer_all_ready', "All your boards are ready offline"); }
-    if(stage === 'attention') {
-      var ready = s.groups.filter(function(g) { return g.ready; }).length;
-      return i18n.t('sync_drawer_n_of_m_ready', "%{ready} of %{total} boards are ready offline", { ready: ready, total: s.groups.length });
-    }
+    if(stage === 'ready' || stage === 'attention') { return ready_title(this.get('summary')); }
     return this.get('sync_notice.message');
   }),
 

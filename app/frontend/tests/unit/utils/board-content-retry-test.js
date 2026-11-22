@@ -75,10 +75,10 @@ module('Unit | Utility | board content retry', function() {
 
   test('the board error is worded as the walk words it', function(assert) {
     assert.deepEqual(content_error({ id: '145', key: 'fred/home', visit_source: 'home board' }, { error: 'button image failed to sync, u' }),
-      { error: 'board fred/home failed to sync completely: button image failed to sync, u, linked from home board', board_id: '145', board_key: 'fred/home' });
+      { error: 'board fred/home failed to sync completely: button image failed to sync, u, linked from home board', board_id: '145', board_key: 'fred/home', content: true });
     assert.strictEqual(content_error({ id: '145' }, 'oops').error, 'board 145 failed to sync completely: oops');
     assert.deepEqual(content_error({ key: 'fred/liked', visit_source: 'starred board' }, { error: 'e' }),
-      { error: 'board fred/liked failed to sync completely: e, linked from starred board', board_id: 'fred/liked', board_key: 'fred/liked' }, 'a board known by key only, as the walk records it');
+      { error: 'board fred/liked failed to sync completely: e, linked from starred board', board_id: 'fred/liked', board_key: 'fred/liked', content: true }, 'a board known by key only, as the walk records it');
   });
 
   test('a parked content entry is told apart from a parked board', function(assert) {
@@ -140,7 +140,7 @@ module('Unit | Utility | board content retry', function() {
     var r = ctx_for({ a: function() { return RSVP.reject({ fakeXHR: { status: 400 } }); }, b: function() { return RSVP.resolve({}); } });
     await retry_content(entry, r.ctx);
     assert.deepEqual(r.log.parked, []);
-    assert.deepEqual(r.log.failed, [{ error: 'board fred/home failed to sync completely: button image failed to sync, a, linked from home board', board_id: '145', board_key: 'fred/home' }]);
+    assert.deepEqual(r.log.failed, [{ error: 'board fred/home failed to sync completely: button image failed to sync, a, linked from home board', board_id: '145', board_key: 'fred/home', content: true }]);
     assert.strictEqual(r.log.then, 1);
   });
 
