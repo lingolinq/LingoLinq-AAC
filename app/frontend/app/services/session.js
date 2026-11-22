@@ -237,9 +237,9 @@ export default Service.extend({
       this.persistence.tokens = {};
     }
     // Confirmed tokens[key]=true is set only after the server accepts, below.
-
+    // No stored token: send the 'none' sentinel, since the ajax wrapper may still add a stale in-memory token as Authorization (utils/extras.js:221-238) and token_check validates 'none', not that header (session_controller.rb:602).
     var access_token = store_data.access_token || "none";
-    var url = '/api/v1/token_check?access_token=' + access_token + "&rnd=" + Math.round(Math.random() * 999999);
+    var url = '/api/v1/token_check?' + (access_token === 'none' ? 'access_token=none&' : '') + 'rnd=' + Math.round(Math.random() * 999999);
     if(store_data.as_user_id) {
       url = url + "&as_user_id=" + store_data.as_user_id;
     }
@@ -261,7 +261,7 @@ export default Service.extend({
       return RSVP.resolve({ success: false });
     }
     return this.persistence.ajax(url, {
-      type: 'GET'
+      type: 'GET', headers: this._token_check_headers(access_token)
     }).then(function(data) {
       /* `!_this` alone never fired — `_this` is the service, always truthy. The case that
          actually happens is the service being DESTROYED while this token-check request is
@@ -322,7 +322,7 @@ export default Service.extend({
           window.ga('set', 'userId', data.user_id);
           window.ga('send', 'event', 'authentication', 'user-id available');
         }
-        if(_this.appState.get('sessionUser.id') != data.user_id) {
+        if(!same_person(_this.appState.get('sessionUser'), data.user_id)) { // the record keyed 'self' is the same person: refreshing it only reinstalled 'self' (utils/backend_user_id.js)
           runLater(function() {
             _this.appState.refresh_session_user();
           });
@@ -979,5 +979,16 @@ export default Service.extend({
       _this.persistence.ajax('/api/v1/token', {type: 'DELETE'}).then(done, done);
     });
     return this.sign_out_promise;
+  },
+  // token_check reads Authorization. The ajax wrapper (utils/extras.js:221-238) replaces this
+  // header whenever capabilities, session.access_token or the auth_settings stash has a token,
+  // so it reaches the wire only when none of them does (store_data came from
+  // auth_settings_fallback, which outlives invalidate()). Keep it for that case.
+  _token_check_headers: function(access_token) {
+    if(!access_token || access_token === 'none') {
+      return {};
+    }
+    return { 'Authorization': 'Bearer ' + access_token };
   }
 });
+import { same_person } from '../utils/backend_user_id';

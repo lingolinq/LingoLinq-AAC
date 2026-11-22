@@ -3,6 +3,7 @@ import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import LingoLinq from '../app';
 import Utils from '../utils/misc';
+import backend_user_id from '../utils/backend_user_id';
 
 /**
  * Save Snapshot modal component.
@@ -90,7 +91,8 @@ export default Component.extend({
     const model = this.get('model');
     const defaultName = this.get('default_snapshot_name');
     const snapshot = LingoLinq.store.createRecord('snapshot', {
-      user_id: model.user && model.user.get ? model.user.get('id') : (model.user && model.user.id),
+      // A nested snapshot[user_id] is not rewritten from 'self' by the server (find_by_global_id), so send the backend id.
+      user_id: backend_user_id(model.user),
       name: defaultName
     });
     this.set('snapshot', snapshot);

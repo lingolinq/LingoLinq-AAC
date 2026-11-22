@@ -457,6 +457,7 @@ export default Controller.extend({
       user.save().then(function(user) {
         if(user.get('id') == app_state.get('currentUser.id')) {
           app_state.set('currentUser', user);
+        } else { reload_live_user_if_other_record(user, app_state); // the same person under the other record ('self' vs the real id, utils/backend_user_id.js)
         }
         _this.load_charts();
       }, function() { });
@@ -469,6 +470,7 @@ export default Controller.extend({
       user.save().then(function(user) {
         if(user.get('id') == app_state.get('currentUser.id')) {
           app_state.set('currentUser', user);
+        } else { reload_live_user_if_other_record(user, app_state); // the same person under the other record ('self' vs the real id, utils/backend_user_id.js)
         }
         _this.load_charts();
       }, function() { });
@@ -567,3 +569,5 @@ export default Controller.extend({
   userController: injectController('user'),
   showClassicAccountRail: alias('userController.showClassicAccountRail')
 });
+
+import { reload_live_user_if_other_record } from '../../utils/backend_user_id';

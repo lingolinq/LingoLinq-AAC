@@ -595,7 +595,7 @@ var stashes = EmberObject.extend({
       } else if(stashes.last_selection && stashes.last_selection.modeling && stashes.last_selection.ts > ((new Date()).getTime() - 500)) {
         log_event.modeling = true;
       }
-      if(log_event.modeling && session_user_id && session_user_id != user_id) {
+      if(log_event.modeling && session_user_id && !same_person(session_user_id, user_id)) { // both are backend ids (services/app-state.js stashes them so)
         log_event.session_user_id = session_user_id;
       }
       log_event.window_width = window.outerWidth;
@@ -893,3 +893,4 @@ function keep_offline_goal_fields(log_event, obj) {
 }
 
 export default stashes_export;
+import { same_person } from './backend_user_id';

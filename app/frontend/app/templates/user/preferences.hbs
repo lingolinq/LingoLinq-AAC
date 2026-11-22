@@ -32,7 +32,7 @@
         </div>
       </div>
     {{/unless}}
-    {{#if this.advanced}}
+    {{#if this.show_session_timeout}}
       <div class="form-group">
         <label for="long_token" class="col-sm-3 control-label">{{t "Session Timeout" key='long_token'}}</label>
         <div class="col-sm-5">
@@ -231,6 +231,27 @@
             <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "resend_eu_ai_parental_consent")}}>
               {{t "Resend consent email" key="resend_eu_ai_parental_consent"}}
             </button>
+          {{/if}}
+        </div>
+      </div>
+    {{/if}}
+    {{#if this.model.ai_consent_required}}
+      {{!-- No current AI data-sharing consent (#1136): AI is off, and who can change that
+            depends on the account. Only the account holder (route "self") gets a button;
+            "Allow AI features" below is how an account withdraws, so there is no separate
+            withdraw control. --}}
+      <div class="form-group">
+        <label class="col-sm-3 control-label">{{t "AI Data-Sharing" key='ai_consent_pref_label'}}</label>
+        <div class="col-sm-9">
+          {{#if (is-equal this.model.ai_consent_route "organization")}}
+            <p class="form-control-static">{{t "AI features are off because your organization has not turned them on yet. A manager of the organization needs to turn them on." key='ai_consent_off_organization'}}</p>
+          {{else if (is-equal this.model.ai_consent_route "parent")}}
+            <p class="form-control-static">{{t "AI features are off until a parent or guardian approves them for this account." key='ai_consent_off_parent'}}</p>
+          {{else if (is-equal this.model.ai_consent_route "self")}}
+            <p class="form-control-static">{{t "AI features are off until you agree to the AI data-sharing disclosure." key='ai_consent_pref_off_self'}}</p>
+            <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "open_ai_consent")}}>{{t "Review and Agree" key='ai_consent_pref_review_button'}}</button>
+          {{else}}
+            <p class="form-control-static">{{t "AI features are off for this account until AI data sharing is agreed to. The account holder, a parent or guardian, or the organization can do that." key='ai_consent_off_unknown'}}</p>
           {{/if}}
         </div>
       </div>

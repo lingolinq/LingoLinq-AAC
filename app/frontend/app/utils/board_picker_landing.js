@@ -12,6 +12,7 @@
  * place that decides it.
  */
 import { is_classic } from './view_style';
+import backend_user_id, { same_person } from './backend_user_id';
 
 export function open_picked_board(router, key, viewUser) {
   if(is_classic(viewUser)) { return router.transitionTo('board', key); }
@@ -29,7 +30,9 @@ export function after_pick_for_other(router, key, userName, viewUser) {
    the picker was opened for one). Read by components/trial-bar.js on the Basic board
    page; kept in app state because the picker forgets its user when it is left. */
 export function mark_basic_try(appState, key, user, name) {
-  var mark = { key: key, user_id: user && user.get('id'), user_name: user && user.get('user_name') };
+  // The BACKEND id, never 'self': the session user can be held by a 'self'-keyed record and a real-id one
+  // (utils/backend_user_id.js), and components/trial-bar.js fetches this id for "Use this board".
+  var mark = { key: key, user_id: backend_user_id(user), user_name: user && user.get('user_name') };
   if(name) { mark.name = name; } // so the bar names the tried board inside its folders (2026-10-13)
   appState.set('basic_try_home', mark);
 }
@@ -57,5 +60,7 @@ export function clear_basic_try(appState) {
 export function basic_try_target(appState) {
   var mark = basic_try_for(appState, appState.get('currentBoardState.key'));
   if(!mark) { return null; }
-  return (mark.user_id && mark.user_id !== appState.get('currentUser.id')) ? 'other' : 'self';
+  // same_person: a mark may hold 'self' (stored before marks held backend ids) or a real id; either is the
+  // signed-in user when it resolves to their backend id.
+  return (mark.user_id && !same_person(mark.user_id, appState.get('currentUser'), appState.get('sessionUser'))) ? 'other' : 'self';
 }

@@ -1,0 +1,53 @@
+import offline_shell from '../utils/offline_shell';
+
+// Offline app shell (utils/offline_shell.js, lib/offline_shell.rb). Once the page has loaded, removes the
+// worker when it is off; when it is on, registers it for a trusted device's session user and removes it
+// for a shared one (follow_device_trust), and asks once for persistent storage after the first signed-in
+// sync on a trusted device, and starts that first sync on a Home Screen install. Never blocks boot. Does nothing when the page did not set the flag (ember serve).
+//
+// Returns the function that stops the watchers, or null when none was started (for tests).
+export function start(owner, win) {
+  var setting = offline_shell.setting(win);
+  if(!setting) { return null; }
+  if(setting !== 'on') {
+    offline_shell.when_loaded(win, function() {
+      offline_shell.apply_device_trust(win, win.navigator, null, null); // the removal, under the site-wide lock
+    });
+    return null;
+  }
+  var appState = owner.lookup('service:app-state');
+  if(!appState) { return null; }
+  var stops = [];
+  var stopped = false;
+  var persistence = owner.lookup('service:persistence');
+  var session = owner.lookup('service:session');
+  var stashes = owner.lookup('service:stashes');
+  // This page's sign-in, and the current one as every page reads it from the stored auth settings.
+  var sign_in = {
+    page: function() { return session && session.get('access_token'); },
+    current: function() { return ((stashes && stashes.get_object('auth_settings', true)) || {}).access_token; }
+  };
+  offline_shell.when_loaded(win, function() {
+    if(!stopped) { stops.push(offline_shell.follow_device_trust(appState, win, win.navigator, sign_in)); }
+  });
+  if(persistence && session) {
+    stops.push(offline_shell.persist_after_sync(persistence, session, win.navigator, appState));
+    stops.push(offline_shell.first_sync_when_installed(persistence, appState, win));
+  }
+  return function() {
+    stopped = true;
+    stops.forEach(function(stop) { stop(); });
+  };
+}
+
+export default {
+  name: 'offline-shell',
+  initialize: function(appInstance) {
+    if(typeof window === 'undefined') { return; }
+    var stop = start(appInstance, window);
+    // The watchers end with the instance that started them (a test's app, an Electron reload); a production
+    // instance lives as long as the page, so nothing changes there (final review of #1268).
+    if(stop) { registerDestructor(appInstance, stop); }
+  }
+};
+import { registerDestructor } from '@ember/destroyable';

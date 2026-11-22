@@ -5,6 +5,7 @@ import modal from '../utils/modal';
 import persistence from '../utils/persistence';
 import stashes from '../utils/_stashes';
 import i18n from '../utils/i18n';
+import backend_user_id from '../utils/backend_user_id';
 
 /**
  * Quick Assessment modal (Phase 2).
@@ -154,7 +155,8 @@ export default Component.extend({
       stashes.track_daily_event('quick_assessments');
       if (persistence.get('online')) {
         const log = this.get('store').createRecord('log', {
-          user_id: this.get('model.user.id'),
+          // A nested log[user_id] is not rewritten from 'self' by the server, so send the backend id.
+          user_id: backend_user_id(this.get('model.user')),
           goal_id: this.get('goal_id'),
           assessment: assessment
         });
@@ -170,7 +172,7 @@ export default Component.extend({
           modal.error(msg);
         });
       } else {
-        stashes.log_event({assessment: assessment, goal_id: this.get('goal_id')}, this.get('model.user.id'));
+        stashes.log_event({assessment: assessment, goal_id: this.get('goal_id')}, backend_user_id(this.get('model.user')));
         stashes.push_log(true);
         modal.close();
       }

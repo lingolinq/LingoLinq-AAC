@@ -17,7 +17,7 @@ export default Controller.extend({
       if(res[0]) {
         var prior = profiles.process(res[0].profile)
         _this.set('prior_profile', prior);
-        prior.set('self_assessment', res[0].author.id == _this.get('user.id'));
+        prior.set('self_assessment', same_person(res[0].author.id, _this.get('user'), app_state.get('sessionUser'))); // author.id is a backend id; user may be keyed 'self'
         prior.set('assessor', res[0].author);
       }
     }, function(err) { });
@@ -111,13 +111,13 @@ export default Controller.extend({
         return;
       }
       this.get('profile').output_json(nonce).then(function(json) {
-        json.user_id = _this.get('user.id');
+        json.user_id = backend_user_id(_this.get('user')); // the event body is never rewritten from 'self' by the server
         json.user_name = _this.get('user.user_name');
         json.pending = false;
         // If online, submit and redirect to the results.
         // Otherwise, add it to the log
         var now = (new Date()).getTime();
-        stashes.log_event(json, json.user_id, app_state.get('sessionUser.id'));
+        stashes.log_event(json, json.user_id, backend_user_id(app_state.get('sessionUser')));
         profiles.recent = profiles.recent || {};
         profiles.nonces = profiles.nonces || {};
         profiles.nonces[nonce.id] = nonce;
@@ -144,3 +144,4 @@ export default Controller.extend({
     }
   }
 });
+import backend_user_id, { same_person } from '../utils/backend_user_id';

@@ -244,7 +244,11 @@ Run `/pr-preflight`. Then review, sized to what the PR touches:
   when the PR touches authentication or sessions, consent or account ownership, access to
   another user's or organization's data, billing, AI model routing or the AI client, infra
   or deploy config, or the `data-bearing-paths` gate.
-- **At most two review rounds.** A third round needs Scot's OK.
+- **Rounds.** Up to two review rounds by default. The responsible senior developer may run
+  additional rounds when needed, recording the reason in the PR; an agent never decides this
+  itself and runs an extra round only when that developer asked. Additional reviews
+  do not authorize merging; existing privacy checks, review requirements, Critical/High
+  blockers, GitHub checks, and merge approvals still apply.
 - A Critical or High finding from any review blocks the PR.
 - **Every review sorts its findings into two buckets** using the `## Code Review Rules`
   section of `AGENTS.md`, which also holds the `Current stage:` line (the one place to

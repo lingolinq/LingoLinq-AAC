@@ -6,6 +6,7 @@ import { get as emberGet } from '@ember/object';
 import filterRootBoards, { filterBrandSetRootBoards } from './board-roots';
 import LingoLinq from '../app';
 import { live_service } from './live_service';
+import backend_user_id from './backend_user_id';
 
 export var OWNED_ROOT_CAP = 200;
 export var CATALOG_ROOT_CAP = 100;
@@ -62,7 +63,7 @@ export function collectLikedLookups(user, seen) {
 export function collectOwnedRootLookups(user, boardsFromApi, seen) {
   if (!user || !user.get || !boardsFromApi) { return []; }
   seen = seen || {};
-  var userId = user.get('id');
+  var userId = backend_user_id(user); // backend id, not 'self' (utils/backend_user_id.js)
   var roots = filterRootBoards(boardsFromApi, userId);
   var result = [];
   roots.forEach(function(b) {

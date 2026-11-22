@@ -1,6 +1,10 @@
 require 'spec_helper'
 
 describe Api::IntegrationsController, :type => :controller do
+  # These examples test other things at the AI call sites; the consent check (#1136) has its
+  # own specs. See spec/support/ai_consent.rb.
+  include_context 'ai data-sharing consent given'
+
   describe "get 'index'" do
     it "should require an api token" do
       get 'index', params: {'user_id' => 'asdf'}

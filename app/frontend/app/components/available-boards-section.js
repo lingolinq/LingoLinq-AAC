@@ -916,6 +916,17 @@ AvailableBoardsSection.reopen({
     var user = pageUser;
     var me = self.get('appState.currentUser');
     if (user && me && backend_user_id(user) === backend_user_id(me)) { user = me; }
+    // Once it is set, the new home board is saved on the device by a sync, as the picker starts one (utils/home_board.js,
+    // #1034). The sync starts when the save or copy itself resolves, not from the dialog, which skips onDone once it has
+    // been closed during a long copy. Only for the signed-in person's own home board: the picker skips another person's
+    // too (board-preview-overlay.js, pickingForOther), although a root sync would also cover a supervisee's boards.
+    var persistenceSvc = self.get('persistence');
+    var copyAndSync = function(b, u, locale, opts) {
+      return self.get('copyAsHome')(b, u, locale, opts).then(function(home) {
+        if (me && user === me) { sync_after_home_change(persistenceSvc); }
+        return home;
+      });
+    };
     var key = board && (board.get ? board.get('key') : board.key);
     if (!key || !user) { return; }
     // Leave Set-Home mode SYNCHRONOUSLY on this first tap, before any await (adversary review
@@ -931,7 +942,7 @@ AvailableBoardsSection.reopen({
     var dialog = {
       board: board,
       user: user,
-      copyAsHome: self.get('copyAsHome'),
+      copyAsHome: copyAndSync,
       onDone: function() {
         self._setAssigningHome(false);
         // copy_board reloads only the record it was given (utils/edit_manager.js, copy_board_links);
@@ -945,7 +956,7 @@ AvailableBoardsSection.reopen({
         if (ctrl && dialog.copied !== false) {
           // A new copy: My Boards was loaded before it existed. Drop the cached list and re-query,
           // as removing a board does (controllers/user/index.js#remove_board, refreshMine).
-          boardsPageListCache.clear(ctrl.get('model.id'));
+          boardsPageListCache.clear(backend_user_id(ctrl.get('model')) || ctrl.get('model.id')); // the list is keyed by the real id (controllers/user/index.js); on the dashboard the model is the record keyed 'self'
           if (ctrl.get('mine_selected')) {
             ctrl.send('retry_board_list');
           } else {
@@ -964,7 +975,7 @@ AvailableBoardsSection.reopen({
       if (self._settingOwnedHome) { return Promise.resolve(); }
       self._settingOwnedHome = true;
       var settled = function() { self._settingOwnedHome = false; };
-      return self.get('copyAsHome')(board, user).then(function(home) {
+      return copyAndSync(board, user).then(function(home) {
         settled();
         self._setAssigningHome(false);
         modal.open('confirm-home-board-copy', Object.assign(dialog, { stage: 'done', copied: false, home: home || board }));
@@ -1013,3 +1024,4 @@ import backend_user_id from '../utils/backend_user_id';
 import { snapshotTiles, playHomeMove, whenTile } from '../utils/home-move';
 import boardsPageListCache from '../utils/boards_page_list_cache';
 import { foldersLayout } from '../utils/folders_panel_state';
+import { sync_after_home_change } from '../utils/home_board';

@@ -798,7 +798,7 @@ export default Component.extend({
     });
   },
   collection_my_boards: computed('collection_personal_results.results', 'panel_filter', 'appState.currentUser.id', function() {
-    var boards = filterRootBoards(this.get('collection_personal_results.results') || [], this.get('appState.currentUser.id'));
+    var boards = filterRootBoards(this.get('collection_personal_results.results') || [], backend_user_id(this.get('appState.currentUser'))); // backend id, not 'self' (utils/backend_user_id.js)
     return this._collection_filter_boards(boards);
   }),
   collection_online_groups: computed('collection_online_results.results', function() {
@@ -1706,3 +1706,5 @@ export default Component.extend({
     }
   }
 });
+
+import backend_user_id from '../utils/backend_user_id';

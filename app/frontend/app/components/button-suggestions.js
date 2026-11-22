@@ -154,6 +154,9 @@ export default Component.extend({
     const for_user_id = _this.get('for_user_id');
     user = user || (for_user_id ? LingoLinq.store.peekRecord('user', for_user_id) : null);
     user = user || (for_user_id ? (app_state.get('quick_users') || {})[for_user_id] : null);
+    // UserSelect sends 'self' for the signed-in person, whose record may be keyed only by the real id (local-storage load),
+    // so peekRecord('user', 'self') finds nothing and the list stayed empty.
+    user = user || (for_user_id === 'self' ? app_state.get('sessionUser') : null);
     _this.set('user', user);
   }),
 

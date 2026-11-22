@@ -421,7 +421,7 @@ export default Component.extend({
   // successfully produced labels (ai_labels_generated).
   ai_mode: false,
   ai_labels_generated: false,
-  ai_generating: false,
+  ai_generating: false, _ai_gen_seq: 0,
   ai_generate_error: null,
 
   /* Core Words. Rides the generate_labels request as `include_core_words`, and the
@@ -735,7 +735,7 @@ export default Component.extend({
 
   // Composes and persists a mix / mix_only / mix_prefer skin string.
   _rebuild_compound_skin: function(id) {
-    var user_id = this.appState.get('sessionUser.id');
+    var user_id = backend_user_id(this.appState.get('sessionUser')); // the real id, not 'self' (utils/backend_user_id.js)
     var skin = id + (user_id ? '::' + user_id : '');
     if(id === 'mix_only' || id === 'mix_prefer') {
       skin = skin + '::limit-';
@@ -1880,11 +1880,11 @@ export default Component.extend({
       /* Invalidate Mine-list snapshot so /boards re-queries after create. */
       try {
         var ownerId = _this.get('model.for_user_id') ||
-          (_this.appState.get('currentUser.id')) ||
+          (backend_user_id(_this.appState.get('currentUser'))) || // backend id, as controllers/user/index.js writes it
           (_this.appState.get('currentUser._actual_id'));
         if (ownerId && ownerId !== 'self') { boardsPageListCache.clear(ownerId); }
-        var selfId = _this.appState.get('currentUser.id') || _this.appState.get('currentUser._actual_id');
-        if (selfId) { boardsPageListCache.clear(selfId); }
+        var selfId = backend_user_id(_this.appState.get('currentUser')); // and 'self', where writes before that keyed it
+        [selfId, 'self'].filter(function(id, i, all) { return id && all.indexOf(id) === i; }).forEach(function(id) { boardsPageListCache.clear(id); });
       } catch (e) { /* non-critical */ }
       modalUtil.close(true);
       editManager.auto_edit(board.get('id'));
@@ -2493,7 +2493,7 @@ export default Component.extend({
        existing generation action untouched, so the labels arrive into a section the user can
        already see rather than into one still hidden behind the wizard. */
     wizard_generate: function() {
-      this.set('wizard_done', true);
+      // No hand-off here: the step stays up, busy, until the labels arrive (set on success below).
       this.send('generate_labels_with_ai');
     },
 
@@ -2510,7 +2510,7 @@ export default Component.extend({
         if(this.get('model')) { this.set('model.ai_generated', null); }
       }
       this.set('ai_mode', to_ai);
-      this.set('ai_generate_error', null);
+      this.setProperties({ ai_generate_error: null, ai_generating: false, ai_generate_shortfall: 0 }); this.incrementProperty('_ai_gen_seq');
     },
 
     /** AI label generation, in-page. Uses the (required) board
@@ -2529,9 +2529,9 @@ export default Component.extend({
         this.set('ai_generate_error', i18n.t('ai_description_required', "Add a description above — it's what the AI uses to generate labels."));
         return;
       }
-      this.set('ai_generate_error', null);
+      this.setProperties({ ai_generate_error: null, ai_generate_shortfall: 0 }); var gen = this.incrementProperty('_ai_gen_seq');
       return this._ensureAiBoardGenerationAccess().then(function(access) {
-        if(_this.isDestroyed || _this.isDestroying) { return; }
+        if(_this.isDestroyed || _this.isDestroying || gen !== _this.get('_ai_gen_seq')) { return; }
         if(!access || !access.proceed) { return; }
         // EU AI Act Article 50(1): first-AI-use gate. BLOCK mode (D-03) -- this is a
         // deliberate, non-time-critical user action, so it is safe to hold the request
@@ -2539,7 +2539,7 @@ export default Component.extend({
         // needed (flag off, already acknowledged, out of scope). If the modal is
         // abandoned, this promise never resolves and the request below never fires.
         return article50Gate.presentBlockingGate(_this.get('appState')).then(function() {
-        if(_this.isDestroyed || _this.isDestroying) { return; }
+        if(_this.isDestroyed || _this.isDestroying || gen !== _this.get('_ai_gen_seq')) { return; }
         _this.set('ai_generating', true);
         var payload = {
           prompt: prompt,
@@ -2555,7 +2555,7 @@ export default Component.extend({
           dataType: 'json',
           data: JSON.stringify(payload)
         }).then(function(res) {
-          if(_this.isDestroyed || _this.isDestroying) { return; }
+          if(_this.isDestroyed || _this.isDestroying || gen !== _this.get('_ai_gen_seq')) { return; }
           var labels = (res && res.labels) || '';
           _this.set('model.grid.labels', labels);
           if(res && res.name && !(_this.get('model.name') || '').trim().length) {
@@ -2566,25 +2566,25 @@ export default Component.extend({
           if(res && res.ai_generated) {
             _this.set('model.ai_generated', res.ai_generated);
           }
-          _this.set('ai_generating', false);
-          _this.set('ai_labels_generated', true);
+          // Hand off to the labels page only now: until here the step showed the busy button.
+          _this.setProperties({ ai_generating: false, ai_labels_generated: true, wizard_done: true, ai_generate_shortfall: (res && res.shortfall) || 0, ai_generate_cells: payload.rows * payload.columns, ai_generate_found: Math.max(0, payload.rows * payload.columns - ((res && res.shortfall) || 0)) });
         }, function(err) {
-          if(_this.isDestroyed || _this.isDestroying) { return; }
+          if(_this.isDestroyed || _this.isDestroying || gen !== _this.get('_ai_gen_seq')) { return; }
           var msg = i18n.t('generate_failed', "Generation failed");
           var resp = (err && err.fakeXHR && err.fakeXHR.responseJSON) || (err && err.responseJSON) || null;
-          if(resp && resp.error) {
+          if(article50Gate.isAiConsentRefusal(err)) { msg = article50Gate.aiConsentRefusalMessage(_this.get('appState')); /* no AI data-sharing consent (#1136): say who can fix it */ } else if(resp && resp.error) {
             msg = resp.error;
             if(resp.error_detail) { msg += ' - ' + resp.error_detail; }
           }
           _this.set('ai_generating', false);
           _this.set('ai_generate_error', msg);
         });
-      }, function() {
+      }, function(gate_err) { /* gate_err.ai_consent_gate: "Not now" on the AI data-sharing agreement (#1136) */
         // Art.50 gate not acknowledged. Fail-closed: no generation request fires.
         // Surface a reason rather than leaving the button looking broken.
-        if(_this.isDestroyed || _this.isDestroying) { return; }
+        if(_this.isDestroyed || _this.isDestroying || gen !== _this.get('_ai_gen_seq')) { return; }
         _this.set('ai_generating', false);
-        _this.set('ai_generate_error', i18n.t('generate_disclosure_required', "Please review the AI transparency notice before generating a board with AI."));
+        _this.set('ai_generate_error', (gate_err && gate_err.ai_consent_gate) ? article50Gate.aiConsentRefusalMessage(_this.get('appState')) : i18n.t('generate_disclosure_required', "Please review the AI transparency notice before generating a board with AI."));
       });
       });
     },
@@ -3700,3 +3700,5 @@ export default Component.extend({
     this.set('_uploading_labels', next_map);
   }
 });
+
+import backend_user_id from '../utils/backend_user_id';

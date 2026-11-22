@@ -251,8 +251,8 @@ export default Component.extend({
            /boards does not keep serving a pre-copy list within TTL. */
         try {
           var destUser = model.user;
-          var destId = destUser && (destUser.get ? destUser.get('id') : destUser.id);
-          if (destId) { boardsPageListCache.clear(destId); }
+          var destId = backend_user_id(destUser); // written under the backend id (controllers/user/index.js), and 'self' before that
+          [destId, 'self'].filter(function(id, i, all) { return id && all.indexOf(id) === i; }).forEach(function(id) { boardsPageListCache.clear(id); });
         } catch (e) { /* non-critical */ }
         // Backgrounded copy: the user is off doing something else, so OFFER the
         // new board rather than navigating to it. The foreground branch below
@@ -429,3 +429,5 @@ export default Component.extend({
   },
 
 });
+
+import backend_user_id from '../utils/backend_user_id';

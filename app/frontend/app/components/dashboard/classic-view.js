@@ -12,6 +12,8 @@ import { showsAdminSlot } from '../../utils/admin_nav';
 import { has_caseload_access } from '../../utils/caseload_access';
 import { take_pending_index_nav, take_pending_open_extras, take_pending_open_supervisee } from '../../utils/basic_landing';
 import { assign_home_board_basic, basic_home_button_label, BASIC_HOME_CURSOR } from '../../utils/basic_home_assign';
+import { sync_after_home_change } from '../../utils/home_board';
+import { copy_or_reuse_as_home } from '../../utils/board-copy';
 
 /**
  * Classic home page.
@@ -133,6 +135,7 @@ export default AuthenticatedView.extend({
     this._super(...arguments);
     try { this.update_selected(); } catch (e) { /* board list stays empty */ }
     try { this.checkForBlankSlate(); } catch (e) { /* offline list stays empty */ }
+    try { this.load_device_boards(); } catch (e) { /* "Boards on This Device" stays empty */ }
     try { this.reload_logs(); } catch (e) { /* sessions + badges stay empty */ }
     if(this._pending_index_nav) {
       var nav = this._pending_index_nav;
@@ -398,10 +401,18 @@ export default AuthenticatedView.extend({
       releaseTaps();
       if (!self.isDestroyed && !self.isDestroying) { self.set('basicSettingHome', false); }
     };
+    // Once it is set, a sync saves the new home board on the device, as the board picker starts one
+    // (utils/home_board.js, #1034). It starts when the save or copy itself resolves, not from the dialog (which skips
+    // onDone once closed during a long copy) or this component (which may be gone by then). `user` is
+    // appState.currentUser, the person the picker also syncs for.
+    var persistenceSvc = self.get('persistence');
+    var copyAsHome = self.get('basicCopyAsHome') || copy_or_reuse_as_home;
     var assigning;
     try {
       assigning = assign_home_board_basic(board, user, {
-        copyAsHome: self.get('basicCopyAsHome'),
+        copyAsHome: function(b, u, locale, opts) {
+          return copyAsHome(b, u, locale, opts).then(function(home) { sync_after_home_change(persistenceSvc); return home; });
+        },
         onAssigned: function() {
           self._setBasicAssigning(false);
           // A new copy is listed under Mine only after the list is fetched again.
@@ -659,4 +670,52 @@ export default AuthenticatedView.extend({
   /* The Speak card's board picture (authenticated-view.js#speakBoardImage) is a Modern home page card;
      classic-view.hbs never shows it, so the Basic home page does not fetch that board (2026-10-13). */
   _loadSpeakBoard() {},
+
+  /* BOARDS ON THIS DEVICE (Traci, 2026-11-16; docs/task-management/2026-11-16_offline-boards-page.md): offline, the
+     Boards tab lists every board the person can open from the device (utils/offline_board_list.js), in its own
+     `deviceBoards`, not `recentOfflineBoards` (which the online Recent tab shows). Only from the signed-in person's own
+     device database (unknown is no). A list belongs to one offline spell, as on Modern's boards page
+     (controllers/user/index.js show_device_boards; Part 3): kept while offline, read again the next time the app goes
+     offline, the earlier list on screen until the new one is ready. Not cleared when `online` turns true: this branch
+     can still be on screen then (authenticated-view.js showOffline is set after a device read). On a shared device (or
+     before its trust is known) only the boards that open there are listed. The read is matched to the person by user
+     name, not by record: a cold start replaces the 'self' record (services/app-state.js find_user), and a user name that
+     arrives later starts the read. When the open database is not this person's, nothing is listed and the page says
+     so (`deviceBoardsRefused`), never "No boards are saved". Observers do not run on init, so didInsertElement calls it
+     too. */
+  device_db_user() { return current_device_db_user(); },
+  device_storage: null,
+  device_spell: 0,
+  next_device_spell: observer('persistence.online', function() {
+    if(this.get('persistence.online')) { this.incrementProperty('device_spell'); }
+  }),
+  load_device_boards: observer('persistence.online', 'appState.currentUser.user_name', function() {
+    var p = this.get('persistence');
+    if(!p || typeof p.get !== 'function' || p.get('online')) { return; }
+    var user = this.get('appState.currentUser');
+    var user_name = user && user.get && user.get('user_name');
+    if(!user_name) { return; }
+    var me = this.device_db_user();
+    if(me !== user_name) {
+      this.setProperties({ deviceBoards: null, deviceBoardsRefused: true });
+      return;
+    }
+    this.set('deviceBoardsRefused', false);
+    var spell = this.get('device_spell');
+    var shared = offline_shell.device_trust(this.get('appState.sessionUser')) !== 'trusted';
+    var prior = this.get('deviceBoards');
+    var same_person = !!(prior && prior.from_device && prior.user_name === user_name);
+    if(same_person && prior.spell === spell && prior.shared === shared) { return; }
+    var _this = this;
+    if(!same_person) { this.set('deviceBoards', { loading: true }); }
+    device_board_list(this.get('store'), user, { storage: this.get('device_storage'), sync_log: p.get('sync_log'), shared: shared, me: me }).then(function(records) {
+      if(_this.isDestroyed || _this.isDestroying || _this.get('appState.currentUser.user_name') !== user_name) { return; }
+      if(records.read_failed && same_person) { return; }
+      records.user_name = user_name;
+      if(!records.read_failed) { records.spell = spell; records.shared = shared; } // a failed read is not kept: the next call reads again
+      _this.set('deviceBoards', records);
+    }, function() { /* device_board_list resolves an empty list on a failed read */ });
+  }),
 });
+import { device_board_list, current_device_db_user } from '../../utils/offline_board_list'; // last, as in the controllers
+import offline_shell from '../../utils/offline_shell';

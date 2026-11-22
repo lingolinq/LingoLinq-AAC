@@ -50,7 +50,7 @@ export default Component.extend({
       res.push({ intro: true });
       empty_num++;
     }
-    const user_ids = (this.get('model.users') || []).map(function(u) { return emberGet(u, 'id'); });
+    const user_ids = backend_ids_of_users(this.get('model.users')); // server user_ids hold backend ids, never 'self'
     let middles = [];
     let follow_ups = [];
     const skips = {};
@@ -60,7 +60,7 @@ export default Component.extend({
     lists.forEach(function(list) {
       list.forEach(function(log) {
         if (log.modeling_activity_id) {
-          const activity_user_ids = [].concat(log.modeling_user_ids || []).concat(log.related_user_ids || []);
+          const activity_user_ids = [].concat(log.modeling_user_ids || []).concat(log.related_user_ids || []).map(backend_id_of_logged); // an older local log may hold 'self'
           let all_found = true;
           user_ids.forEach(function(id) { if (activity_user_ids.indexOf(id) === -1) { all_found = false; } });
           if (all_found) {
@@ -142,7 +142,7 @@ export default Component.extend({
       dwindling_words: i18n.t('dwindling', "Dwindling Use"),
       infrequent_home_words: i18n.t('infrequence_home', "Rare but on Home Board")
     };
-    const user_ids = (this.get('model.users') || []).map(function(u) { return emberGet(u, 'id'); });
+    const user_ids = backend_ids_of_users(this.get('model.users')); // server user_ids hold backend ids, never 'self'
     (this.get('activities.words') || []).forEach(function(w) {
       let valids = 0;
       w.user_ids.forEach(function(id) { if (user_ids.indexOf(id) !== -1) { valids++; } });
@@ -276,7 +276,7 @@ export default Component.extend({
         modeling_activity_id: this.get('current_activity.id'),
         modeling_word: this.get('current_activity.word'),
         modeling_locale: this.get('current_activity.locale'),
-        modeling_user_ids: (this.get('model.users') || []).map(function(u) { return emberGet(u, 'id'); }),
+        modeling_user_ids: backend_ids_of_users(this.get('model.users')),
         modeling_action: 'attempt'
       });
       this.set('current_activity.follow_up', false);
@@ -290,7 +290,7 @@ export default Component.extend({
         modeling_activity_id: this.get('current_activity.id'),
         modeling_word: this.get('current_activity.word'),
         modeling_locale: this.get('current_activity.locale'),
-        modeling_user_ids: (this.get('model.users') || []).map(function(u) { return emberGet(u, 'id'); }),
+        modeling_user_ids: backend_ids_of_users(this.get('model.users')),
         modeling_action: 'dismiss'
       });
       this.set('current_activity.will_attempt', false);
@@ -303,7 +303,7 @@ export default Component.extend({
         modeling_activity_id: this.get('current_activity.id'),
         modeling_word: this.get('current_activity.word'),
         modeling_locale: this.get('current_activity.locale'),
-        modeling_user_ids: (this.get('model.users') || []).map(function(u) { return emberGet(u, 'id'); }),
+        modeling_user_ids: backend_ids_of_users(this.get('model.users')),
         modeling_action: 'complete',
         modeling_action_score: score
       });
@@ -366,3 +366,16 @@ export default Component.extend({
 },
 
 });
+import backend_user_id, { backend_id_of } from '../utils/backend_user_id';
+
+/* The session user can be held by a record keyed 'self' (serializers/application.js). Activity user_ids from the
+ * server and the modeling_user_ids saved to the log are backend ids, so compare and send those. */
+function backend_ids_of_users(users) {
+  const me = app_state.get('sessionUser');
+  return (users || []).map(function(u) { return backend_id_of(backend_user_id(u), me) || emberGet(u, 'id'); });
+}
+
+/* An id read back from a log: 'self' (written before this fix) is the session user. */
+function backend_id_of_logged(id) {
+  return backend_id_of(id, app_state.get('sessionUser')) || id;
+}

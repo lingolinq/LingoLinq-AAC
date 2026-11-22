@@ -18,7 +18,6 @@ import contentGrabbers from '../utils/content_grabbers';
 import Utils from '../utils/misc';
 import modal from '../utils/modal';
 import capabilities from '../utils/capabilities';
-import boardPrefetchPlanner from '../utils/board_prefetch_planner';
 import rewriteBrokenSymbolUrl from '../utils/symbol-url';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
@@ -254,7 +253,7 @@ var persistence = Service.extend({
           return;
         }
         if (extras.get && typeof extras.get === 'function' && extras.get('ready')) {
-          _this.find('settings', 'lastSync').then(function(res) {
+          restore_sync_log(_this); _this.find('settings', 'lastSync').then(function(res) {
             if (_this && _this.set) {
               _this.set('last_sync_at', res.last_sync);
               _this.set('sync_stamps', res.stamps);
@@ -270,7 +269,7 @@ var persistence = Service.extend({
             if (!service || !service.find || !service.set) {
               return;
             }
-            service.find('settings', 'lastSync').then(function(res) {
+            restore_sync_log(service); service.find('settings', 'lastSync').then(function(res) { // the sync log is read on its own (utils/sync_log_store.js), never chained onto lastSync
               service.set('last_sync_at', res.last_sync);
               service.set('sync_stamps', res.stamps);
             }, function() {
@@ -656,7 +655,7 @@ var persistence = Service.extend({
       return _this.store(store, obj, key);
     }
     _this.eventual_store = _this.eventual_store || [];
-    _this.eventual_store.push([store, obj, key, true]);
+    queue_eventual_store(_this.eventual_store, store, obj, key); // one waiting save per record
     if(!_this.eventual_store_timer) {
       _this.eventual_store_timer = runLater(_this, _this.next_eventual_store, sync_test_delay(100));
     }
@@ -767,10 +766,10 @@ var persistence = Service.extend({
           // Only report the save as complete once the local write has actually
           // landed; resolving earlier lets a find() issued by the caller race
           // the write, miss, and poison known_missing for that record.
-          resolve(obj);
+          resolve(obj); try { note_board_written(root, store, obj); } catch(e) { } // a written board counts as saved at a stop (utils/sync_rollup.js); never blocks the write's promise
         }, function(error) {
           root.errors = root.errors || [];
-          root.errors.push({error: error, message: "Failed to store object", object: obj, store: store, key: key});
+          root.errors.push({error: error, message: "Failed to store object", object: obj, store: store, key: key}); note_failed_write(root, error); // a sync counts it (utils/storage_failures.js)
           // Deliberately resolve, not reject. store() has never rejected on a
           // failed write (see "should not reject (but log an error) on a failed
           // storage attempt"), and several callers fire-and-forget the returned
@@ -1112,7 +1111,7 @@ var persistence = Service.extend({
           }, function(err) {
             if(err && err.message == 'error' && err.fakeXHR && err.fakeXHR.status == 0) {
               _this.remove('dataCache', url);
-              persistence.url_cache[url] = null;
+              _this.url_cache[url] = null;
             }
             LingoLinq.track_error("JSON data retrieval error", (err || {}).error || err);
             reject(err);
@@ -1180,7 +1179,7 @@ var persistence = Service.extend({
           }, function(err) {
             if(err && err.message == 'error' && err.fakeXHR && err.fakeXHR.status == 0) {
               _this.remove('dataCache', storage.local_url);
-              persistence.url_cache[storage.local_url] = null;
+              _this.url_cache[storage.local_url] = null;
             }
             return RSVP.reject(err);
           });  
@@ -1228,7 +1227,7 @@ var persistence = Service.extend({
       return RSVP.resolve(this.url_cache[url]);
     } else if(this.url_cache && alt_url && this.url_cache[alt_url]) {
       return RSVP.resolve(this.url_cache[alt_url]);
-    } else if(this.url_uncache && this.url_uncache[url]) {
+    } else if((this.url_uncache && this.url_uncache[url]) || this.get('local_system.available') === false) { // no file storage: the picture is in the database
       var _this = this;
       var find = this.find('dataCache', url);
       return find.then(function(data) {
@@ -1456,13 +1455,13 @@ var persistence = Service.extend({
     return res;
   },
   url_cache: {},
+  // One answer to "is a saved copy of this URL known?", read by the quick check, the reuse check in store_url_now
+  // and the sync's linked-board check (#1221). The maps live on the running service: in this file the bare name
+  // `persistence` is the service class, so writing through it was never seen by these readers.
+  has_local_copy: function(url) { return !!(this.url_cache && this.url_cache[url] && (!this.url_uncache || !this.url_uncache[url])); },
   store_url_quick_check: function(url, type) {
-    var _this = this;
-    if(type == 'image' || type == 'sound') {
-      return (_this.url_cache && _this.url_cache[url] && (!_this.url_uncache || !_this.url_uncache[url]));
-    }
+    if(type == 'image' || type == 'sound') { return this.has_local_copy(url); }
     return false;
-
   },
   store_url: function store_url(url, type, keep_big, force_reload, sync_id) {
     persistence.urls_to_store = persistence.urls_to_store || [];
@@ -1480,10 +1479,10 @@ var persistence = Service.extend({
       persistence.storing_url_watchers = 0;
       var _service = this;
       persistence.storing_urls = function() {
-        var serviceInstance = window.persistence || _service;
+        var serviceInstance = window.persistence || _service; drop_stale_head(persistence.urls_to_store, serviceInstance.get('sync_progress')); // items of a sync that is no longer running, resolved in a loop (utils/url_store_queue.js)
         if(persistence.urls_to_store && persistence.urls_to_store.length > 0) {
           var opts = persistence.urls_to_store.shift();
-          var part_of_canceled = opts.sync_id && (!serviceInstance.get('sync_progress') || serviceInstance.get('sync_progress.canceled'));
+          var part_of_canceled = is_stale_item(opts, serviceInstance.get('sync_progress'));
           if(!part_of_canceled) {
             serviceInstance.store_url_now(opts.url, opts.type, opts.keep_big, opts.force_reload).then(function(res) {
               opts.defer.resolve(res);
@@ -1493,7 +1492,7 @@ var persistence = Service.extend({
               if(persistence.storing_urls) { persistence.storing_urls(); }
             });
           } else {
-            opts.defer.resolve({});
+            opts.defer.resolve({}); if(persistence.storing_urls) { persistence.storing_urls(); } // a worker must never stop here: stopping froze the queue after a cancel
           }
         } else {
           persistence.storing_url_watchers--;
@@ -1549,14 +1548,14 @@ var persistence = Service.extend({
                   url.match(/d18vdu4p71yql0.cloudfront.net/) || url.match(/dc5pvf6xvgi7y.cloudfront.net/);
       var uploads_bucket = url.match(/lingolinq[^/]*-uploads\.s3\.amazonaws\.com/) ||
         url.match(/s3\.amazonaws\.com\/lingolinq[^/]*-uploads/);
-      var cors_match = trusted_not_to_change || uploads_bucket ||
+      var cors_match = trusted_not_to_change || uploads_bucket || on_uploads_cdn(url, type) ||
         url.match(/api\/v\d+\/users\/.+\/protected_image/) || url.match(/api\/v\d+\/lang/);
       if(trusted_not_to_change && url.match(/usercontent/) && url.match(/\/extras\//)) {
         trusted_not_to_change = false;
       }
-      var check_for_local = !!trusted_not_to_change;
+      trusted_not_to_change = trusted_not_to_change || ((type == 'image' || type == 'sound') && is_permanent_upload_url(url)); var check_for_local = !!trusted_not_to_change; // after cors_match: the fetch route is unchanged (utils/permanent_upload.js)
 
-      if(capabilities.installed_app) { check_for_local = true; }
+      var no_files = !(_this.get('local_system.available') && _this.get('local_system.allowed') && _this.stashes && _this.stashes.get && _this.stashes.get('auth_settings')); if(capabilities.installed_app || (no_files && picture_kept_in_database(url, type))) { check_for_local = true; } // no file storage: the row holds the picture (utils/database_picture.js)
       if(check_for_local) {
         // skip the remote request if it's stored locally from a location we
         // know won't ever modify static assets
@@ -1566,7 +1565,7 @@ var persistence = Service.extend({
             if(force_reload && !trusted_not_to_change) {
               return RSVP.reject();
             // if we think it's stored locally but it's not in the cache, it needs to be repaired
-            } else if(_this.url_cache && _this.url_cache[url] && (!_this.url_uncache || !_this.url_uncache[url])) {
+            } else if(_this.has_local_copy(url) || (no_files && usable_database_copy(url, type, data))) {
               return RSVP.resolve(data);
             } else {
               return RSVP.reject();
@@ -1582,7 +1581,7 @@ var persistence = Service.extend({
           return new RSVP.Promise(function(xhr_resolve, xhr_reject) {
             var xhr = new XMLHttpRequest();
             xhr.addEventListener('load', function(r) {
-              if(xhr.status == 200) {
+              if(xhr.status == 200 && !is_web_page(xhr.getResponseHeader('Content-Type'))) {
                 contentGrabbers.read_file(xhr.response).then(function(s) {
                   xhr_resolve({
                     url: url,
@@ -1601,7 +1600,7 @@ var persistence = Service.extend({
             xhr.addEventListener('error', function(e) {
               xhr_reject({e:e, cors: true, error: 'URL lookup error'});
             });
-            xhr.addEventListener('abort', function() { xhr_reject({cors: true, error: 'URL lookup aborted'}); });
+            xhr.addEventListener('abort', function() { xhr_reject({cors: true, error: 'URL lookup aborted'}); }); xhr.addEventListener('timeout', function() { xhr_reject({cors: true, error: 'URL lookup timeout'}); });
 //            console.log("trying CORS request for " + url);
             // Adding the query parameter because I suspect that if a URL has already
             // been retrieved by the browser, it's not sending CORS headers on the
@@ -1609,7 +1608,7 @@ var persistence = Service.extend({
             xhr.url = url;
             // TODO: xhr.open('GET', encodeURI(url) + (url.match(/\?/) ? '&' : '?') + "cr=1");
             xhr.open('GET', url + (url.match(/\?/) ? '&' : '?') + "cr=1");
-            xhr.responseType = 'blob';
+            xhr.responseType = 'blob'; xhr.timeout = 45000; // the limit the second copy has (utils/persistence.js)
             xhr.send(null);
           });
         });
@@ -1641,7 +1640,7 @@ var persistence = Service.extend({
             };
             return RSVP.resolve(object);
           }, function(xhr) {
-            reject({error: "URL lookup failed during proxy for " + url});
+            reject(Object.assign({error: "URL lookup failed during proxy for " + url}, failure_cause(xhr))); // only the status and offline flag (utils/board_content_retry.js)
           });
         });
       });
@@ -1650,17 +1649,17 @@ var persistence = Service.extend({
         if(encryption_settings && (object.content_type || '').match(/json/)) {
           var str = object.data_uri && object.data_uri.match(/,/) && atob(object.data_uri.split(/,/)[1]);
           if(str && str.match(/^aes256-/)) {
-            // if it's encrypted, try decrypting it and generating a
-            // new data-uri before continuing
+            // if it's encrypted, decrypt it and keep only the parsed list
+            // before continuing
             return _this.decrypt_json(str, encryption_settings).then(function(res) {
               parsed_json_payload = res;
               object.json_payload = res;
-              try {
-                var json_str = JSON.stringify(res);
-                object.data_uri = "data:application/json;base64," + btoa(unescape(encodeURIComponent(json_str)));
-              } catch(e) {
-                object.data_uri = null;
-              }
+              // Saved once (#1221): neither the encrypted original nor a re-encoded
+              // base64 copy of the same list is kept (a 1.73 MB list made a 4.2 MB
+              // row). Every reader returns json_payload first (find_url, find_json,
+              // store_json); JSON that is not encrypted still keeps its data URI.
+              // Rows saved before this change keep both until they are replaced.
+              object.data_uri = null;
               return object;
             });
           } else {
@@ -1693,7 +1692,7 @@ var persistence = Service.extend({
         if(_this.get('local_system.available') && _this.get('local_system.allowed') && _this.stashes && _this.stashes.get && _this.stashes.get('auth_settings')) {
           // Encrypted extra_data JSON (button sets, etc.): IndexedDB dataCache
           // is sufficient. FileSystem writes for large JSON blobs often fail
-          // (quota / Chrome PERSISTENT FS limits); find_json reads data_uri.
+          // (quota / Chrome PERSISTENT FS limits); readers take json_payload, else data_uri.
           if(type == 'json' && (object.data_uri || object.json_payload)) {
             if(!object.persisted) {
               object.persisted = true;
@@ -1771,23 +1770,23 @@ var persistence = Service.extend({
           }
         }
       }).then(function(object) {
-        persistence.url_cache = persistence.url_cache || {};
-        persistence.url_uncache = persistence.url_uncache || {};
+        _this.url_cache = _this.url_cache || {};
+        _this.url_uncache = _this.url_uncache || {};
         if(object.local_url) {
           var local_url = capabilities.storage.fix_url(object.local_url, type == 'image');
-          persistence.url_cache[url_id] = local_url;
-          persistence.url_uncache[url_id] = false;
+          _this.url_cache[url_id] = local_url;
+          _this.url_uncache[url_id] = false;
           resolve(object);
         } else {
-          persistence.url_uncache[url_id] = true;
+          _this.url_uncache[url_id] = true;
           resolve(object);
         }
       }, function(err) {
-        persistence.url_uncache = persistence.url_uncache || {};
-        persistence.url_uncache[url_id] = true;
+        _this.url_uncache = _this.url_uncache || {};
+        _this.url_uncache[url_id] = true;
         if(type == 'json' && parsed_json_payload) {
-          persistence.url_cache = persistence.url_cache || {};
-          persistence.url_cache[url_id] = null;
+          _this.url_cache = _this.url_cache || {};
+          _this.url_cache[url_id] = null;
           resolve({url: url_id, type: 'json', json_payload: parsed_json_payload});
           return;
         }
@@ -1797,8 +1796,8 @@ var persistence = Service.extend({
           if(_this.stashes && _this.stashes.persist) {
             _this.stashes.persist('allow_local_filesystem_request', false);
           }
-          persistence.url_cache = persistence.url_cache || {};
-          persistence.url_cache[url_id] = null;
+          _this.url_cache = _this.url_cache || {};
+          _this.url_cache[url_id] = null;
           error.quota_maxed = true;
           _this.set('local_system.allowed', false);
         } else if(err && (err.error == 'rejected' || err.error == 'already_rejected')) {
@@ -1809,8 +1808,8 @@ var persistence = Service.extend({
             if(_this.stashes && _this.stashes.persist) {
               _this.stashes.persist('allow_local_filesystem_request', false);
             }
-            persistence.url_cache = persistence.url_cache || {};
-            persistence.url_cache[url_id] = null;
+            _this.url_cache = _this.url_cache || {};
+            _this.url_cache[url_id] = null;
             error.quota_maxed = true;
             _this.set('local_system.allowed', false);
           }
@@ -1974,14 +1973,14 @@ var persistence = Service.extend({
     var progresses = (this.get('sync_progress') || {}).progress_for || {};
     var visited = 0;
     var to_visit = 0;
-    var errors = [];
+    var errors = []; var parked = 0; var parked_content = 0; // boards waiting to be tried again (utils/board_retry.js): the drawer's "waiting for a better connection"
     for(var idx in progresses) {
       visited = visited + progresses[idx].visited;
       to_visit = to_visit + progresses[idx].to_visit;
-      errors = errors.concat(progresses[idx].board_errors || []);
+      errors = errors.concat(progresses[idx].board_errors || []); parked = parked + (progresses[idx].parked || 0); parked_content = parked_content + (progresses[idx].parked_content || 0);
     }
     if(this.get('sync_progress')) {
-      this.set('sync_progress.visited', visited);
+      this.set('sync_progress.visited', visited); this.set('sync_progress.parked', parked); this.set('sync_progress.parked_content', parked_content);
       this.set('sync_progress.to_visit', to_visit);
       this.set('sync_progress.total', to_visit + visited);
       this.set('sync_progress.errored', errors.length);
@@ -1990,7 +1989,7 @@ var persistence = Service.extend({
   },
   cancel_sync: function() {
     if(this.get('sync_progress')) {
-      this.set('sync_progress.canceled', true);
+      this.set('sync_progress.canceled', true); wake_parked(this.get('sync_progress')); // a thread waiting to retry a board resumes now and stops (utils/board_retry.js)
     }
   },
   time_promise: time_promise,
@@ -2038,9 +2037,9 @@ var persistence = Service.extend({
     if(!ignore_supervisees || !sync_id || this.get('sync_status.canceled')) {
       sync_id = "sync_for::" + user_name + "::" + (new Date()).getTime() + "::" + Math.random();
     }
-    this.set('last_sync_event_at', (new Date()).getTime());
+    var absorbed = !ignore_supervisees && this.get('sync_progress.sync_id') && this.get('sync_progress.sync_id') !== sync_id; this._this_call_sync_id = sync_id; if(!ignore_supervisees && !absorbed) { this._active_root_sync_id = sync_id; } this.set('last_sync_event_at', (new Date()).getTime()); // a root sync requested while another runs does not run (check_first skips its steps); it must not take over the running sync's id, or a cancel of that sync leaves the status at 'syncing' (final review of #1268)
 
-    this.set('sync_status', 'syncing');
+    var status_user = this.get('sync_progress.root_user') || user_id; if(this.sync_status_is_for_signed_in_user(status_user)) { this.set('sync_status', 'syncing'); } var writes_before = failed_write_count(this); // writes that fail during this sync end it as failed (utils/storage_failures.js). A root sync for someone else must not set this, or the notice and drawer report their sync as yours (#1230).
     var synced_boards = [];
     // TODO: this could move to bg.js, that way it can run in the background
     // even if the app itself isn't running. whaaaat?! yeah.
@@ -2049,7 +2048,7 @@ var persistence = Service.extend({
       if(!_this_sync.get('sync_progress.root_user')) {
         _this_sync.set('sync_progress', {
           root_user: user_id,
-          sync_id: sync_id,
+          sync_id: sync_id, started_at: (new Date()).getTime(), // when this sync started (utils/sync_board_fallback.js copy_from_this_sync)
           progress_for: {
           }
         });
@@ -2107,12 +2106,12 @@ var persistence = Service.extend({
             // already reloaded in sync_supervisees
             return user;
           } else {
-            return _this_sync.time_promise(user.reload(), 'reloading root user', 5000).then(null, function() {
-              sync_reject({error: "failed to retrieve user details"});
+            return _this_sync.time_promise(user.reload(), 'reloading root user', USER_RELOAD_MS).then(null, function(reloadErr) { // utils/sync_board_fallback.js
+              sync_reject({error: "failed to retrieve user details", network: sync_error_is_network(reloadErr)});
             });
           }
-        }, function() {
-          sync_reject({error: "failed to retrieve user details"});
+        }, function(findErr) {
+          sync_reject({error: "failed to retrieve user details", network: sync_error_is_network(findErr)});
         });
       }));
 
@@ -2177,7 +2176,7 @@ var persistence = Service.extend({
 
       // Ensure the image filename cache is up-to-date
       var prime_image_cache = _this_sync.time_promise(confirm_quota_for_user.then(check_first(function(user) {
-        if(!ignore_supervisees) {
+        if(!ignore_supervisees && _this_sync.get('local_system.available') !== false) { // no file storage (Safari): nothing to list, and listing rejects
           return capabilities.storage.list_files('image').then(function(images) {
             _this_sync.image_filename_cache = {};
             images.forEach(function(image) {
@@ -2197,7 +2196,7 @@ var persistence = Service.extend({
           if(!_this_sync.get('sync_progress.root_user') || _this_sync.get('sync_progress.root_user') == old_user_id) {
             _this_sync.set('sync_progress', {
               root_user: user.get('id'),
-              sync_id: _this_sync.get('sync_progress.sync_id'),
+              sync_id: _this_sync.get('sync_progress.sync_id'), canceled: _this_sync.get('sync_progress.canceled'), started_at: _this_sync.get('sync_progress.started_at') || (new Date()).getTime(), // a cancel pressed while caches primed must reach the board walk, and the start time stays the sync's own
               progress_for: {
               }
             });
@@ -2237,7 +2236,7 @@ var persistence = Service.extend({
           var delay = spread_out.delay;
           var promise = new RSVP.Promise(function(resolve, reject) {
             runLater(function() {
-              var p = callback();
+              var p = (_this_sync.get('sync_progress.sync_id') && _this_sync.get('sync_progress.sync_id') !== sync_id) ? RSVP.resolve() : callback(); // a step of a sync that already ended (a failure settles at the first failed step) must not run under the next sync
               var userLabel = (user && typeof user.get === 'function') ? user.get('user_name') : user_id;
               promise.promise_name = (p.promise_name || promise.promise_name || 'unnamed') + " for " + userLabel;
               p.then(function(res) {
@@ -2374,8 +2373,8 @@ var persistence = Service.extend({
 
       var complete_sync = track_buttons.then(function() {
         var last_sync = (new Date()).getTime() / 1000;
-        if(_this_sync.get('sync_progress.root_user') == user_id) {
-          var sync_stamps = _this_sync.get('sync_progress.sync_stamps');
+        if(_this_sync.get('sync_progress.root_user') == user_id && !_this_sync.end_canceled_sync(sync_id, user_id, user_name, force, writes_before)) { // a cancelled sync whose walk resolved ends as cancelled, before anything below moves the stamps or the clock
+          var sync_stamps = _this_sync.get('sync_progress.sync_stamps'); var board_roots = _this_sync.get('sync_progress.board_roots') || {}; var answered = answered_refs(_this_sync.get('sync_progress')); // answered: boards the server really answered for (utils/sync_board_fallback.js note_answered); // which board each one was reached from, for Sync Details (utils/sync_rollup.js)
           var statuses = _this_sync.get('sync_progress.board_statuses') || [];
           if(_this_sync.get('sync_progress.last_sync_stamp')) {
             _this_sync.set('last_sync_stamp', _this_sync.get('sync_progress.last_sync_stamp'));
@@ -2385,37 +2384,37 @@ var persistence = Service.extend({
             if(error.board_key || error.board_id) {
               var status = statuses.find(function(s) { return (s.key && s.key == error.board_key); });
               if(status) {
-                status.error = error.error;
+                status.error = error.error; if(error.content) { status.content = true; } else { delete status.content; } if(error.refused) { status.refused = true; } else { delete status.refused; } // utils/sync_rollup.js content_error; refused: the walk's failure branch
               } else {
                 statuses.push({
                   id: error.board_id || error.board_key,
                   key: error.board_key || error.board_id,
-                  error: error.error
+                  error: error.error, ...(error.content ? { content: true } : {}), ...(error.refused ? { refused: true } : {})
                 });
               }
             }
           });
           _this_sync.set('sync_progress', null);
           var sync_message = null;
-          if(errors.length > 0) {
-            _this_sync.set('sync_status', 'finished');
-            if(_this_sync.stashes && _this_sync.stashes.persist) {
+          var storage_failed = end_sync_if_storage_failed(_this_sync, writes_before, _this_sync.sync_status_is_for_signed_in_user(user_id)); if(storage_failed) { sync_message = storage_failed; } else if(errors.length > 0) {
+            if(_this_sync.sync_status_is_for_signed_in_user(user_id)) { _this_sync.set('sync_status', 'finished'); }
+            if(_this_sync.stashes && _this_sync.stashes.persist && _this_sync.sync_status_is_for_signed_in_user(user_id)) {
               _this_sync.stashes.persist('last_sync_status', 'finished');
             }
             _this_sync.set('sync_errors', errors.length);
             sync_message = i18n.t('finished_with_errors', "Finished syncing %{user_id} with %{n} error(s)", {user_id: user_name, n: errors.length});
           } else {
-            _this_sync.set('sync_status', 'succeeded');
-            if(_this_sync.stashes && _this_sync.stashes.persist) {
+            if(_this_sync.sync_status_is_for_signed_in_user(user_id)) { _this_sync.set('sync_status', 'succeeded'); }
+            if(_this_sync.stashes && _this_sync.stashes.persist && _this_sync.sync_status_is_for_signed_in_user(user_id)) {
               _this_sync.stashes.persist('last_sync_status', 'succeeded');
             }
             sync_message = i18n.t('finised_without_errors', "Finished syncing %{user_id} without errors", {user_id: user_name});
           }
           console.log('synced!');
-          _this_sync.store('settings', {last_sync: last_sync, stamps: sync_stamps}, 'lastSync').then(function(res) {
+          (storage_failed ? RSVP.resolve({last_sync: last_sync, stamps: _this_sync.get('sync_stamps')}) : _this_sync.store('settings', {last_sync: last_sync, stamps: sync_stamps}, 'lastSync')).then(function(res) { // after failed writes the stamps stay, so the next sync saves those boards again; the time moves on only once a sync has finished (sync_clock_advances_on_failure)
             _this_sync.set('last_sync_event_at', (new Date()).getTime());
             _this_sync.set('sync_stamps', res.stamps);
-            _this_sync.set('last_sync_at', res.last_sync);
+            if(!storage_failed || _this_sync.sync_clock_advances_on_failure()) { _this_sync.set('last_sync_at', res.last_sync); }
           }, function() {
             debugger;
           });
@@ -2424,12 +2423,12 @@ var persistence = Service.extend({
             user_id: user_name,
             reason: sync_reason,
             manual: force,
-            issues: errors.length > 0,
+            issues: errors.length > 0, errored: storage_failed ? true : undefined, storage_failed: storage_failed ? true : undefined, answered: answered.length ? answered : undefined, // answered: read by the offline list (utils/offline_board_list.js); // the boards' writes failed: it did not finish (Sync Details, utils/sync_log_store.js partial_result)
             finished: new Date(),
-            statuses: statuses,
+            statuses: statuses, roots: board_roots,
             summary: sync_message
           });
-          _this_sync.set('sync_log', log);
+          _this_sync.set('sync_log', record_sync_log(_this_sync, log)); // newest 5, saved for the owner (utils/sync_log_store.js)
           _this_sync.set('sync_log_rand', Math.random());
         }
         return RSVP.resolve(last_sync);
@@ -2437,27 +2436,27 @@ var persistence = Service.extend({
       return complete_sync;
     }, function(err) {
       if(_this_sync.get('sync_progress.root_user') == user_id) {
-        var statuses = _this_sync.get('sync_progress.board_statuses') || [];
-        var stamps = _this_sync.get('sync_progress.sync_stamps');
+        var statuses = confirmed_statuses(_this_sync.get('sync_progress.board_statuses') || [], _this_sync.get('sync_progress')); // a download not finished at the stop is not saved (utils/sync_rollup.js)
+        var stamps = _this_sync.get('sync_progress.sync_stamps'); var stopped_roots = _this_sync.get('sync_progress.board_roots') || {}; var stopped_errors = live_board_errors(_this_sync.get('sync_progress')); // kept in its log entry, for Sync Details' cards after a stop
         _this_sync.set('sync_progress', null);
-        _this_sync.set('sync_status', 'failed');
+        if(_this_sync._canceled_sync_id === sync_id) { if(_this_sync._active_root_sync_id === sync_id && _this_sync.sync_status_is_for_signed_in_user(user_id)) { _this_sync.set('sync_status', null); } } else if(_this_sync.sync_status_is_for_signed_in_user(user_id)) { _this_sync.set('sync_status', 'failed'); }
         // if last sync attempt ended in failure and this attempt also
-        // failed, then set last_sync_at to prevent repeated attempts to sync
-        if(_this_sync.stashes.get('last_sync_status') == 'failed') {
+        // failed, then set last_sync_at to prevent repeated attempts to sync. Someone else's failure must not move this person's clock (#1230).
+        if(_this_sync._canceled_sync_id !== sync_id && _this_sync.sync_status_is_for_signed_in_user(user_id) && _this_sync.stashes.get('last_sync_status') == 'failed' && _this_sync.sync_clock_advances_on_failure()) {
           var last_sync = (new Date()).getTime() / 1000;
           _this_sync.store('settings', {last_sync: last_sync, stamps: stamps}, 'lastSync').then(function(res) {
             _this_sync.set('last_sync_at', res.last_sync);
             _this_sync.set('sync_stamps', stamps);
           }, function() { });
         }
-        if(_this_sync.stashes && _this_sync.stashes.persist) {
+        if(_this_sync.stashes && _this_sync.stashes.persist && _this_sync._canceled_sync_id !== sync_id && _this_sync.sync_status_is_for_signed_in_user(user_id)) {
           _this_sync.stashes.persist('last_sync_status', 'failed');
         }
-        _this_sync.set('sync_status_error', null);
+        if(_this_sync._canceled_sync_id !== sync_id && _this_sync.sync_status_is_for_signed_in_user(user_id)) { _this_sync.set('sync_status_error', capabilities.db ? null : i18n.t('device_storage_unavailable', "This device can't save boards right now. Try restarting the app.")); }
         if(err.board_unauthorized) {
-          _this_sync.set('sync_status_error', i18n.t('board_unauthorized', "One or more boards are private"));
+          if(_this_sync._canceled_sync_id !== sync_id && _this_sync.sync_status_is_for_signed_in_user(user_id)) { _this_sync.set('sync_status_error', i18n.t('board_unauthorized', "One or more boards are private.")); }
         } else if(!_this_sync.get('online')) {
-          _this_sync.set('sync_status_error', i18n.t('online_required_to_sync', "Must be online to sync"));
+          if(_this_sync._canceled_sync_id !== sync_id && _this_sync.sync_status_is_for_signed_in_user(user_id)) { _this_sync.set('sync_status_error', i18n.t('online_required_to_sync', "Must be online to sync.")); }
         }
         var message = (err && err.error) || "unspecified sync error";
         statuses = Utils.uniq(statuses, function(s) { return s.id; });
@@ -2465,13 +2464,13 @@ var persistence = Service.extend({
         log.push({
           user_id: user_name,
           manual: force,
-          errored: true,
+          errored: _this_sync._canceled_sync_id !== sync_id, canceled: _this_sync._canceled_sync_id === sync_id || undefined, storage_failed: writes_failed_since(_this_sync, writes_before) || undefined, // a board write failed: its written rows still show, and the failed board reads not saved (utils/sync_rollup.js confirmed_statuses; utils/sync_log_store.js partial_result) // a cancel that ended through this branch is still a cancel (docs/task-management/2026-11-15_persist-sync-log.md)
           finished: new Date(),
-          statuses: statuses,
-          summary: i18n.t('error_syncing_user', "Error syncing %{user_id}: ", {user_id: user_name}) + message
+          statuses: with_errors(statuses, stopped_errors), roots: stopped_roots, confirmed: true, // grouped and with the failures it recorded, as the finished sync's entry (utils/sync_rollup.js); confirmed: its rows went through confirmed_statuses (utils/sync_log_store.js partial_result)
+          summary: _this_sync._canceled_sync_id === sync_id ? i18n.t('sync_canceled_summary', "Sync canceled") : i18n.t('error_syncing_user', "Error syncing %{user_id}: ", {user_id: user_name}) + message
         });
         _this_sync.set('last_sync_event_at', (new Date()).getTime());
-        _this_sync.set('sync_log', log);
+        _this_sync.set('sync_log', record_sync_log(_this_sync, log)); _this_sync.set('sync_log_rand', Math.random()); // utils/sync_log_store.js
         if(err && err.error && !_this_sync.sync_is_automatic()) {
           modal.error(err.error);
         }
@@ -2483,15 +2482,15 @@ var persistence = Service.extend({
     return sync_promise;
   },
   sync_tags: function(user) {
-    var store_image_promises = [];
+    var store_image_promises = []; var _this = this; var started = Date.now(); // `this` is undefined in the callbacks below (ES module); `started`: utils/optional_picture.js picture_ms_left
     var queue_tags = new RSVP.Promise(function(resolve, reject) {
       var tag_ids = user.get('preferences.tag_ids') || [];
       var next_tag = function() {
         var tag_id = tag_ids.pop();
         if(tag_id) {
           LingoLinq.store.findRecord('tag', tag_id).then(function(tag) {
-            if(tag.get('button.image_url')) {
-              store_image_promises.push(this.store_url(tag.get('button.image_url'), 'image', false, false));
+            if(tag.get('button.image_url') && !_this.store_url_quick_check(tag.get('button.image_url'), 'image')) { // a picture already on the device is not queued again (as sync_contacts)
+              store_image_promises.push(_this.store_url(tag.get('button.image_url'), 'image', false, false));
               runLater(next_tag, 500);
             } else {
               runLater(next_tag, 500);
@@ -2507,26 +2506,26 @@ var persistence = Service.extend({
       runLater(next_tag, 500);
     });
     return this.time_promise(queue_tags, "sync tags for " + user.get('user_name')).then(function() {
-      return RSVP.all_wait(store_image_promises).then(null, function(err) {
+      return optional_picture(RSVP.all_wait(store_image_promises), _this.time_promise, picture_ms_left(started, _this.get('optional_picture_ms'))).then(null, function(err) { // tag pictures never hold "syncing tags" past its 30 s
         return RSVP.resolve([]);
       });
     });
   },
   sync_contacts: function(user) {
-    var wait = RSVP.resolve();
+    var wait = RSVP.resolve(); var _this = this; var sync_id = this.get('sync_progress.sync_id'); // utils/optional_picture.js
     if(user.get('all_connections_promise')) {
       wait = this.time_promise(user.get('all_connections_promise'), "waiting for connections for " + user.get('user_name'));
     }
     var retrieve_list = wait.then(null, function() { return RSVP.resolve(); }).then(function() {
       var all_store_images = [];
       (user.get('supervisors') || []).forEach(function(sup) {
-        if(LingoLinq.remote_url(sup.avatar_url) && !this.store_url_quick_check(sup.avatar_url, 'image')) {
-          all_store_images.push(this.store_url_now(sup.avatar_url, 'image'));
+        if(LingoLinq.remote_url(sup.avatar_url) && !_this.store_url_quick_check(sup.avatar_url, 'image')) {
+          all_store_images.push(optional_picture(_this.store_url(sup.avatar_url, 'image', false, false, sync_id), _this.time_promise, _this.get('optional_picture_ms')));
         }
       });
       (user.get('contacts') || []).forEach(function(contact) {
-        if(LingoLinq.remote_url(contact.image_url) && !this.store_url_quick_check(contact.image_url, 'image')) {
-          all_store_images.push(this.store_url_now(contact.image_url, 'image'));
+        if(LingoLinq.remote_url(contact.image_url) && !_this.store_url_quick_check(contact.image_url, 'image')) {
+          all_store_images.push(optional_picture(_this.store_url(contact.image_url, 'image', false, false, sync_id), _this.time_promise, _this.get('optional_picture_ms')));
         }
       });
       return all_store_images;
@@ -2771,16 +2770,16 @@ var persistence = Service.extend({
           if(record.get('permissions') && record.get('image_urls') && safely_cached_boards[id] && !cache_mismatch) {
             board_statuses.push({id: id, key: record.get('key'), status: 'cached'});
             return record;
-          } else if(record.get('permissions') && fresh_board_revisions && fresh_board_revisions[id] && fresh_board_revisions[id] == record.get('current_revision')) {
+          } else if(record.get('permissions') && fresh_board_revisions && fresh_board_revisions[id] && fresh_board_revisions[id] == record.get('current_revision') && known_on_device(_this.get('sync_progress'), record)) {
             board_statuses.push({id: id, key: record.get('key'), status: 'cached'});
             return record;
-          } else if(record.get('permissions') && allow_any_cached) {
+          } else if(record.get('permissions') && allow_any_cached && known_on_device(_this.get('sync_progress'), record)) {
             board_statuses.push({id: id, key: record.get('key'), status: 'cached'});
             return record;
           } else {
-            board_statuses.push({id: id, key: record.get('key'), status: 're-downloaded'});
-            record.set('button_set_needs_reload', true);
-            return _this.time_promise(record.reload(), "reload board", 5000);
+            return (key_for_id ? RSVP.resolve(null) : _this.board_stored_this_sync(id, record, fresh_board_revisions && fresh_board_revisions[id])).then(function(copy) { if(copy) { board_statuses.push({id: id, key: copy.get('key'), status: 'downloaded'}); copy.set('button_set_needs_reload', true); note_answered(_this.get('sync_progress'), copy); return copy; } // a parked board whose late answer this sync stored is not downloaded again (board_stored_this_sync below); a lookup by key reloads as before, and so does a copy the server's revisions list says is old
+            board_statuses.push({id: id, key: record.get('key'), status: 're-downloaded'}); record.set('button_set_needs_reload', true);
+            var asked = (new Date()).getTime(); return _this.time_promise(record.reload(), "reload board", BOARD_RELOAD_MS).then(function(rec) { note_answered(_this.get('sync_progress'), rec, asked); return rec; }, function(err) { return keep_stored_board(record, err, board_statuses, id, function(rec) { return _this.device_board_row(rec); }); }); }); // #1212 (utils/sync_board_fallback.js)
           }
         } else {
           board_statuses.push({id: id, key: record.get('key'), status: 'downloaded'});
@@ -2902,7 +2901,7 @@ var persistence = Service.extend({
         // instead of at request time, and make a batch request
         // for all of their record results at once (this should
         // result in much fewer http requests)
-        return lingoLinqExtras.storage.find_all('board').then(function(list) {
+        return lingoLinqExtras.storage.find_all('board').then(function(list) { note_device_boards(_this.get('sync_progress'), list); // what 'cached' may trust (utils/sync_board_fallback.js)
           var need_fresh_ids = [];
           var missing_ids = {};
           for(var key_or_id in fresh_revisions) {
@@ -2973,7 +2972,7 @@ var persistence = Service.extend({
                       lookups[board_json.id] = RSVP.resolve(board_record);
                       lookups[board_json.key] = lookups[board_json.id]
                       _this_sync_boards.store('board', board_json, board_json.key).then(function(str) {
-                        next_batch();
+                        next_batch(); // a written board is noted by the store's own hook (utils/sync_rollup.js note_board_written); this handler also runs on a failed write
                       }, function(err) {
                         next_batch();
                       });
@@ -3003,7 +3002,7 @@ var persistence = Service.extend({
           if(stamps[user.get('id')] && stamps[user.get('id')] >= user.get('sync_stamp')) {
             // If the req errors for a supervisee, and the sync_stamp
             // is up-to-date from the last sync, don't try to reload boards
-            allow_any_cached = true;
+            allow_any_cached = true; if(_this.get('sync_progress.device_boards')) { return RSVP.resolve({}); } return lingoLinqExtras.storage.find_all('board').then(function(list) { note_device_boards(_this.get('sync_progress'), list); return {}; }, function() { return {}; }); // "any cached copy" still means one on the device: read its boards unless this sync already has (the list is the whole table, not one user's)
           }
         }
         return RSVP.resolve({});
@@ -3046,9 +3045,9 @@ var persistence = Service.extend({
 
     var sync_all_boards = get_sounds.then(function(soundRes) {
       var _sync = _this;
-      var startBoardSync = function(listData) {
+      var startBoardSync = function() {
       return new RSVP.Promise(function(resolve, reject) {
-        if(!_sync || _sync.isDestroyed || _sync.isDestroying || !_sync.get('sync_progress') || _sync.get('sync_progress.canceled')) {
+        if(!_sync || _sync.isDestroyed || _sync.isDestroying || !_sync.get('sync_progress') || _sync.get('sync_progress.canceled') || (sync_id !== true && _sync.get('sync_progress.sync_id') !== sync_id)) { // another sync now holds sync_progress (a follow-up after a cancel)
           resolve();
           return;
         }
@@ -3056,55 +3055,11 @@ var persistence = Service.extend({
           resolve();
           return;
         }
-        var to_visit_boards = [];
-        var backgroundPrefetch = user && boardPrefetchPlanner.backgroundBoardPrefetchEnabled(user);
-        if(user.get('preferences.home_board.id')) {
-          var board = user.get('preferences.home_board');
-          board.depth = 0;
-          board.visit_source = "home board";
-          to_visit_boards.push(board);
-        }
-        if(user.get('preferences.sidebar_boards')) {
-          user.get('preferences.sidebar_boards').forEach(function(b) {
-            if(b.key) {
-              to_visit_boards.push({key: b.key, depth: 1, image: b.image, visit_source: "sidebar board"});
-            }
-          });
-        }
-        if(backgroundPrefetch) {
-          var phased = boardPrefetchPlanner.buildPhasedLookups(user, {
-            ownedBoards: listData && listData.ownedBoards,
-            catalogBoards: listData && listData.catalogBoards,
-            globalBoards: listData && listData.globalBoards,
-            includeLiked: true
-          });
-          to_visit_boards = to_visit_boards.concat(
-            boardPrefetchPlanner.lookupsToSyncSeeds(phased.phase2, 'starred board', 0)
-          );
-          to_visit_boards = to_visit_boards.concat(
-            boardPrefetchPlanner.lookupsToSyncSeeds(phased.phase3, 'owned root', 0)
-          );
-          if(boardPrefetchPlanner.publicPrefetchEnabled(user)) {
-            to_visit_boards = to_visit_boards.concat(
-              boardPrefetchPlanner.lookupsToSyncSeeds(phased.phase4, 'public root', 0)
-            );
-          }
-        } else if(user.get('preferences.sync_starred_boards') === true || (!user.get('preferences.home_board.id') && user.get('preferences.sync_starred_boards') !== false)) {
-          var sync_all = user.get('preferences.sync_starred_boards') === true;
-          user.get('stats.starred_board_refs').forEach(function(ref) {
-            if(sync_all || !ref.suggested) {
-              if(ref.style && ref.style.options) {
-                ref.style.options.forEach(function(opt) {
-                  to_visit_boards.push({key: opt.key, depth: 1, image: opt.url || ref.image_url, visit_source: "suggested board"});
-                })
-              } else {
-                to_visit_boards.push({key: ref.key, depth: 1, image: ref.image_url, visit_source: ref.suggested ? "suggested board" : "starred board"});
-              }
-            }
-          });
-        }
+        // Home, sidebar, starred and Crisis Vocabulary (#1221; utils/offline_sync_seeds.js). Not the person's
+        // other boards, the starter copies made at sign-up, or public boards: to have a board on the device, star it.
+        var to_visit_boards = offlineSyncSeeds.seeds(user);
         var safely_cached_boards = {};
-        var checked_linked_boards = {};
+        var checked_linked_boards = {}; var unreachable_boards = {}; var parking = create_parking(schedule_sync_board_step); register_parking(_sync.get('sync_progress'), parking); // boards this sync could not get: reported once, not queued again by a board that links to them (#1212); parked ones are tried again later (utils/board_retry.js)
 
         var visited_boards = [];
         if(!_sync.get('sync_progress.progress_for')) {
@@ -3120,7 +3075,7 @@ var persistence = Service.extend({
         var dead_thread = false;
         function nextBoard(defer) {
           if(dead_thread) { defer.reject({error: "someone else failed"}); return; }
-          if(!_sync.get('sync_progress') || _sync.get('sync_progress.canceled')) {
+          if(!_sync.get('sync_progress') || _sync.get('sync_progress.canceled') || (sync_id !== true && _sync.get('sync_progress.sync_id') !== sync_id)) { // a thread woken after its sync ended must not walk on under the next one
             defer.resolve();
             return;
           }
@@ -3128,8 +3083,8 @@ var persistence = Service.extend({
           if(p_for) {
             p_for[user.get('id')] = {
               visited: visited_boards.length,
-              to_visit: to_visit_boards.length,
-              board_errors: board_errors
+              to_visit: to_visit_boards.length + parking.size(), // a parked board is still to do
+              board_errors: board_errors, parked: parking.size(), parked_content: parking.count(is_content_entry) // parked_content: saved boards whose pictures or sounds wait (utils/board_content_retry.js)
             };
           }
           _sync.update_sync_progress();
@@ -3137,7 +3092,7 @@ var persistence = Service.extend({
           var id = next && (next.id || next.key);
           var key = next && next.key;
           var source = next && next.visit_source;
-          if(next && next.depth < 20 && id && !visited_boards.find(function(i) { return i == id; }) && !boardRevocation.skip_board(_this, user.get('id'), next)) {
+          if(next && next.content_retry) { retry_content(next, { sync_progress: _sync.get('sync_progress'), store: function(item) { return _sync.store_url(item.url, item.type, item.keep_big, force, sync_id); }, saved: function(board) { full_set_revisions[board.id] = board.full_set_revision; }, park: function(entry, retry) { parking.park(entry, retry); }, fail: function(board_error) { board_errors.push(board_error); }, warn: function(warning) { note_warning(_sync.get('sync_progress.board_statuses'), warning); }, on_device: function(item) { return _sync.store_url_quick_check(item.url, item.type); }, then: function() { schedule_sync_board_step(function() { nextBoard(defer); }, 75); } }); } else if(next && next.depth < 20 && id && !visited_boards.find(function(i) { return i == id; }) && !boardRevocation.skip_board(_this, user.get('id'), next)) { // first branch: a board's parked content, only its failed saves again; the board is not walked again (utils/board_content_retry.js)
             var local_full_set_revision = null;
 
             // check if there's a local copy that's already been loaded
@@ -3151,7 +3106,7 @@ var persistence = Service.extend({
               var content_promises = 0;
               var safely_cached = !!safely_cached_boards[board.id];
               // force a reload of the buttonset if the board changed
-              if((next.depth == 0 && next.visit_source == 'home board') || (next.depth == 1 && next.visit_source == 'sidebar board') || (next.depth == 0 && next.visit_source == 'starred board') || (next.depth == 0 && next.visit_source == 'owned root') || (next.depth == 0 && next.visit_source == 'public root')) {
+              if(offlineSyncSeeds.gets_button_set(next)) { // every board the sync starts from (utils/offline_sync_seeds.js)
                 // Confirm if the button set is stored locally
                 _sync.find('buttonset', board.get('id')).then(function(bs) {
                   if(bs.full_set_revision != local_full_set_revision && !bs.buttons && !safely_cached) {
@@ -3173,7 +3128,7 @@ var persistence = Service.extend({
               if(safely_cached) {
                 console.log("this board (" + board.get('key') + ") has already been cached locally");
               }
-              synced_boards.push(board);
+              synced_boards.push(board); note_board_root(_sync.get('sync_progress'), next, {id: board.get('id'), key: board.get('key'), name: board.get('name')}); // utils/sync_rollup.js
               visited_boards.push(id);
 
               if(LingoLinq.remote_url(board.get('icon_url_with_fallback')) && !_sync.store_url_quick_check(board.get('icon_url_with_fallback'), 'image')) {
@@ -3205,8 +3160,8 @@ var persistence = Service.extend({
               if(next.image && !_sync.store_url_quick_check(next.image, 'image')) {
                 content_promises++;
                 visited_board_promises.push(//this.queue_sync_action('store_sidebar_image', sync_id, function() {
-                  /*return*/ _sync.store_url(next.image, 'image', false, force, sync_id).then(null, function() {
-                    return RSVP.reject({error: "sidebar icon url failed to sync, " + next.image});
+                  /*return*/ _sync.store_url(next.image, 'image', false, force, sync_id).then(null, function(err) {
+                    return RSVP.reject(content_failure("sidebar icon url failed to sync, " + next.image, err, {url: next.image, type: 'image', keep_big: false, optional: true})); // utils/board_content_retry.js; optional: a liked or sidebar folder's icon warns, never fails its folder
                   })
                /*})*/);
                 importantIds.push("dataCache_" + next.image);
@@ -3237,8 +3192,8 @@ var persistence = Service.extend({
                   if(!_sync.store_url_quick_check(personalized, 'image')) {
                     content_promises++;
                     visited_board_promises.push(//_sync.queue_sync_action('store_button_image', sync_id, function() {
-                      /*return*/ _sync.store_url(personalized, 'image', keep_big, force, sync_id).then(null, function() {
-                        return RSVP.reject({error: "button image failed to sync, " + image.url});
+                      /*return*/ _sync.store_url(personalized, 'image', keep_big, force, sync_id).then(null, function(err) {
+                        return RSVP.reject(content_failure("button image failed to sync, " + image.url, err, {url: personalized, type: 'image', keep_big: keep_big}));
                       })
                   /*})*/);
                     importantIds.push("dataCache_" + image.url);
@@ -3251,8 +3206,8 @@ var persistence = Service.extend({
                   if(!_sync.image_filename_cache[image_filename]) {
                     content_promises++;
                     visited_board_promises.push(
-                      _sync.store_url(image.url, 'image', keep_big, force, sync_id).then(null, function() {
-                        return RSVP.reject({error: "missing button image failed to sync, " + image.url});
+                      _sync.store_url(image.url, 'image', keep_big, force, sync_id).then(null, function(err) {
+                        return RSVP.reject(content_failure("missing button image failed to sync, " + image.url, err, {url: image.url, type: 'image', keep_big: keep_big}));
                       })
                    );
                   }
@@ -3270,8 +3225,8 @@ var persistence = Service.extend({
                 importantIds.push("sound_" + sound.id);
                 if(LingoLinq.remote_url(sound.url) && !_sync.store_url_quick_check(sound.url, 'sound')) {
                   visited_board_promises.push(//this.queue_sync_action('store_button_sound', sync_id, function() {
-                     /*return*/ _sync.store_url(sound.url, 'sound', false, force, sync_id).then(null, function() {
-                      return RSVP.reject({error: "button sound failed to sync, " + sound.url});
+                     /*return*/ _sync.store_url(sound.url, 'sound', false, force, sync_id).then(null, function(err) {
+                      return RSVP.reject(content_failure("button sound failed to sync, " + sound.url, err, {url: sound.url, type: 'sound', keep_big: false}));
                      })
                   /*})*/);
                   importantIds.push("dataCache_" + sound.url);
@@ -3292,8 +3247,8 @@ var persistence = Service.extend({
                   return;
                 }
 
-                if(!already_visited && !already_going_to_visit) {
-                  to_visit_boards.push({id: board.id, key: board.key, depth: next.depth + 1, link_disabled: board.link_disabled, visit_source: (emberGet(prior_board, 'key') || emberGet(prior_board, 'id'))});
+                if(!already_visited && !already_going_to_visit && !unreachable_boards[board.id] && !unreachable_boards[board.key]) {
+                  to_visit_boards.push(Object.assign({id: board.id, key: board.key, depth: next.depth + 1, link_disabled: board.link_disabled, visit_source: (emberGet(prior_board, 'key') || emberGet(prior_board, 'id'))}, root_for_link(next))); // a folder carries its board's root (utils/sync_rollup.js)
                 }
                 var force_cache_check = true;
                 if(safely_cached || force_cache_check) {
@@ -3321,13 +3276,13 @@ var persistence = Service.extend({
                           var valid = false;
                           var mapped_url = local_image_map[button.image_id]; // || all_image_urls[button.image_id];
                           if(mapped_url) {
-                            if((persistence.url_cache && persistence.url_cache[mapped_url]) && (!persistence.url_uncache || !persistence.url_uncache[mapped_url])) {
+                            if(_sync.has_local_copy(mapped_url)) {
                               valid = true;
                             }
                           } else if(all_image_urls[button.image_id]) {
                             // If there is at least a default image, you can use that
                             mapped_url = all_image_urls[button.image_id];
-                            if((persistence.url_cache && persistence.url_cache[mapped_url]) && (!persistence.url_uncache || !persistence.url_uncache[mapped_url])) {
+                            if(_sync.has_local_copy(mapped_url)) {
                               valid = true;
                             }
                           }
@@ -3339,7 +3294,7 @@ var persistence = Service.extend({
                           var valid = false;
                           var mapped_url = all_sound_urls[button.sound_id] || local_sound_map[button.sound_id];
                           if(mapped_url) {
-                            if((persistence.url_cache && persistence.url_cache[mapped_url]) && (!persistence.url_uncache || !persistence.url_uncache[mapped_url])) {
+                            if(_sync.has_local_copy(mapped_url)) {
                               valid = true;
                             }
                           }
@@ -3386,12 +3341,12 @@ var persistence = Service.extend({
               if(safely_cached && content_promises > 0) {
                 console.log("EXPECTED NO BOARD CONTENT SAVES BUT THERE WERE " + content_promises);
               }
-              RSVP.all_wait(visited_board_promises).then(function() {
+              var content_failures = []; settle_content(visited_board_promises, content_failures).then(function() { // every save settles before the board is judged (utils/board_content_retry.js)
                 full_set_revisions[board.get('id')] = board.get('full_set_revision');
                 schedule_sync_board_step(function() {
                   nextBoard(defer);
                 }, safely_cached && visited_board_promises.length === 0 ? 50 : 75);
-              }, function(err) {
+              }, function(err) { var judged = judge_content(content_failures, _sync.get('sync_progress'), id, function(item) { return _sync.store_url_quick_check(item.url, item.type); }); judged.warn.forEach(function(f) { note_warning(_sync.get('sync_progress.board_statuses'), content_warning({id: id, key: key || board.get('key'), visit_source: source}, f)); }); if(judged.retry) { parking.park(content_entry(next, judged.park, {id: board.get('id'), full_set_revision: board.get('full_set_revision')}), judged.retry); schedule_sync_board_step(function() { nextBoard(defer); }, 75); return; } if(!judged.fail) { full_set_revisions[board.get('id')] = board.get('full_set_revision'); schedule_sync_board_step(function() { nextBoard(defer); }, 75); return; } err = judged.fail; // utils/board_content_retry.js judge_content: passing failures parked and tried again; an optional save (the folder's icon) only warns, and the board is complete; otherwise the board error, worded by its first required failure
                 var msg = "board " + (key || id) + " failed to sync completely";
                 if(typeof err == 'string') {
                   msg = msg + ": " + err;
@@ -3401,12 +3356,12 @@ var persistence = Service.extend({
                 if(source) {
                    msg = msg + ", linked from " + source;
                 }
-                board_errors.push({error: msg, board_id: id, board_key: key});
+                board_errors.push(content_error(msg, id, key)); // tagged content: the board was reached (utils/sync_rollup.js)
                 schedule_sync_board_step(function() {
                   nextBoard(defer);
                 }, 75);
               });
-            }, function(err) {
+            }, function(err) { var retry = claim_board_retry(_sync.get('sync_progress'), id, err); if(retry) { unreachable_boards[id] = true; if(key) { unreachable_boards[key] = true; } parking.park(next, retry); schedule_sync_board_step(function() { nextBoard(defer); }, 75); return; } // a passing failure: parked, and tried again after a growing wait, up to 3 more times; this thread walks on (utils/board_retry.js)
               var board_unauthorized = (err && err.error == "Not authorized");
               if(next.link_disabled && board_unauthorized) {
                 // TODO: if a link is disabled, can we get away with ignoring an unauthorized board?
@@ -3415,14 +3370,14 @@ var persistence = Service.extend({
                   nextBoard(defer);
                 }, 75);
               } else {
-                // TODO: if a board has been deleted
+                unreachable_boards[id] = true; if(key) { unreachable_boards[key] = true; } note_board_root(_sync.get('sync_progress'), next, {id: id, key: key}); var refused = boardRevocation.real_denial(err); // refused: read from the error as it arrived, before the unwrap below (utils/board_revocation.js real_denial; PR #1328 hides a liked board only on it). TODO: if a board has been deleted
                 if(err.error && err.error.error) {
                   err = err.error;
                 }
                 if(err && err.error == "Record not found" && err.deleted) {
-                  board_errors.push({error: "board " + (key || id) + " has been deleted, linked from " + source, board_unauthorized: board_unauthorized, board_id: id, board_key: key});
+                  board_errors.push({error: "board " + (key || id) + " has been deleted, linked from " + source, board_unauthorized: board_unauthorized, board_id: id, board_key: key, refused: true});
                 } else {
-                  board_errors.push({error: "board " + (key || id) + " failed retrieval for syncing, linked from " + source, board_unauthorized: board_unauthorized, board_id: id, board_key: key});
+                  board_errors.push({error: "board " + (key || id) + " failed retrieval for syncing, linked from " + source, board_unauthorized: board_unauthorized, board_id: id, board_key: key, ...(refused ? { refused: true } : {})});
                 }
                 schedule_sync_board_step(function() {
                   nextBoard(defer);
@@ -3433,7 +3388,7 @@ var persistence = Service.extend({
             // TODO: mark this defer's promise as waiting (needs to be unmarked at each
             // nextBoard call), then set a longer timeout before calling nextBoard,
             // and only resolve when *all* the promises are waiting.
-            defer.resolve();
+            if(!parking.wait(retry_delay, function() { _this.active_board_threads--; }, function(back, kept_slot) { to_visit_boards.unshift.apply(to_visit_boards, back); if(kept_slot) { nextBoard(defer); return; } when_slot_free(function() { return _this.active_board_threads > n_threads; }, schedule_sync_board_step, function() { _this.active_board_threads++; nextBoard(defer); }); })) { defer.resolve(); } // parked boards: one thread waits for them, its slot given back (utils/board_retry.js); otherwise this thread ends
           } else {
             schedule_sync_board_step(function() {
               nextBoard(defer);
@@ -3486,20 +3441,6 @@ var persistence = Service.extend({
       });
       };
 
-      if(user && boardPrefetchPlanner.backgroundBoardPrefetchEnabled(user)) {
-        return boardPrefetchPlanner.fetchBoardListsForPrefetch(
-          _this.ajax.bind(_this),
-          user,
-          {
-            includeOwned: true,
-            includePublic: boardPrefetchPlanner.publicPrefetchEnabled(user)
-          }
-        ).then(function(listData) {
-          return startBoardSync(listData);
-        }, function() {
-          return startBoardSync(null);
-        });
-      }
       return startBoardSync(null);
     });
 
@@ -3526,8 +3467,8 @@ var persistence = Service.extend({
         }
 
         return RSVP.resolve(u);
-      }, function() {
-        reject({error: "failed to retrieve latest user details"});
+      }, function(reloadErr) {
+        reject({error: "failed to retrieve latest user details", network: sync_error_is_network(reloadErr)});
       });
 
       // also download the latest avatar as a data uri
@@ -3541,7 +3482,7 @@ var persistence = Service.extend({
         }
         var url = user.get('avatar_url');
         if(url && !_this.store_url_quick_check(url, 'image')) {
-          return _this.store_url_now(url, 'image');
+          return optional_picture(_this.store_url_now(url, 'image'), _this.time_promise, _this.get('optional_picture_ms')); // never fails the sync, unless storage is full
         } else {
           return RSVP.resolve({});
         }
@@ -4808,6 +4749,23 @@ persistence.allowInvalidTokenLocalFallback = function(err, type, id, still_onlin
 // class, so the ESLint baseline rows above do not shift.
 var AUTO_SYNC_BACKOFF_MS = 30 * 60 * 1000;
 var AUTO_SYNC_BACKOFF_MAX_MS = 6 * 60 * 60 * 1000;
+var RECONNECT_FAILURE_WINDOW_MS = 5 * 1000;
+// A dropped request is {fakeXHR: {status: 0}, message, result} (utils/extras.js ajax_reject;
+// fakeXHR leaves status 0 when the browser reports none). persistence.ajax rejects
+// {offline: true, short_circuit: true} when it already knows there is no connection.
+// time_promise rejects {error: 'promise timed out:...'} when the request never returns.
+function network_error_shape(err) {
+  if(!err) { return false; }
+  if(err.offline || err.short_circuit) { return true; }
+  var xhr = err.fakeXHR || (err._result && err._result.fakeXHR);
+  if(xhr && xhr.status === 0) { return true; }
+  return typeof err.error === 'string' && err.error.indexOf('promise timed out:') === 0;
+}
+function sync_error_is_network(err) {
+  // `network: true` is the sanitized reload failure (no xhr, so no response body).
+  if(err && err.network === true) { return true; }
+  return network_error_shape(err) || network_error_shape(err && err.cause);
+}
 persistence.reopen({
   init() {
     this._super(...arguments);
@@ -4864,6 +4822,7 @@ persistence.reopen({
     _this._prepare_local_files_promise = ensure_local.then(function() {
       var local_after = _this.get('local_system');
       if(_this.isDestroyed || _this.isDestroying || !local_after || !local_after.available || !local_after.allowed) {
+        _this.primed = true; // nothing to prime, and find_url waits on this
         return RSVP.resolve();
       }
       return _this.prime_caches(true).then(null, function() {
@@ -4887,7 +4846,27 @@ persistence.reopen({
     // Only the sign-in check skips the back-off. A reconnect (on_connect) is forced so it checks at
     // once, but on a flaky network it would otherwise retry the failed sync on every reconnect.
     var skips_backoff = force === true && trigger !== 'reconnect';
-    if(!skips_backoff && this.get('auto_sync_backoff_until') > (new Date()).getTime()) { return false; }
+    var in_backoff = this.get('auto_sync_backoff_until') > (new Date()).getTime();
+    // One reconnect may pass the back-off after a dropped connection, or a failure that
+    // landed within a few seconds of the offline flip. The skip is then blocked until
+    // that back-off ends, so a flaky link cannot retry on every reconnect. #1229.
+    var skip_for_reconnect = trigger === 'reconnect' && in_backoff && this.reconnect_may_skip_backoff();
+    if(!skips_backoff && in_backoff && !skip_for_reconnect) { return false; }
+    if(skip_for_reconnect) {
+      this._reconnect_skip_block_until = this.get('auto_sync_backoff_until');
+      this._auto_sync_failure_at = null;
+      this._auto_sync_failure_network = false;
+    }
+    // A device that has never finished a sync cannot get in through the stamp check. Login already
+    // copied the server stamp (services/app-state.js:4180), and the failure branch sets
+    // last_sync_event_at, so the 48-hour branch is not syncable for about five minutes. Start that
+    // sync directly. A device that has synced still uses the stamp check.
+    if(skip_for_reconnect && !this.sync_clock_advances_on_failure() && this.get('online') && this.get('auto_sync') !== false && this.get('auto_sync') != null && extrasIsReady()) {
+      var syncedAt = this.get('last_sync_at') || 0;
+      var nowSeconds = (new Date()).getTime() / 1000;
+      this.sync('self', null, null, 'long_time_since_sync:' + syncedAt + ':' + nowSeconds).then(null, function() { });
+      return true;
+    }
     return this._super(...arguments);
   },
   // The database is chosen once per app start from the signed-in user (capabilities.setup_database).
@@ -4901,28 +4880,63 @@ persistence.reopen({
   sync: function(user_id, force, ignore_supervisees, sync_reason) {
     if(ignore_supervisees) { return this._super(...arguments); }
     this._root_sync_reason = sync_reason || 'manual_sync';
-    this.set('root_sync_canceled', false);
     // A cancelled sync ends in the failure branch, which stashes last_sync_status 'failed'. The user
     // stopped it, so put back the last real result (read after a reload by the Modern home notice,
-    // and by the two-failures pause).
+    // and by the two-failures pause). The cancel is the sync id, not one flag: the next root sync
+    // used to clear that flag before this rejection ran, so the stop was stored as a failure (#1230).
     var _this = this;
     var last_status = this.stashes && this.stashes.get('last_sync_status');
-    return this._super(...arguments).then(null, function(err) {
-      if(_this.get('root_sync_canceled') && !_this.isDestroyed && _this.stashes) {
+    var promise = this._super(...arguments);
+    var my_id = this._this_call_sync_id;
+    if(my_id && my_id !== this._canceled_sync_id) { this.set('root_sync_canceled', false); }
+    return promise.then(null, function(err) {
+      if(my_id && my_id === _this._canceled_sync_id && !_this.isDestroyed && _this.stashes) {
         _this.stashes.persist('last_sync_status', last_status);
+        if(_this.get('sync_progress.sync_id') === my_id) { _this.set('sync_progress', null); }
+      } else if(_this.sync_is_automatic()) {
+        _this._auto_sync_failure_at = (new Date()).getTime();
+        _this._auto_sync_failure_network = _this.sync_failure_is_network(err);
       }
       return RSVP.reject(err);
     });
   },
   cancel_sync: function() {
-    if(this.get('sync_progress')) { this.set('root_sync_canceled', true); }
+    if(this.get('sync_progress')) {
+      this._canceled_sync_id = this.get('sync_progress.sync_id');
+      this.set('root_sync_canceled', true);
+    }
     return this._super(...arguments);
   },
   // Only check_for_needs_sync starts a sync with these reasons. Every other sync came from something
   // the user did (the Sync button, pushing to the cloud, changing the home board or the sidebar),
   // and supervisee syncs share their root sync's reason.
   sync_is_automatic: function() {
-    return /^(long_time_since_sync|sync_stamp_changed):/.test(this._root_sync_reason || '');
+    return reason_is_automatic(this._root_sync_reason);
+  },
+  // A failure may move last_sync_at only after a finished sync (a time greater than the
+  // sentinel 1). That sentinel is a new device's only way into check_for_needs_sync's
+  // 48-hour branch. Login copies a stamp first (services/app-state.js, the sessionUser
+  // observer), so last_sync_stamp is not this signal. #1229.
+  sync_clock_advances_on_failure: function() {
+    return (this.get('last_sync_at') || 0) > 1;
+  },
+  // True when this automatic failure, or the error it replaced, is a dropped connection.
+  sync_failure_is_network: function(err) {
+    return sync_error_is_network(err);
+  },
+  // The offline event can arrive after the failure. Record it so a reconnect can see
+  // that the two were a few seconds apart (check_for_needs_sync, trigger 'reconnect').
+  offline_flip_watcher: observer('online', function() {
+    if(this.isDestroyed || this.isDestroying) { return; }
+    if(this.get('online') === false) { this._offline_at = (new Date()).getTime(); }
+  }),
+  reconnect_may_skip_backoff: function() {
+    if(this._reconnect_skip_block_until > (new Date()).getTime()) { return false; }
+    var failedAt = this._auto_sync_failure_at;
+    if(!failedAt) { return false; }
+    if(this._auto_sync_failure_network) { return true; }
+    var offlineAt = this._offline_at || 0;
+    return Math.abs(offlineAt - failedAt) < RECONNECT_FAILURE_WINDOW_MS;
   },
   // A sync the app started on its own backs off after failing (30 minutes, doubling to 6 hours)
   // instead of retrying every interval; a sync that completes resets it. Decided 2026-10-26.
@@ -4934,6 +4948,9 @@ persistence.reopen({
       this.set('last_sync_event_at', (new Date()).getTime());
       this.set('auto_sync_failures', 0);
       this.set('auto_sync_backoff_until', null);
+      this._auto_sync_failure_at = null;
+      this._auto_sync_failure_network = false;
+      this._reconnect_skip_block_until = null;
     } else if(status === 'failed' && this.sync_is_automatic() && this.get('online')) {
       // Not after a failure while offline: coming back online retries that one (on_connect).
       var failures = (this.get('auto_sync_failures') || 0) + 1;
@@ -4941,10 +4958,214 @@ persistence.reopen({
       this.set('auto_sync_failures', failures);
       this.set('auto_sync_backoff_until', (new Date()).getTime() + wait);
     }
-  })
+  }),
+  // The device has one sync_status and one stashed last_sync_status. Those belong to the
+  // signed-in person. A root sync for someone else (a supervisee's profile Sync button passes
+  // that person's global id, controllers/user/index.js) still runs and still clears
+  // sync_progress, but it must not publish a result. 'self', a null id, and a missing
+  // signed-in id keep the old behavior: tests and a sync that starts before login still
+  // publish. auth_settings.user_id (session token check) and the user record id are both
+  // the global id (session_controller.rb token_check, lib/json_api/user.rb). #1230.
+  sync_status_is_for_signed_in_user: function(user_id) {
+    if(user_id == null || user_id === 'self') { return true; }
+    var auth = this.stashes && this.stashes.get_object && this.stashes.get_object('auth_settings', true);
+    if(!auth || auth.user_id == null || auth.user_id === '') { return true; }
+    return String(user_id) === String(auth.user_id);
+  }
 });
 
 export default persistence;
 // Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
 import boardRevocation from '../utils/board_revocation';
 import { keep_queued_keys, replay_save_options } from '../utils/preference_save';
+import { note_failed_write, failed_write_count, end_sync_if_storage_failed, writes_failed_since } from '../utils/storage_failures';
+import offlineSyncSeeds from '../utils/offline_sync_seeds';
+import { queue_eventual_store } from '../utils/eventual_store_queue';
+import { is_permanent_upload_url } from '../utils/permanent_upload';
+import { on_uploads_cdn, is_web_page } from '../utils/direct_fetch';
+import { picture_kept_in_database, usable_database_copy } from '../utils/database_picture';
+import { BOARD_RELOAD_MS, USER_RELOAD_MS, keep_stored_board, claim_board_retry, note_device_boards, known_on_device, stored_this_sync, note_answered, answered_refs } from '../utils/sync_board_fallback'; import { create_parking, register_parking, wake_parked, retry_delay, when_slot_free } from '../utils/board_retry'; import { note_board_root, root_for_link, with_errors, confirmed_statuses, live_board_errors, content_error, note_board_written, note_warning } from '../utils/sync_rollup'; import { record_sync_log, restore_sync_log } from '../utils/sync_log_store';
+import { usable_copy } from '../utils/board_device_copy';
+import { reason_is_automatic, merge_follow_up } from '../utils/sync_follow_up';
+
+// A root sync requested while another runs used to do nothing: the base gave it its own id, check_first (in sync
+// above) skipped every step because sync_progress kept the running sync's id, and its promise never settled. A home
+// board picked mid-sync then waited for the next stamp check while the drawer said "ready". Now each person gets one
+// pending follow-up, started when the running sync settles (section 19 of
+// docs/task-management/2026-11-10_offline-followup-proposals.md). This reopen wraps the root sync wrapper above, so
+// it decides before that wrapper writes _root_sync_reason. Placed last so the ESLint baseline rows above do not move.
+persistence.reopen({
+  // True while a follow-up for the signed-in person waits; the sync drawer stays on 'syncing' (services/sync-notice.js).
+  follow_up_sync_pending: false,
+  // Sync Details offers Cancel while the person's own sync runs or waits behind another one (a supervisor's sync of a
+  // communicator never writes sync_status, yet the drawer says syncing through follow_up_sync_pending).
+  sync_cancelable: computed('sync_status', 'follow_up_sync_pending', function() {
+    return this.get('sync_status') === 'syncing' || !!this.get('follow_up_sync_pending');
+  }),
+  // The signed-in person's id from the session (auth_settings), or null when nobody is signed in.
+  signed_in_auth_user_id: function() {
+    var auth = this.stashes && this.stashes.get_object && this.stashes.get_object('auth_settings', true);
+    return (auth && auth.user_id) || null;
+  },
+  sync: function(user_id, force, ignore_supervisees, sync_reason) {
+    if(ignore_supervisees) { return this._super(...arguments); }
+    var running = this.running_root_sync();
+    if(running) {
+      if(reason_is_automatic(sync_reason)) { return running.promise; }
+      return this.queue_follow_up_sync(user_id, force, sync_reason);
+    }
+    // Entries left behind by a sync that stopped being tracked without settling: nothing will start them.
+    if(!this._starting_follow_up && this._follow_up_syncs && this._follow_up_syncs.length) { this.drop_follow_up_syncs({error: "sync stopped"}); }
+    var promise = this._super(...arguments);
+    var my_id = this._this_call_sync_id;
+    // Tracked only once the base passed its "extras not ready" wait and took sync_progress (sync above): the waiting
+    // call comes back through this method, and tracking the outer call would queue the inner one behind it forever.
+    if(my_id && this.get('sync_progress.sync_id') === my_id) {
+      var _this = this;
+      var mine = { id: my_id, promise: promise };
+      this._running_root_sync = mine;
+      var settled = function() {
+        if(_this._running_root_sync !== mine) { return; }
+        _this._running_root_sync = null;
+        _this.start_follow_up_sync();
+      };
+      promise.then(settled, settled);
+    }
+    return promise;
+  },
+  // The tracked root sync, while sync_progress still carries its id (sign-out and cleanup clear sync_progress).
+  running_root_sync: function() {
+    var running = this._running_root_sync;
+    return (running && running.id === this.get('sync_progress.sync_id')) ? running : null;
+  },
+  queue_follow_up_sync: function(user_id, force, sync_reason) {
+    var queue = this._follow_up_syncs = this._follow_up_syncs || [];
+    // One entry per person: 'self' and the signed-in person's own id name the same person (the user page reloads by
+    // model.id, controllers/user/index.js; the home-board flows and the Sync button ask for 'self').
+    var me = this.signed_in_auth_user_id();
+    var person = function(id) { return (id === 'self' || (me && String(id) === String(me))) ? 'self' : String(id); };
+    var entry = queue.find(function(e) { return person(e.user_id) === person(user_id); });
+    if(!entry) {
+      entry = { user_id: user_id, queued_for: this.signed_in_auth_user_id() }; // who was signed in when it was asked for
+      entry.promise = new RSVP.Promise(function(resolve, reject) { entry.resolve = resolve; entry.reject = reject; });
+      // A caller without a rejection handler (components/push-to-cloud.js) must not raise an unhandled rejection
+      // when its follow-up is dropped; callers that listen still get the rejection.
+      entry.promise.then(null, function() { });
+      queue.push(entry);
+    }
+    merge_follow_up(entry, force, sync_reason);
+    this.note_follow_up_syncs();
+    return entry.promise;
+  },
+  start_follow_up_sync: function() {
+    var queue = this._follow_up_syncs || [];
+    if(!queue.length || this.isDestroyed || this.isDestroying) { return; }
+    // A device that went offline would only report "Sync failed"; a database that is not the signed-in person's must
+    // not receive their boards (check_for_needs_sync refuses the same).
+    if(!this.get('online')) { this.drop_follow_up_syncs({error: "not online"}); return; }
+    if(!this.local_db_is_current_user()) { this.drop_follow_up_syncs({error: "signed out"}); return; }
+    var entry = queue.shift();
+    // Asked for in a session that has since ended (a callback that ran after sign-out): never start it for the next
+    // person, or on the login page.
+    if(entry.queued_for !== this.signed_in_auth_user_id()) {
+      entry.reject({error: "signed out"});
+      this.note_follow_up_syncs();
+      this.start_follow_up_sync();
+      return;
+    }
+    if(entry.needs_auto_sync && !this.get('auto_sync')) {
+      entry.reject({error: "automatic sync is off"});
+      this.note_follow_up_syncs();
+      this.start_follow_up_sync();
+      return;
+    }
+    // Started before the drawer flag is recomputed, so sync_status is already 'syncing' when the hold lifts.
+    var promise;
+    this._starting_follow_up = true;
+    try {
+      promise = this.sync(entry.user_id, entry.force, null, entry.reason);
+    } finally {
+      this._starting_follow_up = false;
+    }
+    this.note_follow_up_syncs();
+    promise.then(entry.resolve, entry.reject);
+  },
+  // Rejects every pending follow-up at once: on cancel, at sign-out (services/app-state.js clear_user_state), and when
+  // a follow-up cannot start.
+  drop_follow_up_syncs: function(err) {
+    var queue = this._follow_up_syncs || [];
+    this._follow_up_syncs = [];
+    this.note_follow_up_syncs();
+    queue.forEach(function(entry) { entry.reject(err); });
+  },
+  // A follow-up for someone else (a supervisor's Sync on a communicator's page) never writes sync_status, so only the
+  // signed-in person's holds the drawer.
+  note_follow_up_syncs: function() {
+    var _this = this;
+    var mine = (this._follow_up_syncs || []).some(function(entry) { return _this.sync_status_is_for_signed_in_user(entry.user_id); });
+    if(this.get('follow_up_sync_pending') !== mine) { this.set('follow_up_sync_pending', mine); }
+  },
+  // A cancelled sync can still resolve: the board walk resolves once it reads the cancel (nextBoard). Called by the base
+  // sync's success branch before it writes anything: the boards were not all saved, so it reports no success, stashes no
+  // result and moves neither the sync clock nor the stamps (the next sync must still run). It records the event time
+  // (as the failure branch does) so the automatic check does not restart a sync right after Cancel, and logs the cancel.
+  // Section 22 of docs/task-management/2026-11-10_offline-followup-proposals.md. Returns true when it ended the sync.
+  end_canceled_sync: function(sync_id, user_id, user_name, force, writes_before) {
+    if(!sync_id || this._canceled_sync_id !== sync_id) { return false; }
+    // What the cancelled sync saved and what failed, read before sync_progress is cleared: as the failure branch, only
+    // downloads that finished count as saved, and every user's recorded errors are kept with the roots (Sync Details'
+    // stopped cards; PR #1328's offline list hides another owner's liked board on its error).
+    var progress = this.get('sync_progress');
+    var reached = Utils.uniq(confirmed_statuses((progress && progress.board_statuses) || [], progress), function(s) { return s.id; });
+    var statuses = with_errors(reached, live_board_errors(progress));
+    var roots = (progress && progress.board_roots) || {};
+    // A board write failed since the sync began (`writes_before`, from sync): as the failure branch. Not told when it
+    // began, nothing is checked (the count lasts the session, utils/storage_failures.js).
+    var storage_failed = writes_before !== undefined && writes_failed_since(this, writes_before);
+    this.set('sync_progress', null);
+    if(this._active_root_sync_id === sync_id && this.sync_status_is_for_signed_in_user(user_id)) { this.set('sync_status', null); }
+    var log = [].concat(this.get('sync_log') || []);
+    log.push({ user_id: user_name, manual: force, canceled: true, finished: new Date(), statuses: statuses, roots: roots, confirmed: true, storage_failed: storage_failed || undefined, summary: i18n.t('sync_canceled_summary', "Sync canceled") });
+    this.set('sync_log', record_sync_log(this, log)); // utils/sync_log_store.js
+    this.set('sync_log_rand', Math.random());
+    this.set('last_sync_event_at', (new Date()).getTime());
+    return true;
+  },
+  // Requests made before a cancel are dropped at once; one made after it queues and runs when the cancelled sync ends.
+  // Cancelling a running sync also pauses automatic syncing (Traci, 2026-11-12): otherwise the stamp check started it
+  // again about 5 minutes later, every time.
+  cancel_sync: function() {
+    this.drop_follow_up_syncs({error: "canceled"});
+    if(this.get('sync_progress') && !this.get('sync_progress.canceled')) { this.pause_automatic_sync(); }
+    return this._super(...arguments);
+  },
+  // The device's copy of a board, when it opens offline (utils/board_device_copy.js usable_copy), or a rejection. By
+  // global id: a key lookup scans every board row (#1212). Used by board_lookup's reload branch above.
+  device_board_row: function(record) {
+    return this.find('board', record.get('global_id') || record.get('id')).then(function(row) {
+      return usable_copy(row) ? row : RSVP.reject({error: 'no usable copy'});
+    });
+  },
+  // For a parked board being tried again (board_lookup's reload branch above), the device's complete copy stored
+  // during this sync, put in the store as the sync puts a cached row (sync_boards, "push already-cached record"), or
+  // null when there is none, or putting it in the store fails, and the board is downloaded as before
+  // (utils/sync_board_fallback.js stored_this_sync). `listed_revision` is the server's revision for the board, if listed.
+  board_stored_this_sync: function(id, record, listed_revision) {
+    var _this = this;
+    return stored_this_sync(this.get('sync_progress'), id, record, function(rec) { return _this.device_board_row(rec); }, listed_revision).then(function(row) {
+      return row ? LingoLinq.store.push({ data: { id: row.id, type: 'board', attributes: row } }) : null;
+    }).then(null, function() { return null; });
+  },
+  // The back-off that follows a failed automatic sync (sync_backoff_watcher): 30 minutes, doubling to 6 hours, reset by a
+  // finished sync. It only gates check_for_needs_sync, so the Sync button and the syncs a person's own changes start
+  // still run. No failure time is recorded, so a reconnect does not skip it (reconnect_may_skip_backoff).
+  pause_automatic_sync: function() {
+    var count = (this.get('auto_sync_failures') || 0) + 1;
+    var wait = Math.min(AUTO_SYNC_BACKOFF_MS * Math.pow(2, count - 1), AUTO_SYNC_BACKOFF_MAX_MS);
+    this.set('auto_sync_failures', count);
+    this.set('auto_sync_backoff_until', (new Date()).getTime() + wait);
+  }
+});
+import { is_stale_item, drop_stale_head } from '../utils/url_store_queue';
+import { optional_picture, picture_ms_left } from '../utils/optional_picture';
+import { failure_cause, content_failure, settle_content, content_entry, retry_content, is_content_entry, judge_content, content_warning } from '../utils/board_content_retry';

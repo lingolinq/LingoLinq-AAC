@@ -15,28 +15,70 @@ module SystemEmailOverride
       end
     end
 
-    html_override = override && override['html_body'].present?
-    text_override = override && override['text_body'].present?
+    html_body = system_email_override_body(override, key, 'html')
+    text_body = system_email_override_body(override, key, 'text')
 
-    if html_override || text_override
+    if html_body || text_body
       super(headers) do |format|
-        if html_override
-          SystemEmailTemplateSecurity.validate!(override['html_body'])
-          body = SystemEmailTemplates.render_string(override['html_body'], binding, validate: false)
-          format.html { render html: body.html_safe, layout: 'email' }
-        else
+        # A format is declared only when there is a body for it: seven registered emails
+        # have no plain-text view, and rendering a missing view stops the email.
+        if html_body
+          format.html { render html: html_body.html_safe, layout: 'email' }
+        elsif SystemEmailTemplates.default_body(key, 'html')
           format.html { render "#{mailer_name}/#{action_name}" }
         end
-        if text_override
-          SystemEmailTemplateSecurity.validate!(override['text_body'])
-          body = SystemEmailTemplates.render_string(override['text_body'], binding, validate: false)
-          format.text { render plain: body }
-        else
+        if text_body
+          format.text { render plain: text_body }
+        elsif SystemEmailTemplates.default_body(key, 'text')
           format.text { render "#{mailer_name}/#{action_name}" }
         end
       end
     else
       super(headers, &block)
     end
+  end
+
+  # The two parent request emails whose approval also records AI data-sharing consent
+  # (#1136), and the sentence that says so. An edited body that leaves the sentence out
+  # gets it added, so the consent never rests on an email that did not carry it.
+  AI_CONSENT_NOTICES = {
+    'user_mailer/parental_consent_request' => 'parental_consent_mailer.ai_notice',
+    'user_mailer/eu_ai_parental_consent_request' => 'eu_ai_parental_consent_mailer.ai_notice'
+  }.freeze
+
+  private
+
+  def with_ai_consent_notice(body, key, format)
+    i18n_key = AI_CONSENT_NOTICES[key]
+    return body unless i18n_key
+
+    notice = I18n.t(i18n_key)
+    url = @ai_disclosure_url.to_s
+    if format.to_s == 'html'
+      notice = ERB::Util.html_escape(notice)
+      return body if body.include?(notice)
+
+      link = ERB::Util.html_escape(url)
+      "#{body}<p>#{notice}</p><p><a href=\"#{link}\">#{link}</a></p>"
+    else
+      return body if body.include?(notice)
+
+      "#{body}\n\n#{notice}\n#{url}\n"
+    end
+  end
+
+  # The stored body filled from allowed values (lib/system_email_placeholders.rb), or nil
+  # to send the default view. A body that no longer fits, or a value that cannot be read,
+  # falls back so the email still goes out; the log names only the template and format.
+  def system_email_override_body(override, key, format)
+    text = override.is_a?(Hash) ? override["#{format}_body"] : nil
+    return nil if text.blank? || SystemEmailRegistry.find(key).nil?
+    return nil unless SystemEmailPlaceholders.override_applies?(key, self)
+
+    context = SystemEmailPlaceholders::Context.from_object(key, self)
+    with_ai_consent_notice(SystemEmailPlaceholders.render(text, key, format, context), key, format)
+  rescue StandardError => e
+    Rails.logger.warn("System email override not used for #{key} (#{format}): #{e.class}")
+    nil
   end
 end

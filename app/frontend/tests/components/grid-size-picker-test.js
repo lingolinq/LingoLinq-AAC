@@ -192,6 +192,52 @@ describe('GridSizePickerComponent', 'component:grid-size-picker', function() {
       expect(committed[0][1]).toEqual(7);
     });
 
+    /* The pick has to be visible. While the pointer is still over the grid after a click,
+       sweeping on used to repaint the fill under it, so the size looked unpicked. The
+       picked size now holds until the pointer leaves the grid and comes back. */
+    describe('holding the picked size', function() {
+      function pointerOver(row, col) {
+        var ev = cellEvent(row, col);
+        ev.type = 'mouseover';
+        return ev;
+      }
+      function keyboardFocus(row, col) {
+        var ev = cellEvent(row, col);
+        ev.type = 'focusin';
+        return ev;
+      }
+      function pickAt(row, col) {
+        var c = makePicker();
+        c.set('onChange', function(r, col2) { c.set('rows', r); c.set('columns', col2); });
+        c.send('preview_from_event', pointerOver(row, col));
+        c.send('pick_from_event', pointerOver(row, col));
+        return c;
+      }
+
+      it('keeps the picked size painted while the pointer moves on over the grid', function() {
+        var c = pickAt(3, 4);
+        c.send('preview_from_event', pointerOver(8, 9));
+        expect(cellAt(c, 3, 4).on).toEqual(true);
+        expect(cellAt(c, 8, 9).on).toEqual(false);
+        expect(c.get('readout')).toEqual('3 × 4');
+      });
+
+      it('previews again once the pointer has left the grid and come back', function() {
+        var c = pickAt(3, 4);
+        c.send('clear_preview');
+        c.send('preview_from_event', pointerOver(8, 9));
+        expect(cellAt(c, 8, 9).on).toEqual(true);
+        expect(c.get('readout')).toEqual('8 × 9');
+      });
+
+      it('still previews keyboard focus after a pick', function() {
+        var c = pickAt(3, 4);
+        c.send('preview_from_event', keyboardFocus(5, 5));
+        expect(cellAt(c, 5, 5).on).toEqual(true);
+        expect(c.get('readout')).toEqual('5 × 5');
+      });
+    });
+
     it('ignores a click that landed on the grid but not on a cell', function() {
       var committed = [];
       var c = makePicker({ onChange: function(r, col) { committed.push([r, col]); } });

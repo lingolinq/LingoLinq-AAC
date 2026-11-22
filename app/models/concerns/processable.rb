@@ -145,7 +145,7 @@ module Processable
     if suggestion.match(/^model+/)
       suggestion = suggestion.sub(/^model+/, 'model_')
     end
-    if LingoLinq::RESERVED_ROUTES.include?(suggestion) || (collision && collision != self)
+    if LingoLinq::RESERVED_ROUTES.include?(suggestion.downcase) || (collision && collision != self)
       # try something else
       trailing_number = suggestion.match(/_\d+$/)
       alt_trailing_number = nil

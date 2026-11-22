@@ -3,8 +3,9 @@ import modal from './modal';
 import i18n from './i18n';
 import app_state from './app_state';
 import { owner_gone } from './live_service';
+import { STARTER_BOARD_BUTTONS } from './starter_board';
 
-// Open the RECOMMENDED starter home board ("Vocal Flair 84") in its board-preview
+// Open the RECOMMENDED starter home board (utils/starter_board.js: Vocal Flair 60) in its board-preview
 // modal (recommend:true) — the "pick a board (page-set) for me" flow. Confirming
 // with "Pick this Board" copies it home and hands the user into board-detail SPEAK
 // mode, where the speak guided-tour auto-starts (board-preview-overlay
@@ -16,8 +17,8 @@ import { owner_gone } from './live_service';
 //
 // `buttons` selects which Vocal Flair set to open. The five published sets line up
 // 1:1 with GRID_BANDS in eval_recommend, so the eval report can hand its
-// recommended grid straight through. Defaults to 84 — what every caller relied on
-// before this took an argument.
+// recommended grid straight through. Defaults to the starter (Vocal Flair 60; Traci, 2026-11-11: it was 84
+// while the welcome card set up 60).
 export const VOCAL_FLAIR_BUTTON_COUNTS = [24, 40, 60, 84, 112];
 
 // Map a recommendation grid ({rows, cols}) to a published Vocal Flair set.
@@ -76,7 +77,7 @@ function claim_setup_user(for_user) {
 }
 
 export default function openRecommendedHomeBoard(buttons, for_user) {
-  var n = VOCAL_FLAIR_BUTTON_COUNTS.indexOf(buttons) >= 0 ? buttons : 84;
+  var n = VOCAL_FLAIR_BUTTON_COUNTS.indexOf(buttons) >= 0 ? buttons : STARTER_BOARD_BUTTONS;
   var exact = new RegExp('(^|/)vocal-flair-' + n + '$');
   var loose = new RegExp('vocal-flair-' + n);
   return LingoLinq.store.query('board', { q: 'Vocal Flair ' + n, public: true, per_page: 10 }).then(function(results) {

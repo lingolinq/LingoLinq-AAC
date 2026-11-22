@@ -99,7 +99,10 @@ module('Unit | Utility | board_revocation', function(hooks) {
     assert.false(boardRevocation.skip_board(persist, 'u1', {key: 'owner/1_2', depth: 1, visit_source: 'sidebar board'}), 'a revoked sidebar board is still synced');
     assert.true(boardRevocation.skip_board(persist, 'u1', {id: '1_2', depth: 0, visit_source: 'starred board'}), 'other roots are skipped');
     assert.deepEqual(boardRevocation.settled_revocations(persist.get('sync_progress'), 'u1', []), ['1_2']);
-    await boardRevocation.apply_revocations(['1_2']);
+    var told = [];
+    var unsubscribe = boardRevocation.on_marked(function(ids) { told.push(ids); });
+    try { await boardRevocation.apply_revocations(['1_2']); } finally { unsubscribe(); }
+    assert.deepEqual(told, [['1_2']], 'listeners hear which boards the server revoked (item 9C: the memory cache drops them)');
     assert.true(this.db.board['1_2'].raw.revoked, 'marked on the local record');
     assert.strictEqual(this.db.board['1_2'].raw.name, 'Board 1_2', 'the rest of the copy is kept');
     assert.strictEqual(this.db.board['1_2'].persisted, 12345);
@@ -554,5 +557,31 @@ module('Unit | Utility | board_revocation', function(hooks) {
     await settledSync('u1', ['a']);
     assert.notOk(this.db.board['2_1'].raw.revoked, 'not marked');
     assert.deepEqual(this.db.settings.revocationSyncedSupervisees.raw.by_root.u1.removed, [], 'no longer stored as removed');
+  });
+
+  // Item 9C (PR #1268): the Modern board page is always in Speak Mode, where marks are held back until the
+  // board is left. The memory cache must still hear about the revocation then, or the board stays in memory.
+  test('in Speak Mode, listeners are told at once although the marks wait', async function(assert) {
+    addBoard(this.db, '1_1');
+    addBoard(this.db, '1_2');
+    LingoLinq.appState.set('speak_mode', true);
+    var told = [];
+    var unsubscribe = boardRevocation.on_marked(function(ids) { told.push(ids); });
+    try { await boardRevocation.apply_revocations(['1_2']); } finally { unsubscribe(); }
+    assert.deepEqual(told, [['1_2']], 'told');
+    assert.notOk(this.db.board['1_2'].raw.revoked, 'the mark itself waits for Speak Mode to end');
+    assert.true(boardRevocation.has_deferred(), 'and is deferred');
+  });
+
+  test('a listener that throws does not fail the sync, and unsubscribing works', async function(assert) {
+    addBoard(this.db, '1_2');
+    var heard = 0;
+    var bad = boardRevocation.on_marked(function() { throw new Error('listener problem'); });
+    var good = boardRevocation.on_marked(function() { heard++; });
+    try { await boardRevocation.apply_revocations(['1_2']); } finally { bad(); good(); }
+    assert.strictEqual(heard, 1);
+    assert.true(this.db.board['1_2'].raw.revoked, 'the sync still marked the board');
+    await boardRevocation.apply_revocations(['1_2']);
+    assert.strictEqual(heard, 1, 'no longer listening');
   });
 });

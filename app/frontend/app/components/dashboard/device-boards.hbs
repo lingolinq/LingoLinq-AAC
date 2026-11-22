@@ -1,0 +1,14 @@
+{{!-- Basic view's "Boards on This Device" list, inside classic-view.hbs's `.ch-boards__grid` while offline
+     (classic-view.js load_device_boards keeps `deviceBoards` and `deviceBoardsRefused`). Its own component so each state
+     can be rendered in a test (tests/integration/components/dashboard/device-boards-test.js). --}}
+{{#if (or @refused @boards.read_failed)}}
+  <p class="ch-empty" role="status">{{t "Your boards can't be shown right now. Close and reopen the app, or connect to the internet." key="device_boards_not_shown"}}</p>
+{{else if @boards.loading}}
+  <p class="ch-empty" role="status">{{t "Finding the boards on this device..." key="device_boards_loading"}}</p>
+{{else if @boards.length}}
+  {{#each @boards as |board|}}
+    {{#if board.key}}<div class="ch-boards__cell"><BoardIcon @board={{board}} @flag_home={{is_equal board.key @homeBoardKey}} /></div>{{/if}}
+  {{/each}}
+{{else}}
+  <p class="ch-empty">{{t "No boards are saved on this device yet. Connect to the internet and sync to use your boards offline." key="device_boards_empty_basic"}}</p>
+{{/if}}
