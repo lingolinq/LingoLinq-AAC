@@ -187,3 +187,99 @@ symbols (2026-11-16).
   full, 2,104 pictures before the sync and 2,104 during it, all direct (item 1.8 refined in the plan); caseload full,
   44 boards and no warning (the cap, not a timeout); big at 0.8 Mbps, complete (the intermittent failure above). The
   first probe attempt ran under an older Node from a non-login shell and Playwright refused it; run with nvm's Node 22.
+
+## Item 0.1: sync counters and the Sync Details summary (fact sheet and proposal, 2026-11-22)
+
+Learnings consulted: archive 2026-11 "A sync's result card is decided before its log is written" (read the log when
+used, compare entries for the signed-in person only); archive 2026-01..09 "`sync_boards` exists in both copies" (any
+sync change goes in `services/persistence.js` AND `utils/persistence.js`).
+
+### Fact sheet
+
+(a) Where the values are READ
+- The sync log list is `persistence.sync_log`; readers: `components/sync-details.js` (`summary_for`, `details`,
+  `restored_lead`), `components/sync-progress-drawer.js`, `services/sync-notice.js`, `utils/offline_board_list.js`
+  (`answered`), the dashboards, `controllers/user/index.js`, `services/app-state.js` (CONFIRMED, grep of `sync_log`).
+- What survives a restart is only what `entry_copy` whitelists (`utils/sync_log_store.js` `entry_copy`; `merge_logs`
+  runs stored entries through it). A field not added there exists until the app restarts, then vanishes (CONFIRMED).
+- The summary will be read in Sync Details under the last result: `summary_for` (`utils/sync_rollup.js`) picks the
+  entry through `last_result` / `partial_result` (`utils/sync_log_store.js`) (CONFIRMED).
+
+(b) Every shape an entry can have, by writer
+- W1 finished (clean, with issues, or `storage_failed` + `errored`): `services/persistence.js:2422` and the copy
+  `utils/persistence.js:2443`, only when `sync_progress.root_user == user_id` (`services/persistence.js:2376`).
+- W2 stopped (failed, or a cancel that ended through the failure branch): `services/persistence.js:2464`, copy
+  `utils/persistence.js:2483`, same root-user condition (`:2445`).
+- W3 cancel that ended through `end_canceled_sync`: `services/persistence.js:5128` (copy: to check when editing).
+- Restored entries (`merge_logs` → `entry_copy`, `finished` rebuilt as a Date) and entries written by older builds:
+  no counters, no start time. The summary must say nothing it cannot back, never "0".
+- Supervisee syncs write no entry of their own (the root-user condition); they run inside the root sync's window.
+- A root sync requested while one runs is absorbed (`services/persistence.js:2040`): one root sync at a time, by
+  `sync_progress.sync_id`. `sync_progress` is rebuilt once the user loads (`:2197`) but keeps `sync_id` and
+  `started_at` (CONFIRMED), so counters cannot live inside `sync_progress`; they are keyed by `sync_id`.
+
+(c) Cross-file claims checked
+- Every jQuery request (adapter `record.reload()`, `persistence.ajax`, the picture proxy, board downloads) goes through
+  `$.realAjax(options)` at `utils/extras.js:292`: the adapter calls `$.ajax` (`adapters/application.js:45-46`),
+  `persistence.ajax` calls `$.ajax` (`services/persistence.js:3854`), and `$.ajax` is the patched one
+  (`utils/extras.js:147`) (CONFIRMED). `utils/board_download.js` has no XHR or fetch of its own (CONFIRMED, grep).
+- Pictures and sounds are downloaded by one raw XHR in `store_url_now` (`services/persistence.js` `xhr.open('GET', url
+  + '...cr=1')`; copy `utils/persistence.js:1619`), with the proxy (through `$.ajax`) as fallback. The installed app
+  takes the same path (`capabilities.installed_app` only sets `check_for_local`, `services/persistence.js:1558`); there
+  is no native downloader (CONFIRMED, grep for FileTransfer / downloadFile / fetch).
+- Resource Timing (`transferSize`, `encodedBodySize`) reads 0 for cross-origin responses without a
+  `Timing-Allow-Origin` header (ASSUMED from the Resource Timing spec; not load-bearing: it is why candidate B is
+  rejected, and the 0.2 run will show it if wrong).
+- `navigator.storage.estimate()` covers the browser's storage for the origin, not files a native plugin writes
+  (ASSUMED; it decides only whether the storage line shows in the installed app, which is an open question below).
+
+### Diagnosis (what is missing today)
+A sync log entry has the outcome and per-board rows but no start time, no request or byte counts, no peak
+concurrency and no failure breakdown. Support cannot tell a slow link from a stall, and nothing measures any later
+item in the field. Supervisee failures are a pop-up only (`services/persistence.js:2628-2633`; item 1.9).
+
+### Candidates
+- A (proposed). `utils/sync_counters.js`: `begin(sync_id)` when the root sync creates `sync_progress`
+  (`services/persistence.js:2049`); `request_started()` / `request_ended({bytes, kind, failure})` called from two
+  places only, `$.realAjax` in `utils/extras.js` and the picture XHR in `store_url_now` (both copies); a picture or
+  sound saved through the XHR or the proxy counts as `media_saved`; `note_failure(kind)` for storage writes and
+  supervisee syncs; `finish(sync_id)` returns a plain JSON object that W1 to W3 put on the entry as `counters`, with
+  `started`. Counting happens only while a root sync is active. Bytes are the decoded size (`responseText.length`,
+  the blob's size, the proxy's base64 length × 3/4), labelled `bytes_decoded`.
+  - Trade-off: everything the app requests during the sync counts, including requests a board page makes while the
+    sync runs (labelled "during the sync"); the page's `<img>` warm-up (item 1.8) is not seen, since it is not a
+    request the app sends itself.
+- B. A `PerformanceObserver` over the sync window: no request site touched, real transfer sizes, the `<img>` warm-up
+  included. Rejected for 0.1: cross-origin pictures (all of them, on the picture host) report 0 bytes without
+  `Timing-Allow-Origin`, and it gives no status, so failures by kind would still need A's hooks.
+- Simplest alternative: derive everything from the existing per-board rows (no network hooks). Rejected: rows carry
+  no bytes, requests or timing, which is the point of 0.1.
+
+### What the person sees (Traci's layout, 2026-11-21)
+Under the last sync result in Sync Details, one line built only from what the entry holds, parts left out when not
+known: "Took 2 minutes · 12 boards and 340 pictures downloaded (18 MB) · 1 picture couldn't be saved". Plus a storage
+line: "LingoLinq is using 412 MB on this device (2.1 GB available)", from `navigator.storage.estimate()`, read when
+Sync Details opens. All strings through i18n, no percentages, final wording by Traci in the built UI. The full
+counters show in Technical details for each sync.
+
+### Risks
+- A hook in `$.realAjax` runs on every request in the app: it must never throw or change the promise (a try/catch
+  around counting, no await, no change to arguments or results).
+- Old and restored entries: the summary omits parts it lacks; a test covers an entry with no counters.
+- Supervisor syncs: one window covers every supervisee, so the counts are the whole run's (what the person waited for).
+
+### Unresolved questions
+- The installed app: does `estimate()` include the plugin's picture files? If not, the storage line would understate
+  by most of the pictures; proposed: hide the storage line in the installed app until 1.x measures it.
+- Should a supervisee failure change the finished message from "without errors"? That is behaviour (1.9); 0.1 only
+  counts it and shows it in the summary.
+
+### Tests (red first)
+- `tests/unit/utils/sync-counters-test.js`: counts only while a sync is active and only for its `sync_id`; peak
+  concurrency; failure kinds from the error shapes `passing_failure` knows (timeout, offline, 429, 5xx, refused);
+  a throwing input does not throw. Mutation: drop the `sync_id` check, the test of a second sync's id goes red.
+- `sync-log-store-test.js`: `entry_copy` keeps `started` and `counters`. Mutation: remove them from the whitelist.
+- The summary words for: a full entry, an entry with no counters (only "Took ..." if `started` exists, else
+  nothing), a supervisor entry with a supervisee failure.
+- e2e (the 0.2 harness): each measured sync also records the entry's counters beside the link's own counts; requests
+  and bytes should agree within the warm-up's share. This is the accuracy check.
