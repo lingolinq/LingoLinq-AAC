@@ -933,3 +933,19 @@ Revised plan:
   `persistence-sync-test.js:8107`, `:8134`); unit `partial_result` (marked storage-failed stopped entry shown;
   finished storage-failed entry and unmarked stopped entry not); unit `confirmed_statuses` for 'cached'; both stop
   paths set the marker. Stopped-entry fixtures that must still show need the marker added (needs Traci's OK).
+
+### Part 5 verified (2026-11-21)
+- Unit M (041280cc4): `confirmed: true` on both stop paths' entries (`services/persistence.js:2469`, `:5128`),
+  kept by `entry_copy`, required by `partial_result`. Red 4 (missing marker), green 59/59. Nine stopped-entry fixtures
+  gained the marker (Traci's Rule #0.14 OK, 2026-11-21).
+- Unit S (2770de503): `partial_result` no longer skips `storage_failed`; the batch step's store handler no longer
+  calls `note_device_boards` (it ran on a failed write; the store's hook notes a written board); at a stop, once the
+  device was read, a 'cached' row needs confirmation. Red 4 (right reasons). The three approved assertion changes
+  (`sync-log-store-test.js:175`, `persistence-sync-test.js:8107`, `:8134`: now shown, the failed board `not_saved`)
+  and the approved fixture line (`me/cached` in the device map) are in.
+- `/sync|persistence|board content retry/i`: 652 tests, 643 pass, 9 skip, 0 fail. Mutants: M1 partial_result ignoring
+  the marker: killed (1); M2 entry_copy dropping it: killed (1); M3/M4 a stop path without it: killed (2 each); S1
+  the exclusion back: killed (3); S2 no cached rule: killed (1); S3 cached rule with no device read: killed (1);
+  S4 the batch note back: SURVIVED, accepted: no harness drives the real batch step (the stop-path tests stub
+  `sync_boards`); the removal rests on the review's confirmed reading (Q1) and the hook's own tests (F1). Recorded in
+  "Not covered". `lint:js:ci`: the four worktree false positives.
