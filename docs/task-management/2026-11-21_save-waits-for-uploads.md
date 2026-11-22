@@ -177,3 +177,25 @@ ESLint: `lint:js:ci` lists the existing `.eslint-todo` rows of board/index.js, b
 content-grabbers.js and edit_manager.js as new because they moved down. Linting develop's copy of each
 file against the branch gives identical findings (rule, column, message) in all four; the new files
 have none. Re-anchoring those rows is a baseline edit and waits for Traci's approval (Rule #0 item 14).
+
+## End-to-end (Playwright, 2026-11-22)
+
+`app/frontend/e2e/save-waits.spec.js` (project `save-waits`), local stack from this worktree (puma
+:5000, `ember serve` :8184, `rake extras:assert_js`), synthetic users from
+`e2e/support/users-save-waits.rb`. Real Rails creates the image and sound records and saves the
+board; the browser answers only the S3 POST (held until the test opens its gate, or failed) and
+`upload_success` (a local stack has no S3 credentials). The saved board is read back from the server.
+
+- PR code: 9 passed, 1 skipped. Modern: first picture waits then saves; Back to editing keeps the
+  upload and the next Save includes it; a failed upload cancels the save with the message; Save
+  without it after 15 s saves without the picture and the late upload never lands; a recording waits
+  then saves. Basic: the four picture scenarios, by dropping the picture onto the button.
+- develop's app files swapped into the same worktree (served build checked for the old
+  `wait_for_images` guard): all nine fail at "the waiting dialog shows".
+- Skipped: Basic recording. In a development build Basic's button settings do not close at all, with
+  nothing uploading: Ember asserts "You attempted to update `color_key_id` on app-state, but it had
+  already been used previously in the same computation" (`editManager.update_color_key_id`,
+  `utils/edit_manager.js:1248`). Same on develop, so pre-existing and outside this change; the
+  assertion is stripped in production builds, where close may work. Separate follow-up.
+- Seen on the drop path: a failed drop's own "Upload failed" error shares the single flash slot with
+  this change's "did not upload, so the board was not saved" message, which replaces it.
