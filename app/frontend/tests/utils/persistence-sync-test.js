@@ -7208,6 +7208,54 @@ describe("persistence-sync", function() {
       });
     });
 
+    // Follow-up item 2: a board the device holds at an older revision than the server lists is fetched by sync_boards'
+    // batch download (users#boards?ids=, which serves only boards the person can view), a server answer.
+    it("records a board fetched by the batch download as answered", function() {
+      db_wait(function() {
+        var state = { tailDone: false, done: false };
+        primeBoardRevisionsSyncHarness(function() { state.tailDone = true; });
+        primeLocalSyncStorage([]);
+        var board = {id: '1_145', key: 'fred/home', full_set_revision: 'current', permissions: {}, current_revision: 'current', image_urls: {},
+          image_url: 'http://example.com/board.png', buttons: [], grid: {rows: 1, columns: 1, order: [[null]]}};
+        var batch_urls = [];
+        stubStoreUrl(function(url) { return RSVP.resolve({url: url}); });
+        chainPersistenceAjax(function(url) {
+          if(url == '/api/v1/users/1340/board_revisions') { return RSVP.resolve({revisions: {'1_145': 'current', 'fred/home': 'current'}, revoked_ids: []}); }
+          if(url.indexOf('/api/v1/users/1340/boards?ids=') === 0) { batch_urls.push(url); return RSVP.resolve([board]); }
+        });
+        stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+        persistence.store('board', Object.assign({}, board, {current_revision: 'older', full_set_revision: 'older'}), board.id).then(function() {
+          var in_memory = LingoLinq.store.peekRecord('board', '1_145');
+          if(in_memory) { in_memory.unloadRecord(); }
+          persistence.force_reload = null;
+          LingoLinq.all_wait = true;
+          queryLog.real_lookup = true;
+          stub(window.$, 'realAjax', function(options) {
+            if(isCrisisVocabularyRequest(options.url)) { return RSVP.resolve({board: crisisVocabularyBoard()}); }
+            if(options.url === '/api/v1/users/1340') {
+              return RSVP.resolve({user: {id: '1340', user_name: 'fred', avatar_url: 'http://example.com/pic.png', preferences: {home_board: {id: '1_145'}}}});
+            } else if(options.url == '/api/v1/boards/1_145') {
+              return RSVP.resolve({board: board});
+            } else if(options.url && options.url.match(/\/api\/v1\/buttonsets\//)) {
+              return RSVP.resolve({ buttonset: { buttons: [], full_set_revision: 'current' } });
+            }
+            return RSVP.reject({});
+          });
+          var finish = function() { state.done = true; };
+          persistence.sync(1340).then(finish, finish);
+        });
+        waitsFor(function() { return waitForSyncDoneAndSettled(state.done) && state.tailDone; });
+        runs(function() {
+          var log = (persistenceTarget() || persistence).get('sync_log') || [];
+          var last = log[log.length - 1] || {};
+          expect(batch_urls.length).toEqual(1);
+          expect(homeStatus()).toEqual('downloaded');
+          expect((last.answered || []).indexOf('1_145')).not.toEqual(-1);
+          endWholeSync();
+        });
+      });
+    });
+
     it("a sync leaves alone a board that is current in memory and already on the device", function() {
       db_wait(function() {
         var state = syncWithHomeInMemory(true);
