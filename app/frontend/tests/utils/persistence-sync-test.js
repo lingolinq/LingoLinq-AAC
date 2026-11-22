@@ -6989,6 +6989,27 @@ describe("persistence-sync", function() {
       return list.map(function(s) { return s.status; });
     }
 
+    // Follow-up item 2 (docs/task-management/2026-11-22-offline-boards-followup.md): a 'cached' row the server's revision
+    // list confirmed is a server answer (board_revisions gives a revision only to boards the person can view), so the
+    // offline list may let it end an older refusal; one from allow_any_cached (no server answer) is not.
+    it("counts a revision-confirmed cached board as answered, and an allow_any_cached one not", function() {
+      var confirmed = lookupCurrent({'1_1213': true});
+      waitsFor(function() { return confirmed.done; });
+      runs(function() {
+        expect(onlyStatus()).toEqual(['cached']);
+        expect(Object.keys(persistence.get('sync_progress.answered') || {}).sort()).toEqual(['1_1213', 'example/current']);
+        persistence.set('sync_progress', null);
+      });
+      var any = null;
+      runs(function() { any = lookupCurrent({'1_1213': true}, true); });
+      waitsFor(function() { return any && any.done; });
+      runs(function() {
+        expect(onlyStatus()).toEqual(['cached']);
+        expect(persistence.get('sync_progress.answered')).toEqual(undefined);
+        persistence.set('sync_progress', null);
+      });
+    });
+
     it("downloads a current board that is in memory but not among the device's boards", function() {
       var res = lookupCurrent({});
       waitsFor(function() { return res.done; });

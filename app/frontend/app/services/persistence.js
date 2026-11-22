@@ -2771,7 +2771,7 @@ var persistence = Service.extend({
             board_statuses.push({id: id, key: record.get('key'), status: 'cached'});
             return record;
           } else if(record.get('permissions') && fresh_board_revisions && fresh_board_revisions[id] && fresh_board_revisions[id] == record.get('current_revision') && known_on_device(_this.get('sync_progress'), record)) {
-            board_statuses.push({id: id, key: record.get('key'), status: 'cached'});
+            board_statuses.push({id: id, key: record.get('key'), status: 'cached'}); note_answered(_this.get('sync_progress'), record); // the server's revision list confirmed it (board_revisions answers only for boards the person can view)
             return record;
           } else if(record.get('permissions') && allow_any_cached && known_on_device(_this.get('sync_progress'), record)) {
             board_statuses.push({id: id, key: record.get('key'), status: 'cached'});
