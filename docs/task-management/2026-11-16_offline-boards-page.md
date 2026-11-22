@@ -791,3 +791,19 @@ Lint gate adds nothing; baseline untouched.
 Recorded, not changed (Lows from the proposal review): a late refusal after the adapter's 15 s limit is dropped, so it
 cannot hide until a later sync gets it; Sync Details has no 'kept' label (pre-existing); the `force_reload` race
 (pre-existing) makes more rows weak, which now lists rather than hides.
+
+## Final full-PR review (2026-11-21): checklist and stop rule
+REVIEWED=range 5d3c66cbd (merge-base with develop) ... f7e3bd068, 44 files. Both reviewers get this checklist:
+- C1 Whose list: another person's device list never shows on someone's boards page (offline read, owner check, the
+  shared controller across pages, the online exit, an SPA sign-out).
+- C2 Which devices: trusted, not trusted, trust unknown. Not trusted: only own and LingoLinq library boards listed or
+  opened; the walk and the grouping never pass through a board that does not open there.
+- C3 Which log shapes: another owner's liked board, for every real writer shape (finished, finished storage-failed,
+  stopped, cancelled, pre-#1336 entries, 'kept', reloads served from the device copy, the `answered` list), in the
+  real row shape: listed when nothing refused it, hidden after a refusal until a real answer.
+- C4 Library-board gates (four): offline only, a server refusal still wins, an owner stand-in never stored.
+- C5 Own boards: each own board on the device listed or reachable from a listed one, none twice (loops).
+- C6 UI: loading, failed read, refused, empty, the online exit (no stuck view), wording, i18n, Basic at phone width.
+- C7 Tests: real shapes, not vacuous; no existing test weakened without approval; lint baseline untouched.
+Stop rule: only a Critical or High finding blocks this PR. Medium and Low findings are recorded in "Not covered" or
+a follow-up, not fixed here; the PR then freezes.
