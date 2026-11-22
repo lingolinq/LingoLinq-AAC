@@ -68,7 +68,10 @@ test('a first sync saves every board and picture, and Sync Details groups the fo
   expect(home.attention).toBe(false);
   expect(details.cards.some((c) => /Crisis Vocabulary/.test(c.text)), 'the sidebar board has its own card').toBe(true);
   expect(details.cards.some((c) => /Folder \d+ /.test(c.text)), 'folders are inside their board, not cards of their own').toBe(false);
-  expect(details.pct).toMatch(/100%/);
+  // No percentage (Traci, 2026-11-16): a finished sync with nothing missing says so in words, and every board and
+  // folder counted is saved (components/sync-details.js headline and summary_line).
+  expect(details.pct).toBe('All your boards are ready offline');
+  expect(details.lines[0]).toMatch(/^(\d+) of \1 boards and folders are saved on this device\.$/);
   expect(details.sideScroll).toBe(false);
   await closeSyncDetails(page);
   // The drawer showed the sync while it ran (it may have finished before the first look on a fast link).
