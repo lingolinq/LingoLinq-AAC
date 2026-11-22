@@ -16,6 +16,7 @@ import app_state from '../../utils/app_state';
 import modal from '../../utils/modal';
 import Utils from '../../utils/misc';
 import EmberObject from '@ember/object';
+import { has_live_media, cancel_pending_media, when_media_settled, reset_pending_media } from '../../utils/pending_media';
 
 describe('soundGrabber', function() {
   var soundGrabber;
@@ -404,6 +405,110 @@ describe('soundGrabber', function() {
       waitsFor(function() { return res.sound; });
       runs(function() {
         expect(res.sound.get('locale')).toEqual(undefined);
+      });
+    });
+  });
+
+  describe('pending_sound on the button the sound started from', function() {
+    var model, save, changes, settledResult;
+    var startSound = function() {
+      model = EmberObject.create({id: '456'});
+      controller.set('model', model);
+      soundGrabber.setup(model, controller);
+      save = RSVP.defer();
+      changes = [];
+      settledResult = null;
+      stub(contentGrabbers, 'save_record', function() { return save.promise; });
+      stub(editManager, 'change_button', function(id, args) { changes.push({id: id, sound_id: args.sound_id}); });
+      var state = {done: false, result: undefined};
+      soundGrabber.select_sound_preview({url: wav_data_uri, name: 'test.wav'}).then(function(res) {
+        state.done = true; state.result = res;
+      }, function() { state.done = true; });
+      return state;
+    };
+    var savedSound = function() {
+      return EmberObject.create({id: '123', url: 'https://example.com/test.wav', check_transcription: function() { }});
+    };
+
+    afterEach(function() {
+      reset_pending_media();
+    });
+
+    it('should hold Save while the sound uploads and release it once applied', function() {
+      var state = startSound();
+      expect(model.get('pending_sound')).toEqual(true);
+      expect(has_live_media()).toEqual(true);
+      when_media_settled().then(function(res) { settledResult = res; });
+      save.resolve(savedSound());
+      waitsFor(function() { return state.done && settledResult; });
+      runs(function() {
+        expect(changes).toEqual([{id: '456', sound_id: '123'}]);
+        expect(model.get('pending_sound')).toEqual(false);
+        expect(settledResult.landed).toEqual(1);
+        expect(state.result).toEqual({url: 'https://example.com/test.wav', id: '123'});
+      });
+    });
+
+    it('should apply the sound and clear pending_sound when settings closed first', function() {
+      var state = startSound();
+      controller.destroy();
+      save.resolve(savedSound());
+      waitsFor(function() { return state.done; });
+      runs(function() {
+        expect(changes).toEqual([{id: '456', sound_id: '123'}]);
+        expect(model.get('pending_sound')).toEqual(false);
+      });
+    });
+
+    it('should leave the next button alone when settings moved on before the sound saved', function() {
+      var state = startSound();
+      var nextModel = EmberObject.create({id: '789'});
+      var nextController = EmberObject.create({model: nextModel, sound_preview: {url: 'https://example.com/test-next.wav'}});
+      soundGrabber.setup(nextModel, nextController);
+      save.resolve(savedSound());
+      waitsFor(function() { return state.done; });
+      runs(function() {
+        expect(changes).toEqual([{id: '456', sound_id: '123'}]);
+        expect(nextModel.get('sound')).toEqual(undefined);
+        expect(nextController.get('sound_preview.url')).toEqual('https://example.com/test-next.wav');
+        expect(model.get('pending_sound')).toEqual(false);
+      });
+    });
+
+    it('should not hand a board button\'s sound to a recorder that took over the grabber', function() {
+      var state = startSound();
+      var recorder = EmberObject.create({model: {}});
+      soundGrabber.setup(null, recorder);
+      save.resolve(savedSound());
+      waitsFor(function() { return state.done; });
+      runs(function() {
+        expect(recorder.get('model.sound')).toEqual(undefined);
+        expect(changes).toEqual([{id: '456', sound_id: '123'}]);
+      });
+    });
+
+    it('should not apply a sound whose upload was cancelled', function() {
+      var state = startSound();
+      cancel_pending_media();
+      save.resolve(savedSound());
+      waitsFor(function() { return state.done; });
+      runs(function() {
+        expect(changes.length).toEqual(0);
+        expect(model.get('sound_id')).toEqual(undefined);
+      });
+    });
+
+    it('should report a failed upload and still resolve for the recorder', function() {
+      stub(window, 'alert', function() { });
+      var state = startSound();
+      when_media_settled().then(function(res) { settledResult = res; });
+      save.reject({error: 'test failure'});
+      waitsFor(function() { return state.done && settledResult; });
+      runs(function() {
+        expect(changes.length).toEqual(0);
+        expect(model.get('pending_sound')).toEqual(false);
+        expect(settledResult.failed).toEqual(1);
+        expect(state.result).toEqual(undefined);
       });
     });
   });

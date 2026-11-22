@@ -11,6 +11,7 @@ import {
 } from 'frontend/tests/helpers/jasmine';
 import { queryLog, persistenceTarget, boardModelStub } from 'frontend/tests/helpers/ember_helper';
 import RSVP from 'rsvp';
+import { cancel_pending_media, when_media_settled, reset_pending_media } from '../../utils/pending_media';
 import editManager from '../../utils/edit_manager';
 import Button from '../../utils/button';
 import app_state from '../../utils/app_state';
@@ -2099,6 +2100,52 @@ describe('editManager', function() {
       runs(function() {
         expect(button.get('pending_image')).toEqual(false);
         expect(button.get('image_id')).toEqual(undefined);
+      });
+    });
+
+    it("should not apply an automatic symbol whose lookup was cancelled", function() {
+      editManager.setup(board);
+      setEditMode(true);
+      var button = Button.create({id: 1, label: "ham"});
+      board.set('ordered_buttons', [[button]]);
+      var search = RSVP.defer();
+      var save = RSVP.defer();
+      var autoSettled = false;
+      stubPictureSearch(function() { return search.promise; });
+      var saveStarted = false;
+      stubPictureGrabber('save_image_preview', function() { saveStarted = true; return save.promise; });
+      editManager.lucky_symbol(1);
+      search.resolve([{license: 'private', image_url: 'https://example.com/test-auto.png', id: 'test_auto_pic'}]);
+      waitsFor(function() { return saveStarted; });
+      runs(function() {
+        cancel_pending_media();
+        save.promise.then(function() { autoSettled = true; });
+        save.resolve(EmberObject.create({id: 'test-auto', url: 'https://example.com/test-auto.png'}));
+      });
+      waitsFor(function() { return autoSettled; });
+      runs(function() {
+        expect(button.get('image_id')).toEqual(undefined);
+        expect(button.get('pending_image')).toEqual(false);
+        reset_pending_media();
+      });
+    });
+
+    it("should not count a failed automatic lookup as a failed upload", function() {
+      editManager.setup(board);
+      setEditMode(true);
+      var button = Button.create({id: 1, label: "ham"});
+      board.set('ordered_buttons', [[button]]);
+      var search = RSVP.defer();
+      var result = null;
+      stubPictureSearch(function() { return search.promise; });
+      editManager.lucky_symbol(1);
+      when_media_settled().then(function(res) { result = res; });
+      search.reject({error: 'test lookup failure'});
+      waitsFor(function() { return result; });
+      runs(function() {
+        expect(result.failed).toEqual(0);
+        expect(button.get('pending_image')).toEqual(false);
+        reset_pending_media();
       });
     });
 
