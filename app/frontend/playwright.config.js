@@ -133,6 +133,13 @@ module.exports = defineConfig({
       testMatch: /basic-speak-home\.spec\.js/,
       use: { ...devices['Desktop Chrome'] },
     },
+    // Board Save waits for uploads (PR #1354). Signs in as its own synthetic users
+    // (e2e/support/users-save-waits.rb), so it needs no setup project.
+    {
+      name: 'save-waits',
+      testMatch: /save-waits\.spec\.js/,
+      use: { ...devices['Desktop Chrome'] },
+    },
     // The offline board sync (#1322 and the sync proposal) on every platform: e2e/sync.spec.js has the setup.
     // PCs:
     syncProject('sync-desktop-chrome', { ...devices['Desktop Chrome'] }),
