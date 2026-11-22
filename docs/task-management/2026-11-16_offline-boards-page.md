@@ -768,3 +768,26 @@ checklist and a stop rule (only Critical/High block), then freeze; later finding
   reload answered from the device copy logs 'kept'. Mutants must include M1 and M2.
 - Unresolved: whether marking device-copy reloads 'kept' changes anything else that reads 're-downloaded'
   (`confirmed_statuses`, F1 `note_board_written`, Sync Details counts): to be checked in review.
+
+### Findings 1-6 fixed (2026-11-21)
+Review of the proposal (adversary): proceed with changes. It showed my reader rule would hide liked boards on slow
+links (a timeout often still gets a late server answer, `board_download.js`; the single `force_reload` slot makes
+healthy reloads come from the device copy), and that putting a flag on status rows would change about a dozen existing
+exact-row assertions. Adopted its alternative: an entry-level `answered` list and the weak-row rule.
+- 54c37431a (findings 1-5): `note_answered`/`answered_refs` (utils/sync_board_fallback.js); services/persistence.js
+  writes the list into the finished entry on existing lines only (:2377, :2426, :2780, :2782, the import line);
+  `entry_copy` keeps it; `seen_by_last_sync` rewritten: newest deciding row per board (a refusal in any entry hides;
+  a really answered row in a whole sync lists); otherwise a row with no answer behind it lists only when no refusal is
+  in the log; an untagged error alone does not. The walk and grouping read links through `next_of`, which skips boards
+  that do not open here (finding 5). Two comments reworded (finding 4).
+- Then (finding 6, Traci approved the wording): Modern's status line reads "These boards are saved on this device."
+  while online (`device_boards_note_online`, generated into the 12 other locales; en.json hand-edited to add only
+  this key, since the generator also re-ordered keys and added two missing keys from other PRs). Two test titles
+  renamed to the refused-only rule (Traci approved).
+Mutants A1-A13: 12 KILLED; A2 ('kept' may count as answered) SURVIVED, harmless: a kept row's board is in `answered`
+only if another lookup of the same board got a real answer that sync, when listing is right. The online-wording test
+was red before the change. 751 tests on the sync and offline filters: 742 pass, 9 skipped (pre-existing), 0 fail.
+Lint gate adds nothing; baseline untouched.
+Recorded, not changed (Lows from the proposal review): a late refusal after the adapter's 15 s limit is dropped, so it
+cannot hide until a later sync gets it; Sync Details has no 'kept' label (pre-existing); the `force_reload` race
+(pre-existing) makes more rows weak, which now lists rather than hides.

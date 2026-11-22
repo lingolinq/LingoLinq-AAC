@@ -31,7 +31,7 @@ module('Unit | Utility | offline board list', function(hooks) {
     assert.deepEqual(keys(pick_device_boards(rows, user, [])), ['larry/home', 'lingolinq/yes-no', 'larry/liked-own', 'lingolinq/crisis-vocabulary']);
   });
 
-  test('another owner\'s liked board only when the last clean sync saw it without an error', function(assert) {
+  test('another owner\'s liked board only when a sync saw it and none refused it', function(assert) {
     var rows = [board('4_1', 'therapist/feelings'), CRISIS];
     var user = person({ stats: { starred_board_refs: [{ id: '4_1', key: 'therapist/feelings' }] } });
     assert.deepEqual(keys(pick_device_boards(rows, user, [])), ['lingolinq/crisis-vocabulary'], 'no sync log: not offered');
@@ -323,7 +323,7 @@ module('Unit | Utility | offline board list', function(hooks) {
 
   // Part 3 (docs/task-management/2026-11-16_offline-boards-page.md): only this person's syncs count, and a later sync
   // that refused the board (`refused`, #1336) hides it, finished or not.
-  test('another owner\'s liked board: only this person\'s syncs count, and a later error hides it', function(assert) {
+  test('another owner\'s liked board: only this person\'s syncs count, and a later refusal hides it', function(assert) {
     var rows = [board('4_1', 'therapist/feelings'), CRISIS];
     var user = person({ stats: { starred_board_refs: [{ id: '4_1', key: 'therapist/feelings' }] } });
     var ok = function(who) { return { user_id: who, statuses: [{ id: '4_1', key: 'therapist/feelings', status: 'cached' }] }; };

@@ -1,5 +1,5 @@
 import { setupRenderingTest } from 'frontend/tests/helpers';
-import { render, click } from '@ember/test-helpers';
+import { settled, render, click } from '@ember/test-helpers';
 import { hbs } from 'ember-cli-htmlbars';
 import * as QUnit from 'qunit';
 import EmberObject from '@ember/object';
@@ -99,5 +99,16 @@ QUnit.module('Integration | boards on this device', function(hooks) {
     assert.dom('.ub-boards-page__board-item-heart').exists({ count: 1 });
     assert.dom('.ub-boards-page__board-item-heart').hasAttribute('role', 'img');
     assert.dom('.ub-boards-page__board-item-heart').hasAttribute('aria-label', 'Liked');
+  });
+
+  // Back online, this person's device list stays up until the server list arrives (controllers/user/index.js
+  // end_device_view_online); the line then must not say "You're offline" (Traci, 2026-11-21).
+  QUnit.test('the status line says "You\'re offline" only while offline', async function(assert) {
+    this.boardsCtrl.set('persistence', EmberObject.create({ online: true }));
+    await render(hbs`<BoardsBrowser @boardsCtrl={{this.boardsCtrl}} @offlineView={{true}} @offlineBoards={{this.device}} />`);
+    assert.dom('.ub-boards-page__device-note').hasText('These boards are saved on this device.', 'online');
+    this.boardsCtrl.set('persistence.online', false);
+    await settled();
+    assert.dom('.ub-boards-page__device-note').hasText("You're offline. These boards are saved on this device and open without internet.", 'offline');
   });
 });

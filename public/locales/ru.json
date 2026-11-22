@@ -9347,6 +9347,8 @@
   "sync_saved_before_stopped": "*** Saved before the sync stopped",
   "sync_nothing_saved_before_stopped": "*** Nothing was saved before the sync stopped",
   "sync_drawer_saved_none": "*** No boards are saved on this device yet.",
+  "device_boards_not_shown": "*** Your boards can't be shown right now. Close and reopen the app, or connect to the internet.",
+  "device_boards_note_online": "*** These boards are saved on this device.",
   "==== lvl8 ============": "Below are all words for priority level 8 (this string does not need to be translated)",
   "on_the_date": "На дату [[ On the Date",
   "after_time": "По истечении времени [[ After Time",
@@ -9801,7 +9803,6 @@
   "filter_rooms_by_name_or_person": "Фильтрация номеров по имени или имени человека [[ Filter rooms by name or person",
   "org_admin_tools": "Инструменты администратора [[ Admin tools",
   "org_section_subscription": "Подписка [[ Subscription",
-  "device_boards_not_shown": "*** Your boards can't be shown right now. Close and reopen the app, or connect to the internet.",
   "org_ai_authorized_label": "*** AI features for managed accounts",
   "org_ai_authorized_toggle": "*** Allow AI features for the accounts this organization manages",
   "org_ai_authorized_hint": "*** Turning this on confirms that this organization is authorized to allow AI features for these accounts, including getting any parent or guardian consent that is needed. It covers word prediction, board suggestions and focus words. It is off by default, and each account can still turn AI features off for itself."

@@ -5212,6 +5212,7 @@
   "classic_switch_to_card_view": "Switch to Modern View",
   "boards_in_this_account": "%app_name% Boards in this Account:",
   "device_boards_note": "You're offline. These boards are saved on this device and open without internet.",
+  "device_boards_note_online": "These boards are saved on this device.",
   "device_boards_empty": "No boards are saved on this device yet",
   "device_boards_empty_subtitle": "Connect to the internet and sync to use your boards offline.",
   "last_used": "last used",
