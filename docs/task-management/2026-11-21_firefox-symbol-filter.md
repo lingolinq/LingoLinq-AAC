@@ -61,3 +61,17 @@ Chromium develop draws them with a white fill.
 
 Not covered: Safari (WebKit) and the mobile apps were not run (the mobile shell already had the filter in its
 index.html; it now comes from the initializer); dark and high-contrast modes use other selectors and are unchanged.
+
+## Chrome on the Android emulator (2026-11-21, final code `86921356c`)
+
+Same emulator, Chrome 124 over its DevTools socket, the symbol test picture served for the 403 URLs.
+
+| Build | View | Filter in the page | Symbols drawn / with the filter applied |
+|---|---|---|---|
+| develop (:5097) | Basic | no | 10 / 10 (filter skipped: white fill) |
+| this branch (:5111) | Basic | yes | 10 / 10, cream fill |
+| develop (:5097) | Modern | no | 16 / 16 (filter skipped: white fill) |
+| this branch (:5111) | Modern | yes | 16 / 16, cream fill |
+
+Screenshots: `~/offline-sync-handoff/2026-11-21-firefox/emu-compare.png`. Firefox is not installed on the emulator,
+so the Firefox fix itself was checked in desktop Firefox only.

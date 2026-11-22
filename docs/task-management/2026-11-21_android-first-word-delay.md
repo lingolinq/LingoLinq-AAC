@@ -106,3 +106,30 @@ the "warms each voice once" test now fires `start`, since caching on queue was t
 skipped (existing). Mutations: caching on queue again (red: the cancelled test); ignoring the alternate voice (red:
 the alternate-voice test). The emulator timings above were taken before this change; the warm-up is queued the same
 way, only when it is counted changed.
+
+## Emulator re-run on the final code (`86921356c`, 2026-11-21)
+
+Production build of `86921356c` on :5111, same emulator, account and probe; Chrome and the speech engine force-stopped
+before every run. "Silent button" = a touch whose handler runs the app's own `unlock_speech()` and nothing else, as
+`activateButton` does for a button that speaks nothing.
+
+| Scenario | First word: speech starts after the tap | Warm-up recorded |
+|---|---|---|
+| A. word is the first touch (2 runs) | +690, +554 ms | - |
+| B. blank touch, then words (2 runs) | **+126, +155 ms** | `English Australia` after the blank touch |
+| C. silent button, blank touch, then words | **+84 ms** | none after the silent button (warm-up `interrupted`), `English Australia` after the blank touch |
+| C2. silent button, then words | +150 ms | none after the silent button |
+| D. separate voice for buttons (`English United Kingdom`), blank touch, then words (2 runs) | **+150, +100 ms** (spoken in the UK voice) | `English United Kingdom` |
+| D4. separate voice for buttons, word is the first touch | +598 ms | - |
+
+- B, C and D confirm the claims: with an earlier touch the first word starts as quickly as later words (later words:
+  +57 to +184 ms), including after a silent button and with a separate button voice.
+- C confirms the review fix: a warm-up cancelled by a silent button is not recorded, and the next touch warms again.
+- C2 was faster than expected (+150 ms): the cancelled warm-up seems to have started loading the voice anyway. One
+  run; not relied on.
+- The first D run failed: the UK voice's first use on a cold engine answered `synthesis-failed` for the warm-up AND
+  for the app's own "Hello" (an engine behaviour, not this change); the warm-up was correctly not recorded. A
+  voice check afterwards: English Australia and English United Kingdom speak; English United States and English
+  Nigeria answer `synthesis-failed` on this image (not installed).
+- `speecher.voiceURI` is null for this test account (no saved voice); the app resolves English Australia by locale,
+  and the warm-up resolves the same one.
