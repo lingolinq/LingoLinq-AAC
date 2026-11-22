@@ -513,6 +513,10 @@ re-read; log: `2026-11-20_sync-proposal-implementation.md`). Labels as before: *
 
 ### 12.2 Before any of this lands (prerequisites)
 
+**Status 2026-11-21: items 1 and 2 are met.** #1336 merged 2026-11-22 01:26 UTC (da911bfde) and #1328 at 04:04 UTC
+(4494d67ac). Both changed the `log.push` sites in `sync` and `end_canceled_sync`, `sync_log_store.entry_copy` and
+Technical details, so 0.1's fact sheet re-reads both merged diffs first. Item 3 (test hygiene) is still open.
+
 1. **#1336 (Sync Details) merges first.** It is a draft, conflicts with develop, and rewrites the places phase 0
    writes: the `log.push` sites in `sync` and `end_canceled_sync`, `sync_log_store.entry_copy`, and Technical details.
    Another session owns it.
@@ -546,7 +550,13 @@ infra or deploy config.
 - 0.1 Sync counters (12.3). Technical details shows a plain-language summary (12.6); the full counters go in the
   sync log. No percentages (Traci 2026-11-16).
 - 0.2 The measurement seed and a scripted run of the e2e suite that records the counters for each shape and link
-  speed, before and after each phase. Local private database only.
+  speed, before and after each phase. Local private database only. It includes the Android emulator probes
+  (`~/offline-sync-handoff/2026-11-19-emulator/compare-android.js` and the others, repointed from the removed
+  `~/LingoLinq-AAC-sync-e2e` to a worktree with `app/frontend/node_modules`) and must reproduce the 1.2 baseline
+  before 1.2 lands: at 0.4 Mbps on the emulator, synth_big saved 39/57 boards on develop 9d96df96f and 36/57 with
+  #1330 (one run each; at 0.8 Mbps all 57 saved; `2026-11-16_sync-late-copy-current.md:171-183`). One 0.76 MB board
+  needs at least 15 s with the link to itself, the same as `find_limits.caller_ms` (15 s), while several downloads
+  share the link.
 - 0.3 Measure item 1.7's effect (a second sync more than a week later, simulated clock) and the first-sync share of
   public catalog boards (#1221).
 - 0.4 Dev's inline pictures: Scot (12.6). Nothing on this branch writes to dev or staging data.
@@ -556,7 +566,11 @@ infra or deploy config.
   store push, not after device writes), cancel and sync-id checks, a time budget after which the walk starts anyway,
   then lift the 100-board cap. First, the sync stops seeding public catalog boards (#1221; Traci 2026-11-20, 12.6),
   on the client's seed list only: `board_revisions` is shared by older clients and by revocation, so it is unchanged.
-  A batch still in flight when the time budget ends finishes and is stored; the walk skips boards it delivered. Folds in #1341's "a save that never settles holds the walk".
+  A batch still in flight when the time budget ends finishes and is stored; the walk skips boards it delivered.
+  Also fixes the board-thread limit's off-by-one: `add_thread` and the parked-retry resume test
+  `active_board_threads > n_threads` (`services/persistence.js:3403`, `:3391`), so up to n_threads + 1 threads run
+  (7 on mobile, 11 on desktop). It changes how many downloads share a slow link, so it is measured with 1.2's
+  harness runs (found 2026-11-21 by the Android speech session; not filed separately). Folds in #1341's "a save that never settles holds the walk".
 - 1.2 Transport limits (12.3) for single boards, batches, `board_revisions`, the proxy and pictures: the no-bytes
   clock starts at headers; a header deadline above `Rack::Timeout` (16 s); total ceiling only in the iOS app. Device
   check on iOS.
@@ -629,11 +643,11 @@ infra or deploy config.
 
 ### 12.5 Order of work
 
-1. Now, on this branch: 0.2 (seed and measurement harness), 0.1 (counters, behind #1336's log shape), the server
-   halves of 2.1 to 2.3 and 3.1 to 3.2, item 1.7.
-2. After #1336 merges: 0.1's log and Technical details, 1.5, 1.2.
+1. Now, on this branch: 0.2 (seed and measurement harness) first, so 1.2 has before-and-after numbers; then 0.1
+   (counters; #1336 has merged, so its log shape is final); the server halves of 2.1 to 2.3 and 3.1 to 3.2; item 1.7.
+2. Next (#1336 has merged): 0.1's log and Technical details, 1.5, 1.2.
 3. After the test hygiene fix: 1.1 (starting with the #1221 seed change), 1.3.
-4. After #1328 merges: 2.2 on the client, then 3.3 (it uses 2.2's hashes); 2.4's reader release, 2.5, 3.4; 2.4's
+4. Next (#1328 has merged): 2.2 on the client, then 3.3 (it uses 2.2's hashes); 2.4's reader release, 2.5, 3.4; 2.4's
    writer change only after its reader build is the oldest in use.
 
 Ordering rules from review round 3 (F11): the 2.3 erasure helper exists before the 2.1 rendition writer runs (no
