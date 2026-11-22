@@ -14,6 +14,8 @@
 //   E2E_MEASURE_RATES    comma list of link speeds in kbps, or "full" for no limit (default: full,4000,800,400)
 //   E2E_MEASURE_LATENCY  ms added each way (default 100)
 //   E2E_MEASURE_OUT      the JSON-lines file (default: test-results/sync-measure.jsonl)
+//   E2E_MEASURE_SHOTS    a directory: after each sync, a screenshot of Sync Details and its summary lines (for review of
+//                        the wording, item 0.1), named <project>-<shape>-<rate>-<run>.png
 //   E2E_MEASURE_SAMPLES  set to write <out>-samples.json: the first off-screen picture requests that are not the app's
 //                        direct download, with their type, headers and sending frame (support/sync.js routePictures)
 // The link is limited from the moment the board walk starts, as in the 2026-11-19 emulator baseline
@@ -22,7 +24,7 @@
 const fs = require('fs');
 const path = require('path');
 const { signIn } = require('./support/local-session');
-const { test, waitForApp, startSync, waitForSyncEnd, deviceBoardKeys, devicePictureCount } = require('./support/sync');
+const { test, waitForApp, startSync, waitForSyncEnd, deviceBoardKeys, devicePictureCount, openSyncDetails, closeSyncDetails } = require('./support/sync');
 
 const SEED = 'sync-measure.rb';
 const SHAPES = {
@@ -36,6 +38,19 @@ const shapes = list(process.env.E2E_MEASURE_SHAPES, Object.keys(SHAPES).join(','
 const rates = list(process.env.E2E_MEASURE_RATES, 'full,4000,800,400');
 const latency = parseInt(process.env.E2E_MEASURE_LATENCY || '100', 10);
 const OUT = process.env.E2E_MEASURE_OUT || path.join(__dirname, '..', 'test-results', 'sync-measure.jsonl');
+
+// E2E_MEASURE_SHOTS: Sync Details after a sync, as the person sees it, and the lines it shows.
+async function shot(page, name) {
+  const dir = process.env.E2E_MEASURE_SHOTS;
+  if (!dir) { return null; }
+  fs.mkdirSync(dir, { recursive: true });
+  await openSyncDetails(page);
+  await page.waitForTimeout(500);
+  await page.locator('.la-sync-details-modal-wrap').screenshot({ path: path.join(dir, name + '.png') });
+  const lines = await page.evaluate(() => Array.from(document.querySelectorAll('.la-sync-details-summary-line')).map((el) => el.innerText.trim()));
+  await closeSyncDetails(page);
+  return lines;
+}
 
 function record(row) {
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
@@ -118,10 +133,12 @@ for (const shape of shapes) {
       const servedAtStart = pictures.served;
       const first = await measuredSync(page, syncLink, rate, warnings);
       if (pictures.samples) { fs.writeFileSync(OUT.replace(/\.jsonl$/, '') + '-samples.json', JSON.stringify(pictures.samples, null, 2)); }
+      first.sync_details = await shot(page, `${testInfo.project.name}-${shape}-${rate}-first`);
       record({ ...base, run: 'first', ...first, pictures_served: pictures.served - servedAtStart, before_sync: before, ...repeats(pictures) });
       pictures.byUrl = {};
       const servedBefore = pictures.served;
       const repeat = await measuredSync(page, syncLink, rate, warnings);
+      repeat.sync_details = await shot(page, `${testInfo.project.name}-${shape}-${rate}-repeat`);
       record({ ...base, run: 'repeat', ...repeat, pictures_served: pictures.served - servedBefore, ...repeats(pictures) });
       testInfo.annotations.push({ type: 'measure', description: JSON.stringify({ first, repeat }) });
     });

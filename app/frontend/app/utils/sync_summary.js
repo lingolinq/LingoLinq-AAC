@@ -4,8 +4,9 @@ import i18n from './i18n';
 // docs/task-management/2026-11-15_offline-sync-research-proposal.md 12.6): how long it took, what it downloaded and
 // what could not be saved, from that sync's log entry (utils/sync_counters.js `counters`, kept by
 // utils/sync_log_store.js entry_copy) and its rows (utils/sync_rollup.js summary_for). Only what the entry holds is
-// said: an entry from an older build has no counters, so it gets the boards it downloaded and nothing else. No
-// percentages (Traci 2026-11-16). The storage line is separate (storage_line).
+// said: an entry from an older build has no counters, so it gets only the pictures its rows say could not be saved
+// (a row marked "downloaded" is not proof of a download: a board loaded earlier in the session is marked so too). No
+// percentages (Traci 2026-11-16).
 
 export function size_label(bytes) {
   var n = (typeof bytes === 'number' && isFinite(bytes) && bytes > 0) ? bytes : 0;
@@ -32,12 +33,6 @@ function duration(seconds, stopped) {
 function boards_phrase(n) { return n === 1 ? i18n.t('sync_one_board_lower', "1 board") : i18n.t('sync_n_boards_lower', "%{n} boards", { n: n }); }
 function pictures_phrase(n) { return n === 1 ? i18n.t('sync_one_picture_lower', "1 picture") : i18n.t('sync_n_pictures_lower', "%{n} pictures", { n: n }); }
 
-// Boards the sync fetched from the server: rows marked downloaded or re-downloaded (services/persistence.js statuses).
-export function boards_downloaded(entry) {
-  var rows = (entry && Array.isArray(entry.statuses)) ? entry.statuses : [];
-  return rows.filter(function(s) { return s && !s.error && (s.status === 'downloaded' || s.status === 're-downloaded'); }).length;
-}
-
 // The parts of the line, in order, or [] when there is nothing to say. `summary` is summary_for's result; its
 // `entry` is the log entry the cards come from (none while a sync runs).
 export function summary_parts(summary) {
@@ -46,7 +41,7 @@ export function summary_parts(summary) {
   var c = (entry.counters && typeof entry.counters === 'object') ? entry.counters : null;
   var parts = [];
   if(c && typeof c.seconds === 'number') { parts.push(duration(c.seconds, !!summary.stopped)); }
-  var boards = boards_downloaded(entry);
+  var boards = (c && c.boards && c.boards.fetched) || 0;
   var pictures = (c && c.pictures && c.pictures.saved) || 0;
   var sounds = (c && c.sounds && c.sounds.saved) || 0;
   var bytes = ((c && c.pictures && c.pictures.bytes) || 0) + ((c && c.sounds && c.sounds.bytes) || 0);
@@ -78,17 +73,6 @@ export function summary_text(summary) {
   return parts.length ? parts.join(' · ') : null;
 }
 
-// "LingoLinq is using 412 MB on this device (2.1 GB more can be saved)", from navigator.storage.estimate(). The
-// allowance is the browser's (quota minus usage), not the device's free space, and is left out when not reported.
-export function storage_line(estimate) {
-  if(!estimate || typeof estimate.usage !== 'number') { return null; }
-  var used = size_label(estimate.usage);
-  if(typeof estimate.quota === 'number' && estimate.quota > estimate.usage) {
-    return i18n.t('sync_storage_used_and_more', "LingoLinq is using %{used} on this device (%{more} more can be saved)", { used: used, more: size_label(estimate.quota - estimate.usage) });
-  }
-  return i18n.t('sync_storage_used', "LingoLinq is using %{used} on this device", { used: used });
-}
-
 // Technical details (for support): every counter of one log entry, as label and value lines. Empty for an entry
 // without counters.
 export function counter_lines(entry) {
@@ -100,7 +84,8 @@ export function counter_lines(entry) {
     i18n.t('sync_counter_started', "Started: %{at}", { at: typeof c.started === 'number' ? (new Date(c.started)).toISOString() : '-' }),
     i18n.t('sync_counter_seconds', "Seconds: %{n}", { n: c.seconds }),
     i18n.t('sync_counter_requests', "Requests: %{n} (at most %{peak} at once, %{open} still open at the end)", { n: c.requests, peak: c.peak, open: c.open_at_end }),
-    i18n.t('sync_counter_received', "Characters received: %{n}", { n: c.received_chars }),
+    i18n.t('sync_counter_received', "Text received from the server (characters): %{n}", { n: c.received_chars }),
+    i18n.t('sync_counter_boards', "Boards the server sent: %{n}", { n: (c.boards || {}).fetched || 0 }),
     i18n.t('sync_counter_pictures', "Pictures saved: %{n} (%{bytes} bytes)", { n: (c.pictures || {}).saved || 0, bytes: (c.pictures || {}).bytes || 0 }),
     i18n.t('sync_counter_sounds', "Sounds saved: %{n} (%{bytes} bytes)", { n: (c.sounds || {}).saved || 0, bytes: (c.sounds || {}).bytes || 0 }),
     i18n.t('sync_counter_failures', "Failures: %{list}", { list: failed || i18n.t('sync_counter_none', "none") })

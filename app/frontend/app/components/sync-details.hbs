@@ -65,9 +65,6 @@
             <p class="la-sync-details-summary-line" data-test-sync-run-summary>{{this.run_summary}}</p>
           {{/if}}
         {{/if}}
-        {{#if this.storage_line}}
-          <p class="la-sync-details-summary-line" data-test-sync-storage-line>{{this.storage_line}}</p>
-        {{/if}}
       </div>
       <div class="la-sync-details-summary-actions">
         <button type="button" class="la-sync-details-primary-btn" {{on "click" (this.ctrlAction "sync")}}>

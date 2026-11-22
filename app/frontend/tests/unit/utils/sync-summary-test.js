@@ -1,5 +1,5 @@
 import { module, test } from 'qunit';
-import { summary_text, summary_parts, storage_line, size_label, boards_downloaded, counter_lines } from 'frontend/utils/sync_summary';
+import { summary_text, summary_parts, size_label, counter_lines } from 'frontend/utils/sync_summary';
 
 /* SYNC DETAILS' SUMMARY LINE (item 0.1; Traci 2026-11-20/21): plain words about the sync the cards describe, said only
  * from what its log entry holds. No percentages. */
@@ -7,7 +7,7 @@ module('Unit | Utility | sync summary', function() {
   function counters(extra) {
     return Object.assign({ started: 1700000000000, seconds: 125, requests: 400, peak: 6, open_at_end: 0, received_chars: 90000,
       failures: { timeout: 0, offline: 0, limited: 0, server: 0, refused: 0, storage: 0, supervisee: 0, other: 0 },
-      pictures: { saved: 340, bytes: 17600000 }, sounds: { saved: 0, bytes: 0 } }, extra || {});
+      boards: { fetched: 12 }, pictures: { saved: 340, bytes: 17600000 }, sounds: { saved: 0, bytes: 0 } }, extra || {});
   }
   function rows(downloaded, cached) {
     var out = [];
@@ -24,24 +24,24 @@ module('Unit | Utility | sync summary', function() {
     assert.strictEqual(summary_text(s), "Took 2 minutes · 12 boards and 340 pictures downloaded (18 MB) · 1 picture couldn't be saved");
   });
 
-  test('boards downloaded are the rows marked downloaded or re-downloaded, without an error', function(assert) {
-    var list = rows(3, 2).concat([{ id: 'x', key: 'me/x', status: 'downloaded', error: 'failed' }]);
-    assert.strictEqual(boards_downloaded({ statuses: list }), 3);
-    assert.strictEqual(boards_downloaded({}), 0);
+  test('boards downloaded are the ones the server sent, not rows marked downloaded', function(assert) {
+    // A repeat sync marks boards loaded earlier in the session "downloaded" without fetching them (2026-11-22 run).
+    var s = summary({ statuses: rows(60, 2), counters: counters({ seconds: 9, boards: { fetched: 0 }, pictures: { saved: 0, bytes: 0 } }) });
+    assert.strictEqual(summary_text(s), 'Took less than a minute · Nothing new to download');
   });
 
-  test('an entry from an older build (no counters) says only what its rows show', function(assert) {
-    assert.strictEqual(summary_text(summary({ statuses: rows(4, 10) })), '4 boards downloaded');
-    assert.strictEqual(summary_text(summary({ statuses: rows(0, 10) })), null, 'nothing it can back, so nothing');
+  test('an entry from an older build (no counters) claims no downloads', function(assert) {
+    assert.strictEqual(summary_text(summary({ statuses: rows(4, 10) })), null, 'its rows cannot show what was fetched');
+    assert.strictEqual(summary_text(summary({ statuses: rows(4, 10) }, { overall: { pictures_missing: ['Food'] } })), "1 picture couldn't be saved", 'but its rows do show this');
   });
 
   test('a repeat sync with nothing new says so', function(assert) {
-    var s = summary({ statuses: rows(0, 61), counters: counters({ seconds: 9, pictures: { saved: 0, bytes: 0 } }) });
+    var s = summary({ statuses: rows(0, 61), counters: counters({ seconds: 9, boards: { fetched: 0 }, pictures: { saved: 0, bytes: 0 } }) });
     assert.strictEqual(summary_text(s), 'Took less than a minute · Nothing new to download');
   });
 
   test('a stopped sync says it stopped and never "nothing new"', function(assert) {
-    var s = summary({ statuses: rows(0, 3), counters: counters({ seconds: 600, pictures: { saved: 0, bytes: 0 } }) }, { unfinished: true, stopped: true });
+    var s = summary({ statuses: rows(0, 3), counters: counters({ seconds: 600, boards: { fetched: 0 }, pictures: { saved: 0, bytes: 0 } }) }, { unfinished: true, stopped: true });
     assert.strictEqual(summary_text(s), 'Stopped after 10 minutes');
   });
 
@@ -51,7 +51,7 @@ module('Unit | Utility | sync summary', function() {
   });
 
   test('sounds and communicators whose sync failed are named', function(assert) {
-    var c = counters({ seconds: 4000, sounds: { saved: 3, bytes: 30000 }, failures: { timeout: 0, offline: 0, limited: 0, server: 0, refused: 0, storage: 0, supervisee: 2, other: 0 } });
+    var c = counters({ seconds: 4000, boards: { fetched: 1 }, sounds: { saved: 3, bytes: 30000 }, failures: { timeout: 0, offline: 0, limited: 0, server: 0, refused: 0, storage: 0, supervisee: 2, other: 0 } });
     var text = summary_text(summary({ statuses: rows(1, 0), counters: c }));
     assert.strictEqual(text, "Took 1 h 7 min · 1 board and 340 pictures downloaded (18 MB) · 3 sounds downloaded · Boards for 2 communicators couldn't sync");
   });
@@ -65,16 +65,9 @@ module('Unit | Utility | sync summary', function() {
     assert.strictEqual(size_label(undefined), '1 KB');
   });
 
-  test('the storage line', function(assert) {
-    assert.strictEqual(storage_line({ usage: 412000000, quota: 2512000000 }), 'LingoLinq is using 412 MB on this device (2.1 GB more can be saved)');
-    assert.strictEqual(storage_line({ usage: 412000000 }), 'LingoLinq is using 412 MB on this device');
-    assert.strictEqual(storage_line(null), null);
-    assert.strictEqual(storage_line({}), null);
-  });
-
   test('technical details list every counter, and nothing for an old entry', function(assert) {
     var lines = counter_lines({ counters: counters({ failures: { timeout: 2, offline: 0, limited: 0, server: 1, refused: 0, storage: 0, supervisee: 0, other: 0 } }) });
-    assert.strictEqual(lines.length, 7);
+    assert.strictEqual(lines.length, 8);
     assert.ok(lines.some(function(l) { return l === 'Requests: 400 (at most 6 at once, 0 still open at the end)'; }));
     assert.ok(lines.some(function(l) { return l === 'Failures: timeout 2, server 1'; }));
     assert.deepEqual(counter_lines({}), []);

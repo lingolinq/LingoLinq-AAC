@@ -1,5 +1,5 @@
 import { module, test } from 'qunit';
-import { begin, token, request_started, request_ended, note_failure, media_saved, finish, failure_kind, FAILURE_KINDS, reset_for_tests, base64_bytes } from 'frontend/utils/sync_counters';
+import { begin, token, request_started, request_ended, note_failure, media_saved, board_fetched, finish, failure_kind, FAILURE_KINDS, reset_for_tests, base64_bytes } from 'frontend/utils/sync_counters';
 
 /* SYNC COUNTERS (item 0.1 of the sync proposal, docs/task-management/2026-11-20_sync-proposal-implementation.md):
  * what one root sync asked for and got, kept on its log entry for support. Counting is on only while the sync it
@@ -107,6 +107,16 @@ module('Unit | Utility | sync counters', function(hooks) {
     var out = finish('s1', { now: 0 });
     assert.deepEqual(out.pictures, { saved: 2, bytes: 20000 });
     assert.deepEqual(out.sounds, { saved: 1, bytes: 9000 });
+  });
+
+  test('boards the server sent', function(assert) {
+    begin('s1', 0);
+    var t = token(running('s1'));
+    board_fetched(t);
+    board_fetched(t);
+    board_fetched(null);
+    board_fetched('s2');
+    assert.deepEqual(finish('s1', { now: 0 }).boards, { fetched: 2 });
   });
 
   test('the result is plain JSON that survives a save', function(assert) {

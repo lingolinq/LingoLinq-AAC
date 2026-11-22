@@ -8,7 +8,8 @@
 //   sync cleared without a log entry stops counting by itself;
 // - request_started(token) gives a ticket; request_ended(ticket, {status, chars, failure}) counts only against the
 //   sync that started it (a request a timed-out step left running may end in the next sync);
-// - note_failure(token, kind) and media_saved(token, type, bytes) for what the request hooks cannot see;
+// - note_failure(token, kind), board_fetched(token) and media_saved(token, type, bytes) for what the request hooks
+//   cannot see;
 // - finish(sync_id) returns plain JSON and forgets the counter.
 // Failure kinds are a closed list: no error text or url is ever kept (proxy errors carry urls, some urls a token).
 // Nothing here may throw into a caller: the request hook runs on every request in the app (utils/extras.js).
@@ -21,7 +22,7 @@ function fresh(sync_id, now) {
   var failures = {};
   FAILURE_KINDS.forEach(function(k) { failures[k] = 0; });
   return { sync_id: sync_id, started: now, requests: 0, open: 0, peak: 0, received_chars: 0, failures: failures,
-    pictures: { saved: 0, bytes: 0 }, sounds: { saved: 0, bytes: 0 } };
+    boards: { fetched: 0 }, pictures: { saved: 0, bytes: 0 }, sounds: { saved: 0, bytes: 0 } };
 }
 
 function count(n) { return (typeof n === 'number' && isFinite(n) && n > 0) ? n : 0; }
@@ -79,6 +80,12 @@ export function note_failure(tok, kind) {
   try { if(mine(tok)) { add_failure(kind); } } catch(e) { /* never throws */ }
 }
 
+// A board the server sent during the sync (a refresh it answered, or one of a batch; services/persistence.js). A
+// board row marked "downloaded" is not enough: a board already loaded earlier in the session is marked so too.
+export function board_fetched(tok) {
+  try { if(mine(tok)) { current.boards.fetched += 1; } } catch(e) { /* never throws */ }
+}
+
 // A picture or sound the sync fetched and wrote to the device; `bytes` is what was fetched (decoded).
 export function media_saved(tok, type, bytes) {
   try {
@@ -103,7 +110,7 @@ export function finish(sync_id, opts) {
     return {
       started: c.started, seconds: Math.max(0, Math.round((now - c.started) / 1000)),
       requests: c.requests, peak: c.peak, open_at_end: c.open, received_chars: c.received_chars,
-      failures: c.failures, pictures: c.pictures, sounds: c.sounds
+      failures: c.failures, boards: c.boards, pictures: c.pictures, sounds: c.sounds
     };
   } catch(e) { current = null; return null; }
 }

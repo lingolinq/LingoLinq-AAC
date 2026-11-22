@@ -2779,7 +2779,7 @@ var persistence = Service.extend({
           } else {
             return (key_for_id ? RSVP.resolve(null) : _this.board_stored_this_sync(id, record, fresh_board_revisions && fresh_board_revisions[id])).then(function(copy) { if(copy) { board_statuses.push({id: id, key: copy.get('key'), status: 'downloaded'}); copy.set('button_set_needs_reload', true); note_answered(_this.get('sync_progress'), copy); return copy; } // a parked board whose late answer this sync stored is not downloaded again (board_stored_this_sync below); a lookup by key reloads as before, and so does a copy the server's revisions list says is old
             board_statuses.push({id: id, key: record.get('key'), status: 're-downloaded'}); record.set('button_set_needs_reload', true);
-            var asked = (new Date()).getTime(); return _this.time_promise(record.reload(), "reload board", BOARD_RELOAD_MS).then(function(rec) { note_answered(_this.get('sync_progress'), rec, asked); return rec; }, function(err) { return keep_stored_board(record, err, board_statuses, id, function(rec) { return _this.device_board_row(rec); }); }); }); // #1212 (utils/sync_board_fallback.js)
+            var asked = (new Date()).getTime(); return _this.time_promise(record.reload(), "reload board", BOARD_RELOAD_MS).then(function(rec) { note_answered(_this.get('sync_progress'), rec, asked); counters_board_fetched(counters_token(_this)); return rec; }, function(err) { return keep_stored_board(record, err, board_statuses, id, function(rec) { return _this.device_board_row(rec); }); }); }); // #1212 (utils/sync_board_fallback.js)
           }
         } else {
           board_statuses.push({id: id, key: record.get('key'), status: 'downloaded'});
@@ -2968,7 +2968,7 @@ var persistence = Service.extend({
                         attributes: board_json
                       }};
                       var board_record = LingoLinq.store.push(json_api);
-                      board_statuses.push({id: board_json.id, key: board_json.key, status: 'downloaded'}); if(boardRevocation.view_checked(fresh_revisions)) { note_answered(_this_sync_boards.get('sync_progress'), board_record); } // fetched from the server this sync
+                      board_statuses.push({id: board_json.id, key: board_json.key, status: 'downloaded'}); if(boardRevocation.view_checked(fresh_revisions)) { note_answered(_this_sync_boards.get('sync_progress'), board_record); } counters_board_fetched(counters_token(_this_sync_boards)); // fetched from the server this sync; counted for item 0.1 (utils/sync_counters.js)
                       lookups[board_json.id] = RSVP.resolve(board_record);
                       lookups[board_json.key] = lookups[board_json.id]
                       _this_sync_boards.store('board', board_json, board_json.key).then(function(str) {
@@ -5169,4 +5169,4 @@ persistence.reopen({
 import { is_stale_item, drop_stale_head } from '../utils/url_store_queue';
 import { optional_picture, picture_ms_left } from '../utils/optional_picture';
 import { failure_cause, content_failure, settle_content, content_entry, retry_content, is_content_entry, judge_content, content_warning } from '../utils/board_content_retry';
-import { begin as begin_counters, finish as finish_counters, token as counters_token, request_started as counters_request_started, request_ended as counters_request_ended, note_failure as counters_note_failure, media_saved as counters_media_saved, base64_bytes } from '../utils/sync_counters'; // item 0.1
+import { begin as begin_counters, finish as finish_counters, token as counters_token, request_started as counters_request_started, request_ended as counters_request_ended, note_failure as counters_note_failure, media_saved as counters_media_saved, board_fetched as counters_board_fetched, base64_bytes } from '../utils/sync_counters'; // item 0.1
