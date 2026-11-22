@@ -83,3 +83,31 @@ symbols (2026-11-16).
   Section 12 committed (89db2125d) and sent to the adversary agent for review.
 - 2026-11-20: review round 3 (adversary, 89db2125d): needs rework, 12 findings. F3, F4, F5, F6, F9 re-read and confirmed. All accepted; section 12 reworked and section 12.7 added. Open for Traci: 2.3 policy for pictures used by other people's copies (with Scot and legal); server-side writer off switches. Phase 0, 1.2, 1.4 cleared to start.
 - 2026-11-20: Traci: 2.3 policy = pictures still used by other people's copies are handed over to those owners and kept, the rest deleted (Scot + legal OK before merge); yes to server-side off switches per new device-format writer.
+- 2026-11-21 (handed over from the Android speech / Firefox symbols session, 271a315e; added uncommitted for this
+  session to review and commit): evidence for phase 1.2 (stall timeouts, #1212) and state of the prerequisites.
+  - **Prerequisites met:** #1336 merged 2026-11-22 01:26 UTC and #1328 merged 04:04 UTC, so 12.5 steps 2 and 4 are
+    no longer waiting on them. Re-read both merged diffs before 0.1's log work: the `log.push` sites and
+    `entry_copy` changed.
+  - **Android emulator at 0.4 Mbps** (Chrome 124, AVD `ll_trace`, synth_big: home + 56 folders of ~0.75 MB; one run
+    each; full table in `2026-11-16_sync-late-copy-current.md`, "Android emulator"; traces in
+    `~/offline-sync-handoff/2026-11-19-emulator/` (`run-emu-dev-400.txt`, `trace-emu-dev-400.json`)): develop
+    9d96df96f saved 39/57 boards and #1330 36/57, both syncs ending "finished" with each missing board at "failed
+    retrieval for syncing". One 0.76 MB board needs at least 15 s with the link to itself, the same as
+    `find_limits.caller_ms` (15 s, `utils/board_download.js`), and several downloads share the link. At 0.8 Mbps all
+    57 saved. This is the baseline 1.2 has to beat; 0.2's harness should reproduce it before 1.2 lands.
+    Note: `compare-android.js` and the other probes load Playwright from `~/LingoLinq-AAC-late-copy`, which was
+    removed on 2026-11-21; point them at a worktree with `app/frontend/node_modules`.
+  - **Thread limit off by one (CONFIRMED on develop de6b1052e):** `add_thread` checks
+    `_this.active_board_threads > n_threads` (`services/persistence.js:3403`), and the parked-retry resume uses the
+    same `> n_threads` (`:3391`), so up to n_threads + 1 board threads run (7 on mobile, 11 on desktop). Fold into
+    1.1 or 1.2 through `/fix-proposal` (it changes how many downloads share a slow link). Not filed separately.
+  - Limits on develop as of #1212's 2026-11-20 update: `find_limits.caller_ms` 15 s, `board_transport_ms` 60 s,
+    `BOARD_RELOAD_MS` 20 s (`utils/sync_board_fallback.js`), `MAX_BOARD_RETRIES` 3 (4 tries per board).
+  - **Checked by this session (2026-11-21):** #1336 merged (da911bfde) and #1328 merged (4494d67ac), confirmed on
+    GitHub; the off-by-one at `services/persistence.js:3403` and `:3391` (`> n_threads`) confirmed on origin/develop
+    4494d67ac; `find_limits` (`utils/board_download.js:19`), `BOARD_RELOAD_MS` (:13) and `MAX_BOARD_RETRIES` (:132)
+    confirmed; the emulator table is at `2026-11-16_sync-late-copy-current.md:171-183`; the traces are in
+    `~/offline-sync-handoff/2026-11-19-emulator/`. **Correction:** the probe scripts load Playwright and
+    `sync-link` from `~/LingoLinq-AAC-sync-e2e/app/frontend` (`compare-android.js:18`, `check.js:5`,
+    `compare-late.js:7`, `real.js:8`), not `~/LingoLinq-AAC-late-copy`. That worktree was removed on 2026-11-21 after
+    #1345 merged, so the fix is the same: point `E2E` at a worktree with `app/frontend/node_modules`.
