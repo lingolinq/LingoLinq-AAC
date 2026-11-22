@@ -6990,19 +6990,42 @@ describe("persistence-sync", function() {
     }
 
     // Follow-up item 2 (docs/task-management/2026-11-22-offline-boards-followup.md): a 'cached' row the server's revision
-    // list confirmed is a server answer (board_revisions gives a revision only to boards the person can view), so the
-    // offline list may let it end an older refusal; one from allow_any_cached (no server answer) is not.
-    it("counts a revision-confirmed cached board as answered, and an allow_any_cached one not", function() {
-      var confirmed = lookupCurrent({'1_1213': true});
-      waitsFor(function() { return confirmed.done; });
+    // list confirmed is a server answer when the list came from a server that checks view permission (the wrapped
+    // response, utils/board_revocation.js view_checked), so the offline list may let it end an older refusal; the same
+    // match from the older flat map, or an allow_any_cached row (no server answer), is not.
+    function lookupWithRevisions(revisions, allow_any_cached) {
+      persistence.set('sync_progress', { device_boards: {'1_1213': true}, device_boards_read_at: 1000 });
+      var rec = EmberObject.create({ id: '1_1213', key: 'example/current', fresh: false, current_revision: 'r1', permissions: { view: true }, image_urls: {} });
+      stub(rec, 'reload', function() { rec.reloaded = true; return RSVP.resolve(rec); });
+      stub(LingoLinq.store, 'peekRecord', function() { return null; });
+      stub(LingoLinq.store, 'findRecord', function(type, id) { if(type == 'board' && id == '1_1213') { return RSVP.resolve(rec); } });
+      var res = { done: false };
+      persistence.board_lookup('1_1213', {}, revisions, null, allow_any_cached).then(function() { res.done = true; }, function() { res.done = true; });
+      return res;
+    }
+    it("counts a revision-confirmed cached board as answered when the revision list was view-checked", function() {
+      var res = lookupWithRevisions(boardRevocation.checked_revisions({'1_1213': 'r1'}), false);
+      waitsFor(function() { return res.done; });
       runs(function() {
         expect(onlyStatus()).toEqual(['cached']);
         expect(Object.keys(persistence.get('sync_progress.answered') || {}).sort()).toEqual(['1_1213', 'example/current']);
         persistence.set('sync_progress', null);
       });
-      var any = null;
-      runs(function() { any = lookupCurrent({'1_1213': true}, true); });
-      waitsFor(function() { return any && any.done; });
+    });
+
+    it("does not count a revision match from the older flat revision list as answered", function() {
+      var res = lookupWithRevisions({'1_1213': 'r1'}, false);
+      waitsFor(function() { return res.done; });
+      runs(function() {
+        expect(onlyStatus()).toEqual(['cached']);
+        expect(persistence.get('sync_progress.answered')).toEqual(undefined);
+        persistence.set('sync_progress', null);
+      });
+    });
+
+    it("does not count an allow_any_cached board as answered", function() {
+      var res = lookupWithRevisions(boardRevocation.checked_revisions({}), true);
+      waitsFor(function() { return res.done; });
       runs(function() {
         expect(onlyStatus()).toEqual(['cached']);
         expect(persistence.get('sync_progress.answered')).toEqual(undefined);
@@ -7128,6 +7151,58 @@ describe("persistence-sync", function() {
           expect(state.boardRequests).toEqual(1);
           expect(homeStatus()).toEqual('re-downloaded');
           expect(homeRowOnDevice()).toEqual(true);
+          endWholeSync();
+        });
+      });
+    });
+
+    // Follow-up item 2 (docs/task-management/2026-11-22-offline-boards-followup.md): a board on the device at the revision
+    // the server lists but NOT in memory is confirmed by sync_boards' batch pre-step, which board_lookup then reuses; it
+    // is a server answer, so the finished entry lists it in `answered`.
+    function syncWithHomeOnDeviceOnly() {
+      var state = { tailDone: false, done: false, boardRequests: 0 };
+      primeBoardRevisionsSyncHarness(function() { state.tailDone = true; });
+      primeLocalSyncStorage([]);
+      var board = {id: '1_145', key: 'fred/home', full_set_revision: 'current', permissions: {}, current_revision: 'current', image_urls: {},
+        image_url: 'http://example.com/board.png', buttons: [], grid: {rows: 1, columns: 1, order: [[null]]}};
+      stubStoreUrl(function(url) { return RSVP.resolve({url: url}); });
+      chainPersistenceAjax(function(url) {
+        if(url == '/api/v1/users/1340/board_revisions') { return RSVP.resolve({revisions: {'1_145': 'current', 'fred/home': 'current'}, revoked_ids: []}); }
+      });
+      stubOnPersistence('find_changed', function() { return RSVP.resolve([]); });
+      persistence.store('board', board, board.id).then(function() {
+        var in_memory = LingoLinq.store.peekRecord('board', '1_145');
+        if(in_memory) { in_memory.unloadRecord(); }
+        persistence.force_reload = null;
+        LingoLinq.all_wait = true;
+        queryLog.real_lookup = true;
+        stub(window.$, 'realAjax', function(options) {
+          if(isCrisisVocabularyRequest(options.url)) { return RSVP.resolve({board: crisisVocabularyBoard()}); }
+          if(options.url === '/api/v1/users/1340') {
+            return RSVP.resolve({user: {id: '1340', user_name: 'fred', avatar_url: 'http://example.com/pic.png', preferences: {home_board: {id: '1_145'}}}});
+          } else if(options.url == '/api/v1/boards/1_145') {
+            state.boardRequests++;
+            return RSVP.resolve({board: board});
+          } else if(options.url && options.url.match(/\/api\/v1\/buttonsets\//)) {
+            return RSVP.resolve({ buttonset: { buttons: [], full_set_revision: 'current' } });
+          }
+          return RSVP.reject({});
+        });
+        var finish = function() { state.done = true; };
+        persistence.sync(1340).then(finish, finish);
+      });
+      return state;
+    }
+    it("records a board the batch pre-step confirmed (on the device, not in memory) as answered", function() {
+      db_wait(function() {
+        var state = syncWithHomeOnDeviceOnly();
+        waitsFor(function() { return waitForSyncDoneAndSettled(state.done) && state.tailDone; });
+        runs(function() {
+          var log = (persistenceTarget() || persistence).get('sync_log') || [];
+          var last = log[log.length - 1] || {};
+          expect(state.boardRequests).toEqual(0);
+          expect(homeStatus()).toEqual('cached');
+          expect((last.answered || []).indexOf('1_145')).not.toEqual(-1);
           endWholeSync();
         });
       });

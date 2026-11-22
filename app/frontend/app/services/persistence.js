@@ -2771,7 +2771,7 @@ var persistence = Service.extend({
             board_statuses.push({id: id, key: record.get('key'), status: 'cached'});
             return record;
           } else if(record.get('permissions') && fresh_board_revisions && fresh_board_revisions[id] && fresh_board_revisions[id] == record.get('current_revision') && known_on_device(_this.get('sync_progress'), record)) {
-            board_statuses.push({id: id, key: record.get('key'), status: 'cached'}); note_answered(_this.get('sync_progress'), record); // the server's revision list confirmed it (board_revisions answers only for boards the person can view)
+            board_statuses.push({id: id, key: record.get('key'), status: 'cached'}); if(boardRevocation.view_checked(fresh_board_revisions)) { note_answered(_this.get('sync_progress'), record); } // the server's revision list confirmed it (a view-checked board_revisions answer lists only boards the person can view)
             return record;
           } else if(record.get('permissions') && allow_any_cached && known_on_device(_this.get('sync_progress'), record)) {
             board_statuses.push({id: id, key: record.get('key'), status: 'cached'});
@@ -2927,7 +2927,7 @@ var persistence = Service.extend({
                   var board_record = LingoLinq.store.push(json_api);
                   lookups[brd.data.raw.id] = RSVP.resolve(board_record);
                   lookups[brd.data.raw.key] = lookups[brd.data.raw.id];
-                  board_statuses.push({id: brd.data.raw.id, key: brd.data.raw.key, status: 'cached'});
+                  board_statuses.push({id: brd.data.raw.id, key: brd.data.raw.key, status: 'cached'}); if(boardRevocation.view_checked(fresh_revisions)) { note_answered(_this.get('sync_progress'), board_record); } // confirmed by the server's revision list (utils/sync_board_fallback.js note_answered)
                 }
               } else {
                 // add it to the list of boards that need to be retrieved
@@ -2968,7 +2968,7 @@ var persistence = Service.extend({
                         attributes: board_json
                       }};
                       var board_record = LingoLinq.store.push(json_api);
-                      board_statuses.push({id: board_json.id, key: board_json.key, status: 'downloaded'});
+                      board_statuses.push({id: board_json.id, key: board_json.key, status: 'downloaded'}); if(boardRevocation.view_checked(fresh_revisions)) { note_answered(_this_sync_boards.get('sync_progress'), board_record); } // fetched from the server this sync
                       lookups[board_json.id] = RSVP.resolve(board_record);
                       lookups[board_json.key] = lookups[board_json.id]
                       _this_sync_boards.store('board', board_json, board_json.key).then(function(str) {

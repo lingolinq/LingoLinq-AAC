@@ -247,8 +247,9 @@ module('Unit | Utility | offline board list', function(hooks) {
     var only = ['lingolinq/crisis-vocabulary'];
     assert.deepEqual(keys(pick_device_boards(rows, user, [{ user_id: 'larry', issues: true, statuses: [merged] }])), both,
       'a first sync that reached it with one picture missing (no answer list): listed');
-    assert.deepEqual(keys(pick_device_boards(rows, user, [{ user_id: 'larry', issues: true, statuses: [merged], answered: [K] }])), both,
-      'the same with the server\'s answer recorded: listed');
+    var refused = { user_id: 'larry', issues: true, statuses: [{ id: K, key: K, status: 're-downloaded', error: 'board ' + K + ' failed retrieval for syncing', refused: true }] };
+    assert.deepEqual(keys(pick_device_boards(rows, user, [refused, { user_id: 'larry', issues: true, statuses: [merged], answered: [K] }])), both,
+      'refused earlier, then reached with the server\'s answer and one picture missing: the answer ends the refusal');
     assert.deepEqual(keys(pick_device_boards(rows, user, [{ user_id: 'larry', errored: true, storage_failed: true, confirmed: true, statuses: [{ id: K, key: K, status: 're-downloaded' }] }])), only,
       'a stop with a failed write is not a whole sync: its row does not list the board');
   });
