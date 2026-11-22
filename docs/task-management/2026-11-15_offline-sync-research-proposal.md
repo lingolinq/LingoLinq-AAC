@@ -534,7 +534,7 @@ now, on this branch.
 |---|---|---|
 | **Sync counters**: start time, duration, requests, bytes (transfer size where the browser reports it, decoded size otherwise, labelled), peak concurrent requests, failures by kind; carried through `entry_copy` | 0, and the before/after evidence for every later item | `services/persistence.js` (+ utils copy), `utils/sync_log_store.js`, a new `utils/sync_counters.js` |
 | **Transport limits**: one module for every sync request's timing (header deadline, no-bytes clock, total ceiling), with an iOS-app rule | 1.2, 1.1 (batch budget), 3 (manifest) | new `utils/sync_transport.js`; `utils/extras.js`, `utils/board_download.js`, `store_url_now` |
-| **Platform helper**: `is_ios_app()` from `window.Capacitor.getPlatform()` | 1.2, 1.3 | `utils/ipad_detect.js` or a new `utils/platform.js` |
+| **Platform helper**: `is_ios_app()` from `window.Capacitor.getPlatform()`, built in 1.0 with #1201's detection fix | 1.0, 1.2, 1.3 | `utils/ipad_detect.js` or a new `utils/platform.js` |
 | **Device row contract** (review round 3, F1-F3): everything a reader needs is under the ORIGINAL url's key, in the fields every build already reads (`local_filename`, `local_url`, `data_uri`). New fields are metadata only, never the only path to the picture. A de-duplicated picture's file is hash-named and never rewritten by a url's store path; a row points at it only after checking it exists, and the hash entry is written only after the row commits, one row per hash. Tested by running the previous build's `find_url` (from `git show`) on new rows, offline | 1.7, 2.1, 2.2, 2.4 | `store_url_now`, `find_url`, `prime_caches` |
 | **Erasure of every derived file**: one server helper that deletes an upload and every sibling it owns (`.raster.png`, renditions), with a spec per suffix | 2.1, 2.3, the account-deletion fix | `lib/uploader.rb`, `uploadable.rb`, `lib/flusher.rb` |
 | **One permission rule** for "which boards may this device hold": `board_revisions`' four-part rule (public and not shallow; own; a shallow clone by `allows?`; otherwise current shares through `BoardRevisionsAccess`), moved into the service and used by `board_revisions`, `users#boards` and the manifest, with revoked ids built by the same `disclosed_ids` / `linked_from` logic (review round 3, F6). `boards#show` keeps the cached check: the one remaining 30-minute path, written down | 1.1 batches, 3 manifest | `users_controller.rb:798-812`, `app/services/board_revisions_access.rb` |
@@ -562,6 +562,14 @@ infra or deploy config.
 - 0.4 Dev's inline pictures: Scot (12.6). Nothing on this branch writes to dev or staging data.
 
 **Phase 1: quick wins**
+- 1.0 **iPad detection (#1201), first** (Traci 2026-11-21: folded in). iPads report a Mac user agent, so
+  `capabilities.js` sets `mobile` false and `system` `Mac`: the sync runs desktop parallelism on iPads (10 board
+  threads, 4 sync actions; #1212's first open item), and 1.2's iOS-app rule needs the same platform signal
+  (`window.Capacitor.getPlatform()`). Scope is #1201's whole list, not only sync: every reader of
+  `capabilities.mobile`, `system`, `ios_version` and `system_version` (about 15 files: voices, the iOS app's links and
+  subscriptions, offline file handling, login autofocus) is checked in the fact sheet, since some may assume a real
+  Mac on purpose. Red tests per #1201 (iPad with a Mac user agent and touch points, real Mac, iPhone, Android,
+  Windows, the desktop app, the native app on iPad). Device check on an iPad.
 - 1.1 Batches: one batch slot per device (supervisee syncs share it), `next_batch` once per response (after the
   store push, not after device writes), cancel and sync-id checks, a time budget after which the walk starts anyway,
   then lift the 100-board cap. First, the sync stops seeding public catalog boards (#1221; Traci 2026-11-20, 12.6),
@@ -645,7 +653,7 @@ infra or deploy config.
 
 1. Now, on this branch: 0.2 (seed and measurement harness) first, so 1.2 has before-and-after numbers; then 0.1
    (counters; #1336 has merged, so its log shape is final); the server halves of 2.1 to 2.3 and 3.1 to 3.2; item 1.7.
-2. Next (#1336 has merged): 0.1's log and Technical details, 1.5, 1.2.
+2. Next (#1336 has merged): 1.0 (#1201) before 1.2; 0.1's log and Technical details, 1.5, 1.2.
 3. After the test hygiene fix: 1.1 (starting with the #1221 seed change), 1.3.
 4. Next (#1328 has merged): 2.2 on the client, then 3.3 (it uses 2.2's hashes); 2.4's reader release, 2.5, 3.4; 2.4's
    writer change only after its reader build is the oldest in use.

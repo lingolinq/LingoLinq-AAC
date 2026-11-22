@@ -112,3 +112,4 @@ symbols (2026-11-16).
     `compare-late.js:7`, `real.js:8`), not `~/LingoLinq-AAC-late-copy`. That worktree was removed on 2026-11-21 after
     #1345 merged, so the fix is the same: point `E2E` at a worktree with `app/frontend/node_modules`.
 - 2026-11-21: Traci chose the summary layout from a mockup: visible under the last sync result in the main Sync Details view, plus a storage line; older syncs and the per-board table stay in Technical details.
+- 2026-11-21: Traci: fold #1201 (iPad detected as Mac) into the plan as item 1.0, first in phase 1 (before 1.2). Full #1201 scope (every capabilities reader), via /fix-proposal.
