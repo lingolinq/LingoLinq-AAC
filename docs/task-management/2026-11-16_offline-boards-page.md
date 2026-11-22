@@ -807,3 +807,23 @@ REVIEWED=range 5d3c66cbd (merge-base with develop) ... f7e3bd068, 44 files. Both
 - C7 Tests: real shapes, not vacuous; no existing test weakened without approval; lint baseline untouched.
 Stop rule: only a Critical or High finding blocks this PR. Medium and Low findings are recorded in "Not covered" or
 a follow-up, not fixed here; the PR then freezes.
+
+### Final review result (2026-11-21): no blocking finding; the PR is frozen
+- `/review-pr` (senior, whole diff): approve with comments. C1, C2, C4, C5, C7 hold; C3 and C6 in part (below).
+- `/adversary-review` (red team, real code, 60k-round fuzz, 23 log-shape scenarios, 17 mutants): ship. C1-C7 hold,
+  with the findings below.
+Non-blocking, moved to a follow-up PR (Traci, 2026-11-21: after the final review only blocking findings go in):
+- Medium: other owners' liked boards drop off after 5 syncs that did not finish (the device log keeps 5 entries for
+  every sync; stopped, cancelled and supervisee-page entries never list a board).
+- Low (both reviewers): a board_revisions 'cached' row is a real answer but is not added to `answered`, so a board
+  shared again after a refusal stays hidden while its revision is unchanged.
+- Low: Basic shows "No boards are saved on this device yet" before the user name arrives (no loading line).
+- Low: no test pins the merged picture-failure row (`{status, error, content}` in one row); mutant N4 survives.
+- Low, flag-gated (`auth_spa_transition`): back online, a list read from another account's database can stay up
+  while its server list is pending, after an SPA sign-out and sign-in.
+- Low: `walked_whole`'s `!e.confirmed` guard is no longer pinned (mutant N10); `available_boards` left in 12 locales.
+Checked and NOT real: the senior pass's M2 (log order): both writers append and keep the newest five
+(`sync_log_store.js:61`), and a restored log puts stored (older) entries first (`merge_logs`, :78-100).
+Recorded earlier and unchanged: valet devices; pre-#1336 untagged refusals; a late refusal after 15 s; Sync Details has
+no 'kept' label; the force_reload race; loop entry first by key; the heart; a reused user name; supervisee liked boards;
+unanchored gitleaks entries; other owners' home or sidebar boards are not checked against refusals (a policy call).
