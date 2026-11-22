@@ -343,4 +343,14 @@ describe Api::BetaFeedbackController, :type => :controller do
       assert_error('Invalid priority', 400)
     end
   end
+
+  describe 'admin sign-in' do
+    LimitedSignInHelpers::KINDS.each do |kind, wording|
+      it "should refuse an admin whose sign-in #{wording}" do
+        limited_admin_token(kind)
+        get :index
+        assert_error 'Not authorized', 403
+      end
+    end
+  end
 end

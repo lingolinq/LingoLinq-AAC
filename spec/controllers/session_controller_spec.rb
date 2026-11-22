@@ -3336,4 +3336,15 @@ describe SessionController, :type => :controller do
     end
   end
 
+  describe "auth_admin sign-in" do
+    LimitedSignInHelpers::KINDS.each do |kind, wording|
+      it "should not set the admin cookie for an admin whose sign-in #{wording}" do
+        limited_admin_token(kind)
+        post :auth_admin
+        json = assert_success_json
+        expect(json['success']).to eq(false)
+        expect(response.cookies['admin_token']).to eq(nil)
+      end
+    end
+  end
 end
