@@ -56,7 +56,7 @@ var speecher = EmberObject.extend({
     this.appState = appState;
     this.persistence = persistence;
     this.stashes = stashes;
-    this.tts_voices = tts_voices;
+    this.tts_voices = tts_voices; speecher.warm_voice_on_touch(); // utils/speech_warmup.js: the voice is loaded before the first word on Android
   },
   text_direction: function() {
     var voice = speecher.get('voices').find(function(v) { return v.voiceURI == speecher.voiceURI; });
@@ -708,11 +708,11 @@ var speecher = EmberObject.extend({
           if(capabilities.system == 'iOS' && capabilities.ios_version && capabilities.ios_version < 9) {
           } else {
             var nativeVoices = speecher.scope.speechSynthesis.getVoices();
-            var isCustomVoice = voice.voiceURI && (voice.voiceURI.match(/^(extra|remote|tts|speak_js):/) || voice.remote_voice);
+            var isCustomVoice = is_custom_voice(voice); // utils/speech_warmup.js, shared with warm_voice below
             if(!isCustomVoice && nativeVoices && nativeVoices.length) {
-              var nativeVoice = nativeVoices.find(function(v) {
-                return v.voiceURI === voice.voiceURI || (v.name === voice.name && v.lang === voice.lang);
-              });
+              var nativeVoice = native_voice_for(nativeVoices, voice);
+              // native_voice_for: the device voice with the same voiceURI, or the same name and language
+              // (utils/speech_warmup.js); warm_voice at the end of this file finds the same one
               if(nativeVoice) {
                 try {
                   utterance.voice = nativeVoice;
@@ -1601,8 +1601,43 @@ speecher.reapply_user_voice = function() {
   speecher.set_voice(user.get('preferences.device.voice'), user.get('preferences.device.alternate_voice'));
 };
 
+// On Android, load the voice buttons speak with, using a silent utterance on a touch, so the first word is not held
+// up while the device loads it (utils/speech_warmup.js). Android only: iOS Safari ignores utterance volume, and the
+// delay was measured on Android.
+// - The button voice: the alternate voice when it is on for buttons (utils/utterance.js speak_button), as speak_text
+//   then uses alternate_voiceURI; otherwise the main voice.
+// - Once per voice, counted only when the warm-up STARTS: a warm-up cancelled before it starts (unlock_speech or
+//   stop() on the same tap, for a button that speaks nothing) loaded nothing, so the next touch tries again. While
+//   one is queued, warm_voice's speaking/pending check keeps a second from being added.
+speecher.button_voice_uri = function() {
+  var alt = speecher.alternate_voice;
+  return (alt && alt.enabled && alt.for_buttons === true) ? speecher.alternate_voiceURI : speecher.voiceURI;
+};
+speecher.warm_voice = function() {
+  var scope = speecher.scope;
+  if(capabilities.system != 'Android' || !scope || !scope.speechSynthesis || !scope.SpeechSynthesisUtterance) { return false; }
+  var uri = speecher.button_voice_uri();
+  if(uri == 'force_default') { return false; } // speak_text names no voice for it
+  var appState = live_service(speecher.appState);
+  var locale = appState && appState.get && appState.get('vocalization_locale');
+  var voice = speecher.find_voice_by_uri(uri, locale, true);
+  if(!voice || is_custom_voice(voice)) { return false; }
+  var native_voice = native_voice_for(scope.speechSynthesis.getVoices(), voice);
+  if(!native_voice || speecher._warmed_voice === native_voice.voiceURI) { return false; }
+  return warm_voice(scope.speechSynthesis, scope.SpeechSynthesisUtterance, native_voice, function() { speecher._warmed_voice = native_voice.voiceURI; });
+};
+
+// Called from setup(). One capture listener for the page: every pointerdown is a user gesture, which Chrome
+// requires before speechSynthesis may speak.
+speecher.warm_voice_on_touch = function() {
+  if(speecher._warmup_listening || typeof document === 'undefined') { return; }
+  speecher._warmup_listening = true;
+  document.addEventListener('pointerdown', function() { speecher.warm_voice(); }, true);
+};
+
 window.speecher = speecher;
 
 export default speecher;
 // Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
 import { live_service, owner_gone } from './live_service';
+import { is_custom_voice, native_voice_for, warm_voice } from './speech_warmup';
