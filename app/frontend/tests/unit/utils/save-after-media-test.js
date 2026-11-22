@@ -194,7 +194,8 @@ module('Unit | Utility | save after media', function(hooks) {
     var before = Date.now();
     save_after_media(state.opts);
     var started = dialog.opened[0].options.started_at;
-    assert.true(started >= before && started <= Date.now());
+    assert.true(started >= before, 'not before the click');
+    assert.true(started <= Date.now(), 'not in the future');
   });
 
   test('the save does not run against an app that was torn down while waiting', async function(assert) {
@@ -205,14 +206,12 @@ module('Unit | Utility | save after media', function(hooks) {
     save_after_media(state.opts);
     owner.isDestroyed = true;
     var skips = recordOwnerGoneSkips(owner);
-    try {
-      finish_pending_media(up.token, 'landed');
-      await settled();
-      assert.strictEqual(state.saves, 0);
-      assert.strictEqual(skips.count, 1, 'the guard is owner_gone, so the skip is reported');
-      assert.false(save_waiting_active());
-    } finally {
-      skips.restore();
-    }
+    finish_pending_media(up.token, 'landed');
+    await settled();
+    var counted = skips.count;
+    skips.restore();
+    assert.strictEqual(state.saves, 0);
+    assert.strictEqual(counted, 1, 'the guard is owner_gone, so the skip is reported');
+    assert.false(save_waiting_active());
   });
 });

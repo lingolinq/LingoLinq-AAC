@@ -11,6 +11,8 @@ import $ from 'jquery';
 import i18n from '../../utils/i18n';
 import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
+import { save_after_media } from '../../utils/save_after_media';
+import { cancel_pending_media } from '../../utils/pending_media';
 import { check_for_share_approval as runShareApprovalCheck } from '../../utils/share_approval';
 import { sync_current_board_state as runBoardStateSync } from '../../utils/board_state_sync';
 import { reload_on_connect as runReloadOnConnect } from '../../utils/reload_on_connect';
@@ -412,6 +414,19 @@ const BoardDetailController = Controller.extend(prefClasses, {
      cancel_edit/save_board because those are two of many exits, and the ones that bit
      here (Back) go through none of them. The template also gates on edit_mode, so this is
      belt-and-braces: it clears the STATE, the gate stops the RENDER. */
+  /* Board Save waits for pictures and sounds still uploading (utils/save_after_media.js). Ending
+     the edit session (Done, Discard, Cancel, browser or Android Back, anything that clears
+     edit_mode) cancels the uploads still running, so none lands on the board afterwards; the
+     counter tells a deferred save that the session it was waiting for is over. A board change
+     counts as a new session too. */
+  _edit_session: 0,
+  _media_on_edit_mode_change: observer('edit_mode', function() {
+    if(!this.get('edit_mode')) { cancel_pending_media(); }
+    this.incrementProperty('_edit_session');
+  }),
+  _media_on_board_change: observer('model.id', function() {
+    this.incrementProperty('_edit_session');
+  }),
   _close_category_panel_on_edit_exit: observer('edit_mode', function() {
     if(!this.get('edit_mode') && this.get('category_order_open')) {
       this.set('category_order_open', false);
@@ -6125,6 +6140,18 @@ const BoardDetailController = Controller.extend(prefClasses, {
 
   saveButtonChanges: function() {
     var _this = this;
+    // A picture or sound still uploading: wait for it, then come back here (utils/save_after_media.js).
+    // Before the preview clear below, so going back to editing leaves the preview as it was.
+    if(save_after_media({
+      owner: this,
+      identity: function() {
+        return [_this.get('model.id'), _this.get('_edit_session'), _this.get('app_state.currentUser.id')].join('|');
+      },
+      save: function() { _this.saveButtonChanges(); },
+      failed: function() {
+        modal.error(i18n.t('save_waiting_failed', "A picture or recording did not upload, so the board was not saved."));
+      }
+    })) { return; }
     // Clear preview state BEFORE serializing so preview-induced
     // mutations (especially `hidden=true` on untagged buttons at
     // preview level < 10) don't leak into the saved data. The save
@@ -6139,22 +6166,6 @@ const BoardDetailController = Controller.extend(prefClasses, {
     var orderedButtons = this.get('ordered_buttons') || [];
     var board = this.get('model');
     if(!board) { return; }
-
-    // Check for pending images
-    var pendingImage = false;
-    for(var ri = 0; ri < orderedButtons.length && !pendingImage; ri++) {
-      var row = orderedButtons[ri];
-      for(var ci = 0; ci < row.length && !pendingImage; ci++) {
-        var btn = row[ci];
-        if(btn && btn.get && btn.get('image_id') && btn.get('pending_image')) {
-          pendingImage = true;
-        }
-      }
-    }
-    if(pendingImage) {
-      modal.warning(i18n.t('wait_for_images', "Please wait for all images to finish loading before saving."), true);
-      return;
-    }
 
     // Use editManager to convert Button objects to save format
     var state = editManager.process_for_saving();

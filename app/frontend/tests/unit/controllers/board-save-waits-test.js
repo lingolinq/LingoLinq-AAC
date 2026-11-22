@@ -122,7 +122,6 @@ module('Unit | Controller | board Save waits for uploads', function(hooks) {
   test('Basic: Save with an upload in flight waits instead of serializing the board', function(assert) {
     var built = basic(this.owner);
     var up = uploadingButton();
-    built.controller.set('ordered_buttons', [[up.button]]);
     built.controller.saveButtonChanges();
     assert.strictEqual(calls.serialize, 0);
     assert.deepEqual(calls.opened, ['save-waiting']);

@@ -989,7 +989,6 @@ describe("contentGrabbers", function() {
       stub(pictureGrabber, 'save_image_preview', function() {
         return new RSVP.Promise(function(resolve) { finish = function() { resolve(EmberObject.create({ id: 'img1', url: 'http://x/img.png' })); }; });
       });
-      stub(editManager, 'find_button', function() { return EmberObject.create({id: 'drop-btn'}); });
       stub(editManager, 'change_button', function(id, attrs) { changed = [id, attrs.image_id]; });
       var done = false;
       contentGrabbers.apply_dropped_image_to_button('drop-btn', { url: 'http://x/img.png' }).then(function() { done = true; });

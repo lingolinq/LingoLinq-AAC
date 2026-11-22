@@ -41,10 +41,10 @@ QUnit.module('Integration | modal-container save-waiting', function(hooks) {
 
   QUnit.test('Save without it appears by itself when the 15 seconds run out while open', async function(assert) {
     await render(hbs`<ModalContainer />`);
-    this.owner.lookup('service:modal').open('save-waiting', {started_at: Date.now() - 14900});
+    this.owner.lookup('service:modal').open('save-waiting', {started_at: Date.now() - 13500});
     await settled();
     assert.dom(document.querySelector('[data-test-save-waiting-without]')).doesNotExist();
-    await waitUntil(function() { return document.querySelector('[data-test-save-waiting-without]'); }, {timeout: 2000});
+    await waitUntil(function() { return document.querySelector('[data-test-save-waiting-without]'); }, {timeout: 4000});
     assert.dom(document.querySelector('[data-test-save-waiting-without]')).exists();
   });
 

@@ -80500,6 +80500,15 @@ span.md-board-detail-modeling-btn--badge {
 @media (prefers-reduced-motion: reduce) {
   .md-modal-spinner { animation: none; }
 }
+/* The board Save waiting dialog's message (components/save-waiting.hbs). Its own rule rather than
+   .md-modal-message so it can be read at AAC size (about 30% above the 16px modal default) without
+   overriding the shared modal style. */
+.save-waiting__message {
+  font-size: 21px;
+  color: $brand-charcoal-blue;
+  line-height: 1.5;
+  margin: 0 0 12px;
+}
 /* WARNING CALLOUT -- the whole message on the Save Board completeness dialogs, not a token
    inside it. This is the sentence standing between someone and an empty or half-built board,
    so it is given the weight of a warning rather than reading as ordinary body copy.

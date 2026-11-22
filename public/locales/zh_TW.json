@@ -9793,5 +9793,11 @@
   "sync_no_folders_saved_yet": "*** No folders are saved yet.",
   "sync_saved_before_stopped": "*** Saved before the sync stopped",
   "sync_nothing_saved_before_stopped": "*** Nothing was saved before the sync stopped",
-  "sync_drawer_saved_none": "*** No boards are saved on this device yet."
+  "sync_drawer_saved_none": "*** No boards are saved on this device yet.",
+  "save_waiting_failed": "*** A picture or recording did not upload, so the board was not saved.",
+  "save_waiting_title": "*** Saving when uploads finish",
+  "save_waiting_message": "*** Your board will save as soon as your picture or recording finishes uploading.",
+  "save_waiting_slow": "*** This is taking longer than usual.",
+  "back_to_editing": "*** Back to editing",
+  "save_without_it": "*** Save without it"
 }

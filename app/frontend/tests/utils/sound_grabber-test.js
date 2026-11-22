@@ -412,7 +412,7 @@ describe('soundGrabber', function() {
   describe('pending_sound on the button the sound started from', function() {
     var model, save, changes, settledResult;
     var startSound = function() {
-      model = EmberObject.create({id: '456'});
+      model = EmberObject.create({id: '456', findContentLocally: function() { return RSVP.resolve(true); }});
       controller.set('model', model);
       soundGrabber.setup(model, controller);
       save = RSVP.defer();
@@ -462,7 +462,7 @@ describe('soundGrabber', function() {
 
     it('should leave the next button alone when settings moved on before the sound saved', function() {
       var state = startSound();
-      var nextModel = EmberObject.create({id: '789'});
+      var nextModel = EmberObject.create({id: '789', findContentLocally: function() { return RSVP.resolve(true); }});
       var nextController = EmberObject.create({model: nextModel, sound_preview: {url: 'https://example.com/test-next.wav'}});
       soundGrabber.setup(nextModel, nextController);
       save.resolve(savedSound());
