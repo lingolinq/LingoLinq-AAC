@@ -1,5 +1,5 @@
 {{#if @user.state_2fa.required}}
-  <div class='form-group'>
+  <div class='form-group' data-test-2fa-section>
     <label for='2fa' class='col-sm-3 control-label'>{{t "2-Factor Authentication" key="2fa"}}</label>
     <div class='col-sm-8'>
       {{#if @status.loading}}
@@ -15,7 +15,7 @@
         {{#if @status.error}}
           <p class='text-danger'>{{t "Invalid code, please check again" key="invalid_code_please_try_again"}}</p>
         {{/if}}
-        <button type="button" class='btn btn-default' {{on "click" (@ctrlAction "update_2fa" "confirm")}}>{{t "Confirm" key="confirm"}}</button>
+        <button type="button" class='btn btn-default' data-test-2fa-action="confirm" {{on "click" (@ctrlAction "update_2fa" "confirm")}}>{{t "Confirm" key="confirm"}}</button>
       {{else}}
         {{#if @user.permissions.edit}}
           {{#if @user.state_2fa.required}}
@@ -25,18 +25,18 @@
               {{t "Currently Enabled" key="currently_enabled"}}
             {{/if}}
             {{#unless @user.state_2fa.mandatory}}
-              <button type="button" class='btn btn-default' {{on "click" (@ctrlAction "update_2fa" "disable")}}>{{t "Disable" key="disable_2fa"}}</button>
+              <button type="button" class='btn btn-default' data-test-2fa-action="disable" {{on "click" (@ctrlAction "update_2fa" "disable")}}>{{t "Disable" key="disable_2fa"}}</button>
             {{/unless}}
-            <button type="button" class='btn btn-default' {{on "click" (@ctrlAction "update_2fa" "reset")}}>{{t "Reset" key="reset_2fa"}}</button>
+            <button type="button" class='btn btn-default' data-test-2fa-action="reset" {{on "click" (@ctrlAction "update_2fa" "reset")}}>{{t "Reset" key="reset_2fa"}}</button>
           {{else}}
             {{t "Ensure you have the latest app versions before enabling!" key="ensure_latest_app_versions"}}
-            <button type="button" class='btn btn-default' {{on "click" (@ctrlAction "update_2fa" "enable")}}>{{t "Enable Two-Factor Authentication" key="enable_2fa"}}</button>
+            <button type="button" class='btn btn-default' data-test-2fa-action="enable" {{on "click" (@ctrlAction "update_2fa" "enable")}}>{{t "Enable Two-Factor Authentication" key="enable_2fa"}}</button>
           {{/if}}
         {{/if}}
         {{#if @status.error}}
           <p class='text-danger'>{{t "Error updating two-factor authentication" key="error_updating_2fa"}}</p>
         {{else if @status.success}}
-          <p class='text-success'>{{t "Two-factor authentcation successfully updated!" key="success_2fa"}}</p>
+          <p class='text-success' data-test-2fa-success>{{t "Two-factor authentcation successfully updated!" key="success_2fa"}}</p>
         {{/if}}
       {{/if}}
     </div>
