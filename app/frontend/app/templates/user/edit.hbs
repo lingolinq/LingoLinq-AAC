@@ -73,7 +73,7 @@
         </div>
       </div>
     {{/unless}}
-    <TwoFactorSettings @user={{this.model}} @status={{this.status_2fa}} @code={{this.code_2fa}} @ctrlAction={{this.ctrlAction}} @onCodeInput={{set-field this "code_2fa"}} />
+    <TwoFactorSettings @user={{this.model}} @ownAccount={{this.own_account_2fa}} @status={{this.status_2fa}} @code={{this.code_2fa}} @ctrlAction={{this.ctrlAction}} @onCodeInput={{set-field this "code_2fa"}} />
   </PreferenceBox>
 
   {{!-- Section: Profile & Visibility --}}

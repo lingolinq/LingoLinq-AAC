@@ -1,4 +1,6 @@
-{{#if @user.state_2fa.required}}
+{{!-- Shown when the account has 2FA, or on a supporter's own account so they can turn it on.
+     @ownAccount is false while acting as another user (controllers/user/edit.js own_account_2fa). --}}
+{{#if (or @user.state_2fa.required (and @ownAccount @user.supporter_role))}}
   <div class='form-group' data-test-2fa-section>
     <label for='2fa' class='col-sm-3 control-label'>{{t "2-Factor Authentication" key="2fa"}}</label>
     <div class='col-sm-8'>
@@ -27,8 +29,10 @@
             {{#unless @user.state_2fa.mandatory}}
               <button type="button" class='btn btn-default' data-test-2fa-action="disable" {{on "click" (@ctrlAction "update_2fa" "disable")}}>{{t "Disable" key="disable_2fa"}}</button>
             {{/unless}}
-            <button type="button" class='btn btn-default' data-test-2fa-action="reset" {{on "click" (@ctrlAction "update_2fa" "reset")}}>{{t "Reset" key="reset_2fa"}}</button>
-          {{else}}
+            {{#if @ownAccount}}
+              <button type="button" class='btn btn-default' data-test-2fa-action="reset" {{on "click" (@ctrlAction "update_2fa" "reset")}}>{{t "Reset" key="reset_2fa"}}</button>
+            {{/if}}
+          {{else if (and @ownAccount @user.supporter_role)}}
             {{t "Ensure you have the latest app versions before enabling!" key="ensure_latest_app_versions"}}
             <button type="button" class='btn btn-default' data-test-2fa-action="enable" {{on "click" (@ctrlAction "update_2fa" "enable")}}>{{t "Enable Two-Factor Authentication" key="enable_2fa"}}</button>
           {{/if}}
@@ -39,6 +43,14 @@
           <p class='text-success' data-test-2fa-success>{{t "Two-factor authentcation successfully updated!" key="success_2fa"}}</p>
         {{/if}}
       {{/if}}
+    </div>
+  </div>
+{{else if @status.success}}
+  {{!-- After a change the account no longer qualifies for the section (2FA turned off on another account). --}}
+  <div class='form-group'>
+    <span class='col-sm-3 control-label'></span>
+    <div class='col-sm-8'>
+      <p class='text-success' data-test-2fa-success>{{t "Two-factor authentcation successfully updated!" key="success_2fa"}}</p>
     </div>
   </div>
 {{/if}}

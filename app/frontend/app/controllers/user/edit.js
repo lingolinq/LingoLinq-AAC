@@ -10,7 +10,7 @@ import app_state from '../../utils/app_state';
 import persistence from '../../utils/persistence';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
-import backend_user_id from '../../utils/backend_user_id';
+import backend_user_id, { same_person } from '../../utils/backend_user_id';
 
 export default Controller.extend({
   appState: service('app-state'),
@@ -114,6 +114,14 @@ export default Controller.extend({
       return null;
     }
   }),
+  // True when the page shows the person's own account and they are not acting as another user. While acting as
+  // another user, sessionUser is that user, so the session's as_user_id (sent as X-As-User-Id, utils/extras.js)
+  // decides it. Unknown session user reads as someone else.
+  own_account_2fa: computed('model.id', 'model.global_id', 'appState.sessionUser.id', 'appState.sessionUser.global_id', 'session.as_user_id', function() {
+    if(this.get('session.as_user_id')) { return false; }
+    var me = this.get('appState.sessionUser');
+    return same_person(this.get('model'), me, me);
+  }),
   load_integrations: observer('model.id', function(reload) {
     var _this = this;
     this.get('model').check_integrations(reload);
@@ -132,6 +140,10 @@ export default Controller.extend({
         type: 'POST',
         data: opts
       }).then(function(res) {
+        // The answer carries the account's 2FA state after the change (users_controller.rb update_2fa).
+        if(res && res.state) {
+          _this.set('model.state_2fa', res.state);
+        }
         if(res.uri) {
           _this.set('code_2fa', '');
           _this.set('status_2fa', {uri: res.uri});
