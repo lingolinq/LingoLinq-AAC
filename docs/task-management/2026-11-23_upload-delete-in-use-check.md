@@ -56,9 +56,19 @@ well, but alone it queues a job for every in-use file).
 - Files already deleted this way cannot be detected from the database alone.
 - A row may still be created naming another person's bucket address (it now keeps that file alive instead of
   deleting it). Whether create should refuse it is a separate question.
+- `user_videos.url` has no index, so each check scans that table (the retry path already did the same lookup).
+- A row that takes the address after the job's check but before the delete is not protected (a narrow window; the
+  job-time check is what narrows it).
 - Rubocop is not a CI gate; the change adds one style offense to `lib/uploader.rb` (388 to 389).
 
 ## Learnings
 
 - An "is this file still used" check must ask every table that can name the file, in every address form it can be
   stored in, not only the destroyed row's own table.
+
+## Review
+
+- `/review-pr` (senior-dev pass), `REVIEWED=range origin/develop (003c227536963b4a2aad8f0136b0b41b24418a40) ...
+  traci/security/upload-delete-in-use-check (5b6e5479d7b54e6e56680b221a7ac34a581535db)`: approve with comments.
+  Fixed: the CDN spec restores the prior `UPLOADS_S3_CDN`; a stale line citation in the retry path. Recorded above:
+  the unindexed `user_videos.url` lookup and the narrow window after the job's check.

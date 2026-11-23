@@ -39,6 +39,7 @@ describe Uploadable, "removal of a file still in use" do
     end
 
     it "keeps a file another row uses under its CDN address" do
+      prior_cdn = ENV['UPLOADS_S3_CDN']
       ENV['UPLOADS_S3_CDN'] = 'https://cdn.example.com'
       begin
         row(UserVideo, "https://cdn.example.com/#{key}")
@@ -47,7 +48,7 @@ describe Uploadable, "removal of a file still in use" do
         picture.destroy
         Worker.process_queues
       ensure
-        ENV['UPLOADS_S3_CDN'] = nil
+        ENV['UPLOADS_S3_CDN'] = prior_cdn
       end
     end
 
