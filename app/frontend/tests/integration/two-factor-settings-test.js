@@ -1,6 +1,6 @@
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'frontend/tests/helpers';
-import { render } from '@ember/test-helpers';
+import { render, click, fillIn, settled } from '@ember/test-helpers';
 import { hbs } from 'ember-cli-htmlbars';
 import EmberObject from '@ember/object';
 import i18n from 'frontend/utils/i18n';
@@ -28,12 +28,14 @@ module('Integration | Component | two-factor-settings', function(hooks) {
   }
 
   async function draw(context, opts) {
+    context.sent = [];
+    context.typed = [];
     context.set('user', user(opts));
     context.set('ownAccount', opts.own);
     context.set('status', opts.status || null);
     context.set('code', '');
-    context.set('ctrlAction', function() { return function() {}; });
-    context.set('onCodeInput', function() {});
+    context.set('ctrlAction', function(name, verb) { return function() { context.sent.push([name, verb]); }; });
+    context.set('onCodeInput', function(event) { context.typed.push(event.target.value); });
     await render(hbs`<TwoFactorSettings @user={{this.user}} @ownAccount={{this.ownAccount}} @status={{this.status}} @code={{this.code}} @ctrlAction={{this.ctrlAction}} @onCodeInput={{this.onCodeInput}} />`);
   }
 
@@ -78,6 +80,25 @@ module('Integration | Component | two-factor-settings', function(hooks) {
     assert.dom(SECTION).includesText(i18n.t('required_for_this_account', "Required for This Account"));
     assert.dom(action('reset')).exists();
     assert.dom(action('disable')).doesNotExist();
+  });
+
+  test('each button sends its own action', async function(assert) {
+    await draw(this, { own: true, supporter: true, state_2fa: { required: false } });
+    await click(action('enable'));
+    this.set('user.state_2fa', { required: true, verified: true });
+    await settled();
+    await click(action('disable'));
+    await click(action('reset'));
+    assert.deepEqual(this.sent, [['update_2fa', 'enable'], ['update_2fa', 'disable'], ['update_2fa', 'reset']]);
+  });
+
+  test('while setting up, the code entered is passed on and Confirm sends it', async function(assert) {
+    await draw(this, { own: true, supporter: true, state_2fa: { required: false }, status: { uri: 'otpauth://totp/test' } });
+    assert.dom(action('enable')).doesNotExist();
+    await fillIn('[data-test-2fa-section] input[autocomplete="one-time-code"]', '123456');
+    await click(action('confirm'));
+    assert.deepEqual(this.typed, ['123456']);
+    assert.deepEqual(this.sent, [['update_2fa', 'confirm']]);
   });
 
   test('the success message stays after the account no longer shows the section', async function(assert) {

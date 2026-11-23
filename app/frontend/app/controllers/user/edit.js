@@ -136,14 +136,17 @@ export default Controller.extend({
       if(action == 'confirm') {
         opts.code_2fa = _this.get('code_2fa');
       }
-      persistence.ajax('/api/v1/users/' + _this.get('model.id') + '/2fa', {
+      // The account the request is for; the page may show another one by the time the answer arrives.
+      var user = _this.get('model');
+      persistence.ajax('/api/v1/users/' + user.get('id') + '/2fa', {
         type: 'POST',
         data: opts
       }).then(function(res) {
         // The answer carries the account's 2FA state after the change (users_controller.rb update_2fa).
         if(res && res.state) {
-          _this.set('model.state_2fa', res.state);
+          user.set('state_2fa', res.state);
         }
+        if(_this.get('model') !== user) { return; }
         if(res.uri) {
           _this.set('code_2fa', '');
           _this.set('status_2fa', {uri: res.uri});
@@ -151,6 +154,7 @@ export default Controller.extend({
           _this.set('status_2fa', {success: true});
         }
       }, function(err) {
+        if(_this.get('model') !== user) { return; }
         _this.set('status_2fa', {error: true, uri: uri});
       });
     },

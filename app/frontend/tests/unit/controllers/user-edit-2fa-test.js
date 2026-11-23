@@ -90,6 +90,21 @@ module('Unit | Controller | user/edit | two-factor', function(hooks) {
     assert.strictEqual(controller.get('status_2fa.uri'), 'otpauth://totp/test');
   });
 
+  test('an answer that arrives after moving to another account updates only the account it was for', async function(assert) {
+    const first = record('1_3', { state_2fa: { required: true, verified: true } });
+    const second = record('1_9', { state_2fa: { required: true, verified: true } });
+    const controller = controller_for(this, { sessionUser: record('1_3'), model: first });
+    const pending = RSVP.defer();
+    this.standIns.persistence.set('ajax', () => pending.promise);
+    controller.send('update_2fa', 'disable');
+    controller.set('model', second);
+    pending.resolve({ updated: true, state: { required: false } });
+    await settled();
+    assert.deepEqual(first.get('state_2fa'), { required: false }, 'the account the change was made on');
+    assert.deepEqual(second.get('state_2fa'), { required: true, verified: true }, 'the account now on the page');
+    assert.strictEqual(controller.get('status_2fa'), null, 'no result shown on the other account');
+  });
+
   test('a refused request leaves the state as it was', async function(assert) {
     const model = record('1_3', { state_2fa: { required: true, verified: true } });
     const controller = controller_for(this, { sessionUser: record('1_3'), model: model });
