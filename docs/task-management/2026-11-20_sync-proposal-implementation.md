@@ -353,3 +353,14 @@ No Critical or High. Each finding checked; all accepted. The revised design:
   10 failures out of 209, exactly those; restored from the commit.
 - Left for this item: i18n generation for the new strings (with the next locale run), Traci's review of the wording
   in the built UI, and the after-run of the harness to compare `app_counters` with the link's counts.
+- 2026-11-22, real runs on the built app (desktop Chrome, full speed; `~/offline-sync-handoff/2026-11-22-counters/`):
+  the app's requests agree with the link's (core 2,294 vs 2,295; repeat 15 vs 15); caseload's app count is about 500
+  under the link's, which is the page's own `<img>` warm-up (not the app's requests, by design). Picture bytes 34.9 MB
+  inside 36.4 MB on the link. Two corrections came from these runs (commit 2cd92c2ee): (1) the repeat sync said "60
+  boards downloaded" with 15 requests, because a row marked `downloaded` also covers a board loaded earlier in the
+  session (`services/persistence.js` board lookup, the `fresh` branch); boards are now counted when the server sends
+  them (a refresh it answered, or one of a batch), and an entry with no counters claims no downloads; (2) the storage
+  line read 7.8 MB after 35 MB of pictures were saved (desktop Chrome keeps them in file storage that
+  `navigator.storage.estimate()` leaves out), so it is removed until it can count them. After: core "Took 3 minutes ·
+  42 boards and 2111 pictures downloaded (35 MB)" (the other 20 boards were loaded by the page before the sync), repeat
+  "Took less than a minute · Nothing new to download". Targeted suites 322 pass, 1 pre-existing skip; lint delta 0.
