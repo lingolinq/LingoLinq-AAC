@@ -3058,7 +3058,16 @@ class User < ApplicationRecord
     # secret, so self-service password changes always failed with "incorrect
     # current password". Only an explicitly-absent (nil) value is a no-op.
     unless params['valet_login'].nil?
-      if process_boolean(params['valet_login'])
+      if process_boolean(params['valet_login']) && valet_blocked_for_role?
+        # An ordinary re-save (no new password, one already stored; see set_valet_password)
+        # clears the stored valet password. Any other request to turn valet on is refused.
+        if params['valet_password'].blank? && self.settings['valet_password']
+          self.set_valet_password(false)
+        else
+          add_processing_error("valet login is not available for admin or manager accounts")
+          return false
+        end
+      elsif process_boolean(params['valet_login'])
         if params['valet_password'].present? && !password_meets_minimum?(params['valet_password'])
           add_processing_error("password too short")
           return false
@@ -4621,7 +4630,13 @@ class User < ApplicationRecord
   def admin?
     self.settings['admin'] == true || Organization.admin_manager?(self)
   end
-  
+
+  # Admins (admin?) and organization managers or assistants (Organization.manager?) cannot use
+  # valet (modeling) login: process_params will not turn it on, and valid_password? refuses it.
+  def valet_blocked_for_role?
+    admin? || Organization.manager?(self)
+  end
+
   def self.default_sidebar_boards
     [
       {'name' => "Yes/No", 'key' => 'lingolinq/yesno', 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/yes_2.png', 'home_lock' => false},

@@ -185,6 +185,11 @@ class ApplicationController < ActionController::Base
 
       as_user = params['as_user_id'] || request.headers['X-As-User-Id']
       if @api_user && as_user
+        # Masquerade (both branches below) needs the operator's own full sign-in (full_sign_in?).
+        if !full_sign_in?
+          api_error 400, {error: "Invalid masquerade attempt", user_id: as_user}
+          return false
+        end
         @linked_user = User.find_by_path(as_user)
         admin = Organization.admin
         if admin && admin.manager?(@api_user) && @linked_user
