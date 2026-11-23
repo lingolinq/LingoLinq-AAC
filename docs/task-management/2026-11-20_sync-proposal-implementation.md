@@ -364,3 +364,7 @@ No Critical or High. Each finding checked; all accepted. The revised design:
   `navigator.storage.estimate()` leaves out), so it is removed until it can count them. After: core "Took 3 minutes ·
   42 boards and 2111 pictures downloaded (35 MB)" (the other 20 boards were loaded by the page before the sync), repeat
   "Took less than a minute · Nothing new to download". Targeted suites 322 pass, 1 pre-existing skip; lint delta 0.
+- 2026-11-23: rebased onto develop 16ee246a4. #1357 (merged 2026-11-22, another session) fixed the same stale `/100%/`
+  assertion in `e2e/sync.spec.js`, more strictly (it also checks the "N of N saved" line), so this branch's version
+  (7fffb63d8 above) was dropped in the rebase and the spec is develop's. Also on develop now: #1352 (run the i18n
+  generator and translate sync strings), the procedure for this item's new strings.
