@@ -434,3 +434,60 @@ lines.
 4. 2.1 server: renditions (after checking ImageMagick's WebP support under #1300's policy).
 5. 2.3: account deletion with the hand-over policy (built here; merges only with Scot's and legal's OK).
 6. 3.1: the manifest endpoint, on 3.2's rule.
+
+## Erasure helper (12.3): proposal (2026-11-23)
+
+**Diagnosis.** Deleting an SVG picture whose raster LingoLinq made leaves `<full_filename>.raster.png` in the uploads
+bucket forever:
+- `schedule_remote_removal_if_unique` schedules only `remote_remove(self.url)` (`uploadable.rb:144-152`);
+- `remote_remove`'s guard would refuse the raster key anyway (`uploader.rb:619`);
+- the retry's in-use check looks only at the exact key (`uploader.rb:105-111`).
+
+Rasters LingoLinq made are marked `settings['rasterized'] == 'from_filename'` and live at
+`settings['full_filename'] + '.raster.png'` (`uploadable.rb:208-216, 233-236, 318-322`). Rasters marked `'from_url'`
+are other hosts' files (opensymbols) and must never be deleted.
+
+**Candidate A (proposed): the row names its own derived files.**
+- `Uploadable#derived_remote_keys`: the raster key when `rasterized == 'from_filename'`. It reads
+  `settings['full_filename']` directly, never `full_filename`, which saves a destroyed record. Renditions (2.1) add
+  their keys here from the sizes recorded on the row.
+- `schedule_remote_removal_if_unique` also schedules `remote_remove(key)` for each derived key, under the same
+  uniqueness gate as the original.
+- `Uploader.derived_upload_key?(path)`: a narrow, anchored grammar, like the transcode exceptions:
+  `images/(\d/)+<gid>-<128 hex>.<ext>.raster.png`. 2.1 widens it to `.r<digits>.webp`. It joins `remote_remove`'s
+  guard.
+- `remote_path_in_use?`: for a derived key it also asks whether its BASE key is in use, so a late retry never
+  deletes the raster of a picture whose url was reused.
+
+**Candidate B: list by prefix** (`list_remote_keys_with_prefix(full_filename + '.')`, like
+`remote_remove_thumbnail_family`) and delete what matches the grammar. It catches derived files the row does not know
+about. Rejected:
+- it needs S3 ListBucket, which the thumbnail code expects may be denied and works around with guessed keys
+  (`uploader.rb:430-460`);
+- it adds one LIST per deleted picture;
+- the row must know its renditions anyway (2.1's board JSON map).
+
+**Simplest alternative, rejected: widen the guard and leave it at that.** Nothing would schedule the raster's
+removal, so the gap stays.
+
+**Risks.**
+- A wrong grammar could delete a key that is not a sibling. Mitigation: anchored, and the base must be the record's
+  own shape. A spec rejects other prefixes, extra suffixes and external hosts.
+- Two rows sharing a url: the existing uniqueness gate covers both files.
+- `settings['full_filename']` missing on an old row: no derived key, the same as today.
+
+**Unresolved.**
+- Rasters already orphaned by past deletions cannot be found without listing the bucket. A one-off clean-up is
+  Scot's call (infra); noted for the Scot note.
+- Does the in-use check need to cover the raster's own url? No record stores it as its `url`: `raster_url` is
+  computed, never saved (`uploadable.rb:208-216`). Recorded here as checked.
+
+**Tests (red first).**
+- `spec/models/button_image_spec.rb`, destroying a rasterized (`from_filename`) SVG picture schedules removal of the
+  original and the raster.
+  - A `from_url` raster: only the original is scheduled.
+  - Another row sharing the url: nothing is scheduled.
+  - Mutation: drop the derived keys from the scheduler.
+- `spec/lib/uploader_spec.rb`: the guard accepts `<own key>.raster.png` and rejects `x/y.raster.png`,
+  `<own key>.raster.png.extra` and `<own key>.raster.jpg`. The retry drops a derived key whose base is in use.
+  - Mutation: loosen the grammar, and remove the base in-use check.
