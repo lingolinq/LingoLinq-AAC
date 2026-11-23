@@ -11,6 +11,8 @@ import { buttonSpacingScaledHalfPx, buttonBorderPx } from '../../utils/display_p
 import { inject as service } from '@ember/service';
 import i18n from '../../utils/i18n';
 import modal from '../../utils/modal';
+import { save_after_media } from '../../utils/save_after_media';
+import { cancel_pending_media } from '../../utils/pending_media';
 import { check_for_share_approval as runShareApprovalCheck } from '../../utils/share_approval';
 import paint_view_switch_overlay from '../../utils/view_switch_overlay';
 import { sync_current_board_state as runBoardStateSync } from '../../utils/board_state_sync';
@@ -243,29 +245,39 @@ export default Controller.extend(prefClasses, {
       });
     }
   ),
+  /* Board Save waits for pictures and sounds still uploading (utils/save_after_media.js). Leaving
+     edit mode (Save, Cancel, a route change: anything that clears appState.edit_mode) cancels the
+     uploads still running, so none lands on the board afterwards; the counter tells a deferred
+     save that the session it was waiting for is over. A board change counts as a new session. */
+  _edit_session: 0,
+  _media_on_edit_mode_change: observer('appState.edit_mode', function() {
+    if(!this.get('appState.edit_mode')) { cancel_pending_media(); }
+    this.incrementProperty('_edit_session');
+  }),
+  _media_on_board_change: observer('model.id', function() {
+    this.incrementProperty('_edit_session');
+  }),
   saveButtonChanges: function() {
-    var orderedButtons = this.get('ordered_buttons') || [];
-    var pendingImage = false;
-    for(var ri = 0; ri < orderedButtons.length && !pendingImage; ri++) {
-      var row = orderedButtons[ri];
-      for(var ci = 0; ci < row.length && !pendingImage; ci++) {
-        var btn = row[ci];
-        if(btn && btn.get && btn.get('image_id') && btn.get('pending_image')) {
-          pendingImage = true;
-        }
+    var _this = this;
+    // A picture or sound still uploading: wait for it, then come back here. The identity check
+    // runs before this method's own toggle_mode('edit') below.
+    if(save_after_media({
+      owner: this,
+      identity: function() {
+        return [_this.get('model.id'), _this.get('_edit_session'), _this.get('appState.currentUser.id')].join('|');
+      },
+      save: function() { _this.saveButtonChanges(); },
+      failed: function() {
+        modal.error(i18n.t('save_waiting_failed', "A picture or recording did not upload, so the board was not saved."));
       }
-    }
-    if(pendingImage) {
-      modal.warning(i18n.t('wait_for_images', "Please wait for all images to finish loading before saving."), true);
-      return;
-    }
+    })) { return; }
+    var orderedButtons = this.get('ordered_buttons') || [];
 
     var state = editManager.process_for_saving();
 
     if(this.get('model.license')) {
       this.set('model.license.copyright_notice_url', LingoLinq.licenseOptions.license_url(this.get('model.license.type')));
     }
-    var _this = this;
 
     var button_locale = this.get('model.button_locale') || this.appState.get('label_locale');
     var update_locale = false;

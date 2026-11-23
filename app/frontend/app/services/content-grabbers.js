@@ -17,6 +17,7 @@ import progress_tracker from '../utils/progress_tracker';
 import { board_view_route } from '../utils/board_view';
 import boardKeyFromInput from '../utils/board-key-from-input';
 import { begin_pending_image, finish_pending_image } from '../utils/pending_image';
+import { begin_pending_media, finish_pending_media, is_cancelled } from '../utils/pending_media';
 
 let appStateService;
 let stashesService;
@@ -608,6 +609,11 @@ var contentGrabbers = Service.extend({
     // a File (dropped image file) or {url} (image dragged from another page/tab).
     if(!button_id || !image_or_url) { return RSVP.reject(); }
     drop_spinner_show(button_id);
+    // Board Save waits for this upload (utils/save_after_media.js), and a cancelled one applies
+    // nothing (utils/pending_media.js).
+    // The token sits on a placeholder for the button: the drop shows its own spinner (not the
+    // button's pending flag), and looking the button up would tie the drop to the open board.
+    var dropToken = begin_pending_media({id: button_id}, 'pending_image', 'user');
     var url_promise = image_or_url.url ? RSVP.resolve(image_or_url.url) : window.cg.read_file(image_or_url).then(function(data) {
       return data.target.result; // data URL
     });
@@ -616,6 +622,7 @@ var contentGrabbers = Service.extend({
       var preview = { url: url, content_type: content_type, protected: false };
       return pictureGrabber.save_image_preview(preview).then(function(image) {
         if(image && image.set) { image.set('source_url', url); }
+        if(is_cancelled(dropToken)) { return image; }
         editManager.change_button(button_id, {
           image: image,
           image_id: image.get('id'),
@@ -625,9 +632,12 @@ var contentGrabbers = Service.extend({
       });
     }).then(function(image) {
       drop_spinner_clear(button_id);
+      finish_pending_media(dropToken, 'landed');
       return image;
     }, function() {
-      drop_spinner_clear(button_id); modal.error(i18n.t('upload_failed', "Upload failed"));
+      drop_spinner_clear(button_id);
+      finish_pending_media(dropToken, 'failed');
+      modal.error(i18n.t('upload_failed', "Upload failed"));
       return null; // handled here: content_dropped, the caller, does not catch
     });
   },
@@ -1698,6 +1708,9 @@ var pictureGrabber = EmberObject.extend({
       if(image.invalidateCachedDisplayUrls) {
         image.invalidateCachedDisplayUrls();
       }
+      // The edit session this pick belonged to ended (utils/pending_media.js cancel_pending_media):
+      // apply nothing, so a late picture never reaches a board that was discarded or saved without it.
+      if(is_cancelled(pendingToken)) { return; }
       if(ownsController()) {
         _this.controller.set('fresh_picture_url', pickedDisplayUrl);
         _this.controller.set('model.image', image);
@@ -1715,6 +1728,7 @@ var pictureGrabber = EmberObject.extend({
       // This ensures we use the server-assigned id (not the client id) when the server
       // returns a different id (e.g. due to RecordIdentifier handling).
       schedule('afterRender', function() {
+        if(is_cancelled(pendingToken)) { return; }
         var serverId = image.get && image.get('id') || image.id;
         editManager.change_button(button_id, {
           'image': image,
@@ -1746,10 +1760,10 @@ var pictureGrabber = EmberObject.extend({
       return RSVP.reject(err);
     }).then(function() {
       _this._activeImageSavePromise = null;
-      finish_pending_image(pendingButton, pendingToken);
+      finish_pending_image(pendingButton, pendingToken, 'landed');
     }, function() {
       _this._activeImageSavePromise = null;
-      finish_pending_image(pendingButton, pendingToken);
+      finish_pending_image(pendingButton, pendingToken, 'failed');
     });
     return this._activeImageSavePromise;
   },
@@ -2733,9 +2747,27 @@ var soundGrabber = EmberObject.extend({
     if(!preview || !preview.url) { return; }
     var _this = this;
 
-    if(this.controller) {
-      this.controller.set('model.pending_sound', true);
+    // A board button's sound (button settings set this.button): the settings can close, or move to
+    // the next button, and the batch recorder can take the grabber over (audio-recorder.js setup),
+    // all before this save settles. So the button and controller are captured here, the controller
+    // is written only while it is still the one this started from, and the sound is applied to the
+    // button it was recorded for. Board Save waits for it and a cancelled one applies nothing
+    // (utils/pending_media.js). A sound with no board button (the batch recorder) keeps the old
+    // direct flag.
+    var startController = this.controller;
+    var startButton = this.button;
+    var boardButton = (startButton && startController && !startController.isDestroyed && !startController.isDestroying) ?
+      (startController.get('model') || startButton) : null;
+    var ownsController = function() {
+      return !!startController && _this.controller === startController && !startController.isDestroyed && !startController.isDestroying;
+    };
+    var soundToken = null;
+    if(boardButton) {
+      soundToken = begin_pending_media(boardButton, 'pending_sound', 'user');
+    } else if(startController) {
+      startController.set('model.pending_sound', true);
     }
+    var button_id = boardButton && emberGet(boardButton, 'id');
     if(preview.url.match(/^data:/)) {
       preview.content_type = preview.content_type || preview.url.split(/;/)[0].split(/:/)[1];
     }
@@ -2804,19 +2836,29 @@ var soundGrabber = EmberObject.extend({
     });
 
     return save_sound.then(function(sound) {
-      var button_sound = {url: sound.get('url'), id: sound.id};
-      if(_this.controller) {
-        _this.controller.set('model.sound', sound);
-        _this.controller.set('model.sound_id', sound.id);
-        sound.check_transcription();
-        _this.clear_sound_work();
-        if(_this.button) {
-          editManager.change_button(_this.controller.get('model.id'), {
+      if(boardButton) {
+        if(!is_cancelled(soundToken)) {
+          if(sound.check_transcription) { sound.check_transcription(); }
+          if(ownsController()) {
+            startController.set('model.sound', sound);
+            startController.set('model.sound_id', sound.id);
+            _this.clear_sound_work();
+          } else {
+            emberSet(boardButton, 'sound', sound);
+            emberSet(boardButton, 'sound_id', sound.id);
+          }
+          editManager.change_button(button_id, {
             'sound': sound,
             'sound_id': sound.id
           });
         }
-        _this.controller.set('model.pending_sound', false);
+        finish_pending_media(soundToken, 'landed');
+      } else if(ownsController()) {
+        startController.set('model.sound', sound);
+        startController.set('model.sound_id', sound.id);
+        sound.check_transcription();
+        _this.clear_sound_work();
+        startController.set('model.pending_sound', false);
       }
       return {
         url: sound.get('url'),
@@ -2827,8 +2869,10 @@ var soundGrabber = EmberObject.extend({
       err.error = err.error || "unexpected error";
       lingoLinqExtras.track_error("upload failed: " + err.error);
       alert(i18n.t('upload_failed_with_error', "upload failed: " + err.error));
-      if(_this.controller) {
-        _this.controller.set('model.pending_sound', false);
+      if(boardButton) {
+        finish_pending_media(soundToken, 'failed');
+      } else if(ownsController()) {
+        startController.set('model.pending_sound', false);
       }
     });
   },

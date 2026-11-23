@@ -19,6 +19,7 @@ import { saveHomeBoard } from './home_board';
 import { observer } from '@ember/object';
 import utterance from './utterance';
 import { begin_pending_image, finish_pending_image } from './pending_image';
+import { is_cancelled } from './pending_media';
 
 /** True when fast_html can be shown ({{#if board.fast_html.html}}). Ember SafeString is truthy in JS even when empty. */
 export function fastHtmlHasRenderableContent(fast) {
@@ -2468,15 +2469,6 @@ var editManager = EmberObject.extend({
       var button = _this.find_button(id);
       var force_refresh = button && button.label && button.image && (button.image.url || '').match(/empty_22_g/i) && !button.text_only;
       var needs_check = force_refresh || (button && button.label && !button.image && !button.local_image_url && !button.text_only);
-      var pendingButton = null;
-      var pendingToken = null;
-      var startImageId = null;
-      if(needs_check) {
-        // Don't set pending directly - it's a computed property based on pending_image/pending_sound
-        pendingButton = button;
-        pendingToken = begin_pending_image(button);
-        startImageId = button.get('image_id');
-      }
       // Batch part-of-speech lookups below — per-button GETs hit Rack::Attack (429) on large boards.
       if(button && button.label && !button.get('background_color') && !button.get('border_color')) {
         var posText = (button.get('vocalization') || button.get('label') || '').trim();
@@ -2485,6 +2477,13 @@ var editManager = EmberObject.extend({
         }
       }
       if(needs_check) {
+        // Begun here, after the part-of-speech step above (which can throw on an odd label), so
+        // every operation that begins also reaches its finish below. 'auto': a failed lookup is
+        // silent and never blocks a board save (utils/pending_media.js).
+        var pendingButton = button;
+        var pendingToken = begin_pending_image(button, 'auto');
+        var startImageId = button.get('image_id');
+        var outcome = 'superseded';
         var locale = _this.controller.get('model.locale') || 'en';
         // A manual image picked while the lookup or save runs changes image_id;
         // the automatic symbol must not replace it.
@@ -2524,7 +2523,9 @@ var editManager = EmberObject.extend({
 
             return save.then(function(image) {
               button = _this.find_button(id);
+              if(is_cancelled(pendingToken)) { return; }
               if(_this.controller.get('model.id') == board_id && still_wanted(button)) {
+                outcome = 'landed';
                 var imgUrl = (image.get && (image.get('best_url') || image.get('url'))) || (typeof image.url === 'string' ? image.url : null);
                 if(!imgUrl && image && image.image_url) {
                   imgUrl = image.image_url;
@@ -2535,7 +2536,7 @@ var editManager = EmberObject.extend({
                 // Defer to afterRender so we use the server-assigned id when the server returns a different id
                 runSchedule('afterRender', function() {
                   button = _this.find_button(id);
-                  if(!button || _this.controller.get('model.id') !== board_id || !still_wanted(button)) { return; }
+                  if(!button || is_cancelled(pendingToken) || _this.controller.get('model.id') !== board_id || !still_wanted(button)) { return; }
                   var serverId = (image.get && image.get('id')) || image.id;
                   emberSet(button, 'image_id', serverId);
                   emberSet(button, 'image', image);
@@ -2569,10 +2570,10 @@ var editManager = EmberObject.extend({
             });
           }
         }).then(function() {
-          finish_pending_image(pendingButton, pendingToken);
+          finish_pending_image(pendingButton, pendingToken, outcome);
         }, function() {
           // nothing to do here, this can be a silent failure and it's ok
-          finish_pending_image(pendingButton, pendingToken);
+          finish_pending_image(pendingButton, pendingToken, 'failed');
         });
       }
     });

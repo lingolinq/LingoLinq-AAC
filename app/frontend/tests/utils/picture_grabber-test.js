@@ -17,6 +17,7 @@ import {
   stubNavigatorGetUserMedia
 } from 'frontend/tests/helpers/ember_helper';
 import RSVP from 'rsvp';
+import { cancel_pending_media, when_media_settled, has_live_media, reset_pending_media } from '../../utils/pending_media';
 import contentGrabbers from '../../utils/content_grabbers';
 import editManager from '../../utils/edit_manager';
 import persistence from '../../utils/persistence';
@@ -602,6 +603,39 @@ describe('pictureGrabber', function() {
         runs(function() {
           expect(changes[0]).toEqual({id: '456', image_id: '123'});
           expect(model.get('pending_image')).toEqual(false);
+        });
+      });
+
+      it('should not apply a picture whose upload was cancelled', function() {
+        var save = RSVP.defer();
+        var changes = [];
+        var model = controller.get('model');
+        var state = startSave(save, changes);
+        expect(has_live_media()).toEqual(true);
+        cancel_pending_media();
+        save.resolve(savedImage());
+        waitsFor(function() { return state.settled; });
+        runs(function() {
+          expect(changes.length).toEqual(0);
+          expect(model.get('image')).toEqual(undefined);
+          expect(model.get('pending_image')).toEqual(false);
+          reset_pending_media();
+        });
+      });
+
+      it('should report a failed pick as failed and a saved pick as landed', function() {
+        stub(window, 'alert', function() { });
+        var save = RSVP.defer();
+        var changes = [];
+        var result = null;
+        var state = startSave(save, changes);
+        when_media_settled().then(function(res) { result = res; });
+        save.reject({error: 'test failure'});
+        waitsFor(function() { return state.settled && result; });
+        runs(function() {
+          expect(result.failed).toEqual(1);
+          expect(result.landed).toEqual(0);
+          reset_pending_media();
         });
       });
     });
