@@ -141,10 +141,12 @@ module Uploadable
     true
   end
   
+  # The file is deleted only when no picture, sound or video row still names it (not only rows of this class: a row
+  # can name another kind's file), checked now and again when the job runs (Uploader.remote_remove_if_unused).
   def schedule_remote_removal_if_unique
     if self.url && self.removable
-      if self.class.where(:url => self.url).count == 0
-        Worker.schedule(Uploader, :remote_remove, self.url)
+      unless Uploader.remote_url_in_use?(self.url)
+        Worker.schedule(Uploader, :remote_remove_if_unused, self.url)
         true
       end
     end

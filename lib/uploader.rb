@@ -611,11 +611,33 @@ module Uploader
     failed == 0
   end
 
-  def self.remote_remove(url, checksum=nil)
+  # The bucket key an uploads-bucket address names, from either S3 form or the CDN form.
+  def self.remote_key_for(url)
     remote_path = url.sub(/^https:\/\/#{ENV['UPLOADS_S3_BUCKET']}\.s3\.amazonaws\.com\//, '')
     remote_path = remote_path.sub(/^https:\/\/s3\.amazonaws\.com\/#{ENV['UPLOADS_S3_BUCKET']}\//, '')
     remote_path = remote_path.sub(/^#{ENV['UPLOADS_S3_CDN']}/, '')
-    remote_path = remote_path.sub(/^\//, '')
+    remote_path.sub(/^\//, '')
+  end
+
+  # Whether a picture, sound or video row still uses the file an address names, in any form a row stores
+  # (remote_path_in_use?). A row can name another row's file (any uploads-bucket address is accepted,
+  # Uploadable#process_url), so a destroyed row's file is in use if ANY of the three kinds still names it.
+  def self.remote_url_in_use?(url)
+    remote_path_in_use?(remote_key_for(url))
+  end
+
+  # Worker entry for a destroyed row's file (Uploadable#schedule_remote_removal_if_unique): checked again when the
+  # job runs, since a row can take the address after the destroy, then deleted.
+  def self.remote_remove_if_unused(url)
+    if remote_url_in_use?(url)
+      Rails.logger.warn("Uploader.remote_remove_if_unused: object in use; delete dropped")
+      return false
+    end
+    remote_remove(url)
+  end
+
+  def self.remote_remove(url, checksum=nil)
+    remote_path = remote_key_for(url)
     unless remote_path.match(/\w+\/.+\/\w+-\w+(\.\w+)?$/) || remote_path.match(/^extras/) || transcoded_thumbnail_key?(remote_path) || transcoded_output_chain_key?(remote_path)
       raise "scary delete, not a path I'm comfortable deleting: #{remote_path}"
     end
