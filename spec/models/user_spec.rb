@@ -2271,8 +2271,9 @@ describe User, :type => :model do
         expect(u.processing_errors).to eq(["valet login is not available for admin or manager accounts"])
         u.reload
         expect(u.settings['valet_password']).to eq(nil)
-        expect(u.process({'valet_login' => true}, {'updater' => u})).to eq(false)
-        expect(u.processing_errors).to eq(["valet login is not available for admin or manager accounts"])
+        # A save that sends valet_login without a new password turns nothing on and is not an error.
+        expect(u.process({'valet_login' => true}, {'updater' => u})).to_not eq(false)
+        expect(u.processing_errors).to eq([])
         u.reload
         expect(u.settings['valet_password']).to eq(nil)
       end
@@ -2319,6 +2320,24 @@ describe User, :type => :model do
         expect(u.processing_errors).to eq([])
         u.reload
         expect(u.settings['valet_password']).to eq(nil)
+      end
+
+      it "should keep saving once the valet password is cleared, while the client still sends valet_login" do
+        # The client keeps its last valet_login value (lib/json_api/user.rb sends it only when true).
+        o = Organization.create
+        u = User.create
+        u.process({'valet_login' => true, 'valet_password' => 'gemini12'}, {'updater' => u})
+        expect(u.settings['valet_password']).to_not eq(nil)
+        o.add_manager(u.user_name, true)
+        u.reload
+        expect(u.process({'valet_login' => true, 'preferences' => {'speak_mode_pin' => '1234'}}, {'updater' => u})).to_not eq(false)
+        u.reload
+        expect(u.settings['valet_password']).to eq(nil)
+        expect(u.process({'valet_login' => true, 'preferences' => {'speak_mode_pin' => '5678'}}, {'updater' => u})).to_not eq(false)
+        expect(u.processing_errors).to eq([])
+        u.reload
+        expect(u.settings['valet_password']).to eq(nil)
+        expect(u.settings['preferences']['speak_mode_pin']).to eq('5678')
       end
     end
 

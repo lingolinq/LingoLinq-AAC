@@ -3059,9 +3059,10 @@ class User < ApplicationRecord
     # current password". Only an explicitly-absent (nil) value is a no-op.
     unless params['valet_login'].nil?
       if process_boolean(params['valet_login']) && valet_blocked_for_role?
-        # An ordinary re-save (no new password, one already stored; see set_valet_password)
-        # clears the stored valet password. Any other request to turn valet on is refused.
-        if params['valet_password'].blank? && self.settings['valet_password']
+        # A save with no new valet password clears any stored one and turns nothing on. The
+        # client keeps sending its last valet_login value (lib/json_api/user.rb sends it only
+        # when true), so this must not be an error. A new valet password is refused.
+        if params['valet_password'].blank?
           self.set_valet_password(false)
         else
           add_processing_error("valet login is not available for admin or manager accounts")
