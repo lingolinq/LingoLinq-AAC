@@ -392,3 +392,30 @@ shared request that never answers and is never asked again keeps its map entry.
   `self` for everyone, `serializers/application.js`; compare `global_id`, `models/user.js`, or
   use `utils/backend_user_id.js`). The round 1 attempt was removed after round 2.
 - Reserved slots on the rail (option 3 above), as its own piece of work.
+
+## Follow-up from the click-test (2026-11-20): one saved-entries request per word
+
+Click-test of #1333 on a local build (made-up account, private database): taps were one
+`POST /api/v1/words/predict` each, and the AI log showed the words came from the model. One waste
+showed up: a board that loaded with a sentence already in the bar sent
+`GET /api/v1/prediction_entries?prefix=want` five times, then one predict call.
+
+- Cause, confirmed in code: `fetch_user_entries` remembered an answer only once it arrived
+  (`_server_entry_cache`), so lookups started while the first GET was on the wire each sent their
+  own. The AI call did not repeat because #1333 already shares it.
+- Fix: lookups for the same word and language share the request that is on the wire
+  (`fetch_user_entries`, at the end of `utils/word_suggestions.js`; the old body is
+  `fetch_user_entries_unshared`, renamed in place so no baselined lint row moves). The shared entry
+  is dropped when the request settles, so a failed request is not handed to a later lookup.
+- Tests: three added to `tests/unit/utils/word-suggestions-user-entries-limit-test.js`. With the
+  fix reverted, "lookups for the same word that overlap share one saved-entries request" and "a
+  shared request that failed is not handed to a later lookup" fail.
+- Not traced: which callers run the lookup five times on a board load. The lookups still run five
+  times; only the request is shared.
+- Same limit as the caches above: the shared request is keyed by word and language, not by who is
+  signed in.
+- Lesson for tests here: `settled()` in this module takes about 2 seconds, which outlasts the
+  2 second entries limit. A test that holds a request open must not call `settled()` before
+  answering it, or the lookup gives up on the entries first.
+- Also seen in the click-test, left alone: Escape clears the sentence. That is the external
+  keyboard shortcut from CoughDrop (`utils/raw_events.js`), not part of this work.

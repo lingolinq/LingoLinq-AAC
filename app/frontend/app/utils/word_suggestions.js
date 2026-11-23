@@ -1167,7 +1167,7 @@ word_suggestions.merge_suggestions = function(localResults, aiWords, maxResults,
   return merged.slice(0, maxResults);
 };
 
-word_suggestions.fetch_user_entries = function(prefix, locale) {
+word_suggestions.fetch_user_entries_unshared = function(prefix, locale) {
   var cacheKey = (locale || 'en') + ':' + normalize_prediction_key(prefix);
   if(word_suggestions._server_entry_cache[cacheKey]) {
     return RSVP.resolve(word_suggestions._server_entry_cache[cacheKey]);
@@ -1783,6 +1783,22 @@ word_suggestions.user_entries_within_limit = function(prefix, locale) {
       resolve(entries);
     });
   });
+};
+// Lookups that overlap share one saved-entries request. fetch_user_entries_unshared remembers an
+// answer only once it ARRIVES, so lookups started while the first GET was still on the wire each
+// sent their own (a board that loads with a sentence in the bar runs the lookup several times at
+// once). The entry is dropped when the request settles, so a failed request is never handed to a
+// later lookup. Same key as _server_entry_cache.
+word_suggestions._entry_requests = {};
+word_suggestions.fetch_user_entries = function(prefix, locale) {
+  var key = (locale || 'en') + ':' + normalize_prediction_key(prefix);
+  var requests = word_suggestions._entry_requests;
+  if(requests[key]) { return requests[key]; }
+  var request = word_suggestions.fetch_user_entries_unshared(prefix, locale);
+  requests[key] = request;
+  var done = function() { if(requests[key] === request) { delete requests[key]; } };
+  request.then(done, done);
+  return request;
 };
 // Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
 import { owner_gone } from './live_service';

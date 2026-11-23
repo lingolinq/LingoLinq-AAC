@@ -102,4 +102,53 @@ module('Unit | Utility | word_suggestions user entries limit', function(hooks) {
     assert.deepEqual(words(list), ['to', 'some'], 'the rail has the AI and built-in words');
     assert.deepEqual(Object.keys(wordSuggestions._server_entry_cache), [], 'and the miss is not remembered, so the next tap asks again');
   });
+
+  /* Seen in the KAN-159 click-test: a board that loads with a sentence already in the bar runs
+     the lookup several times at once (both board controllers, several times each), and every one
+     sent its own GET for the same word, because an answer is only remembered once it ARRIVES.
+     Lookups that overlap now share the request that is already on the wire. */
+  test('lookups for the same word that overlap share one saved-entries request', async function(assert) {
+    assert.expect(3);
+    const lookups = [];
+    for(let i = 0; i < 5; i++) {
+      lookups.push(wordSuggestions.lookup_with_ai({ last_finished_word: 'want', sentence: 'i want', locale: 'en' }));
+    }
+    await waitUntil(() => this.requests.length > 0, { timeout: 1500 });
+    /* Each lookup asks for the entries synchronously, so all five have asked by now. No settled()
+       here: it would outlast the 2 second limit and the lookups would give up on the entries. */
+    assert.strictEqual(this.requests.length, 1, 'five lookups sent one request');
+
+    this.requests[0].resolve({ entries: [{ next_word: 'juice' }] });
+    const lists = await RSVP.all(lookups);
+    assert.deepEqual(lists.map(words), [1, 2, 3, 4, 5].map(() => ['to', 'some', 'juice']), 'and every one of them got the saved entry');
+    await settled();
+    assert.strictEqual(this.requests.length, 1, 'with no second request');
+  });
+
+  test('a different word, or the same word in another language, gets its own request', async function(assert) {
+    assert.expect(1);
+    wordSuggestions.lookup_with_ai({ last_finished_word: 'want', sentence: 'i want', locale: 'en' });
+    wordSuggestions.lookup_with_ai({ last_finished_word: 'like', sentence: 'i like', locale: 'en' });
+    wordSuggestions.lookup_with_ai({ last_finished_word: 'want', sentence: 'i want', locale: 'es' });
+    await waitUntil(() => this.requests.length >= 3, { timeout: 1500 }).catch(() => {});
+    assert.deepEqual(this.requests.map((d) => d.url.split('?')[1]).sort(),
+      ['prefix=like&locale=en', 'prefix=want&locale=en', 'prefix=want&locale=es'], 'one request each');
+  });
+
+  test('a shared request that failed is not handed to a later lookup', async function(assert) {
+    assert.expect(2);
+    let calls = 0;
+    patch(wordSuggestions, 'get_persistence', function() {
+      return { ajax: function() { calls++; return RSVP.reject({ error: 'timeout' }); } };
+    });
+    await RSVP.all([
+      wordSuggestions.lookup_with_ai({ last_finished_word: 'want', sentence: 'i want', locale: 'en' }),
+      wordSuggestions.lookup_with_ai({ last_finished_word: 'want', sentence: 'i want', locale: 'en' })
+    ]);
+    await settled();
+    assert.strictEqual(calls, 1, 'guard: the two overlapping lookups shared the request that failed');
+
+    await wordSuggestions.lookup_with_ai({ last_finished_word: 'want', sentence: 'i want', locale: 'en' });
+    assert.strictEqual(calls, 2, 'the next lookup asks the server again');
+  });
 });
