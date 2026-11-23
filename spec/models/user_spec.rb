@@ -3851,6 +3851,88 @@ describe User, :type => :model do
       end
     end
 
+    # Default avatars come from the app's own host (public/avatars/), not the S3 bucket
+    # (docs/task-management/2026-11-23_default-avatars-same-host.md). spec_helper sets a BARE
+    # DEFAULT_HOST ('test.host'), so a missing scheme or a bucket URL both show.
+    describe "default avatar on the app's own host" do
+      around(:each) do |example|
+        prior_bucket = ENV['STATIC_S3_BUCKET']
+        prior_hosts = JsonApi::Json.class_variable_get(:@@running_hosts) rescue {}
+        ENV['STATIC_S3_BUCKET'] = 'avatar-spec-static'
+        JsonApi::Json.class_variable_set(:@@running_hosts, {})
+        example.run
+      ensure
+        ENV['STATIC_S3_BUCKET'] = prior_bucket
+        JsonApi::Json.class_variable_set(:@@running_hosts, prior_hosts || {})
+      end
+
+      def bucket_avatar(n)
+        "https://avatar-spec-static.s3.amazonaws.com/avatars/avatar-#{n}.png"
+      end
+
+      it "builds the fallback on the default host outside a request" do
+        u = User.new
+        u.id = 199
+        u.settings = {}
+        expect(u.generated_avatar_url).to eq('https://test.host/avatars/avatar-9.png')
+        expect(u.generated_avatar_url('fallback')).to eq('https://test.host/avatars/avatar-9.png')
+        expect(u.generated_avatar_url('default')).to eq('https://test.host/avatars/avatar-9.png')
+      end
+
+      it "builds the fallback on the request's host, and never on a host that is not trusted" do
+        prior = ENV['DEFAULT_HOST']
+        ENV['DEFAULT_HOST'] = 'dev.lingolinq.com'
+        u = User.new
+        u.id = 23
+        u.settings = {}
+        JsonApi::Json.set_host('https://staging.lingolinq.com')
+        expect(u.generated_avatar_url).to eq('https://staging.lingolinq.com/avatars/avatar-3.png')
+        JsonApi::Json.set_host('https://attacker.example.com')
+        expect(u.generated_avatar_url).to eq('https://dev.lingolinq.com/avatars/avatar-3.png')
+      ensure
+        ENV['DEFAULT_HOST'] = prior
+      end
+
+      it "serves a saved bucket default avatar from the app's host, and leaves every other url alone" do
+        u = User.new
+        u.id = 5
+        u.settings = {'avatar_url' => bucket_avatar(7)}
+        expect(u.generated_avatar_url).to eq('https://test.host/avatars/avatar-7.png')
+        [
+          'https://lingolinq-usercontent.s3.amazonaws.com/avatars/avatar-7.png/x.png',
+          'https://avatar-spec-static.s3.amazonaws.com/avatars/avatar-10.png',
+          'https://avatar-spec-static.s3.amazonaws.com/uploads/avatar-7.png',
+          'https://example.com/avatars/avatar-7.png',
+          'https://avatar-spec-static.s3.amazonaws.com.example.com/avatars/avatar-7.png',
+          'http://www.example.com/pic.png'
+        ].each do |url|
+          u.settings['avatar_url'] = url
+          expect(u.generated_avatar_url).to eq(url)
+        end
+      end
+
+      it "gives a contact added without a picture an avatar on the app's host, and maps a saved bucket one" do
+        u = User.create
+        u.process({'offline_actions' => [{'action' => 'add_contact', 'value' => {'contact' => 'bob@example.com', 'name' => 'Bob'}}]})
+        contact = u.reload.settings['contacts'].detect { |c| c['name'] == 'Bob' }
+        expect(contact['image_url']).to match(%r{\Ahttps://test\.host/avatars/avatar-\d\.png\z})
+
+        contact['image_url'] = bucket_avatar(4)
+        u.save
+        json = JsonApi::User.build_json(u.reload, permissions: u)
+        expect(json['contacts'].detect { |c| c['name'] == 'Bob' }['image_url']).to eq('https://test.host/avatars/avatar-4.png')
+        expect(u.settings['contacts'].detect { |c| c['name'] == 'Bob' }['image_url']).to eq(bucket_avatar(4)) # stored value untouched
+      end
+
+      it "gives the Unknown User modifier of a version the avatar on the app's host" do
+        User.create
+        PaperTrail.request.whodunnit = 'something'
+        User.create
+        json = JsonApi::UserVersion.build_json(PaperTrail::Version.last)
+        expect(json['modifier']['image']).to eq('https://test.host/avatars/avatar-0.png')
+      end
+    end
+
 #   def prior_avatar_urls
 #     res = self.settings && self.settings['prior_avatar_urls']
 #     current = generated_avatar_url
