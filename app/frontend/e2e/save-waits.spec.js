@@ -152,13 +152,19 @@ async function pickSound(page) {
 
 // Drops a picture file onto the button, as a drag from the desktop does: the document's drop
 // listener (services/content-grabbers.js) uploads it and applies it with no settings dialog.
+// The button is looked up and the drop fired in one synchronous step: Basic redraws its buttons
+// just after entering edit mode, and a drop fired on a button element that redraw replaced is
+// on a node off the page, so it never bubbles to the document listener (seen as an intermittent
+// "no upload started" in 2026-11-22 runs, each with the target element disconnected).
 async function dropPicture(page, view, id) {
-  await page.locator(view.button(id)).evaluate((el, b64) => {
+  await page.locator(view.button(id)).waitFor();
+  await page.evaluate(([selector, b64]) => {
+    const el = document.querySelector(selector);
     const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
     const dataTransfer = new DataTransfer();
     dataTransfer.items.add(new File([bytes], 'test-picture.png', { type: 'image/png' }));
     el.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }));
-  }, PNG.toString('base64'));
+  }, [view.button(id), PNG.toString('base64')]);
 }
 
 // Starts an upload that is held at the bucket, then presses Save: the moment the change is about.
