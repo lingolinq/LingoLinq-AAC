@@ -8,6 +8,16 @@ module Passwords
   MIN_PASSWORD_LENGTH = 8
   HASHED_PASSWORD = /\Ahashed\?:\#/.freeze
 
+  # Environment labels where admin 2FA is optional. Production, dev and staging all run
+  # RAILS_ENV=production; SENTRY_ENVIRONMENT tells them apart (.github/workflows/deploy-cloudrun.yml
+  # requires it for the web service, worker pool and scheduler). A missing label counts as production.
+  ADMIN_2FA_OPTIONAL_ENVIRONMENTS = %w[dev staging].freeze
+
+  # Whether accounts that pass User#admin? must use 2FA (state_2fa).
+  def self.mandatory_admin_2fa_environment?
+    Rails.env.production? && !ADMIN_2FA_OPTIONAL_ENVIRONMENTS.include?(ENV['SENTRY_ENVIRONMENT'])
+  end
+
   def password_meets_minimum?(password)
     return true if password.blank?
     # Client-supplied prehashes cannot prove the original password met
@@ -77,6 +87,23 @@ module Passwords
       self.settings.delete('tmp_2fa')
     end
     self.save!
+    refresh_device_sign_ins! unless temp
+    true
+  end
+
+  # Called when the account starts requiring 2FA. Revokes the tokens of every device that has never
+  # entered a code (Device#predates_2fa?), and drops the cached token checks of the others so each is
+  # checked again on its next request. `keep` is the device the code was just entered on.
+  def refresh_device_sign_ins!(keep: nil)
+    return unless self.id
+    Device.where(user_id: self.id).find_each do |device|
+      next if keep && device.id == keep.id
+      if device.predates_2fa?
+        device.revoke_all_tokens!
+      else
+        device.invalidate_cached_keys
+      end
+    end
   end
 
   def random_2fa
@@ -92,12 +119,11 @@ module Passwords
         self.save
       end
     end
-    # TODO: Re-enable before production. Admin managers should have mandatory 2FA in production/staging.
-    # if (Rails.env.production? || ENV['RAILS_ENV'] == 'staging') && Organization.admin_manager?(self)
-    #   state[:required] = true
-    #   state[:mandatory] = true
-    #   self.assert_2fa! if !self.settings['2fa'] && !self.settings['tmp_2fa']
-    # end
+    if Passwords.mandatory_admin_2fa_environment? && self.admin?
+      state[:required] = true
+      state[:mandatory] = true
+      self.assert_2fa! if !self.settings['2fa'] && !self.settings['tmp_2fa']
+    end
     if state[:required]
       state[:verified] = !!(self.settings['2fa'] || {})['last_otp']
     end
@@ -139,7 +165,7 @@ module Passwords
         'secret' => tmp_secret,
         'last_otp' => ts
       }
-      self.save
+      self.save ? ts : false
     elsif ts && ts > last_otp
       self.settings.delete('tmp_2fa')
       self.settings['2fa']['last_otp'] = ts

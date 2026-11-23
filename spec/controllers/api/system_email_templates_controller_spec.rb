@@ -344,4 +344,14 @@ describe Api::SystemEmailTemplatesController, type: :controller do
       end
     end
   end
+
+  describe 'admin sign-in' do
+    LimitedSignInHelpers::KINDS.each do |kind, wording|
+      it "refuses a preview for an admin whose sign-in #{wording}" do
+        limited_admin_token(kind)
+        post :preview, params: {id: 'user_mailer.confirm_registration', org_id: 'default', template: {html_body: 'Hello'}}
+        assert_error 'Not authorized', 403
+      end
+    end
+  end
 end

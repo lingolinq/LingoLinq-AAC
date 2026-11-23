@@ -1214,7 +1214,7 @@ word_suggestions.lookup_with_ai = function(options) {
     ai_word_predictor.predict(sentence, { locale: locale, count: maxResults, appState: appState }) :
     RSVP.resolve([]);
   var serverPromise = options.last_finished_word ?
-    word_suggestions.fetch_user_entries(options.last_finished_word, locale) :
+    word_suggestions.user_entries_within_limit(options.last_finished_word, locale) :
     RSVP.resolve([]);
 
   return RSVP.all([localPromise, aiPromise, serverPromise]).then(function(results) {
@@ -1771,5 +1771,18 @@ word_suggestions.sync_flush_scheduled = function() { return !!_sync_timer; };
 // runCancel would be a new ember/no-runloop finding. A later test whose settled() runs within the
 // delay waits for it (up to sync_flush_delay, 5 s by default); none of the callers awaits settled().
 word_suggestions.cancel_sync_flush = function() { var had = !!_sync_timer; _sync_gen++; _sync_timer = null; return had; };
+// The rail WAITS at most this long for the communicator's saved entries (lookup_with_ai). The
+// request itself is not cut short: fetch_user_entries remembers an answer whenever it arrives, so
+// a late one is there for the next tap on that word. Overridable so tests need not wait 2 s.
+word_suggestions.user_entries_wait_ms = 2000;
+word_suggestions.user_entries_within_limit = function(prefix, locale) {
+  return new RSVP.Promise(function(resolve) {
+    var timer = setTimeout(function() { resolve([]); }, word_suggestions.user_entries_wait_ms);
+    word_suggestions.fetch_user_entries(prefix, locale).then(function(entries) {
+      clearTimeout(timer);
+      resolve(entries);
+    });
+  });
+};
 // Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
 import { owner_gone } from './live_service';

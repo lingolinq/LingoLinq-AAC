@@ -12,6 +12,7 @@ import {
 } from 'frontend/tests/helpers/jasmine';
 import { fake_dbman, queryLog } from 'frontend/tests/helpers/ember_helper';
 import RSVP from 'rsvp';
+import { cancel_pending_media, has_live_media, reset_pending_media } from '../../utils/pending_media';
 import contentGrabbers from '../../utils/content_grabbers';
 import LingoLinq from '../../app';
 import EmberObject from '@ember/object';
@@ -980,6 +981,30 @@ describe("contentGrabbers", function() {
         expect(document.querySelector('.ll-drop-uploading')).toEqual(null);
         expect(errors).toEqual(['Upload failed']);
         el.remove();
+      });
+    });
+    it("holds Save while the dropped image uploads, and does not apply it once cancelled", function() {
+      var el = makeButton();
+      var finish = null, changed = null;
+      stub(pictureGrabber, 'save_image_preview', function() {
+        return new RSVP.Promise(function(resolve) { finish = function() { resolve(EmberObject.create({ id: 'img1', url: 'http://x/img.png' })); }; });
+      });
+      stub(editManager, 'change_button', function(id, attrs) { changed = [id, attrs.image_id]; });
+      var done = false;
+      contentGrabbers.apply_dropped_image_to_button('drop-btn', { url: 'http://x/img.png' }).then(function() { done = true; });
+      waitsFor(function() { return finish; });
+      runs(function() {
+        expect(has_live_media()).toEqual(true);
+        cancel_pending_media();
+        finish();
+      });
+      waitsFor(function() { return done; });
+      runs(function() {
+        expect(changed).toEqual(null);
+        expect(has_live_media()).toEqual(false);
+        expect(document.querySelector('.ll-drop-uploading')).toEqual(null);
+        el.remove();
+        reset_pending_media();
       });
     });
   });

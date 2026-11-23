@@ -9796,5 +9796,11 @@
   "sync_saved_before_stopped": "Zapisano przed zatrzymaniem synchronizacji [[ Saved before the sync stopped",
   "sync_nothing_saved_before_stopped": "Przed zatrzymaniem synchronizacji nic nie zostało zapisane [[ Nothing was saved before the sync stopped",
   "sync_drawer_saved_none": "Na tym urządzeniu nie zapisano jeszcze żadnych tablic. [[ No boards are saved on this device yet.",
-  "device_boards_note_online": "*** These boards are saved on this device."
+  "device_boards_note_online": "*** These boards are saved on this device.",
+  "save_waiting_failed": "*** A picture or recording did not upload, so the board was not saved.",
+  "save_waiting_title": "*** Saving when uploads finish",
+  "save_waiting_message": "*** Your board will save as soon as your picture or recording finishes uploading.",
+  "save_waiting_slow": "*** This is taking longer than usual.",
+  "back_to_editing": "*** Back to editing",
+  "save_without_it": "*** Save without it"
 }

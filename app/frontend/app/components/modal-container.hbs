@@ -164,6 +164,8 @@
     <ConfirmDeleteBoard />
   {{else if (is-equal this.currentTemplate "confirm-discard-changes")}}
     <ConfirmDiscardChanges />
+  {{else if (is-equal this.currentTemplate "save-waiting")}}
+    <SaveWaiting />
   {{else if (is-equal this.currentTemplate "confirm-leave-edit")}}
     <ConfirmLeaveEdit />
   {{else if (is-equal this.currentTemplate "confirm-recolor-board")}}
