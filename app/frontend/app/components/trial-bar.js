@@ -9,6 +9,7 @@ import { saveHomeBoard } from '../utils/home_board';
 import { basic_try_for, clear_basic_try, after_pick_for_other } from '../utils/board_picker_landing';
 import { preload_board_images } from '../utils/board_preview_warmer';
 import { same_person } from '../utils/backend_user_id';
+import { picker_return_args } from '../utils/board_picker_trials';
 
 /**
  * THE TRIAL BAR (2026-10-12). Requested: "Trying a board shows a trial bar, and 'Use this board' opens
@@ -192,8 +193,9 @@ export default Component.extend({
 
   exit: action(function() {
     if(typeof this.get('onExit') === 'function') { return this.get('onExit')(); }
+    var back = picker_return_args(this.get('trial'), this.get('appState')); // read before the trial ends: for whom it was
     this._endTrial();
     this.get('appState').set('board_picker_restore', true); // the picker returns to its place (components/board-picker.js)
-    this.get('router').transitionTo('board-picker');
+    var router = this.get('router'); router.transitionTo.apply(router, back);
   })
 });

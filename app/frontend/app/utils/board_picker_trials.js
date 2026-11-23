@@ -1,3 +1,5 @@
+import { same_person } from './backend_user_id';
+
 /**
  * THE BOARD PICKER REMEMBERS TRIALS (2026-10-13; tablet report: "Back loses your place", and requested: "Try
  * another returns to the same spot in the picker, with 'Recently tried' chips").
@@ -25,4 +27,17 @@ export function remember_trial(appState, board, scroller) {
     category: appState.get('board_picker_category') || null,
     scrollTop: scroller ? Math.round(scroller.scrollTop || 0) : 0
   });
+}
+
+/* "TRY ANOTHER" RETURNS TO THE PICKER FOR THE SAME PERSON (2026-11-20). The picker's supervisor flow keys off its
+   `user_id` query param (controllers/board-picker.js), and its route clears that param when the picker is left
+   (routes/board-picker.js resetController), so an SLP's trial for a communicator came back to the SLP's OWN
+   picker (measured live on develop). The trial's marker records who it is for (`user_id`: Modern's
+   board_detail_try_origin, Basic's basic_try_home). The router.transitionTo arguments: the picker for that person
+   when it is someone else, the plain picker otherwise, as before. "Someone else" is the trial bar's own test
+   (components/trial-bar.js#forUserName). */
+export function picker_return_args(trial, appState) {
+  var id = trial && trial.user_id;
+  if (!id || !appState || same_person(id, appState.get('currentUser'), appState.get('sessionUser'))) { return ['board-picker']; }
+  return ['board-picker', { queryParams: { user_id: id } }];
 }

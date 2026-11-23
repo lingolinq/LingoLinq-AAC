@@ -258,12 +258,12 @@ const BoardDetailController = Controller.extend(prefClasses, {
   try_origin_board: computed(
     'app_state.board_detail_try_origin',
     'user.user_name',
-    'boardname', 'app_state.board_detail_nav_history.[]',
+    'boardname', 'app_state.board_detail_nav_history.[]', 'app_state.board_detail_trial_boards',
     function() {
       var origin = this.get('app_state.board_detail_try_origin');
       if(!origin || !origin.key) { return null; }
       var here = (this.get('user.user_name') || '') + '/' + (this.get('boardname') || '');
-      return trial_includes(origin, here, this.get('app_state.board_detail_nav_history')) ? origin : null;
+      return trial_includes(origin, here, this.get('app_state.board_detail_nav_history'), this.get('app_state.board_detail_trial_boards')) ? origin : null;
     }
   ),
   show_try_back_nav: computed('try_origin_board', function() {
@@ -7526,7 +7526,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
        Clears the marker first: the button is gone the moment it is used, and the
        picker route re-arms its own state on entry. */
     try_back_to_picker: function() {
-      var _this = this; var go = function() { _this.set('app_state.board_detail_try_origin', null); _this.set('app_state.board_picker_restore', true); _this.get('router').transitionTo('board-picker'); }; // the picker returns to its place (components/board-picker.js)
+      var _this = this; var back = picker_return_args(this.get('app_state.board_detail_try_origin'), this.get('app_state')); var go = function() { _this.set('app_state.board_detail_try_origin', null); _this.set('app_state.board_picker_restore', true); var router = _this.get('router'); router.transitionTo.apply(router, back); }; // the picker returns to its place (components/board-picker.js), for the person the trial was for (utils/board_picker_trials.js#picker_return_args)
       this.set('show_options_menu', false); var pin = this.get('app_state.open_speak_mode_exit_pin');
       if(typeof pin !== 'function') { go(); } else { RSVP.resolve(pin.call(this.get('app_state'), 'none')).then(function(res) { if(res && res.correct_pin) { go(); } }); } // the Speak Mode PIN when set, as Close asks (exit_to_home) (2026-10-13)
     },
@@ -10441,17 +10441,35 @@ const BoardDetailController = Controller.extend(prefClasses, {
 // Imported last so the .eslint-todo rows above keep their lines.
 import { maybe_offer_tour } from '../../utils/tours/tour_offer';
 import { board_saved_here, usable_copy, warn_board_not_saved } from '../../utils/board_device_copy';
+import { picker_return_args } from '../../utils/board_picker_trials';
 
 /* A TRIAL LASTS THROUGH THE TRIED BOARD'S FOLDERS (2026-10-13, see `try_origin_board` above). True on the
    tried board itself, and on any board whose trail (`board_detail_nav_history`, the boards navigated FROM)
-   includes it. */
-function trial_includes(origin, here, history) {
+   includes it, or that the trial has already reached (`reached`, board_detail_trial_boards: Home starts the trail
+   again, so after Home the device back gesture returned to a folder with no trail; 2026-11-20). */
+function trial_includes(origin, here, history, reached) {
   if(!origin || !origin.key) { return false; }
   if(origin.key === here) { return true; }
+  if(reached && reached.key === origin.key && (reached.boards || []).indexOf(here) !== -1) { return true; }
   return (history || []).some(function(h) { return h && (h.user_name + '/' + h.boardname) === origin.key; });
 }
 
 BoardDetailController.reopen({
+  /* THE BOARDS A TRIAL HAS REACHED (2026-11-20). Measured live on develop: try a board, open a folder, Home, then the
+     device back gesture: the folder came back without the trial bar, because Home starts the trail again
+     (`_trial_home`) and the trail was the only record that the folder belonged to the trial. Each board shown while
+     it is part of the trial is recorded here, for that tried board only (`key`), and `trial_includes` accepts it.
+     Cleared when a trial starts (components/board-preview-overlay.js#try_board) and with the user's other state
+     (services/app-state.js#clear_user_state). Sync, so the board is recorded before anything reads the trial. */
+  _recordTrialBoard: observer({ dependentKeys: ['app_state.board_detail_try_origin', 'user.user_name', 'boardname', 'app_state.board_detail_nav_history.[]'], sync: true, fn: function() {
+    var origin = this.get('try_origin_board');
+    if(!origin || !origin.key) { return; }
+    var here = (this.get('user.user_name') || '') + '/' + (this.get('boardname') || '');
+    var reached = this.get('app_state.board_detail_trial_boards');
+    var boards = (reached && reached.key === origin.key) ? (reached.boards || []) : [];
+    if(boards.indexOf(here) !== -1) { return; }
+    this.set('app_state.board_detail_trial_boards', { key: origin.key, boards: boards.concat([here]).slice(-50) });
+  } }),
   // Home during a trial goes to the tried board's main page, not the user's own home board, and the trail
   // starts again there. Returns true when it handled Home. Board lock is checked first, as go_home does.
   // Also while a home board chosen with the trial bar's "Use this board" is still being copied
