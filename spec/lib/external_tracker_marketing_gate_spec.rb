@@ -170,7 +170,7 @@ describe 'HubSpot: only adult supporter accounts are sent (#1123)' do
   # Scot, 2026-11-23: adult AAC users who registered themselves get the same HubSpot
   # emails as adult supporters, under the same checks.
   describe 'adult communicator accounts' do
-    it 'schedules and sends an adult communicator, as account type "Communicator Account"' do
+    it 'schedules and sends an adult communicator, under the neutral account type "Personal Account"' do
       u = adult_supporter('communicator')
       expect(u.supporter_registration?).to eq(false)
       ENV['HUBSPOT_ACCESS_TOKEN'] = 'hubby'
@@ -179,7 +179,7 @@ describe 'HubSpot: only adult supporter accounts are sent (#1123)' do
       sent = nil
       expect(Typhoeus).to receive(:post) { |_url, opts| sent = JSON.parse(opts[:body]); OpenStruct.new(code: '201') }
       expect(ExternalTracker.persist_new_user(u.global_id)).to eq('201')
-      expect(sent['properties']).to include({ 'property' => 'account_type', 'value' => 'Communicator Account' })
+      expect(sent['properties']).to include({ 'property' => 'account_type', 'value' => 'Personal Account' })
     end
 
     it 'does not send a communicator who was under 18 at signup, or whose age was never recorded' do

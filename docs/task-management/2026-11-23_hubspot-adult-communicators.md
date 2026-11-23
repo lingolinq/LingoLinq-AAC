@@ -112,3 +112,35 @@ Tests: adult communicator is trackable, scheduled and sent; communicator under 1
 age, with any child-consent record, or under 16 is not; a real signup through `User.process_new`
 with a communicator type records the marker. Mutation that must make them fail: remove
 `communicator` from the allowlist.
+
+## Decisions after review round 1 (Scot, 2026-11-23)
+
+- **Privacy notice:** Scot asked for the recommended wording. `privacy_guarantee_separation` keeps
+  every existing sentence and adds: an adult (18 or over) who creates their own account is their own
+  Account Administrator, so we may send them a few welcome emails with resources for getting started,
+  and they can unsubscribe from these at any time. `privacy_sharing_support` changes "(Admin only)" to
+  "(Account Administrators only, including adults who manage their own account)". English in
+  `privacy.hbs` and `en.json`; every other locale gets the `*** ` untranslated marker with the English
+  text, as in `8fe425284`. "Last Updated" moves to November 23, 2026 and `User::PRIVACY_POLICY_VERSION`
+  to `2026-11-23` (kept in sync by `spec/templates/signup_consent_contract_spec.rb`). The constant is
+  only written into new consent records; nothing compares it, so no one is asked to re-accept.
+  `app/views/shared/_privacy.html.erb` is a dead partial (its own header comment) and is not edited.
+- **HubSpot label:** communicators are sent as `account_type` "Personal Account", not "Communicator
+  Account", so the contact record does not say the person uses AAC. Any distinct value still lets
+  HubSpot enroll and branch workflows on it.
+
+## Research for Scot's EU email question (sources read 2026-11-23)
+
+- ICO: routine customer service messages are not direct marketing; a message that mixes in promotion
+  is treated as marketing. https://ico.org.uk/for-organisations/direct-marketing-and-privacy-and-electronic-communications/guide-to-pecr/electronic-and-telephone-marketing/
+  and https://ico.org.uk/for-organisations/advice-for-small-organisations/direct-marketing-and-data-protection/marketing-and-data-protection-in-detail/
+- Soft opt-in for marketing: details collected in a sale or negotiation, own similar products, and a
+  simple opt-out offered at collection and in every message (summary of ICO guidance:
+  https://www.pritchettslaw.com/our-insights/UK-Direct-Marketing-Law-2026-DUAA-PECR-ICO).
+- CJEU C-184/20: data that indirectly reveals a special category (health included) is Article 9 data.
+  https://www.insideprivacy.com/eu-data-protection/special-category-data-by-inference-cjeu-significantly-expands-the-scope-of-article-9-gdpr/
+- HubSpot workflows branch on contact property values: https://knowledge.hubspot.com/workflows/use-if-then-branches-in-workflows
+  Sensitive Data properties are Enterprise-only: https://developers.hubspot.com/docs/api-reference/latest/crm/properties/sensitive-data
+- Found while checking: the signup box that gates the HubSpot send ("Help improve LingoLinq by sharing
+  usage, performance, and anonymized troubleshooting data.", key `product_improvement_opt_in`) does not
+  mention email. Pre-existing for supporters; a separate email choice is a follow-up for Scot and counsel (#385).

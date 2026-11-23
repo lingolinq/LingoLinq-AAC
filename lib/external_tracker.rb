@@ -56,6 +56,11 @@ module ExternalTracker
       else
         acct = 'Therapist'
       end
+    elsif user.registration_type == 'communicator'
+      # An adult AAC user who registered themselves. A neutral label, so the contact
+      # record does not say the person uses AAC; it still lets HubSpot send this
+      # group its own emails (Scot, 2026-11-23).
+      acct = 'Personal Account'
     elsif user.registration_type == 'other'
       acct = 'Communicator other'
     elsif user.registration_type == 'manually-added-org-user'
