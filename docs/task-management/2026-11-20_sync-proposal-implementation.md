@@ -491,3 +491,7 @@ removal, so the gap stays.
 - `spec/lib/uploader_spec.rb`: the guard accepts `<own key>.raster.png` and rejects `x/y.raster.png`,
   `<own key>.raster.png.extra` and `<own key>.raster.jpg`. The retry drops a derived key whose base is in use.
   - Mutation: loosen the grammar, and remove the base in-use check.
+- 2.1 prerequisite check (2026-11-23): local ImageMagick 6.9.12 reads and writes WEBP (libwebp 1.3.2), and
+  `config/imagemagick/policy.xml` is a denylist that does not name WEBP (CONFIRMED). Production's image installs
+  Debian's `imagemagick` (`Dockerfile:28-38`); WebP there is ASSUMED until `convert -list format` is run in the built
+  image (a Dockerfile build check is infra, Scot's).
