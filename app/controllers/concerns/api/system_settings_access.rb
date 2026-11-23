@@ -13,8 +13,7 @@ module Api::SystemSettingsAccess
 
   def require_system_settings_access
     actor = system_settings_actor
-    return if actor&.admin?
-    return if admin_support_actions_allowed?(actor)
+    return if admin_sign_in?(actor)
 
     api_error 403, {error: 'Not authorized'}
   end
