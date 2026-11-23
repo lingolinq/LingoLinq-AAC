@@ -2265,13 +2265,22 @@ describe User, :type => :model do
     end
 
     describe "valet login on admin and manager accounts" do
-      def expect_valet_refused(u)
+      # The save goes through without turning valet on: the client keeps unsaved fields after a
+      # failed save, so refusing would make every later save of the record fail too.
+      def expect_valet_not_enabled(u)
         expect(u.settings['valet_password']).to eq(nil)
-        expect(u.process({'valet_login' => true, 'valet_password' => 'gemini12'}, {'updater' => u})).to eq(false)
-        expect(u.processing_errors).to eq(["valet login is not available for admin or manager accounts"])
+        expect(u.process({'valet_login' => true, 'valet_password' => 'gemini12', 'preferences' => {'speak_mode_pin' => '1234'}}, {'updater' => u})).to_not eq(false)
+        expect(u.processing_errors).to eq([])
         u.reload
         expect(u.settings['valet_password']).to eq(nil)
-        # A save that sends valet_login without a new password turns nothing on and is not an error.
+        expect(u.settings['preferences']['speak_mode_pin']).to eq('1234')
+        # The same fields sent again on a later save.
+        expect(u.process({'valet_login' => true, 'valet_password' => 'gemini12', 'preferences' => {'speak_mode_pin' => '5678'}}, {'updater' => u})).to_not eq(false)
+        expect(u.processing_errors).to eq([])
+        u.reload
+        expect(u.settings['valet_password']).to eq(nil)
+        expect(u.settings['preferences']['speak_mode_pin']).to eq('5678')
+        # A save that sends valet_login without a new password turns nothing on either.
         expect(u.process({'valet_login' => true}, {'updater' => u})).to_not eq(false)
         expect(u.processing_errors).to eq([])
         u.reload
@@ -2282,7 +2291,7 @@ describe User, :type => :model do
         u = User.create
         u.settings['admin'] = true
         u.save
-        expect_valet_refused(u)
+        expect_valet_not_enabled(u)
       end
 
       it "should not enable valet login for a manager of the admin organization" do
@@ -2290,7 +2299,7 @@ describe User, :type => :model do
         u = User.create
         o.add_manager(u.user_name, true)
         u.reload
-        expect_valet_refused(u)
+        expect_valet_not_enabled(u)
       end
 
       it "should not enable valet login for an organization manager" do
@@ -2298,7 +2307,7 @@ describe User, :type => :model do
         u = User.create
         o.add_manager(u.user_name, true)
         u.reload
-        expect_valet_refused(u)
+        expect_valet_not_enabled(u)
       end
 
       it "should not enable valet login for an organization assistant" do
@@ -2306,7 +2315,7 @@ describe User, :type => :model do
         u = User.create
         o.add_manager(u.user_name, false)
         u.reload
-        expect_valet_refused(u)
+        expect_valet_not_enabled(u)
       end
 
       it "should clear an existing valet password on an ordinary save once the account is a manager" do
@@ -2317,6 +2326,19 @@ describe User, :type => :model do
         o.add_manager(u.user_name, true)
         u.reload
         expect(u.process({'valet_login' => true}, {'updater' => u})).to_not eq(false)
+        expect(u.processing_errors).to eq([])
+        u.reload
+        expect(u.settings['valet_password']).to eq(nil)
+      end
+
+      it "should clear an existing valet password when a manager sends a new one" do
+        o = Organization.create
+        u = User.create
+        u.process({'valet_login' => true, 'valet_password' => 'gemini12'}, {'updater' => u})
+        expect(u.settings['valet_password']).to_not eq(nil)
+        o.add_manager(u.user_name, true)
+        u.reload
+        expect(u.process({'valet_login' => true, 'valet_password' => 'taurus34'}, {'updater' => u})).to_not eq(false)
         expect(u.processing_errors).to eq([])
         u.reload
         expect(u.settings['valet_password']).to eq(nil)
