@@ -368,3 +368,69 @@ No Critical or High. Each finding checked; all accepted. The revised design:
   assertion in `e2e/sync.spec.js`, more strictly (it also checks the "N of N saved" line), so this branch's version
   (7fffb63d8 above) was dropped in the rebase and the spec is develop's. Also on develop now: #1352 (run the i18n
   generator and translate sync strings), the procedure for this item's new strings.
+
+## Server halves of 2.1-2.3 and 3.1-3.2: fact sheets (2026-11-23)
+
+Three read-only investigations in parallel (subagents); every load-bearing claim below re-checked by hand at the cited
+lines.
+
+### Erasure (12.3 helper, 2.3)
+- `Uploader.remote_remove` deletes exactly one key and refuses anything not shaped `\w+/.+/\w+-\w+(\.\w+)?$` (one
+  extension after `<gid>-<sha>`), `extras...`, or a transcode exception (CONFIRMED `lib/uploader.rb:614-620`). So
+  `<key>.png.raster.png` and a future `<key>.r<size>.webp` would be refused ("scary delete").
+- `.raster.png` siblings are written for SVG uploads (`uploadable.rb:188-206, 306-326`) and **never deleted**: nothing
+  passes a raster key to `remote_remove` (CONFIRMED, grep). **An existing erasure gap**: deleting an SVG picture leaves
+  its PNG copy in the uploads bucket. Folded into the erasure helper.
+- A picture's file is removed after its row is destroyed only when no other row of the same class has the same `url`
+  (CONFIRMED `uploadable.rb:144-152`); the retry path checks three classes (`uploader.rb:86-111`). Neither counts board
+  copies, which share the original's picture ids (the cloner copies `settings['buttons']` verbatim,
+  `board_cloner.rb:99`; no new ButtonImage rows).
+- Account deletion (`Flusher.flush_user_content`, `lib/flusher.rb:419-483`) deletes the person's ButtonSounds and
+  UserVideos by `user_id`, but ButtonImages only through `flush_board_by_db_id`'s walk of BoardButtonImage rows
+  (`:255-275`), which `map_images` no longer writes (`board.rb:1717` commented out). CONFIRMED. So most pictures
+  survive an account deletion; and the aggressive board flush can destroy pictures that copies still use (the code's
+  own comment, `:256-259`). `transfer_user_content` already moves picture rows to another owner with `update_all`
+  (`:367-369`), a model for the hand-over policy.
+- Specs: uploader (`remote_remove` guard and deletes), button image destroy schedules a removal, flusher board flush;
+  nothing for rasters, nothing for pictures surviving an account deletion.
+
+### One permission rule (12.3, 3.1, 3.2)
+- `users#board_revisions` (`users_controller.rb:767-826`): the rule is line 803 (public and not shallow; own; shallow
+  clone by `allows?`; otherwise `board_viewable_now?`, current shares through `BoardRevisionsAccess`), on a 6-column
+  select, read-only, with query-count specs. CONFIRMED.
+- **Plan correction:** `disclosed_ids` is a local in the controller (`:780-786`), judged against the caller; only
+  `linked_from` and `viewable?` are in `app/services/board_revisions_access.rb`. CONFIRMED.
+- **Plan correction:** the lag is not the 30-minute permission cache (share changes touch `updated_at` through
+  `UserLink#touch_connections`, `user_link.rb:22-41`, which changes the cache key) but `available_private_board_ids`,
+  reused while under 60 minutes old (`board_caching.rb:51`) and read by `can_view?` (`:269`). CONFIRMED.
+- `users#boards` (`:852-865`) keeps `b.allows?(user, 'view')` (`:860`), so after an unshare it can still send the board
+  for up to an hour while `board_revisions` already lists it as revoked. **A live inconsistency** between the two
+  endpoints one sync uses. Its specs (`users_controller_spec.rb:5371-5427`) cover no share, unshare, stale list,
+  supervisee or public case.
+- Risks: two response shapes (flat map or revisions+revoked; an array of full board JSON scoped to the caller); the
+  narrowed select; must stay read-only (`store: false`, no locks); comments at `:820-821, 845-846` keep line counts for
+  citations.
+
+### Picture hashes and urls (2.2, 2.1)
+- `button_images.file_hash` (`db/schema.rb:243`, no index since 2022) has no reader or writer anywhere (CONFIRMED,
+  `git grep`). Values unknown (the database was not read); treated as untrusted per the plan.
+- The served url differs from `ButtonImage.url` in at least nine ways (`best_url` CDN rewrite and lessonpix cached
+  copy, symbol-set alternates, protected-image token, protected fallback, data or errored url, skin-capable url,
+  alternate keys, lite mode, stale stored `image_urls`); and the client applies skins itself (`Board.skinned_url`,
+  `models/board.js:2122-2160`), keying each device row by the personalised url. CONFIRMED (subagent, spot-checked).
+  So a hash may only be sent when the served url is the row's own uploaded file.
+- Upload keys are `images/<id digits>/<gid>-<sha512>.<ext>` in the uploads bucket (CONFIRMED `uploadable.rb:58-82`).
+  No hash or ETag is stored at upload; the server holds the bytes at both upload paths (`uploadable.rb:265-288`,
+  `:560-584`), so a hash at upload is cheap.
+- The queue ceiling exists (`RedisInit.any_queue_pressure?`, `config/initializers/resque.rb:203-212`); no
+  self-rescheduling ButtonImage batch job exists yet (closest: `retry_failed_uploads`, hourly, capped).
+
+### Order for these items (by dependency and by what can land without outside sign-off)
+1. The erasure helper: one place that deletes an upload and its own siblings (rasters now, renditions later), and
+   the guard that allows exactly those suffixes. Closes the raster gap. No policy needed.
+2. 3.2's rule for `users#boards`: the same current-share rule as `board_revisions`, so the two endpoints agree. Dual
+   review (another user's data).
+3. 2.2 server: hash at upload, a batch job for existing pictures, the hash in authenticated board JSON for own files.
+4. 2.1 server: renditions (after checking ImageMagick's WebP support under #1300's policy).
+5. 2.3: account deletion with the hand-over policy (built here; merges only with Scot's and legal's OK).
+6. 3.1: the manifest endpoint, on 3.2's rule.
