@@ -334,6 +334,25 @@ describe ApplicationController, :type => :controller do
         expect(assigns[:api_user]).to eq(@operator)
       end
 
+      it "refuses a site-admin masquerade through X-As-User-Id from a sign-in that has not entered its code" do
+        o = Organization.create(:admin => true)
+        @operator = User.create
+        u2 = User.create
+        o.add_manager(@operator.user_name, true)
+        @operator.reload
+        @operator.assert_2fa!
+        d = Device.create(:user => @operator, :settings => {'2fa' => {'pending' => true}})
+        request.headers['Authorization'] = "Bearer #{d.tokens[0]}"
+        request.headers['X-As-User-Id'] = u2.global_id
+
+        expect {
+          get :index, params: {:check_token => true}
+        }.not_to change { AuditEvent.where(user_key: @operator.global_id).count }
+        assert_error("Invalid masquerade attempt", 400)
+        expect(assigns[:true_user]).to eq(nil)
+        expect(assigns[:api_user]).to eq(@operator)
+      end
+
       it "refuses a site-admin masquerade from a developer key sign-in" do
         o = Organization.create(:admin => true)
         @operator = User.create
