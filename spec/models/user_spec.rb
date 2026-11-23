@@ -3852,17 +3852,21 @@ describe User, :type => :model do
     end
 
     # Default avatars come from the app's own host (public/avatars/), not the S3 bucket
-    # (docs/task-management/2026-11-23_default-avatars-same-host.md). spec_helper sets a BARE
-    # DEFAULT_HOST ('test.host'), so a missing scheme or a bucket URL both show.
+    # (docs/task-management/2026-11-23_default-avatars-same-host.md). DEFAULT_HOST is pinned to a
+    # BARE host here: the environment's value varies (a local .env can set "localhost:3000"
+    # before spec_helper's `||=`), and a bare host shows a missing scheme as well as a bucket URL.
     describe "default avatar on the app's own host" do
       around(:each) do |example|
         prior_bucket = ENV['STATIC_S3_BUCKET']
+        prior_host = ENV['DEFAULT_HOST']
         prior_hosts = JsonApi::Json.class_variable_get(:@@running_hosts) rescue {}
         ENV['STATIC_S3_BUCKET'] = 'avatar-spec-static'
+        ENV['DEFAULT_HOST'] = 'test.host'
         JsonApi::Json.class_variable_set(:@@running_hosts, {})
         example.run
       ensure
         ENV['STATIC_S3_BUCKET'] = prior_bucket
+        ENV['DEFAULT_HOST'] = prior_host
         JsonApi::Json.class_variable_set(:@@running_hosts, prior_hosts || {})
       end
 
@@ -3922,6 +3926,51 @@ describe User, :type => :model do
         json = JsonApi::User.build_json(u.reload, permissions: u)
         expect(json['contacts'].detect { |c| c['name'] == 'Bob' }['image_url']).to eq('https://test.host/avatars/avatar-4.png')
         expect(u.settings['contacts'].detect { |c| c['name'] == 'Bob' }['image_url']).to eq(bucket_avatar(4)) # stored value untouched
+      end
+
+      it "maps a saved default avatar from any bucket, or from another host of this app, to this host" do
+        u = User.new
+        u.id = 5
+        u.settings = {}
+        [
+          'https://lingolinq.s3.amazonaws.com/avatars/avatar-2.png',
+          'https://lingolinq-dev-static.s3.amazonaws.com/avatars/avatar-2.png',
+          'https://app.lingolinq.com/avatars/avatar-2.png',
+          'https://test.host/avatars/avatar-2.png',
+          '/avatars/avatar-2.png'
+        ].each do |url|
+          u.settings['avatar_url'] = url
+          expect(u.generated_avatar_url).to eq('https://test.host/avatars/avatar-2.png')
+        end
+      end
+
+      it "stores a picked default avatar as 'fallback', not an address tied to one host" do
+        u = User.create
+        n = u.id % 10
+        u.process({'avatar_url' => "https://test.host/avatars/avatar-#{n}.png"})
+        expect(u.reload.settings['avatar_url']).to eq('fallback')
+        u.process({'avatar_url' => bucket_avatar(n)})
+        expect(u.reload.settings['avatar_url']).to eq('fallback')
+        u.process({'avatar_url' => 'http://www.example.com/pic.png'})
+        expect(u.reload.settings['avatar_url']).to eq('http://www.example.com/pic.png')
+      end
+
+      it "lists prior avatars on this host, once each, without writing to the saved list" do
+        u = User.new
+        u.id = 6
+        u.settings = {'avatar_url' => 'http://www.example.com/pic.png', 'prior_avatar_urls' => [bucket_avatar(6), 'http://www.example.com/old.png']}
+        expect(u.prior_avatar_urls).to eq(['https://test.host/avatars/avatar-6.png', 'http://www.example.com/old.png'])
+        expect(u.settings['prior_avatar_urls']).to eq([bucket_avatar(6), 'http://www.example.com/old.png'])
+      end
+
+      it "serves a contact's saved bucket avatar from this host in messages and alerts" do
+        u = User.create
+        d = Device.create(user: u)
+        contact_note = LogSession.create(user: u, author: u, device: d, log_type: 'note',
+          data: {'author_contact' => {'name' => 'Bob', 'image_url' => bucket_avatar(3)}, 'note' => {'text' => 'hello', 'prior_contact' => {'name' => 'Ann', 'image_url' => bucket_avatar(1)}}})
+        expect(JsonApi::Alert.build_json(contact_note)['author']['image_url']).to eq('https://test.host/avatars/avatar-3.png')
+        expect(JsonApi::Log.build_json(contact_note)['author']['contact']['image_url']).to eq('https://test.host/avatars/avatar-3.png')
+        expect(contact_note.reload.data['author_contact']['image_url']).to eq(bucket_avatar(3)) # stored value untouched
       end
 
       it "gives the Unknown User modifier of a version the avatar on the app's host" do
