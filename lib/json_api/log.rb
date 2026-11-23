@@ -38,7 +38,7 @@ module JsonApi::Log
         'name' => (log.data['author_contact'] || {})['name'].presence || log.author.display_name
       }
       if log.data['author_contact']
-        json['author']['contact'] = log.data['author_contact']
+        json['author']['contact'] = DefaultAvatar.contact(log.data['author_contact'])
       end
     else
       json['author'] = {

@@ -15,10 +15,10 @@ module JsonApi::Alert
       json['sent'] = alert.created_at.iso8601
       json['prior'] = alert.data['note']['prior']
       if alert.data['note'] && alert.data['note']['priot_contact']
-        json['prior_author'] = alert.data['note']['prior_contact'].slice('id', 'name', 'image_url')
+        json['prior_author'] = DefaultAvatar.contact(alert.data['note']['prior_contact'].slice('id', 'name', 'image_url'))
       end
       if alert.data['author_contact']
-        json['author'] = alert.data['author_contact'].slice('id', 'name', 'image_url')
+        json['author'] = DefaultAvatar.contact(alert.data['author_contact'].slice('id', 'name', 'image_url'))
       elsif alert.author
         json['author'] = {
           'id' => alert.author.global_id,

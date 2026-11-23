@@ -2385,12 +2385,12 @@ class User < ApplicationRecord
   
   def generated_avatar_url(override_url=nil)
     id = self.id || 0
-    # In development, use local paths; in production, use S3
+    # In development, use local paths; elsewhere the app's own copy, as a full address
+    # (app/models/concerns/default_avatar.rb)
     if Rails.env.development?
       fallback = "/avatars/avatar-#{id % 10}.png"
     else
-      bucket = ENV['STATIC_S3_BUCKET'] || "lingolinq"
-      fallback = "https://#{bucket}.s3.amazonaws.com/avatars/avatar-#{id % 10}.png"
+      fallback = DefaultAvatar.url(id)
     end
 
     # In development, use local /avatars/ paths for the default image, but still expose a
@@ -2409,7 +2409,7 @@ class User < ApplicationRecord
       fallback
     elsif url && url != 'default'
       # NOTE: somewhere we should enforce that it's coming from a reliable location, or provide a fallback
-      url
+      DefaultAvatar.on_app_host(url) # a stored bucket default avatar is served from the app
     elsif self.settings['email'] && false
       # TODO: gravatar seems to be breaking on iOS-only all of the sudden
       email_md5 = Digest::MD5.hexdigest(self.settings['email'])
@@ -2421,6 +2421,8 @@ class User < ApplicationRecord
   
   def prior_avatar_urls
     res = self.settings && self.settings['prior_avatar_urls']
+    # A new list: default avatars served from the app, and the saved list is no longer appended to
+    res = res.map { |url| DefaultAvatar.on_app_host(url) } if res
     current = generated_avatar_url
     default = generated_avatar_url('default')
     if (res && res.length > 0) || current != default
@@ -2845,13 +2847,17 @@ class User < ApplicationRecord
         'policy_version' => PRIVACY_POLICY_VERSION
       }
     end
-    if params['avatar_url'] && (params['avatar_url'].match(/^http/) || params['avatar_url'] == 'fallback')
+    avatar_param = params['avatar_url']
+    # The person's own default avatar is saved as 'fallback', never as an address tied to one host
+    # or bucket (the client sends avatar_url back on every save).
+    avatar_param = 'fallback' if DefaultAvatar.index(avatar_param) == (self.id || 0) % DefaultAvatar::COUNT
+    if avatar_param && (avatar_param.match(/^http/) || avatar_param == 'fallback')
       if self.settings['avatar_url'] && self.settings['avatar_url'] != 'fallback'
         self.settings['prior_avatar_urls'] ||= []
         self.settings['prior_avatar_urls'] << self.settings['avatar_url']
         self.settings['prior_avatar_urls'].uniq!
       end
-      self.settings['avatar_url'] = params['avatar_url']
+      self.settings['avatar_url'] = avatar_param
     end
     if params['external_device']
       self.settings['external_device'] = params['external_device']
@@ -3309,11 +3315,7 @@ class User < ApplicationRecord
             end
             contact_type = action['value']['contact'].match(/\@/) ? 'email' : 'sms'
             image_url = action['value']['image_url']
-            if !image_url
-              bucket = ENV['STATIC_S3_BUCKET'] || "lingolinq"
-              id = hash.hex.to_i
-              image_url = "https://#{bucket}.s3.amazonaws.com/avatars/avatar-#{id % 10}.png"
-            end
+            image_url ||= DefaultAvatar.url(hash.hex.to_i)
             action['value']['contact'].strip!
             ref = action['value']['contact'].strip.downcase
             ref = ref.gsub(/[^\d\+\,]/, '') if contact_type == 'sms'
