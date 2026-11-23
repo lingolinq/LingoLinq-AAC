@@ -123,3 +123,25 @@ contact test rewritten before running, and the wrong test-host fact). No app cod
 Next, in order: pin DEFAULT_HOST in the spec and re-run red; verify the three "to check" items; write-time
 normalization + read-time mapping (avatar_url, prior_avatar_urls, contacts, and the message/alert readers if
 confirmed); the four writers; falsify; one review.
+
+## Implementation (655fd178e) and test run
+
+- `app/models/concerns/default_avatar.rb` (new; concerns are loaded in workers too, lib/ is not:
+  `config/application.rb:88`): `url(n)`, `index(url)`, `on_app_host(url)`, `contact(hash)`, `app_host?`.
+- Writers: `User#generated_avatar_url` (non-development fallback), the contact fallback in `process_params`,
+  `board_version.rb` / `user_version.rb` "Unknown User". Write side: a picked default of the person's own number is
+  saved as `'fallback'`.
+- Readers mapped: `generated_avatar_url` (saved avatar_url), `prior_avatar_urls` (now a new list; it no longer appends
+  to the saved one), `json_api/user.rb` contacts, `alert.rb` author and prior_author, `log.rb` author contact,
+  `utterance.rb` reply author. Stored data is not rewritten.
+- `spec/lib/json_api/user_version_spec.rb:52` changed with Traci's OK (2026-11-23).
+- Not fixed, seen in passing: `alert.rb:17` tests `'priot_contact'` (typo), so `prior_author` is never set.
+
+Run (user, json_api user/alert/log/utterance/user_version/board_version, log_session specs): 781 examples, 14 failures.
+- 11 fail on the base commit too (04be19443, no app change; checked in a throwaway checkout): `add_premium_voice` (8,
+  `user_spec.rb:3001-3104`) and usage tracking (`:4886`, `:4901`, `:4919`), all `AuditEvent.count` off by one. Not this
+  change. The test database had no leftover audit_events rows.
+- 3 pass on the base and fail here because they assert the S3 address, the behaviour being changed:
+  `user_spec.rb:1864` (`/amazonaws/` for a new contact), `json_api/user_spec.rb:51` and `:56`. Waiting on Traci's OK
+  before changing them (Rule #0.14).
+- All 9 new examples pass.
