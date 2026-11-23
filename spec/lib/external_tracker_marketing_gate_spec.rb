@@ -198,7 +198,10 @@ describe 'HubSpot: only adult supporter accounts are sent (#1123)' do
     end
 
     it 'does not send a communicator with a child-consent record, whatever its state' do
+      # The granted-only shape is what grant_parental_consent! leaves: it deletes
+      # 'pending_parent_consent' (app/models/user.rb, grant_parental_consent!).
       [{ 'pending_parent_consent' => true },
+       { 'parent_email' => 'cm_parent@example.com', 'parent_consent_granted_at' => '2026-11-01T00:00:00Z' },
        { 'pending_parent_consent' => true, 'parent_consent_granted_at' => '2026-11-01T00:00:00Z' },
        { 'parent_consent_declined_at' => '2026-11-01T00:00:00Z' },
        { 'parent_consent_revoked_at' => '2026-11-01T00:00:00Z' }].each do |coppa|
@@ -207,6 +210,18 @@ describe 'HubSpot: only adult supporter accounts are sent (#1123)' do
         u.save!
         expect_not_sent(u)
       end
+    end
+
+    it 'does not send an under-13 communicator after the parent approves the signup' do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      u = User.process_new({ 'name' => 'hs_cm_child', 'email' => 'hs_cm_child@example.com', 'password' => 'abcdefgh',
+                             'terms_agree' => true, 'coppa_under_13' => true, 'parent_consent_email' => 'hs_cm_parent@example.com',
+                             'preferences' => { 'registration_type' => 'communicator' } }, { pending: true })
+      expect(u.grant_parental_consent!(u.settings['coppa']['parent_consent_token'])).to be_truthy
+      u.reload
+      expect(u.settings['coppa']).to be_present
+      expect(u.settings['coppa']).not_to have_key('pending_parent_consent')
+      expect_not_sent(u)
     end
 
     it 'does not send a communicator registered as under 16' do

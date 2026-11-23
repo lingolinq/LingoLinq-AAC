@@ -8,16 +8,19 @@ condition of `User#marketing_trackable?` and of the send path stays as it is.
 
 **(a) Where is the allowlist read?**
 
-- CONFIRMED `app/models/user.rb` "MARKETING_TRACKABLE_TYPES = %w[therapist parent teacher other eval manually-added-supervisor]":
+- CONFIRMED (before the change, at `003c22753`) `app/models/user.rb` "MARKETING_TRACKABLE_TYPES = %w[therapist parent teacher other eval manually-added-supervisor]":
   its only reader is `marketing_trackable?` in the same file ("MARKETING_TRACKABLE_TYPES.include?(type)").
-  `grep -rn MARKETING_TRACKABLE_TYPES` over the repo returns only these two lines.
+  `grep -rn MARKETING_TRACKABLE_TYPES -- app lib` returns only these two lines.
 - CONFIRMED `marketing_trackable?` has exactly two production readers, both in
   `lib/external_tracker.rb`: `track_new_user` ("return unless user && user.external_email_allowed? && user.marketing_trackable?")
   and the worker's re-check in `persist_new_user` ("return false unless user && user.external_email_allowed? && user.marketing_trackable?").
   Both run before any HubSpot call and before the iplocate lookup.
-- CONFIRMED `track_new_user` is called from two signup paths only, both after the
-  COPPA-pending check: `app/controllers/api/users_controller.rb` (email signup, "unless coppa_pending")
-  and `app/controllers/session_controller.rb` `google_signup_complete` ("unless user.coppa_parental_consent_pending?").
+- CONFIRMED `track_new_user` has three callers: `app/controllers/api/users_controller.rb` (email signup,
+  "unless coppa_pending"), `app/controllers/session_controller.rb` `google_signup_complete`
+  ("unless user.coppa_parental_consent_pending?"), and `app/controllers/parental_consents_controller.rb`
+  after a parent approves an under-13 signup ("unless offboarding"). The third is still refused: the
+  approved account keeps its `settings['coppa']` record (grant deletes only the pending keys), and it
+  has no adult marker. (The first draft of this log said two callers; corrected after the adversary pass.)
 - CONFIRMED `supporter_registration?` (`app/models/user.rb`, "!['unspecified', 'communicator'].include?")
   is not a reader of the allowlist and is not changed.
 
@@ -40,7 +43,7 @@ condition of `User#marketing_trackable?` and of the send path stays as it is.
 **(c) Cross-file claims checked**
 
 - Google signup defaults to communicator: CONFIRMED in three places: server start step
-  (above), server `google_signup` GET ("registration_type: link['registration_type'] || 'communicator'"),
+  (above), server `google_signup_candidates` GET ("registration_type: link['registration_type'] || 'communicator'"),
   and the frontend `app/frontend/app/controllers/register.js` (`googleSignupRegistrationType`,
   `res.registration_type || 'communicator'`; the start step sends
   `model.preferences.registration_type || 'communicator'`). (Verification task item (b).)
@@ -50,6 +53,8 @@ condition of `User#marketing_trackable?` and of the send path stays as it is.
   passes `link['birth_month']`/`link['birth_year']` to `User.process_new`, so with the flag off the
   birth date is nil, `adult_at_signup` is false and the account is not sent (fails closed). With the
   flag on, a birth date is required (`birthdate_required`) and the marker is recorded as for email signup.
+  A Google signup also needs the product-improvement opt-in to be sent: `create_from_google_signup!`
+  stores `'cookies' => product_improvement_opt_in`, and `cookies_opted_out?` refuses `false`.
   Whether the flag is on in each environment is a domain setting I did not read.
 - The email signup form asks a communicator for a birth month and year
   (`app/frontend/app/templates/register.hbs`, the `showCommunicatorAgeStep` branch with `birth_month`).
@@ -84,7 +89,24 @@ Candidates:
 Risks: a communicator account that uses a parent's or SLP's email sends that person the emails
 (accepted by Scot). EU adults on legitimate interest (Scot's position; #385 open, unchanged).
 Google signups default to communicator, so more Google signups become eligible, but only those
-with a recorded adult birth date. Unresolved: HubSpot portal property mismatch above.
+with a recorded adult birth date and the product-improvement opt-in. Unresolved: HubSpot portal
+property mismatch above.
+
+Found in review (2026-11-23), for Scot to decide:
+- The public privacy notice (`app/frontend/app/templates/privacy.hbs` and
+  `app/views/shared/_privacy.html.erb`, keys `privacy_guarantee_separation` and
+  `privacy_sharing_support`) says marketing applies only to the Account Administrator, not the
+  Communicator, and that support and communications email is "(Admin only)". This change makes that
+  untrue for adult communicators. AGENTS.md lists a promise in the public privacy notice as a
+  safeguard, so it blocks merge until the wording is reconciled.
+- Compliance docs (`docs/legal/SUBPROCESSORS.md`, the dated subprocessor registers) say student and
+  patient accounts never reach HubSpot.
+- `account_type` "Communicator Account" tells HubSpot the named person is an AAC user (a possible
+  GDPR Art. 9 inference). Today it may not land, given the missing property above.
+- An account sent at signup and later taken over by an organization stays in HubSpot
+  (`external_email_allowed?` is read only at signup).
+- A shared address (communicator and parent or SLP) is recorded only on the account whose send got a
+  2xx, so deleting that account removes the other person's HubSpot contact.
 
 Tests: adult communicator is trackable, scheduled and sent; communicator under 18, with no recorded
 age, with any child-consent record, or under 16 is not; a real signup through `User.process_new`
