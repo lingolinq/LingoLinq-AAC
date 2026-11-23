@@ -297,6 +297,80 @@ describe ApplicationController, :type => :controller do
         expect(assigns[:api_user]).to eq(u)
       end
     end
+
+    describe "masquerade requires a full sign-in" do
+      after(:each) { AuditEvent.where(user_key: @operator.global_id).delete_all if @operator }
+
+      it "refuses a site-admin masquerade from a modeling (valet) sign-in" do
+        o = Organization.create(:admin => true)
+        @operator = User.create
+        u2 = User.create
+        o.add_manager(@operator.user_name, true)
+        d = Device.create(:user => @operator, :settings => {'valet' => true})
+        request.headers['Authorization'] = "Bearer #{d.tokens[0]}"
+
+        expect {
+          get :index, params: {:check_token => true, :as_user_id => u2.global_id}
+        }.not_to change { AuditEvent.where(user_key: @operator.global_id).count }
+        assert_error("Invalid masquerade attempt", 400)
+        expect(assigns[:true_user]).to eq(nil)
+        expect(assigns[:api_user]).to eq(@operator)
+      end
+
+      it "refuses an org-manager masquerade from a modeling (valet) sign-in" do
+        o = Organization.create()
+        @operator = User.create
+        u2 = User.create
+        o.add_manager(@operator.user_name, true)
+        o.add_user(u2.user_name, false, false)
+        d = Device.create(:user => @operator, :settings => {'valet' => true})
+        request.headers['Authorization'] = "Bearer #{d.tokens[0]}"
+
+        expect {
+          get :index, params: {:check_token => true, :as_user_id => u2.global_id}
+        }.not_to change { AuditEvent.where(user_key: @operator.global_id).count }
+        assert_error("Invalid masquerade attempt", 400)
+        expect(assigns[:true_user]).to eq(nil)
+        expect(assigns[:api_user]).to eq(@operator)
+      end
+
+      it "refuses a site-admin masquerade from a developer key sign-in" do
+        o = Organization.create(:admin => true)
+        @operator = User.create
+        u2 = User.create
+        o.add_manager(@operator.user_name, true)
+        d = Device.create(:user => @operator, :developer_key_id => 1, :device_key => 'bacon')
+        d.settings['permission_scopes'] = ['full']
+        d.save
+        request.headers['Authorization'] = "Bearer #{d.tokens[0]}"
+
+        expect {
+          get :index, params: {:check_token => true, :as_user_id => u2.global_id}
+        }.not_to change { AuditEvent.where(user_key: @operator.global_id).count }
+        assert_error("Invalid masquerade attempt", 400)
+        expect(assigns[:true_user]).to eq(nil)
+        expect(assigns[:api_user]).to eq(@operator)
+      end
+
+      it "refuses an org-manager masquerade from a developer key sign-in" do
+        o = Organization.create()
+        @operator = User.create
+        u2 = User.create
+        o.add_manager(@operator.user_name, true)
+        o.add_user(u2.user_name, false, false)
+        d = Device.create(:user => @operator, :developer_key_id => 1, :device_key => 'bacon')
+        d.settings['permission_scopes'] = ['full']
+        d.save
+        request.headers['Authorization'] = "Bearer #{d.tokens[0]}"
+
+        expect {
+          get :index, params: {:check_token => true, :as_user_id => u2.global_id}
+        }.not_to change { AuditEvent.where(user_key: @operator.global_id).count }
+        assert_error("Invalid masquerade attempt", 400)
+        expect(assigns[:true_user]).to eq(nil)
+        expect(assigns[:api_user]).to eq(@operator)
+      end
+    end
     
     it "should not allow disabled tokens" do
       u = User.create
