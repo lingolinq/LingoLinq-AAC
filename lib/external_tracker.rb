@@ -1,6 +1,6 @@
 module ExternalTracker
   # HubSpot consent gate per FERPA/COPPA/GDPR:
-  # 1. Only adult supporter accounts, as defined by User#marketing_trackable? (#1123): an allowlisted account type (therapist, parent, teacher, other, eval, org-added supervisor), no child-consent record, not under 16, and 18 or over at signup
+  # 1. Only adult accounts, as defined by User#marketing_trackable? (#1123): an allowlisted account type (therapist, parent, teacher, other, eval, org-added supervisor, communicator), no child-consent record, not under 16, and 18 or over at signup
   # 2. Respect cookies preference - do not send when user opted out of analytics/tracking (GDPR consent)
   # 3. Org-managed users excluded via external_email_allowed?
   def self.track_new_user(user)
