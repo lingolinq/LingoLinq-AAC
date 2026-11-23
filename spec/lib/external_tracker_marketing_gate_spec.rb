@@ -170,7 +170,7 @@ describe 'HubSpot: only adult supporter accounts are sent (#1123)' do
   # Scot, 2026-11-23: adult AAC users who registered themselves get the same HubSpot
   # emails as adult supporters, under the same checks.
   describe 'adult communicator accounts' do
-    it 'schedules and sends an adult communicator, under the neutral account type "Personal Account"' do
+    it 'schedules and sends an adult communicator, under the neutral account type "personal_account"' do
       u = adult_supporter('communicator')
       expect(u.supporter_registration?).to eq(false)
       ENV['HUBSPOT_ACCESS_TOKEN'] = 'hubby'
@@ -179,7 +179,7 @@ describe 'HubSpot: only adult supporter accounts are sent (#1123)' do
       sent = nil
       expect(Typhoeus).to receive(:post) { |_url, opts| sent = JSON.parse(opts[:body]); OpenStruct.new(code: '201') }
       expect(ExternalTracker.persist_new_user(u.global_id)).to eq('201')
-      expect(sent['properties']).to include({ 'property' => 'account_type', 'value' => 'Personal Account' })
+      expect(sent['properties']).to include({ 'property' => 'lingolinq_account_type', 'value' => 'personal_account' })
     end
 
     it 'does not send a communicator who was under 18 at signup, or whose age was never recorded' do
@@ -262,6 +262,69 @@ describe 'HubSpot: only adult supporter accounts are sent (#1123)' do
         expect(undated.settings['registration']['adult_at_signup']).to eq(false)
         expect(undated.marketing_trackable?).to eq(false)
       end
+    end
+  end
+
+  # Scot, 2026-11-23: lingolinq_account_type is a HubSpot dropdown, and HubSpot refuses a
+  # contact whose dropdown value is not one of its options. These are the option values
+  # read from the portal's property definition on 2026-11-23.
+  describe 'HubSpot account type and username fields' do
+    let(:dropdown_options) do
+      %w[personal_account parent teacher slp other_therapist therapist
+         district_admin other_supporter org_added_supervisor at_specialist]
+    end
+
+    def sent_properties(u)
+      ENV['HUBSPOT_ACCESS_TOKEN'] = 'hubby'
+      sent = nil
+      expect(Typhoeus).to receive(:post) { |_url, opts| sent = JSON.parse(opts[:body]); OpenStruct.new(code: '201') }
+      expect(ExternalTracker.persist_new_user(u.global_id)).to eq('201')
+      sent['properties']
+    end
+
+    it 'sends each allowlisted registration type as its exact dropdown value' do
+      expected = {
+        'communicator' => 'personal_account',
+        'therapist' => 'therapist',
+        'parent' => 'parent',
+        'teacher' => 'teacher',
+        'other' => 'other_supporter',
+        'eval' => 'at_specialist',
+        'manually-added-supervisor' => 'org_added_supervisor'
+      }
+      expect(expected.keys.sort).to eq(User::MARKETING_TRACKABLE_TYPES.sort)
+      expected.each do |type, value|
+        expect(dropdown_options).to include(value)
+        props = sent_properties(adult_supporter(type))
+        expect(props).to include({ 'property' => 'lingolinq_account_type', 'value' => value }), "for #{type}"
+      end
+    end
+
+    it 'sends only HubSpot dropdown values, and has one for every type the allowlist lets through' do
+      expect(ExternalTracker::HUBSPOT_ACCOUNT_TYPES.values - dropdown_options).to eq([])
+      expect(User::MARKETING_TRACKABLE_TYPES - ExternalTracker::HUBSPOT_ACCOUNT_TYPES.keys).to eq([])
+    end
+
+    it 'sends the username as lingolinq_username, and neither old field name' do
+      u = adult_supporter('teacher')
+      props = sent_properties(u)
+      expect(props).to include({ 'property' => 'lingolinq_username', 'value' => u.user_name })
+      names = props.map { |p| p['property'] }
+      expect(names).not_to include('account_type')
+      expect(names).not_to include('username')
+    end
+
+    it 'leaves the account type out, rather than sending a raw value, for a type with no dropdown value' do
+      u = adult_supporter('teacher')
+      u.settings['preferences']['registration_type'] = 'made-up'
+      u.save!
+      # The allowlist refuses this type today; the stub stands in for a type added to the
+      # allowlist later without a dropdown value.
+      allow_any_instance_of(User).to receive(:marketing_trackable?).and_return(true)
+      props = sent_properties(u)
+      expect(props.map { |p| p['property'] }).not_to include('lingolinq_account_type')
+      expect(props.map { |p| p['value'] }).not_to include('made-up')
+      expect(props).to include({ 'property' => 'lingolinq_username', 'value' => u.user_name })
     end
   end
 end

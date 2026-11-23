@@ -162,3 +162,26 @@ with a communicator type records the marker. Mutation that must make them fail: 
   communicators already get (pre-existing); section 3 lists no email purpose (fold into #385); the
   new notice keys are not in `WordData::ENGLISH_PINNED_LOCALE_KEYS`, so a later
   `extras:translate_ui_locales` run would machine-translate them unreviewed.
+
+## HubSpot field names and dropdown values (Scot, 2026-11-23, after round 2)
+
+- Scot created the contact properties `lingolinq_account_type` (dropdown) and `lingolinq_username`
+  (single-line text). CONFIRMED by a schema read through the HubSpot connector the same day: the
+  dropdown's option values are `personal_account parent teacher slp other_therapist therapist
+  district_admin other_supporter org_added_supervisor at_specialist`. HubSpot matches a dropdown on
+  the option's internal value and refuses an update whose value is not an option (INVALID_OPTION).
+- `ExternalTracker.persist_new_user` now sends `lingolinq_username` and `lingolinq_account_type`
+  instead of `username` and `account_type`, with the value taken from
+  `ExternalTracker::HUBSPOT_ACCOUNT_TYPES` by `registration_type`. The old label branches
+  (`supporter_registration?` and the "Communicator Account" default) are gone. A type with no
+  entry sends no account type at all, never a raw value.
+- The mapping covers exactly `User::MARKETING_TRACKABLE_TYPES` (communicator, therapist, parent,
+  teacher, other, eval, manually-added-supervisor); a spec fails if either side drifts. `therapist`
+  is the transition value until signup asks for SLP or other therapist. The dropdown's `slp`,
+  `other_therapist` and `district_admin` have no registration type yet: adding one means a signup
+  option, an allowlist entry and a mapping entry in the same change.
+- Falsified: sending the raw type as a fallback, dropping the `other` entry, and a value that is not
+  a dropdown option each fail the new examples.
+- Six existing examples in `spec/lib/external_tracker_spec.rb` pin the old names and values in the
+  exact request body. They fail only on those 12 lines (a scratch copy with only those lines
+  changed passes 25/0). Changing them needs Scot's approval (Rule 0.14).
