@@ -173,6 +173,10 @@ bypasses an existing safeguard: `lib/pii_scrubber.rb` use, `secure_serialize`,
 PaperTrail writes, a retention purge, a feature flag on a new user-facing feature, or a
 promise in the public privacy notice.
 
+An issue that was already there in code the PR touches, and that this diff does not make
+worse, never blocks the PR, even if it would be fix-before-merge on its own: list it as a
+follow-up (claim level for a security weakness) so it gets its own fix.
+
 ### Fix before merge (the only findings that block)
 
 Only these may be Critical or High (P0 or P1 on the Codex connector):
