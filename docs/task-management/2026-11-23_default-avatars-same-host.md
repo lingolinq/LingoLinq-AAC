@@ -97,3 +97,29 @@ Tests (red first):
 - board_version / user_version modifier image is the same-host URL.
 - Mutations that must go red: the fallback back to S3; `same_host_avatar` returning its input; a looser pattern that
   rewrites a custom URL.
+
+## Review round 1 (adversary, e742e7a2f): proceed with A, with changes. Checked here.
+
+- **CONFIRMED, and a correction to the fact sheet above:** specs do NOT run with `DEFAULT_HOST=test.host` on this
+  machine. `rails runner` in the test env prints `"localhost:3000"` (from `.env.op.template:115`, loaded first; dotenv
+  does not overwrite), so `spec_helper.rb:104`'s `||= 'test.host'` never applies here and `absolute_host` is
+  `http://localhost:3000`. The red tests fail for the right reason today but could not pass after a correct fix.
+  Fix: pin a bare `DEFAULT_HOST` inside the new describe's `around` block. CI's value is not checked.
+- **CONFIRMED:** the client sends `avatar_url` back on every user save (`models/user.js:101`, plain `attr`), and
+  `user.rb:2848-2854` stores any `http` URL and pushes the old one onto `prior_avatar_urls`. So saved S3 default URLs
+  are likely common already, and after the change a save would store a URL tied to one host. Fix: on write, store
+  `'fallback'` for a default-shaped URL (any `*.s3.amazonaws.com/avatars/avatar-N.png`, or `/avatars/avatar-N.png`
+  on a trusted app host); map `prior_avatar_urls` on read; add a users#update round-trip test.
+- To check before acting (reviewer's, not yet verified here): contact pictures copied into message data
+  (`log_session.rb:1263`, `:1771`) and read by `alert.rb:21`, `log.rb:41`, `json_api/utterance.rb:32`; the web client
+  sends a CloudFront picture for new contacts (`controllers/user/edit.js:325-330`), so the server's contact fallback is
+  API-only; the S3 pattern must match any bucket (staging and dev share a database; the `lingolinq` fallback bucket).
+- Needs Traci's explicit OK (Rule 14): changing `spec/lib/json_api/user_version_spec.rb:52`, which asserts the S3 URL.
+- Citation fix: SafeHttp's address checks are `lib/safe_http.rb:121-133`, not `lib/uploader.rb`.
+
+Stopped here under Rule #0.13 (three self-inflicted errors close together: a failed variable listing, a guessed
+contact test rewritten before running, and the wrong test-host fact). No app code changed.
+
+Next, in order: pin DEFAULT_HOST in the spec and re-run red; verify the three "to check" items; write-time
+normalization + read-time mapping (avatar_url, prior_avatar_urls, contacts, and the message/alert readers if
+confirmed); the four writers; falsify; one review.
