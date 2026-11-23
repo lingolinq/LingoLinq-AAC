@@ -32,7 +32,7 @@
             {{#if @ownAccount}}
               <button type="button" class='btn btn-default' data-test-2fa-action="reset" {{on "click" (@ctrlAction "update_2fa" "reset")}}>{{t "Reset" key="reset_2fa"}}</button>
             {{/if}}
-          {{else if (and @ownAccount @user.supporter_role)}}
+          {{else}}
             {{t "Ensure you have the latest app versions before enabling!" key="ensure_latest_app_versions"}}
             <button type="button" class='btn btn-default' data-test-2fa-action="enable" {{on "click" (@ctrlAction "update_2fa" "enable")}}>{{t "Enable Two-Factor Authentication" key="enable_2fa"}}</button>
           {{/if}}
