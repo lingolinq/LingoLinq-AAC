@@ -144,3 +144,21 @@ with a communicator type records the marker. Mutation that must make them fail: 
 - Found while checking: the signup box that gates the HubSpot send ("Help improve LingoLinq by sharing
   usage, performance, and anonymized troubleshooting data.", key `product_improvement_opt_in`) does not
   mention email. Pre-existing for supporters; a separate email choice is a follow-up for Scot and counsel (#385).
+
+## Review round 2 (on 8f4a58975)
+
+- Codex gpt-6.1-sol (high): approve, no findings.
+- Adversary: one High, CONFIRMED and fixed in the next commit. The round-2 sentence said "an adult who
+  creates their own account", but signup asks "who this account is for"
+  (`register.hbs`, key `register_choose_role_intro`), so a parent or SLP can set up an adult
+  Communicator account and it is sent too. The sentence now states the rule the code enforces: an
+  account set up for a Communicator aged 18 or over, not managed by a school or other organization;
+  welcome emails go to that account's email address, and its name and email are kept in the email
+  service. Round cap reached (2), so this wording was not put through a third local round; the Codex
+  GitHub connector reviews the PR.
+- Follow-ups from round 2 (not blocking): the welcome-only and unsubscribe promise depends on how the
+  HubSpot emails are built (Scot to confirm before merge); "Personal Account" still marks AAC users to
+  anyone who knows the mapping; section 4 does not mention the "Welcome!" email 13 to 17 year old
+  communicators already get (pre-existing); section 3 lists no email purpose (fold into #385); the
+  new notice keys are not in `WordData::ENGLISH_PINNED_LOCALE_KEYS`, so a later
+  `extras:translate_ui_locales` run would machine-translate them unreviewed.
