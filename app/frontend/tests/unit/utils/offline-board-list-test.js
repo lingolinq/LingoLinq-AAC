@@ -235,6 +235,25 @@ module('Unit | Utility | offline board list', function(hooks) {
     assert.deepEqual(keys(pick_device_boards(rows, user, [])), ['larry/home', 'lingolinq/crisis-vocabulary'], 'trusted: it opens, so the leaf is a folder');
   });
 
+  // Follow-up item 4 (docs/task-management/2026-11-22-offline-boards-followup.md): the shapes the real sync writes for
+  // a liked board whose picture did not save (the finished merge puts the content error on the board's own row,
+  // services/persistence.js), and a stop with a failed write, which never lists a board.
+  test('another owner\'s liked board: a picture failure merged into its row, and a stop that never lists', function(assert) {
+    var K = 'therapist/feelings';
+    var rows = [board('4_1', K), CRISIS];
+    var user = person({ stats: { starred_board_refs: [{ key: K }] } });
+    var merged = { id: K, key: K, status: 're-downloaded', error: 'board ' + K + ' failed to sync completely: button image failed to sync', content: true };
+    var both = [K, 'lingolinq/crisis-vocabulary'];
+    var only = ['lingolinq/crisis-vocabulary'];
+    assert.deepEqual(keys(pick_device_boards(rows, user, [{ user_id: 'larry', issues: true, statuses: [merged] }])), both,
+      'a first sync that reached it with one picture missing (no answer list): listed');
+    var refused = { user_id: 'larry', issues: true, statuses: [{ id: K, key: K, status: 're-downloaded', error: 'board ' + K + ' failed retrieval for syncing', refused: true }] };
+    assert.deepEqual(keys(pick_device_boards(rows, user, [refused, { user_id: 'larry', issues: true, statuses: [merged], answered: [K] }])), both,
+      'refused earlier, then reached with the server\'s answer and one picture missing: the answer ends the refusal');
+    assert.deepEqual(keys(pick_device_boards(rows, user, [{ user_id: 'larry', errored: true, storage_failed: true, confirmed: true, statuses: [{ id: K, key: K, status: 're-downloaded' }] }])), only,
+      'a stop with a failed write is not a whole sync: its row does not list the board');
+  });
+
   // Property check over random link graphs (seeded, so a failure repeats): only own boards are listed, each once; every
   // own board is listed or opens from a listed one; no listed board opens from another listed board.
   test('random link graphs: every own board reachable from the list, no entry inside another', function(assert) {

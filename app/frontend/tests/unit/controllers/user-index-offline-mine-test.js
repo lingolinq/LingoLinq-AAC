@@ -364,4 +364,20 @@ module('Unit | Controller | user/index offline boards view', function(hooks) {
     await tick();
     assert.false(c.get('offline_view'));
   });
+
+  // Follow-up item 5 (docs/task-management/2026-11-22-offline-boards-followup.md; reachable with auth_spa_transition):
+  // back online, a list read from a database that is no longer the signed-in person's is not kept up, even on the
+  // same person's page.
+  test('back online after the open database stopped being the signed-in person\'s: the list read from it ends', async function(assert) {
+    var c = page(this.owner);
+    c.update_selected();
+    await tick();
+    assert.deepEqual(keys(c.get('offline_boards')), ['larry/home']);
+    c.device_db_user = function() { return null; }; // an SPA sign-out and sign-in: the open database is someone else's now
+    c.set('store', pending_store(this.owner));
+    c.set('persistence.online', true);
+    await tick();
+    assert.false(c.get('offline_view'));
+    assert.strictEqual(c.get('offline_boards'), null);
+  });
 });
