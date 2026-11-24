@@ -145,3 +145,26 @@ Run (user, json_api user/alert/log/utterance/user_version/board_version, log_ses
   `user_spec.rb:1864` (`/amazonaws/` for a new contact), `json_api/user_spec.rb:51` and `:56`. Waiting on Traci's OK
   before changing them (Rule #0.14).
 - All 9 new examples pass.
+
+## Finished (e9edaa71d)
+
+- Traci's OK (2026-11-23) to change the tests that asserted the S3 address: `user_spec.rb:1864` (two assertions,
+  `bob` and `gp`), `json_api/user_spec.rb:51` and `:56`. Each now matches exactly
+  `<absolute_host>/avatars/avatar-N.png`, at least as strict as before.
+- Traci's OK to fix `alert.rb:17` (`'priot_contact'` -> `'prior_contact'`): alerts now carry `prior_author`, which
+  the inbox shows as "in reply to <name>" (`components/inbox.hbs:83`). Tested in the messages example.
+- Runs: the related specs (781): 11 failures, all `AuditEvent.count` off by one and all failing on the base commit too
+  (`add_premium_voice` x8, usage tracking x3). Controllers and badges (952): 0 failures. Mailer spec (which checks emails
+  carry no `amazonaws`): 0 failures.
+- Falsified: with the seven app files reverted to 04be19443, the 9 new examples fail (9 of 9); restored from HEAD,
+  clean tree.
+
+Not covered:
+- Stored data is not rewritten; old S3 addresses stay in settings, contacts and message data and are mapped when read
+  by the readers above. Any other reader of a stored contact `image_url` would still see S3 (searched: none found in
+  `app/` or `lib/` beyond those listed).
+- Development keeps the relative `/avatars/...` path (unchanged).
+- Devices that saved the old S3 avatar keep that small file until their storage is cleaned; the new address is saved
+  on the next sync.
+- Whether each deployed bucket still serves `avatars/`: no longer needed for anything this change maps.
+- Not run on a device or a deployed site; the native apps were not run.
