@@ -258,7 +258,7 @@ describe MediaObject, :type => :model do
     end
 
     it "should NOT schedule removal of full_filename when it is the record's current, already-covered object" do
-      # Uploadable's own after_destroy (schedule_remote_removal_if_unique)
+      # Uploadable's own after_destroy_commit (schedule_remote_removal_if_unique)
       # already handles this case via self.url; scheduling it again here
       # would be redundant (and, if a future change ever adds a checksum,
       # could race with that cleanup).

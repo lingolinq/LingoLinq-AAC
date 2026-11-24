@@ -43,17 +43,18 @@ what clients may send and needs its own review of legitimate reuse).
 
 ## Tests
 
-- `spec/models/concerns/uploadable_removal_spec.rb` (new, 11): own unused file deleted; a file another kind names
+- `spec/models/concerns/uploadable_removal_spec.rb` (new, 14): own unused file deleted; a file another kind names
   kept (and no job queued); a file named by CDN address kept; a non-media file never deleted; another existing row's
-  upload never deleted; a file whose uploading row is gone deleted once the last row naming it goes; the job checks
-  again; key forms; key ownership parsing.
+  upload never deleted (named by a sound, and by another person's picture); a file whose uploading row is gone
+  deleted once the last row naming it goes; the job checks again; removal scheduled only after the destroy commits
+  and never for a rolled-back destroy; a scheduling failure is logged and the derived-file cleanup still runs; keys
+  with dot segments, escapes or control characters refused; key forms; key ownership parsing.
 - `spec/controllers/api/sounds_controller_spec.rb`: the API path.
 - Existing specs changed: `button_image_spec.rb` and `button_sound_spec.rb` "should remove from remote storage if no
   longer in use" used the address `asdf`, not a media-folder key; now the row's own upload address, assertions
   unchanged (Traci approved, 2026-11-23). `uploadable_spec.rb`'s stand-in class gains an `after_destroy_commit` stub.
-- Falsified: the old same-class gate, no media-folder gate, no ownership rule, and no job-time check each turn a
-  different spec red. The move to `after_destroy_commit` is NOT yet pinned by a spec (round 2: it can be, since the
-  fixture transaction is not joinable; see "Remaining").
+- Falsified: the old same-class gate, no media-folder gate, no ownership rule, a class-only ownership rule, no
+  job-time check, and `after_destroy` instead of `after_destroy_commit` each turn a different spec red.
 - Affected suites (uploader, button image, button sound, user video, media object, uploadable, flusher, sounds and
   images controllers): 617 examples, 0 failures, 5 pending (pre-existing).
 
@@ -88,21 +89,15 @@ what clients may send and needs its own review of legitimate reuse).
   confirmed closed; regex probes, unset-bucket behaviour and legitimate deletions (copied rows, restored urls,
   transcoded addresses) checked with no regression.
 
-## Remaining before the PR (round 2, 2026-11-23)
+## Round 2 items (done 2026-11-23)
 
-Paused here under Rule #0.13 (several self-inflicted slips close together this session); nothing below is started.
-1. Medium: `schedule_remote_removal_if_unique` has no rescue. A failure after the commit (Redis down) leaves the row
-   gone, nothing scheduled, and skips MediaObject's derived-file cleanup that runs after it. Rescue and log at error
-   level so later callbacks run; consider a durable retry that goes back through `removable_by_destroyed_row?` (not
-   the plain `delete_retry`, which skips the ownership rule). Spec: `Worker.schedule` raising for
-   `:remote_remove_if_unused` still lets the derived-file removal be scheduled.
-2. Low: in the older-shape branch, refuse keys with `.`/`..` segments, `%` or control characters.
-3. Low: a spec that destroys inside `transaction do ... end` and asserts nothing is scheduled before the block ends;
-   and a `requires_new` + `ActiveRecord::Rollback` case that schedules nothing.
-4. Low: a spec where one user's picture row names another picture row's derived key (the ownership rule beyond a
-   sound naming a picture).
-5. Comments in `app/models/concerns/media_object.rb` (around lines 99, 154, 196) still say "Uploadable's
-   after_destroy".
-6. PR body: a revert note (jobs queued as `remote_remove_if_unused` fail on reverted code and on an older staging
-   worker; the delete then fails safe).
-Then `/pr-preflight`, a final check of the changed parts, and open the PR (Traci approved opening it).
+1. A failure scheduling the removal is logged, not raised, so the derived-file cleanup still runs (spec red first).
+2. Media-folder keys with dot segments, escapes or control characters are refused (spec red first).
+3. The after-commit timing is pinned (commit and rollback cases), and the claim that it could not be tested is
+   corrected.
+4. The ownership rule is tested for one person's picture naming another picture's derived file.
+5. The `media_object.rb` comments now say `after_destroy_commit`.
+6. The PR body carries the revert note.
+Not done: a durable retry for a scheduling failure. The plain `delete_retry` path would skip the ownership rule; a
+retry that goes back through `removable_by_destroyed_row?` is a follow-up if Redis outages during deletes turn out to
+matter (the failure is logged with the record's id).
