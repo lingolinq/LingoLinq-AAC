@@ -144,6 +144,9 @@ module Uploadable
   # Runs after the destroy commits, so the job never sees this row as still using the file. The file is deleted only
   # when it is this row's own media upload (or its uploading row is gone) and no picture, sound or video row still
   # names it (Uploader.removable_by_destroyed_row?), checked now and again when the job runs.
+  # A failure here (Redis or the database unavailable) is logged, not raised: the row is already gone, and raising
+  # would skip the after-commit callbacks after this one (MediaObject#remove_derivative_remote_data) and fail an
+  # erasure sweep. The file then stays; the log line names it.
   def schedule_remote_removal_if_unique
     if self.url && self.removable
       if Uploader.removable_by_destroyed_row?(self.url, self.class.name, self.id)
@@ -151,6 +154,9 @@ module Uploadable
         true
       end
     end
+    false
+  rescue StandardError => e
+    Rails.logger.error("Remote removal scheduling failed for #{self.class.name} #{self.global_id}: #{e.class}: #{e.message}")
     false
   end
 

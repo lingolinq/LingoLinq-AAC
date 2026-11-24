@@ -105,6 +105,21 @@ describe Uploadable, "removal of a destroyed row's file" do
       Worker.process_queues
     end
 
+    it "still runs the derived-file cleanup when scheduling the file's removal fails" do
+      sound = row(ButtonSound)
+      url = bucket + key_for(sound, 'sounds')
+      sound.update_columns(url: url)
+      sound.reload
+      sound.settings['content_type'] = 'audio/mpeg'
+      sound.settings['secondary_output'] = {'filename' => "sounds/1/1_9-#{'c' * 128}.wav"}
+      sound.save
+      allow(Worker).to receive(:schedule).and_call_original
+      allow(Worker).to receive(:schedule).with(Uploader, :remote_remove_if_unused, anything, anything, anything).and_raise(Redis::CannotConnectError)
+      expect(Worker).to receive(:schedule).with(Uploader, :remote_remove, "sounds/1/1_9-#{'c' * 128}.wav")
+      expect { sound.destroy }.not_to raise_error
+      expect(ButtonSound.where(id: sound.id).count).to eq(0)
+    end
+
     it "reads the key from every stored address form" do
       prior_cdn = ENV['UPLOADS_S3_CDN']
       ENV['UPLOADS_S3_CDN'] = 'https://cdn.example.com'
