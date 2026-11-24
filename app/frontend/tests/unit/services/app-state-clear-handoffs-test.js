@@ -116,4 +116,16 @@ module('Unit | Service | app-state clear_user_state handoffs', function(hooks) {
       persistence.set('sync_status', saved.sync_status);
     });
   });
+
+  // docs/task-management/2026-11-23-offline-liked-board-verdicts.md: the previous person's board verdicts (board keys
+  // that carry usernames) are not left in memory either.
+  test("the previous person's board verdicts are cleared", function(assert) {
+    var appState = this.owner.lookup('service:app-state');
+    var persistence = this.owner.lookup('service:persistence');
+    var saved = persistence.get('board_verdicts');
+    persistence.set('board_verdicts', { someone: { top: 1, t: { 'other/board': { v: true, n: 1 } } } });
+    try { appState.clear_user_state(); } catch (e) { /* unrelated teardown in a bare test owner */ }
+    assert.strictEqual(persistence.get('board_verdicts'), null);
+    persistence.set('board_verdicts', saved);
+  });
 });

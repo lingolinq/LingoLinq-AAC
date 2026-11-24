@@ -11,6 +11,7 @@ import lingoLinqExtras from './extras';
 import { is_revoked_raw } from './board_revocation';
 import { offline_sync_seeds } from './offline_sync_seeds';
 import { library_board } from './board_device_copy';
+import { person_verdicts, board_seen } from './board_verdicts';
 
 // The person whose device database is open, only when it is the signed-in person's (capabilities.setup_database
 // names it from auth_settings at app start; an SPA sign-out can leave the previous person's open). Unknown is no:
@@ -41,54 +42,14 @@ export function followable_links(raw) {
 
 var LIKED = { 'starred board': true, 'suggested board': true };
 
-// A sync that went through its whole walk: not cancelled, not stopped part way (the stop paths write `confirmed`,
-// services/persistence.js), and either clean or failed only on device writes (a finished sync with a failed write is
-// `errored` and `storage_failed`, #1336).
-function walked_whole(e) {
-  return !!(e && !e.canceled && !e.confirmed && (!e.errored || e.storage_failed) && e.statuses && e.statuses.length);
-}
-
-// Whether another owner's board may be listed for this person, from their sync log (only entries for `user_name`:
-// `user_id` is the synced person's user_name, services/persistence.js). Per board (by id or key), the newest deciding
-// row wins:
-// - a row tagged `refused` (a real server refusal, #1336), in any entry, stops and cancels included: hidden;
-// - a row with no error, or a `content` error (reached; a picture or sound did not save), in a whole sync whose
-//   `answered` list names the board (the server really answered, utils/sync_board_fallback.js note_answered) and not
-//   'kept': listed.
-// With no deciding row, a whole sync's row with no answer behind it ('kept' after a timeout, a reload served from the
-// device copy, an entry from before `answered`) lists the board; an untagged error alone does not. So a refusal holds
-// until the server really answers for the board again, and slow links (timeouts, device copies) never hide a board
-// nothing refused (docs/task-management/2026-11-16_offline-boards-page.md, "Finding 1").
-function seen_by_last_sync(sync_log, user_name) {
-  var mine = (sync_log || []).filter(function(e) { return e && e.user_id === user_name; });
-  var decided = {}; // token -> true (listed) or false (hidden), from the newest deciding row
-  var weak = {};
-  var tokens = function(s) { return [s.id, s.key].filter(function(t) { return t; }); };
-  var positive = function(s) { return !s.refused && (!s.error || s.content); };
-  mine.slice().reverse().forEach(function(e) {
-    var rows = (e.statuses || []).filter(function(s) { return s; });
-    var whole = walked_whole(e);
-    var answered = {};
-    (whole && Array.isArray(e.answered) ? e.answered : []).forEach(function(t) { answered[t] = true; });
-    var here = {}; // decided in this entry; a refusal wins over a clean row of the same entry
-    rows.forEach(function(s) { if(s.refused) { tokens(s).forEach(function(t) { if(!(t in decided)) { here[t] = false; } }); } });
-    if(whole) {
-      rows.forEach(function(s) {
-        if(!positive(s)) { return; }
-        var real = s.status !== 'kept' && tokens(s).some(function(t) { return answered[t]; });
-        tokens(s).forEach(function(t) {
-          if(t in decided || here[t] === false) { return; }
-          if(real) { here[t] = true; } else { weak[t] = true; }
-        });
-      });
-    }
-    Object.keys(here).forEach(function(t) { decided[t] = here[t]; });
-  });
-  return function(raw) {
-    var ts = [raw.id, raw.key];
-    if(ts.some(function(t) { return decided[t] === false; })) { return false; }
-    return ts.some(function(t) { return decided[t] === true || weak[t]; });
-  };
+// Whether another owner's board may be listed for this person comes from their sync verdicts (utils/board_verdicts.js):
+// the record kept beyond the 5-entry log (`verdicts`, persistence.board_verdicts) with the person's log entries folded
+// in. Per board, the newest deciding row wins: a refusal (`refused`, any entry) hides; a row the server really answered
+// (`answered`, a whole sync, not 'kept') lists; with neither, a whole sync's row with no answer behind it lists; an
+// untagged error alone does not.
+function seen_by_last_sync(sync_log, user_name, verdicts) {
+  var mine = person_verdicts(verdicts, sync_log, user_name);
+  return function(raw) { return board_seen(mine, raw); };
 }
 
 // On a device not marked "Trust this Device" (`opts.shared`), another owner's board cannot open offline
@@ -124,7 +85,7 @@ export function pick_device_boards(rows, user, sync_log, opts) {
   });
   var find = function(ref) { return (ref && ((ref.id && by_id[ref.id]) || (ref.key && by_key[ref.key]))) || null; };
   var user_name = user.get('user_name');
-  var seen = seen_by_last_sync(sync_log, user_name);
+  var seen = seen_by_last_sync(sync_log, user_name, opts.verdicts);
   var opens = opens_here(opts);
 
   var picked = [];
@@ -251,13 +212,13 @@ function device_list(records) {
 // The listed boards as store records. A record already in memory under the board's id is kept, so an older device
 // copy never overwrites it. The read runs inside the promise chain, so a database that throws (a closing IndexedDB
 // connection) gives an empty list, not an exception. `opts.storage` is passed in by tests; `opts.sync_log` is
-// persistence's sync_log; `opts.shared` and `opts.me` are the shared-device rule (opens_here).
+// persistence's sync_log and `opts.verdicts` its board_verdicts (utils/board_verdicts.js); `opts.shared` and `opts.me` are the shared-device rule (opens_here).
 export function device_board_list(store, user, opts) {
   opts = opts || {};
   if(!store || !user || typeof user.get !== 'function' || !user.get('user_name')) { return RSVP.resolve(device_list([])); }
   var source = opts.storage || lingoLinqExtras.storage;
   return RSVP.resolve().then(function() { return source.find_all('board'); }).then(function(rows) {
-    return device_list(pick_device_boards(rows, user, opts.sync_log, { shared: opts.shared, me: opts.me }).map(function(raw) {
+    return device_list(pick_device_boards(rows, user, opts.sync_log, { shared: opts.shared, me: opts.me, verdicts: opts.verdicts }).map(function(raw) {
       return store.peekRecord('board', raw.id) || store.push({ data: { id: raw.id, type: 'board', attributes: raw } });
     }));
   }, function() {

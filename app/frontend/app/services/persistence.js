@@ -253,7 +253,7 @@ var persistence = Service.extend({
           return;
         }
         if (extras.get && typeof extras.get === 'function' && extras.get('ready')) {
-          restore_sync_log(_this); _this.find('settings', 'lastSync').then(function(res) {
+          restore_sync_log(_this); restore_board_verdicts(_this); _this.find('settings', 'lastSync').then(function(res) {
             if (_this && _this.set) {
               _this.set('last_sync_at', res.last_sync);
               _this.set('sync_stamps', res.stamps);
@@ -269,7 +269,7 @@ var persistence = Service.extend({
             if (!service || !service.find || !service.set) {
               return;
             }
-            restore_sync_log(service); service.find('settings', 'lastSync').then(function(res) { // the sync log is read on its own (utils/sync_log_store.js), never chained onto lastSync
+            restore_sync_log(service); restore_board_verdicts(service); service.find('settings', 'lastSync').then(function(res) { // the sync log is read on its own (utils/sync_log_store.js), never chained onto lastSync
               service.set('last_sync_at', res.last_sync);
               service.set('sync_stamps', res.stamps);
             }, function() {
@@ -4984,7 +4984,7 @@ import { queue_eventual_store } from '../utils/eventual_store_queue';
 import { is_permanent_upload_url } from '../utils/permanent_upload';
 import { on_uploads_cdn, is_web_page } from '../utils/direct_fetch';
 import { picture_kept_in_database, usable_database_copy } from '../utils/database_picture';
-import { BOARD_RELOAD_MS, USER_RELOAD_MS, keep_stored_board, claim_board_retry, note_device_boards, known_on_device, stored_this_sync, note_answered, answered_refs } from '../utils/sync_board_fallback'; import { create_parking, register_parking, wake_parked, retry_delay, when_slot_free } from '../utils/board_retry'; import { note_board_root, root_for_link, with_errors, confirmed_statuses, live_board_errors, content_error, note_board_written, note_warning } from '../utils/sync_rollup'; import { record_sync_log, restore_sync_log } from '../utils/sync_log_store';
+import { BOARD_RELOAD_MS, USER_RELOAD_MS, keep_stored_board, claim_board_retry, note_device_boards, known_on_device, stored_this_sync, note_answered, answered_refs } from '../utils/sync_board_fallback'; import { create_parking, register_parking, wake_parked, retry_delay, when_slot_free } from '../utils/board_retry'; import { note_board_root, root_for_link, with_errors, confirmed_statuses, live_board_errors, content_error, note_board_written, note_warning } from '../utils/sync_rollup'; import { record_sync_log, restore_sync_log } from '../utils/sync_log_store'; import { restore_board_verdicts } from '../utils/board_verdicts';
 import { usable_copy } from '../utils/board_device_copy';
 import { reason_is_automatic, merge_follow_up } from '../utils/sync_follow_up';
 

@@ -380,4 +380,15 @@ module('Unit | Controller | user/index offline boards view', function(hooks) {
     assert.false(c.get('offline_view'));
     assert.strictEqual(c.get('offline_boards'), null);
   });
+
+  // docs/task-management/2026-11-23-offline-liked-board-verdicts.md: the boards page reads the verdicts kept beyond the
+  // 5-entry sync log, so a liked board whose seeing sync has left the log is still listed.
+  test('a liked board seen by a sync that has left the log is listed from the kept verdicts', async function(assert) {
+    var c = page(this.owner);
+    c.set('model.stats', { starred_board_refs: [{ key: 'other/y' }] });
+    c.set('persistence.board_verdicts', { larry: { top: 5, t: { 'other/y': { v: true, n: 5 } } } });
+    c.update_selected();
+    await tick();
+    assert.deepEqual(keys(c.get('offline_boards')), ['larry/home', 'other/y']);
+  });
 });

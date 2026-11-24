@@ -1,6 +1,7 @@
 import RSVP from 'rsvp';
 import capabilities from './capabilities';
 import lingoLinqExtras from './extras';
+import { record_board_verdicts, fold_entry } from './board_verdicts';
 
 // The sync log kept on the device (docs/task-management/2026-11-15_persist-sync-log.md, Traci 2026-11-15).
 //
@@ -41,7 +42,7 @@ function defaults(deps) {
 // (components/sync-details.js `details`: idx, status flags, sorted_statuses, toggled) are left out.
 export function entry_copy(entry) {
   var copy = {};
-  ['user_id', 'reason', 'manual', 'issues', 'errored', 'canceled', 'storage_failed', 'confirmed', 'answered', 'finished', 'summary', 'roots'].forEach(function(k) {
+  ['user_id', 'reason', 'manual', 'issues', 'errored', 'canceled', 'storage_failed', 'confirmed', 'answered', 'seq', 'finished', 'summary', 'roots'].forEach(function(k) {
     if(entry[k] !== undefined) { copy[k] = entry[k]; }
   });
   copy.statuses = (Array.isArray(entry.statuses) ? entry.statuses : []).filter(function(s) { return s && typeof s === 'object'; }).map(function(s) {
@@ -61,6 +62,7 @@ export function record_sync_log(persistence, log, deps) {
   var kept = (log || []).slice(-SYNC_LOG_KEEP);
   if(!persistence || persistence.isDestroyed || persistence.isDestroying) { return kept; }
   deps = defaults(deps);
+  record_board_verdicts(persistence, (log || [])[(log || []).length - 1], log, deps); // the newest entry's board verdicts, kept beyond this log (utils/board_verdicts.js)
   var owner = owner_for(persistence, deps);
   if(owner && deps.storage && typeof deps.storage.store === 'function') {
     var record = { raw: { owner: owner, entries: kept.map(entry_copy) }, storageId: SYNC_LOG_KEY, id: SYNC_LOG_KEY };
@@ -112,7 +114,11 @@ export function restore_sync_log(persistence, deps) {
   return RSVP.resolve(deps.storage.find('settings', SYNC_LOG_KEY)).then(function(res) {
     var raw = (res && res.raw) || res;
     if(!raw || raw.owner !== owner || persistence.isDestroyed || persistence.isDestroying) { return; }
-    persistence.set('sync_log', merge_logs(raw.entries, persistence.get('sync_log')));
+    var restored = merge_logs(raw.entries, persistence.get('sync_log'));
+    var verdicts = persistence.get('board_verdicts');
+    (Array.isArray(raw.entries) ? raw.entries : []).forEach(function(e) { verdicts = fold_entry(verdicts, e); }); // entries from before board_verdicts, kept when they leave the log
+    persistence.set('board_verdicts', verdicts);
+    persistence.set('sync_log', restored);
     persistence.set('sync_log_rand', Math.random());
   }, function() { });
 }
