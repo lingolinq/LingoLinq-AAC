@@ -1886,7 +1886,7 @@ describe User, :type => :model do
       expect(bob['cell_phone']).to eq(false)
       expect(bob['email']).to eq('bob@example.com')
       expect(bob['contact_type']).to eq('email')
-      expect(bob['image_url']).to match(/amazonaws/)
+      expect(bob['image_url']).to match(%r{\A/avatars/avatar-\d\.png\z}) # the app's own copy, saved without a host (Traci, 2026-11-23)
       u.process({'offline_actions' => [
         {'action' => 'remove_contact', 'value' => hash}
       ]})
@@ -1908,7 +1908,7 @@ describe User, :type => :model do
       expect(gp['cell_phone']).to eq("(555)123-4567,55580192831")
       expect(gp['email']).to eq(false)
       expect(gp['contact_type']).to eq('sms')
-      expect(gp['image_url']).to match(/amazonaws/)
+      expect(gp['image_url']).to match(%r{\A/avatars/avatar-\d\.png\z}) # the app's own copy, saved without a host (Traci, 2026-11-23)
     end
 
     describe "validated_org_author" do
@@ -3848,6 +3848,223 @@ describe User, :type => :model do
         u.settings = {'email' => 'bob@example.com'}
         u.settings['avatar_url'] = 'http://www.example.com/pic.png'
         expect(u.generated_avatar_url).to eq('http://www.example.com/pic.png');
+      end
+    end
+
+    # Default avatars come from the app's own host (public/avatars/), not the S3 bucket
+    # (docs/task-management/2026-11-23_default-avatars-same-host.md). DEFAULT_HOST is pinned to a
+    # BARE host here: the environment's value varies (a local .env can set "localhost:3000"
+    # before spec_helper's `||=`), and a bare host shows a missing scheme as well as a bucket URL.
+    describe "default avatar on the app's own host" do
+      around(:each) do |example|
+        prior_bucket = ENV['STATIC_S3_BUCKET']
+        prior_host = ENV['DEFAULT_HOST']
+        prior_hosts = JsonApi::Json.class_variable_get(:@@running_hosts) rescue {}
+        ENV['STATIC_S3_BUCKET'] = 'avatar-spec-static'
+        ENV['DEFAULT_HOST'] = 'test.host'
+        JsonApi::Json.class_variable_set(:@@running_hosts, {})
+        example.run
+      ensure
+        ENV['STATIC_S3_BUCKET'] = prior_bucket
+        ENV['DEFAULT_HOST'] = prior_host
+        JsonApi::Json.class_variable_set(:@@running_hosts, prior_hosts || {})
+      end
+
+      def bucket_avatar(n)
+        "https://avatar-spec-static.s3.amazonaws.com/avatars/avatar-#{n}.png"
+      end
+
+      it "builds the fallback on the default host outside a request" do
+        u = User.new
+        u.id = 199
+        u.settings = {}
+        expect(u.generated_avatar_url).to eq('https://test.host/avatars/avatar-9.png')
+        expect(u.generated_avatar_url('fallback')).to eq('https://test.host/avatars/avatar-9.png')
+        expect(u.generated_avatar_url('default')).to eq('https://test.host/avatars/avatar-9.png')
+      end
+
+      it "builds the fallback on the request's host, and never on a host that is not trusted" do
+        prior = ENV['DEFAULT_HOST']
+        ENV['DEFAULT_HOST'] = 'dev.lingolinq.com'
+        u = User.new
+        u.id = 23
+        u.settings = {}
+        JsonApi::Json.set_host('https://staging.lingolinq.com')
+        expect(u.generated_avatar_url).to eq('https://staging.lingolinq.com/avatars/avatar-3.png')
+        JsonApi::Json.set_host('https://attacker.example.com')
+        expect(u.generated_avatar_url).to eq('https://dev.lingolinq.com/avatars/avatar-3.png')
+      ensure
+        ENV['DEFAULT_HOST'] = prior
+      end
+
+      it "serves a saved bucket default avatar from the app's host, and leaves every other url alone" do
+        u = User.new
+        u.id = 5
+        u.settings = {'avatar_url' => bucket_avatar(7)}
+        expect(u.generated_avatar_url).to eq('https://test.host/avatars/avatar-7.png')
+        [
+          'https://lingolinq-usercontent.s3.amazonaws.com/avatars/avatar-7.png/x.png',
+          'https://avatar-spec-static.s3.amazonaws.com/avatars/avatar-10.png',
+          'https://avatar-spec-static.s3.amazonaws.com/uploads/avatar-7.png',
+          'https://example.com/avatars/avatar-7.png',
+          'https://avatar-spec-static.s3.amazonaws.com.example.com/avatars/avatar-7.png',
+          'http://www.example.com/pic.png'
+        ].each do |url|
+          u.settings['avatar_url'] = url
+          expect(u.generated_avatar_url).to eq(url)
+        end
+      end
+
+      it "gives a contact added without a picture an avatar on the app's host, and maps a saved bucket one" do
+        u = User.create
+        u.process({'offline_actions' => [{'action' => 'add_contact', 'value' => {'contact' => 'bob@example.com', 'name' => 'Bob'}}]})
+        contact = u.reload.settings['contacts'].detect { |c| c['name'] == 'Bob' }
+        expect(contact['image_url']).to match(%r{\A/avatars/avatar-\d\.png\z}) # saved without a host (Codex review of #1368)
+
+        contact['image_url'] = bucket_avatar(4)
+        u.save
+        json = JsonApi::User.build_json(u.reload, permissions: u)
+        expect(json['contacts'].detect { |c| c['name'] == 'Bob' }['image_url']).to eq('https://test.host/avatars/avatar-4.png')
+        expect(u.settings['contacts'].detect { |c| c['name'] == 'Bob' }['image_url']).to eq(bucket_avatar(4)) # stored value untouched
+      end
+
+      it "maps a saved default avatar from any bucket, or from another host of this app, to this host" do
+        u = User.new
+        u.id = 5
+        u.settings = {}
+        [
+          'https://lingolinq.s3.amazonaws.com/avatars/avatar-2.png',
+          'https://lingolinq-dev-static.s3.amazonaws.com/avatars/avatar-2.png',
+          'https://app.lingolinq.com/avatars/avatar-2.png',
+          'https://test.host/avatars/avatar-2.png',
+          '/avatars/avatar-2.png'
+        ].each do |url|
+          u.settings['avatar_url'] = url
+          expect(u.generated_avatar_url).to eq('https://test.host/avatars/avatar-2.png')
+        end
+      end
+
+      it "stores a picked default avatar as 'fallback', not an address tied to one host" do
+        u = User.create
+        n = u.id % 10
+        u.process({'avatar_url' => "https://test.host/avatars/avatar-#{n}.png"})
+        expect(u.reload.settings['avatar_url']).to eq('fallback')
+        u.process({'avatar_url' => bucket_avatar(n)})
+        expect(u.reload.settings['avatar_url']).to eq('fallback')
+        u.process({'avatar_url' => 'http://www.example.com/pic.png'})
+        expect(u.reload.settings['avatar_url']).to eq('http://www.example.com/pic.png')
+      end
+
+      it "lists prior avatars on this host, once each, without writing to the saved list" do
+        u = User.new
+        u.id = 6
+        u.settings = {'avatar_url' => 'http://www.example.com/pic.png', 'prior_avatar_urls' => [bucket_avatar(6), 'http://www.example.com/old.png']}
+        expect(u.prior_avatar_urls).to eq(['https://test.host/avatars/avatar-6.png', 'http://www.example.com/old.png'])
+        expect(u.settings['prior_avatar_urls']).to eq([bucket_avatar(6), 'http://www.example.com/old.png'])
+      end
+
+      it "serves a contact's saved bucket avatar from this host in messages and alerts" do
+        u = User.create
+        d = Device.create(user: u)
+        contact_note = LogSession.create(user: u, author: u, device: d, log_type: 'note',
+          data: {'author_contact' => {'name' => 'Bob', 'image_url' => bucket_avatar(3)}, 'note' => {'text' => 'hello', 'prior_contact' => {'name' => 'Ann', 'image_url' => bucket_avatar(1)}}})
+        expect(JsonApi::Alert.build_json(contact_note)['author']['image_url']).to eq('https://test.host/avatars/avatar-3.png')
+        expect(JsonApi::Alert.build_json(contact_note)['prior_author']).to eq({'name' => 'Ann', 'image_url' => 'https://test.host/avatars/avatar-1.png'})
+        expect(JsonApi::Log.build_json(contact_note)['author']['contact']['image_url']).to eq('https://test.host/avatars/avatar-3.png')
+        expect(contact_note.reload.data['author_contact']['image_url']).to eq(bucket_avatar(3)) # stored value untouched
+      end
+
+      # Codex review of PR #1368: a default saved with the request's host breaks once that host
+      # (an organization's custom domain) is retired, because the readers only map hosts this
+      # app still serves. Saved defaults carry no host; readers put the current host on them.
+      it "saves a default avatar without a host, and shows it on the current host" do
+        ENV['DEFAULT_HOST'] = 'dev.lingolinq.com' # staging is trusted next to a non-production default (restored by around)
+        JsonApi::Json.set_host('https://staging.lingolinq.com')
+        u = User.create
+        u.process({'offline_actions' => [
+          {'action' => 'add_contact', 'value' => {'contact' => 'bob@example.com', 'name' => 'Bob'}},
+          {'action' => 'add_contact', 'value' => {'contact' => 'ann@example.com', 'name' => 'Ann', 'image_url' => 'https://staging.lingolinq.com/avatars/avatar-2.png'}}
+        ]})
+        contacts = u.reload.settings['contacts']
+        expect(contacts.detect { |c| c['name'] == 'Bob' }['image_url']).to match(%r{\A/avatars/avatar-\d\.png\z})
+        expect(contacts.detect { |c| c['name'] == 'Ann' }['image_url']).to eq('/avatars/avatar-2.png')
+        json = JsonApi::User.build_json(u, permissions: u)
+        expect(json['contacts'].detect { |c| c['name'] == 'Ann' }['image_url']).to eq('https://staging.lingolinq.com/avatars/avatar-2.png')
+
+        other = (u.id + 1) % 10
+        u.process({'avatar_url' => "https://staging.lingolinq.com/avatars/avatar-#{other}.png"})
+        expect(u.reload.settings['avatar_url']).to eq("/avatars/avatar-#{other}.png")
+        expect(u.generated_avatar_url).to eq("https://staging.lingolinq.com/avatars/avatar-#{other}.png")
+        u.process({'avatar_url' => 'http://www.example.com/pic.png'})
+        expect(u.reload.settings['prior_avatar_urls']).to eq(["/avatars/avatar-#{other}.png"])
+      end
+
+      it "saves the sender's default avatar in a reply without a host" do
+        ENV['DEFAULT_HOST'] = 'dev.lingolinq.com' # staging is trusted next to a non-production default (restored by around)
+        JsonApi::Json.set_host('https://staging.lingolinq.com')
+        u = User.create
+        d = Device.create(user: u)
+        note = LogSession.create(user: u, author: u, device: d, log_type: 'note', data: {'note' => {'text' => 'hello'}})
+        reply = LogSession.find_reply(note.global_id, u)
+        expect(reply[:contact]['image_url']).to eq("/avatars/avatar-#{u.id % 10}.png")
+
+        note.data['author_contact'] = {'name' => 'Bob', 'image_url' => 'https://staging.lingolinq.com/avatars/avatar-4.png'}
+        note.save
+        expect(LogSession.find_reply(note.global_id, u)[:contact]['image_url']).to eq('/avatars/avatar-4.png')
+      end
+
+      it "saves a re-added contact's default avatar without a host, and shows a saved one on whichever host reads it" do
+        ENV['DEFAULT_HOST'] = 'dev.lingolinq.com' # staging is trusted next to a non-production default (restored by around)
+        JsonApi::Json.set_host('https://staging.lingolinq.com')
+        u = User.create
+        add = lambda { |value| u.process({'offline_actions' => [{'action' => 'add_contact', 'value' => value}]}) }
+        add.call({'contact' => 'bob@example.com', 'name' => 'Bob', 'image_url' => 'http://www.example.com/bob.png'})
+        add.call({'contact' => 'bob@example.com', 'name' => 'Bob', 'image_url' => 'https://staging.lingolinq.com/avatars/avatar-6.png'})
+        contacts = u.reload.settings['contacts']
+        expect(contacts.length).to eq(1)
+        expect(contacts[0]['image_url']).to eq('/avatars/avatar-6.png')
+
+        JsonApi::Json.set_host('https://dev.lingolinq.com')
+        json = JsonApi::User.build_json(u, permissions: u)
+        expect(json['contacts'][0]['image_url']).to eq('https://dev.lingolinq.com/avatars/avatar-6.png')
+      end
+
+      it "saves the default avatars in a reply without a host, including the copy the client sends" do
+        ENV['DEFAULT_HOST'] = 'dev.lingolinq.com'
+        JsonApi::Json.set_host('https://staging.lingolinq.com')
+        sender = User.create
+        recipient = sender
+        d = Device.create(user: sender)
+        note = LogSession.message(recipient: recipient, sender: sender, device: d, message: 'hello', notify: 'user_only')
+        session = LogSession.message(recipient: recipient, sender: sender, device: d, message: 'hi back', reply_id: note.global_id, notify: 'user_only')
+        expect(session).to_not eq(false)
+        expect(session.reload.data['note']['prior_contact']['image_url']).to eq("/avatars/avatar-#{sender.id % 10}.png")
+
+        sent = LogSession.process_new({'note' => {'text' => 'again', 'prior_contact' => {'name' => 'Ann', 'image_url' => 'https://staging.lingolinq.com/avatars/avatar-8.png'}}},
+          {user: recipient, author: sender, device: d})
+        expect(sent.reload.data['note']['prior_contact']['image_url']).to eq('/avatars/avatar-8.png')
+        JsonApi::Json.set_host('https://dev.lingolinq.com')
+        expect(JsonApi::Log.build_json(sent)['note']['prior_contact']['image_url']).to eq('https://dev.lingolinq.com/avatars/avatar-8.png')
+        expect(JsonApi::Alert.build_json(sent)['prior_author']['image_url']).to eq('https://dev.lingolinq.com/avatars/avatar-8.png')
+      end
+
+      it "builds an alert whose note carries a prior_contact that is not a contact" do
+        u = User.create
+        d = Device.create(user: u)
+        ['x', ['a', 'b'], 7].each do |bad|
+          note = LogSession.create(user: u, author: u, device: d, log_type: 'note', data: {'note' => {'text' => 'hello', 'prior' => 'earlier', 'prior_contact' => bad}})
+          json = JsonApi::Alert.build_json(note)
+          expect(json['prior']).to eq('earlier')
+          expect(json['prior_author']).to eq(nil)
+        end
+      end
+
+      it "gives the Unknown User modifier of a version the avatar on the app's host" do
+        User.create
+        PaperTrail.request.whodunnit = 'something'
+        User.create
+        json = JsonApi::UserVersion.build_json(PaperTrail::Version.last)
+        expect(json['modifier']['image']).to eq('https://test.host/avatars/avatar-0.png')
       end
     end
 

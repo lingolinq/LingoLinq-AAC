@@ -64,7 +64,7 @@ module JsonApi::User
         json['state_2fa'] = user.state_2fa
         json['external_nonce'] = ExternalNonce.for_user(user)
       end
-      json['contacts'] = user.settings['contacts'] || []
+      json['contacts'] = (user.settings['contacts'] || []).map { |c| DefaultAvatar.contact(c) }
       json['global_integrations'] = UserIntegration.global_integrations
       json['preferences'] = {}
       ::User::PREFERENCE_PARAMS.each do |attr|

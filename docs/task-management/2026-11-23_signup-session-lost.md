@@ -60,4 +60,15 @@ an unreachable state and was replaced; the fact sheet above corrected. Pre-exist
 - iPad Air 13-inch simulator: signed up, logged in after the reload, logged in after a cold restart.
 - Android 15 phone emulator: the same (the bug itself was not reproduced there first). Both against local Rails
   with synthetic accounts, with the sign-up form submitted by script through the real route action.
-- Not run: full Ember suite, web sign-up in a browser, a physical device, the canonical review passes.
+- Web sign-up (production build, headless Chrome, fresh profile): `override` and one reload, no `invalidate`; logged in
+  after it and after a page reload. With the stored login then removed, a reload lands on the login page.
+- Not run: a physical device; the full Ember suite locally (load average 19 with other sessions building; left to CI).
+
+## Canonical review (on 7bb70f846)
+`REVIEWED=range origin/develop (03a5dacf8b3b96a260cd308a120789144c93289d) ... traci/fix/signup-session-lost (7bb70f84656fb0d228ec6622ec9981769383355b) in /Users/traciday/Documents/GitHub/lingolinq/LingoLinq-AAC-signup-session`
+- Senior-dev (`/review-pr`): approve with comments; no Critical or High. Its Medium (a plain login has no mark) was
+  checked and does not apply: `confirm_authentication` persists first, with no flush before it (`session.js:98`), and
+  `flush` removes localStorage in the same tick as the re-read, so no login can be stored between check and erase.
+- Adversary: ship, on condition the learnings file is merged with develop (done). Two Low, pre-existing: a plain login in
+  the tick after `flush` can lose in-memory state (the stored login survives); the force-logout dialog's button ends
+  whatever login exists when it is pressed (`components/force-logout.js:41`).
