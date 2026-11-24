@@ -14,8 +14,6 @@ module JsonApi::BoardVersion
     json['action'] = 'updated' if json['action'] == 'update'
     json['created'] = version.created_at.iso8601
 
-    bucket = ENV['STATIC_S3_BUCKET'] || "lingolinq"
-    
     if version.whodunnit
       if version.whodunnit.match(/^user:/)
         user_id = version.whodunnit.split(/[:\.]/)[1]
@@ -93,7 +91,7 @@ module JsonApi::BoardVersion
     end
     json['modifier'] ||= {
       'description' => 'Unknown User',
-      'image' => "https://#{bucket}.s3.amazonaws.com/avatars/avatar-0.png"
+      'image' => DefaultAvatar.url(0)
     }
 
     json

@@ -29,7 +29,7 @@ module JsonApi::Utterance
         msg = LogSession.find_reply(utterance.data['reply_ids'][share_index.to_s], nil, utterance.user)
         json['prior'] = {
           'text' => msg[:message],
-          'author' => msg[:contact].slice('id', 'name', 'image_url')
+          'author' => DefaultAvatar.contact(msg[:contact].slice('id', 'name', 'image_url'))
         } if msg
       end
     end

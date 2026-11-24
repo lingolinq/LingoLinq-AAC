@@ -930,7 +930,66 @@ describe Organization, :type => :model do
       expect(Organization.manager_for?(User.find(m.id), User.find(u.id))).to eq(false)
     end
   end
-  
+
+  describe "permissions in a modeling (valet) session" do
+    # A modeling sign-in carries the device's scopes and valet mode, as Device.check_token sets them.
+    def as_valet(user)
+      v = User.find(user.id)
+      v.permission_scopes = ['full', 'modeling']
+      v.assert_valet_mode!
+      v
+    end
+
+    it "should not let an assistant edit the organization" do
+      o = Organization.create
+      m = User.create
+      o.add_manager(m.user_name, false)
+      m.reload
+      expect(o.allows?(m, 'edit')).to eq(true)
+      expect(o.allows?(as_valet(m), 'edit')).to eq(false)
+    end
+
+    it "should not let a manager edit or manage the organization" do
+      o = Organization.create
+      m = User.create
+      o.add_manager(m.user_name, true)
+      m.reload
+      expect(o.allows?(m, 'edit')).to eq(true)
+      expect(o.allows?(m, 'manage')).to eq(true)
+      v = as_valet(m)
+      expect(o.allows?(v, 'edit')).to eq(false)
+      expect(o.allows?(v, 'manage')).to eq(false)
+    end
+
+    it "should not let an upstream manager edit or manage a child organization" do
+      parent = Organization.create
+      o = Organization.create(:parent_organization_id => parent.id)
+      m = User.create
+      parent.add_manager(m.user_name, true)
+      m.reload
+      expect(o.allows?(m, 'edit')).to eq(true)
+      expect(o.allows?(m, 'manage')).to eq(true)
+      v = as_valet(m)
+      expect(o.allows?(v, 'edit')).to eq(false)
+      expect(o.allows?(v, 'manage')).to eq(false)
+    end
+
+    it "should not let an admin organization manager edit, manage, delete or change licenses and subscriptions" do
+      admin = Organization.create(:admin => true)
+      o = Organization.create
+      m = User.create
+      admin.add_manager(m.user_name, true)
+      m.reload
+      ['edit', 'manage', 'update_licenses', 'manage_subscription', 'delete'].each do |action|
+        expect(o.allows?(m, action)).to eq(true)
+      end
+      v = as_valet(m)
+      ['edit', 'manage', 'update_licenses', 'manage_subscription', 'delete'].each do |action|
+        expect(o.allows?(v, action)).to eq(false)
+      end
+    end
+  end
+
   describe "permissions cache" do
     it "should invalidate the cache when a manager is added" do
       o = Organization.create(:settings => {'total_licenses' => 1})

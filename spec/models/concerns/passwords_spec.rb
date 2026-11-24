@@ -168,6 +168,51 @@ describe Passwords, :type => :model do
       expect(u.valid_password?(u.pre_hashed_password("asdf?:##{GoSecure.sha512(hash, 'asdf')[0,30]}"))).to eq(false)
     end
 
+    describe "valet sign-in on admin and manager accounts" do
+      def valet_user
+        u = User.create
+        u.process({'valet_login' => true, 'valet_password' => 'gemini12'}, {'updater' => u})
+        expect(u.settings['valet_password']).to_not eq(nil)
+        u
+      end
+
+      it "should still accept the valet password and temporary credential for an ordinary account" do
+        u = valet_user
+        u.reload
+        u.assert_valet_mode!
+        expect(u.valid_password?(u.valet_temp_password('whatever'))).to eq(true)
+        expect(u.valid_password?('gemini12')).to eq(true)
+      end
+
+      it "should refuse the valet password and temporary credential once the account is an organization manager" do
+        u = valet_user
+        Organization.create.add_manager(u.user_name, true)
+        u.reload
+        u.assert_valet_mode!
+        expect(u.valid_password?(u.valet_temp_password('whatever'))).to eq(false)
+        expect(u.valid_password?('gemini12')).to eq(false)
+      end
+
+      it "should refuse the valet password and temporary credential once the account is an organization assistant" do
+        u = valet_user
+        Organization.create.add_manager(u.user_name, false)
+        u.reload
+        u.assert_valet_mode!
+        expect(u.valid_password?(u.valet_temp_password('whatever'))).to eq(false)
+        expect(u.valid_password?('gemini12')).to eq(false)
+      end
+
+      it "should refuse the valet password and temporary credential once the account is a site admin" do
+        u = valet_user
+        u.settings['admin'] = true
+        u.save
+        u.reload
+        u.assert_valet_mode!
+        expect(u.valid_password?(u.valet_temp_password('whatever'))).to eq(false)
+        expect(u.valid_password?('gemini12')).to eq(false)
+      end
+    end
+
     it "should re-generate a non-pre-hashed password" do
       u = User.new
       u.settings = {}
