@@ -5,11 +5,11 @@
 
 **Audited:** `compliance/scot-q3-makeup-run-20eb9dd6 (== origin/develop tip 070b5e61 at run start, 2026-10-31). PARTIAL COVERAGE: 0 of 6 finders complete, 0 of 18 live reads succeeded; details are in the private run record. Internal automated review by AI agents against our own checklists, not a third-party audit; it says what was examined, not that it passed, and open findings are counted separately. Standing limits: callers outside the repo; vendor internals; provider-side key revocation. Scot sign-off: approved 2026-11-06. Excludes assistive-technology testing (tracked separately in the conformance report).` @ `070b5e614071aec8fd917fa4b4067f5412460614` on 2026-10-31  
 **Seed:** audit-reports/unified-audit-2026-04-09.md  
-**Headline (open + remediated-unverified):** 2 Critical / 51 High
+**Headline (open + remediated-unverified):** 2 Critical / 52 High
 
 Statuses are verified against live code at the audited SHA, not copied from the dated report prose. Only Scot closes a finding, downgrades severity, accepts risk, or sets a disposition. Disposition (triage) is orthogonal to status: a finding can be `open` yet `dismissed-false-positive`/`wontfix`/`accepted`; blank reads as `untriaged`.
 
-## Open (359)
+## Open (360)
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -60,6 +60,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-cb563da6ef |  | high | WCAG | untriaged | audit-run | Authenticated navbar account menu trigger has no accessible name | `app/frontend/app/components/app-navbar-authenticated-inner.hbs`:119 |
 | LL-bbf2a5404f |  | high | WCAG | untriaged | audit-run | App-shell account menu trigger has no accessible name on classic header routes | `app/frontend/app/templates/application.hbs`:1042 |
 | LL-159679db04 |  | high | WCAG | untriaged | audit-run | Signed-in account menu trigger overrides the global focus ring with no replacement | `app/frontend/app/styles/app.scss`:20169 |
+| LL-c5fe781c55 |  | high | GDPR, FERPA, COPPA, HIPAA | untriaged | manual | Compliance finding (details withheld until remediation is verified) | `lib/uploader.rb`:1 |
 | LL-7314b5a8ea |  | medium | HIPAA | untriaged | audit-run | Render Key Value instance is plaintext and shared by prod-fallback, staging, dev, and PR previews | `render.yaml`:107 |
 | LL-ebd844a7d0 |  | medium | FERPA | untriaged | manual | Permanent, non-expiring User#user_token still login-serialized and accepted by logged legacy token fallbacks | `lib/json_api/user.rb`:41 |
 | LL-b5c30235d3 |  | medium | SOC2, HIPAA, FERPA | **accepted** | audit-run | infra-auditor runtime/CLI evidence relies on instruction-only control against secret/PII leakage | `.claude/agents/infra-auditor.md`:31 |
@@ -472,4 +473,4 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 
 ---
 
-_436 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._
+_437 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._

@@ -14531,6 +14531,52 @@
         "attestation": ""
       },
       "notes": "Surfaced by the Q3 make-up /audit-run on 2026-10-31 and adversary-confirmed. Reworded to claim level 2026-11-05 by Scot Wahlquist under rule 4; the detail is in the private run record."
+    },
+    {
+      "id": "LL-c5fe781c55",
+      "ruleKey": "manual-review-2026-11-23-u01",
+      "title": "Compliance finding (details withheld until remediation is verified)",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "FERPA",
+        "COPPA",
+        "HIPAA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/uploader.rb",
+        "line": 1,
+        "snippet": "require 'aws-sdk-s3'",
+        "sha": "7c34ebb27e376f1d3b7214874080d1a32db82d7e"
+      },
+      "firstSeen": "2026-11-24",
+      "lastSeen": "2026-11-24",
+      "owner": "traciday",
+      "remediation": {
+        "options": "Closure criteria: fix merged to develop and released to production; independent verification against the private evidence; Scot records the closure and the disclosure decision.",
+        "timeframe": "15-30 days (High SLA)"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "manual",
+        "pr": null,
+        "reviewer": "adversary",
+        "promotedDate": "2026-11-24"
+      },
+      "notes": "Promoted from adversary review on 2026-11-24. Status: open. Security issue identified; remediation is in progress. Minimized under the security disclosure policy (2026-09-17): technical details are withheld until remediation is deployed, verified, and disclosure is approved. The evidence is held privately by the reporter and has not yet been moved to the restricted private evidence store. Severity proposed by the reviewer; not yet reviewed by Scot Wahlquist."
     }
   ]
 }
