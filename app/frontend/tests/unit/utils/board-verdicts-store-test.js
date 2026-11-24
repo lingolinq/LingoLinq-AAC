@@ -8,7 +8,7 @@ import { pick_device_boards } from 'frontend/utils/offline_board_list';
 
 /* A liked board of another owner stays listed (or hidden) beyond the 5-entry sync log: each finished, stopped or
  * cancelled sync's verdicts are kept per person in `settings/boardVerdicts`, saved only after that record was read
- * (docs/task-management/2026-11-23-offline-liked-board-verdicts.md). */
+ * (docs/task-management/2026-11-23_offline-liked-board-verdicts.md). */
 module('Unit | Utility | board verdicts kept beyond the sync log', function(hooks) {
   setupTest(hooks);
   var K = 'therapist/feelings';
@@ -179,5 +179,64 @@ module('Unit | Utility | board verdicts kept beyond the sync log', function(hook
     sync(p, refused(3), st);
     assert.true(p.get('sync_log')[p.get('sync_log').length - 1].seq > at + 9000, 'a later sync numbers above the stored record');
     assert.deepEqual(listed(p), []);
+  });
+
+  // Second review of the built code: a save in flight during sign-out must not put the cleared verdicts back.
+  function held_storage(stored) {
+    var st = storage(stored);
+    var now = st.store;
+    st.held = [];
+    st.store = function(s, record, key) {
+      if(key !== BOARD_VERDICTS_KEY) { return now.call(st, s, record, key); }
+      return new RSVP.Promise(function(r) { st.held.push(function() { r(now.call(st, s, record, key)); }); });
+    };
+    return st;
+  }
+  var tick = function() { return new RSVP.Promise(function(r) { setTimeout(r, 10); }); };
+
+  test('a save that ends after sign-out does not put the verdicts back in memory, for nobody or for the next person', async function(assert) {
+    var p = service('larry');
+    var st = held_storage();
+    sync(p, seen(1), st);
+    await tick();
+    p.set('board_verdicts', null); // services/app-state.js clear_user_state
+    st.held[0]();
+    await tick();
+    assert.strictEqual(p.get('board_verdicts'), null, 'signed out');
+
+    var q = service('larry');
+    var st2 = held_storage();
+    sync(q, seen(1), st2);
+    await tick();
+    var next = { sam: { top: 1, t: { 'o/b': { v: true, n: 1 } } } };
+    q.set('stashes', { get_object: function() { return { user_name: 'sam' }; } });
+    q.set('board_verdicts', next);
+    st2.held[0]();
+    await tick();
+    assert.strictEqual(q.get('board_verdicts'), next, 'someone else signed in');
+  });
+
+  test('a verdict folded while a save runs is written by that save or stays unsaved; a finished save clears the flag', async function(assert) {
+    var Q = 'aaron/colors';
+    var p = service('larry');
+    var reads = [];
+    var st = storage();
+    st.find = function(s, key) { return new RSVP.Promise(function(r, rej) { reads.push(function() { rej({ error: 'no record found for settings:' + key }); }); }); };
+    sync(p, seen(1), st);
+    sync(p, whole(2, [{ id: Q, key: Q, status: 're-downloaded' }], [Q]), st);
+    reads[0]();
+    await tick();
+    var first = st.calls.stored.filter(function(c) { return c.key === BOARD_VERDICTS_KEY; })[0].record.raw;
+    assert.true(first.verdicts.larry.t[Q].v, 'the first write already has what was folded before it was written');
+    reads[1]();
+    await tick();
+    assert.false(p._board_verdicts_unsaved, 'nothing left unsaved');
+  });
+
+  test('a stored log with no entries does not break the restore', async function(assert) {
+    var p = service('larry');
+    await restore_sync_log(p, deps(storage({ syncLog: { owner: 'larry', entries: [] } })));
+    assert.deepEqual(p.get('sync_log'), []);
+    assert.notOk(p._board_verdicts_unsaved);
   });
 });

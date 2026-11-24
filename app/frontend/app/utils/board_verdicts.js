@@ -3,7 +3,7 @@ import capabilities from './capabilities';
 import lingoLinqExtras from './extras';
 
 // Whether another owner's liked board may be listed in "Boards on This Device", kept per person beyond the 5-entry
-// sync log (docs/task-management/2026-11-23-offline-liked-board-verdicts.md). The sync log keeps 5 entries for every
+// sync log (docs/task-management/2026-11-23_offline-liked-board-verdicts.md). The sync log keeps 5 entries for every
 // sync on the device (utils/sync_log_store.js), so stopped, cancelled and other people's syncs used to push out the
 // sync that decided a board, and the board dropped off the offline list.
 //
@@ -221,16 +221,20 @@ export function record_board_verdicts(persistence, entry, log, deps) {
   deps = defaults(deps);
   var owner = owner_of(persistence, deps.db_name);
   if(!owner || !deps.storage || typeof deps.storage.find !== 'function' || typeof deps.storage.store !== 'function') { return RSVP.resolve(); }
-  var saving = persistence.get('board_verdicts');
-  var merged = null;
+  var folded = persistence.get('board_verdicts');
+  var saving = null, merged = null;
+  // This person's map in memory, or null once they have signed out (services/app-state.js clear_user_state clears it) or
+  // someone else has signed in: then nothing is read from or put back into memory.
+  var live = function() { var m = persistence.get('board_verdicts'); return m && owner_of(persistence, deps.db_name) === owner ? m : null; };
   return read_stored(deps.storage, owner).then(function(stored) {
-    merged = merge_people(stored, saving);
+    saving = live(); // with what was folded while the read ran
+    merged = merge_people(merge_people(stored, folded), saving);
     var record = { raw: { owner: owner, verdicts: merged }, storageId: BOARD_VERDICTS_KEY, id: BOARD_VERDICTS_KEY };
     return RSVP.resolve(deps.storage.store('settings', record, BOARD_VERDICTS_KEY));
   }).then(function() {
-    if(persistence.isDestroyed || persistence.isDestroying) { return; }
-    var now = persistence.get('board_verdicts');
+    var now = persistence.isDestroyed || persistence.isDestroying ? null : live();
+    if(!now) { return; }
     persistence.set('board_verdicts', merge_people(merged, now));
-    if(now === saving) { persistence._board_verdicts_unsaved = false; } // a fold during the save stays unsaved
+    if(now === saving) { persistence._board_verdicts_unsaved = false; } // a fold during the write stays unsaved
   }, function() { });
 }

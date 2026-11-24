@@ -96,3 +96,15 @@ gate adds nothing (baseline untouched); gitleaks clean.
 - Test failures seen in the wide filter: `session.invalidate auth_spa_transition` also fails on develop 3ccf3003e
   (expected 1, got 2). `sync_send_utterance` "a changed sentence..." failed in 1 of 3 wide runs here, 0 of 1 on
   develop, and passes alone: cause NOT yet established.
+
+## Second review round, on fdd6c9441 (2026-11-24), and the last fixes
+REVIEWED=range 8e377f16f ... fdd6c9441. `/adversary-review`: ship (round 1's leak closed in the real module: 0 in about
+183k fuzz checks; 6 Lows). `/review-pr`: request changes on H1, which the red team rates Low (not reachable while
+`auth_spa_transition` is off).
+Fixed, red tests first: a save ending after sign-out, or after someone else signed in, no longer puts verdicts back in
+memory; a save writes what was folded while its read ran; a stored log with no entries does not throw; the sign-out
+flag reset is asserted; references use this file's real name. Mutants X1-X6 all KILLED.
+Recorded, not fixed: two separate storage faults in a row can still lose a refusal (until the next whole sync); the
+store's owner is checked before the read, and the database cannot change without a reload today.
+`sync_send_utterance` "a changed sentence...": 1 failure in 3 earlier wide runs, then 0 of 6 here and 0 of 6 on develop
+(prebuilt, alternating). No branch code touches it; the failing run's message was not kept, so the cause is UNKNOWN.

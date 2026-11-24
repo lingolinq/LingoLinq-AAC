@@ -381,7 +381,7 @@ module('Unit | Controller | user/index offline boards view', function(hooks) {
     assert.strictEqual(c.get('offline_boards'), null);
   });
 
-  // docs/task-management/2026-11-23-offline-liked-board-verdicts.md: the boards page reads the verdicts kept beyond the
+  // docs/task-management/2026-11-23_offline-liked-board-verdicts.md: the boards page reads the verdicts kept beyond the
   // 5-entry sync log, so a liked board whose seeing sync has left the log is still listed.
   test('a liked board seen by a sync that has left the log is listed from the kept verdicts', async function(assert) {
     var c = page(this.owner);

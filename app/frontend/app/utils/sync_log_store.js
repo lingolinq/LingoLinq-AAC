@@ -118,7 +118,7 @@ export function restore_sync_log(persistence, deps) {
     var verdicts = persistence.get('board_verdicts');
     var folded = verdicts;
     (Array.isArray(raw.entries) ? raw.entries : []).forEach(function(e) { folded = fold_entry(folded, e); }); // entries from before board_verdicts, kept when they leave the log
-    if(Object.keys(folded).length) { persistence._board_verdicts_unsaved = true; } // saved by the next sync (utils/board_verdicts.js record_board_verdicts)
+    if(Object.keys(folded || {}).length) { persistence._board_verdicts_unsaved = true; } // saved by the next sync (utils/board_verdicts.js record_board_verdicts)
     persistence.set('board_verdicts', folded);
     persistence.set('sync_log', restored);
     persistence.set('sync_log_rand', Math.random());

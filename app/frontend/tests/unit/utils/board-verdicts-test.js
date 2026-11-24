@@ -2,7 +2,7 @@ import { module, test } from 'qunit';
 import { entry_verdicts, merge_verdicts, fold_entry, board_seen, VERDICT_CAP } from 'frontend/utils/board_verdicts';
 
 /* Whether another owner's liked board may be listed offline, kept per person beyond the 5-entry sync log
- * (docs/task-management/2026-11-23-offline-liked-board-verdicts.md). Rows are in the shape the sync logs a liked seed:
+ * (docs/task-management/2026-11-23_offline-liked-board-verdicts.md). Rows are in the shape the sync logs a liked seed:
  * its key in both slots (services/persistence.js `id = next.id || next.key`). */
 module('Unit | Utility | board verdicts', function() {
   var K = 'therapist/feelings';
