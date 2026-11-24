@@ -229,7 +229,7 @@ export default Service.extend({
    * @param {string} outlet - Outlet name (for backward compatibility)
    */
   close(success, outlet) {
-    outlet = outlet || 'modal';
+    outlet = outlet || 'modal'; if (success === undefined && this.get('dialog_ate_escape') && outlet !== 'highlight' && outlet !== 'highlight-secondary' && outlet !== 'flash-message' && outlet !== 'board-preview') { success = false; }
     
     // Handle different outlet types
     if (outlet === 'highlight' || outlet === 'highlight-secondary') {

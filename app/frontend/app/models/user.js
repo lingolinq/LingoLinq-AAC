@@ -1192,7 +1192,12 @@ LingoLinq.User = BaseModel.extend({
       defer.promise.wait = true;
       find.then(function(board) {
         modal.open('swap-images', {board: board, button_set: board.get('button_set'), library: swap_library, confirmation: true}).then(function() {
-          defer.resolve();        
+          defer.resolve();
+        }, function() {
+          // Escape rejects. The swap itself happens inside the dialog, so a
+          // cancel must still release setup (application.js waits on this
+          // promise) and must not surface the swap-failed error.
+          defer.resolve();
         });  
       });
     }

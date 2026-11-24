@@ -607,8 +607,8 @@ $(document).on('mousedown touchstart', function(event) {
       buttonTracker.select_tab();
     }
   } else if(event.keyCode == 27 || event.code == 'Escape') { // esc
-    if(modal.is_open() && modal.is_closeable()) {// && (event.target.tagName == 'INPUT' || event.target.tagName == 'BUTTON' || event.target.tagName == 'TEXTAREA' || event.target.tagName == 'A')) {
-      modal.close();
+    if(modal.claim_document_escape()) {// && (event.target.tagName == 'INPUT' || event.target.tagName == 'BUTTON' || event.target.tagName == 'TEXTAREA' || event.target.tagName == 'A')) {
+      modal.close(false);
     /* `typing_into_a_field` here as well as on the character-typing handler above.
        That handler returns early for everything in `special_keys`, and `special_keys`
        CONTAINS "Escape" and "Backspace" -- so its guard structurally cannot cover these
@@ -618,7 +618,7 @@ $(document).on('mousedown touchstart', function(event) {
        composed utterance, and Backspace to fix a typo deleted a chip from it. That became
        reachable for every existing account when preferences.device.external_keyboard
        gained a `true` default, which generate_defaults backfills onto every device. */
-    } else if(buttonTracker.check('keyboard_listen') && !modal.is_open() && !typing_into_a_field(event.target)) {
+    } else if(buttonTracker.check('keyboard_listen') && !modal.is_open() && !typing_into_a_field(event.target) && !modal.skip_clear_for_escape) {
       $("#hidden_input").val("");
       if(buttonTracker.appState) {
         buttonTracker.appState.activate_button({vocalization: ':clear'}, {

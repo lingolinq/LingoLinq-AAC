@@ -106,7 +106,7 @@ export default Component.extend({
     // Escape key
     if (event.keyCode === 27) {
       if (this.get('uncloseable')) { return; }
-      this.send('close', event);
+      modal.mark_dialog_escape(); this.send('close', event);
       return;
     }
 
