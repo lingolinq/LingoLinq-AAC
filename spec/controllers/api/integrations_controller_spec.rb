@@ -698,6 +698,16 @@ describe Api::IntegrationsController, :type => :controller do
     end
   end
 
+  describe "domain_settings enabled_frontend_features injection" do
+    it "sends the system default list and does not write it onto the cached domain blob" do
+      allow(SystemFeatureSettings).to receive(:default_enabled_features).and_return(['google_sso'])
+      get 'domain_settings'
+      json = JSON.parse(response.body)
+      expect(json['settings']['enabled_frontend_features']).to eq(['google_sso'])
+      expect((JsonApi::Json.current_domain['settings'] || {})).not_to have_key('enabled_frontend_features')
+    end
+  end
+
   # The layout (app/views/layouts/application.html.erb) injects window.domain_settings
   # via exactly these helpers; test them directly so the primary (server-render)
   # delivery path is covered, not only the JSON endpoint.
@@ -724,6 +734,13 @@ describe Api::IntegrationsController, :type => :controller do
     it "uses the Accept-Language header as the jurisdiction signal (no org/domain signal wired)" do
       request.headers['Accept-Language'] = 'pl-PL,pl;q=0.9'
       expect(controller.send(:jurisdiction_signal_for_request)).to eq('pl-PL,pl;q=0.9')
+    end
+  end
+
+  describe "#enabled_frontend_features_injection (layout data source)" do
+    it "returns the system default list" do
+      allow(SystemFeatureSettings).to receive(:default_enabled_features).and_return(['google_sso'])
+      expect(controller.send(:enabled_frontend_features_injection)).to eq({ 'enabled_frontend_features' => ['google_sso'] })
     end
   end
 end
