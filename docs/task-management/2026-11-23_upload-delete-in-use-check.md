@@ -101,3 +101,6 @@ what clients may send and needs its own review of legitimate reuse).
 Not done: a durable retry for a scheduling failure. The plain `delete_retry` path would skip the ownership rule; a
 retry that goes back through `removable_by_destroyed_row?` is a follow-up if Redis outages during deletes turn out to
 matter (the failure is logged with the record's id).
+- `/review-pr` (senior-dev pass) on the PR head, `REVIEWED=PR lingolinq/LingoLinq-AAC#1370 at
+  cc52b9f8d29eab0c9282cdf57bc21df2b174043d`: approve with comments. No Critical, High or Medium. Fixed: a stale line
+  citation in the retry comment. The Codex connector reviewed the same head with no findings.

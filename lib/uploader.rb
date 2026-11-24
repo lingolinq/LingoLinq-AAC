@@ -84,7 +84,7 @@ module Uploader
       return nil
     end
     if action == 'delete_retry'
-      # Uploadable#schedule_remote_removal_if_unique (uploadable.rb:146) checked the URL was unused
+      # Uploadable#schedule_remote_removal_if_unique (uploadable.rb:150) checked the URL was unused
       # at destroy time; a retry can run months later, after a record reuses the URL.
       in_use = remote_path_in_use?(path)
       Rails.logger.warn("Uploader.retry_remote_delete: object in use again; deferred delete dropped") if in_use
