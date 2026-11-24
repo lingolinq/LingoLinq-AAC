@@ -212,3 +212,32 @@ Mutation that must turn the tests red: drop `DefaultAvatar.stored` at any one of
 Test change: my own new example in this PR, "gives a contact added without a picture an avatar on the app's host",
 asserted the SAVED contact address is absolute; that is the behaviour Codex flagged, so its first assertion changes to
 the host-free path (the JSON assertion beside it already checks the shown address).
+
+### Red-team review of the proposal (adversary, 34bec63f7): proceed with changes. Checked here.
+
+- Medium, CONFIRMED and caused by this PR's typo fix: `components/inbox.hbs:83` printed `prior_author` itself, now a
+  hash, so replies read "message from [object Object]". Fixed to `.name`; new rendering test
+  `tests/integration/inbox-prior-author-test.js` (red with the old line).
+- Medium, CONFIRMED and exposed by the typo fix: `params['note']` is saved as the client sent it
+  (`log_session.rb:1868`), so a non-hash `prior_contact` made `alert.rb:18`'s `.slice` raise and the inbox 500. Guarded
+  with `is_a?(Hash)`; spec with a string, an array and a number.
+- Low, CONFIRMED: `json_api/log.rb:64` returned `note.prior_contact` unmapped. Now mapped. The client also SENDS
+  `note.prior_contact` (`controllers/record-note.js:146`, `components/record-note.js:182`): a fourth writer, now saved
+  through `stored_contact`.
+- Low, CONFIRMED: the native packaging (`~/lingolinq_mobile/bin/package_from_lingolinq:28-34`) copies no
+  `public/avatars`, so a relative path cannot load inside the apps. Only reached on rollback; stated in the PR.
+- Low: test gaps (re-adding a contact, what `LogSession.message` saves, reading on another host). All three added.
+- Low, PLAUSIBLE, not taken: treating `/avatars/avatar-N.png` on ANY host as a default when saving. It would swap a
+  real picture on another site with that name for our default, to cover a rare stale replay after a domain is removed.
+
+Approved test changes (Traci, 2026-11-23): `user_spec.rb:1889,1911` (saved contact) and `log_session_spec.rb:1650,
+1659,1669` (find_reply) now expect the saved form `/avatars/avatar-N.png`.
+
+Runs (5771fc93f + test commit): avatar describe 14 of 14; related specs 2107 examples, 12 failures, all
+`AuditEvent.count` and all failing on develop `003c22753` too (the 11 above plus `subscription_spec.rb:1642`, checked
+on a clean develop checkout); controllers logs/users/utterances plus webhook 595, 0 failures; Ember
+`--filter "Integration | inbox"` 2 of 2; template lint and eslint clean. Falsified: with the six fix files reverted,
+6 backend examples and the inbox test fail; restored from copies.
+
+Rollback limit: a revert to before this change leaves the saved `/avatars/avatar-N.png` values, which the old readers
+return as-is: they work on the web but not inside the native apps.
