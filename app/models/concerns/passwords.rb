@@ -277,6 +277,8 @@ module Passwords
     guess ||= ''
     res = false
     if self.valet_mode?
+      # Covers accounts that turned valet on before becoming an admin or manager.
+      return false if self.valet_blocked_for_role?
       hashed_guess = guess
       if self.settings['valet_password'] && self.settings['valet_password']['pre_hash_algorithm'] && !guess.match(/^hashed\?:\#/)
         hashed_guess = pre_hashed_password(hashed_guess)

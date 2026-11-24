@@ -329,13 +329,13 @@ class Organization < ApplicationRecord
   # cache should be invalidated if:
   # - a manager/assistant is added or removed
   add_permissions('view') { self.settings && self.settings['public'] == true }
-  add_permissions('view', 'edit') {|user| self.settings['org_access'] != false && self.assistant?(user) }
-  add_permissions('view', 'edit', 'manage') {|user| self.settings['org_access'] != false && self.manager?(user) }
-  add_permissions('view', 'edit', 'manage') {|user| self.upstream_manager?(user) }
-  add_permissions('view', 'edit', 'manage', 'update_licenses', 'manage_subscription') {|user| Organization.admin && Organization.admin.manager?(user) }
+  add_permissions('view', 'edit') {|user| self.settings['org_access'] != false && self.assistant?(user) && !user.valet_mode? }
+  add_permissions('view', 'edit', 'manage') {|user| self.settings['org_access'] != false && self.manager?(user) && !user.valet_mode? }
+  add_permissions('view', 'edit', 'manage') {|user| self.upstream_manager?(user) && !user.valet_mode? }
+  add_permissions('view', 'edit', 'manage', 'update_licenses', 'manage_subscription') {|user| Organization.admin && Organization.admin.manager?(user) && !user.valet_mode? }
   add_permissions('view') {|user| self.supervisor?(user) }
   add_permissions('view') {|user| self.settings['org_access'] == false && self.manager?(user) }
-  add_permissions('delete') {|user| Organization.admin && !self.admin && Organization.admin.manager?(user) }
+  add_permissions('delete') {|user| Organization.admin && !self.admin && Organization.admin.manager?(user) && !user.valet_mode? }
   cache_permissions
 
   def generate_defaults
