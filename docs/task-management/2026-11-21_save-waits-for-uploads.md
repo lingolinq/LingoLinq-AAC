@@ -199,3 +199,33 @@ board; the browser answers only the S3 POST (held until the test opens its gate,
   assertion is stripped in production builds, where close may work. Separate follow-up.
 - Seen on the drop path: a failed drop's own "Upload failed" error shares the single flash slot with
   this change's "did not upload, so the board was not saved" message, which replaces it.
+
+## After review and merge (2026-11-22 to 11-23)
+
+Merged as c85094b49 on 2026-11-23, after two merges of develop into the branch.
+
+- **Merge conflict (11-22).** Only the 12 non-English locale files conflicted: develop (#1328) had
+  replaced the `***` sync strings with translations and added `device_boards_*` keys at the same spot
+  as this PR's dialog keys. Resolved by keeping develop's side of every line and adding this PR's six
+  keys back; all 13 locales parse and hold both sets. Targeted QUnit on the merge (this PR's filter
+  plus the board pages): 617 tests, 614 pass, 3 skip, 0 fail; `lint:js:ci` new=0.
+- **Playwright on the merge: the drop helper was flawed, not the app.** The first run failed one Basic
+  test with no upload started; the failure was intermittent (about one run in three, a different
+  Basic test each time) and reproduced on the unchanged spec. Logging `el.isConnected` at dispatch
+  showed the target off the page in every failed run and on it in every passing one: Basic redraws
+  its buttons just after entering edit mode, and `locator.evaluate` resolves the element and runs the
+  function in two steps, so a redraw in between sent the drop to a detached node, which never
+  bubbles to the document listener (`services/content-grabbers.js:3345`). Branch commit a6c016597 (squashed into c85094b49) looks the
+  button up and dispatches in one `page.evaluate`; assertions unchanged. Then three full runs in a
+  row, each from a fresh seed: 9 passed, 1 skipped each time.
+- **Codex review (on 15301de29), two findings, neither needs a change:**
+  - "Cancel uploads when the edited board changes" (board-detail.js `_media_on_board_change`):
+    claimed that an edit-to-edit board hop keeps `edit_mode` true, so a late picture lands on the
+    next board. Disproved in a browser, 3 of 3: a picture held at the bucket, then
+    `onSelectBoardFromCollectionEdit` (the Board Collections drawer's in-edit path) to a second
+    board. `edit_mode` goes false then true during the hop (the parent route's `setupController`,
+    `routes/user/board-detail.js:356`, then `routes/user/board-detail/edit.js:56`); observers run
+    synchronously here, so the false cancels the upload, and neither board's button 1 got the
+    picture, in memory or on the server. A no-hop control in the same run did apply the picture.
+  - "Restore the forbidden ESLint baseline edits": the 91-row re-anchor was approved by Traci on
+    2026-11-21 under Rule #0 item 14 and is in the PR body; the reviewer could not see the approval.

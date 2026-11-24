@@ -584,4 +584,16 @@ module('Unit | Utility | board_revocation', function(hooks) {
     await boardRevocation.apply_revocations(['1_2']);
     assert.strictEqual(heard, 1, 'no longer listening');
   });
+
+  // Follow-up item 2 (docs/task-management/2026-11-22-offline-boards-followup.md): only the wrapped response comes from a
+  // server that checks view permission, so only its revisions are marked as such; the sync records a server answer
+  // from a revision match only then (services/persistence.js).
+  test('fetch_revisions marks the revisions of a view-checked response, not of the older flat map', async function(assert) {
+    var wrapped = await boardRevocation.fetch_revisions(persistFor('u1'), user('u1'), answer({'1_1': 'r1'}, []));
+    assert.true(boardRevocation.view_checked(wrapped), 'wrapped: view-checked');
+    assert.deepEqual(Object.keys(wrapped), ['1_1'], 'the mark is not a revision');
+    var flat = await boardRevocation.fetch_revisions(persistFor('u1'), user('u1'), function() { return RSVP.resolve({'1_1': 'r1'}); });
+    assert.false(boardRevocation.view_checked(flat), 'flat: not view-checked');
+    assert.false(boardRevocation.view_checked(null));
+  });
 });

@@ -1951,7 +1951,8 @@ UserIndexController.reopen({
   end_device_view_online: function(model, tab) {
     if(!this.get('offline_view')) { return; }
     var list = this.get('offline_boards');
-    var own_list = !!(list && list.from_device && !list.read_failed && model && list.user_name === model.get('user_name'));
+    var own_list = !!(list && list.from_device && !list.read_failed && model && list.user_name === model.get('user_name') &&
+      list.db_user === this.device_db_user()); // read from the database that is still the signed-in person's (an SPA sign-in can change it)
     if(!own_list || (tab && TABS_WITH_SERVER_LIST.indexOf(tab) === -1)) { this.leave_device_view(); }
   },
   show_device_boards: function(list_id) {
@@ -1975,6 +1976,7 @@ UserIndexController.reopen({
       if(_this.isDestroyed || model.isDestroyed || _this.get('model') !== model || _this.get('list_id') !== list_id) { return; }
       if(records.read_failed && same_person) { return; }
       records.user_name = user_name;
+      records.db_user = me; // whose open database it was read from (end_device_view_online)
       if(!records.read_failed) { records.spell = spell; records.shared = shared; } // a failed read is not kept: the next call reads again
       _this.set('offline_boards', records);
     }, function() { /* device_board_list resolves an empty list on a failed read; nothing else rejects */ });
