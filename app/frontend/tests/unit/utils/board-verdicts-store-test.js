@@ -76,6 +76,19 @@ module('Unit | Utility | board verdicts kept beyond the sync log', function(hook
     assert.deepEqual(listed(fresh), [], 'and the merged record keeps it');
   });
 
+  test('a save keeps what the stored record says about other boards', async function(assert) {
+    var Q = 'aaron/colors';
+    var stored = { owner: 'larry', verdicts: { larry: { top: at + 1000, t: { [K]: { v: true, n: at + 1000 } } } } };
+    var st = storage({ [BOARD_VERDICTS_KEY]: stored });
+    var p = service('larry'); // a sync about another board lands before the restore read
+    sync(p, whole(2, [{ id: Q, key: Q, status: 're-downloaded' }], [Q]), st);
+    await new RSVP.Promise(function(r) { setTimeout(r, 10); });
+    var written = st.calls.stored.filter(function(c) { return c.key === BOARD_VERDICTS_KEY; }).pop().record.raw;
+    var fresh = service('larry');
+    await restore_board_verdicts(fresh, deps(storage({ [BOARD_VERDICTS_KEY]: written })));
+    assert.deepEqual(listed(fresh), [K], 'the stored answer for the other board survived the write');
+  });
+
   test('another owner\'s record is not read in; a failed read skips that save only; no record yet is an empty one', async function(assert) {
     var p = service('larry');
     await restore_board_verdicts(p, deps(storage({ [BOARD_VERDICTS_KEY]: { owner: 'sam', verdicts: { larry: { top: at, t: { [K]: { v: true, n: at } } } } } })));
