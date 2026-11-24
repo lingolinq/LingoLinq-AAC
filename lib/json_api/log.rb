@@ -38,7 +38,7 @@ module JsonApi::Log
         'name' => (log.data['author_contact'] || {})['name'].presence || log.author.display_name
       }
       if log.data['author_contact']
-        json['author']['contact'] = log.data['author_contact']
+        json['author']['contact'] = DefaultAvatar.contact(log.data['author_contact'])
       end
     else
       json['author'] = {
@@ -65,6 +65,9 @@ module JsonApi::Log
     
     if log.data['note']
       json['note'] = log.data['note']
+      if json['note'].is_a?(Hash) && json['note']['prior_contact'].is_a?(Hash)
+        json['note'] = json['note'].merge('prior_contact' => DefaultAvatar.contact(json['note']['prior_contact']))
+      end
       if log.data['note']['video'] && args[:permissions]
         video = UserVideo.find_by_global_id(log.data['note']['video']['id'])
         if video && video.url

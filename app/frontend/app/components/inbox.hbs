@@ -80,7 +80,7 @@
         </div>
         {{#if this.current.prior}}
           <div class="la-inbox__prior">
-            <div class='text-muted la-inbox__prior-label'>{{t "in reply to" key="in_reply_to"}}{{#if this.current.prior_author}} {{t "message from" key="message_from"}} {{this.current.prior_author}}{{/if}}:</div>
+            <div class='text-muted la-inbox__prior-label'>{{t "in reply to" key="in_reply_to"}}{{#if this.current.prior_author.name}} {{t "message from" key="message_from"}} {{this.current.prior_author.name}}{{/if}}:</div>
             <div class="la-inbox__prior-quote">{{this.current.prior}}</div>
           </div>
         {{/if}}

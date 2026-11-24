@@ -1647,7 +1647,7 @@ describe LogSession, :type => :model do
         :message => 'asdf',
         :contact => {
           'id' => u.global_id,
-          'image_url' => u.generated_avatar_url,
+          'image_url' => "/avatars/avatar-#{u.id % 10}.png", # saved without a host (Traci, 2026-11-23)
           'name' => u.user_name
         },
         :record_code => Webhook.get_record_code(note)
@@ -1656,7 +1656,7 @@ describe LogSession, :type => :model do
         :message => 'asdf',
         :contact => {
           'id' => u.global_id,
-          'image_url' => u.generated_avatar_url,
+          'image_url' => "/avatars/avatar-#{u.id % 10}.png", # saved without a host (Traci, 2026-11-23)
           'name' => u.user_name
         },
         :record_code => Webhook.get_record_code(note)
@@ -1666,7 +1666,7 @@ describe LogSession, :type => :model do
         :message => 'something cool',
         :contact => {
           'id' => u.global_id,
-          'image_url' => u.generated_avatar_url,
+          'image_url' => "/avatars/avatar-#{u.id % 10}.png", # saved without a host (Traci, 2026-11-23)
           'name' => u.user_name
         },
         :record_code => Webhook.get_record_code(utterance)
