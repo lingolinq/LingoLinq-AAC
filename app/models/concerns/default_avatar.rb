@@ -5,8 +5,9 @@
 #
 # Earlier code built them on the STATIC_S3_BUCKET bucket instead, and those addresses are still
 # stored: a person's saved avatar_url and prior_avatar_urls, contacts, and contact copies inside
-# messages. Readers pass stored values through `on_app_host` / `contact`, which map only the exact
-# default-avatar shapes and return everything else unchanged.
+# messages. Writers now save the host-free `path` (`stored` / `stored_contact`). Readers pass stored
+# values through `on_app_host` / `contact`, which map only the exact default-avatar shapes and
+# return everything else unchanged.
 # docs/task-management/2026-11-23_default-avatars-same-host.md
 #
 # Lives in app/models/concerns (always loaded) rather than lib/, whose autoload is skipped for
@@ -18,7 +19,24 @@ module DefaultAvatar
   SCHEME = %r{\A[a-z][a-z0-9+.\-]*://}i
 
   def self.url(index)
-    "#{JsonApi::Json.absolute_host}/avatars/avatar-#{index.to_i % COUNT}.png"
+    "#{JsonApi::Json.absolute_host}#{path(index)}"
+  end
+
+  # The form a default avatar is SAVED in: no host, so a host the app stops serving (an
+  # organization's custom domain that is removed) cannot break it. Readers put the current host on
+  # it through `on_app_host` / `contact`.
+  def self.path(index)
+    "/avatars/avatar-#{index.to_i % COUNT}.png"
+  end
+
+  def self.stored(url)
+    n = index(url)
+    n ? path(n) : url
+  end
+
+  def self.stored_contact(hash)
+    return hash unless hash.is_a?(Hash) && hash['image_url']
+    hash.merge('image_url' => stored(hash['image_url']))
   end
 
   # The number of a default avatar address (a bucket one, or the app's own on a host the app
@@ -39,6 +57,7 @@ module DefaultAvatar
   end
 
   # A contact hash ('image_url' plus anything else) with a default avatar served from the app.
+  # Anything that is not a hash (a client-sent note can hold any value) is returned unchanged.
   def self.contact(hash)
     return hash unless hash.is_a?(Hash) && hash['image_url']
     hash.merge('image_url' => on_app_host(hash['image_url']))

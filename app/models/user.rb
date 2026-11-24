@@ -2857,7 +2857,7 @@ class User < ApplicationRecord
         self.settings['prior_avatar_urls'] << self.settings['avatar_url']
         self.settings['prior_avatar_urls'].uniq!
       end
-      self.settings['avatar_url'] = avatar_param
+      self.settings['avatar_url'] = DefaultAvatar.stored(avatar_param)
     end
     if params['external_device']
       self.settings['external_device'] = params['external_device']
@@ -3314,8 +3314,8 @@ class User < ApplicationRecord
               hash = GoSecure.nonce('contact_hash')[0, 8]
             end
             contact_type = action['value']['contact'].match(/\@/) ? 'email' : 'sms'
-            image_url = action['value']['image_url']
-            image_url ||= DefaultAvatar.url(hash.hex.to_i)
+            image_url = DefaultAvatar.stored(action['value']['image_url'])
+            image_url ||= DefaultAvatar.path(hash.hex.to_i)
             action['value']['contact'].strip!
             ref = action['value']['contact'].strip.downcase
             ref = ref.gsub(/[^\d\+\,]/, '') if contact_type == 'sms'

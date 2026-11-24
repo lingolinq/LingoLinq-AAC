@@ -65,6 +65,9 @@ module JsonApi::Log
     
     if log.data['note']
       json['note'] = log.data['note']
+      if json['note'].is_a?(Hash) && json['note']['prior_contact'].is_a?(Hash)
+        json['note'] = json['note'].merge('prior_contact' => DefaultAvatar.contact(json['note']['prior_contact']))
+      end
       if log.data['note']['video'] && args[:permissions]
         video = UserVideo.find_by_global_id(log.data['note']['video']['id'])
         if video && video.url

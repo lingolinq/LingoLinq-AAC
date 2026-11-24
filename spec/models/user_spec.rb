@@ -3919,7 +3919,7 @@ describe User, :type => :model do
         u = User.create
         u.process({'offline_actions' => [{'action' => 'add_contact', 'value' => {'contact' => 'bob@example.com', 'name' => 'Bob'}}]})
         contact = u.reload.settings['contacts'].detect { |c| c['name'] == 'Bob' }
-        expect(contact['image_url']).to match(%r{\Ahttps://test\.host/avatars/avatar-\d\.png\z})
+        expect(contact['image_url']).to match(%r{\A/avatars/avatar-\d\.png\z}) # saved without a host (Codex review of #1368)
 
         contact['image_url'] = bucket_avatar(4)
         u.save
@@ -4011,6 +4011,52 @@ describe User, :type => :model do
         note.data['author_contact'] = {'name' => 'Bob', 'image_url' => 'https://staging.lingolinq.com/avatars/avatar-4.png'}
         note.save
         expect(LogSession.find_reply(note.global_id, u)[:contact]['image_url']).to eq('/avatars/avatar-4.png')
+      end
+
+      it "saves a re-added contact's default avatar without a host, and shows a saved one on whichever host reads it" do
+        ENV['DEFAULT_HOST'] = 'dev.lingolinq.com' # staging is trusted next to a non-production default (restored by around)
+        JsonApi::Json.set_host('https://staging.lingolinq.com')
+        u = User.create
+        add = lambda { |value| u.process({'offline_actions' => [{'action' => 'add_contact', 'value' => value}]}) }
+        add.call({'contact' => 'bob@example.com', 'name' => 'Bob', 'image_url' => 'http://www.example.com/bob.png'})
+        add.call({'contact' => 'bob@example.com', 'name' => 'Bob', 'image_url' => 'https://staging.lingolinq.com/avatars/avatar-6.png'})
+        contacts = u.reload.settings['contacts']
+        expect(contacts.length).to eq(1)
+        expect(contacts[0]['image_url']).to eq('/avatars/avatar-6.png')
+
+        JsonApi::Json.set_host('https://dev.lingolinq.com')
+        json = JsonApi::User.build_json(u, permissions: u)
+        expect(json['contacts'][0]['image_url']).to eq('https://dev.lingolinq.com/avatars/avatar-6.png')
+      end
+
+      it "saves the default avatars in a reply without a host, including the copy the client sends" do
+        ENV['DEFAULT_HOST'] = 'dev.lingolinq.com'
+        JsonApi::Json.set_host('https://staging.lingolinq.com')
+        sender = User.create
+        recipient = sender
+        d = Device.create(user: sender)
+        note = LogSession.message(recipient: recipient, sender: sender, device: d, message: 'hello', notify: 'user_only')
+        session = LogSession.message(recipient: recipient, sender: sender, device: d, message: 'hi back', reply_id: note.global_id, notify: 'user_only')
+        expect(session).to_not eq(false)
+        expect(session.reload.data['note']['prior_contact']['image_url']).to eq("/avatars/avatar-#{sender.id % 10}.png")
+
+        sent = LogSession.process_new({'note' => {'text' => 'again', 'prior_contact' => {'name' => 'Ann', 'image_url' => 'https://staging.lingolinq.com/avatars/avatar-8.png'}}},
+          {user: recipient, author: sender, device: d})
+        expect(sent.reload.data['note']['prior_contact']['image_url']).to eq('/avatars/avatar-8.png')
+        JsonApi::Json.set_host('https://dev.lingolinq.com')
+        expect(JsonApi::Log.build_json(sent)['note']['prior_contact']['image_url']).to eq('https://dev.lingolinq.com/avatars/avatar-8.png')
+        expect(JsonApi::Alert.build_json(sent)['prior_author']['image_url']).to eq('https://dev.lingolinq.com/avatars/avatar-8.png')
+      end
+
+      it "builds an alert whose note carries a prior_contact that is not a contact" do
+        u = User.create
+        d = Device.create(user: u)
+        ['x', ['a', 'b'], 7].each do |bad|
+          note = LogSession.create(user: u, author: u, device: d, log_type: 'note', data: {'note' => {'text' => 'hello', 'prior' => 'earlier', 'prior_contact' => bad}})
+          json = JsonApi::Alert.build_json(note)
+          expect(json['prior']).to eq('earlier')
+          expect(json['prior_author']).to eq(nil)
+        end
       end
 
       it "gives the Unknown User modifier of a version the avatar on the app's host" do

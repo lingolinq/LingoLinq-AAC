@@ -14,7 +14,7 @@ module JsonApi::Alert
       json['text'] = alert.data['note']['text']
       json['sent'] = alert.created_at.iso8601
       json['prior'] = alert.data['note']['prior']
-      if alert.data['note'] && alert.data['note']['prior_contact']
+      if alert.data['note'] && alert.data['note']['prior_contact'].is_a?(Hash) # client-sent, any shape
         json['prior_author'] = DefaultAvatar.contact(alert.data['note']['prior_contact'].slice('id', 'name', 'image_url'))
       end
       if alert.data['author_contact']
