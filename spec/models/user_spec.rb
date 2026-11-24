@@ -2264,6 +2264,105 @@ describe User, :type => :model do
       expect(u.settings['valet_password']).to_not eq(nil)
     end
 
+    describe "valet login on admin and manager accounts" do
+      # The save goes through without turning valet on: the client keeps unsaved fields after a
+      # failed save, so refusing would make every later save of the record fail too.
+      def expect_valet_not_enabled(u)
+        expect(u.settings['valet_password']).to eq(nil)
+        expect(u.process({'valet_login' => true, 'valet_password' => 'gemini12', 'preferences' => {'speak_mode_pin' => '1234'}}, {'updater' => u})).to_not eq(false)
+        expect(u.processing_errors).to eq([])
+        u.reload
+        expect(u.settings['valet_password']).to eq(nil)
+        expect(u.settings['preferences']['speak_mode_pin']).to eq('1234')
+        # The same fields sent again on a later save.
+        expect(u.process({'valet_login' => true, 'valet_password' => 'gemini12', 'preferences' => {'speak_mode_pin' => '5678'}}, {'updater' => u})).to_not eq(false)
+        expect(u.processing_errors).to eq([])
+        u.reload
+        expect(u.settings['valet_password']).to eq(nil)
+        expect(u.settings['preferences']['speak_mode_pin']).to eq('5678')
+        # A save that sends valet_login without a new password turns nothing on either.
+        expect(u.process({'valet_login' => true}, {'updater' => u})).to_not eq(false)
+        expect(u.processing_errors).to eq([])
+        u.reload
+        expect(u.settings['valet_password']).to eq(nil)
+      end
+
+      it "should not enable valet login for a site admin" do
+        u = User.create
+        u.settings['admin'] = true
+        u.save
+        expect_valet_not_enabled(u)
+      end
+
+      it "should not enable valet login for a manager of the admin organization" do
+        o = Organization.create(:admin => true)
+        u = User.create
+        o.add_manager(u.user_name, true)
+        u.reload
+        expect_valet_not_enabled(u)
+      end
+
+      it "should not enable valet login for an organization manager" do
+        o = Organization.create
+        u = User.create
+        o.add_manager(u.user_name, true)
+        u.reload
+        expect_valet_not_enabled(u)
+      end
+
+      it "should not enable valet login for an organization assistant" do
+        o = Organization.create
+        u = User.create
+        o.add_manager(u.user_name, false)
+        u.reload
+        expect_valet_not_enabled(u)
+      end
+
+      it "should clear an existing valet password on an ordinary save once the account is a manager" do
+        o = Organization.create
+        u = User.create
+        u.process({'valet_login' => true, 'valet_password' => 'gemini12'}, {'updater' => u})
+        expect(u.settings['valet_password']).to_not eq(nil)
+        o.add_manager(u.user_name, true)
+        u.reload
+        expect(u.process({'valet_login' => true}, {'updater' => u})).to_not eq(false)
+        expect(u.processing_errors).to eq([])
+        u.reload
+        expect(u.settings['valet_password']).to eq(nil)
+      end
+
+      it "should clear an existing valet password when a manager sends a new one" do
+        o = Organization.create
+        u = User.create
+        u.process({'valet_login' => true, 'valet_password' => 'gemini12'}, {'updater' => u})
+        expect(u.settings['valet_password']).to_not eq(nil)
+        o.add_manager(u.user_name, true)
+        u.reload
+        expect(u.process({'valet_login' => true, 'valet_password' => 'taurus34'}, {'updater' => u})).to_not eq(false)
+        expect(u.processing_errors).to eq([])
+        u.reload
+        expect(u.settings['valet_password']).to eq(nil)
+      end
+
+      it "should keep saving once the valet password is cleared, while the client still sends valet_login" do
+        # The client keeps its last valet_login value (lib/json_api/user.rb sends it only when true).
+        o = Organization.create
+        u = User.create
+        u.process({'valet_login' => true, 'valet_password' => 'gemini12'}, {'updater' => u})
+        expect(u.settings['valet_password']).to_not eq(nil)
+        o.add_manager(u.user_name, true)
+        u.reload
+        expect(u.process({'valet_login' => true, 'preferences' => {'speak_mode_pin' => '1234'}}, {'updater' => u})).to_not eq(false)
+        u.reload
+        expect(u.settings['valet_password']).to eq(nil)
+        expect(u.process({'valet_login' => true, 'preferences' => {'speak_mode_pin' => '5678'}}, {'updater' => u})).to_not eq(false)
+        expect(u.processing_errors).to eq([])
+        u.reload
+        expect(u.settings['valet_password']).to eq(nil)
+        expect(u.settings['preferences']['speak_mode_pin']).to eq('5678')
+      end
+    end
+
     it "should notify when valet login is enabled"  do
       u = User.create
       expect(UserMailer).to receive(:schedule_delivery).with(:valet_password_enabled, u.global_id)
