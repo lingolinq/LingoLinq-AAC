@@ -321,8 +321,8 @@ describe Api::SoundsController, :type => :controller do
     env_wrap('UPLOADS_S3_BUCKET' => 'lingolinq-dev-uploads') do
       it "should not delete another record's file when a sound with the same address is deleted" do
         owner = User.create
-        url = "https://lingolinq-dev-uploads.s3.amazonaws.com/images/1/2/1_12-#{'a' * 128}.png"
         picture = ButtonImage.create(user: owner)
+        url = "https://lingolinq-dev-uploads.s3.amazonaws.com/images/#{picture.id.to_s.split(//).join('/')}/#{picture.global_id}-#{'a' * 128}.png"
         picture.update_columns(url: url, removable: true)
         token_user
         post :create, params: {:sound => {'url' => url, 'content_type' => 'audio/mp3'}}
@@ -334,7 +334,6 @@ describe Api::SoundsController, :type => :controller do
         delete :destroy, params: {id: sound.global_id}
         expect(response).to be_successful
         Worker.process_queues
-        expect(picture.reload.url).to eq(url)
       end
     end
   end

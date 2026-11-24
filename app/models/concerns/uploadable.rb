@@ -141,12 +141,13 @@ module Uploadable
     true
   end
   
-  # The file is deleted only when no picture, sound or video row still names it (not only rows of this class: a row
-  # can name another kind's file), checked now and again when the job runs (Uploader.remote_remove_if_unused).
+  # Runs after the destroy commits, so the job never sees this row as still using the file. The file is deleted only
+  # when it is this row's own media upload (or its uploading row is gone) and no picture, sound or video row still
+  # names it (Uploader.removable_by_destroyed_row?), checked now and again when the job runs.
   def schedule_remote_removal_if_unique
     if self.url && self.removable
-      unless Uploader.remote_url_in_use?(self.url)
-        Worker.schedule(Uploader, :remote_remove_if_unused, self.url)
+      if Uploader.removable_by_destroyed_row?(self.url, self.class.name, self.id)
+        Worker.schedule(Uploader, :remote_remove_if_unused, self.url, self.class.name, self.id)
         true
       end
     end
@@ -816,6 +817,6 @@ module Uploadable
     before_save :check_for_removable
     before_save :check_for_cached_copy
     after_save :upload_after_save
-    after_destroy :schedule_remote_removal_if_unique
+    after_destroy_commit :schedule_remote_removal_if_unique
   end
 end

@@ -410,10 +410,13 @@ describe ButtonImage, :type => :model do
   it "should remove from remote storage if no longer in use" do
     u = User.create
     i = ButtonImage.create(:user => u)
+    # The row's own upload address (a destroyed row deletes only media-folder files, Uploader.removable_by_destroyed_row?;
+    # was "asdf", changed with Traci's approval 2026-11-23).
+    url = "https://#{ENV['UPLOADS_S3_BUCKET'].presence || 'lingolinq-dev-uploads'}.s3.amazonaws.com/images/#{i.id.to_s.split(//).join('/')}/#{i.global_id}-#{'a' * 128}.png"
     i.removable = true
-    i.url = "asdf"
-    i.settings['full_filename'] = "asdf"
-    expect(Uploader).to receive(:remote_remove).with("asdf")
+    i.url = url
+    i.settings['full_filename'] = url
+    expect(Uploader).to receive(:remote_remove).with(url)
     i.destroy
     Worker.process_queues
   end

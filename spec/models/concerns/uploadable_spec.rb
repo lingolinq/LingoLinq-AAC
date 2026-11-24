@@ -7,6 +7,7 @@ describe Uploadable, :type => :model do
     def self.before_save(*args); end
     def self.after_save(*args); end
     def self.after_destroy(*args); end
+    def self.after_destroy_commit(*args); end
     include Uploadable
   end
   

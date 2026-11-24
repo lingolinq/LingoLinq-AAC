@@ -621,16 +621,43 @@ module Uploader
 
   # Whether a picture, sound or video row still uses the file an address names, in any form a row stores
   # (remote_path_in_use?). A row can name another row's file (any uploads-bucket address is accepted,
-  # Uploadable#process_url), so a destroyed row's file is in use if ANY of the three kinds still names it.
+  # Uploadable#process_url), so a file is in use if ANY of the three kinds still names it.
   def self.remote_url_in_use?(url)
     remote_path_in_use?(remote_key_for(url))
   end
 
-  # Worker entry for a destroyed row's file (Uploadable#schedule_remote_removal_if_unique): checked again when the
-  # job runs, since a row can take the address after the destroy, then deleted.
-  def self.remote_remove_if_unused(url)
-    if remote_url_in_use?(url)
-      Rails.logger.warn("Uploader.remote_remove_if_unused: object in use; delete dropped")
+  # An upload key a picture, sound or video row was uploaded under (Uploadable#full_filename: the kind's folder, the
+  # row id's digits as folders, then "<global id>-<sha512>", then an extension or a transcode suffix).
+  MEDIA_KEY = /\A(images|sounds|videos)\/((?:\d\/)+)\d+_(\d+)(?:_\w+)?-\h{128}[^\/]*\z/
+  MEDIA_KEY_CLASSES = {'images' => 'ButtonImage', 'sounds' => 'ButtonSound', 'videos' => 'UserVideo'}.freeze
+
+  # The row a media key was uploaded for, as [class name, database id]; nil for any other key (extras/ files, other
+  # folders, a key whose folder digits do not match its id).
+  def self.media_key_owner(key)
+    m = key.to_s.match(MEDIA_KEY)
+    return nil unless m && m[2].delete('/') == m[3]
+    [MEDIA_KEY_CLASSES[m[1]], m[3].to_i]
+  end
+
+  # Whether destroying a row (class name and database id) may delete the file its address names:
+  # - only a key in a media folder (images/, sounds/, videos/): anything else in the bucket (button sets and logs under
+  #   extras/) is never deleted this way;
+  # - for a key in the upload shape (media_key_owner), only the row's own upload or one whose uploading row no longer
+  #   exists; a media-folder key in another shape (older rows) gets the in-use check alone;
+  # - and only when no picture, sound or video row still names it.
+  def self.removable_by_destroyed_row?(url, class_name, id)
+    key = remote_key_for(url)
+    return false unless key.match?(/\A(images|sounds|videos)\//)
+    owner = media_key_owner(key)
+    return false if owner && owner != [class_name, id] && owner[0].constantize.where(id: owner[1]).exists?
+    !remote_url_in_use?(url)
+  end
+
+  # Worker entry for a destroyed row's file (Uploadable#schedule_remote_removal_if_unique, after the destroy commits):
+  # checked again when the job runs, since a row can take the address in between, then deleted.
+  def self.remote_remove_if_unused(url, class_name, id)
+    unless removable_by_destroyed_row?(url, class_name, id)
+      Rails.logger.warn("Uploader.remote_remove_if_unused: not this row's file to delete, or in use; delete dropped")
       return false
     end
     remote_remove(url)
