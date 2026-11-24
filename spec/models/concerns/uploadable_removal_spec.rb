@@ -116,7 +116,10 @@ describe Uploadable, "removal of a destroyed row's file" do
       allow(Worker).to receive(:schedule).and_call_original
       allow(Worker).to receive(:schedule).with(Uploader, :remote_remove_if_unused, anything, anything, anything).and_raise(Redis::CannotConnectError)
       expect(Worker).to receive(:schedule).with(Uploader, :remote_remove, "sounds/1/1_9-#{'c' * 128}.wav")
+      logged = []
+      allow(Rails.logger).to receive(:error) { |message| logged << message }
       expect { sound.destroy }.not_to raise_error
+      expect(logged.join("\n")).to include(Uploader.remote_key_for(url)) # enough to find the file that stayed
       expect(ButtonSound.where(id: sound.id).count).to eq(0)
     end
 

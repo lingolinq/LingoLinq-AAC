@@ -104,3 +104,8 @@ matter (the failure is logged with the record's id).
 - `/review-pr` (senior-dev pass) on the PR head, `REVIEWED=PR lingolinq/LingoLinq-AAC#1370 at
   cc52b9f8d29eab0c9282cdf57bc21df2b174043d`: approve with comments. No Critical, High or Medium. Fixed: a stale line
   citation in the retry comment. The Codex connector reviewed the same head with no findings.
+
+Correction (2026-11-24): both `/review-pr` passes were run by the session that wrote the code, and the second read only
+the app and lib part of the diff. An independent pass is still owed. The scheduling-failure log line now names the
+file's key (the comment said it did; it did not). The learnings entry is left out of this PR to stop it conflicting
+with every merge to that file; it goes in a later docs PR.

@@ -156,7 +156,7 @@ module Uploadable
     end
     false
   rescue StandardError => e
-    Rails.logger.error("Remote removal scheduling failed for #{self.class.name} #{self.global_id}: #{e.class}: #{e.message}")
+    Rails.logger.error("Remote removal scheduling failed for #{self.class.name} #{self.global_id}, key=#{Uploader.remote_key_for(self.url.to_s)}: #{e.class}: #{e.message}")
     false
   end
 
