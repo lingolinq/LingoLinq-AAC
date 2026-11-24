@@ -127,6 +127,33 @@ describe Uploadable, "removal of a destroyed row's file" do
       end
     end
 
+    it "schedules the removal only once the destroy commits, and never for a destroy rolled back" do
+      picture = row(ButtonImage)
+      url = bucket + key_for(picture, 'images')
+      picture.update_columns(url: url)
+      scheduled = []
+      allow(Worker).to receive(:schedule).and_wrap_original { |m, *args| scheduled << args[1]; m.call(*args) }
+      ButtonImage.transaction(requires_new: true) do
+        picture.reload.destroy
+        raise ActiveRecord::Rollback
+      end
+      expect(ButtonImage.where(id: picture.id).count).to eq(1)
+      expect(scheduled).not_to include(:remote_remove_if_unused)
+      ButtonImage.transaction(requires_new: true) do
+        ButtonImage.find(picture.id).destroy # a fresh copy: the first one stays marked destroyed after the rollback
+        expect(scheduled).not_to include(:remote_remove_if_unused) # not before the commit
+      end
+      expect(scheduled).to include(:remote_remove_if_unused)
+    end
+
+    it "never deletes another existing picture's derived file named by someone else's picture" do
+      picture = row(ButtonImage) # exists, uploaded by its own row
+      other = row(ButtonImage, bucket + key_for(picture, 'images') + '.raster.png', User.create)
+      expect(Uploader).not_to receive(:remote_remove)
+      other.destroy
+      Worker.process_queues
+    end
+
     it "reads the key from every stored address form" do
       prior_cdn = ENV['UPLOADS_S3_CDN']
       ENV['UPLOADS_S3_CDN'] = 'https://cdn.example.com'
