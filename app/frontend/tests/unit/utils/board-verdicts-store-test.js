@@ -127,4 +127,57 @@ module('Unit | Utility | board verdicts kept beyond the sync log', function(hook
     assert.deepEqual(listed(p), [K]);
     assert.strictEqual(({})[K], undefined, 'Object.prototype is untouched');
   });
+
+  // Review of the built code (red team, finding 1): a verdict held only in memory (its save failed, or it was folded at
+  // restore) is saved by the next sync even when that sync has no verdicts of its own.
+  test('a verdict whose save failed is saved by a later sync with no verdicts, so it survives a restart', async function(assert) {
+    var saved = null;
+    var fail_reads = 1;
+    var flaky = {
+      store: function(s, record, key) { if(key === BOARD_VERDICTS_KEY) { saved = JSON.parse(JSON.stringify(record.raw)); } return RSVP.resolve(record); },
+      find: function(s, key) {
+        if(key !== BOARD_VERDICTS_KEY) { return RSVP.reject({ error: 'no record found for settings:' + key }); }
+        if(fail_reads > 0) { fail_reads--; return RSVP.reject({ error: 'db transaction error' }); }
+        return saved ? RSVP.resolve({ raw: saved }) : RSVP.reject({ error: 'no record found for settings:' + key });
+      }
+    };
+    var stored_answer = { owner: 'larry', verdicts: { larry: { top: at + 1000, t: { [K]: { v: true, n: at + 1000 } } } } };
+    saved = stored_answer;
+    var p = service('larry');
+    sync(p, refused(2), flaky); // its save's read fails
+    await new RSVP.Promise(function(r) { setTimeout(r, 10); });
+    [3, 4, 5, 6, 7].forEach(function(n) { sync(p, { user_id: 'larry', canceled: true, confirmed: true, finished: new Date(at + n * 1000), statuses: [] }, flaky); });
+    await new RSVP.Promise(function(r) { setTimeout(r, 20); });
+    var restarted = service('larry');
+    await restore_board_verdicts(restarted, deps(flaky));
+    assert.deepEqual(listed(restarted), [], 'the refusal was saved after all');
+  });
+
+  test('entries saved before board verdicts are saved as verdicts by the next sync, so they survive a restart (upgrade)', async function(assert) {
+    var p = service('larry');
+    var st = storage({ syncLog: { owner: 'larry', entries: [seen(1)].map(function(e) { var c = Object.assign({}, e); c.finished = c.finished.toISOString(); return c; }) } });
+    await restore_sync_log(p, deps(st));
+    await restore_board_verdicts(p, deps(st));
+    [2, 3, 4, 5, 6].forEach(function(n) { sync(p, stop(n), st); });
+    await new RSVP.Promise(function(r) { setTimeout(r, 20); });
+    var written = st.calls.stored.filter(function(c) { return c.key === BOARD_VERDICTS_KEY; }).pop();
+    assert.ok(written, 'written');
+    var restarted = service('larry');
+    await restore_board_verdicts(restarted, deps(storage({ [BOARD_VERDICTS_KEY]: written.record.raw })));
+    assert.deepEqual(listed(restarted), [K]);
+  });
+
+  // Red team, finding 2a: after a save, memory holds the merged record, so a later sync's sequence number is above the
+  // stored ones even without a restore.
+  test('after a save, memory holds the merged record', async function(assert) {
+    var Q = 'aaron/colors';
+    var st = storage({ [BOARD_VERDICTS_KEY]: { owner: 'larry', verdicts: { larry: { top: at + 9000, t: { [K]: { v: true, n: at + 9000 } } } } } });
+    var p = service('larry');
+    sync(p, whole(2, [{ id: Q, key: Q, status: 're-downloaded' }], [Q]), st);
+    await new RSVP.Promise(function(r) { setTimeout(r, 10); });
+    assert.deepEqual(listed(p), [K], 'the stored answer is in memory now');
+    sync(p, refused(3), st);
+    assert.true(p.get('sync_log')[p.get('sync_log').length - 1].seq > at + 9000, 'a later sync numbers above the stored record');
+    assert.deepEqual(listed(p), []);
+  });
 });

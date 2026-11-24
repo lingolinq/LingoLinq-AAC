@@ -212,13 +212,14 @@ function device_list(records) {
 // The listed boards as store records. A record already in memory under the board's id is kept, so an older device
 // copy never overwrites it. The read runs inside the promise chain, so a database that throws (a closing IndexedDB
 // connection) gives an empty list, not an exception. `opts.storage` is passed in by tests; `opts.sync_log` is
-// persistence's sync_log and `opts.verdicts` its board_verdicts (utils/board_verdicts.js); `opts.shared` and `opts.me` are the shared-device rule (opens_here).
+// persistence's sync_log and `opts.verdicts` its board_verdicts (utils/board_verdicts.js), or a function giving them,
+// read when the device read finishes (a restore can land while it runs); `opts.shared` and `opts.me` are the shared-device rule (opens_here).
 export function device_board_list(store, user, opts) {
   opts = opts || {};
   if(!store || !user || typeof user.get !== 'function' || !user.get('user_name')) { return RSVP.resolve(device_list([])); }
   var source = opts.storage || lingoLinqExtras.storage;
   return RSVP.resolve().then(function() { return source.find_all('board'); }).then(function(rows) {
-    return device_list(pick_device_boards(rows, user, opts.sync_log, { shared: opts.shared, me: opts.me, verdicts: opts.verdicts }).map(function(raw) {
+    return device_list(pick_device_boards(rows, user, opts.sync_log, { shared: opts.shared, me: opts.me, verdicts: typeof opts.verdicts === 'function' ? opts.verdicts() : opts.verdicts }).map(function(raw) {
       return store.peekRecord('board', raw.id) || store.push({ data: { id: raw.id, type: 'board', attributes: raw } });
     }));
   }, function() {

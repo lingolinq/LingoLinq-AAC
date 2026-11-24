@@ -391,4 +391,17 @@ module('Unit | Controller | user/index offline boards view', function(hooks) {
     await tick();
     assert.deepEqual(keys(c.get('offline_boards')), ['larry/home', 'other/y']);
   });
+
+  // Review of the built code (senior pass, H1): the kept verdicts are read when the device read finishes.
+  test('kept verdicts that arrive while the device read runs still reach the boards page', async function(assert) {
+    var release = null;
+    var c = page(this.owner, { find_all: function() { return new RSVP.Promise((r) => { release = r; }); } });
+    c.set('model.stats', { starred_board_refs: [{ key: 'other/y' }] });
+    c.update_selected();
+    await tick();
+    c.set('persistence.board_verdicts', { larry: { top: 5, t: { 'other/y': { v: true, n: 5 } } } });
+    release(rows());
+    await tick();
+    assert.deepEqual(keys(c.get('offline_boards')), ['larry/home', 'other/y']);
+  });
 });

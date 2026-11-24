@@ -100,12 +100,14 @@ function person(m) {
 function cap(p) {
   var keys = Object.keys(p.t);
   if(keys.length <= VERDICT_CAP) { return p; }
-  // Drop weak verdicts first, then the oldest; on a tie keep keys (a liked board is logged under its key).
+  // Drop weak verdicts first, then the oldest; on a tie keep refusals, then keys (a liked board is logged under its key).
   keys.sort(function(a, b) {
     var x = p.t[a], y = p.t[b];
     var wx = x.v === 'weak' ? 0 : 1, wy = y.v === 'weak' ? 0 : 1;
     if(wx !== wy) { return wx - wy; }
     if(x.n !== y.n) { return x.n - y.n; }
+    var fx = x.v === false ? 1 : 0, fy = y.v === false ? 1 : 0;
+    if(fx !== fy) { return fx - fy; } // on a tie an answer goes before a refusal, so the refusal still hides the board
     return (a.indexOf('/') === -1 ? 0 : 1) - (b.indexOf('/') === -1 ? 0 : 1);
   });
   keys.slice(0, keys.length - VERDICT_CAP).forEach(function(k) { delete p.t[k]; });
@@ -203,21 +205,32 @@ export function restore_board_verdicts(persistence, deps) {
   }, function() { });
 }
 
-// Fold a new log entry in and save: read the stored record, merge, write (a failed read skips this save; the next one
-// tries again). Nothing is written for an entry with no verdicts (no other owner's board).
+// Fold a new log entry in and save: read the stored record, merge, write. Memory then holds the merged record (so a
+// later sequence number is above the stored ones). A verdict not yet stored (a failed or skipped save, or one folded
+// at restore: `_board_verdicts_unsaved`) is saved by the next sync even if that sync has no verdicts of its own.
+// Nothing is written while nothing is unsaved.
 export function record_board_verdicts(persistence, entry, log, deps) {
   if(!persistence || persistence.isDestroyed || persistence.isDestroying || !entry) { return RSVP.resolve(); }
   var mine = persistence.get('board_verdicts');
   if(typeof entry.seq !== 'number') { entry.seq = sync_seq(entry, log, mine); }
-  if(!Object.keys(entry_verdicts(entry)).length) { return RSVP.resolve(); }
-  var next = fold_entry(mine, entry);
-  persistence.set('board_verdicts', next);
+  if(Object.keys(entry_verdicts(entry)).length) {
+    persistence.set('board_verdicts', fold_entry(mine, entry));
+    persistence._board_verdicts_unsaved = true;
+  }
+  if(!persistence._board_verdicts_unsaved) { return RSVP.resolve(); }
   deps = defaults(deps);
   var owner = owner_of(persistence, deps.db_name);
   if(!owner || !deps.storage || typeof deps.storage.find !== 'function' || typeof deps.storage.store !== 'function') { return RSVP.resolve(); }
+  var saving = persistence.get('board_verdicts');
+  var merged = null;
   return read_stored(deps.storage, owner).then(function(stored) {
-    var merged = merge_people(stored, persistence.get('board_verdicts'));
+    merged = merge_people(stored, saving);
     var record = { raw: { owner: owner, verdicts: merged }, storageId: BOARD_VERDICTS_KEY, id: BOARD_VERDICTS_KEY };
     return RSVP.resolve(deps.storage.store('settings', record, BOARD_VERDICTS_KEY));
-  }).then(null, function() { });
+  }).then(function() {
+    if(persistence.isDestroyed || persistence.isDestroying) { return; }
+    var now = persistence.get('board_verdicts');
+    persistence.set('board_verdicts', merge_people(merged, now));
+    if(now === saving) { persistence._board_verdicts_unsaved = false; } // a fold during the save stays unsaved
+  }, function() { });
 }

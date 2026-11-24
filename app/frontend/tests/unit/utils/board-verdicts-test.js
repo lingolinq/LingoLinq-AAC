@@ -98,4 +98,15 @@ module('Unit | Utility | board verdicts', function() {
     var weak_then_real = fold_entry(fold_entry(null, whole(1000, [{ id: 'o/w', key: 'o/w', status: 'kept' }])), whole(2000, statuses, answered));
     assert.strictEqual(weak_then_real.larry.t['o/w'], undefined, 'a weak verdict goes before decisive ones');
   });
+
+  // Review of the built code (senior pass, M3): at the cap, a tie drops answers before refusals, so a sync that refused
+  // a board by id and answered it by key keeps hiding it.
+  test('at the cap, a tie keeps the refusal', function(assert) {
+    var statuses = [{ id: '4_1', key: '4_1', error: 'x', refused: true }, row({ status: 're-downloaded' })];
+    for(var i = 0; i < VERDICT_CAP; i++) { statuses.push({ id: '9_' + i, key: '9_' + i, status: 'cached' }); }
+    var answered = statuses.map(function(s) { return s.key; });
+    var by_user = fold_entry(null, whole(1000, statuses, answered));
+    assert.false(by_user.larry.t['4_1'].v, 'the refusal is kept');
+    assert.false(board_seen(by_user.larry, raw));
+  });
 });

@@ -1972,7 +1972,7 @@ UserIndexController.reopen({
     if(!same_person) { this.set('offline_boards', { loading: true }); }
     var persistence_service = this.get('persistence');
     var sync_log = persistence_service && typeof persistence_service.get === 'function' ? persistence_service.get('sync_log') : null;
-    device_board_list(this.store, model, { storage: this.get('device_storage'), sync_log: sync_log, verdicts: persistence_service && typeof persistence_service.get === 'function' ? persistence_service.get('board_verdicts') : null, shared: shared, me: me }).then(function(records) {
+    device_board_list(this.store, model, { storage: this.get('device_storage'), sync_log: sync_log, verdicts: function() { return persistence_service && typeof persistence_service.get === 'function' ? persistence_service.get('board_verdicts') : null; }, shared: shared, me: me }).then(function(records) {
       if(_this.isDestroyed || model.isDestroyed || _this.get('model') !== model || _this.get('list_id') !== list_id) { return; }
       if(records.read_failed && same_person) { return; }
       records.user_name = user_name;

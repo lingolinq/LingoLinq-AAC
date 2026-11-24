@@ -116,8 +116,10 @@ export function restore_sync_log(persistence, deps) {
     if(!raw || raw.owner !== owner || persistence.isDestroyed || persistence.isDestroying) { return; }
     var restored = merge_logs(raw.entries, persistence.get('sync_log'));
     var verdicts = persistence.get('board_verdicts');
-    (Array.isArray(raw.entries) ? raw.entries : []).forEach(function(e) { verdicts = fold_entry(verdicts, e); }); // entries from before board_verdicts, kept when they leave the log
-    persistence.set('board_verdicts', verdicts);
+    var folded = verdicts;
+    (Array.isArray(raw.entries) ? raw.entries : []).forEach(function(e) { folded = fold_entry(folded, e); }); // entries from before board_verdicts, kept when they leave the log
+    if(Object.keys(folded).length) { persistence._board_verdicts_unsaved = true; } // saved by the next sync (utils/board_verdicts.js record_board_verdicts)
+    persistence.set('board_verdicts', folded);
     persistence.set('sync_log', restored);
     persistence.set('sync_log_rand', Math.random());
   }, function() { });
