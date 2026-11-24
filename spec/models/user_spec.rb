@@ -1886,7 +1886,7 @@ describe User, :type => :model do
       expect(bob['cell_phone']).to eq(false)
       expect(bob['email']).to eq('bob@example.com')
       expect(bob['contact_type']).to eq('email')
-      expect(bob['image_url']).to match(/amazonaws/)
+      expect(bob['image_url']).to match(%r{\A#{Regexp.escape(JsonApi::Json.absolute_host)}/avatars/avatar-\d\.png\z}) # the app's own copy (Traci, 2026-11-23)
       u.process({'offline_actions' => [
         {'action' => 'remove_contact', 'value' => hash}
       ]})
@@ -1908,7 +1908,7 @@ describe User, :type => :model do
       expect(gp['cell_phone']).to eq("(555)123-4567,55580192831")
       expect(gp['email']).to eq(false)
       expect(gp['contact_type']).to eq('sms')
-      expect(gp['image_url']).to match(/amazonaws/)
+      expect(gp['image_url']).to match(%r{\A#{Regexp.escape(JsonApi::Json.absolute_host)}/avatars/avatar-\d\.png\z}) # the app's own copy (Traci, 2026-11-23)
     end
 
     describe "validated_org_author" do
@@ -3969,6 +3969,7 @@ describe User, :type => :model do
         contact_note = LogSession.create(user: u, author: u, device: d, log_type: 'note',
           data: {'author_contact' => {'name' => 'Bob', 'image_url' => bucket_avatar(3)}, 'note' => {'text' => 'hello', 'prior_contact' => {'name' => 'Ann', 'image_url' => bucket_avatar(1)}}})
         expect(JsonApi::Alert.build_json(contact_note)['author']['image_url']).to eq('https://test.host/avatars/avatar-3.png')
+        expect(JsonApi::Alert.build_json(contact_note)['prior_author']).to eq({'name' => 'Ann', 'image_url' => 'https://test.host/avatars/avatar-1.png'})
         expect(JsonApi::Log.build_json(contact_note)['author']['contact']['image_url']).to eq('https://test.host/avatars/avatar-3.png')
         expect(contact_note.reload.data['author_contact']['image_url']).to eq(bucket_avatar(3)) # stored value untouched
       end

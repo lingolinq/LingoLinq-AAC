@@ -50,12 +50,12 @@ describe JsonApi::User do
     
     it "should include a correct gravatar url if profile is visible" do
       u = User.create(settings: {'email' => 'bob@example.com', 'public' => true})
-      expect(JsonApi::User.build_json(u)['avatar_url']).to match(/https:\/\/.*\.s3\.amazonaws\.com\/avatars\/avatar-\d\.png/)
+      expect(JsonApi::User.build_json(u)['avatar_url']).to match(%r{\A#{Regexp.escape(JsonApi::Json.absolute_host)}/avatars/avatar-\d\.png\z}) # the app's own copy (Traci, 2026-11-23)
     end
     
     it "should include a silhouette url if profile is not visible" do
       u = User.create(settings: {'email' => 'bob@example.com'})
-      expect(JsonApi::User.build_json(u)['avatar_url']).to match(/https:\/\/.*\.s3\.amazonaws\.com\/avatars\/avatar-\d\.png/)
+      expect(JsonApi::User.build_json(u)['avatar_url']).to match(%r{\A#{Regexp.escape(JsonApi::Json.absolute_host)}/avatars/avatar-\d\.png\z}) # the app's own copy (Traci, 2026-11-23)
     end
 
     it "should include permissions if requested" do
