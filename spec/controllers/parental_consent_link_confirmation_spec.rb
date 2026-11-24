@@ -53,6 +53,9 @@ RSpec.describe ParentalConsentsController, type: :controller do
     expect(response.headers['Referrer-Policy']).to eq('strict-origin')
     expect(response.body).to include(I18n.t('parental_consent.approve_confirm_button'))
     expect(response.body).to include(I18n.t('parental_consent.approve_confirm_body'))
+    expect(response.body).to include('class="box__badge box__badge--neutral"')
+    expect(response.body).not_to include('class="box__badge box__badge--err"')
+    expect(response.body).not_to include('class="box__badge box__badge--ok"')
     u.reload
     expect(u.coppa_parental_consent_pending?).to eq(true)
     expect(u.coppa_parental_consent_active?).to eq(false)
@@ -76,6 +79,8 @@ RSpec.describe EuAiParentalConsentsController, type: :controller do
     expect(response.headers['Referrer-Policy']).to eq('strict-origin')
     expect(response.body).to include(I18n.t('eu_ai_parental_consent.approve_confirm_button'))
     expect(response.body).to include(I18n.t('eu_ai_parental_consent.approve_confirm_body'))
+    expect(response.body).to include('class="box__badge box__badge--neutral"')
+    expect(response.body).not_to include('class="box__badge box__badge--err"')
     u.reload
     expect(u.eu_ai_parental_consent_pending?).to eq(true)
     expect(u.eu_ai_parental_consent_active?).to eq(false)
@@ -98,6 +103,8 @@ RSpec.describe 'parent approval link routes', type: :request do
     coppa.reload
     get '/parental_consent/revoke', params: { user_id: coppa.global_id, token: coppa.settings['coppa']['parent_consent_revoke_token'] }
     expect(response.body).to include(I18n.t('parental_consent.revoke_confirm_button'))
+    expect(response.body).to include('class="box__badge box__badge--neutral"')
+    expect(response.body).not_to include('class="box__badge box__badge--err"')
     coppa.reload
     expect(coppa.coppa_parental_consent_revoked?).to eq(false)
     expect(coppa.coppa_parental_consent_active?).to eq(true)
@@ -108,6 +115,8 @@ RSpec.describe 'parent approval link routes', type: :request do
     eu.reload
     get '/eu_ai_parental_consent/revoke', params: { user_id: eu.global_id, token: eu.settings['eu_ai_parental_consent']['parent_consent_revoke_token'] }
     expect(response.body).to include(I18n.t('eu_ai_parental_consent.revoke_confirm_button'))
+    expect(response.body).to include('class="box__badge box__badge--neutral"')
+    expect(response.body).not_to include('class="box__badge box__badge--err"')
     eu.reload
     expect(eu.eu_ai_parental_consent_revoked?).to eq(false)
     expect(eu.eu_ai_parental_consent_active?).to eq(true)
@@ -126,6 +135,8 @@ RSpec.describe 'parent approval link routes', type: :request do
     device = Device.find_by(user_id: coppa.id, device_key: 'default', developer_key_id: 0)
     expect((device.settings['keys'] || []).length).to be > 0
     expect(response.body).to include(I18n.t('parental_consent.thanks_title'))
+    expect(response.body).to include('class="box__badge box__badge--ok"')
+    expect(response.body).not_to include('class="box__badge box__badge--neutral"')
 
     eu = pending_eu_gate!('post')
     eu_tok = eu.settings['eu_ai_parental_consent']['parent_consent_token']
@@ -149,6 +160,7 @@ RSpec.describe 'parent approval link routes', type: :request do
     get '/parental_consent/complete', params: { user_id: wrong.global_id, token: 'wrong-token' }
     expect(wrong.reload.coppa_parental_consent_pending?).to eq(true)
     expect(response.body).to include(I18n.t('parental_consent.invalid_title'))
+    expect(response.body).to include('class="box__badge box__badge--err"')
     post '/parental_consent/complete', params: { user_id: wrong.global_id, token: 'wrong-token' }
     expect(wrong.reload.coppa_parental_consent_pending?).to eq(true)
     expect(wrong.settings['ai_consent']).to be_blank
