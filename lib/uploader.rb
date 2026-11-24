@@ -640,14 +640,15 @@ module Uploader
   end
 
   # Whether destroying a row (class name and database id) may delete the file its address names:
-  # - only a key in a media folder (images/, sounds/, videos/): anything else in the bucket (button sets and logs under
-  #   extras/) is never deleted this way;
+  # - only a key in a media folder (images/, sounds/, videos/), without dot segments, escapes or control characters:
+  #   anything else in the bucket (button sets and logs under extras/) is never deleted this way;
   # - for a key in the upload shape (media_key_owner), only the row's own upload or one whose uploading row no longer
   #   exists; a media-folder key in another shape (older rows) gets the in-use check alone;
   # - and only when no picture, sound or video row still names it.
   def self.removable_by_destroyed_row?(url, class_name, id)
     key = remote_key_for(url)
     return false unless key.match?(/\A(images|sounds|videos)\//)
+    return false if key.split('/').any? { |seg| seg == '.' || seg == '..' } || key.match?(/[%[:cntrl:]]/) # no key the app writes has these
     owner = media_key_owner(key)
     return false if owner && owner != [class_name, id] && owner[0].constantize.where(id: owner[1]).exists?
     !remote_url_in_use?(url)

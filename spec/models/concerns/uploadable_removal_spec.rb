@@ -120,6 +120,13 @@ describe Uploadable, "removal of a destroyed row's file" do
       expect(ButtonSound.where(id: sound.id).count).to eq(0)
     end
 
+    it "never deletes a media-folder address with dot segments, escapes or control characters" do
+      ["images/../extras/1/1_5-#{'b' * 64}/button_set.json", "images/./1/x.png", "images/1/%2e%2e/x.png", "images/1/x\n.png"].each do |key|
+        # no row names it, so only the address itself can refuse it
+        expect(Uploader.removable_by_destroyed_row?(bucket + key, 'ButtonSound', 0)).to eq(false), key
+      end
+    end
+
     it "reads the key from every stored address form" do
       prior_cdn = ENV['UPLOADS_S3_CDN']
       ENV['UPLOADS_S3_CDN'] = 'https://cdn.example.com'
