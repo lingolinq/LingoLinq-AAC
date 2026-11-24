@@ -158,8 +158,9 @@ with a communicator type records the marker. Mutation that must make them fail: 
   GitHub connector reviews the PR.
 - Follow-ups from round 2 (not blocking): the welcome-only and unsubscribe promise depends on how the
   HubSpot emails are built (Scot to confirm before merge); "Personal Account" still marks AAC users to
-  anyone who knows the mapping; section 4 does not mention the "Welcome!" email 13 to 17 year old
-  communicators already get (pre-existing); section 3 lists no email purpose (fold into #385); the
+  anyone who knows the mapping; ~~section 4 does not mention the "Welcome!" email 13 to 17 year old
+  communicators already get (pre-existing)~~ (wrong, corrected 2026-11-24: see "After merge");
+  section 3 lists no email purpose (fold into #385); the
   new notice keys are not in `WordData::ENGLISH_PINNED_LOCALE_KEYS`, so a later
   `extras:translate_ui_locales` run would machine-translate them unreviewed.
 
@@ -185,3 +186,24 @@ with a communicator type records the marker. Mutation that must make them fail: 
 - Six existing examples in `spec/lib/external_tracker_spec.rb` pin the old names and values in the
   exact request body. They fail only on those 12 lines (a scratch copy with only those lines
   changed passes 25/0). Changing them needs Scot's approval (Rule 0.14).
+
+## After merge (2026-11-24)
+
+- Scot approved the 12-line change to the six examples in `spec/lib/external_tracker_spec.rb`
+  (Rule 0.14). Applied in `3bfae6570`; the HubSpot, parental consent and signup consent specs gave
+  94 examples, 0 failures.
+- The Codex GitHub connector reviewed only `10216143f`, when the PR was opened. Pushes do not start a
+  new review: it runs on open, on ready-for-review, or on an `@codex review` comment. Its summary
+  comment's `codex-review-state` names the commit it reviewed. Scot asked for a review of the new
+  head; an `@codex review` comment got "Didn't find any major issues" on `3bfae6570`.
+- Merged to `develop` as `2d20ba1c3` (#1366), squash, pinned to `3bfae6570`.
+- **Correction.** The round-2 follow-up said 13 to 17 year old communicators get a "Welcome!" email
+  that the notice does not mention. CONFIRMED wrong (`app/mailers/user_mailer.rb`,
+  `def new_user_registration`): that mailer sends to the domain's `admin_email` or
+  `ENV['NEW_REGISTRATION_EMAIL']`, with the new account's address only as `reply_to`. It is the
+  team's new-account notice, not an email to the person who signed up. It was not filed.
+- Follow-ups filed: #1374 (confirm contacts are created with the new properties), #1375 (contact
+  stays after an organization takes over an account), #1376 (shared address on deletion), #1377
+  (pin the new notice keys to English), #1378 (Google signup complete step does not check the
+  type), #1379 (SLP and other-therapist mapping). The email wording of the signup box went to #385
+  as a comment.
