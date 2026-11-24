@@ -59732,18 +59732,33 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
   /* SUPPORT: a LIGHT, ROUND button with a DARK icon (2026-10-12, requested: "on basic view board-alt,
      make the support icon light and its bg transparent", then "actually make its bg light and its icon
      dark and make its bg round"). It was one of the glass controls listed above (a dark translucent
-     square with a dark icon on the dark bar), so it left that list. 36px: the 25px icon with room around
-     it, a comfortable target in the header row. */
+     square with a dark icon on the dark bar), so it left that list. The painted circle stays 36px.
+     The hit target is 44px: the ::after below reaches 4px past the border box. position:relative
+     makes that pseudo's containing block this link, not the fixed header. padding:0 keeps the
+     padding edge on the border edge. The <=1024px rule
+     `#inner_header .ll-bento-help-btn--support { padding: 4px }` would otherwise pull the
+     padding edge in, and the 4px slop would stop at the painted edge. The 4px horizontal
+     margin keeps that ring off the settings gear: #identity is a flex row with no gap, the
+     gear is the next sibling, and the <=1024px margin on this link is only 2px. */
   #inner_header:has(#nav_header) .ll-bento-help-btn {
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
+    position: relative !important;
     width: 36px !important;
     height: 36px !important;
+    margin-left: 4px !important;
+    margin-right: 4px !important;
+    padding: 0 !important;
     border-radius: 50% !important;
     background: rgba(255, 255, 255, 0.92) !important;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22) !important;
     color: $la-navy !important;
+    &::after {
+      content: '';
+      position: absolute !important;
+      inset: -4px !important;
+    }
     .ll-bento-help-btn__icon,
     .ll-bento-help-btn__support-icon {
       color: $la-navy !important;
