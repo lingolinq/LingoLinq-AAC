@@ -72,9 +72,10 @@ module WriteFreeze
   # A DB-level read-only safeguard would be the robust defense-in-depth (follow-up).
   SIDE_EFFECT_GET_PATHS = [
     'upload_success',               # api/{images,sounds,videos}/:id/upload_success -> record.save
-    '^/goal_status/',               # boards#log_goal_status -> UserGoal.process_status_from_code (log write)
-    '^/parental_consent/complete',   # parental_consents#complete -> grant_parental_consent! + Device writes (COPPA)
-    '^/parental_consent/revoke'      # parental_consents#revoke -> revoke_parental_consent! (COPPA)
+    '^/goal_status/'                # boards#log_goal_status -> UserGoal.process_status_from_code (log write)
+    # Parental consent complete/revoke GETs render a confirmation page and do not
+    # write (#1338). The POSTs are ordinary mutating verbs, so reject? blocks
+    # them while the freeze is on without listing them here.
   ].freeze
   SIDE_EFFECT_GET_RE = /#{SIDE_EFFECT_GET_PATHS.join('|')}/
 
@@ -145,8 +146,9 @@ module WriteFreeze
     # requests. Mutating verbs (POST/PUT/PATCH/DELETE) are API/sync traffic and
     # default to JSON even when Accept is */* or absent, so a sync client never
     # gets an HTML body where it expects JSON (dual-review, PR #472). The HTML
-    # page is reached only by browser navigations, which are GETs - e.g. the
-    # side-effect GET /parental_consent/complete, which correctly renders HTML.
+    # page is reached only by browser navigations, which are GETs. The remaining
+    # browser side-effect GET is /goal_status/:id/:code. Parental consent
+    # confirmation pages are ordinary GETs and are not rejected.
     def wants_json?(env)
       return true if WriteFreeze.mutating?(env['REQUEST_METHOD'])
 

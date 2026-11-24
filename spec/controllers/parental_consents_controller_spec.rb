@@ -1,7 +1,7 @@
 require 'spec_helper'
 
 describe ParentalConsentsController, :type => :controller do
-  describe "GET complete" do
+  describe "complete" do
     # AuditEvent.log_command commits outside the RSpec fixture transaction, so
     # clean up file-locally to avoid leaking committed rows into other specs.
     after(:each) { AuditEvent.delete_all }
@@ -18,7 +18,7 @@ describe ParentalConsentsController, :type => :controller do
       }, {:pending => true})
       expect(u).to be_persisted
       tok = u.settings['coppa']['parent_consent_token']
-      get :complete, params: {user_id: u.global_id, token: tok}
+      post :complete_submit, params: {user_id: u.global_id, token: tok}
       expect(response).to be_successful
       u.reload
       expect(u.coppa_parental_consent_pending?).to eq(false)
@@ -41,7 +41,7 @@ describe ParentalConsentsController, :type => :controller do
       expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:parental_consent_confirmation, u.global_id)
       expect(UserMailer).to receive(:schedule_delivery).with(:confirm_registration, u.global_id)
       expect(UserMailer).to receive(:schedule_delivery).with(:new_user_registration, u.global_id)
-      get :complete, params: {user_id: u.global_id, token: tok}
+      post :complete_submit, params: {user_id: u.global_id, token: tok}
       expect(response).to be_successful
     end
 
@@ -73,7 +73,7 @@ describe ParentalConsentsController, :type => :controller do
       expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:parental_consent_confirmation, u.global_id)
       expect(UserMailer).not_to receive(:schedule_delivery)
       expect(ExternalTracker).not_to receive(:track_new_user)
-      get :complete, params: {user_id: u.global_id, token: tok}
+      post :complete_submit, params: {user_id: u.global_id, token: tok}
       expect(response).to be_successful
       expect(assigns(:success)).to eq(true)
       u.reload
@@ -93,10 +93,10 @@ describe ParentalConsentsController, :type => :controller do
         'parent_consent_email' => 'guardian_pc_idem_mail@example.com'
       }, {:pending => true})
       tok = u.settings['coppa']['parent_consent_token']
-      get :complete, params: {user_id: u.global_id, token: tok}
+      post :complete_submit, params: {user_id: u.global_id, token: tok}
       expect(UserMailer).not_to receive(:schedule_parent_consent_delivery)
       expect(UserMailer).not_to receive(:schedule_delivery)
-      get :complete, params: {user_id: u.global_id, token: tok}
+      post :complete_submit, params: {user_id: u.global_id, token: tok}
     end
 
     it "does not reveal grant status when the token is missing or wrong" do
@@ -110,7 +110,7 @@ describe ParentalConsentsController, :type => :controller do
         'parent_consent_email' => 'guardian_pc_probe@example.com'
       }, {:pending => true})
       tok = u.settings['coppa']['parent_consent_token']
-      get :complete, params: {user_id: u.global_id, token: tok}
+      post :complete_submit, params: {user_id: u.global_id, token: tok}
       u.reload
       # Controller specs do not render views by default; assert assigns that drive
       # the invalid vs already-granted branches (no body/PII without a valid token).
@@ -134,7 +134,7 @@ describe ParentalConsentsController, :type => :controller do
         'parent_consent_email' => 'guardian_pc_audit@example.com'
       }, {:pending => true})
       tok = u.settings['coppa']['parent_consent_token']
-      get :complete, params: {user_id: u.global_id, token: tok}
+      post :complete_submit, params: {user_id: u.global_id, token: tok}
       expect(response).to be_successful
       u.reload
       ae = AuditEvent.where(user_key: u.global_id).detect { |e| e.event_type == 'parental_consent_grant' }
@@ -159,16 +159,16 @@ describe ParentalConsentsController, :type => :controller do
         'parent_consent_email' => 'guardian_pc_idem@example.com'
       }, {:pending => true})
       tok = u.settings['coppa']['parent_consent_token']
-      get :complete, params: {user_id: u.global_id, token: tok}
+      post :complete_submit, params: {user_id: u.global_id, token: tok}
       # A second visit to the same link is idempotent and must not double-log.
       expect {
-        get :complete, params: {user_id: u.global_id, token: tok}
+        post :complete_submit, params: {user_id: u.global_id, token: tok}
       }.to_not change { AuditEvent.where(user_key: u.global_id).count }
     end
 
   end
 
-  describe "GET revoke" do
+  describe "revoke" do
     after(:each) { AuditEvent.delete_all }
 
     def create_granted_minor!(suffix)
@@ -190,7 +190,7 @@ describe ParentalConsentsController, :type => :controller do
       u = create_granted_minor!('ok')
       revoke_tok = u.settings['coppa']['parent_consent_revoke_token']
       expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:parental_consent_revoked, u.global_id)
-      get :revoke, params: {user_id: u.global_id, token: revoke_tok}
+      post :revoke_submit, params: {user_id: u.global_id, token: revoke_tok}
       expect(response).to be_successful
       u.reload
       expect(u.coppa_parental_consent_revoked?).to eq(true)
@@ -202,16 +202,16 @@ describe ParentalConsentsController, :type => :controller do
     it "does not record a second revoke AuditEvent when consent was already revoked" do
       u = create_granted_minor!('idem')
       revoke_tok = u.settings['coppa']['parent_consent_revoke_token']
-      get :revoke, params: {user_id: u.global_id, token: revoke_tok}
+      post :revoke_submit, params: {user_id: u.global_id, token: revoke_tok}
       expect {
-        get :revoke, params: {user_id: u.global_id, token: revoke_tok}
+        post :revoke_submit, params: {user_id: u.global_id, token: revoke_tok}
       }.to_not change { AuditEvent.where(user_key: u.global_id, event_type: 'parental_consent_revoke').count }
     end
 
     it "does not reveal revoke status when the token is missing or wrong" do
       u = create_granted_minor!('probe')
       revoke_tok = u.settings['coppa']['parent_consent_revoke_token']
-      get :revoke, params: {user_id: u.global_id, token: revoke_tok}
+      post :revoke_submit, params: {user_id: u.global_id, token: revoke_tok}
       u.reload
       # Controller specs do not render views by default; assert assigns that drive
       # the invalid vs already-revoked branches (no body/PII without a valid token).
@@ -276,6 +276,7 @@ describe ParentalConsentsController, :type => :controller do
         expect(Exporter).not_to receive(:export_user)
         get :decline, params: {user_id: u.global_id, token: tok}
         expect(response).to be_successful
+        expect(response.headers['Referrer-Policy']).to eq('strict-origin')
         expect(assigns(:state)).to eq(:confirm)
         expect(response.body).to include(I18n.t('parental_consent.decline_confirm_button'))
         u.reload

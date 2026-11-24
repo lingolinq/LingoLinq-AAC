@@ -1,57 +1,32 @@
-# One-click parental consent completion for COPPA minor registration (token in URL).
-# GET is used so the parent can approve from the email link without CSRF/session setup.
-#
-# DECLINE IS THE EXCEPTION, and deliberately so. #complete and #revoke act on GET
-# because that is what a one-click email link needs, but #decline is the only one
-# of the three that DESTROYS the account: it schedules deletion 36 hours out (or,
-# for an org offboarding, an export-then-delete). Mail-security link scanners,
-# inbox link previews and browser prefetch all fetch URLs out of a parent's inbox
-# with no human involved, so a decline-on-GET lets a robot delete a child's AAC
-# account. #decline therefore renders a confirmation page and mutates nothing;
-# #decline_submit does the work on POST.
-#
-# Note what the POST does and does not buy: ApplicationController sets
+# Parental consent links for COPPA registration (token in the URL).
+# GET renders a confirmation page and writes nothing. POST performs the action.
+# Mail-security scanners, inbox previews and browser prefetch fetch the link
+# with no person involved. ApplicationController sets
 # `protect_from_forgery with: :null_session`, so a missing authenticity token
-# does NOT raise here. The security property is that automated fetchers issue
-# GETs, not POSTs. The URL token remains the actual authorization.
+# does not raise. An Origin of "null" still raises before that strategy runs,
+# and Referrer-Policy no-referrer makes a browser send that origin, so these
+# pages send strict-origin: the token stays out of the Referer, and the POST
+# origin is the site itself. The security property is that those fetchers
+# issue GETs, not POSTs. The URL token remains the authorization. Decline
+# already worked this way; complete and revoke follow it (#1338).
 class ParentalConsentsController < ApplicationController
+  # GET /parental_consent/complete. Renders the confirmation page. No mutation.
   def complete
-    response.headers['Referrer-Policy'] = 'no-referrer'
-    user = User.find_by_path(params[:user_id].presence || params['user_id'])
-    token = params[:token].presence || params['token']
-    @success = false
-    @already_granted = false
-    if user && user.valid_parent_consent_grant_link_token?(token)
-      if user.coppa_parental_consent_active?
-        @already_granted = true
-        @success = true
-      elsif user.coppa_parental_consent_pending? && user.grant_parental_consent!(token, ip: request.remote_ip, user_agent: request.headers['User-Agent'])
-        # grant_parental_consent! writes the immutable COPPA AuditEvent atomically
-        # with the consent grant (see User#grant_parental_consent!).
-        @success = true
-        # AI data-sharing consent (#1136) comes with the parent's approval. Outside
-        # grant_parental_consent!'s own lock, after it has committed.
-        user.record_parent_ai_consent!(request: 'coppa', ip: request.remote_ip, user_agent: request.headers['User-Agent'])
-        UserMailer.schedule_parent_consent_delivery(:parental_consent_confirmation, user.global_id)
-        # Signup activation side effects (welcome mail, tracker, device mint) are
-        # only for new under-13 registrations. Org-offboarding grants unlock an
-        # existing account — the communicator logs in after consent.
-        offboarding = user.settings.dig('coppa', 'offboarding')
-        unless offboarding
-          UserMailer.schedule_delivery(:confirm_registration, user.global_id)
-          UserMailer.schedule_delivery(:new_user_registration, user.global_id)
-          ExternalTracker.track_new_user(user)
-          d = Device.find_or_create_by(user_id: user.id, device_key: 'default', developer_key_id: 0)
-          d.settings['ip_address'] = request.remote_ip
-          log_installed_client_signal('parental_consents#complete')
-          apply_device_classification!(d, installed_app?)
-          d.settings['user_agent'] = request.headers['User-Agent']
-          d.save
-          d.generate_token!(!!d.settings['app'])
-        end
-      end
+    prepare_complete_context
+    render 'complete', layout: 'parental_consent'
+  end
+
+  # POST /parental_consent/complete. Approves the account.
+  def complete_submit
+    prepare_complete_context
+    if @state == :confirm && approve_parental_account!
+      @success = true
+      @state = :granted
+    elsif @state == :confirm
+      @state = :invalid
+      @success = false
     end
-    render layout: 'parental_consent'
+    render 'complete', layout: 'parental_consent'
   end
 
   # GET /parental_consent/decline -- renders the confirmation page. NO MUTATION.
@@ -77,25 +52,114 @@ class ParentalConsentsController < ApplicationController
     render 'decline', layout: 'parental_consent'
   end
 
+  # GET /parental_consent/revoke. Renders the confirmation page. No mutation.
   def revoke
-    response.headers['Referrer-Policy'] = 'no-referrer'
-    user = User.find_by_path(params[:user_id].presence || params['user_id'])
-    token = params[:token].presence || params['token']
-    @success = false
-    @already_revoked = false
-    if user && user.valid_parent_consent_revoke_link_token?(token)
-      if user.coppa_parental_consent_revoked?
-        @already_revoked = true
+    prepare_revoke_context
+    render 'revoke', layout: 'parental_consent'
+  end
+
+  # POST /parental_consent/revoke. Withdraws consent. Does not call
+  # revoke_ai_consent!; that question is left open for reviewers (#1338).
+  def revoke_submit
+    prepare_revoke_context
+    if @state == :confirm
+      if @revoke_user.revoke_parental_consent!(@revoke_token, ip: request.remote_ip, user_agent: request.headers['User-Agent'])
         @success = true
-      elsif user.revoke_parental_consent!(token, ip: request.remote_ip, user_agent: request.headers['User-Agent'])
-        @success = true
-        UserMailer.schedule_parent_consent_delivery(:parental_consent_revoked, user.global_id)
+        @state = :revoked
+        UserMailer.schedule_parent_consent_delivery(:parental_consent_revoked, @revoke_user.global_id)
+      else
+        @state = :invalid
+        @success = false
       end
     end
     render 'revoke', layout: 'parental_consent'
   end
 
   private
+
+  def prepare_complete_context
+    response.headers['Referrer-Policy'] = 'strict-origin'
+    @complete_user = User.find_by_path(params[:user_id].presence || params['user_id'])
+    @complete_token = params[:token].presence || params['token']
+    @success = false
+    @already_granted = false
+    @records_ai_consent = parent_ai_notice_current?(@complete_user, 'coppa')
+    @state = :invalid
+    return unless @complete_user && @complete_user.valid_parent_consent_grant_link_token?(@complete_token)
+    if @complete_user.coppa_parental_consent_active?
+      @already_granted = true
+      @success = true
+      @state = :already_granted
+    elsif @complete_user.coppa_parental_consent_pending? && !consent_link_expired?(@complete_user.settings && @complete_user.settings['coppa'])
+      @state = :confirm
+    end
+  end
+
+  def prepare_revoke_context
+    response.headers['Referrer-Policy'] = 'strict-origin'
+    @revoke_user = User.find_by_path(params[:user_id].presence || params['user_id'])
+    @revoke_token = params[:token].presence || params['token']
+    @success = false
+    @already_revoked = false
+    @state = :invalid
+    return unless @revoke_user && @revoke_user.valid_parent_consent_revoke_link_token?(@revoke_token)
+    if @revoke_user.coppa_parental_consent_revoked?
+      @already_revoked = true
+      @success = true
+      @state = :already_revoked
+    elsif @revoke_user.settings.dig('coppa', 'parent_consent_granted_at').present?
+      @state = :confirm
+    end
+  end
+
+  # Same stamp record_parent_ai_consent! requires. A link sent before the email
+  # carried the current AI notice still approves the account and records no
+  # AI consent, so the confirmation page must not say that it will.
+  def parent_ai_notice_current?(user, bucket)
+    blob = user && user.settings.is_a?(Hash) ? user.settings[bucket] : nil
+    stamped = blob.is_a?(Hash) ? blob['ai_disclosures_version'] : nil
+    stamped == LingoLinq::AiConsentDisclosures::CURRENT_VERSION
+  end
+
+  # Same expiry rule User#grant_parental_consent! enforces: a blank expiry is
+  # still open, a past or unparseable expiry is refused. Read here so the GET
+  # can refuse without calling the grant.
+  def consent_link_expired?(blob)
+    exp = blob.is_a?(Hash) ? blob['parent_consent_expires_at'] : nil
+    return false if exp.blank?
+    Time.iso8601(exp) < Time.now.utc
+  rescue ArgumentError
+    true
+  end
+
+  def approve_parental_account!
+    user = @complete_user
+    token = @complete_token
+    return false unless user.grant_parental_consent!(token, ip: request.remote_ip, user_agent: request.headers['User-Agent'])
+    # grant_parental_consent! writes the immutable COPPA AuditEvent atomically
+    # with the consent grant (see User#grant_parental_consent!).
+    # AI data-sharing consent (#1136) comes with the parent's approval. Outside
+    # grant_parental_consent!'s own lock, after it has committed.
+    user.record_parent_ai_consent!(request: 'coppa', ip: request.remote_ip, user_agent: request.headers['User-Agent'])
+    UserMailer.schedule_parent_consent_delivery(:parental_consent_confirmation, user.global_id)
+    # Signup activation side effects (welcome mail, tracker, device mint) are
+    # only for new under-13 registrations. Org-offboarding grants unlock an
+    # existing account. The communicator logs in after consent.
+    offboarding = user.settings.dig('coppa', 'offboarding')
+    unless offboarding
+      UserMailer.schedule_delivery(:confirm_registration, user.global_id)
+      UserMailer.schedule_delivery(:new_user_registration, user.global_id)
+      ExternalTracker.track_new_user(user)
+      d = Device.find_or_create_by(user_id: user.id, device_key: 'default', developer_key_id: 0)
+      d.settings['ip_address'] = request.remote_ip
+      log_installed_client_signal('parental_consents#complete')
+      apply_device_classification!(d, installed_app?)
+      d.settings['user_agent'] = request.headers['User-Agent']
+      d.save
+      d.generate_token!(!!d.settings['app'])
+    end
+    true
+  end
 
   # Resolves the account, the token and which of the four page states applies,
   # WITHOUT writing anything. Shared by the GET and the POST so the confirmation
@@ -110,7 +174,7 @@ class ParentalConsentsController < ApplicationController
   #   :confirm                 -- valid and still pending; GET stops here, POST acts
   #   :declined                -- set by decline_submit after a successful decline
   def prepare_decline_context
-    response.headers['Referrer-Policy'] = 'no-referrer'
+    response.headers['Referrer-Policy'] = 'strict-origin'
     @decline_user = User.find_by_path(params[:user_id].presence || params['user_id'])
     @decline_token = params[:token].presence || params['token']
     @success = false
