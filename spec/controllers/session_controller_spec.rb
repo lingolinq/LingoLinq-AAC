@@ -74,6 +74,19 @@ describe SessionController, :type => :controller do
       expect(json['user_id']).to eq(nil)
     end
 
+    describe "rendered token_check request" do
+      render_views
+
+      it "sends a stored token on the Authorization header, not in the token_check URL" do
+        k = DeveloperKey.create(:redirect_uri => DeveloperKey.oob_uri)
+        post :oauth, params: {:client_id => k.key, :redirect_uri => DeveloperKey.oob_uri}
+        expect(response).to be_successful
+        expect(response.body).to include("id='oauth_login'")
+        expect(response.body).not_to include('token_check?access_token=')
+        expect(response.body).to include("setRequestHeader('Authorization', 'Bearer ' + auth.access_token)")
+      end
+    end
+
     it "should restore params from a SAML redirect" do
       k = DeveloperKey.create(:redirect_uri => DeveloperKey.oob_uri)
       RedisInit.default.setex("token_tmp_abcdef", 1.hour.to_i, '229yaot8t24ty9')
