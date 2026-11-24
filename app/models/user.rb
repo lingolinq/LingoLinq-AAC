@@ -26,7 +26,7 @@ class User < ApplicationRecord
   # Keep in sync with the "Last Updated" date in the Privacy Policy
   # (app/frontend/app/templates/privacy.hbs). Bump when a material change
   # requires users to re-consent.
-  PRIVACY_POLICY_VERSION = '2026-08-30'
+  PRIVACY_POLICY_VERSION = '2026-11-23'
 
   def current_sponsor
     Organization.find_by(id: self.managing_organization_id)
@@ -151,13 +151,14 @@ class User < ApplicationRecord
 
   # Account types that may be sent to the marketing CRM (HubSpot), #1123. An allowlist,
   # because the type is a value the client sends: anything not named here, including
-  # a type added later, is not sent.
-  MARKETING_TRACKABLE_TYPES = %w[therapist parent teacher other eval manually-added-supervisor].freeze
+  # a type added later, is not sent. 'communicator' is here so that adult AAC users who
+  # registered themselves get the same emails as adult supporters (Scot, 2026-11-23).
+  MARKETING_TRACKABLE_TYPES = %w[therapist parent teacher other eval manually-added-supervisor communicator].freeze
 
-  # True only for an adult supporter account: an allowlisted account type, no
-  # child-consent record of any state, not registered as under 16, and recorded as
-  # 18 or over at signup. Anything missing or unreadable means not sent. Separate
-  # from supporter_registration?, which mail and stats still read with its own meaning.
+  # True only for an adult account of an allowlisted type: no child-consent record of
+  # any state, not registered as under 16, and recorded as 18 or over at signup.
+  # Anything missing or unreadable means not sent. Separate from
+  # supporter_registration?, which mail and stats still read with its own meaning.
   def marketing_trackable?
     s = self.settings.is_a?(Hash) ? self.settings : {}
     prefs = s['preferences']

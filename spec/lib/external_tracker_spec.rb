@@ -125,10 +125,10 @@ describe ExternalTracker do
           {property: 'firstname', value: nil},
           {property: 'lastname', value: nil},
           {property: 'city', value: nil},
-          {property: 'username', value: u.user_name},
+          {property: 'lingolinq_username', value: u.user_name},
           {property: 'state', value: nil},
           {property: 'country', value: nil},
-          {property: 'account_type', value: 'Therapist'},
+          {property: 'lingolinq_account_type', value: 'therapist'},
           {property: 'hs_legal_basis', value: 'Legitimate interest – prospect/lead'}
         ]}.to_json,
         headers: {'Content-Type' => 'application/json', "Authorization"=>"Bearer hubby"}
@@ -221,10 +221,10 @@ describe ExternalTracker do
           {property: 'firstname', value: nil},
           {property: 'lastname', value: nil},
           {property: 'city', value: 'Sandy'},
-          {property: 'username', value: u.user_name},
+          {property: 'lingolinq_username', value: u.user_name},
           {property: 'state', value: 'Utah'},
           {property: 'country', value: 'United States'},
-          {property: 'account_type', value: 'AT Specialist/Lending Library'},
+          {property: 'lingolinq_account_type', value: 'at_specialist'},
           {property: 'hs_legal_basis', value: 'Legitimate interest – prospect/lead'}
         ]}.to_json,
         headers: {'Content-Type' => 'application/json', "Authorization"=>"Bearer hubby"}
@@ -258,10 +258,10 @@ describe ExternalTracker do
           {property: 'firstname', value: nil},
           {property: 'lastname', value: nil},
           {property: 'city', value: 'Sandy'},
-          {property: 'username', value: u.user_name},
+          {property: 'lingolinq_username', value: u.user_name},
           {property: 'state', value: 'Utah'},
           {property: 'country', value: 'United States'},
-          {property: 'account_type', value: 'Therapist'},
+          {property: 'lingolinq_account_type', value: 'therapist'},
           {property: 'hs_legal_basis', value: 'Legitimate interest – prospect/lead'}
         ]}.to_json,
         headers: {'Content-Type' => 'application/json', "Authorization"=>"Bearer hubby"}
@@ -294,10 +294,10 @@ describe ExternalTracker do
           {property: 'firstname', value: nil},
           {property: 'lastname', value: nil},
           {property: 'city', value: 'Paris'},
-          {property: 'username', value: u.user_name},
+          {property: 'lingolinq_username', value: u.user_name},
           {property: 'state', value: 'Île-de-France'},
           {property: 'country', value: 'France'},
-          {property: 'account_type', value: 'Therapist'},
+          {property: 'lingolinq_account_type', value: 'therapist'},
           {property: 'hs_legal_basis', value: 'Legitimate interest – prospect/lead'}
         ]}.to_json,
         headers: {'Content-Type' => 'application/json', "Authorization"=>"Bearer hubby"}
@@ -324,10 +324,10 @@ describe ExternalTracker do
           {property: 'firstname', value: nil},
           {property: 'lastname', value: nil},
           {property: 'city', value: nil},
-          {property: 'username', value: u.user_name},
+          {property: 'lingolinq_username', value: u.user_name},
           {property: 'state', value: nil},
           {property: 'country', value: nil},
-          {property: 'account_type', value: 'Therapist'},
+          {property: 'lingolinq_account_type', value: 'therapist'},
           {property: 'hs_legal_basis', value: 'Legitimate interest – prospect/lead'},
           {property: 'lingolinq_referrer', value: 'https://mail.google.com'},
           {property: 'lingolinq_ad_referrer', value: 'fb-spring-2026'}
@@ -354,10 +354,10 @@ describe ExternalTracker do
           {property: 'firstname', value: nil},
           {property: 'lastname', value: nil},
           {property: 'city', value: nil},
-          {property: 'username', value: u.user_name},
+          {property: 'lingolinq_username', value: u.user_name},
           {property: 'state', value: nil},
           {property: 'country', value: nil},
-          {property: 'account_type', value: 'Therapist'},
+          {property: 'lingolinq_account_type', value: 'therapist'},
           {property: 'hs_legal_basis', value: 'Legitimate interest – prospect/lead'},
           {property: 'lingolinq_referrer', value: 'https://www.bing.com'}
         ]}.to_json,

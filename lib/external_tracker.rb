@@ -1,8 +1,26 @@
 module ExternalTracker
   # HubSpot consent gate per FERPA/COPPA/GDPR:
-  # 1. Only adult supporter accounts, as defined by User#marketing_trackable? (#1123): an allowlisted account type (therapist, parent, teacher, other, eval, org-added supervisor), no child-consent record, not under 16, and 18 or over at signup
+  # 1. Only adult accounts, as defined by User#marketing_trackable? (#1123): an allowlisted account type (therapist, parent, teacher, other, eval, org-added supervisor, communicator), no child-consent record, not under 16, and 18 or over at signup
   # 2. Respect cookies preference - do not send when user opted out of analytics/tracking (GDPR consent)
   # 3. Org-managed users excluded via external_email_allowed?
+
+  # The value sent in the HubSpot dropdown property lingolinq_account_type, by the app's
+  # registration_type. HubSpot refuses a contact whose dropdown value is not one of the
+  # property's options, so a type missing here sends no account type at all, never a raw
+  # value. 'therapist' is the transition value until signup asks for slp or
+  # other_therapist; the dropdown's slp, other_therapist and district_admin options have no
+  # registration type yet. A communicator is 'personal_account', a neutral value, so the
+  # contact record does not say the person uses AAC (Scot, 2026-11-23).
+  HUBSPOT_ACCOUNT_TYPES = {
+    'communicator' => 'personal_account',
+    'therapist' => 'therapist',
+    'parent' => 'parent',
+    'teacher' => 'teacher',
+    'other' => 'other_supporter',
+    'eval' => 'at_specialist',
+    'manually-added-supervisor' => 'org_added_supervisor'
+  }.freeze
+
   def self.track_new_user(user)
     return unless user && user.external_email_allowed? && user.marketing_trackable?
     return if user.cookies_opted_out?
@@ -38,29 +56,7 @@ module ExternalTracker
     country = location && location['country']
 
 
-    acct = "Communicator Account"
-    # "Supervisor Parent Account", "AT Specialist/Lending Library", "Eval"
-    # "Therapist", "Teacher", "AAC Grad Course", "Org Added Supervisor", 
-    # "Org added Communicator", "Supervisor other", "Communicator other"
-    if user.supporter_registration?
-      if user.registration_type == 'eval'
-        acct = 'AT Specialist/Lending Library'
-      elsif user.registration_type == 'parent'
-        acct = 'Supervisor Parent Account'
-      elsif user.registration_type == 'teacher'
-        acct = 'Teacher'
-      elsif user.registration_type == 'manually-added-supervisor'
-        acct = 'Org Added Supervisor'
-      elsif user.registration_type == 'other'
-        acct = 'Supervisor other'
-      else
-        acct = 'Therapist'
-      end
-    elsif user.registration_type == 'other'
-      acct = 'Communicator other'
-    elsif user.registration_type == 'manually-added-org-user'
-      acct = 'Org added Communicator'
-    end
+    acct = HUBSPOT_ACCOUNT_TYPES[user.registration_type]
 
     name = (user.settings['name'] || '').split(/\s/, 2)
     json = {
@@ -69,13 +65,13 @@ module ExternalTracker
         {property: 'firstname', value: name[0]},
         {property: 'lastname', value: name[1]},
         {property: 'city', value: city},
-        {property: 'username', value: user.user_name},
+        {property: 'lingolinq_username', value: user.user_name},
         # {property: 'hs_language', value: 'en'},
         {property: 'state', value: state},
         {property: 'country', value: country},
-        {property: 'account_type', value: acct},
+        (acct ? {property: 'lingolinq_account_type', value: acct} : nil),
         {property: 'hs_legal_basis', value: 'Legitimate interest – prospect/lead'}
-      ]
+      ].compact
     }
     # Marketing attribution captured at signup (see User#process: settings['referrer']
     # is document.referrer, the "source"; settings['ad_referrer'] is the ?ref= URL
