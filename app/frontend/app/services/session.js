@@ -553,7 +553,7 @@ export default Service.extend({
       this.set('as_user_id', store_data.as_user_id || null);
       this.set('original_user_name', store_data.original_user_name || null);
     }
-    if(!store_data.access_token && !this._logout_landing) {
+    if(!store_data.access_token && !this._logout_landing && !this._replacing_session) {
       // (Skipped on a clean logout landing — see `_logout_landing` set in init().
       //  Re-running this "session lost" recovery there would force_logout/invalidate
       //  again → a SECOND full reload, and show a bogus "session data has been lost"
@@ -582,6 +582,10 @@ export default Service.extend({
           if (_this.isDestroyed || _this.isDestroying) {
             return;
           }
+          // In the installed app this lookup is a native file call, so a login can arrive while
+          // it is pending. Ending the session now would erase that login (#1204).
+          var stored_now = _this.stashes.get_object('auth_settings', true) || _this.auth_settings_fallback() || {};
+          if(_this._replacing_session || stored_now.access_token) { return; }
           any_proof_of_existing_login = any_proof_of_existing_login || obj.db_id;
           do_it();
         });
@@ -604,6 +608,9 @@ export default Service.extend({
 
   override: function(options) {
     var _this = this;
+    // restore() treats "no token yet" as a lost session; a new one is being installed, so its
+    // recovery must not run (here, or from an earlier restore). The reload below drops this.
+    this._replacing_session = true;
     var data = this.restore();
     data.access_token = options.access_token;
     data.user_name = options.user_name;
