@@ -5,6 +5,9 @@ import { setupTest } from '../../helpers';
 import modal from 'frontend/utils/modal';
 import buttonTracker from 'frontend/utils/raw_events';
 import scanner from 'frontend/utils/scanner';
+import editManager from 'frontend/utils/edit_manager';
+import persistence from 'frontend/utils/persistence';
+import LingoLinq from 'frontend/app';
 
 /*
  * Escape on an open modal. The document listener (utils/raw_events.js) and
@@ -328,5 +331,92 @@ module('Unit | modal escape dismissal', function(hooks) {
     await flush();
     assert.strictEqual(outcome.status, 'rejected');
     assert.strictEqual(escapes, 1, 'the dialog must not swallow the cancel key');
+  });
+
+  test('a saved batch recording still reloads the board when Escape rejects the dialog', async function(assert) {
+    assert.expect(4);
+    var reloads = [];
+    var model = {
+      board: { id: '1_9' },
+      reload: function() {
+        reloads.push('model');
+        return RSVP.resolve(model);
+      },
+      load_button_set: function(force) {
+        reloads.push(force === true ? 'button-set' : 'button-set-soft');
+        return RSVP.resolve();
+      }
+    };
+    var actions = this.owner.factoryFor('component:board-actions').create();
+    actions.set('model', model);
+    actions.set('appState', this.owner.lookup('service:app-state'));
+    this.dialogs.push(actions);
+    // The unit owner does not give the modal service a writable settingsFor,
+    // so the real open() throws before it returns a promise. Install the same
+    // promise the service close rejects, and let the real Escape path settle it.
+    var liveModal = modal._getService() || this.service;
+    var opened = [];
+    var realOpen = modal.open;
+    modal.open = function(name) {
+      opened.push(name);
+      var deferred = RSVP.defer();
+      liveModal.set('currentTemplate', name);
+      liveModal.set('currentPromise', deferred);
+      modal._component_based_template = name;
+      modal.last_promise = deferred;
+      return deferred.promise;
+    };
+    try {
+      actions.send('batch_recording');
+    } finally {
+      modal.open = realOpen;
+    }
+    assert.deepEqual(opened, ['batch-recording'], 'board actions opened the recording dialog');
+
+    var recorder = this.owner.factoryFor('component:batch-recording').create({
+      phrase: { button_id: 1, board_id: '1_9' }
+    });
+    this.dialogs.push(recorder);
+    recorder.set('modal', liveModal);
+    recorder._return_to_details = function() {};
+    var ajaxHost = window.persistence || persistence;
+    var savedAjax = ajaxHost.ajax;
+    var savedStore = LingoLinq.store;
+    var savedDisplay = editManager.process_for_displaying;
+    ajaxHost.ajax = function() {
+      return RSVP.resolve({ board: { id: '1_9' } });
+    };
+    LingoLinq.store = {
+      findRecord: function() {
+        return RSVP.resolve({ reload: function() { return RSVP.resolve(); } });
+      }
+    };
+    editManager.process_for_displaying = function() {
+      reloads.push('display');
+    };
+    var sound = { id: 'sound-1', get: function(key) { return sound[key]; } };
+    try {
+      recorder.save_to_button(sound);
+      await flush();
+      assert.strictEqual(recorder.get('phrase.saved_sound_id'), 'sound-1', 'the sound is saved before Escape');
+      assert.deepEqual(reloads, [], 'saving inside the dialog does not reload the open board');
+      var button = document.createElement('button');
+      button.type = 'button';
+      var component = dialogFor(this, {
+        action: function() {
+          // components/batch-recording.js close() calls the service with no value.
+          recorder.send('close');
+        }
+      });
+      component.element.appendChild(button);
+      pressEscape(button, component);
+      await flush();
+      await flush();
+    } finally {
+      ajaxHost.ajax = savedAjax;
+      LingoLinq.store = savedStore;
+      editManager.process_for_displaying = savedDisplay;
+    }
+    assert.deepEqual(reloads, ['model', 'button-set', 'display'], 'Escape after a saved recording reloads the board the user is speaking');
   });
 });
