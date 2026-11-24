@@ -80,6 +80,7 @@ export function counter_lines(entry) {
   if(!c || typeof c !== 'object') { return []; }
   var failures = c.failures || {};
   var failed = Object.keys(failures).filter(function(k) { return failures[k] > 0; }).map(function(k) { return k + ' ' + failures[k]; }).join(', ');
+  var none = i18n.t('sync_counter_none', "none"); // on its own line: the generator does not see an i18n.t inside another
   return [
     i18n.t('sync_counter_started', "Started: %{at}", { at: typeof c.started === 'number' ? (new Date(c.started)).toISOString() : '-' }),
     i18n.t('sync_counter_seconds', "Seconds: %{n}", { n: c.seconds }),
@@ -88,6 +89,6 @@ export function counter_lines(entry) {
     i18n.t('sync_counter_boards', "Boards the server sent: %{n}", { n: (c.boards || {}).fetched || 0 }),
     i18n.t('sync_counter_pictures', "Pictures saved: %{n} (%{bytes} bytes)", { n: (c.pictures || {}).saved || 0, bytes: (c.pictures || {}).bytes || 0 }),
     i18n.t('sync_counter_sounds', "Sounds saved: %{n} (%{bytes} bytes)", { n: (c.sounds || {}).saved || 0, bytes: (c.sounds || {}).bytes || 0 }),
-    i18n.t('sync_counter_failures', "Failures: %{list}", { list: failed || i18n.t('sync_counter_none', "none") })
+    i18n.t('sync_counter_failures', "Failures: %{list}", { list: failed || none })
   ];
 }

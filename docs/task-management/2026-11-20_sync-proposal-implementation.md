@@ -495,3 +495,9 @@ removal, so the gap stays.
   `config/imagemagick/policy.xml` is a denylist that does not name WEBP (CONFIRMED). Production's image installs
   Debian's `imagemagick` (`Dockerfile:28-38`); WebP there is ASSUMED until `convert -list format` is run in the built
   image (a Dockerfile build check is infra, Scot's).
+- 2026-11-24: rebased onto develop 7c34ebb27. CI's rspec had failed on `i18n_key_completeness_spec`: item 0.1's strings
+  were not in `en.json`. `ruby i18n_generator.rb --merge` adds 34 keys to each of 13 locales, no other key changed
+  (untranslated `***` in the 12 others until the wording is approved). One string, nested inside another `i18n.t`, was
+  invisible to the generator; lifted out. i18n specs 18/18; targeted frontend suites 327 pass, 1 pre-existing skip.
+  Known wording gap: when a sync saves sounds, the size shown after the pictures includes the sounds' bytes; and the
+  picture count includes the app's own pictures (2,111 against the shape's 2,104).
