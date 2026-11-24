@@ -2534,8 +2534,8 @@ var persistence = Service.extend({
       return RSVP.all_wait(list);
     });
   },
-  sync_logs: function(user) {
-    return this.time_promise(this.find('settings', 'bigLogs').then(function(res) {
+  sync_logs: function(user) { // Known defect, left unfixed on purpose (reviewed 2026-11-24); see the notes on the lines below.
+    return this.time_promise(this.find('settings', 'bigLogs').then(function(res) { // Nothing outside this function writes 'settings'/'bigLogs' (the old writer is commented out at services/stashes.js:921 and utils/_stashes.js:807).
       res = res || {};
       var fails = [];
       var log_promises = [];
@@ -2550,13 +2550,13 @@ var persistence = Service.extend({
         }));
       });
       return RSVP.all_wait(log_promises).then(function() {
-        return this.store('settings', {logs: []}, 'bigLogs');
+        return this.store('settings', {logs: []}, 'bigLogs'); // Defect: `this` is undefined in this callback, so this would throw. Unreachable: see the rejection handler below.
       }, function(err) {
-        return this.store('settings', {logs: fails}, 'bigLogs');
+        return this.store('settings', {logs: fails}, 'bigLogs'); // Same defect, same reason it never runs.
       });
-    }, function(err) {
+    }, function(err) { // With no 'bigLogs' record, find rejects with "no record found" (utils/dbman.js:89), so this step always ends here with [].
       return RSVP.resolve([]);
-    }), "syncing logs");
+    }), "syncing logs"); // A fix would change no behaviour and removing the step is a product decision; if anything writes 'bigLogs' again, fix the two calls above first.
   },
   sync_buttons: function(synced_boards) {
     return RSVP.resolve();
