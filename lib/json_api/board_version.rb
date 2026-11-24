@@ -14,8 +14,6 @@ module JsonApi::BoardVersion
     json['action'] = 'updated' if json['action'] == 'update'
     json['created'] = version.created_at.iso8601
 
-    bucket = ENV['STATIC_S3_BUCKET'] || "lingolinq"
-    
     if version.whodunnit
       if version.whodunnit.match(/^user:/)
         user_id = version.whodunnit.split(/[:\.]/)[1]
@@ -38,7 +36,7 @@ module JsonApi::BoardVersion
       elsif version.whodunnit.match(/^admin:/)
         json['modifier'] = {
           'description' => 'LingoLinq Admin',
-          'image' => "https://www.mylingolinq.com/images/logo-new.png"
+          'image' => "https://app.lingolinq.com/images/logo-new.png"
         }
       end
       later_object = version.instance_variable_get('@later_object')
@@ -57,7 +55,8 @@ module JsonApi::BoardVersion
       end
       if obj && obj.settings
         if json['action'] == 'updated' && obj.settings['edit_description'] && obj.settings['edit_description']['notes'] && obj.settings['edit_description']['notes'].length > 0
-          json['action'] = obj.settings['edit_description']['notes'].join(', ')
+          # Array(): versions saved by update_privacy before 2026-10 hold notes as a single String
+          json['action'] = Array(obj.settings['edit_description']['notes']).join(', ')
         end
         json['name'] = obj.settings['name']
         json['button_labels'] = (obj.buttons || []).map{|b| b['label'] || b['vocalization'] }
@@ -92,7 +91,7 @@ module JsonApi::BoardVersion
     end
     json['modifier'] ||= {
       'description' => 'Unknown User',
-      'image' => "https://#{bucket}.s3.amazonaws.com/avatars/avatar-0.png"
+      'image' => DefaultAvatar.url(0)
     }
 
     json

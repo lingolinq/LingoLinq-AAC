@@ -27,7 +27,7 @@
         </button>
         <button type="button" {{on "click" this.loginFollowupFalse}} class="login-btn login-btn--outline login-btn--device">
           <span class="login-btn__title">{{t "This is a Shared Device" key="not_trust_this_device"}}</span>
-          <span class="login-btn__sub">{{t "Log me out after a period of inactivity" key="log_me_out_when_inactive"}}</span>
+          <span class="login-btn__sub">{{t "Log me out after a period of inactivity. Won't open without internet." key="log_me_out_no_offline"}}</span>
         </button>
       </div>
     {{else if this.login_single_assertion}}
@@ -398,9 +398,9 @@
         {{t "The privacy settings on your browser are preventing %app_name% from fully functioning, so login and registration are temporarily disabled. %app_name% uses browser storage for things like user identity, offline support and performance improvements." key="privacy_wont_work"}}
       </p>
       <p>
-        <a href="https://lingolinq.zendesk.com/hc/en-us/articles/202007575" target="_blank" rel="noopener">
-          {{t "Learn more about configuring your browser to run %app_name%" key="learn_privacy"}}
-        </a>
+        <LinkTo @route="contact">
+          {{t "Contact us for help setting up your browser for %app_name%" key="contact_browser_privacy_help"}}
+        </LinkTo>
       </p>
     {{/if}}
   </div>

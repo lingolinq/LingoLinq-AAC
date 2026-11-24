@@ -314,7 +314,7 @@ export default Component.extend({
       const savedRecords = [];
       users.forEach(function(u) {
         const g = _this.get('store').createRecord('goal', goalAttrs);
-        g.set('user_id', emberGet(u, 'id'));
+        g.set('user_id', backend_user_id(u)); // goal[user_id] is nested, so the server never rewrites 'self' (find_by_global_id)
         promises.push(
           g.save().then(function(rec) {
             savedRecords.push(rec);
@@ -332,7 +332,7 @@ export default Component.extend({
         );
       }
       if (this.get('model.user')) {
-        goal.set('user_id', this.get('model.user.id'));
+        goal.set('user_id', backend_user_id(this.get('model.user'))); // backend id, as on the saved goals above
       }
       _this.set('saving', true);
       _this.set('save_error_key', null);
@@ -403,3 +403,4 @@ export default Component.extend({
     }
   }
 });
+import backend_user_id from '../utils/backend_user_id';

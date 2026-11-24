@@ -490,7 +490,7 @@ task "extras:deploy_notification", [:system, :level, :version] => :environment d
       message += " (#{args[:version]})" if args[:version]
       message += "\nif people start reporting bugs, that is probably why"
     end
-    message += "\n<https://play.google.com/store/apps/details?id=com.mylingolinq.lingolinq|app store link>"
+    message += "\n<https://app.lingolinq.com/download|download links>"
   elsif args[:system] && args[:system].downcase == 'ios'
     if args[:level] && (args[:level].downcase == 'beta' || args[:level].downcase == 'alpha')
       message "#{args[:level]} version submitted to the iOS App Store"
@@ -499,16 +499,16 @@ task "extras:deploy_notification", [:system, :level, :version] => :environment d
       message += " (#{args[:version]})" if args[:version]
       message += "\nit typically takes 7-10 days to get approved, so sit tight"
     end
-    message += "\n<https://itunes.apple.com/us/app/lingolinq/id1021384570|app store link>"
+    message += "\n<https://app.lingolinq.com/download|download links>"
   elsif args[:system] && (args[:system].downcase == 'kindle' || args[:system].downcase == 'amazon')
     message = "An update on the Amazon App Store is going live"
     message += " (#{args[:version]})" if args[:version]
     message += "\nif people start reporting bugs, that is probably why"
-    message += "\n<https://www.amazon.com/LingoLinq-Inc-AAC/dp/B01BU8RUEY/ref=sr_1_1?s=mobile-apps&ie=UTF8&qid=1478539872&sr=1-1&keywords=lingolinq|app store link>"
+    message += "\n<https://app.lingolinq.com/download|download links>"
   elsif args[:system] && args[:system].downcase == 'windows'
     message = "New version of the Windows app is available"
     message += " (#{args[:version]})" if args[:version]
-    message += "\n<https://www.mylingolinq.com/download|download links>"
+    message += "\n<https://app.lingolinq.com/download|download links>"
   elsif args[:system]
     raise "unrecognized system, #{args[:system]}"
   else

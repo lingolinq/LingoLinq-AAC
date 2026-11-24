@@ -1,9 +1,20 @@
 require 'spec_helper'
 
 describe BetaSeed do
+  # ensure_baseline! also runs SystemBoardSources.ensure_senner_baud!, which downloads a ~12 MB board
+  # set from public S3 and imports it: about 2.5 minutes per example, and none of these examples
+  # asserts on it. Fake the two outside sources so ensure_senner_baud! takes its real "not available"
+  # path, the same one it takes when S3 is unreachable. Its import is covered with a sample OBZ in
+  # spec/lib/system_board_sources_spec.rb.
+  def stub_senner_baud_sources
+    allow(SystemBoardSources).to receive(:fetch_senner_baud_obz).and_return(nil)
+    allow(SystemBoardSources).to receive(:local_senner_baud_obz_path).and_return(nil)
+  end
+
   describe '.ensure_baseline!' do
     it 'creates beta baseline users, admin access, and lingolinq starter boards' do
       allow(SystemBoardSources).to receive(:ensure_crisis_vocabulary!).and_return(nil)
+      stub_senner_baud_sources
 
       described_class.ensure_baseline!
 
@@ -26,6 +37,7 @@ describe BetaSeed do
   describe '.verify_beta_seed' do
     it 'returns no baseline misses after required templates are present' do
       allow(SystemBoardSources).to receive(:ensure_crisis_vocabulary!).and_return(nil)
+      stub_senner_baud_sources
       described_class.ensure_baseline!
 
       UserIntegration.create!(template: true, integration_key: 'core_word_list', settings: {})
@@ -43,6 +55,7 @@ describe BetaSeed do
 
     it 'reports missing signup library boards when required' do
       allow(SystemBoardSources).to receive(:ensure_crisis_vocabulary!).and_return(nil)
+      stub_senner_baud_sources
       described_class.ensure_baseline!
 
       missing = described_class.verify_beta_seed(require_library_boards: true)
@@ -152,6 +165,7 @@ describe BetaSeed do
 
     it 'deletes and re-seeds when pre-flight checks pass' do
       allow(SystemBoardSources).to receive(:ensure_crisis_vocabulary!).and_return(nil)
+      stub_senner_baud_sources
       owner = User.create(user_name: 'lingolinq')
       Board.process_new({name: 'Old', public: true}, {user: owner, key: 'old-lib'})
 

@@ -80,6 +80,31 @@ HOME_ROUTES.split(' ').forEach(function(route) { ROW_FOR_ROUTE[route] = 'home'; 
 GOALS_ROUTES.split(' ').forEach(function(route) { ROW_FOR_ROUTE[route] = 'goals'; });
 LOGS_ROUTES.split(' ').forEach(function(route) { ROW_FOR_ROUTE[route] = 'logs'; });
 
+/* ORG MODE'S ROWS (2026-11-08): route name -> org row, and each row's label for the <=900px
+   dropdown trigger. The keys and strings the rows use (components/org-rail-rows.hbs). */
+const ORG_ROW_FOR_ROUTE = {
+  'organization.extras': 'admin_actions',
+  'organization.reports': 'reports',
+  'organization.telemetry': 'telemetry',
+  'organization.rooms': 'rooms',
+  'organization.room': 'rooms',
+  'organization.lessons': 'trainings',
+  'organization.settings': 'settings',
+  'organization.subscription': 'billing'
+};
+function orgRowLabel(row) {
+  switch(row) {
+    case 'admin_actions': return i18n.t('admin_actions', "Admin Actions");
+    case 'reports': return i18n.t('reports', "Reports");
+    case 'telemetry': return i18n.t('telemetry', "Telemetry");
+    case 'rooms': return i18n.t('rooms', "Rooms");
+    case 'trainings': return i18n.t('trainings', "Trainings");
+    case 'settings': return i18n.t('settings', "Settings");
+    case 'billing': return i18n.t('subscription_details', "Billing Details");
+    default: return null;
+  }
+}
+
 /**
  * THE ACCOUNT SECTION'S LEFT NAV, as a fixed full-height panel.
  *
@@ -133,6 +158,31 @@ export default Component.extend({
     var chosen = this.stashes.get(key);
     if(chosen === undefined || chosen === null) { return !this.get('onHomePage') && !this.get('wideScreen'); }
     return !!chosen;
+  }),
+
+  /* ORG MODE (2026-11-08, requested: Modern org pages need "their own side menu", as Basic's have).
+     The app shell passes `@org` on `organization.*` pages (controllers/application.js
+     `globalChromeOrg`). For an org EDITOR the account rows give way to the org's own rows
+     (components/org-rail-rows.hbs), the Modern twin of Basic's org rail
+     (dashboard/classic-rail.js `orgNav`, same `permissions.edit` gate). Anyone else on an org page
+     keeps the account rail they have everywhere: Basic's mix of home rows for them has no Modern
+     counterpart to mirror, and the account rail already carries the way home. */
+  orgNav: computed('org.permissions.edit', function() {
+    return !!this.get('org') && !!this.get('org.permissions.edit');
+  }),
+  /* Which org row the current page is: one value for both `is-active` and `aria-current`, as
+     `activeRow` is for the account rows. The Rooms row also lights on a room's page, a SIBLING
+     route of the list (router.js), which <LinkTo> on the list cannot match. Admin and the five
+     people sections have no row: they are the org tabs above the page (templates/organization.hbs). */
+  orgRow: computed('orgNav', 'router.currentRouteName', 'app_state.current_route', function() {
+    if(!this.get('orgNav')) { return null; }
+    var route = this.get('router.currentRouteName') || this.get('app_state.current_route') || '';
+    return ORG_ROW_FOR_ROUTE[route] || null;
+  }),
+  /* The nav's name, also the narrow-screen dropdown's label. The org menu reads "Organization
+     Navigation", title case (requested 2026-11-09), from the existing `org_navigation` key. */
+  menuName: computed('orgNav', function() {
+    return this.get('orgNav') ? i18n.t('org_navigation', "Organization Navigation") : i18n.t('account_menu', "Account menu");
   }),
 
   /* More than 1200px wide: the width at which the rail defaults to expanded (railCollapsed).
@@ -225,7 +275,9 @@ export default Component.extend({
   /* The trigger names where you are, as the pill nav's dropdown does (`activeLabel` there). The
      same strings and keys the rows use (account-rail.hbs); a page with no row of its own reads
      "Account menu", the nav's own aria-label. */
-  activeLabel: computed('activeRow', 'user.supporter_role', 'router.currentRouteName', 'app_state.current_route', function() {
+  activeLabel: computed('activeRow', 'orgNav', 'orgRow', 'menuName', 'user.supporter_role', 'router.currentRouteName', 'app_state.current_route', function() {
+    /* Org mode: the org row you are on, else the menu's own name (on Admin and the people tabs). */
+    if(this.get('orgNav')) { return orgRowLabel(this.get('orgRow')) || this.get('menuName'); }
     /* Goals, Logs and Account light their rows through `@current-when` route lists rather than
        `activeRow`, so the same lists are read here; otherwise the trigger would say "Account menu"
        on a page whose row is lit. `activeRow` is checked first: it answers 'home' for a pill-nav
@@ -317,8 +369,8 @@ export default Component.extend({
   // The dropdown trigger's accessible name (account-rail.hbs, <=900px): the visible label first
   // (WCAG 2.5.3, label in name), then what the button opens. On a page with no rail row the visible
   // label already IS "Account menu" (activeLabel's default), so it is said once.
-  menuTriggerLabel: computed('activeLabel', function() {
-    var menu = i18n.t('account_menu', "Account menu");
+  menuTriggerLabel: computed('activeLabel', 'menuName', function() {
+    var menu = this.get('menuName');
     var label = this.get('activeLabel');
     return label === menu ? menu : label + ', ' + menu;
   })

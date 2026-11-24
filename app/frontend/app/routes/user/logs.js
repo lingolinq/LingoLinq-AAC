@@ -5,6 +5,7 @@ import { markUpdatesRead } from '../../utils/pending_updates';
 import { basic_landing_for, is_basic_viewer, query_string_for } from '../../utils/basic_landing';
 import { wait_for_session_user } from '../../utils/session_user_wait';
 import session from '../../utils/session';
+import { same_person } from '../../utils/backend_user_id';
 
 /* How long to wait for the signed-in user when the address is THEIR OWN log (2026-10-02,
    adversarial review). See afterModel. */
@@ -79,7 +80,8 @@ export default Route.extend({
        Scoped to the signed-in user's OWN log — a supporter reading a communicator's notes
        must never clear that communicator's notification state. */
     var me = this.get('app_state.currentUser');
-    if(controller.get('nav') === 'home' && me && model && me.get('id') === model.get('id')) {
+    // same_person: currentUser and the page's user can be the 'self'- and real-id-keyed records of one person (utils/backend_user_id.js).
+    if(controller.get('nav') === 'home' && me && model && same_person(me, model, this.get('app_state.sessionUser'))) {
       markUpdatesRead(me);
     }
   }

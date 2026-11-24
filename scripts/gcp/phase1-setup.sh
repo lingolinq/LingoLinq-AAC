@@ -86,7 +86,8 @@ BOOT_SECRETS=(
 # Google/Stripe/AI/Sentry/SMS tokens, misc integration keys. Created here as EMPTY containers;
 # values are seeded by scripts/gcp/phase4-seed-app-secrets.sh (Render-prod-first). The migration
 # Job does NOT load these (it only needs the boot set), so they are NOT in the workflow's migrate
-# step. These hold API keys / tokens only - NEVER PHI. (Migration env reconciliation 4.E1.)
+# step, with one exception: CACHE_TOKEN is provisioned here but the workflow mounts it in
+# BOOT_SECRETS, because RedisInit reads it at every boot (GitHub #423). These hold API keys / tokens only - NEVER PHI. (Migration env reconciliation 4.E1.)
 # SMS_ENCRYPTION_KEY is preserve-exact (salts persisted RemoteTarget.source_hash); AWS_KEY/AWS_SECRET
 # are a NEW least-privilege IAM user minted for Cloud Run (see scripts/gcp/iam/), NOT Render's key.
 APP_SECRETS=(

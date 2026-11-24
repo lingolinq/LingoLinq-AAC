@@ -1,0 +1,44 @@
+// Shared by the specs that sign in as their own synthetic users (seeded by the scripts in
+// this folder): the local-stack guard and the sign-in flow.
+
+const { expect } = require('@playwright/test');
+
+// Only ever a local stack: these specs click real buttons and change settings.
+function assertLocalStack() {
+  const base = process.env.E2E_BASE_URL || 'http://localhost:8184';
+  if (!/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/.test(base)) {
+    throw new Error(`refusing to run against ${base}: local stacks only`);
+  }
+}
+
+// seedScript names the e2e/support script that creates userName, for the failure message. On a device
+// the server has not seen, the sign-in asks whether to trust it; options.shared answers "This is a
+// Shared Device", otherwise "Trust this Device".
+async function signIn(page, userName, seedScript, options) {
+  await page.goto('/login');
+  await expect(page.locator('#identification')).toBeVisible({ timeout: 30_000 });
+  await page.locator('#identification').fill(userName);
+  await page.locator('#password').fill('password');
+  await page.locator('button.login-btn[type="submit"]').click();
+  await page.waitForURL(/login\/device|\/home|\/$/, { timeout: 30_000 });
+  if (/login\/device/.test(page.url())) {
+    // "Trust this Device" (components/login-form.hbs), found by its class rather than its label so a
+    // browser in another interface language signs in too; the outlined button is "Shared Device".
+    const choice = (options && options.shared) ? 'button.login-btn--device.login-btn--outline' : 'button.login-btn--device:not(.login-btn--outline)';
+    await page.locator('.login-device-buttons ' + choice).click();
+    // The sign-in then finishes with an in-app transition or by loading '/' again
+    // (components/login-form.js _login_dispatch_after_wait). The checks below already pass on the page
+    // being replaced, so wait for the one that stays; work started before the reload is lost with it.
+    await page.waitForURL((url) => !/^\/login(\/|$)/.test(url.pathname), { timeout: 60_000 });
+  }
+  await expect(page.locator('#identification'),
+    `could not sign in as ${userName}: run e2e/support/${seedScript} against this stack first`).toBeHidden({ timeout: 30_000 });
+  // Signed in AND done redirecting, so a page.evaluate below is not cut off by a navigation.
+  await page.waitForFunction(() => {
+    const s = window.LingoLinq && window.LingoLinq.session;
+    return !!(s && s.get && s.get('isAuthenticated') && window.persistence && window.persistence.ajax);
+  }, null, { timeout: 30_000 });
+  await page.waitForLoadState('networkidle');
+}
+
+module.exports = { assertLocalStack, signIn };

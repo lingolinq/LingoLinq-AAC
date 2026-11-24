@@ -31,18 +31,10 @@
        "the ch-tabs need to be: Admin, Managers, Supervisors, Communicators, Evals, Symbols").
        It is the SAME five tabs with the same counts, now sitting in the org strip beside an
        Admin tab, so this page would have rendered a second identical strip under the first.
-       MODERN'S PILLS STAY HERE, untouched: the org strip only replaces the Basic one, and
-       Modern's org nav is a different element with its own reasoning (controllers/organization.js).
-       Both still drive the same `pick` action, which now writes the `section` query param. --}}
-  {{#unless this.isBasicView}}
-    <nav class="md-pillnav md-pillnav--org-sub" aria-label={{t "People Sections" key="people_sections"}}>
-      <button type="button" class="md-pillnav__pill {{if this.show_managers "is-active"}}" {{on "click" (this.ctrlAction "pick" "managers")}}>{{t "Managers" key="managers"}}</button>
-      <button type="button" class="md-pillnav__pill {{if this.show_supervisors "is-active"}}" {{on "click" (this.ctrlAction "pick" "supervisors")}}>{{t "Supervisors" key="supervisors"}}</button>
-      <button type="button" class="md-pillnav__pill {{if this.show_communicators "is-active"}}" {{on "click" (this.ctrlAction "pick" "communicators")}}>{{t "Communicators" key="communicators"}}</button>
-      <button type="button" class="md-pillnav__pill {{if this.show_evals "is-active"}}" {{on "click" (this.ctrlAction "pick" "evals")}}>{{t "Evals" key="evals"}}</button>
-      <button type="button" class="md-pillnav__pill {{if this.show_extras "is-active"}}" {{on "click" (this.ctrlAction "pick" "extras")}}>{{t "Symbols" key="symbols"}}</button>
-    </nav>
-  {{/unless}}
+       MODERN'S PILLS FOLLOWED IT UP (2026-11-08): the org strip renders in Modern too now, with
+       Modern's classes (requested: "modern view needs the Admin/Managers/Supervisors/
+       Communicators/Evals/Symbols top menu"), so Modern's in-page pills here would have been the
+       same second strip. This page's body is for org editors only, and they always get the strip. --}}
 
   {{!-- Managers --}}
   {{#if this.show_managers}}

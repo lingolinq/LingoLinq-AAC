@@ -56,7 +56,7 @@ var speecher = EmberObject.extend({
     this.appState = appState;
     this.persistence = persistence;
     this.stashes = stashes;
-    this.tts_voices = tts_voices;
+    this.tts_voices = tts_voices; speecher.warm_voice_on_touch(); // utils/speech_warmup.js: the voice is loaded before the first word on Android
   },
   text_direction: function() {
     var voice = speecher.get('voices').find(function(v) { return v.voiceURI == speecher.voiceURI; });
@@ -544,6 +544,17 @@ var speecher = EmberObject.extend({
       callback();
     }
   },
+  // Whether speech in this language would really use a voice for it. Asks find_voice_by_uri,
+  // which falls back to a voice in another language when the device has none. An empty list
+  // means voices have not loaded yet, not that there are none.
+  has_voice_for: function(locale) {
+    if((speecher.get('voices') || []).length === 0 || speecher.voiceURI == 'force_default') { return true; }
+    var language = (locale || 'en').toLowerCase().split(/[-_]/)[0];
+    var mapped_lang = i18n.lang_map[language] || language;
+    var voice = speecher.find_voice_by_uri(speecher.voiceURI, locale || 'en', true);
+    var root = ((voice && voice.lang) || '').toLowerCase().split(/[-_]/)[0];
+    return root == language || root == mapped_lang || i18n.lang_map[root] == mapped_lang;
+  },
   find_voice_by_uri: function(uri, locale, allow_fallbacks) {
     if(uri == 'force_default') { return null; }
     var voices = speecher.get('voices');
@@ -629,16 +640,18 @@ var speecher = EmberObject.extend({
     }
     // Replace fancy quote marks with normal ones, or some TTS engines get confused
     text = text.replace(/‘|’/g, "'").replace(/“|”/g, '"');
-    var current_locale = this.appState.get('vocalization_locale');
+    // opts.locale speaks in a language the session is not in yet (create-board-new preview).
+    var speak_locale = opts.locale || this.appState.get('vocalization_locale');
+    var current_locale = speak_locale;
     if(opts.default_prompt && opts.voiceURI) { current_locale = 'any'; }
     if(opts.alternate_voice) {
       opts.volume = this.alternate_volume || ((opts.volume || 1.0) * 0.75);
       opts.pitch = this.alternate_pitch;
       opts.rate = this.alternate_rate;
       opts.voiceURI = this.alternate_voiceURI;
-      if(speecher.appState.get('vocalization_locale')) {
+      if(speak_locale) {
         // If the alternate voice doesn't match the expected locale, use a different voice
-        var set_locale = speecher.appState.get('vocalization_locale').split(/[-_]/)[0].toLowerCase();
+        var set_locale = speak_locale.split(/[-_]/)[0].toLowerCase();
         var voice_locale = (_this.alternate_voiceLang || navigator.language).split(/[-_]/)[0].toLowerCase();
         if(set_locale != voice_locale) {
           opts.voiceURI = (speecher.find_voice_by_uri(_this.alternate_voiceURI, current_locale, true) || {}).voiceURI || _this.alternate_voiceURI;
@@ -649,9 +662,9 @@ var speecher = EmberObject.extend({
     opts.pitch = opts.pitch || this.pitch || 1.0;
     if(!opts.voiceURI) {
       opts.voiceURI = this.voiceURI;
-      if(speecher.appState.get('vocalization_locale')) {
+      if(speak_locale) {
         // If the voice doesn't match the expected locale, use a different voice
-        var set_locale = speecher.appState.get('vocalization_locale').split(/[-_]/)[0].toLowerCase();
+        var set_locale = speak_locale.split(/[-_]/)[0].toLowerCase();
         var voice_locale = (this.voiceLang || navigator.language).split(/[-_]/)[0].toLowerCase();
         if(set_locale != voice_locale) {
           opts.voiceURI = (speecher.find_voice_by_uri(_this.voiceURI, current_locale, true) || {}).voiceURI || _this.voiceURI;
@@ -695,11 +708,11 @@ var speecher = EmberObject.extend({
           if(capabilities.system == 'iOS' && capabilities.ios_version && capabilities.ios_version < 9) {
           } else {
             var nativeVoices = speecher.scope.speechSynthesis.getVoices();
-            var isCustomVoice = voice.voiceURI && (voice.voiceURI.match(/^(extra|remote|tts|speak_js):/) || voice.remote_voice);
+            var isCustomVoice = is_custom_voice(voice); // utils/speech_warmup.js, shared with warm_voice below
             if(!isCustomVoice && nativeVoices && nativeVoices.length) {
-              var nativeVoice = nativeVoices.find(function(v) {
-                return v.voiceURI === voice.voiceURI || (v.name === voice.name && v.lang === voice.lang);
-              });
+              var nativeVoice = native_voice_for(nativeVoices, voice);
+              // native_voice_for: the device voice with the same voiceURI, or the same name and language
+              // (utils/speech_warmup.js); warm_voice at the end of this file finds the same one
               if(nativeVoice) {
                 try {
                   utterance.voice = nativeVoice;
@@ -1077,7 +1090,7 @@ var speecher = EmberObject.extend({
     audio.pause();
     if(audio.media) { audio.media.pause(); }
     audio.currentTime = 0;
-    var _this = this;
+    var _this = this; var play_for = speecher.get_app_state(); // the app this playback belongs to, if any
     var speak_id = ref.speak_id;
     cleanup_audio(audio);
     var audio_status = {init: (new Date()).getTime()};
@@ -1094,7 +1107,7 @@ var speecher = EmberObject.extend({
         if(audio.className == 'throwaway') {
           audio.src = null;
         }
-        _this.speak_end_handler(speak_id);    
+        if(owner_gone(play_for)) { return; } _this.speak_end_handler(speak_id); // that app is gone: do not advance another's speech queue
       }
     };
     audio.lastListener = handler;
@@ -1443,17 +1456,18 @@ speecher.check_readiness();
 // Static service registry for explicit injection
 speecher._services = {};
 
-// Getter methods for services with fallback to globals
+// Getter methods for services with fallback to globals. A service DESTROYED with the app instance
+// that owned it (tests tear apps down) counts as absent: see ./live_service.
 speecher.get_app_state = function() {
-  return speecher._services.app_state || window.appState || (window.LingoLinq && window.LingoLinq.appState);
+  return live_service(speecher._services.app_state) || window.appState || (window.LingoLinq && window.LingoLinq.appState);
 };
 
 speecher.get_persistence = function() {
-  return speecher._services.persistence || window.persistence || (window.LingoLinq && window.LingoLinq.persistence);
+  return live_service(speecher._services.persistence) || window.persistence || (window.LingoLinq && window.LingoLinq.persistence);
 };
 
 speecher.get_stashes = function() {
-  return speecher._services.stashes || window.stashes || (window.LingoLinq && window.LingoLinq.stashes);
+  return live_service(speecher._services.stashes) || window.stashes || (window.LingoLinq && window.LingoLinq.stashes);
 };
 
 /*
@@ -1478,7 +1492,7 @@ speecher.get_stashes = function() {
  * of which this module already imports, so it adds no cycle.
  */
 speecher.get_tts_voices = function() {
-  return speecher.tts_voices || speecher._services.tts_voices || window.tts_voices || tts_voices;
+  return speecher.tts_voices || live_service(speecher._services.tts_voices) || window.tts_voices || tts_voices;
 };
 
 // Service registration method
@@ -1587,8 +1601,43 @@ speecher.reapply_user_voice = function() {
   speecher.set_voice(user.get('preferences.device.voice'), user.get('preferences.device.alternate_voice'));
 };
 
+// On Android, load the voice buttons speak with, using a silent utterance on a touch, so the first word is not held
+// up while the device loads it (utils/speech_warmup.js). Android only: iOS Safari ignores utterance volume, and the
+// delay was measured on Android.
+// - The button voice: the alternate voice when it is on for buttons (utils/utterance.js speak_button), as speak_text
+//   then uses alternate_voiceURI; otherwise the main voice.
+// - Once per voice, counted only when the warm-up STARTS: a warm-up cancelled before it starts (unlock_speech or
+//   stop() on the same tap, for a button that speaks nothing) loaded nothing, so the next touch tries again. While
+//   one is queued, warm_voice's speaking/pending check keeps a second from being added.
+speecher.button_voice_uri = function() {
+  var alt = speecher.alternate_voice;
+  return (alt && alt.enabled && alt.for_buttons === true) ? speecher.alternate_voiceURI : speecher.voiceURI;
+};
+speecher.warm_voice = function() {
+  var scope = speecher.scope;
+  if(capabilities.system != 'Android' || !scope || !scope.speechSynthesis || !scope.SpeechSynthesisUtterance) { return false; }
+  var uri = speecher.button_voice_uri();
+  if(uri == 'force_default') { return false; } // speak_text names no voice for it
+  var appState = live_service(speecher.appState);
+  var locale = appState && appState.get && appState.get('vocalization_locale');
+  var voice = speecher.find_voice_by_uri(uri, locale, true);
+  if(!voice || is_custom_voice(voice)) { return false; }
+  var native_voice = native_voice_for(scope.speechSynthesis.getVoices(), voice);
+  if(!native_voice || speecher._warmed_voice === native_voice.voiceURI) { return false; }
+  return warm_voice(scope.speechSynthesis, scope.SpeechSynthesisUtterance, native_voice, function() { speecher._warmed_voice = native_voice.voiceURI; });
+};
+
+// Called from setup(). One capture listener for the page: every pointerdown is a user gesture, which Chrome
+// requires before speechSynthesis may speak.
+speecher.warm_voice_on_touch = function() {
+  if(speecher._warmup_listening || typeof document === 'undefined') { return; }
+  speecher._warmup_listening = true;
+  document.addEventListener('pointerdown', function() { speecher.warm_voice(); }, true);
+};
+
 window.speecher = speecher;
 
 export default speecher;
 // Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
-import { live_service } from './live_service';
+import { live_service, owner_gone } from './live_service';
+import { is_custom_voice, native_voice_for, warm_voice } from './speech_warmup';

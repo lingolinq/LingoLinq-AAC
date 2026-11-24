@@ -91,7 +91,7 @@ class Api::BetaFeedbackController < ApplicationController
   end
 
   def require_admin
-    return if @api_user&.admin?
+    return if admin_sign_in?(@api_user)
 
     api_error 403, {error: 'Not authorized'}
   end

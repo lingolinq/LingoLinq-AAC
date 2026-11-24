@@ -170,7 +170,7 @@ export default Service.extend({
   },
 
   willDestroy() {
-    this._super(...arguments);
+    this._super(...arguments); if(buttonTracker) { buttonTracker.transitioning = false; } if(this._boardLoadOverlayCleanup) { this._boardLoadOverlayCleanup(); } if(scanner && scanner.get('appState') === this) { scanner.scanning = false; scanner.set('appState', null); } // a transition, its pending board overlay, and the scanner it drives end with the service
     if (this.refreshing_user) {
       // clearTimeout, NOT runCancel: refresh_user's reschedule is a native
       // setTimeout (see the comment at its call site), and Ember's cancel() looks
@@ -1100,7 +1100,7 @@ export default Service.extend({
       this.set('vocalization_locale', label);
     }
   },
-  jump_to_board: function(new_state, old_state) {
+  _jump_to_board: function(new_state, old_state) {
     buttonTracker.transitioning = true;
     if(new_state && old_state && new_state.id && (new_state.id == old_state.id || new_state.key == old_state.key)) {
       // transition was getting stuck when staying on the same board
@@ -1161,7 +1161,7 @@ export default Service.extend({
         // If we are staying on the same board, force a redraw
         editManager.process_for_displaying();
       }
-      var check = function() {
+      var check = function() { if(_this.isDestroyed || _this.isDestroying) { return; } // a torn-down app-state stops polling
         check.attempts = (check.attempts || 0);
         if(!buttonTracker.transitioning) { check.attempts++; }
         var currentKey = _this.get('currentBoardState.key');
@@ -1264,8 +1264,8 @@ export default Service.extend({
     return !!(this.get('manual_modeling') || this.get('modeling_for_user') ||
       this.get('modeling_for_self') || (referenced && !speaking_as_referenced));
   }),
-  modeling_for_user: computed('speak_mode', 'currentUser', 'referenced_speak_mode_user', 'modeling_for_self', function() {
-    var res = this.get('speak_mode') && this.get('currentUser') && this.get('referenced_speak_mode_user') && this.get('currentUser.id') != this.get('referenced_speak_mode_user.id');
+  modeling_for_user: computed('speak_mode', 'currentUser', 'referenced_speak_mode_user', 'modeling_for_self', 'sessionUser', function() {
+    var res = this.get('speak_mode') && this.get('currentUser') && this.get('referenced_speak_mode_user') && !same_person(this.get('currentUser'), this.get('referenced_speak_mode_user'), this.get('sessionUser'));
     res = res || this.get('modeling_for_self');
     var _this = this;
     // this is weird and hacky, but for some reason modeling wasn't reliably updating when modeling_for_user changed
@@ -1470,7 +1470,7 @@ export default Service.extend({
     if(preferred && current) {
       emberSet(preferred, 'text_direction', current.text_direction);
     }
-    if(preferred && this.get('label_locale') && this.get('label_locale') == this.get('vocalization_locale')) {
+    if(preferred && current && preferred.key == current.key && this.get('label_locale') && this.get('label_locale') == this.get('vocalization_locale')) {
       emberSet(preferred, 'locale', this.get('label_locale'));
     }
     
@@ -1680,7 +1680,7 @@ export default Service.extend({
           // locale, then update the user's preferences
           // to set the new locale as the new preference
           var home = user.get('preferences.home_board');
-          if(home && home.locale && opts.override_state && home.locale != opts.override_state.locale && user.get('preferences.home_board')) {
+          if(home && home.locale && opts.override_state && opts.override_state.locale && home.key == opts.override_state.key && home.locale != opts.override_state.locale) {
             user.set('preferences.home_board.locale', opts.override_state.locale);
             var save_user = false;
           }
@@ -1801,7 +1801,7 @@ export default Service.extend({
           this.stashes.persist('copy_on_save', this.get('currentBoardState.id'));
         }
       } else if(mode == 'speak') {
-        var already_speaking_as_someone_else = this.get('speakModeUser.id') && this.get('speakModeUser.id') != this.get('sessionUser.id');
+        var already_speaking_as_someone_else = this.get('speakModeUser.id') && !same_person(this.get('speakModeUser'), this.get('sessionUser'));
         if(this.get('currentBoardState')) { delete this.get('currentBoardState').reload_token }
         // when entering speak mode, if the user is expired,
         // or modeling-only w/o hany premium supervisees,
@@ -1850,31 +1850,31 @@ export default Service.extend({
   }),
   sync_send_utterance: observer('stashes.working_vocalization', function() {
     if(!LingoLinq || !LingoLinq.store) { return; }
-    var shareable_voc = function() {
+    var shareable_voc = () => {
       var u = LingoLinq.store.createRecord('utterance', {
         button_list: this.stashes.get('working_vocalization') || [], 
         timestamp: (new Date()).getTime() / 1000,
         user_id: this.get('referenced_user.id')
       });
       u.assert_remote_urls();
-      return u.get('button_list');
+      return this.release_sentence_record(u);
     };
 
     if(!this.get('sessionUser.supporter_view')) {
       // TODO: DRY this check, it's in sync too
-      if(this.get('sessionUser.preferences.remote_modeling') && (this.get('pairing') || this.get('sessionUser.preferences.remote_modeling_auto_follow') || this.get('followers.allowed'))) {
+      if(this.get('sessionUser.preferences.remote_modeling') && (this.get('pairing') || this.get('sessionUser.preferences.remote_modeling_auto_follow') || this.get('followers.allowed')) && this.in_sentence_room()) {
         var str = JSON.stringify(shareable_voc());
         // If the sentence has changed or hasn't been
         // encoded, then send it through encoding
-        if((str != this.get('sync_utterance.json') || !this.get('sync_utterance.encoded')) && window.persistence) {
+        if(this.sentence_needs_encoding(str) && window.persistence) {
           this.set('sync_utterance', {
-            json: str
+            json: str, encoding: true
           });
           window.persistence.ajax('/api/v1/users/' + this.get('sessionUser.id') + '/ws_encrypt', {
             type: 'POST',
             data: {text: str}
-          }).then(function(res) {
-            if(JSON.stringify(shareable_voc()) == str) {
+          }).then((res) => {
+            if(!this.isDestroyed && !this.isDestroying && JSON.stringify(shareable_voc()) == str) {
               this.set('sync_utterance', {
                 json: str,
                 encoded: res.encoded,
@@ -1882,7 +1882,7 @@ export default Service.extend({
               });
               sync.send_update(this.get('referenced_user.id') || this.get('currentUser.id'), {utterance: res.encoded});
             }
-          }, function(err) { });
+          }, (err) => { this.sentence_encoding_failed(str); });
         } else {
           var encoded = this.get('sync_utterance.encoded');
           if(encoded) {
@@ -1890,7 +1890,7 @@ export default Service.extend({
             this.set('sync_utterance.attempted', true);
           }
         }
-      }
+      } else if(this.get('sync_utterance')) { this.set('sync_utterance', null); }
     }
   }),
   sync_keepalive: observer('short_refresh_stamp', function() {
@@ -1968,7 +1968,7 @@ export default Service.extend({
         this.stashes.persist('referenced_speak_mode_user_id', null);
       }
       var msg;
-      if(speak_mode_user && this.get('sessionUser') && speak_mode_user.get('id') != this.get('sessionUser.id')) {
+      if(speak_mode_user && this.get('sessionUser') && !same_person(speak_mode_user, this.get('sessionUser'))) {
         msg = i18n.t('speak_mode_communicator_needs_home_board', "%{name} does not have a home board set yet. Set a home board for this communicator, then try Model for or Speak as again.", { name: speak_mode_user.get('user_name') || speak_mode_user.get('id') });
       } else {
         msg = i18n.t('no_home_board_yet', "You haven't selected a home board yet.");
@@ -2058,7 +2058,7 @@ export default Service.extend({
           modal.close();
         }
         // Ensure scanner has a reference to appState for preference checks
-        if(!scanner.get('appState')) {
+        if(!live_service(scanner.get('appState'))) {
           scanner.set('appState', _this);
         }
         var interval = parseInt(_this.get('currentUser.preferences.device.scanning_interval'), 10);
@@ -2083,7 +2083,7 @@ export default Service.extend({
         }
       }
       runLater(function() {
-        _this.retry_images();
+        if(_this.isDestroyed || _this.isDestroying) { return; } _this.retry_images();
       }, 1000);
       buttonTracker.multi_touch_modeling = _this.get('currentUser.preferences.multi_touch_modeling');
       buttonTracker.keyboard_listen = _this.get('currentUser.preferences.device.external_keyboard');
@@ -2251,7 +2251,7 @@ export default Service.extend({
 
     // In-memory board JSON / ordered_buttons / image-warm state must not
     // leak across users on SPA sign-out (full reload clears module state).
-    try { boardDetailCache.clear(); } catch(e) { /* non-critical */ }
+    try { boardDetailCache.clear(); } catch(e) { /* non-critical */ } this.set('device_copy_server_silent_at', null); var p = this.get('persistence'); if(p && typeof p.drop_follow_up_syncs === 'function') { p.drop_follow_up_syncs({error: "signed out"}); } var sync_notice = getOwner(this).lookup('service:sync-notice'); if(sync_notice) { sync_notice.dismiss(); } if(p) { p.set('copy_image_urls', []); p.set('url_cache', {}); p.set('sync_log', []); /* the previous person's sync results, memory only, never saved (utils/sync_log_store.js) */ } // a sync the previous person queued must not start in the next session (dropped before the drawer is dismissed, so the flag falling cannot reopen it; services/persistence.js drop_follow_up_syncs); the previous person's pictures held in memory for device copies (utils/board_device_copy.js load_images); the shortened device-copy wait (utils/board_device_copy.js), and the sync drawer's card: its Sync Details opens the signed-out person's log (services/sync-notice.js)
     // Dashboard Boards-card preview cache (names + image urls) is module-scoped and survives the
     // component; drop it so it does not linger in memory on a shared device after sign-out.
     try { previewBoardCache.reset(); } catch(e) { /* non-critical */ }
@@ -2344,7 +2344,7 @@ export default Service.extend({
       this.stashes.persist('label_locale', null);
       this.stashes.persist('vocalization_locale', null);
     }
-    if(board_user_id == 'self' || (session_user_id && board_user_id == session_user_id)) {
+    if(board_user_id == 'self' || (session_user_id && (board_user_id == session_user_id || same_person(board_user_id, this.get('sessionUser'), this.get('sessionUser')) || board_user_id === this.get('sessionUser.user_name')))) { // your own real id or user name is you, also while the session record is keyed 'self'
       this.set('speakModeUser', null);
       this.set('referenced_speak_mode_user', null);
       this.stashes.persist('speak_mode_user_id', null);
@@ -2891,7 +2891,7 @@ export default Service.extend({
       if(this.get('speak_mode')) {
         var _this = this;
         runLater(function() {
-          var $button_list = $("#button_list");
+          if(_this.isDestroyed || _this.isDestroying) { return; } var $button_list = $("#button_list");
           var $item = null;
           if(_this.get('insertion.index')) {
             $item = $button_list.find(".utterance_cursor");
@@ -2970,12 +2970,12 @@ export default Service.extend({
       this.stashes.persist('browse_history', hist);
     }
   },
-  feature_flags: computed('currentUser.feature_flags', function() {
-    var res = this.get('currentUser.feature_flags') || {};
-    (window.enabled_frontend_features || []).forEach(function(feature) {
-      emberSet(res, feature, true);
-    });
-    return res;
+  feature_flags: computed('currentUser.feature_flags', 'domain_settings', function() {
+    var settings = this.get('domain_settings') || {};
+    var windowList = (typeof window !== 'undefined' && window.enabled_frontend_features) || [];
+    return resolve_feature_flags(this.get('currentUser.feature_flags'),
+      windowList,
+      settings.enabled_frontend_features);
   }),
   beta_program_access: computed('currentUser.preferences.beta_program_access', function() {
     return !!this.get('currentUser.preferences.beta_program_access');
@@ -3144,8 +3144,8 @@ export default Service.extend({
       if(this.get('speak_mode')) {
         this.stashes.set('logging_enabled', !!(this.get('speak_mode') && (this.get('currentUser.preferences.logging') || this.get('referenced_user.preferences.logging'))));
         this.stashes.set('geo_logging_enabled', !!(this.get('speak_mode') && this.get('currentUser.preferences.geo_logging')));
-        this.stashes.set('speaking_user_id', this.get('currentUser.id'));
-        this.stashes.set('session_user_id', this.get('sessionUser.id'));
+        this.stashes.set('speaking_user_id', backend_id_of(this.get('currentUser'), this.get('sessionUser')) || this.get('currentUser.id')); // logged events carry it; the server drops an event whose user is 'self' (log_session.rb process_as_follow_on)
+        this.stashes.set('session_user_id', backend_user_id(this.get('sessionUser')) || this.get('sessionUser.id'));
         this.stashes.set('session_preferred_symbols', this.get('referenced_user.preferences.preferred_symbols'));
 
         var voices = speecher.get('voices');
@@ -3195,8 +3195,8 @@ export default Service.extend({
             modal.warning(i18n.t('no_local_voices', "This device doesn't have any local voices, so an Internet connection will be required for any speech output until you download a premium voice"), true);
           }
           if(!capabilities.mobile && this.get('currentUser.preferences.device.fullscreen')) {
-            capabilities.fullscreen(true).then(null, function() {
-              if(!noticed) {
+            capabilities.fullscreen(true).then(null, () => {
+              if(!noticed && !this.isDestroyed && !this.isDestroying) { // not into another app's modal once this one is gone
                 modal.warning(i18n.t('fullscreen_failed', "Full Screen Mode failed to load"), true);
               }
             });
@@ -4121,7 +4121,7 @@ export default Service.extend({
       var _this = this;
       var user = this.get('referenced_user');
       // clear current badge if it doesn't match the referenced user info
-      if(!user || _this.get('user_badge.user_id') != user.get('id')) {
+      if(!user || !same_person(_this.get('user_badge.user_id'), user, _this.get('sessionUser'))) {
         _this.set('user_badge', null);
       }
 
@@ -4140,7 +4140,7 @@ export default Service.extend({
               return;
             }
             _this.set('user_badge_hash', badge_hash);
-            badges = badges.filter(function(b) { return b.get('user_id') == user.get('id'); });
+            badges = badges.filter(function(b) { return same_person(b.get('user_id'), user, _this.get('sessionUser')); });
             var badge = LingoLinq.Badge.best_earned_badge(badges);
             if(!badge || badge.get('dismissed')) {
               var next_badge = LingoLinq.Badge.best_next_badge(badges);
@@ -4155,7 +4155,7 @@ export default Service.extend({
           });
         });
       }
-    } else if(this.get('user_badge') && this.get('user_badge.user_id') != this.get('referenced_user.id')) {
+    } else if(this.get('user_badge') && !same_person(this.get('user_badge.user_id'), this.get('referenced_user'), this.get('sessionUser'))) {
       this.set('user_badge', null);
     }
   }),
@@ -4419,7 +4419,7 @@ export default Service.extend({
           } else {
             obj.spoken = true;
             obj.for_speaking = true;
-            var speakDone = false;
+            var speakDone = false, speakPending = false;
             var doSpeak = function() {
               if(speakDone) { return; }
               speakDone = true;
@@ -4453,9 +4453,9 @@ export default Service.extend({
               if (soundUrl) {
                 button_to_speak.sound = soundUrl;
                 doSpeak();
-                return;
+                // Speech can finish later; the rest of the press (log, send, link) must still run
               }
-              if (soundId && button.load_sound) {
+              if (!soundUrl && soundId && button.load_sound) {
                 // Use the board URL map via 'local' first. Only fall back to
                 // 'remote' findRecord when online and the map has no URL —
                 // calling remote first skips board.sound_urls and TTS-falls-back
@@ -4483,11 +4483,11 @@ export default Service.extend({
                       doSpeak();
                     }
                   });
-                  return;
+                  speakPending = true;
                 }
               }
             }
-            doSpeak();
+            if(!speakPending) { doSpeak(); }
           }
         } else {
           click_sound();
@@ -5460,6 +5460,15 @@ export default Service.extend({
     this.updateFavicon();
   },
 
+  /* A sync that finds boards no synced user can view any more holds the marks back while
+     Speak Mode is on, so the board in use is never pulled away (utils/board_revocation.js).
+     They are applied once Speak Mode is off. */
+  apply_deferred_board_revocations: observer('speak_mode', function() {
+    if(!this.get('speak_mode') && boardRevocation.has_deferred()) {
+      boardRevocation.flush_deferred().then(null, function() { });
+    }
+  }),
+
   /* READ by global_transition before its modal.close(). Every route change closes every
      modal, which let the Back button (or any link) dismiss the "Please Log Back In" dialog with
      nothing re-prompting, leaving the user on pages whose requests all fail. While the logout is
@@ -5474,6 +5483,39 @@ export default Service.extend({
     var to_route = (transition && transition.to_route) || '';
     if(/^login(\.|$)/.test(to_route) || ['forgot_login', 'forgot_password', 'register', 'offline_boards'].indexOf(to_route) !== -1) { return false; }
     return !!(modal.is_open('force-logout') && this.session && this.session.logout_under_way());
+  },
+  // Offline, a board that is not on the device answers at once, and the board and the sentence stay
+  // (#1209). Online this is the same synchronous jump as ever.
+  jump_to_board: function(new_state, old_state) {
+    var persistence = this.persistence;
+    if(!new_state || !persistence || persistence.get('online') !== false) { this._latest_jump = {}; return this._jump_to_board(new_state, old_state); } // an online jump is the latest tap too, so an offline check still running cannot open its board after it
+    var _this = this;
+    var jump = this._latest_jump = {}; // the check is async, so only the latest tap may go ahead
+    return board_saved_here(persistence, boardDetailCache, new_state.key, this).then(function(saved) {
+      if(jump !== _this._latest_jump) { return; }
+      if(saved) { return _this._jump_to_board(new_state, old_state); }
+      warn_board_not_saved();
+    });
+  },
+  // sync_send_utterance's helpers live here, below the rows .eslint-todo anchors by line.
+  release_sentence_record: function(record) {
+    var list = record.get('button_list');
+    record.unloadRecord();
+    return list;
+  },
+  // Without an open connection to this room the sentence has nowhere to go, so it stays on the device
+  in_sentence_room: function() {
+    return sync.in_room(this.get('referenced_user.id') || this.get('currentUser.id'));
+  },
+  sentence_needs_encoding: function(str) {
+    if(str != this.get('sync_utterance.json')) { return true; }
+    return !this.get('sync_utterance.encoded') && !this.get('sync_utterance.encoding');
+  },
+  sentence_encoding_failed: function(str) {
+    if(this.isDestroyed || this.isDestroying) { return; }
+    if(this.get('sync_utterance.json') == str) {
+      this.set('sync_utterance.encoding', false);
+    }
   }
 });
 
@@ -5488,6 +5530,11 @@ export const ScrollTopRoute = Route.extend({
   }
 });
 // window.app_state will be set in initializer after service is created
+// Below the baselined lint rows so they keep their line numbers (.eslint-todo).
+import { live_service } from '../utils/live_service';
+// Placed last: an import at the top would shift every line of the line-anchored ESLint baseline.
+// Imports are hoisted, so position does not matter at runtime.
+import boardRevocation from '../utils/board_revocation';
 
 /* A DEAD SESSION AT BOOT LOGS OUT ONCE (final review, 2026-10-13). The ajax layer (utils/extras.js) calls
    force_logout for the failed user lookup, and the same rejection then reaches find_user's handler above; a
@@ -5495,4 +5542,25 @@ export const ScrollTopRoute = Route.extend({
    whoever owned it. Skipped when the session says a logout is already under way (services/session.js). */
 export function logout_already_under_way(session) {
   return !!(session && typeof session.logout_under_way === 'function' && session.logout_under_way());
+}
+// Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
+import { board_saved_here, warn_board_not_saved } from '../utils/board_device_copy';
+import backend_user_id, { same_person, backend_id_of } from '../utils/backend_user_id';
+
+/* A loaded user's feature_flags come from FeatureFlags.frontend_flags_for and already
+ * follow System Settings. The window list (globals.js, fixed at asset build) and the
+ * domain_settings list (per request) apply only while nobody is signed in. An empty
+ * domain list is a real "all off", not a cue to fall back to the window list. */
+export function resolve_feature_flags(userFlags, windowList, domainList) {
+  if (userFlags) {
+    return userFlags;
+  }
+  var list = Array.isArray(domainList) ? domainList : (windowList || []);
+  var fallback = {};
+  list.forEach(function(feature) {
+    if (feature) {
+      fallback[feature] = true;
+    }
+  });
+  return fallback;
 }

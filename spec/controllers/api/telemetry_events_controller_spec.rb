@@ -46,4 +46,14 @@ describe Api::TelemetryEventsController, :type => :controller do
       expect(event.data['label']).to eq(nil)
     end
   end
+
+  describe "admin sign-in" do
+    LimitedSignInHelpers::KINDS.each do |kind, wording|
+      it "should not treat an admin whose sign-in #{wording} as a telemetry user" do
+        limited_admin_token(kind)
+        post :create, params: {telemetry_event: {event_type: 'route_visit', route: 'index'}}
+        assert_error 'Not authorized', 403
+      end
+    end
+  end
 end

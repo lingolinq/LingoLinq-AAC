@@ -42,9 +42,11 @@ module('Integration | Template | system-settings Basic rail', function(hooks) {
   test('Basic: the rail sits beside the settings workspace', async function(assert) {
     this.set('isBasicView', true);
     await render(systemSettingsTemplate);
-    var rail = document.querySelector('.la-system-settings .la-main > .ch-rail');
-    assert.ok(rail, 'the Basic rail is a direct child of the page main');
-    assert.ok(document.querySelector('.la-system-settings .la-main > .md-workspace'), 'the workspace stays beside it');
+    // The page is an `.md-shell` since 2026-11-09 (it was the marketing `.la-main`); Traci approved
+    // pointing these at the new structure. Same two checks.
+    var rail = document.querySelector('.md-shell--system-settings > .ch-rail');
+    assert.ok(rail, 'the Basic rail is a direct child of the page shell');
+    assert.ok(document.querySelector('.md-shell--system-settings > .md-workspace'), 'the workspace stays beside it');
   });
 
   test('Modern: no rail, the page is unchanged', async function(assert) {

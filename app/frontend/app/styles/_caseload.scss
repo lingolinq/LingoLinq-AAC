@@ -419,7 +419,7 @@
      the 9px `.md-caseload__list-name-row` uses between the name and its badge, so
      the badge block reads as one stack whichever row it lands on. */
   column-gap: 12px;
-  row-gap: 9px;
+  row-gap: var(--dn-cl-row-gap, 9px);
   padding: 4px 0;
   color: inherit;
   /* It's a real <button> for keyboard operability — strip the native button
@@ -546,6 +546,7 @@
      `grid-column: 2` auto-flows this to row 2 (641-768px re-places it into row 1 of a
      third track, and <=640px pins it to row 2 explicitly — both still left-aligned). */
   grid-column: 2;
+  align-self: var(--dn-cl-status-align, auto);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -745,12 +746,12 @@
      the same column the identity occupies, and a spanning identity would sit on top of it. */
   .md-caseload__list-identity {
     grid-row: var(--dn-cl-identity-row, 1 / span 2);
-    align-self: center;
+    align-self: var(--dn-cl-identity-align, center);
   }
   .md-caseload__list-status {
     grid-column: var(--dn-cl-status-col, 3);
     grid-row: var(--dn-cl-status-row, 1 / span 2);
-    align-self: center;
+    align-self: var(--dn-cl-status-align, center);
     /* Left-aligned now: it sits directly after the role badge on a shared line, so the
        right-anchoring the full-width row needed would open a gap mid-sentence. */
     justify-content: flex-start;

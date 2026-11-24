@@ -319,9 +319,9 @@ describe SecureSerialize, :type => :model do
 
       u.reload
       expect(PaperTrail::Version.count).to eq(4)
-      expect(PaperTrail::Version.all.map{|v| v.object_deserialized['settings']['bacon'] rescue nil }).to eq([nil, true, true, true])
-      expect(PaperTrail::Version.all.map{|v| v.object_deserialized['settings']['cheddar'] rescue nil }).to eq([nil, nil, 4, 4])
-      expect(PaperTrail::Version.all.map{|v| v.object_deserialized['settings']['broccoli'] rescue nil }).to eq([nil, nil, nil, 'cooked'])
+      expect(PaperTrail::Version.order(:id).map{|v| v.object_deserialized['settings']['bacon'] rescue nil }).to eq([nil, true, true, true])
+      expect(PaperTrail::Version.order(:id).map{|v| v.object_deserialized['settings']['cheddar'] rescue nil }).to eq([nil, nil, 4, 4])
+      expect(PaperTrail::Version.order(:id).map{|v| v.object_deserialized['settings']['broccoli'] rescue nil }).to eq([nil, nil, nil, 'cooked'])
       u.rollback_to(3.weeks.ago)
 
       u.reload
@@ -373,7 +373,7 @@ describe SecureSerialize, :type => :model do
       u.save!
       u.settings['b'] = 'asdf'
       u.save!
-      versions = PaperTrail::Version.all
+      versions = PaperTrail::Version.order(:id).to_a
       expect(versions.count).to eq(4)
       obj = User.load_version(versions[0])
       expect(obj).to eq(nil)

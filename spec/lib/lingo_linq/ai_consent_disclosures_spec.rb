@@ -4,8 +4,8 @@ require 'spec_helper'
 
 describe LingoLinq::AiConsentDisclosures do
   describe '::CURRENT_VERSION' do
-    it 'is 1' do
-      expect(described_class::CURRENT_VERSION).to eq(1)
+    it 'is 2' do
+      expect(described_class::CURRENT_VERSION).to eq(2)
     end
 
     it 'is a known version' do
@@ -168,6 +168,47 @@ describe LingoLinq::AiConsentDisclosures do
     end
   end
 
+  # Version 2 (#1136): board suggestions and focus words are covered by this consent.
+  describe 'version 2' do
+    let(:v1) { described_class.metadata(1) }
+    let(:v2) { described_class.metadata(2) }
+
+    it 'leaves the version 1 record exactly as it was published' do
+      expect(described_class.content_hash(1)).to eq('9753abfa3a92f46e0fc7b62efa64e54da02318586f34a0c8b4ca24eeedefc4c3')
+      expect(described_class.content_hash(2)).not_to eq(described_class.content_hash(1))
+    end
+
+    it 'names board suggestions and focus words as covered, where version 1 said they were not' do
+      expect(v1['revocation_summary']).to match(/board suggestions are not affected by this consent/i)
+      expect(v2['revocation_summary']).not_to match(/not affected by this consent/i)
+      expect(v2['revocation_summary']).to match(/board suggestions and focus words/i)
+      expect(v2['vendors'].flat_map { |v| v['features'] }.uniq).to match_array(%w[ai_word_predictor ai_board_generator])
+      expect(v2['vendors'].flat_map { |v| v['models'] }.join(' ')).to match(/board suggestions/i)
+      expect(v2['data_categories'].join(' ')).to match(/board suggestions or focus words/i)
+    end
+
+    # The features every consent-checked call site belongs to must be in the disclosure the
+    # consent is recorded against, so the page and the check cannot drift apart again.
+    it 'lists every feature the consent check guards, and marks evaluation narration inactive' do
+      features = v2['vendors'].flat_map { |v| v['features'] }.uniq
+      expect(features).to include('ai_word_predictor', 'ai_board_generator')
+      expect(features).not_to include('eval_narrator')
+      mentions = (v2['data_categories'] + [v2['revocation_summary']]).select { |s| s =~ /evaluation/i }
+      expect(mentions).not_to be_empty
+      mentions.each { |s| expect(s).to match(/not currently sent|inactive|never leaves LingoLinq/i) }
+    end
+
+    it 'keeps the same companies, model, retention and scrubbing facts as version 1' do
+      expect(v2['vendors'].map { |v| v['name'] }).to eq(v1['vendors'].map { |v| v['name'] })
+      expect(v2['vendors'].map { |v| v['training_note'] }).to eq(v1['vendors'].map { |v| v['training_note'] })
+      expect(v2['retention']).to eq(v1['retention'])
+      expect(v2['scrubbing_note']).to eq(v1['scrubbing_note'])
+      serialized = JSON.generate(v2)
+      expect(serialized).not_to match(/gemini|de-identified|never trains|Claude Opus 4\.7/i)
+      expect(v2['revocation_summary']).not_to match(/to Anthropic/i)
+    end
+  end
+
   describe '.content_hash' do
     it 'returns nil for an unknown version' do
       expect(described_class.content_hash(999)).to be_nil
@@ -192,8 +233,9 @@ describe LingoLinq::AiConsentDisclosures do
 
   describe '.known_version?' do
     it 'is true for CURRENT_VERSION and false for an unknown version' do
+      expect(described_class.known_version?(described_class::CURRENT_VERSION)).to eq(true)
       expect(described_class.known_version?(1)).to eq(true)
-      expect(described_class.known_version?(2)).to eq(false)
+      expect(described_class.known_version?(3)).to eq(false)
       expect(described_class.known_version?(nil)).to eq(false)
     end
   end

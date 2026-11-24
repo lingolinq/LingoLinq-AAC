@@ -30,7 +30,9 @@ class Api::CallbacksController < ApplicationController
         # Before handle_event, so an event whose GetJob raises still leaves its line.
         Rails.logger.warn(Transcoder.loggable_event(json_body))
         res = Transcoder.handle_event(json_body)
-        if res
+        if res == :retry
+          api_error 503, {error: 'job not complete yet'}
+        elsif res
           render json: {handled: true}
         else
           api_error 400, {error: 'event not handled'}

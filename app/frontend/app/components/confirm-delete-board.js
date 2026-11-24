@@ -248,9 +248,9 @@ export default Component.extend({
               if (bkey) { boardDetailCache.invalidate(bkey); }
             }
             /* Mine list snapshot — clear so /boards re-queries after delete. */
-            var currentId = _this.appState.get('currentUser.id') ||
-              _this.appState.get('currentUser._actual_id');
-            if (currentId) { boardsPageListCache.clear(currentId); }
+            var currentId = backend_user_id(_this.appState.get('currentUser')); // written under the backend id (controllers/user/index.js)
+            // and under 'self' by writes from before that, so clear both (utils/backend_user_id.js).
+            [currentId, 'self'].filter(function(id, i, all) { return id && all.indexOf(id) === i; }).forEach(function(id) { boardsPageListCache.clear(id); });
           } catch (e) { /* non-critical */ }
           if (_this.get('model.redirect')) {
             _this.appState.return_to_index();
@@ -277,3 +277,5 @@ export default Component.extend({
 },
 
 });
+
+import backend_user_id from '../utils/backend_user_id';

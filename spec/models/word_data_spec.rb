@@ -529,35 +529,42 @@ RSpec.describe WordData, :type => :model do
   end
   
   describe "activities_for" do
+    include ActiveSupport::Testing::TimeHelpers
+
+    # activities_for stamps 'checked' with Time.now, and this example compares it with a second
+    # Time.now taken after the call, so a call that crosses a second boundary failed (CI, 2026-10-21).
+    # The example runs at a fixed instant instead (.claude/rules/testing.md "Time").
     it 'should return nothing for non-premium users' do
-      u = User.create
-      User.where(id: u.id).update_all(created_at: 6.months.ago, expires_at: 4.months.ago)
-      u.reload
-      expect(u.full_premium?).to eq(false)
-      expect(u.any_premium_or_grace_period?).to eq(false)
-      u.settings['target_words'] = {
-        'generated' => Time.now.iso8601,
-        'activities' => {
+      travel_to(Time.utc(2026, 6, 15, 12, 0, 30)) do
+        u = User.create
+        User.where(id: u.id).update_all(created_at: 6.months.ago, expires_at: 4.months.ago)
+        u.reload
+        expect(u.full_premium?).to eq(false)
+        expect(u.any_premium_or_grace_period?).to eq(false)
+        u.settings['target_words'] = {
           'generated' => Time.now.iso8601,
-          'words' => [
-            {'word' => 'good', 'locale' => 'en'},
-            {'word' => 'bad', 'locale' => 'en'}
-          ],
-          'list' => [
-            {'id' => '1', 'score' => 5},
-            {'id' => '2', 'score' => 3},
-            {'id' => '3', 'score' => 1}
-          ]
+          'activities' => {
+            'generated' => Time.now.iso8601,
+            'words' => [
+              {'word' => 'good', 'locale' => 'en'},
+              {'word' => 'bad', 'locale' => 'en'}
+            ],
+            'list' => [
+              {'id' => '1', 'score' => 5},
+              {'id' => '2', 'score' => 3},
+              {'id' => '3', 'score' => 1}
+            ]
+          }
         }
-      }
-      u.save!
-      res = WordData.activities_for(u)
-      expect(res).to eq({
-        'checked' => Time.now.iso8601,
-        'list' => [],
-        'log' => [],
-        'words' => []
-      })
+        u.save!
+        res = WordData.activities_for(u)
+        expect(res).to eq({
+          'checked' => Time.now.iso8601,
+          'list' => [],
+          'log' => [],
+          'words' => []
+        })
+      end
     end
 
     it 'should retrieve activities for a free trial user' do
@@ -872,6 +879,34 @@ RSpec.describe WordData, :type => :model do
       WordData.update_activities_for(u.global_id, true)
     end
 
+    # The workshop lookups take seconds per word; the result must be stored without writing the
+    # copy of the user loaded before them back over settings saved meanwhile.
+    it 'keeps settings saved by another process while the activities were being fetched' do
+      u = User.create
+      u.settings['target_words'] = {'generated' => 3.hours.ago.iso8601, 'list' => [{'word' => 'about', 'locale' => 'en'}]}
+      u.save!
+      allow(WordData).to receive(:core_and_fringe_for).and_return({:reachable_for_user => ['about'], :reachable_fringe_for_user => []})
+      allow(Typhoeus).to receive(:get) do
+        other = User.find(u.id)
+        other.settings['preferences']['spec_marker'] = 'normal save'
+        other.settings['target_words']['list'] << {'word' => 'more', 'locale' => 'en'}
+        other.save
+        quiet = User.find(u.id)
+        quiet.settings['spec_quiet'] = 'touch false'
+        quiet.save(touch: false)
+        OpenStruct.new(body: {'word' => {'word' => 'about', 'locale' => 'en', 'activity_ideas' => [{'id' => 'ai1', 'description' => 'about it'}]}}.to_json)
+      end
+
+      res = WordData.update_activities_for(u.global_id, false)
+
+      stored = User.find(u.id)
+      expect(stored.settings['preferences']['spec_marker']).to eq('normal save')
+      expect(stored.settings['spec_quiet']).to eq('touch false')
+      expect(stored.settings['target_words']['list'].map{|w| w['word'] }).to eq(['about', 'more'])
+      expect(stored.settings['target_words']['activities']['list'].map{|a| a['id'] }).to eq(['ai1'])
+      expect(res['list'].map{|a| a['id'] }).to eq(['ai1'])
+    end
+
     it 'should generate a result' do
       u = User.create
       u.settings['subscription'] = {'never_expires' => true}
@@ -1018,8 +1053,8 @@ RSpec.describe WordData, :type => :model do
       }, {updater: u2.reload})
       expect(w.errored?).to eq(false)
       expect(w.data['types']).to eq(['verb', 'noun'])
-      expect(w.data['reviewer_ids'].sort).to eq([u.global_id, u2.global_id])
-      expect(w.data['reviews'].keys.sort).to eq([u.global_id, u2.global_id])
+      expect(w.data['reviewer_ids']).to match_array([u.global_id, u2.global_id])
+      expect(w.data['reviews'].keys).to match_array([u.global_id, u2.global_id])
     end
 
     it "should record data as specified" do

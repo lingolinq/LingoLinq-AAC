@@ -1,6 +1,9 @@
 require 'spec_helper'
 
 describe ExternalTracker do
+  # examples below assign these directly; a leaked IPLOCATE_API_KEY sends later specs to the network
+  restore_env_after_each('IPLOCATE_API_KEY', 'HUBSPOT_ACCESS_TOKEN')
+
   describe "track_new_user" do
     it "should do nothing if not allowed" do
       ExternalTracker.track_new_user(nil)
@@ -17,6 +20,7 @@ describe ExternalTracker do
       u = User.create
       u.settings['preferences'] ||= {}
       u.settings['preferences']['registration_type'] = 'therapist'
+      u.settings['registration'] = {'adult_at_signup' => true} # an adult supporter, the only kind sent (#1123)
       u.save
       ExternalTracker.track_new_user(u)
       expect(Worker.scheduled?(ExternalTracker, :persist_new_user, u.global_id)).to eq(true)
@@ -106,6 +110,7 @@ describe ExternalTracker do
       u.settings['email'] = 'testing@example.com'
       u.settings['preferences'] ||= {}
       u.settings['preferences']['registration_type'] = 'therapist'
+      u.settings['registration'] = {'adult_at_signup' => true} # an adult supporter, the only kind sent (#1123)
       u.save
       ENV['HUBSPOT_ACCESS_TOKEN'] = 'hubby'
 #       geo = {
@@ -120,10 +125,10 @@ describe ExternalTracker do
           {property: 'firstname', value: nil},
           {property: 'lastname', value: nil},
           {property: 'city', value: nil},
-          {property: 'username', value: u.user_name},
+          {property: 'lingolinq_username', value: u.user_name},
           {property: 'state', value: nil},
           {property: 'country', value: nil},
-          {property: 'account_type', value: 'Therapist'},
+          {property: 'lingolinq_account_type', value: 'therapist'},
           {property: 'hs_legal_basis', value: 'Legitimate interest – prospect/lead'}
         ]}.to_json,
         headers: {'Content-Type' => 'application/json', "Authorization"=>"Bearer hubby"}
@@ -144,6 +149,7 @@ describe ExternalTracker do
       u.settings['name'] = 'Ada Lovelace'
       u.settings['preferences'] ||= {}
       u.settings['preferences']['registration_type'] = 'therapist'
+      u.settings['registration'] = {'adult_at_signup' => true} # an adult supporter, the only kind sent (#1123)
       u.save
       ENV['HUBSPOT_ACCESS_TOKEN'] = 'hubby'
       posted = nil
@@ -160,6 +166,7 @@ describe ExternalTracker do
       u.settings['name'] = 'Prince'
       u.settings['preferences'] ||= {}
       u.settings['preferences']['registration_type'] = 'therapist'
+      u.settings['registration'] = {'adult_at_signup' => true} # an adult supporter, the only kind sent (#1123)
       u.save
       ENV['HUBSPOT_ACCESS_TOKEN'] = 'hubby'
       posted = nil
@@ -176,6 +183,7 @@ describe ExternalTracker do
       u.settings['name'] = 'Ada King Lovelace'
       u.settings['preferences'] ||= {}
       u.settings['preferences']['registration_type'] = 'therapist'
+      u.settings['registration'] = {'adult_at_signup' => true} # an adult supporter, the only kind sent (#1123)
       u.save
       ENV['HUBSPOT_ACCESS_TOKEN'] = 'hubby'
       posted = nil
@@ -193,6 +201,7 @@ describe ExternalTracker do
       u = User.create
       u.settings['email'] = 'testing@example.com'
       u.settings['preferences']['registration_type'] = 'eval'
+      u.settings['registration'] = {'adult_at_signup' => true} # an adult supporter, the only kind sent (#1123)
       u.save
       expect(u.devices.count).to eq(0)
       d = Device.create(:user => u)
@@ -212,10 +221,10 @@ describe ExternalTracker do
           {property: 'firstname', value: nil},
           {property: 'lastname', value: nil},
           {property: 'city', value: 'Sandy'},
-          {property: 'username', value: u.user_name},
+          {property: 'lingolinq_username', value: u.user_name},
           {property: 'state', value: 'Utah'},
           {property: 'country', value: 'United States'},
-          {property: 'account_type', value: 'AT Specialist/Lending Library'},
+          {property: 'lingolinq_account_type', value: 'at_specialist'},
           {property: 'hs_legal_basis', value: 'Legitimate interest – prospect/lead'}
         ]}.to_json,
         headers: {'Content-Type' => 'application/json', "Authorization"=>"Bearer hubby"}
@@ -229,6 +238,7 @@ describe ExternalTracker do
       u = User.create
       u.settings['email'] = 'testing@example.com'
       u.settings['preferences']['registration_type'] = 'therapist'
+      u.settings['registration'] = {'adult_at_signup' => true} # an adult supporter, the only kind sent (#1123)
       u.save
       expect(u.devices.count).to eq(0)
       d = Device.create(:user => u)
@@ -248,10 +258,10 @@ describe ExternalTracker do
           {property: 'firstname', value: nil},
           {property: 'lastname', value: nil},
           {property: 'city', value: 'Sandy'},
-          {property: 'username', value: u.user_name},
+          {property: 'lingolinq_username', value: u.user_name},
           {property: 'state', value: 'Utah'},
           {property: 'country', value: 'United States'},
-          {property: 'account_type', value: 'Therapist'},
+          {property: 'lingolinq_account_type', value: 'therapist'},
           {property: 'hs_legal_basis', value: 'Legitimate interest – prospect/lead'}
         ]}.to_json,
         headers: {'Content-Type' => 'application/json', "Authorization"=>"Bearer hubby"}
@@ -265,6 +275,7 @@ describe ExternalTracker do
       u = User.create
       u.settings['email'] = 'testing@example.com'
       u.settings['preferences']['registration_type'] = 'therapist'
+      u.settings['registration'] = {'adult_at_signup' => true} # an adult supporter, the only kind sent (#1123)
       u.save
       d = Device.create(:user => u)
       d.settings['ip_address'] = '1.2.3.4'
@@ -283,10 +294,10 @@ describe ExternalTracker do
           {property: 'firstname', value: nil},
           {property: 'lastname', value: nil},
           {property: 'city', value: 'Paris'},
-          {property: 'username', value: u.user_name},
+          {property: 'lingolinq_username', value: u.user_name},
           {property: 'state', value: 'Île-de-France'},
           {property: 'country', value: 'France'},
-          {property: 'account_type', value: 'Therapist'},
+          {property: 'lingolinq_account_type', value: 'therapist'},
           {property: 'hs_legal_basis', value: 'Legitimate interest – prospect/lead'}
         ]}.to_json,
         headers: {'Content-Type' => 'application/json', "Authorization"=>"Bearer hubby"}
@@ -300,6 +311,7 @@ describe ExternalTracker do
       u.settings['email'] = 'testing@example.com'
       u.settings['preferences'] ||= {}
       u.settings['preferences']['registration_type'] = 'therapist'
+      u.settings['registration'] = {'adult_at_signup' => true} # an adult supporter, the only kind sent (#1123)
       # Full referring URL carries a path + query that could include PII; only the
       # origin should leave the platform.
       u.settings['referrer'] = 'https://mail.google.com/mail/u/0?email=foo@bar.com'
@@ -312,10 +324,10 @@ describe ExternalTracker do
           {property: 'firstname', value: nil},
           {property: 'lastname', value: nil},
           {property: 'city', value: nil},
-          {property: 'username', value: u.user_name},
+          {property: 'lingolinq_username', value: u.user_name},
           {property: 'state', value: nil},
           {property: 'country', value: nil},
-          {property: 'account_type', value: 'Therapist'},
+          {property: 'lingolinq_account_type', value: 'therapist'},
           {property: 'hs_legal_basis', value: 'Legitimate interest – prospect/lead'},
           {property: 'lingolinq_referrer', value: 'https://mail.google.com'},
           {property: 'lingolinq_ad_referrer', value: 'fb-spring-2026'}
@@ -331,6 +343,7 @@ describe ExternalTracker do
       u.settings['email'] = 'testing@example.com'
       u.settings['preferences'] ||= {}
       u.settings['preferences']['registration_type'] = 'therapist'
+      u.settings['registration'] = {'adult_at_signup' => true} # an adult supporter, the only kind sent (#1123)
       u.settings['referrer'] = 'https://www.bing.com/search?q=aac'
       u.settings['ad_referrer'] = "=cmd|'/c calc'!A1"
       u.save
@@ -341,10 +354,10 @@ describe ExternalTracker do
           {property: 'firstname', value: nil},
           {property: 'lastname', value: nil},
           {property: 'city', value: nil},
-          {property: 'username', value: u.user_name},
+          {property: 'lingolinq_username', value: u.user_name},
           {property: 'state', value: nil},
           {property: 'country', value: nil},
-          {property: 'account_type', value: 'Therapist'},
+          {property: 'lingolinq_account_type', value: 'therapist'},
           {property: 'hs_legal_basis', value: 'Legitimate interest – prospect/lead'},
           {property: 'lingolinq_referrer', value: 'https://www.bing.com'}
         ]}.to_json,

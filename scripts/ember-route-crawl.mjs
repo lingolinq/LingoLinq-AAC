@@ -13,7 +13,7 @@
 //
 // Usage:
 //   node scripts/ember-route-crawl.mjs --base http://localhost:8184 \
-//     [--routes scripts/ember-crawl-routes.json] [--out /tmp/ember-crawl.json] \
+//     [--routes /tmp/ember-crawl-routes.json] [--out /tmp/ember-crawl.json] \
 //     [--sha <auditedSha>] [--timeout 15000]
 //
 //   --routes: JSON array of URL paths. If omitted, param-less routes are discovered

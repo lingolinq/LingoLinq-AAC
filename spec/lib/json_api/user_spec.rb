@@ -8,6 +8,34 @@ describe JsonApi::User do
   end
 
   describe "build_json" do
+    # A deleted district's rooms keep their links until its cleanup runs; they are not listed.
+    it "should not list rooms of a destroyed organization in supervised_units" do
+      o = Organization.create(:settings => {'total_licenses' => 10})
+      o2 = Organization.create(:settings => {'total_licenses' => 10})
+      unit = OrganizationUnit.create(:organization => o)
+      live_unit = OrganizationUnit.create(:organization => o2)
+      sup = User.create
+      comm = User.create
+      comm2 = User.create
+      o.add_supervisor(sup.user_name, false)
+      o2.add_supervisor(sup.user_name, false)
+      o.add_user(comm.user_name, false, false)
+      o2.add_user(comm2.user_name, false, false)
+      unit.add_supervisor(sup.user_name)
+      unit.add_communicator(comm.user_name)
+      live_unit.add_supervisor(sup.user_name)
+      live_unit.add_communicator(comm2.user_name)
+      Worker.process_queues
+      json = JsonApi::User.build_json(User.find(sup.id), permissions: User.find(sup.id))
+      expect(json['supervised_units'].map{|u| u['id'] }.sort).to eq([unit.global_id, live_unit.global_id].sort)
+
+      o.reload.destroy
+      Worker.flush_queues
+
+      json = JsonApi::User.build_json(User.find(sup.id), permissions: User.find(sup.id))
+      expect(json['supervised_units'].map{|u| u['id'] }).to eq([live_unit.global_id])
+    end
+
     it "should not include unlisted settings" do
       u = User.create(settings: {'hat' => 'black'})
       expect(JsonApi::User.build_json(u).keys).not_to be_include('hat')
@@ -22,12 +50,12 @@ describe JsonApi::User do
     
     it "should include a correct gravatar url if profile is visible" do
       u = User.create(settings: {'email' => 'bob@example.com', 'public' => true})
-      expect(JsonApi::User.build_json(u)['avatar_url']).to match(/https:\/\/.*\.s3\.amazonaws\.com\/avatars\/avatar-\d\.png/)
+      expect(JsonApi::User.build_json(u)['avatar_url']).to match(%r{\A#{Regexp.escape(JsonApi::Json.absolute_host)}/avatars/avatar-\d\.png\z}) # the app's own copy (Traci, 2026-11-23)
     end
     
     it "should include a silhouette url if profile is not visible" do
       u = User.create(settings: {'email' => 'bob@example.com'})
-      expect(JsonApi::User.build_json(u)['avatar_url']).to match(/https:\/\/.*\.s3\.amazonaws\.com\/avatars\/avatar-\d\.png/)
+      expect(JsonApi::User.build_json(u)['avatar_url']).to match(%r{\A#{Regexp.escape(JsonApi::Json.absolute_host)}/avatars/avatar-\d\.png\z}) # the app's own copy (Traci, 2026-11-23)
     end
 
     it "should include permissions if requested" do
@@ -287,6 +315,32 @@ describe JsonApi::User do
       expect(hash['preferences']['device']['long_token']).to eq(nil)
     end
     
+    # Added 2026-11-05 (offline app shell review): preferences.device.long_token is the "Trust this
+    # Device" choice, and the app keeps the offline shell only when it is true for THIS device. A device
+    # with no preferences of its own borrows another device's (same name, same browser), and must not
+    # borrow that device's trust with them: it reports its own setting, nil until it is chosen.
+    it "reports this device's own trust choice, never one borrowed from a same-name device" do
+      u = User.create
+      trusted = Device.create(:user => u, :developer_key_id => 0, :device_key => "1.111 Chrome for Windows")
+      trusted.settings['long_token'] = true
+      trusted.settings['token_history'] = [1, 2, 3, 4]
+      trusted.save
+      fresh = Device.create(:user => u, :developer_key_id => 0, :device_key => "1.222 Chrome for Windows")
+      u.settings['preferences']['devices'][trusted.unique_device_key] = {'long_token' => true, 'voice' => {'pitch' => 1.5}}
+      u.save
+      hash = JsonApi::User.build_json(u, permissions: u, device: fresh)
+      expect(hash['preferences']['device']['voice']).to eq({'pitch' => 1.5}), 'still borrows the other preferences'
+      expect(hash['preferences']['device']['long_token']).to eq(nil)
+
+      fresh.settings['long_token'] = false
+      fresh.save
+      hash = JsonApi::User.build_json(u, permissions: u, device: fresh)
+      expect(hash['preferences']['device']['long_token']).to eq(false)
+
+      hash = JsonApi::User.build_json(u, permissions: u, device: trusted)
+      expect(hash['preferences']['device']['long_token']).to eq(true), 'the trusted device still reports its own choice'
+    end
+
     it "should include prior home boards but not the current home board only when edit permission is available" do
       u = User.create(:settings => {'public' => true})
       u.settings['all_home_boards'] = [{'key' => 'bob/hat', 'id' => '1_3'}, {'key' => 'bob/cat', 'id' => '1_4'}]
@@ -630,6 +684,59 @@ describe JsonApi::User do
         expect(hash['supervisees'][0]['name']).to eq(shared.settings['name'])
       end
 
+      # #1277: nested rows give goal access by the viewer's rights; the link label stays the supporter's.
+      it "should not give a modeling-only viewer the child's goals through the viewed supporter" do
+        viewer = User.create
+        supporter = User.create
+        child = User.create
+        User.link_supervisor_to_user(supporter, child, nil, true)
+        User.link_supervisor_to_user(viewer, child, nil, 'modeling_only')
+        User.link_supervisor_to_user(viewer, supporter)
+        UserGoal.create(user: child, active: true, settings: {'summary' => "Probe goal"})
+
+        row = (JsonApi::User.build_json(supporter.reload, permissions: viewer.reload)['supervisees'] || []).find { |s| s['id'] == child.global_id }
+        expect(row).to_not eq(nil)
+        expect(row['can_set_goals']).to eq(false)
+        expect(row['active_goals']).to eq(nil)
+        expect(row['edit_permission']).to eq(true)
+      end
+
+      # Positive side of the nested list, which caseloads under 10 use (models/user.js only refetches
+      # /supervisees at 10 or more): a viewer allowed to set goals still gets them.
+      it "should nest goals for a supporter viewing their own caseload" do
+        sup = User.create
+        child = User.create
+        User.link_supervisor_to_user(sup, child, nil, true)
+        UserGoal.create(user: child, active: true, settings: {'summary' => "Probe goal"})
+
+        row = (JsonApi::User.build_json(sup.reload, permissions: sup)['supervisees'] || []).find { |s| s['id'] == child.global_id }
+        expect(row['can_set_goals']).to eq(true)
+        expect(row['active_goals'].map { |g| g['summary'] }).to eq(["Probe goal"])
+      end
+
+      it "should nest goals for an editing viewer through a modeling-only supporter" do
+        viewer = User.create
+        supporter = User.create
+        child = User.create
+        User.link_supervisor_to_user(supporter, child, nil, 'modeling_only')
+        User.link_supervisor_to_user(viewer, child, nil, true)
+        User.link_supervisor_to_user(viewer, supporter)
+        UserGoal.create(user: child, active: true, settings: {'summary' => "Probe goal"})
+
+        row = (JsonApi::User.build_json(supporter.reload, permissions: viewer.reload)['supervisees'] || []).find { |s| s['id'] == child.global_id }
+        expect(row['can_set_goals']).to eq(true)
+        expect(row['active_goals'].map { |g| g['summary'] }).to eq(["Probe goal"])
+        expect(row['modeling_only']).to eq(true)
+      end
+
+      it "should give goal access by the viewer passed in, and none to a nil viewer" do
+        sup = User.create
+        comm = User.create
+        User.link_supervisor_to_user(sup, comm, nil, true)
+        expect(JsonApi::User.build_json(comm, limited_identity: true, supervisor: sup.reload, viewer: nil)['can_set_goals']).to eq(false)
+        expect(JsonApi::User.build_json(comm, limited_identity: true, supervisor: sup.reload, viewer: sup)['can_set_goals']).to eq(true)
+      end
+
       # Withholding the child's IDENTITY is not enough on its own: board ids are
       # directly fetchable, and board_set_ids re-walked user.supervisees
       # unfiltered (user.rb:1933), so the hidden child's home board and its
@@ -924,6 +1031,52 @@ describe JsonApi::User do
         expect(hash['feature_flags']).not_to eq(nil)
         expect(hash['feature_flags']['jump']).to eq(true)
         expect(hash['feature_flags']['slide']).to eq(nil)
+      end
+    end
+
+    describe "supervisee limited_identity locale" do
+      def supervisee_json(prefs)
+        sup = User.create
+        comm = User.create
+        comm.settings['preferences'].merge!(prefs)
+        comm.save
+        User.link_supervisor_to_user(sup, comm, nil, true)
+        JsonApi::User.build_json(comm.reload, limited_identity: true, supervisor: sup.reload)
+      end
+
+      it "uses the home board language first" do
+        json = supervisee_json('locale' => 'en', 'home_board' => {'id' => '1_1', 'key' => 'a/b', 'locale' => 'es'})
+        expect(json['locale']).to eq('es')
+      end
+
+      it "falls back to the language preference" do
+        expect(supervisee_json('locale' => 'fr')['locale']).to eq('fr')
+      end
+
+      it "is not sent to a modeling-only supervisor" do
+        sup = User.create
+        comm = User.create
+        comm.settings['preferences']['locale'] = 'fr'
+        comm.save
+        User.link_supervisor_to_user(sup, comm, nil, false)
+        json = JsonApi::User.build_json(comm.reload, limited_identity: true, supervisor: sup.reload)
+        expect(json['locale']).to eq(nil)
+      end
+
+      it "is not sent on an organization roster" do
+        sup = User.create
+        comm = User.create
+        comm.settings['preferences']['locale'] = 'fr'
+        comm.save
+        User.link_supervisor_to_user(sup, comm, nil, true)
+        json = JsonApi::User.build_json(comm.reload, limited_identity: true, supervisor: sup.reload, organization: Organization.create)
+        expect(json['locale']).to eq(nil)
+      end
+
+      it "is not sent without a supervisor" do
+        comm = User.create
+        comm.settings['preferences']['locale'] = 'fr'
+        expect(JsonApi::User.build_json(comm, limited_identity: true)['locale']).to eq(nil)
       end
     end
 

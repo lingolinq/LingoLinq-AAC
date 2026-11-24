@@ -18,7 +18,7 @@ var FREQ_STORAGE_KEY = 'lingolinq_word_freq';
 var BIGRAM_STORAGE_KEY = 'lingolinq_word_bigrams';
 var SYNC_QUEUE_KEY = 'lingolinq_prediction_sync_queue';
 var FREQ_HALF_LIFE_MS = 30 * 24 * 60 * 60 * 1000;
-var _sync_timer = null;
+var _sync_timer = null; var _sync_gen = 0; // _sync_gen: bumped by cancel_sync_flush (tests) so a cancelled flush does nothing
 
 var normalize_prediction_key = function(phrase) {
   return (phrase || '').toString().trim().toLowerCase().replace(/\s+/g, ' ');
@@ -1167,7 +1167,7 @@ word_suggestions.merge_suggestions = function(localResults, aiWords, maxResults,
   return merged.slice(0, maxResults);
 };
 
-word_suggestions.fetch_user_entries = function(prefix, locale) {
+word_suggestions.fetch_user_entries_unshared = function(prefix, locale) {
   var cacheKey = (locale || 'en') + ':' + normalize_prediction_key(prefix);
   if(word_suggestions._server_entry_cache[cacheKey]) {
     return RSVP.resolve(word_suggestions._server_entry_cache[cacheKey]);
@@ -1214,7 +1214,7 @@ word_suggestions.lookup_with_ai = function(options) {
     ai_word_predictor.predict(sentence, { locale: locale, count: maxResults, appState: appState }) :
     RSVP.resolve([]);
   var serverPromise = options.last_finished_word ?
-    word_suggestions.fetch_user_entries(options.last_finished_word, locale) :
+    word_suggestions.user_entries_within_limit(options.last_finished_word, locale) :
     RSVP.resolve([]);
 
   return RSVP.all([localPromise, aiPromise, serverPromise]).then(function(results) {
@@ -1269,11 +1269,11 @@ word_suggestions.queue_sync = function(entry) {
 };
 
 word_suggestions.schedule_sync_flush = function() {
-  if(_sync_timer) { return; }
+  if(_sync_timer) { return; } var flush_for = LingoLinq.appState; var gen = _sync_gen; // the service itself, not the forwarding util
   _sync_timer = runLater(function() {
-    _sync_timer = null;
-    word_suggestions.flush_sync_queue();
-  }, 5000);
+    if(gen !== _sync_gen) { return; } _sync_timer = null;
+    if(owner_gone(flush_for)) { return; } word_suggestions.flush_sync_queue(); // its app is gone; the queue stays in localStorage
+  }, word_suggestions.sync_flush_delay || 5000); // overridable so tests need not wait 5 s
 };
 
 word_suggestions.flush_sync_queue = function() {
@@ -1763,3 +1763,42 @@ word_suggestions._test = {
 };
 
 export default word_suggestions;
+// Read-only: whether a sync flush is pending (tests wait for none before scheduling their own).
+word_suggestions.sync_flush_scheduled = function() { return !!_sync_timer; };
+// Tests: drop a scheduled flush (the queue stays in localStorage) so a test does not leave it for the
+// next one. Returns whether one was pending. No app code calls it. The runloop timer itself stays
+// queued until its delay passes and then does nothing (generation mismatch): cancelling it with
+// runCancel would be a new ember/no-runloop finding. A later test whose settled() runs within the
+// delay waits for it (up to sync_flush_delay, 5 s by default); none of the callers awaits settled().
+word_suggestions.cancel_sync_flush = function() { var had = !!_sync_timer; _sync_gen++; _sync_timer = null; return had; };
+// The rail WAITS at most this long for the communicator's saved entries (lookup_with_ai). The
+// request itself is not cut short: fetch_user_entries remembers an answer whenever it arrives, so
+// a late one is there for the next tap on that word. Overridable so tests need not wait 2 s.
+word_suggestions.user_entries_wait_ms = 2000;
+word_suggestions.user_entries_within_limit = function(prefix, locale) {
+  return new RSVP.Promise(function(resolve) {
+    var timer = setTimeout(function() { resolve([]); }, word_suggestions.user_entries_wait_ms);
+    word_suggestions.fetch_user_entries(prefix, locale).then(function(entries) {
+      clearTimeout(timer);
+      resolve(entries);
+    });
+  });
+};
+// Lookups that overlap share one saved-entries request. fetch_user_entries_unshared remembers an
+// answer only once it ARRIVES, so lookups started while the first GET was still on the wire each
+// sent their own (a board that loads with a sentence in the bar runs the lookup several times at
+// once). The entry is dropped when the request settles, so a failed request is never handed to a
+// later lookup. Same key as _server_entry_cache.
+word_suggestions._entry_requests = {};
+word_suggestions.fetch_user_entries = function(prefix, locale) {
+  var key = (locale || 'en') + ':' + normalize_prediction_key(prefix);
+  var requests = word_suggestions._entry_requests;
+  if(requests[key]) { return requests[key]; }
+  var request = word_suggestions.fetch_user_entries_unshared(prefix, locale);
+  requests[key] = request;
+  var done = function() { if(requests[key] === request) { delete requests[key]; } };
+  request.then(done, done);
+  return request;
+};
+// Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
+import { owner_gone } from './live_service';

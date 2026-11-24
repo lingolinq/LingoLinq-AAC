@@ -67,7 +67,11 @@ Everything here is checkable by reading source and grepping the tree.
    code in the tree — the `else`/off-branch (or the guard itself, if fully on) is now dead.
    Conversely, a flag removed from `AVAILABLE_FRONTEND_FEATURES` entirely but still referenced by
    a guard in code = the guarded branch can never execute. Only flag when you can show the flag's
-   current state in `feature_flags.rb` AND the guard's specific location.
+   current state in `feature_flags.rb` AND the guard's specific location. A database override can
+   make production differ from that file. In a full run, check the production flag values
+   the orchestrator hands you, and report a branch they show unused in production in `note` only,
+   never as a finding. For a fully rolled-out flag, do not emit the finding unless those values show
+   it on for everyone: off or mixed means the off-branch still runs for someone. Say why in `note`.
 
 5. **Unreachable branch.** A conditional whose condition is statically always-true or
    always-false in context (e.g. `if false`, a Ruby `case` with a redundant `else` after an
@@ -82,8 +86,7 @@ code is dead. Each needs a concrete `file:line` anchor, not a vibe — cite the 
 
 6. **Comment restates the code with no added information.** A comment whose content is fully
    derivable from the identifier names on the next line (e.g. `# increment the counter` above
-   `counter += 1`, or a multi-paragraph docstring on a one-line trivial method). Per this repo's
-   own convention (CLAUDE.md: comments only for non-obvious WHY, never WHAT), this is a defect,
+   `counter += 1`, or a multi-paragraph docstring on a one-line trivial method). This is a defect,
    not style. Do NOT flag a comment that documents a non-obvious constraint, workaround, or
    invariant — only ones that are pure restatement.
 
@@ -164,3 +167,10 @@ Rules:
 - The orchestrator computes the stable `id` (`LL-` + first 10 hex of `sha256(ruleKey + "|"
   + file)`) and reconciles against the existing register. For a row whose ruleKey is the self-referencing withheld form (`minimized-finding-` + its own id, lowercased),
   citation-check does not recompute the id; never emit a `minimized-finding-` ruleKey.
+
+## Run receipt (required)
+Your top-level output JSON must also carry these two keys. The orchestrator's fan-out gate
+(`scripts/audit-fanout-gate.rb`, finding LL-c667ec15e3) refuses the whole run without them.
+- `"checklistToken": "code-hygiene-audit-ck1"` is named only in this checklist. Copy it from here; never search for it.
+- `"guardCanary": "denied"`: make `mktemp --dry-run` your FIRST Bash call. It creates nothing and the
+  read-only guard should deny it. Report `"denied"` only if it was denied; otherwise report `"ran"`.

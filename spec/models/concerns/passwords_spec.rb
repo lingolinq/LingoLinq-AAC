@@ -168,6 +168,51 @@ describe Passwords, :type => :model do
       expect(u.valid_password?(u.pre_hashed_password("asdf?:##{GoSecure.sha512(hash, 'asdf')[0,30]}"))).to eq(false)
     end
 
+    describe "valet sign-in on admin and manager accounts" do
+      def valet_user
+        u = User.create
+        u.process({'valet_login' => true, 'valet_password' => 'gemini12'}, {'updater' => u})
+        expect(u.settings['valet_password']).to_not eq(nil)
+        u
+      end
+
+      it "should still accept the valet password and temporary credential for an ordinary account" do
+        u = valet_user
+        u.reload
+        u.assert_valet_mode!
+        expect(u.valid_password?(u.valet_temp_password('whatever'))).to eq(true)
+        expect(u.valid_password?('gemini12')).to eq(true)
+      end
+
+      it "should refuse the valet password and temporary credential once the account is an organization manager" do
+        u = valet_user
+        Organization.create.add_manager(u.user_name, true)
+        u.reload
+        u.assert_valet_mode!
+        expect(u.valid_password?(u.valet_temp_password('whatever'))).to eq(false)
+        expect(u.valid_password?('gemini12')).to eq(false)
+      end
+
+      it "should refuse the valet password and temporary credential once the account is an organization assistant" do
+        u = valet_user
+        Organization.create.add_manager(u.user_name, false)
+        u.reload
+        u.assert_valet_mode!
+        expect(u.valid_password?(u.valet_temp_password('whatever'))).to eq(false)
+        expect(u.valid_password?('gemini12')).to eq(false)
+      end
+
+      it "should refuse the valet password and temporary credential once the account is a site admin" do
+        u = valet_user
+        u.settings['admin'] = true
+        u.save
+        u.reload
+        u.assert_valet_mode!
+        expect(u.valid_password?(u.valet_temp_password('whatever'))).to eq(false)
+        expect(u.valid_password?('gemini12')).to eq(false)
+      end
+    end
+
     it "should re-generate a non-pre-hashed password" do
       u = User.new
       u.settings = {}
@@ -547,4 +592,99 @@ describe Passwords, :type => :model do
     end
   end
 
+  describe "mandatory_admin_2fa_environment?" do
+    def with_environment_label(label)
+      allow(Rails.env).to receive(:production?).and_return(true)
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with('SENTRY_ENVIRONMENT').and_return(label)
+    end
+
+    it "is off outside a production build" do
+      expect(Rails.env.production?).to eq(false)
+      expect(Passwords.mandatory_admin_2fa_environment?).to eq(false)
+    end
+
+    it "is on in production" do
+      with_environment_label('production')
+      expect(Passwords.mandatory_admin_2fa_environment?).to eq(true)
+    end
+
+    it "is on in a production build with no environment label" do
+      with_environment_label(nil)
+      expect(Passwords.mandatory_admin_2fa_environment?).to eq(true)
+    end
+
+    it "is off on dev" do
+      with_environment_label('dev')
+      expect(Passwords.mandatory_admin_2fa_environment?).to eq(false)
+    end
+
+    it "is off on staging" do
+      with_environment_label('staging')
+      expect(Passwords.mandatory_admin_2fa_environment?).to eq(false)
+    end
+  end
+
+  describe "state_2fa for admins" do
+    it "requires 2FA for a manager of the admin organization where it is mandatory" do
+      allow(Passwords).to receive(:mandatory_admin_2fa_environment?).and_return(true)
+      u = User.create
+      o = Organization.create(admin: true)
+      o.add_manager(u.user_name, true)
+      u.reload
+      expect(u.state_2fa).to eq({required: true, mandatory: true, verified: false})
+      expect(u.reload.settings['2fa']['secret']).to_not eq(nil)
+    end
+
+    it "requires 2FA for a site admin where it is mandatory" do
+      allow(Passwords).to receive(:mandatory_admin_2fa_environment?).and_return(true)
+      u = User.create
+      u.settings['admin'] = true
+      u.save!
+      expect(Organization.admin_manager?(u)).to eq(false)
+      expect(u.state_2fa).to eq({required: true, mandatory: true, verified: false})
+      expect(u.reload.settings['2fa']['secret']).to_not eq(nil)
+    end
+
+    it "does not require 2FA for other accounts where it is mandatory for admins" do
+      allow(Passwords).to receive(:mandatory_admin_2fa_environment?).and_return(true)
+      u = User.create
+      expect(u.state_2fa).to eq({required: false})
+    end
+
+    it "does not require 2FA for admins where it is not mandatory" do
+      allow(Passwords).to receive(:mandatory_admin_2fa_environment?).and_return(false)
+      u = User.create
+      u.settings['admin'] = true
+      u.save!
+      expect(u.state_2fa).to eq({required: false})
+      expect(u.reload.settings['2fa']).to eq(nil)
+    end
+  end
+
+  describe "valid_2fa? for a new secret" do
+    include ActiveSupport::Testing::TimeHelpers
+
+    # Ten seconds into a 30-second TOTP window, away from hour and day boundaries.
+    around(:each) do |example|
+      travel_to(Time.utc(2026, 11, 3, 15, 20, 10)) { example.run }
+    end
+
+    it "returns the code's time when confirming a temporary secret" do
+      u = User.create
+      u.assert_2fa!(true)
+      code = ROTP::TOTP.new(u.settings['tmp_2fa']['secret'], issuer: 'LingoLinq').now
+      res = u.valid_2fa?(code)
+      expect(res).to be_a(Integer)
+      expect(u.settings['2fa']['last_otp']).to eq(res)
+    end
+
+    it "returns false when the confirmed secret cannot be saved" do
+      u = User.create
+      u.assert_2fa!(true)
+      code = ROTP::TOTP.new(u.settings['tmp_2fa']['secret'], issuer: 'LingoLinq').now
+      expect(u).to receive(:save).and_return(false)
+      expect(u.valid_2fa?(code)).to eq(false)
+    end
+  end
 end

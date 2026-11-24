@@ -250,7 +250,8 @@ module Converters::LingoLinq
               found = false
               alt_urls.each do |alt_url|
                 next if found
-                req = Typhoeus.head(alt_url)
+                # alt_url is derived from the stored image url, which a user can set.
+                req = SafeHttp.head(alt_url)
                 if req.success?
                   image['fallback_url'] ||= image['url']
                   image['url'] = alt_url
@@ -321,6 +322,7 @@ module Converters::LingoLinq
   end
   
   def self.from_external(json, opts)
+    Uploader.ensure_deployed_uploads_configured!
     obj = OBF::Utils.parse_obf(json)
 
     raise "user required" unless opts['user']
@@ -619,6 +621,8 @@ module Converters::LingoLinq
   end
   
   def self.from_external_nested(content, opts)
+    # Before the preload below, which creates every board in the set before any picture uploads.
+    Uploader.ensure_deployed_uploads_configured!
     result = []
     
     # pre-load all the boards so they already exist when we go to look for them as links

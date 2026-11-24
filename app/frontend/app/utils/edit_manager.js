@@ -18,6 +18,8 @@ import i18n from './i18n';
 import { saveHomeBoard } from './home_board';
 import { observer } from '@ember/object';
 import utterance from './utterance';
+import { begin_pending_image, finish_pending_image } from './pending_image';
+import { is_cancelled } from './pending_media';
 
 /** True when fast_html can be shown ({{#if board.fast_html.html}}). Ember SafeString is truthy in JS even when empty. */
 export function fastHtmlHasRenderableContent(fast) {
@@ -2467,10 +2469,6 @@ var editManager = EmberObject.extend({
       var button = _this.find_button(id);
       var force_refresh = button && button.label && button.image && (button.image.url || '').match(/empty_22_g/i) && !button.text_only;
       var needs_check = force_refresh || (button && button.label && !button.image && !button.local_image_url && !button.text_only);
-      if(needs_check) {
-        button.set('pending_image', true);
-        // Don't set pending directly - it's a computed property based on pending_image/pending_sound
-      }
       // Batch part-of-speech lookups below — per-button GETs hit Rack::Attack (429) on large boards.
       if(button && button.label && !button.get('background_color') && !button.get('border_color')) {
         var posText = (button.get('vocalization') || button.get('label') || '').trim();
@@ -2479,11 +2477,29 @@ var editManager = EmberObject.extend({
         }
       }
       if(needs_check) {
+        // Begun here, after the part-of-speech step above (which can throw on an odd label), so
+        // every operation that begins also reaches its finish below. 'auto': a failed lookup is
+        // silent and never blocks a board save (utils/pending_media.js).
+        var pendingButton = button;
+        var pendingToken = begin_pending_image(button, 'auto');
+        var startImageId = button.get('image_id');
+        var outcome = 'superseded';
         var locale = _this.controller.get('model.locale') || 'en';
-        contentGrabbers.pictureGrabber.picture_search(library, button.label, _this.controller.get('model.user_name'), locale, true, true, null).then(function(data) {
+        // A manual image picked while the lookup or save runs changes image_id;
+        // the automatic symbol must not replace it.
+        var still_wanted = function(btn) {
+          return !!(btn && btn.label && (!btn.image || force_refresh) && btn.get('image_id') == startImageId);
+        };
+        var search;
+        try {
+          search = contentGrabbers.pictureGrabber.picture_search(library, button.label, _this.controller.get('model.user_name'), locale, true, true, null);
+        } catch(err) {
+          search = RSVP.reject(err);
+        }
+        search.then(function(data) {
           button = _this.find_button(id);
           var image = data[0];
-          if(image && button && button.label && (!button.image || force_refresh)) {
+          if(image && still_wanted(button)) {
             var license = {
               type: image.license,
               copyright_notice_url: image.license_url,
@@ -2505,11 +2521,11 @@ var editManager = EmberObject.extend({
             };
             var save = contentGrabbers.pictureGrabber.save_image_preview(preview);
 
-            save.then(function(image) {
+            return save.then(function(image) {
               button = _this.find_button(id);
-              if(_this.controller.get('model.id') == board_id && button && button.label && (!button.image || force_refresh)) {
-                // Don't set pending directly - it's a computed property based on pending_image/pending_sound
-                button.set('pending_image', false);
+              if(is_cancelled(pendingToken)) { return; }
+              if(_this.controller.get('model.id') == board_id && still_wanted(button)) {
+                outcome = 'landed';
                 var imgUrl = (image.get && (image.get('best_url') || image.get('url'))) || (typeof image.url === 'string' ? image.url : null);
                 if(!imgUrl && image && image.image_url) {
                   imgUrl = image.image_url;
@@ -2520,7 +2536,7 @@ var editManager = EmberObject.extend({
                 // Defer to afterRender so we use the server-assigned id when the server returns a different id
                 runSchedule('afterRender', function() {
                   button = _this.find_button(id);
-                  if(!button || _this.controller.get('model.id') !== board_id) { return; }
+                  if(!button || is_cancelled(pendingToken) || _this.controller.get('model.id') !== board_id || !still_wanted(button)) { return; }
                   var serverId = (image.get && image.get('id')) || image.id;
                   emberSet(button, 'image_id', serverId);
                   emberSet(button, 'image', image);
@@ -2551,18 +2567,13 @@ var editManager = EmberObject.extend({
                   }
                 }, 50);
               }
-            }, function() {
-              // Don't set pending directly - it's a computed property based on pending_image/pending_sound
-              button.set('pending_image', false);
             });
-          } else if(button) {
-            // Don't set pending directly - it's a computed property based on pending_image/pending_sound
-            button.set('pending_image', false);
           }
+        }).then(function() {
+          finish_pending_image(pendingButton, pendingToken, outcome);
         }, function() {
-          // Don't set pending directly - it's a computed property based on pending_image/pending_sound
-          button.set('pending_image', false);
           // nothing to do here, this can be a silent failure and it's ok
+          finish_pending_image(pendingButton, pendingToken, 'failed');
         });
       }
     });
@@ -2823,9 +2834,9 @@ var editManager = EmberObject.extend({
           }).then(function(data) {
             progress_tracker.track(data.progress, function(event) {
               report_progress(event);
-              if(event.status == 'finished' || event.finished_at) {
+              if(event.status == 'finished' || event.finished_at) { var refresh_for = editManager.get_app_state();
                 runLater(function() {
-                  user.reload();
+                  if(owner_gone(refresh_for)) { return; } user.reload(); // its app is gone: do not refresh another's session user
                   editManager.get_app_state().refresh_session_user();
                 }, 100);
                 var res = event.result;
@@ -2967,10 +2978,10 @@ editManager._services = {};
    No production path is affected: nothing under `app/` calls `editManager.register_services`
    (the only caller is the test helper), so `_services` is empty there and these branches
    cannot fire. */
-function live_service(svc) {
-  if(svc && (svc.isDestroyed || svc.isDestroying)) { return null; }
-  return svc;
-}
+// The guard itself lives in ./live_service (a leaf module, shared by raw_events and utterance);
+// re-exported here for existing importers.
+import { live_service, owner_gone } from './live_service';
+export { live_service };
 
 // Getter methods for services with fallback to globals
 editManager.get_app_state = function() {

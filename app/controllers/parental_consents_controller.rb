@@ -29,6 +29,9 @@ class ParentalConsentsController < ApplicationController
         # grant_parental_consent! writes the immutable COPPA AuditEvent atomically
         # with the consent grant (see User#grant_parental_consent!).
         @success = true
+        # AI data-sharing consent (#1136) comes with the parent's approval. Outside
+        # grant_parental_consent!'s own lock, after it has committed.
+        user.record_parent_ai_consent!(request: 'coppa', ip: request.remote_ip, user_agent: request.headers['User-Agent'])
         UserMailer.schedule_parent_consent_delivery(:parental_consent_confirmation, user.global_id)
         # Signup activation side effects (welcome mail, tracker, device mint) are
         # only for new under-13 registrations. Org-offboarding grants unlock an

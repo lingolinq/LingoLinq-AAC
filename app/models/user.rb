@@ -26,7 +26,7 @@ class User < ApplicationRecord
   # Keep in sync with the "Last Updated" date in the Privacy Policy
   # (app/frontend/app/templates/privacy.hbs). Bump when a material change
   # requires users to re-consent.
-  PRIVACY_POLICY_VERSION = '2026-08-30'
+  PRIVACY_POLICY_VERSION = '2026-11-23'
 
   def current_sponsor
     Organization.find_by(id: self.managing_organization_id)
@@ -76,7 +76,7 @@ class User < ApplicationRecord
   # still supervise and model; per-link "modeling only" supervision still must not set goals.
   add_permissions('set_goals', ['full', 'basic_supervision']) {|user|
     next false unless user.supervisor_for?(self) && !user.valet_mode?
-    next false if user.modeling_only_for?(self) && !user.modeling_only?
+    next false if user.link_modeling_only_for?(self)
 
     true
   }
@@ -147,6 +147,28 @@ class User < ApplicationRecord
   
   def supporter_registration?
     !['unspecified', 'communicator'].include?(self.registration_type)
+  end
+
+  # Account types that may be sent to the marketing CRM (HubSpot), #1123. An allowlist,
+  # because the type is a value the client sends: anything not named here, including
+  # a type added later, is not sent. 'communicator' is here so that adult AAC users who
+  # registered themselves get the same emails as adult supporters (Scot, 2026-11-23).
+  MARKETING_TRACKABLE_TYPES = %w[therapist parent teacher other eval manually-added-supervisor communicator].freeze
+
+  # True only for an adult account of an allowlisted type: no child-consent record of
+  # any state, not registered as under 16, and recorded as 18 or over at signup.
+  # Anything missing or unreadable means not sent. Separate from
+  # supporter_registration?, which mail and stats still read with its own meaning.
+  def marketing_trackable?
+    s = self.settings.is_a?(Hash) ? self.settings : {}
+    prefs = s['preferences']
+    type = prefs.is_a?(Hash) ? prefs['registration_type'] : nil
+    return false unless type.is_a?(String) && MARKETING_TRACKABLE_TYPES.include?(type)
+    return false if s['coppa'].present?
+    reg = s['registration']
+    return false unless reg.is_a?(Hash)
+    return false if reg['under_16']
+    reg['adult_at_signup'] == true
   end
 
   # Analytics / third-party tracking preference (GDPR). After +process_params+, stored as boolean via +process_boolean+;
@@ -625,6 +647,7 @@ class User < ApplicationRecord
           )
           blob['parent_email'] = process_string(parent)
           blob['parent_consent_token'] = GoSecure.nonce('parent_consent')
+          blob['ai_disclosures_version'] = LingoLinq::AiConsentDisclosures::CURRENT_VERSION # the AI notice this request's email carries (#1136)
           blob['parent_consent_expires_at'] = deadline_at
           blob['needs_parent_email'] = false
           send_coppa_email = true
@@ -733,6 +756,7 @@ class User < ApplicationRecord
         'offboarding' => offboarding,
         'parent_email' => process_string(parent),
         'parent_consent_token' => GoSecure.nonce('parent_consent'),
+        'ai_disclosures_version' => LingoLinq::AiConsentDisclosures::CURRENT_VERSION, # the AI notice this request's email carries (#1136)
         'parent_consent_expires_at' => deadline,
         'needs_parent_email' => false
       }
@@ -1398,6 +1422,7 @@ class User < ApplicationRecord
       'pending_parent_consent' => true,
       'parent_email' => process_string(parent),
       'parent_consent_token' => GoSecure.nonce('eu_ai_parent_consent'),
+      'ai_disclosures_version' => LingoLinq::AiConsentDisclosures::CURRENT_VERSION, # the AI notice this request's email carries (#1136)
       'parent_consent_expires_at' => 14.days.from_now.utc.iso8601,
       'requested_features' => features
     }
@@ -1577,7 +1602,91 @@ class User < ApplicationRecord
   # Sources accepted by grant_ai_consent!. Anything else raises ArgumentError so
   # Phase 3 controllers cannot silently widen the surface by passing an arbitrary
   # value pulled from params. New sources must be added here explicitly.
-  AI_CONSENT_SOURCES = %w[email_link in_app admin_backfill].freeze
+  AI_CONSENT_SOURCES = %w[email_link in_app admin_backfill registration].freeze
+
+  # Sources where the account holder acts for their own account (Scot, 2026-11-17:
+  # agreement at registration, and one click for an existing account). Every other
+  # source is someone else acting (a parent's emailed link, an admin backfill).
+  AI_CONSENT_SELF_SOURCES = %w[registration in_app].freeze
+
+  # True when this account's AI data-sharing consent has to come from a parent or
+  # guardian, never from the account itself: any COPPA record at all (pending,
+  # approved, declined or revoked), an EU under-16 registration, or an account a
+  # school created with no age on file showing 13 or over. That last rule is the one
+  # License uses when a seat ends (school authorization and no birth month means
+  # treat as under 13): a school-created account that has left its district must not
+  # be able to agree for itself.
+  def ai_consent_parent_route?
+    coppa = self.settings && self.settings['coppa']
+    return true if coppa.is_a?(Hash) && coppa.present?
+    school = self.settings && self.settings['school_authorization']
+    if school.is_a?(Hash) && school.present?
+      reg = self.settings['registration'].is_a?(Hash) ? self.settings['registration'] : {}
+      compliance = self.settings['compliance'].is_a?(Hash) ? self.settings['compliance'] : {}
+      under_13 = self.class.age_under_threshold?(
+        birth_month: reg['offboarding_birth_month'] || compliance['birth_month'],
+        birth_year: reg['offboarding_birth_year'] || compliance['birth_year'],
+        age: 13
+      )
+      return true unless under_13 == false
+    end
+    eu_under_16?
+  end
+
+  # Registration route: records the consent the account holder gave by agreeing to
+  # the terms at signup. Called only by the public signup controllers, never from
+  # process_params (which also runs on every later update). +shown_version+ is the
+  # disclosure version the signup form says it showed next to the agreement: a form
+  # that showed none, or not the current one, creates the account and records
+  # nothing here. Returns false, and
+  # records nothing, when the terms were not agreed, when the account is on the
+  # parent route, or when a district created or already holds the account. Never
+  # raises into the signup request: a failure is logged and AI simply stays off
+  # until the account agrees in the app.
+  def record_registration_ai_consent!(shown_version:, ip: nil, user_agent: nil)
+    return false unless shown_version.to_s =~ /\A\d+\z/ && shown_version.to_i == LingoLinq::AiConsentDisclosures::CURRENT_VERSION
+    return false unless self.settings && self.settings['terms_agreed'].present?
+    return false if ai_consent_parent_route?
+    return false if self.settings['authored_organization_id'].present?
+    return false if Organization.attached_orgs(self).any? { |o| o['type'] == 'user' }
+    grant_ai_consent!(
+      disclosures_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION,
+      granted_by: 'account_holder',
+      source: 'registration',
+      ip: ip,
+      user_agent: user_agent,
+      granted_by_user_id: self.global_id
+    )
+  rescue ArgumentError, ActiveRecord::ActiveRecordError => e
+    Rails.logger.error("registration AI consent not recorded for #{self.global_id}: #{e.class}")
+    false
+  end
+
+  # Parent route: records the AI consent that comes with a parent's or guardian's
+  # approval through their emailed link. The parent's address stays in the approval
+  # record it already lives in; it is not copied here. Never raises into the
+  # approval page.
+  #
+  # `request` names the approval record the parent just completed ('coppa' or
+  # 'eu_ai_parental_consent'). The consent is recorded only when that request was
+  # stamped with the current disclosure version when it was made, which is what says
+  # its email carried the AI notice. A link sent before the notice existed, or under
+  # an earlier disclosure version, approves the account and records no AI consent.
+  def record_parent_ai_consent!(request:, ip: nil, user_agent: nil)
+    blob = self.settings.is_a?(Hash) ? self.settings[request.to_s] : nil
+    stamped = blob.is_a?(Hash) ? blob['ai_disclosures_version'] : nil
+    return false unless stamped == LingoLinq::AiConsentDisclosures::CURRENT_VERSION
+    grant_ai_consent!(
+      disclosures_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION,
+      granted_by: 'parent',
+      source: 'email_link',
+      ip: ip,
+      user_agent: user_agent
+    )
+  rescue ArgumentError, ActiveRecord::ActiveRecordError => e
+    Rails.logger.error("parent AI consent not recorded for #{self.global_id}: #{e.class}")
+    false
+  end
 
   # Sources accepted by revoke_ai_consent!. Kept separate from grant sources
   # because the valid actors for revocation (parent, admin, automated system)
@@ -1623,9 +1732,19 @@ class User < ApplicationRecord
     # that a later valid grant can't repair), and a string version would make the
     # stale-version check lexicographic. Raises 'invalid_disclosures_version'.
     disclosures_version = ai_consent_normalize_version!(disclosures_version)
-    if granted_by_user_id.present?
-      granted_by_user_id = normalize_ai_consent_granted_by_user_id!(granted_by_user_id)
-      raise ArgumentError, 'self_grant_forbidden' if granted_by_user_id == self.global_id
+    granted_by_user_id = normalize_ai_consent_granted_by_user_id!(granted_by_user_id) if granted_by_user_id.present?
+    if AI_CONSENT_SELF_SOURCES.include?(source) && (granted_by_user_id.blank? || granted_by_user_id == self.global_id)
+      # The account holder acting for their own account: allowed, except where the
+      # consent has to come from a parent or guardian. A missing grantor id counts
+      # as the account itself, so leaving the id out cannot get a parent-route
+      # account past this.
+      raise ArgumentError, 'parental_consent_required' if ai_consent_parent_route?
+    elsif source == 'registration'
+      # Registration is only ever the new account agreeing for itself.
+      raise ArgumentError, 'invalid_granted_by_user_id'
+    elsif granted_by_user_id == self.global_id
+      # Every other source is someone else acting (a parent's link, an admin backfill).
+      raise ArgumentError, 'self_grant_forbidden'
     end
 
     res = false
@@ -2171,6 +2290,72 @@ class User < ApplicationRecord
     self.settings['edit_key']
   end
 
+  # Read-modify-write of settings on a freshly read, row-locked copy of the user. settings is
+  # one serialized column written whole on save (secure_serialize, go_secure
+  # persist_secure_object), so saving a copy loaded before slow work reverts every settings
+  # change made since; assert_current_record! (processable.rb:95) compares updated_at and misses
+  # writes saved with touch: false. Yields the locked copy; the block changes only the keys it
+  # owns and returns false to skip the save. Saves with save_method (default save(touch:)).
+  # The lock is held through the save and its callbacks, so do slow work before calling.
+  # Returns the saved copy, false when the block declined, nil when the user no longer exists.
+  def self.update_settings_locked(user_id, touch: true, save_method: nil, save_args: [])
+    User.transaction do
+      fresh = User.lock.find_by(id: user_id)
+      next nil unless fresh
+      fresh.settings ||= {}
+      next false if yield(fresh) == false
+      save_method ? fresh.send(save_method, *save_args) : fresh.save(touch: touch)
+      fresh
+    end
+  end
+
+  # Blocks must end explicitly with true (save) or false (skip): only an exact false skips, so a
+  # block ending in, say, settings.delete would skip the save whenever the deleted value is false.
+  #
+  # update_settings_locked for this user, then copies onto this copy only what was written: the
+  # top-level settings keys the block changed, and the columns the save changed that this copy
+  # has no pending change of its own for. It never reloads: a synchronous caller can hold unsaved
+  # changes on this object (Subscription#reset_eval -> copy_to_home_board -> Relinking#copy_for
+  # -> update_available_boards), and a reload discarded them.
+  #
+  # Copy-back contract:
+  # - settings: only keys the BLOCK changed. Keys the save itself writes (save_with_sync's
+  #   sync_stamp_reason, generate_defaults' edit_key and the like) are stored but not copied
+  #   back, so this copy's values for them can be older than the row's.
+  # - columns: every column the save changed (sync_stamp, boards_updated_at, schedule_deletion_at,
+  #   updated_at) is copied onto this object, except columns the caller changed itself, and
+  #   updated_at unless this copy was current: a stale copy keeps it, so assert_current_record!
+  #   still raises. updated_at can move on this object: code comparing it around a call (claim_user's
+  #   attempt_stamp) must not run this helper inside that window (spec in organization_spec, claim_user).
+  def update_settings_locked(**opts, &block)
+    written_keys = []
+    res = User.update_settings_locked(self.id, **opts) do |fresh|
+      before = fresh.settings.deep_dup
+      out = block.call(fresh)
+      written_keys = (before.keys | fresh.settings.keys).select{|k| before[k] != fresh.settings[k] }
+      out
+    end
+    copy_locked_write(res, written_keys) if res
+    res
+  end
+
+  def copy_locked_write(fresh, written_keys)
+    pending_columns = self.changed - ['settings']
+    self.settings ||= {}
+    written_keys.each do |key|
+      if fresh.settings.key?(key)
+        self.settings[key] = fresh.settings[key].deep_dup
+      else
+        self.settings.delete(key)
+      end
+    end
+    columns = fresh.saved_changes.keys - ['id', 'settings'] - pending_columns
+    columns -= ['updated_at'] unless self.updated_at&.floor(6) == fresh.attribute_before_last_save('updated_at')&.floor(6)
+    columns.each{|col| self[col] = fresh[col] }
+    clear_attribute_changes(columns)
+  end
+  private :copy_locked_write
+
   def save_with_sync(reason)
     self.sync_stamp = Time.now
     self.settings ||= {}
@@ -2201,12 +2386,12 @@ class User < ApplicationRecord
   
   def generated_avatar_url(override_url=nil)
     id = self.id || 0
-    # In development, use local paths; in production, use S3
+    # In development, use local paths; elsewhere the app's own copy, as a full address
+    # (app/models/concerns/default_avatar.rb)
     if Rails.env.development?
       fallback = "/avatars/avatar-#{id % 10}.png"
     else
-      bucket = ENV['STATIC_S3_BUCKET'] || "lingolinq"
-      fallback = "https://#{bucket}.s3.amazonaws.com/avatars/avatar-#{id % 10}.png"
+      fallback = DefaultAvatar.url(id)
     end
 
     # In development, use local /avatars/ paths for the default image, but still expose a
@@ -2225,7 +2410,7 @@ class User < ApplicationRecord
       fallback
     elsif url && url != 'default'
       # NOTE: somewhere we should enforce that it's coming from a reliable location, or provide a fallback
-      url
+      DefaultAvatar.on_app_host(url) # a stored bucket default avatar is served from the app
     elsif self.settings['email'] && false
       # TODO: gravatar seems to be breaking on iOS-only all of the sudden
       email_md5 = Digest::MD5.hexdigest(self.settings['email'])
@@ -2237,6 +2422,8 @@ class User < ApplicationRecord
   
   def prior_avatar_urls
     res = self.settings && self.settings['prior_avatar_urls']
+    # A new list: default avatars served from the app, and the saved list is no longer appended to
+    res = res.map { |url| DefaultAvatar.on_app_host(url) } if res
     current = generated_avatar_url
     default = generated_avatar_url('default')
     if (res && res.length > 0) || current != default
@@ -2265,8 +2452,9 @@ class User < ApplicationRecord
       return false
     end
     if ts && frd
-      self.settings['tracked_boards_at'] = Time.now.to_i
-      self.save
+      # Only this key, on a locked fresh copy (update_settings_locked): saving the worker's copy
+      # wrote the whole settings column back over anything saved since it was loaded.
+      self.update_settings_locked { |fresh| fresh.settings['tracked_boards_at'] = Time.now.to_i; true }
     end
 
     
@@ -2353,10 +2541,19 @@ class User < ApplicationRecord
     # TODO: sharding
     board_ids_to_recalculate += Board.where(:id => orphan_board_ids).select('id').map(&:global_id)
     if self.settings['home_board_changed'] || self.settings['sidebar_changed']
-      self.settings.delete('home_board_changed')
-      self.settings.delete('sidebar_changed')
+      # Cleared on a locked fresh copy (update_settings_locked): this copy was loaded before the
+      # walk above, and saving it reverted settings saved meanwhile. A flag is cleared only while
+      # the boards it refers to are still the ones this run tracked; a change saved during the
+      # run sets it again for its own run.
+      tracked = (self.settings['preferences'] || {}).slice('home_board', 'sidebar_boards').to_json
       @do_track_boards = false
-      self.save
+      self.update_settings_locked do |fresh|
+        current = (fresh.settings['preferences'] || {}).slice('home_board', 'sidebar_boards')
+        next false unless current.to_json == tracked
+        fresh.settings.delete('home_board_changed')
+        fresh.settings.delete('sidebar_changed')
+        true
+      end
     end
     # to regenerates stats?
     if !RedisInit.any_queue_pressure?
@@ -2386,15 +2583,20 @@ class User < ApplicationRecord
     end
   end
 
+  # How many liked boards are listed, counted from the first one liked. The offline sync saves the listed
+  # boards (app/frontend/app/utils/offline_sync_seeds.js), so a liked board past this is not kept offline.
+  LIKED_BOARD_REFS_LIMIT = 50
+
   def starred_board_refs
     refs = []
     user = self
     brds = {}
-    Board.find_all_by_global_id((user.settings['starred_board_ids'] || [])[0, 25]).each do |b|
+    listed_ids = (user.settings['starred_board_ids'] || [])[0, LIKED_BOARD_REFS_LIMIT]
+    Board.find_all_by_global_id(listed_ids).each do |b|
       brds[b.global_id] = b
       brds[b.global_id(true)] = b
     end
-    (user.settings['starred_board_ids'] || []).each do |id|
+    listed_ids.each do |id|
       brd = brds[id]
       if brd
         id = brd.global_id
@@ -2532,7 +2734,7 @@ class User < ApplicationRecord
       'board_dark_mode',
       # 'compressed_view' (Compressed View) was accepted here until 2026-10-10, when the
       # feature was removed. It is no longer a preference, so a client sending it is ignored;
-      # lib/tasks/backfill_remove_compressed_view_preference.rake clears stored values.
+      # a stored value is left in place and read by nothing (no backfill was landed).
       # These lines are kept so the line numbers below, which audit findings and compliance
       # docs cite, do not move.
       # Boards-page arrangement: 'side-by-side' (Folders 1/4 left, Boards 3/4 right)
@@ -2575,6 +2777,40 @@ class User < ApplicationRecord
   GUIDED_TOUR_PROGRESS_PARAMS = ['guided_tours_completed', 'guided_tours_autoshown']
   GUIDED_TOUR_MAX_KEYS = 50
   GUIDED_TOUR_MAX_KEY_LENGTH = 64
+
+  # SAVES THAT NAME WHAT THEY CHANGED (Scot's review of #1141, 2026-10-15; issue #1134).
+  # A device recording one small change (a tour marked as shown, the Prediction toggle)
+  # sends the WHOLE preferences object it holds, and every key below is written as sent,
+  # so a tablet with an old copy of the account could switch AI consent back on after a
+  # parent or SLP turned it off, or drop a tour finished elsewhere. Such a save lists the
+  # keys it changed in `preference_keys`: a top-level preference name, or
+  # 'progress.<attr>' for one PROGRESS_PARAMS entry. On an existing account the request's
+  # preferences are cut down to those keys before anything below reads them. (Guided-tour
+  # maps are merged with the stored ones on every save.) Anything other than an Array of
+  # Strings is ignored, and a save without the list is applied as before. The list can
+  # only remove keys, and it is read from what users_controller#update already reduced
+  # to what this caller may write.
+  def self.listed_preference_keys(params)
+    list = params['preference_keys']
+    return nil unless list.is_a?(Array) && list.all? { |k| k.is_a?(String) }
+    list
+  end
+
+  def self.reduce_to_listed_preferences(prefs, listed)
+    reduced = {}
+    listed.each do |name|
+      if name.start_with?('progress.')
+        attr = name.sub(/\Aprogress\./, '')
+        next unless PROGRESS_PARAMS.include?(attr) && prefs['progress'].is_a?(Hash) && prefs['progress'].key?(attr)
+        reduced['progress'] ||= {}
+        reduced['progress'][attr] = prefs['progress'][attr]
+      elsif prefs.key?(name)
+        reduced[name] = prefs[name]
+      end
+    end
+    reduced
+  end
+
   def process_params(params, non_user_params)
     # Defensive guard: `settings['admin']` may only be set via
     # non_user_params['admin'] (see ~line 1485 below). Strip any
@@ -2612,13 +2848,17 @@ class User < ApplicationRecord
         'policy_version' => PRIVACY_POLICY_VERSION
       }
     end
-    if params['avatar_url'] && (params['avatar_url'].match(/^http/) || params['avatar_url'] == 'fallback')
+    avatar_param = params['avatar_url']
+    # The person's own default avatar is saved as 'fallback', never as an address tied to one host
+    # or bucket (the client sends avatar_url back on every save).
+    avatar_param = 'fallback' if DefaultAvatar.index(avatar_param) == (self.id || 0) % DefaultAvatar::COUNT
+    if avatar_param && (avatar_param.match(/^http/) || avatar_param == 'fallback')
       if self.settings['avatar_url'] && self.settings['avatar_url'] != 'fallback'
         self.settings['prior_avatar_urls'] ||= []
         self.settings['prior_avatar_urls'] << self.settings['avatar_url']
         self.settings['prior_avatar_urls'].uniq!
       end
-      self.settings['avatar_url'] = params['avatar_url']
+      self.settings['avatar_url'] = DefaultAvatar.stored(avatar_param)
     end
     if params['external_device']
       self.settings['external_device'] = params['external_device']
@@ -2636,7 +2876,15 @@ class User < ApplicationRecord
         add_processing_error("blocked email address")
         return false
       end
-      self.settings['email'] = process_string(new_email)
+      processed_email = process_string(new_email)
+      # A different mailbox gets a fresh start from a bounce: email_disabled, and why and when it
+      # was set, were for the OLD address (UserMailer.bounce_email). Compared by email hash so a
+      # case or whitespace edit of the same mailbox does not re-enable it. Email turned off for
+      # any other reason (a shared demo login, DemoDistrict::Seeder.disable_email!) stays off.
+      if self.settings['email_disabled_reason'] == 'bounce' && User.generate_email_hash(processed_email) != User.generate_email_hash(self.settings['email'])
+        %w(email_disabled email_disabled_reason email_disabled_at).each { |key| self.settings.delete(key) }
+      end
+      self.settings['email'] = processed_email
     end
     # Determine up front whether this is a VALID organization-authored creation (a
     # school/district manager creating a managed user under the FERPA school-official
@@ -2698,6 +2946,7 @@ class User < ApplicationRecord
           'pending_parent_consent' => true,
           'parent_email' => process_string(parent),
           'parent_consent_token' => GoSecure.nonce('parent_consent'),
+          'ai_disclosures_version' => LingoLinq::AiConsentDisclosures::CURRENT_VERSION, # the AI notice this request's email carries (#1136)
           'parent_consent_expires_at' => 14.days.from_now.utc.iso8601
         }
         # COPPA: a child cannot acknowledge the Privacy Policy on its own. Drop
@@ -2729,9 +2978,19 @@ class User < ApplicationRecord
         under_16 = classified_under_16
       end
       eu_under_16 = !!(country && LingoLinq::Jurisdiction.eu?(country) && under_16)
+      # A yes/no "18 or over at signup", worked out from the birth month and year the
+      # signup form sends; the date itself is not kept. True ONLY when a usable date
+      # says 18 or over. No date, or an unusable one, is false: it never falls back
+      # to the self-declared under-16 flag. Read by marketing_trackable? (#1123).
+      adult_at_signup = User.age_under_threshold?(
+        birth_month: birth_month,
+        birth_year: birth_year,
+        age: 18
+      ) == false
       self.settings['registration'] = {
         'under_16' => under_16,
         'eu_under_16' => eu_under_16,
+        'adult_at_signup' => adult_at_signup,
         'registered_at' => Time.now.utc.iso8601
       }
       # Compliance Kernel: persist birth month/year + jurisdiction declaration when
@@ -2785,6 +3044,9 @@ class User < ApplicationRecord
       self.settings['user_notifications_cutoff'] = Time.now.utc.iso8601
     end
     self.settings['preferences'] ||= {}
+    listed_keys = User.listed_preference_keys(params)
+    listed_save = !!(listed_keys && self.id && params['preferences'].is_a?(Hash))
+    params['preferences'] = User.reduce_to_listed_preferences(params['preferences'], listed_keys) if listed_save
     if !non_user_params['updater'] || non_user_params['updater'].global_id != self.global_id
       if params['preferences']
         params['preferences'].delete('private_logging') 
@@ -2803,7 +3065,13 @@ class User < ApplicationRecord
     # secret, so self-service password changes always failed with "incorrect
     # current password". Only an explicitly-absent (nil) value is a no-op.
     unless params['valet_login'].nil?
-      if process_boolean(params['valet_login'])
+      if process_boolean(params['valet_login']) && valet_blocked_for_role?
+        # Valet stays off for these accounts: any stored valet password is cleared and a new one
+        # is ignored. This is not an error, because the client re-sends valet_login (and, after a
+        # failed save, a typed valet_password) on every later save of the record, so refusing
+        # here would make all of them fail.
+        self.set_valet_password(false)
+      elsif process_boolean(params['valet_login'])
         if params['valet_password'].present? && !password_meets_minimum?(params['valet_password'])
           add_processing_error("password too short")
           return false
@@ -2817,6 +3085,8 @@ class User < ApplicationRecord
     end
     if params['preferences']
       CONFIRMATION_PREFERENCE_PARAMS.each do |key|
+        # A key the request leaves out (or sends as nil) is never written below, so it is not a change.
+        next if params['preferences'][key].nil?
         if params['preferences'][key] != self.settings['preferences'][key]
           self.settings['confirmation_log'] ||= []
           self.settings['confirmation_log'] << {
@@ -3051,12 +3321,8 @@ class User < ApplicationRecord
               hash = GoSecure.nonce('contact_hash')[0, 8]
             end
             contact_type = action['value']['contact'].match(/\@/) ? 'email' : 'sms'
-            image_url = action['value']['image_url']
-            if !image_url
-              bucket = ENV['STATIC_S3_BUCKET'] || "lingolinq"
-              id = hash.hex.to_i
-              image_url = "https://#{bucket}.s3.amazonaws.com/avatars/avatar-#{id % 10}.png"
-            end
+            image_url = DefaultAvatar.stored(action['value']['image_url'])
+            image_url ||= DefaultAvatar.path(hash.hex.to_i)
             action['value']['contact'].strip!
             ref = action['value']['contact'].strip.downcase
             ref = ref.gsub(/[^\d\+\,]/, '') if contact_type == 'sms'
@@ -3090,6 +3356,7 @@ class User < ApplicationRecord
     self.settings['preferences']['stretch_buttons'] = nil if self.settings['preferences']['stretch_buttons'] == 'none'
     self.settings['preferences']['progress'] ||= {}
     if params['preferences'] && params['preferences']['progress']
+      tours_stored = GUIDED_TOUR_PROGRESS_PARAMS.map { |a| [a, self.settings['preferences']['progress'][a]] }.to_h
       PROGRESS_PARAMS.each do |attr|
         self.settings['preferences']['progress'][attr] = params['preferences']['progress'][attr] if params['preferences']['progress'][attr]
       end
@@ -3103,6 +3370,12 @@ class User < ApplicationRecord
       GUIDED_TOUR_PROGRESS_PARAMS.each do |tour_attr|
         val = self.settings['preferences']['progress'][tour_attr]
         next if val.nil?
+        # Merged with the stored map, stored entries first, so the cap below never drops one already
+        # stored. Tours are only ever added (nothing resets a map), so a device holding an old copy must
+        # not drop a tour recorded elsewhere, whatever kind of save carries it (issue #1134).
+        if val.is_a?(Hash) && tours_stored[tour_attr].is_a?(Hash)
+          val = tours_stored[tour_attr].merge(val)
+        end
         if val.is_a?(Hash)
           cleaned = {}
           val.each do |k, v|
@@ -3441,7 +3714,7 @@ class User < ApplicationRecord
 
     # (compressed_view was coerced to a boolean here until 2026-10-10. Compressed View was
     # removed then and the key is no longer in PREFERENCE_PARAMS, so it cannot be written;
-    # stored values are cleared by lib/tasks/backfill_remove_compressed_view_preference.rake.
+    # a stored value is left in place and read by nothing (no backfill was landed).
     # Kept as five lines so the line numbers below, which audit findings and compliance docs
     # cite, do not move.)
 
@@ -3726,9 +3999,51 @@ class User < ApplicationRecord
         device['voice']['voice_uris'] = voice_uris.uniq[0, 10]
         device['voice'].delete('voice_uri')
       end
+      # The client's stamp of an explicit Trust/Shared answer is a request marker: never stored in preferences or echoed
+      # (the device row keeps the newest accepted one, below).
+      chosen_at = device.delete('long_token_chosen_at')
+      # Only the person may change whether their device is trusted (Traci, 2026-11-13). users#update writes a
+      # supervisor's device preferences onto the person's most recent device (Api::UsersController#update), and a
+      # trusted row gets no organization idle timeout on later sign-ins (Device#generate_token!). So a save from anyone
+      # else (another updater, an operator acting for the person, or a device that is not theirs) drops the trust
+      # fields; their other device preferences are still saved. A call with no updater is server code, unchanged.
+      trust_updater = non_user_params['updater']
+      trust_device = non_user_params['device']
+      if (trust_updater && trust_updater.id != self.id) || non_user_params['operator'] || (trust_device && trust_device.user_id != self.id)
+        device.delete('long_token')
+        device.delete('asserted')
+      end
       if non_user_params['device'] && device['long_token'] != nil
-        non_user_params['device'].settings['long_token'] = !!device['long_token']
-        non_user_params['device'].settings['long_token_set'] = true
+        # Only the person's own saves reach here (a supervisor's or an operator's save had long_token dropped above).
+        # Of those, only an explicit answer with a counted stamp records long_token_owner_choice, which is what lets a
+        # trusted browser device drop the organization's idle timeout (Device#clean_old_keys). Any other change of the
+        # value clears it; an unchanged echo leaves it as it is. Known limit: a stale own save (another tab still
+        # holding the old value) still changes the value itself, only not the owner choice.
+        dev = non_user_params['device']
+        value = !!device['long_token']
+        updater = non_user_params['updater']
+        # The stamp is the device's clock, which on a tablet can be off by more than 10 minutes (review of #1268,
+        # 2026-11-13). It counts when it is newer than the last answer this device recorded (kept server-side in
+        # long_token_choice_stamp; JsonApi::Device does not expose it), so a save older than the last recorded answer,
+        # a retried or replayed one included, does not. One exception: when the stored stamp is ahead of server time by
+        # more than 10 minutes (a fast clock since corrected), an answer within 10 minutes of server time counts.
+        # Limits: the first stamped answer on a device counts at any age; a clock that went slow after an answer was
+        # recorded is refused until it passes that stamp; after a fast-clock answer, a correct-clock answer in the 10
+        # minutes before the stored stamp is refused; a second answer in the same second is refused. A refusal leaves
+        # the value written but not as the owner's choice. The stored stamp only moves forward.
+        stamped = chosen_at.to_s.match?(/\A\d+\z/)
+        last_stamp = dev.settings['long_token_choice_stamp'].to_i
+        corrected_clock = last_stamp > Time.now.to_i + 10.minutes.to_i && (Time.now.to_i - chosen_at.to_i).abs <= 10.minutes.to_i
+        fresh_stamp = stamped && (chosen_at.to_i > last_stamp || corrected_clock)
+        own_answer = fresh_stamp && updater && updater.id == self.id && !non_user_params['operator'] && dev.user_id == self.id
+        if own_answer
+          dev.settings['long_token_owner_choice'] = value
+          dev.settings['long_token_choice_stamp'] = [chosen_at.to_i, last_stamp].max
+        elsif dev.settings['long_token'] != value
+          dev.settings['long_token_owner_choice'] = false
+        end
+        dev.settings['long_token'] = value
+        dev.settings['long_token_set'] = true
         if device['asserted']
           non_user_params['device'].settings.delete('temporary_device')
           # Eval accounts are only allowed to be logged into one device at a time
@@ -3778,6 +4093,10 @@ class User < ApplicationRecord
     end
   end
 
+  # `library_board['like_copy']` (the sign-up starter, lib/user_board_provisioner.rb): after the copy, like
+  # this account's copy as well, so the offline sync keeps one core board from the first sync. The flag rides on
+  # this job rather than a job of its own so that a worker still on older code during a deploy copies the
+  # starter as before and only skips the like; nothing it does not know is scheduled (review of fe22582ea).
   def copy_board_to_library(library_board, updater_id, symbol_library=nil)
     original = library_board && Board.find_by_path(library_board['id'])
     updater = User.find_by_path(updater_id)
@@ -3786,6 +4105,7 @@ class User < ApplicationRecord
     existing = self.boards.where(parent_board: original).order('id DESC').first
     if existing && ((existing.settings['swapped_library'] || 'original') == (symbol_library || 'original'))
       retry_incomplete_library_swap(existing, symbol_library)
+      like_library_copy!(original) if library_board['like_copy']
       return true
     end
 
@@ -3799,6 +4119,27 @@ class User < ApplicationRecord
       copier_id: updater.global_id,
       swap_library: symbol_library
     )
+    like_library_copy!(original) if library_board['like_copy']
+    true
+  end
+
+  # SIGN-UP LIKES THE STARTER BOARD (Traci, 2026-11-11; PR #1268, proposals doc section 16): like this
+  # account's copy of `original` (User#starred_board_refs feeds app/frontend/app/utils/offline_sync_seeds.js).
+  # The person can unlike it. The copy liked is the home board when the person already made a copy of this
+  # board their home (the welcome card can copy while the job runs, and a second copy liked would be a second
+  # tree on every device), otherwise the newest copy.
+  #
+  # Nothing here saves `self`: this row was loaded when the job started (Progress.perform_action), and a save
+  # after a copy that takes seconds would write over anything saved meanwhile (a home board chosen on the
+  # welcome card); the home board is read from a fresh row for the same reason. Board#star schedules
+  # remember_starred_board! in a job of its own, which loads the user fresh.
+  def like_library_copy!(original)
+    fresh = User.find_by(id: self.id) || self
+    prefs = (fresh.settings || {})['preferences'] || {}
+    home = prefs['home_board'] && prefs['home_board']['id'] && Board.find_by_global_id(prefs['home_board']['id'])
+    copy = (home && home.user_id == self.id && home.parent_board_id == original.id) ? home : self.boards.where(parent_board: original).order('id DESC').first
+    return false unless copy
+    copy.star!(self, true) unless copy.starred_by?(self)
     true
   end
 
@@ -4238,13 +4579,18 @@ class User < ApplicationRecord
   end
 
   # Written onto the user at signup only. Existing accounts with an empty stored
-  # sidebar keep default_active_sidebar_boards (no VF84 / Senner) so a deploy
+  # sidebar keep default_active_sidebar_boards (no starter / Senner) so a deploy
   # does not change live speak-mode sidebars or enqueue those trees as sync roots.
+  # The library entry is the starter (Vocal Flair 60; Traci, 2026-11-11, it was Vocal Flair 84), the same
+  # board sign-up copies and likes, so the entry resolves to that one copy (resolve_sidebar_boards_for). The
+  # Spanish starter only under the same gate as the Spanish copy jobs (lib/user_board_provisioner.rb): a
+  # stored entry for a board that is not there stays stored and fails on every sync (review of fe22582ea).
   def self.signup_sidebar_boards(user = nil)
-    vf84 = {
-      'name' => "Vocal Flair 84",
-      'key' => SystemBoardSources.board_key('vocal-flair-84'),
-      'image' => '/images/vocal-flair-84.png',
+    starter_slug = FeatureFlags.signup_spanish_library_boards_enabled?(user) ? SystemBoardSources::SPANISH_STARTER_BOARD_SLUG : SystemBoardSources::STARTER_BOARD_SLUG
+    starter = {
+      'name' => "Vocal Flair 60",
+      'key' => SystemBoardSources.board_key(starter_slug),
+      'image' => '/images/vocal-flair-60.png',
       'home_lock' => false
     }
     senner_key = SystemBoardSources.board_key(SystemBoardSources::SENNER_BAUD_SLUG)
@@ -4253,7 +4599,7 @@ class User < ApplicationRecord
       key = entry['key']
       if key == SystemBoardSources.board_key('keyboard')
         result << localize_signup_sidebar_entry(entry, user)
-        result << vf84
+        result << starter
       elsif key == senner_key
         result << localize_signup_sidebar_entry(entry, user)
       elsif inactive_by_default_sidebar_keys.include?(key)
@@ -4284,7 +4630,13 @@ class User < ApplicationRecord
   def admin?
     self.settings['admin'] == true || Organization.admin_manager?(self)
   end
-  
+
+  # Admins (admin?) and organization managers or assistants (Organization.manager?) cannot use
+  # valet (modeling) login: process_params will not turn it on, and valid_password? refuses it.
+  def valet_blocked_for_role?
+    admin? || Organization.manager?(self)
+  end
+
   def self.default_sidebar_boards
     [
       {'name' => "Yes/No", 'key' => 'lingolinq/yesno', 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/yes_2.png', 'home_lock' => false},

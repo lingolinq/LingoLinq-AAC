@@ -64,7 +64,7 @@ module JsonApi::User
         json['state_2fa'] = user.state_2fa
         json['external_nonce'] = ExternalNonce.for_user(user)
       end
-      json['contacts'] = user.settings['contacts'] || []
+      json['contacts'] = (user.settings['contacts'] || []).map { |c| DefaultAvatar.contact(c) }
       json['global_integrations'] = UserIntegration.global_integrations
       json['preferences'] = {}
       ::User::PREFERENCE_PARAMS.each do |attr|
@@ -127,8 +127,12 @@ json['preferences']['skin'] = user.settings['preferences']['skin']
         json['preferences']['device'] = json['preferences']['device'].merge(user.settings['preferences']['devices'][args[:device].unique_device_key])
         json['preferences']['device']['id'] = args[:device].global_id
         json['preferences']['device']['name'] = args[:device].settings['name'] || json['preferences']['device']['name']
-        json['preferences']['device']['long_token'] = args[:device].settings['long_token']
       end
+      # The "Trust this Device" choice is this device's own, never borrowed from the device whose
+      # preferences were copied above: nil until it is chosen here. The app keeps the offline shell only
+      # when it is true (app/frontend/app/utils/offline_shell.js device_trust), and a borrowed true sent
+      # back on a save would mark this device trusted without anyone choosing it (User#process_device).
+      json['preferences']['device']['long_token'] = args[:device].settings['long_token'] if args[:device]
       if !args[:device] || FeatureFlags.user_created_after?(args[:device], 'browser_no_autosync')
         json['preferences']['device']['ever_synced'] ||= false
       else
@@ -240,7 +244,7 @@ json['preferences']['skin'] = user.settings['preferences']['skin']
         # as_json's limited_identity+supervisor branch via org_status_for, so it is
         # also present on the /supervisees index the client refetches for 10+
         # communicators. See JsonApi::User.org_status_for.
-        json['supervisees'] = supervisees[0, 10].map{|u| JsonApi::User.as_json(u, limited_identity: true, supervisor: user) }
+        json['supervisees'] = supervisees[0, 10].map{|u| JsonApi::User.as_json(u, limited_identity: true, supervisor: user, viewer: caller) }
         json['supervised_units'] = OrganizationUnit.supervised_units(user).map{|ou|
           {
             'id' => ou.global_id,
@@ -363,12 +367,21 @@ json['preferences']['skin'] = user.settings['preferences']['skin']
         # otherwise the reload overwrites supervisees without it and the card
         # silently empties for exactly the largest caseloads.
         json['org_status'] = org_status_for(user)
+        # edit_permission and modeling_only above label the listed supervisor's link, which
+        # supervision-settings.hbs shows. Goal access is about the person asking: on another
+        # supporter's caseload the list owner is not the caller (#1277), so callers pass
+        # viewer:. Without it the supervisor is the caller, and a nil viewer gets no goals.
+        goal_viewer = args.key?(:viewer) ? args[:viewer] : args[:supervisor]
         # Match Api::GoalsController#create: same scope normalization as ApplicationController#allowed?
-        scopes = PermissionScopesNormalize.for_api(args[:supervisor].permission_scopes || [])
-        json['can_set_goals'] = user.allows?(args[:supervisor], 'set_goals', scopes)
+        scopes = PermissionScopesNormalize.for_api((goal_viewer && goal_viewer.permission_scopes) || [])
+        json['can_set_goals'] = !!goal_viewer && user.allows?(goal_viewer, 'set_goals', scopes)
         json['premium'] = user.any_premium_or_grace_period?
         json['skin'] = user.settings['preferences']['skin']
         json['symbols'] = user.settings['preferences']['preferred_symbols']
+        # create-board-new makes a board for this communicator in their language, which needs
+        # edit access (boards#create). On another supporter's caseload this follows the list
+        # owner's link, but anyone listed here can already read it in preferences.home_board.
+        json['locale'] = (user.settings['preferences']['home_board'] || {})['locale'] || user.settings['preferences']['locale'] if json['edit_permission'] && !args[:organization]
         json['goal'] = user.settings['primary_goal']
         # Total count + a small slice of this user's active goals so the
         # supervisor's caseload card can show a real "GOALS n" count
@@ -559,6 +572,22 @@ json['preferences']['skin'] = user.settings['preferences']['skin']
     if json['permissions'] && json['permissions']['model']
       json['article_50_disclosure_required'] = EuJurisdiction.disclosure_required?(user)
       json['article_50_disclosure_shown'] = user.article_50_disclosure_shown?
+    end
+    # AI data-sharing consent (#1136): only the account itself is told, so nobody
+    # else is offered a way to agree while looking at this account. `route` says who
+    # can give it: the account ('self'), its district ('organization') or a parent
+    # or guardian ('parent').
+    viewer = args[:permissions]
+    if viewer.respond_to?(:id) && viewer.id.present? && viewer.id == user.id
+      json['ai_consent_required'] = FeatureFlags.ai_consent_blocks_ai_for?(user)
+      json['ai_consent_route'] = if Organization.ai_consent_orgs_for(user).any?
+        'organization'
+      elsif user.ai_consent_parent_route?
+        'parent'
+      else
+        'self'
+      end
+      json['ai_consent_disclosures_version'] = LingoLinq::AiConsentDisclosures::CURRENT_VERSION
     end
     # Prefill Resend modal after reload (edit only; account holder entered this address).
     if user.eu_ai_parental_consent_pending? && json['permissions'] && json['permissions']['edit']

@@ -12,6 +12,8 @@ group :development, :test do
   gem 'simplecov', :require => false
   gem 'rack-test'
   gem 'rails-controller-testing'
+  # Specs never reach the real network (spec/spec_helper.rb disables it)
+  gem 'webmock', require: false
   gem 'drb'
   gem 'irb'
   # CVE-2026-34060 (GHSA-c4r5-fxqw-vh93); bundler-audit minimum
@@ -86,7 +88,7 @@ gem 'http-2'
 # GHSA-5r7x-x5pm-94xj, GHSA-m39q-9jm7-xp4q, GHSA-r23w-h6cg-h95q, GHSA-r5h4-xh93-f339 (resque-web XSS and
 # CSRF; the dashboard is mounted at /jobby in config/routes.rb); the CSRF fix needs >= 3.2.0
 gem 'resque', '~> 3.2'
-gem 'puma', '~> 7.2', '>= 7.2.1' # >= 7.2.1 clears CVE-2026-47736 / CVE-2026-47737 (PROXY protocol v1 parser)
+gem 'puma', '~> 7.2', '>= 7.2.3' # >= 7.2.1 clears CVE-2026-47736 / CVE-2026-47737 (PROXY protocol v1 parser); >= 7.2.2 clears the 2026-11 advisories (GHSA-86xc-wrr9-xmmq and six others); >= 7.2.3 clears GHSA-4v6q-hvv7-49h9
 gem 'paper_trail', '~> 15.0'
 gem 'geokit'
 gem 'obf'
@@ -121,10 +123,12 @@ gem 'faraday', '>= 2.14.3'
 
 gem 'clowne', '~> 1.4' # Declarative model cloning DSL for board copy optimization
 
-gem 'sinatra', '~> 4.2'
+gem 'sinatra', '~> 4.2', '>= 4.2.2' # >= 4.2.2 pins rack-protection 4.2.2, clearing GHSA-pf75-2v58-7mxg, GHSA-r29j-38x9-qr26, GHSA-vvhm-j6m8-64cw
 # GHSA-wgw9-qhqg-8hv5 (CSS nesting bypasses the property and protocol allowlists in <style>,
-# which Processable#process_html allows through Sanitize::Config::RELAXED); ensure >= 7.0.1
-gem 'sanitize', '>= 7.0.1'
+# which Processable#process_html allows through Sanitize::Config::RELAXED); ensure >= 7.0.1.
+# GHSA-599p-54q3-ff89 and GHSA-mg79-gw37-jxx7 (both custom-config only; DEFAULT and RELAXED,
+# the configs Processable uses, are not affected) are fixed in 7.0.2, the bundler-audit minimum.
+gem 'sanitize', '>= 7.0.2'
 gem 'anthropic', '~> 1.36'
 gem 'ruby-openai', '~> 7.0'  # Used for Gemini fallback (OpenAI-compatible endpoint)
 

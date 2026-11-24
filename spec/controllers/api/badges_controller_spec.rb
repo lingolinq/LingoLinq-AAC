@@ -219,8 +219,8 @@ describe Api::BadgesController, :type => :controller do
       # A LAPSED supporter keeps their caseload here. user.rb:75-83 says so
       # explicitly -- "Billing-only modeling supporters (subscription lapsed)
       # could lose set_goals even though they still supervise and model" -- and
-      # the rule's own guard (`modeling_only_for? && !modeling_only?`) is written
-      # to exempt exactly this caller. An earlier revision of the shared helper
+      # the rule's own guard (`link_modeling_only_for?`) reads only the link, so a
+      # lapse alone does not remove set_goals. An earlier revision of the shared helper
       # layered a second, coarser modeling_only test on top and overrode that
       # carve-out, which emptied this feed; this example is what pins it.
       expect(json['badge'].map{|b| b['id']}.sort).to eq([mine.global_id, sup_badge.global_id].sort)

@@ -128,8 +128,8 @@ module FeatureFlags
               'sms_recipient_consent', 'updates_pill', 'multilingual_grammar', 'location_maps', # location_maps: session-location maps on the stats and log pages; AVAILABLE-only and in DISABLED_CANARY_FEATURES, so OFF for everyone including canary users. multilingual_grammar: RESERVED for schema-2 language data (db/language/, lib/language/schema2_generator.rb). AVAILABLE-only => OFF by default, except for canary users: the canary pool gets every AVAILABLE flag not in DISABLED_CANARY_FEATURES unless a stored canary list says otherwise (lib/system_feature_settings.rb canary_enabled_features). Nothing reads this flag or the generated files yet, so turning it on changes nothing today; the first reader must gate on it, keep English unchanged when it is off, and add it to DISABLED_CANARY_FEATURES or check the canary setting. Kept on this line so later lines keep the numbers the capability ledger cites.
               # 'compressed_view' (Compressed View, a per-user density preference toggled from
               # the View menu) was registered here until 2026-10-10, when the feature was removed
-              # from the project. The stored preference is cleared by
-              # lib/tasks/backfill_remove_compressed_view_preference.rake. These lines stay as a
+              # from the project. A stored preference value is left in place and read by
+              # nothing (no backfill was landed). These lines stay as a
               # note so the line numbers below, which docs/legal/CAPABILITY_LEDGER.md cites, do
               # not move.
               ]
@@ -314,6 +314,30 @@ module FeatureFlags
     return false unless user
     return false unless user.respond_to?(:coppa_parental_consent_blocks_access?)
     user.coppa_parental_consent_blocks_access?
+  end
+
+  # AI data-sharing consent hard-gate (#1136). Default ON.
+  # Set AI_CONSENT_HARD_GATE=false in env for emergency rollback only.
+  def self.ai_consent_hard_gate_enabled?
+    ENV['AI_CONSENT_HARD_GATE'].to_s.downcase != 'false'
+  end
+
+  # True when AI calls must be blocked for this account because no current AI
+  # data-sharing consent covers it. Checked at every AI call site, before any cache
+  # read, PiiScrubber call or provider request.
+  # - An account a district manages (an accepted org_user attachment) is covered by
+  #   the district's own authorization, and only by that: every such district must
+  #   have a current, unrevoked one (Organization#ai_authorized?).
+  # - Any other account is covered by its own record (User#ai_consent_granted?).
+  # A nil user is not blocked here, the same as coppa_blocks_ai_for?: there is no
+  # account whose consent could be read.
+  def self.ai_consent_blocks_ai_for?(user)
+    return false unless ai_consent_hard_gate_enabled?
+    return false unless user
+    orgs = Organization.ai_consent_orgs_for(user)
+    return !orgs.all?(&:ai_authorized?) if orgs.any?
+    return true unless user.respond_to?(:ai_consent_granted?)
+    !user.ai_consent_granted?
   end
 
   # EU under-16 AI parental-consent hard-gate. Default ON.

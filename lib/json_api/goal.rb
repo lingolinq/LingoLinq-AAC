@@ -66,7 +66,9 @@ module JsonApi::Goal
     
     if goal.settings['stats']
       json['stats'] = {}
-      goal.settings['stats'].each do |key, val|
+      # A viewer's time zone regroups the day, week and month buckets at their own midnight (#1196).
+      stats = (args[:time_zone] && goal.stats_in_zone(args[:time_zone])) || goal.settings['stats']
+      stats.each do |key, val|
         if val.respond_to?(:round)
           json['stats'][key] = val.round(2)
         else

@@ -6,6 +6,7 @@ import { inject as service } from '@ember/service';
 import boardsPageListCache from '../../utils/boards_page_list_cache';
 import { send_basic_viewer_to_landing, is_basic_viewer, is_own_page, redirect_keeping_history } from '../../utils/basic_landing';
 import { wait_for_session_user } from '../../utils/session_user_wait';
+import backend_user_id from '../../utils/backend_user_id';
 
 export default Route.extend({
   appState: service('app-state'),
@@ -77,7 +78,8 @@ export default Route.extend({
        (`mineListPaintReady`) can pass immediately while update_selected
        background-refreshes. */
     if(model && !boardsPageListCache.isUsableList(model.get('my_boards'))) {
-      var snapshot = boardsPageListCache.read(model.get('id'));
+      // Keyed by the backend id, as controllers/user/index.js writes it; the record may be keyed 'self'.
+      var snapshot = boardsPageListCache.read(backend_user_id(model));
       if(snapshot && Array.isArray(snapshot.boards)) {
         var records = boardsPageListCache.hydrate(this.store, snapshot.boards);
         records.done = true;

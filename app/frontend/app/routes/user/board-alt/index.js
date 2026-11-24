@@ -5,7 +5,7 @@ import modal from '../../../utils/modal';
 import i18n from '../../../utils/i18n';
 import LingoLinq from '../../../app';
 import contentGrabbers from '../../../utils/content_grabbers';
-import { available_board_langs, resolve_board_display_locale } from '../../../utils/board_display_locale';
+import { available_board_langs, board_default_locale, session_board_locale } from '../../../utils/board_display_locale';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater } from '@ember/runloop';
 import { computed } from '@ember/object';
@@ -80,20 +80,11 @@ export default Route.extend({
       _this.appState.set('currentBoardState.level', _this.stashes.get('board_level'));
     }
     var board_langs = available_board_langs(model, null);
-    var loc_types = ['label_locale', 'vocalization_locale'];
-    loc_types.forEach(function(loc_type) {
-      var preferred_lang = _this.stashes.get(loc_type);
-      var override = _this.stashes.get('override_' + loc_type) || preferred_lang;
-      if (preferred_lang) {
-        _this.appState.set(loc_type, resolve_board_display_locale({
-          boardDefault: model.get('locale') || 'en',
-          boardLangs: board_langs,
-          override: override,
-          preferred: preferred_lang
-        }));
-      } else {
-        _this.appState.set(loc_type, model.get('locale'));
-      }
+    var user_locale = _this.appState.get('currentUser.preferences.locale') ||
+      _this.appState.get('sessionUser.preferences.locale');
+    var default_locale = board_default_locale(model.get('locale'), model.get('key'), user_locale, board_langs);
+    ['label_locale', 'vocalization_locale'].forEach(function(loc_type) {
+      _this.appState.set(loc_type, session_board_locale(_this.stashes, loc_type, default_locale, board_langs));
     });
     if (LingoLinq.embedded && !_this.appState.get('speak_mode')) {
       var state = _this.appState.get('currentBoardState');
@@ -146,12 +137,12 @@ export default Route.extend({
         var force_fetch = !_this.appState.get('speak_mode');
         if (_this.persistence && _this.persistence.get('syncing') && !insufficient_data) { force_fetch = false; }
         _this.set('load_state', { remote_reload: true });
-        reload = model.reload(force_fetch).then(null, function(err) {
+        reload = _this.remote_reload(model, force_fetch).then(null, function(err) {
           _this.set('load_state', { remote_reload_local_reload: true });
           if (!force_fetch && controller.get('has_rendered_material')) {
             return RSVP.resolve(model);
           } else {
-            return model.reload(false);
+            return _this.local_reload_unless_denied(model, err);
           }
         });
       } else if (!controller.get('has_rendered_material') && !model.get('local_only')) {
@@ -250,5 +241,16 @@ export default Route.extend({
     if (isExiting && editManager.controller === controller) {
       editManager.controller = null;
     }
+  },
+  // The online reload clears an offline mark when the server answered, and a real
+  // "Not authorized" no longer falls back to the local copy: the same helpers
+  // routes/board/index.js uses (utils/board_revocation.js).
+  remote_reload: function(model, force_fetch) {
+    return boardRevocation.reload_from_server(model, force_fetch);
+  },
+  local_reload_unless_denied: function(model, err) {
+    return boardRevocation.local_copy_unless_denied(model, err, this.appState);
   }
 });
+// Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
+import boardRevocation from '../../../utils/board_revocation';

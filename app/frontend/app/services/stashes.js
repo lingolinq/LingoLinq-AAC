@@ -145,7 +145,7 @@ export default Service.extend({
     }
     if(this.get('user_name')) {
       runLater(() => {
-        if(this.get('user_name') && window.kvstash && window.kvstash.store) {
+        if(!this.isDestroyed && !this.isDestroying && this.get('user_name') && window.kvstash && window.kvstash.store) {
           window.kvstash.store('user_name', this.get('user_name'));
         }
       }, 5000);
@@ -559,13 +559,13 @@ export default Service.extend({
           button: obj
         };
         this.notify_observers(obj);
-      } else if(obj.tallies) {
+      } else if(obj.tallies || (obj.assessment && obj.assessment.tallies)) {
         log_event = {
           type: 'assessment',
           timestamp: timestamp,
           user_id: user_id,
           geo: geo,
-          assessment: obj
+          assessment: obj.tallies ? obj : obj.assessment
         };
       } else if(obj.mastery_cutoff) {
         log_event = {
@@ -652,13 +652,13 @@ export default Service.extend({
       } else if(this.last_selection && this.last_selection.modeling && this.last_selection.ts > ((new Date()).getTime() - 500)) {
         log_event.modeling = true;
       }
-      if(log_event.modeling && session_user_id && session_user_id != user_id) {
+      if(log_event.modeling && session_user_id && !same_person(session_user_id, user_id)) { // both are backend ids (services/app-state.js stashes them so)
         log_event.session_user_id = session_user_id;
       }
       log_event.window_width = window.outerWidth;
       log_event.window_height= window.outerHeight;
 
-      if(log_event) {
+      if(keep_offline_goal_fields(log_event, obj)) {
         this.last_id = this.last_id || 1;
         if(this.last_id > 50000) { this.last_id = 1; }
         this.id_seed = this.id_seed || Math.floor(Math.random() * 10);
@@ -906,9 +906,10 @@ export default Service.extend({
           }
           // success!
         }, (err) => {
-          if (this.isDestroyed || pushSerial !== this._logPushSerial) {
-            return;
-          }
+          if (this.isDestroyed) { return; }
+          // Re-queue even if a newer push started (this batch was not delivered); the serial check only guards the back-off.
+          this.persist('usage_log', to_persist.concat(this.get('usage_log')));
+          if (pushSerial !== this._logPushSerial) { return; }
           // error, try again later
           if(typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing && typeof window !== 'undefined') {
             window.stashes = this;
@@ -922,7 +923,6 @@ export default Service.extend({
           }
           console.log(err);
           console.error("log push failed");
-          this.persist('usage_log', to_persist.concat(this.get('usage_log')));
         });
       }
     }
@@ -934,3 +934,16 @@ export default Service.extend({
     }
   }
 });
+
+// A note or a goal assessment recorded offline (record-note, quick-assessment) keeps the fields
+// the server reads from the queued event (LogSession#split_out_later_sessions): the goal and its
+// status, the video and notify. Returns the event, so log_event's check reads as before.
+function keep_offline_goal_fields(log_event, obj) {
+  if(log_event && obj && (log_event.type == 'note' || (log_event.type == 'assessment' && obj.assessment))) {
+    ['goal_id', 'goal_status', 'video_id', 'notify'].forEach(function(key) {
+      if(obj[key] != null) { log_event[key] = obj[key]; }
+    });
+  }
+  return log_event;
+}
+import { same_person } from '../utils/backend_user_id';

@@ -83,6 +83,7 @@ class Api::IntegrationsController < ApplicationController
     overrides['settings'] = (overrides['settings'] || {})
       .merge(coppa_consent_age_injection)
       .merge(compliance_kernel_injection)
+      .merge(enabled_frontend_features_injection)
     render json: overrides.to_json
   end
 
@@ -98,6 +99,9 @@ class Api::IntegrationsController < ApplicationController
     unless FeatureFlags.ai_feature_enabled_for?('ai_board_generation', @api_user)
       return api_error(403, { error: 'Feature not available' })
     end
+    # Before the AiFocusWordSet lookup below: a cache hit returns generated words
+    # without reaching AiBoardGenerator, so its own consent check never runs.
+    return unless require_ai_consent!
     # EU AI Act Article 50(1) server-side backstop (shared helper LL-6723438462):
     # a client that skips the ai-disclosure modal and calls this endpoint directly
     # must still be refused. See ApplicationController#require_article_50_disclosure!.

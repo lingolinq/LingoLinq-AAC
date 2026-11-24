@@ -79,7 +79,7 @@ LingoLinq.Goal = BaseModel.extend({
         if(level == 'daily') {
           // if nothing's happened in the last 2 weeks, don't use daily
           // if weekly has the same sessions as daily, use daily
-          var two_weeks_ago = window.moment().add(-2, 'weeks').toISOString().substring(0, 10);
+          var two_weeks_ago = day_key(window.moment().add(-2, 'weeks'), stats);
           if(last_value > two_weeks_ago) {
             if(stats.weekly && stats.weekly.totals && stats.daily && stats.daily.totals && stats.weekly.totals.sessions == stats.daily.totals.sessions) {
               suggested_level = 'daily';
@@ -88,7 +88,7 @@ LingoLinq.Goal = BaseModel.extend({
         } else if(level == 'weekly') {
           // if nothing's happened in the last 12 weeks, don't use weekly
           // if monthly has the same sessions as weekly, use weekly unless already using daily
-          var twelve_weeks_ago = window.moment().add(-12, 'weeks').format('GGGG-WW');
+          var twelve_weeks_ago = week_key(window.moment().add(-12, 'weeks'));
           if(last_value > twelve_weeks_ago) {
             if(stats.monthly && stats.monthly.totals && stats.weekly && stats.weekly.totals && stats.monthly.totals.sessions == stats.weekly.totals.sessions) {
               suggested_level = suggested_level || 'weekly';
@@ -113,10 +113,10 @@ LingoLinq.Goal = BaseModel.extend({
       var days = [];
       var day = window.moment();
       for(var idx = 0; idx < 14; idx++) {
-        var key = day.toISOString().substring(0, 10);
+        var key = day_key(day, stats);
         days.push({
           key: key,
-          label: day.toISOString().substring(0, 10),
+          label: key,
           sessions: ((stats.daily[key] || {}).sessions || 0),
           max_statuses: Utils.max_appearance((stats.daily[key] || {}).statuses || [])
         });
@@ -127,10 +127,10 @@ LingoLinq.Goal = BaseModel.extend({
       var weeks = [];
       var week = window.moment();
       for(var idx = 0; idx < 12; idx++) {
-        var key = week.clone().weekday(1).format('GGGG-WW');
+        var key = week_key(week);
         weeks.push({
           key: key,
-          label: week.clone().weekday(0).toISOString().substring(0, 10),
+          label: week.clone().weekday(0).format('YYYY-MM-DD'),
           sessions: ((stats.weekly[key] || {}).sessions || 0),
           max_statuses: Utils.max_appearance((stats.weekly[key] || {}).statuses || [])
         });
@@ -153,7 +153,7 @@ LingoLinq.Goal = BaseModel.extend({
         var key = date.format('YYYY-MM');
         months.push({
           key: key,
-          label: date.toISOString().substring(0, 10),
+          label: date.format('YYYY-MM-DD'),
           sessions: ((stats.monthly[key] || {}).sessions || 0),
           max_statuses: Utils.max_appearance((stats.monthly[key] || {}).statuses || [])
         });
@@ -383,5 +383,16 @@ LingoLinq.Goal = BaseModel.extend({
     }
   })
 });
+
+// Keys that match the server's buckets (UserGoal.group_sessions, #1196). A day is the viewer's own
+// date when the server grouped the stats in the viewer's zone (stats.zone), and otherwise the UTC
+// date the stored stats use. A week is the one starting on the Sunday on or before the date,
+// keyed by that Sunday's ISO week (WeeklyStatsSummary.date_to_weekyear).
+function day_key(moment, stats) {
+  return (stats && stats.zone) ? moment.format('YYYY-MM-DD') : moment.toISOString().substring(0, 10);
+}
+function week_key(moment) {
+  return moment.clone().weekday(0).format('GGGG-WW');
+}
 
 export default LingoLinq.Goal;

@@ -85,6 +85,7 @@ jobs:
             echo ""
             echo "- [ ] Staging is healthy (no error spikes in Sentry / Cloud Run logs)"
             echo "- [ ] CI is green on staging head"
+            echo "- [ ] Data-bearing gate passed on the release head ([recovery if the status is missing](https://github.com/lingolinq/LingoLinq-AAC/blob/develop/docs/INFRASTRUCTURE.md#weekly-release-gate))"
             echo "- [ ] No open compliance / security review on changes in this window"
             echo "- [ ] OK to deploy to production"
           } > /tmp/release/body.md

@@ -1,5 +1,5 @@
 class SessionController < ApplicationController
-  before_action :require_api_token, :only => [:oauth_logout]
+  before_action :require_api_token, :only => [:oauth_logout, :token_logout]
   
   def oauth
     error = nil
@@ -213,6 +213,11 @@ class SessionController < ApplicationController
     render json: {logout: true}
   end
   
+  def token_logout
+    Device.find_by_global_id(@api_device_id).revoke_token!(@token)
+    render json: {logout: true}
+  end
+
   def oauth_local
     response.headers.except! 'X-Frame-Options'
   end
@@ -247,7 +252,7 @@ class SessionController < ApplicationController
 
   def auth_admin
     success = false
-    if @api_user && @api_user.admin?
+    if admin_sign_in?(@api_user)
       admin_token = GoSecure.nonce('admin_token')
       cookies[:admin_token] = admin_token
       Permissions.setex(Permissable.permissions_redis, '/admin/auth/' + admin_token, 2.hours.to_i, @api_user.global_id, true)
@@ -592,6 +597,9 @@ class SessionController < ApplicationController
     begin
       if @api_user
         params['access_token'] = @token if @token && @tmp_token
+        # A query token still wins. Header-only checks have none, so use the
+        # bearer token check_api_token already accepted (application_controller.rb:154).
+        params['access_token'] = @token if @token && params['access_token'].blank?
         device = Device.find_by_global_id(@api_device_id)
         valid = device && device.valid_token?(params['access_token'], request.headers['X-LingoLinq-Version'])
         expired = device && (device.instance_variable_get('@expired_keys') || {})[params['access_token']]
@@ -1001,6 +1009,9 @@ class SessionController < ApplicationController
       return api_error 400, {error: error}
     end
     UserBoardProvisioner.provision_for(user)
+    # AI data-sharing consent (#1136): the Google signup agreed to the terms too. The
+    # version comes from this final request, which the signup page itself sends.
+    user.record_registration_ai_consent!(shown_version: params['ai_disclosure_version'], ip: request.remote_ip, user_agent: request.user_agent)
     unless user.coppa_parental_consent_pending?
       UserMailer.schedule_delivery(:confirm_registration, user.global_id)
       UserMailer.schedule_delivery(:new_user_registration, user.global_id)

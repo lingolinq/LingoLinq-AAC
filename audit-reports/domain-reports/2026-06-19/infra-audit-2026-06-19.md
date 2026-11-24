@@ -27,13 +27,11 @@
 
 ## MEDIUM (3)
 
-### CI security-scan job (Brakeman SAST, bundle-audit, npm audit, gitleaks) is entirely non-blocking
+### CI security-scan job: the Brakeman and npm audit steps are advisory, and security-scan is not a required check on develop
 
-- **ID:** `LL-52ff2a9a79`  |  **ruleKey:** `ci-security-gates-non-blocking`  |  **confidence:** high
-- **Location:** `.github/workflows/ci.yml`:107
-- **Frameworks:** SOC2
-- **First seen:** 2026-06-14  |  **Last seen:** 2026-06-14  |  **Disposition:** untriaged
-- **Remediation:** The whole security-scan job is continue-on-error: true (ci.yml:107), and every tool inside also soft-passes (Brakeman '|| true', npm audit '|| true', gitleaks '--exit-code 1 || true'). SAST, dependency-CVE, and secret-detection can never fail a PR, so a regression or a committed secret merges green. Make at least gitleaks secret-detection and high-severity bundle-audit/Brakeman blocking on PRs to staging/main; pair with branch protection requiring the gate.
+- **ID:** `LL-52ff2a9a79`  |  **ruleKey:** `ci-security-gates-non-blocking`
+- **Current status:** see `audit-reports/FINDINGS.json`.
+- **Amended 2026-11-06:** this section was replaced with a pointer after Scot re-scoped the row on 2026-11-05 (Scot Wahlquist). The rest of this report is as generated on 2026-06-19.
 
 ### Registration/2fa/SAML endpoints under general throttle only
 
@@ -69,13 +67,11 @@
 - **First seen:** 2026-06-13  |  **Last seen:** 2026-06-13  |  **Disposition:** untriaged
 - **Remediation:** The finder scan scopes cover app code/config/infra but not the audit system itself (.claude/agents, .claude/skills, .claude/hooks). Phase 3: add a meta-audit pass so the audit system is reviewed by its own discipline.
 
-### Audit finder Bash guard is a denylist with residual fetch-and-exec bypass
+### Compliance finding (details withheld until remediation is verified)
 
-- **ID:** `LL-97f9001bb4`  |  **ruleKey:** `audit-guard-denylist-residual-bypass`  |  **confidence:** high
-- **Location:** `.claude/hooks/audit-readonly-guard.sh`:59
-- **Frameworks:** SOC2
-- **First seen:** 2026-06-13  |  **Last seen:** 2026-06-13  |  **Disposition:** untriaged
-- **Remediation:** Primary read-only control is the no-Edit/Write tools allowlist; the Bash denylist is defense-in-depth and now blocks pipe-to-shell/eval. A determined novel obfuscation can still slip through. Phase 3: consider an allowlist-based command filter or a sandboxed finder shell.
+- **ID:** `LL-97f9001bb4`  |  **ruleKey:** `minimized-finding-ll-97f9001bb4`
+- **Current status:** see `audit-reports/FINDINGS.json`.
+- **Amended 2026-11-05:** this section was replaced with a pointer under the security disclosure policy (Scot Wahlquist). The rest of this report is as generated on 2026-06-19.
 
 ### Finder agent-memory (memory: project) may carry process state across audit runs
 

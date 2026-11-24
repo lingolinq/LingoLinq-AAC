@@ -68,21 +68,17 @@
 
 ## MEDIUM (15)
 
-### SubscriptionMailer#new_subscription sends a user's IP address to iplocate.io with no user-type or consent gate, to a third party absent from the subprocessor register (GDPR Art. 28/44, COPPA)
+### Subprocessor coverage review: subscription notification mail
 
-- **ID:** `LL-07f1869d92`  |  **ruleKey:** `iplocate-ip-egress-ungated-undisclosed-subprocessor`  |  **confidence:** high
-- **Location:** `app/mailers/subscription_mailer.rb`:30
-- **Frameworks:** GDPR, COPPA, FERPA
-- **First seen:** 2026-08-08  |  **Last seen:** 2026-08-08  |  **Disposition:** untriaged
-- **Remediation:** Found by the 2026-08-08 quarterly subprocessor review (the cycle that fell due 2026-07-20 and was not performed). SubscriptionMailer#new_subscription reads the user's stored device IP (@user.devices[0].settings['ip_address']) and GETs https://iplocate.io/api/lookup/<ip> whenever ENV['IPLOCATE_API_KEY'] is set, on any new subscription. TWO distinct defects. (1) UNGATED: unlike the sibling call in lib/external_tracker.rb:23, which is gated on external_email_allowed? && supporter_registration? && !cookies_opted_out?, this call site has NO user-type check and NO consent gate, so it can fire for any account type including a child or student account. An IP address is personal data under GDPR and is COPPA-relevant for an under-13 user. (2) UNDISCLOSED: iplocate.io is named nowhere in docs/legal/SUBPROCESSORS.md, so this is an Article 28 register omission of the same class as the three flows recorded on 2026-07-21 and the Speech-to-Text flow recorded on 2026-07-22 (LL-1eb9a2435b). Options: (a) gate this call site to match external_tracker.rb, or drop geolocation from the notification email entirely, since the recipient is an internal admin address (NEW_REGISTRATION_EMAIL) rather than the user; (b) add an iplocate.io subprocessor row with DPA status and a data-flow description; (c) confirm whether a DPA exists with iplocate.io at all. NOT YET ESTABLISHED and needed before triage: whether this path can fire for a child/student account in practice, and whether it has ever fired in production. Stripe is a SEPARATE omission found by the same review and is not part of this finding.
+- **ID:** `LL-07f1869d92`  |  **ruleKey:** `minimized-finding-ll-07f1869d92`
+- **Current status:** see `audit-reports/FINDINGS.json`.
+- **Amended 2026-11-05:** this section was replaced with a pointer when the row was reworded to claim level under rule 4 (Scot Wahlquist). The rest of this report is as generated on 2026-08-12.
 
-### DataPolicyEnforcer retention job skips child orgs that inherit (rather than set) a retention_months policy
+### Retention coverage review: inherited organization policies
 
-- **ID:** `LL-14edf1a801`  |  **ruleKey:** `data-policy-enforcer-child-org-inheritance-skipped`  |  **confidence:** high
-- **Location:** `lib/data_policy_enforcer.rb`:22
-- **Frameworks:** GDPR, FERPA
-- **First seen:** 2026-07-05  |  **Last seen:** 2026-07-05  |  **Disposition:** untriaged
-- **Remediation:** Organization#effective_data_policy (app/models/organization.rb:81-101) is explicitly designed to inherit retention_months from a parent org, but enforce_retention!'s candidate-org WHERE clause only matches orgs whose OWN data_policy_version is > 0, and then only sweeps that org's own sponsored_users. A child org that never set its own policy (data_policy_version stays 0) is skipped by the WHERE clause entirely, even though its users are governed by an inherited window via a parent's policy -- so their communication logs never expire. Widen the candidate set to include any org whose effective (not just own) retention_months resolves to a positive value -- e.g. iterate every org with a policy-bearing ancestor, or drive the sweep off each org's own effective_data_policy rather than gating the WHERE clause on data_policy_version. Add a parent(policy)+child(data_policy_version 0) spec asserting the child's stale logs are purged.
+- **ID:** `LL-14edf1a801`  |  **ruleKey:** `minimized-finding-ll-14edf1a801`
+- **Current status:** see `audit-reports/FINDINGS.json`.
+- **Amended 2026-11-05:** this section was replaced with a pointer when the row was reworded to claim level under rule 4 (Scot Wahlquist). The rest of this report is as generated on 2026-08-12.
 
 ### DataPolicyEnforcer retention only purges session log sessions
 
@@ -108,13 +104,11 @@
 - **First seen:** 2026-04-09  |  **Last seen:** 2026-07-06  |  **Disposition:** accepted
 - **Remediation:** Sunset the legacy permanent-token fallback in User.find_by_protected_image_token once the new [protected_image_legacy_token] log line (app/models/user.rb) shows it's no longer hit. The broader User#user_token exposure (login serialization + logged legacy fallbacks) is tracked separately as LL-ebd844a7d0.
 
-### Retention purge deletes the LogSession's PaperTrail destroy-version and writes no disposal AuditEvent
+### Retention coverage review: purge audit trail
 
-- **ID:** `LL-3bb2e2eaad`  |  **ruleKey:** `data-policy-enforcer-purge-no-audit-event-deletes-papertrail`  |  **confidence:** high
-- **Location:** `lib/flusher.rb`:45
-- **Frameworks:** GDPR, HIPAA
-- **First seen:** 2026-07-05  |  **Last seen:** 2026-07-05  |  **Disposition:** untriaged
-- **Remediation:** Flusher.flush_record (lib/flusher.rb) destroys the record (creating a has_paper_trail :on => [:destroy] version, log_session.rb:24) and then immediately delete_alls that same version via flush_versions, and DataPolicyEnforcer.enforce_retention! writes no AuditEvent for its purges at all -- unlike Flusher.flush_leftovers, which records a per-category AuditEvent for its deletions (lib/flusher.rb ~line 224). This contradicts docs/legal/DATA_RETENTION.md row 30 (Authentication and audit trails / PaperTrail versions on User, Board, LogSession retained 6 years, HIPAA 45 CFR Sec 164.316(b)(2)(i)) and leaves no record proving what data was destroyed, when, or by which policy. Either stop deleting the destroy-version for LogSession specifically in this retention path (retain per row 30), or have enforce_retention! emit a per-run AuditEvent (actor 'system', org id, purged log ids/counts) the way flush_leftovers already does, so a HIPAA access-log review can reconstruct the disposal.
+- **ID:** `LL-3bb2e2eaad`  |  **ruleKey:** `minimized-finding-ll-3bb2e2eaad`
+- **Current status:** see `audit-reports/FINDINGS.json`.
+- **Amended 2026-11-05:** this section was replaced with a pointer when the row was reworded to claim level under rule 4 (Scot Wahlquist). The rest of this report is as generated on 2026-08-12.
 
 ### Article 50 disclosure server-side backstop is present on only 2 of 5 AI ingresses
 
@@ -142,31 +136,23 @@
 - **First seen:** 2026-07-22  |  **Last seen:** 2026-07-22  |  **Disposition:** untriaged
 - **Remediation:** Retires by decommissioning Render once the cutover rollback window closes (Render teardown is deliberately deferred and needs its own go). If Render is kept beyond that window, split it into per-environment Key Value instances and move to rediss:// -- the app already supports this with no code change (RedisInit.redis_options enables TLS purely from the URI scheme).
 
-### AiFocusWordSet retains seed_user_global_id and prompt text after the seeding user's account is erased
+### Erasure completeness review: AI focus word sets
 
-- **ID:** `LL-8990c53bad`  |  **ruleKey:** `ai-focus-word-set-omitted-from-erasure`  |  **confidence:** high
-- **Location:** `app/models/ai_focus_word_set.rb`:75
-- **Frameworks:** GDPR, COPPA
-- **First seen:** 2026-08-12  |  **Last seen:** 2026-08-12  |  **Disposition:** untriaged
-- **Adversary:** confirmed -- seed_user_global_id set at line 75, stored plain; no lib/flusher.rb reference to the table. Bonus: the low_value prune scope (lines 24-26) also has zero callers anywhere, so there's no automated aging-out path either.
-- **Remediation:** In Flusher.flush_user_content (lib/flusher.rb:363-416), null out seed_user_global_id (and seed_organization_global_id where the org link is the deleted user's only tie) on AiFocusWordSet rows matching the erased user's global_id, mirroring the License nulling already done at lib/flusher.rb:412-415. The generated word list itself may be retained as a de-identified cache entry once the identifiers are severed.
+- **ID:** `LL-8990c53bad`  |  **ruleKey:** `minimized-finding-ll-8990c53bad`
+- **Current status:** see `audit-reports/FINDINGS.json`.
+- **Amended 2026-11-05:** this section was replaced with a pointer when the row was reworded to claim level under rule 4 (Scot Wahlquist). The rest of this report is as generated on 2026-08-12.
 
-### anonymous_logs export job writes each publishing user's username to stdout, bypassing the PII-scrubbing log formatter
+### Log hygiene review: anonymous log export job
 
-- **ID:** `LL-92ae18cc4e`  |  **ruleKey:** `anonymous-logs-export-writes-usernames-to-stdout`  |  **confidence:** high
-- **Location:** `app/models/log_session.rb`:2111
-- **Frameworks:** FERPA, COPPA, HIPAA
-- **First seen:** 2026-08-12  |  **Last seen:** 2026-08-12  |  **Disposition:** untriaged
-- **Adversary:** confirmed -- Line 2111 is a literal puts with user.user_name; PiiScrubbingFormatter only governs Rails.logger. logs_controller.rb:2 excepts :anonymous_logs from require_api_token. Bonus: the puts fires BEFORE the consent check on the next line, so even non-consenting users' usernames are emitted.
-- **Remediation:** Drop user.user_name from the progress line and log the global_id only, or replace the puts with Rails.logger.info so the line at minimum passes through PiiScrubbingFormatter. Apply the same treatment to the surrounding progress puts at app/models/log_session.rb:2077, 2086, 2123, 2133 if this method is to keep emitting progress from a worker context.
+- **ID:** `LL-92ae18cc4e`  |  **ruleKey:** `minimized-finding-ll-92ae18cc4e`
+- **Current status:** see `audit-reports/FINDINGS.json`.
+- **Amended 2026-11-05:** this section was replaced with a pointer when the row was reworded to claim level under rule 4 (Scot Wahlquist). The rest of this report is as generated on 2026-08-12.
 
-### UserExtra/UserLink profile-history caches are not invalidated when the source profile LogSession is deleted
+### Erasure completeness review: profile-history caches
 
-- **ID:** `LL-caf2528468`  |  **ruleKey:** `user-extra-profile-cache-not-invalidated-on-log-purge`  |  **confidence:** high
-- **Location:** `app/models/user_extra.rb`:58
-- **Frameworks:** GDPR, FERPA
-- **First seen:** 2026-07-05  |  **Last seen:** 2026-07-05  |  **Disposition:** untriaged
-- **Remediation:** Before extending any retention/purge job to LogSession log_type 'profile', add cache invalidation: when a 'profile' LogSession is destroyed, either recompute UserExtra#process_profile for the affected user_id/profile_id (dropping the deleted session from the recents list) or scrub matching entries by log_id from UserExtra.settings['recent_profiles'] and UserLink.data['state']['profile_history'] directly. Add a spec asserting the cache no longer contains the deleted log's summary/log_id after purge.
+- **ID:** `LL-caf2528468`  |  **ruleKey:** `minimized-finding-ll-caf2528468`
+- **Current status:** see `audit-reports/FINDINGS.json`.
+- **Amended 2026-11-05:** this section was replaced with a pointer when the row was reworded to claim level under rule 4 (Scot Wahlquist). The rest of this report is as generated on 2026-08-12.
 
 ### User creation (incl. org start codes) generates no AuditEvent
 
@@ -203,13 +189,11 @@
 - **First seen:** 2026-07-19  |  **Last seen:** 2026-07-19  |  **Disposition:** dismissed-false-positive
 - **Remediation:** No code gate required. Eval narration is adjudicated NOT a Healthcare Activity, so Anthropic Healthcare-Activity condition (iii) (licensed-clinician restriction) does not apply. If eval narration is ever repositioned as diagnosis, treatment, or auto-finalized clinical documentation, reopen this classification with Scot before PHI flows under that use.
 
-### Flusher.flush_leftovers has no usage-based orphan check for orphaned ButtonImage/ButtonSound media records (item 1)
+### Retention coverage review: orphaned media records
 
-- **ID:** `LL-57e9beb87f`  |  **ruleKey:** `button-image-sound-orphaned-media-usage-check-unimplemented`  |  **confidence:** medium
-- **Location:** `lib/flusher.rb`:57
-- **Frameworks:** GDPR, FERPA
-- **First seen:** 2026-07-04  |  **Last seen:** 2026-07-04  |  **Disposition:** untriaged
-- **Remediation:** Item 1's deferred target is orphaned ButtonImage/ButtonSound media records themselves (images/sounds no board actually uses), NOT the BoardButtonImage/BoardButtonSound join rows -- those are already cleaned on a referential basis by item 2 (implemented). A join-table-only usage signal can't be trusted for ButtonImage/ButtonSound either: Board#map_images stopped syncing board_button_images (image usage now lives only in grid_buttons/known_button_images), and board_button_sounds can lag behind grid_buttons during an async resync window (BoyBand's deferred :map_images job), so checking "zero join rows" as a proxy for "unused" risks deleting media a board is still actively using. Needs a grid_buttons-based reverse-usage check (the same signal known_button_images/known_button_sounds already use per-board) built and proven safe before ButtonImage/ButtonSound records are deleted on a usage basis.
+- **ID:** `LL-57e9beb87f`  |  **ruleKey:** `minimized-finding-ll-57e9beb87f`
+- **Current status:** see `audit-reports/FINDINGS.json`.
+- **Amended 2026-11-05:** this section was replaced with a pointer when the row was reworded to claim level under rule 4 (Scot Wahlquist). The rest of this report is as generated on 2026-08-12.
 
 ### PaperTrail versions with unconstantizable item_type are detected but retention disposition is undecided
 
@@ -219,14 +203,11 @@
 - **First seen:** 2026-07-02  |  **Last seen:** 2026-07-02  |  **Disposition:** untriaged
 - **Remediation:** Flusher.flush_leftovers now detects and counts PaperTrail::Version rows whose item_type no longer constantizes to a live model class, but deliberately does not delete them: DATA_RETENTION.md:30 requires 6-year retention with cold-storage archival for authentication/audit-trail paper_trail versions (User/Board/LogSession), and an unconstantizable item_type only proves the class was renamed/removed (this app is itself a rename of CoughDrop/SweetSuite), not that the audit evidence is disposable. Needs a real decision: (a) confirm which stale item_types are true dead weight vs. pre-rename aliases of a live model that should be treated as that model, (b) build actual cold-storage archival before any of these rows are ever deleted, per the existing retention schedule.
 
-### Automated retention only runs for org-sponsored users; standalone accounts keep communication logs indefinitely
+### Retention coverage review: accounts without an organization
 
-- **ID:** `LL-d8072299bf`  |  **ruleKey:** `retention-enforcement-skips-non-org-users`  |  **confidence:** medium
-- **Location:** `lib/data_policy_enforcer.rb`:22
-- **Frameworks:** GDPR, COPPA
-- **First seen:** 2026-07-08  |  **Last seen:** 2026-07-08  |  **Disposition:** untriaged
-- **Adversary:** confirmed -- DataPolicyEnforcer.enforce_retention! (data_policy_enforcer.rb:22-31, wired via scheduler.rake:136-140) is the only age-based log purge and is org+sponsored_users scoped; flusher paths (flush_deleted_users/flush_leftovers/flush_old_versions) do not cover standalone/no-policy users.
-- **Remediation:** Define a default retention window for communication logs of users not sponsored by any org (individual/consumer and EU self-serve accounts), or document the storage-limitation basis for indefinite retention. Consider a per-user retention preference driving Flusher.flush_record for unsponsored users.
+- **ID:** `LL-d8072299bf`  |  **ruleKey:** `minimized-finding-ll-d8072299bf`
+- **Current status:** see `audit-reports/FINDINGS.json`.
+- **Amended 2026-11-05:** this section was replaced with a pointer when the row was reworded to claim level under rule 4 (Scot Wahlquist). The rest of this report is as generated on 2026-08-12.
 
 ### Org retention policy purges a sponsored user's entire log history, including logs outside that org's context
 

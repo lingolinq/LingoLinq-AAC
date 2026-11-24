@@ -36,7 +36,7 @@ exec ruby -rjson -rtime -rfileutils -e '
 
   # The script must never break a tool call: wrap everything and always exit 0.
   begin
-    raw = $stdin.read
+    raw = $stdin.read.force_encoding("UTF-8") # Not the locale default: a C locale drops the event.
     event = (JSON.parse(raw) rescue {})
     tool  = event["tool_name"].to_s
     input = event["tool_input"] || {}
@@ -85,6 +85,10 @@ exec ruby -rjson -rtime -rfileutils -e '
     end
 
     rec = { "ts" => Time.now.utc.iso8601, "sha" => sha, "agent" => agent, "tool" => tool }
+    # The runtime id of this one spawn, so scripts/audit-fanout-gate.rb can tell two slices of the
+    # same agent apart. An opaque id from the hook event: never a path, a value or tool output.
+    agent_id = event["agent_id"]
+    rec["agent_id"] = agent_id if agent_id.is_a?(String) && agent_id.match?(/\A[\w.:-]{1,100}\z/)
 
     case tool
     when "Read"

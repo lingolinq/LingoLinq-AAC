@@ -158,9 +158,9 @@ export default Controller.extend({
       var now = (new Date()).getTime();
       var codes = LingoLinq.session.get('logging_codes') || [];
       var _this = this;
-      codes = codes.filter(function(c) { return c.user_id  != _this.get('model.id')});
+      codes = codes.filter(function(c) { return !same_person(c.user_id, _this.get('model'), app_state.get('sessionUser')); }); // an older entry may hold 'self'
       codes.push({
-        user_id: _this.get('model.id'),
+        user_id: backend_user_id(_this.get('model')), // the server reads X-Logging-Code-For-<global id> (logs_controller.rb)
         code: code,
         timestamp: now
       });
@@ -269,3 +269,4 @@ export default Controller.extend({
     }
   }
 });
+import backend_user_id, { same_person } from '../../utils/backend_user_id';

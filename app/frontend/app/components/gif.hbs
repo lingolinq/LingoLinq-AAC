@@ -48,6 +48,8 @@
                 {{t "Error loading results, it appears you are not online" key="error_loading_results_not_online"}}
               {{/if}}
             </p>
+          {{else if this.results_empty}}
+            <p class="la-gif-modal__status" role="status">{{t "No GIFs found. Try different words in your sentence and search again." key="gif_search_no_results"}}</p>
           {{else}}
             <div class='cursor_holder la-gif-modal__holder'>
               <div class='cursor_navigation repair_buttons la-gif-modal__pager'>

@@ -26,7 +26,9 @@ module Renaming
     if self.class.find_by_path(to_key)
       @collision_error = true
       return false
-    elsif to_key.match(/^\d/)
+    elsif to_key.match(/^\d/) || (record_type == 'user' && LingoLinq::RESERVED_ROUTES.include?(to_key))
+      # A user name is the first part of an address, so it cannot be a route's name (to_key is lowercased above).
+      # Board keys are "user/name" and cannot collide with a route.
       @invalid_name = true
       return false
     end

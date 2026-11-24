@@ -1,0 +1,65 @@
+{{!-- NAMED `OrgRailRows`, NOT `AccountRail...` (renamed 2026-11-09): spec/templates/
+     dashboard_account_pill_spec.rb pins the account rail to ONE mount by searching the templates for
+     its opening tag, and a component whose tag began with the rail's name read as a second mount
+     (so this comment does not spell that tag out either).
+     THE MODERN RAIL'S ORG ROWS (2026-11-08, requested: "modern view needs the Admin/Managers/Supervisors/
+     Communicators/Evals/Symbols top menu along with their own side menu on the organization page").
+     The Modern twin of Basic's org rail (components/dashboard/classic-rail.hbs, `orgNav`): the SAME
+     rows behind the same gates, in the account rail's own row markup and its 18px, stroke-width
+     1.75, two-tone icon convention. IN ALPHABETICAL ORDER (requested 2026-11-08: "the left menu
+     needs to be alphabetized"); Home Page stays above them in components/account-rail.hbs, as the
+     way out of the section. Rendered by components/account-rail.hbs in
+     place of the account rows when `orgNav` is true (an org editor on an org page).
+     No Admin row and no people rows: those are the org tabs above the page (templates/organization.hbs).
+     `@activeRow` (account-rail.js `orgRow`) drives both `is-active` and `aria-current`, so the
+     highlight and the announcement cannot disagree; it also lights Rooms on a room's own page,
+     which a <LinkTo> on the list cannot. <LinkTo>'s default `active` class is unstyled here.
+     `@model={{@org.id}}` as every org link in the app passes it (router.js `/organizations/:id`). --}}
+{{#let (org-admin-links @org) as |links|}}
+  {{!-- Admin Actions: the SITE-admin org's page, for someone who can manage it (utils/admin_nav.js). --}}
+  {{#if links.adminActions}}
+  <LinkTo @route="organization.extras" @model={{@org.id}} class="md-acct-rail__row {{if (is_equal @activeRow "admin_actions") "is-active"}}" aria-current={{if (is_equal @activeRow "admin_actions") "page"}}>
+  <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6Z" stroke="#46505F"/><path d="M9 12l2 2 4-4" stroke="#2A9D8F"/></svg></span>
+  <span class="md-acct-rail__label">{{t "Admin Actions" key="admin_actions"}}</span>
+  </LinkTo>
+  {{/if}}
+  {{!-- Billing: where licenses and premium accounts are credited to an org; `manage_subscription`
+       (site admins), the same gate as that page and Basic's row. --}}
+  {{#if @org.permissions.manage_subscription}}
+  <LinkTo @route="organization.subscription" @model={{@org.id}} class="md-acct-rail__row {{if (is_equal @activeRow "billing") "is-active"}}" aria-current={{if (is_equal @activeRow "billing") "page"}}>
+  <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2" stroke="#46505F"/><path d="M2 10h20" stroke="#2A9D8F"/><path d="M6 15h4" stroke="#46505F"/></svg></span>
+  <span class="md-acct-rail__label">{{t "Billing Details" key="subscription_details"}}</span>
+  </LinkTo>
+  {{/if}}
+  {{!-- Organizations: the way back to the org directory, gated as the pill nav's Organizations
+       pill is. Never lit here: the page you are on lights its own row. --}}
+  {{#if @canManageOrgs}}
+  <LinkTo @route="organizations" class="md-acct-rail__row">
+  <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z" stroke="#46505F"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" stroke="#46505F"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2" stroke="#46505F"/><path d="M10 6h4M10 10h4M10 14h4" stroke="#2A9D8F"/></svg></span>
+  <span class="md-acct-rail__label">{{t "Organizations" key="organizations"}}</span>
+  </LinkTo>
+  {{/if}}
+  <LinkTo @route="organization.reports" @model={{@org.id}} class="md-acct-rail__row {{if (is_equal @activeRow "reports") "is-active"}}" aria-current={{if (is_equal @activeRow "reports") "page"}}>
+  <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18" stroke="#46505F"/><path d="M18 9l-5 5-2-2-4 4" stroke="#2A9D8F"/></svg></span>
+  <span class="md-acct-rail__label">{{t "Reports" key="reports"}}</span>
+  </LinkTo>
+  <LinkTo @route="organization.rooms" @model={{@org.id}} class="md-acct-rail__row {{if (is_equal @activeRow "rooms") "is-active"}}" aria-current={{if (is_equal @activeRow "rooms") "page"}}>
+  <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2" stroke="#46505F"/><path d="M3 10h18" stroke="#46505F"/><path d="M9 20v-6h6v6" stroke="#2A9D8F"/></svg></span>
+  <span class="md-acct-rail__label">{{t "Rooms" key="rooms"}}</span>
+  </LinkTo>
+  <LinkTo @route="organization.settings" @model={{@org.id}} class="md-acct-rail__row {{if (is_equal @activeRow "settings") "is-active"}}" aria-current={{if (is_equal @activeRow "settings") "page"}}>
+  <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3" stroke="#2A9D8F"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" stroke="#46505F"/></svg></span>
+  <span class="md-acct-rail__label">{{t "Settings" key="settings"}}</span>
+  </LinkTo>
+  {{!-- Telemetry: an org editor who is a site admin or in the telemetry beta (utils/admin_nav.js). --}}
+  {{#if links.telemetry}}
+  <LinkTo @route="organization.telemetry" @model={{@org.id}} class="md-acct-rail__row {{if (is_equal @activeRow "telemetry") "is-active"}}" aria-current={{if (is_equal @activeRow "telemetry") "page"}}>
+  <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4" stroke="#2A9D8F"/></svg></span>
+  <span class="md-acct-rail__label">{{t "Telemetry" key="telemetry"}}</span>
+  </LinkTo>
+  {{/if}}
+  <LinkTo @route="organization.lessons" @model={{@org.id}} class="md-acct-rail__row {{if (is_equal @activeRow "trainings") "is-active"}}" aria-current={{if (is_equal @activeRow "trainings") "page"}}>
+  <span class="md-acct-rail__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5 12 4l9 4.5-9 4.5Z" stroke="#46505F"/><path d="M7 11v5c0 1.5 2.2 2.5 5 2.5s5-1 5-2.5v-5" stroke="#2A9D8F"/></svg></span>
+  <span class="md-acct-rail__label">{{t "Trainings" key="trainings"}}</span>
+  </LinkTo>
+{{/let}}

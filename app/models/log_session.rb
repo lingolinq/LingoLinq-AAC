@@ -1048,7 +1048,7 @@ class LogSession < ApplicationRecord
                 elsif event && event['assessment']
                   assmnt = event['assessment']
                   assmnt = assmnt['assessment'] if assmnt['assessment'].is_a?(Hash)
-                  params = {assessment: assmnt, timestamp: event['timestamp']}
+                  params = {assessment: assmnt, timestamp: event['timestamp'], goal_id: event['goal_id']}
                 elsif event && event['profile']
                   prof = event['profile']
                   params = {profile: prof}
@@ -1216,11 +1216,11 @@ class LogSession < ApplicationRecord
     return nil unless prior_note && (prior_note.user == sender || prior_note.user == recipient)
     prior_message = prior_note.data['note']['text'] if prior_note.is_a?(LogSession)
     prior_message = prior_note.data['sentence'] if prior_note.is_a?(Utterance)
-    prior_contact = prior_note.data['author_contact']
+    prior_contact = DefaultAvatar.stored_contact(prior_note.data['author_contact'])
     prior_contact ||= {
       'id' => sender.global_id,
       'name' => sender.user_name,
-      'image_url' => sender.generated_avatar_url
+      'image_url' => DefaultAvatar.stored(sender.generated_avatar_url)
     }
     {
       :message => prior_message,
@@ -1866,6 +1866,10 @@ class LogSession < ApplicationRecord
         self.data['unread'] = true if self.data['unread'] == nil && self.data['notify_user']
       end
       self.data['note'] = params['note'] if params['note']
+      if self.data['note'].is_a?(Hash) && self.data['note']['prior_contact']
+        # the client sends the contact it was shown (record-note.js), on the host it was shown on
+        self.data['note']['prior_contact'] = DefaultAvatar.stored_contact(self.data['note']['prior_contact'])
+      end
       if params['video_id']
         video = UserVideo.find_by_global_id(params['video_id'])
         if video

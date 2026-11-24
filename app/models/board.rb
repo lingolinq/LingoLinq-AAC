@@ -359,7 +359,7 @@ class Board < ApplicationRecord
   def generate_stats(frd=false)
     self.settings['stars'] = (self.settings['starred_user_ids'] || []).length
     self.settings['locale_stars'] = {}
-    @button_images = nil
+    @button_images = nil; @button_images_batched = nil
     pops = {}
     home_pops = {}
     locales = []
@@ -868,16 +868,21 @@ class Board < ApplicationRecord
     self.settings['total_buttons'] = buttons.length + (self.settings['total_downstream_buttons'] || 0)
     self.settings['unlinked_buttons'] = buttons.select{|btn| !btn['load_board'] }.length + (self.settings['unlinked_downstream_buttons'] || 0)
 
+    # An @edit_description set for this save (process_params, update_privacy) describes this save.
+    # Otherwise a String @buttons_changed (rollback, translated, swapped images) does, however long
+    # after the previous described edit it comes: comparing with the previous save's stored
+    # description dropped these labels, so version history showed "updated". Each buttons change
+    # describes one save only: map_images is the only reset (app/models/board.rb:1690), so
+    # @buttons_changed survives a save that skips it (@skip_post_process :1239, @map_later :1686).
+    # A new assignment is a new String object, so identity tells a new change from a described one.
     if @buttons_changed.is_a?(String)
-      @edit_description ||= {
-        'timestamp' => Time.now.to_f,
-        'notes' => [@buttons_changed]
-      }
-    end
-    if @edit_description
-      if self.settings['edit_description'] && self.settings['edit_description']['timestamp'] < @edit_description['timestamp'] - 1
-        @edit_description = nil
+      if !@edit_description && !@buttons_changed.equal?(@described_buttons_change)
+        @edit_description = {
+          'timestamp' => Time.now.to_f,
+          'notes' => [@buttons_changed]
+        }
       end
+      @described_buttons_change = @buttons_changed
     end
     self.settings['edit_description'] = @edit_description
     @edit_description = nil
@@ -990,6 +995,16 @@ class Board < ApplicationRecord
     end
     if self.settings['name'] && self.settings['name'].match(/LAMP|WFL/)
       self.public = false
+    end
+    # update_privacy's batch save is described here, after the rules above that keep a board
+    # private, so the note names the level saved (mapping as in lib/json_api/board.rb:137).
+    if @describe_batch_privacy
+      level = self.public ? (self.fully_listed? ? 'public' : 'unlisted') : 'private'
+      self.settings['edit_description'] = {
+        'timestamp' => Time.now.to_f,
+        'notes' => ["batch set to #{level}"]
+      }
+      @describe_batch_privacy = nil
     end
     UserLink.invalidate_cache_for(self)
           
@@ -2522,7 +2537,7 @@ class Board < ApplicationRecord
     bis = self.known_button_images
     # NOTE: enabled_protected_sources is already cached
     protected_sources = (user && user.enabled_protected_sources(true)) || []
-    ButtonImage.cached_copy_urls(bis, user, nil, protected_sources)
+    ButtonImage.cached_copy_urls(bis, user, nil, protected_sources) unless @button_images_batched
     # JsonApi::Image.as_json(i, :original_and_fallback => true).slice('id', 'url', 'fallback_url', 'protected_source'))
     pref = user && user.settings['preferences']['preferred_symbols']
     include_other_sources = user && (user.supporter_role? || (user.settings['preferences']['preferred_symbols'] || 'original') != 'original')
@@ -2548,8 +2563,66 @@ class Board < ApplicationRecord
   end
 
   def reload
-    @button_images = nil
+    @button_images = nil; @button_images_batched = nil
     super
+  end
+
+  # For ids with a sub-user suffix ("<board>-<user>"), the replacement board id that find_all_by_global_id
+  # substitutes when that user has replaced the board (GlobalId.find_all_by_global_id reads
+  # user_extra.settings['replaced_boards']), keyed by the requested id. Used by the paged tree so a replacement
+  # travels with the id that produced it (#1219).
+  def self.sub_board_replacements(ids)
+    res = {}
+    with_sub = (ids || []).map { |id| [id, id_pieces(id)] }.select { |_, p| p[:sub_id] && p[:sub_id][:id] }
+    return res if with_sub.empty?
+    users = {}
+    User.where(id: with_sub.map { |_, p| p[:sub_id][:id] }.uniq).preload(:user_extra).each { |u| users[u.id.to_s] = u }
+    with_sub.each do |id, p|
+      u = users[p[:sub_id][:id].to_s]
+      replaced = u && u.user_extra && u.user_extra.settings && u.user_extra.settings['replaced_boards']
+      res[id] = replaced[p[:orig]] if replaced && replaced[p[:orig]]
+    end
+    res
+  end
+
+  # ONE IMAGE LOOKUP FOR A SET OF BOARDS (#1219, PR #1268). JsonApi::Board serializes a tree or a bulk prefetch
+  # board by board, and images_and_sounds_for loaded each board's button images with its own query (145 lookups
+  # and 312 queries on one 145-board tree: the Rack::Timeout mode of the issue). This loads every board's images
+  # in one query, resolves their cached copies once, and hands each board its own list, so known_button_images
+  # answers from memory. Each board keeps exactly the records find_all_by_global_id would give it, by that rule
+  # applied to the board's own ids (a record with a legacy nonce, or whose nonce the id names): one lookup over
+  # the union would let one board's stale nonce drop another board's valid image, and a dropped image falls
+  # back to the stored URL in image_urls, which may be a protected one (lib/json_api/board.rb:250).
+  def self.preload_button_images(boards, user)
+    ids_by_board = {}
+    boards.each { |b| ids_by_board[b.object_id] = b.grid_buttons.map { |btn| btn['image_id'] }.compact.uniq }
+    pieces = {}
+    ids_by_board.values.flatten.uniq.each { |id| pieces[id] = ButtonImage.id_pieces(id) }
+    db_ids = pieces.values.map { |p| p[:id] }.compact.uniq
+    by_db_id = {}
+    ButtonImage.where(id: db_ids).each { |bi| by_db_id[bi.id.to_s] = bi } if db_ids.any?
+    kept = {}
+    boards.each do |b|
+      list = ids_by_board[b.object_id].map do |id|
+        p = pieces[id]
+        bi = p && by_db_id[p[:id]]
+        (bi && (bi.nonce == 'legacy' || bi.nonce == p[:nonce])) ? bi : nil
+      end.compact
+      list.each { |bi| kept[bi.id] = bi }
+      b.button_images_preloaded(list)
+    end
+    if kept.any?
+      protected_sources = (user && user.enabled_protected_sources(true)) || []
+      ButtonImage.cached_copy_urls(kept.values, user, nil, protected_sources)
+    end
+    boards
+  end
+
+  # The images preload_button_images chose for this board, in the board's own button order; their cached
+  # copies are already resolved, so images_and_sounds_for skips that step.
+  def button_images_preloaded(images)
+    @button_images = images
+    @button_images_batched = true
   end
 
   def known_button_images
@@ -2795,14 +2868,12 @@ class Board < ApplicationRecord
     if (board_ids.blank? || board_ids.include?(self.global_id))
       updated_board_ids << self.global_id
       whodunnit = PaperTrail.request.whodunnit
-      PaperTrail.request.whodunnit = "user:#{author.global_id}.board.swap_images"
+      PaperTrail.request.whodunnit = "user:#{author.global_id}.board.update_privacy"
       update_board.public = (privacy_level == 'public'|| privacy_level == 'unlisted')
       update_board.settings['unlisted'] = (privacy_level == 'unlisted')
       update_board.instance_variable_set('@map_later', true)
-      update_board.instance_variable_set('@edit_description', {
-        'timestamp' => Time.now.to_f,
-        'notes' => 'batch set to public'
-      })
+      # generate_defaults describes the level this save leaves, never the raw privacy_level param
+      update_board.instance_variable_set('@describe_batch_privacy', true)
       update_board.save 
       PaperTrail.request.whodunnit = whodunnit
     else

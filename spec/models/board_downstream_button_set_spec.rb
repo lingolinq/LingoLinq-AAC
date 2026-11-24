@@ -1,6 +1,12 @@
 require 'spec_helper'
 
 describe BoardDownstreamButtonSet, :type => :model do
+  # Examples below give a set the placeholder extra-data URL 'qwer'; fetching it requests
+  # http://qwer/, a host that does not resolve. Answer the same way: unreachable.
+  before(:each) do
+    stub_request(:get, 'http://qwer/').to_timeout
+  end
+
   it "should generate defaults" do
     bs = BoardDownstreamButtonSet.create
     expect(bs.data).not_to eq(nil)

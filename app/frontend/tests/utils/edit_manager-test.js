@@ -11,6 +11,7 @@ import {
 } from 'frontend/tests/helpers/jasmine';
 import { queryLog, persistenceTarget, boardModelStub } from 'frontend/tests/helpers/ember_helper';
 import RSVP from 'rsvp';
+import { cancel_pending_media, when_media_settled, reset_pending_media } from '../../utils/pending_media';
 import editManager from '../../utils/edit_manager';
 import Button from '../../utils/button';
 import app_state from '../../utils/app_state';
@@ -334,6 +335,11 @@ describe('editManager', function() {
       testBoardDom.parentNode.removeChild(testBoardDom);
       testBoardDom = null;
     }
+    // get_edited_image / retrieve_badge leave a pending-request callback on the singleton (holding
+    // that test's promise) until the editor answers; drop it so no later test's editor message can
+    // resolve this test's request.
+    editManager.imageEditingCallback = null;
+    editManager.badgeEditingCallback = null;
   });
 
   describe("setup", function() {
@@ -1959,6 +1965,226 @@ describe('editManager', function() {
       });
     });
 
+    describe("when a manual image supersedes the automatic symbol", function() {
+      var autoResult = [{license: 'private', image_url: 'https://example.com/test-auto.png', id: 'test_auto_pic'}];
+      var autoImage = function() {
+        return EmberObject.create({id: 'test-auto', url: 'https://example.com/test-auto.png'});
+      };
+      var manualImage = function() {
+        return EmberObject.create({id: 'test-manual', url: 'https://example.com/test-manual.png', check_for_editable_license: function() { }});
+      };
+      var startLucky = function(button, saves) {
+        editManager.setup(board);
+        setEditMode(true);
+        board.set('ordered_buttons', [[button]]);
+        var search = RSVP.defer();
+        stubPictureSearch(function() { return search.promise; });
+        stubPictureGrabber('save_image_preview', function(preview) {
+          var save = RSVP.defer();
+          saves[preview.url.match(/test-manual/) ? 'manual' : 'auto'] = save;
+          return save.promise;
+        });
+        editManager.lucky_symbol(1);
+        expect(button.get('pending_image')).toEqual(true);
+        search.resolve(autoResult);
+      };
+
+      it("should clear pending_image when the automatic save finishes after the manual image", function() {
+        var button = Button.create({id: 1, label: "ham"});
+        var saves = {};
+        var autoSettled = false;
+        startLucky(button, saves);
+        waitsFor(function() { return saves.auto; });
+        runs(function() {
+          editManager.change_button(1, {image: manualImage(), image_id: 'test-manual', _picked_display_url: 'https://example.com/test-manual.png'});
+          saves.auto.promise.then(function() { autoSettled = true; });
+          saves.auto.resolve(autoImage());
+        });
+        waitsFor(function() { return autoSettled; });
+        runs(function() {
+          expect(button.get('image_id')).toEqual('test-manual');
+          expect(button.get('pending_image')).toEqual(false);
+        });
+      });
+
+      it("should keep the manual image when the automatic save was replacing a placeholder", function() {
+        var button = Button.create({id: 1, label: "ham", local_image_url: 'https://example.com/test-empty_22_g.png'});
+        button.set('image', EmberObject.create({id: 'test-placeholder', url: 'https://example.com/test-empty_22_g.png'}));
+        button.set('image_id', 'test-placeholder');
+        var saves = {};
+        var autoSettled = false;
+        startLucky(button, saves);
+        waitsFor(function() { return saves.auto; });
+        runs(function() {
+          editManager.change_button(1, {image: manualImage(), image_id: 'test-manual', _picked_display_url: 'https://example.com/test-manual.png'});
+          saves.auto.promise.then(function() { autoSettled = true; });
+          saves.auto.resolve(autoImage());
+        });
+        waitsFor(function() { return autoSettled; });
+        runs(function() {
+          expect(button.get('image_id')).toEqual('test-manual');
+          expect(button.get('image.id')).toEqual('test-manual');
+          expect(button.get('pending_image')).toEqual(false);
+        });
+      });
+
+      it("should keep pending_image set until both the manual and the automatic saves finish", function() {
+        var button = Button.create({id: 1, label: "ham"});
+        var saves = {};
+        var manualSettled = false;
+        var autoSettled = false;
+        var settingsController = EmberObject.create({model: button});
+        startLucky(button, saves);
+        waitsFor(function() { return saves.auto; });
+        runs(function() {
+          contentGrabbers.pictureGrabber.setup(button, settingsController);
+          settingsController.set('image_preview', {url: 'https://example.com/test-manual.png', license: {type: 'private'}});
+          contentGrabbers.pictureGrabber.select_image_preview().then(function() { manualSettled = true; }, function() { manualSettled = true; });
+          saves.manual.resolve(manualImage());
+        });
+        waitsFor(function() { return manualSettled; });
+        runs(function() {
+          expect(button.get('image_id')).toEqual('test-manual');
+          expect(button.get('pending_image')).toEqual(true);
+          saves.auto.promise.then(function() { autoSettled = true; });
+          saves.auto.resolve(autoImage());
+        });
+        waitsFor(function() { return autoSettled; });
+        runs(function() {
+          contentGrabbers.unlink();
+          expect(button.get('image_id')).toEqual('test-manual');
+          expect(button.get('pending_image')).toEqual(false);
+        });
+      });
+
+      it("should keep a manual image that lands after the automatic save but before it is applied", function() {
+        var button = Button.create({id: 1, label: "ham"});
+        var saves = {};
+        var autoSettled = false;
+        startLucky(button, saves);
+        waitsFor(function() { return saves.auto; });
+        runs(function() {
+          // Registered after lucky_symbols' own handler, so this runs once the
+          // automatic result was accepted but before its afterRender applies it.
+          saves.auto.promise.then(function() {
+            editManager.change_button(1, {image: manualImage(), image_id: 'test-manual', _picked_display_url: 'https://example.com/test-manual.png'});
+            autoSettled = true;
+          });
+          saves.auto.resolve(autoImage());
+        });
+        waitsFor(function() { return autoSettled; });
+        runs(function() {
+          expect(button.get('image_id')).toEqual('test-manual');
+          expect(button.get('image.id')).toEqual('test-manual');
+          expect(button.get('pending_image')).toEqual(false);
+        });
+      });
+    });
+
+    it("should clear pending_image when starting the automatic save throws", function() {
+      editManager.setup(board);
+      setEditMode(true);
+      var button = Button.create({id: 1, label: "ham"});
+      board.set('ordered_buttons', [[button]]);
+      var search = RSVP.defer();
+      var threw = false;
+      stubPictureSearch(function() { return search.promise; });
+      stubPictureGrabber('save_image_preview', function() {
+        threw = true;
+        throw new Error('test synchronous failure');
+      });
+      editManager.lucky_symbol(1);
+      expect(button.get('pending_image')).toEqual(true);
+      search.resolve([{license: 'private', image_url: 'https://example.com/test-auto.png', id: 'test_auto_pic'}]);
+      waitsFor(function() { return threw && button.get('pending_image') === false; });
+      runs(function() {
+        expect(button.get('pending_image')).toEqual(false);
+        expect(button.get('image_id')).toEqual(undefined);
+      });
+    });
+
+    it("should not apply an automatic symbol whose lookup was cancelled", function() {
+      editManager.setup(board);
+      setEditMode(true);
+      var button = Button.create({id: 1, label: "ham"});
+      board.set('ordered_buttons', [[button]]);
+      var search = RSVP.defer();
+      var save = RSVP.defer();
+      var autoSettled = false;
+      stubPictureSearch(function() { return search.promise; });
+      var saveStarted = false;
+      stubPictureGrabber('save_image_preview', function() { saveStarted = true; return save.promise; });
+      editManager.lucky_symbol(1);
+      search.resolve([{license: 'private', image_url: 'https://example.com/test-auto.png', id: 'test_auto_pic'}]);
+      waitsFor(function() { return saveStarted; });
+      runs(function() {
+        cancel_pending_media();
+        save.promise.then(function() { autoSettled = true; });
+        save.resolve(EmberObject.create({id: 'test-auto', url: 'https://example.com/test-auto.png'}));
+      });
+      waitsFor(function() { return autoSettled; });
+      runs(function() {
+        expect(button.get('image_id')).toEqual(undefined);
+        expect(button.get('pending_image')).toEqual(false);
+        reset_pending_media();
+      });
+    });
+
+    it("should not count a failed automatic lookup as a failed upload", function() {
+      editManager.setup(board);
+      setEditMode(true);
+      var button = Button.create({id: 1, label: "ham"});
+      board.set('ordered_buttons', [[button]]);
+      var search = RSVP.defer();
+      var result = null;
+      stubPictureSearch(function() { return search.promise; });
+      editManager.lucky_symbol(1);
+      when_media_settled().then(function(res) { result = res; });
+      search.reject({error: 'test lookup failure'});
+      waitsFor(function() { return result; });
+      runs(function() {
+        expect(result.failed).toEqual(0);
+        expect(button.get('pending_image')).toEqual(false);
+        reset_pending_media();
+      });
+    });
+
+    it("should clear pending_image once both lookups from Enter and blur finish", function() {
+      editManager.setup(board);
+      setEditMode(true);
+      var button = Button.create({id: 1, label: "ham"});
+      board.set('ordered_buttons', [[button]]);
+      var search = RSVP.defer();
+      var saves = [];
+      stubPictureSearch(function() { return search.promise; });
+      stubPictureGrabber('save_image_preview', function() {
+        var save = RSVP.defer();
+        saves.push(save);
+        return save.promise;
+      });
+      editManager.lucky_symbol(1);
+      editManager.lucky_symbol(1);
+      search.resolve([{license: 'private', image_url: 'https://example.com/test-auto.png', id: 'test_auto_pic'}]);
+      var settled = 0;
+      waitsFor(function() { return saves.length === 2; });
+      runs(function() {
+        saves[0].promise.then(function() { settled++; });
+        saves[0].resolve(EmberObject.create({id: 'test-auto', url: 'https://example.com/test-auto.png'}));
+      });
+      waitsFor(function() { return settled === 1; });
+      runs(function() {
+        expect(button.get('image_id')).toEqual('test-auto');
+        expect(button.get('pending_image')).toEqual(true);
+        saves[1].promise.then(function() { settled++; });
+        saves[1].resolve(EmberObject.create({id: 'test-auto-2', url: 'https://example.com/test-auto.png'}));
+      });
+      waitsFor(function() { return settled === 2; });
+      runs(function() {
+        expect(button.get('image_id')).toEqual('test-auto');
+        expect(button.get('pending_image')).toEqual(false);
+      });
+    });
+
     it("should search the last library selected by the user", function() {
       stashesForTests().set('last_image_library', 'lessonpix');
       stashesForTests().set('last_image_library_at', String((new Date()).getTime()));
@@ -2295,7 +2521,9 @@ describe('editManager', function() {
       expect(board.get('ordered_buttons')).toEqual(undefined);
       editManager.setup(board);
       editManager.process_for_displaying();
-      waitsFor(function() { return board.get('ordered_buttons'); });
+      // highlight_button is sent by a later step than the one that sets ordered_buttons, so wait for both
+      // before checking the messages (waiting for ordered_buttons alone made this assertion timing-dependent).
+      waitsFor(function() { return board.get('ordered_buttons') && (board.sent_messages || []).indexOf('highlight_button') >= 0; });
       runs(function() {
         expect(board.get('ordered_buttons')).not.toEqual(undefined);
         expect(board.get('ordered_buttons')[0][0].get('label')).toEqual('crow');
@@ -2629,8 +2857,11 @@ describe('editManager', function() {
       });
       stubBoardReload('1_2', {board: {id: '1_2', key: 'example/copy'}});
       stubCopyBoardSideEffects(b);
-      editManager.copy_board(b, null, copyBoardUser()).then(null, function() { });
-      waitsFor(function() { return found; });
+      // copy_board settles after reloading the copy, which is fetched in the same flush as the copy's
+      // button set (app/utils/edit_manager.js:2749-2768): waiting for it covers both fetches.
+      var settled = false;
+      editManager.copy_board(b, null, copyBoardUser()).then(function() { settled = true; }, function() { settled = true; });
+      waitsFor(function() { return found && settled; });
       runs();
     });
 

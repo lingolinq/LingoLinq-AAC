@@ -45,14 +45,14 @@ describe('speecher', function() {
     });
   });
 
-  afterEach(function() {
+  afterEach(function() { endLeftoverUtterances();
     try {
       speecher.stop('all');
     } catch (e) { /* mid-teardown */ }
     speecher.scope = window;
     speecher.audio = {};
     speecher.sounds = {};
-    speecher.last_utterance = null;
+    speecher.last_utterance = null; if (window.cloud_speak && window.cloud_speak.audio_elem) { window.cloud_speak.audio_elem.remove(); window.cloud_speak.audio_elem = null; } // the cloud-speech fallback caches one <audio> for the page
   });
 
   describe('stop', function() {
@@ -62,6 +62,33 @@ describe('speecher', function() {
       stub(window.speechSynthesis, 'cancel', function() { });
       speecher.stop('text');
       expect(u._cancelled).toEqual(true);
+    });
+  });
+
+  describe("has_voice_for", function() {
+    var prior;
+    beforeEach(function() { prior = speecher.get('voices'); });
+    afterEach(function() { speecher.set('voices', prior); });
+    it("should match on the language, ignoring region", function() {
+      speecher.set('voices', [{lang: 'es-MX', voiceURI: 'a', name: 'a'}]);
+      expect(speecher.has_voice_for('es')).toEqual(true);
+      expect(speecher.has_voice_for('es_ES')).toEqual(true);
+    });
+    it("should say no when speech would fall back to a voice in another language", function() {
+      speecher.set('voices', [{lang: 'en-US', voiceURI: 'a', name: 'a', default: true}]);
+      stub(speecher, 'get_persistence', function() { return {get: function() { return true; }}; });
+      expect(speecher.has_voice_for('es')).toEqual(false);
+    });
+    it("should not warn someone using the device's default voice", function() {
+      var priorVoice = speecher.voiceURI;
+      speecher.set('voices', [{lang: 'en-US', voiceURI: 'a', name: 'a', default: true}]);
+      speecher.voiceURI = 'force_default';
+      expect(speecher.has_voice_for('es')).toEqual(true);
+      speecher.voiceURI = priorVoice;
+    });
+    it("should not warn before voices have loaded", function() {
+      speecher.set('voices', []);
+      expect(speecher.has_voice_for('es')).toEqual(true);
     });
   });
 
@@ -82,7 +109,7 @@ describe('speecher', function() {
         this.volume = 1;
         this.pitch = 1;
         this.lang = '';
-        this.addEventListener = function() { };
+        this.addEventListener = function() { }; leftoverUtterances.push(this);
         this.removeEventListener = function() { };
       });
       stub(window.speechSynthesis, 'getVoices', function() {
@@ -126,6 +153,44 @@ describe('speecher', function() {
         expect(utterance.text).toEqual("hippo");
         expect(utterance.voice).toNotEqual(null);
         expect(utterance.lang).toEqual('asdf');
+      });
+    });
+    it("should use opts.locale over the session speak language when choosing a voice", function() {
+      var utterance = null;
+      stub(window.speechSynthesis, 'speak', function(u) { utterance = u; });
+      stub(window.speechSynthesis, 'cancel', function() { });
+      stub(speecher.scope, 'SpeechSynthesisUtterance', function() { });
+      speecher.set('voices', [
+        {default: true, lang: 'en-US', voiceURI: 'english', name: 'english'},
+        {lang: 'es-ES', voiceURI: 'spanish', name: 'spanish'}
+      ]);
+      speecher.voiceURI = 'english';
+      speecher.voiceLang = 'en-US';
+      app_state.set('vocalization_locale', 'en');
+      speecher.speak_text("sombrero", null, {locale: 'es'});
+      waitsFor(function() { return utterance; });
+      runs(function() {
+        app_state.set('vocalization_locale', null);
+        expect(utterance.lang).toEqual('es-ES');
+      });
+    });
+    it("should keep using the session speak language when opts.locale is not passed", function() {
+      var utterance = null;
+      stub(window.speechSynthesis, 'speak', function(u) { utterance = u; });
+      stub(window.speechSynthesis, 'cancel', function() { });
+      stub(speecher.scope, 'SpeechSynthesisUtterance', function() { });
+      speecher.set('voices', [
+        {default: true, lang: 'en-US', voiceURI: 'english', name: 'english'},
+        {lang: 'es-ES', voiceURI: 'spanish', name: 'spanish'}
+      ]);
+      speecher.voiceURI = 'english';
+      speecher.voiceLang = 'en-US';
+      app_state.set('vocalization_locale', 'es');
+      speecher.speak_text("sombrero");
+      waitsFor(function() { return utterance; });
+      runs(function() {
+        app_state.set('vocalization_locale', null);
+        expect(utterance.lang).toEqual('es-ES');
       });
     });
     it("should not set a voiceURI or voice or lang for force_default voice", function() {
@@ -259,7 +324,7 @@ describe('speecher', function() {
         this.volume = 1;
         this.pitch = 1;
         this.lang = '';
-        this.addEventListener = function() { };
+        this.addEventListener = function() { }; leftoverUtterances.push(this);
         this.removeEventListener = function() { };
       });
       stub(window.speechSynthesis, 'getVoices', function() {
@@ -648,8 +713,8 @@ describe('speecher', function() {
     });
     it('should clone the element if currently playing', function() {
       audio_elem.lastListener = true;
-      speecher.play_audio(audioRef(audio_elem));
-      expect(audio_elem.cloned).toEqual(true);
+      var clone = speecher.play_audio(audioRef(audio_elem));
+      expect(audio_elem.cloned).toEqual(true); endClonedPlayback(clone);
     });
 
     it('should progress on end event', function() {
@@ -1158,5 +1223,142 @@ describe('speecher', function() {
       expect(user.get('preferences.device.alternate_voice.voice_uri')).toEqual('Google español');
       expect(speecher.alternate_voiceURI).toEqual('Google español');
     });
+  });
+});
+
+// The fake SpeechSynthesisUtterance never fires `end` or `error`, so the app's fallback timer
+// (speecher speak_utterance: about 4 s for short text) and its 1 s boundary check stay pending and
+// called speak_end_handler during LATER tests (a stray call can satisfy a later test's
+// waitsFor(ended)). A real browser ends the utterance when speech is cancelled at teardown; here
+// each utterance a test created is marked handled when the test ends, which makes those pending
+// callbacks no-ops (speecher.js checks `utterance.handled`). Kept below the baselined lint rows.
+var leftoverUtterances = [];
+function endLeftoverUtterances() {
+  // Also the one speecher itself recorded, for tests that install their own inline fake.
+  if (speecher.last_utterance) { leftoverUtterances.push(speecher.last_utterance); }
+  leftoverUtterances.forEach(function(u) { u.handled = true; });
+  leftoverUtterances = [];
+}
+
+// play_audio returns the clone it plays; afterEach's stop() cannot reach it (it is not in
+// speecher.audio), and its status poller would call speak_end_handler about 30 s later, during
+// some other test. End the clone's playback inside this test instead.
+function endClonedPlayback(clone) {
+  var ended = false;
+  stub(speecher, 'speak_end_handler', function() { ended = true; });
+  waitsFor(function() { return clone && clone.played; });
+  runs(function() { clone.dispatchEvent(new window.Event('ended')); });
+  waitsFor(function() { return ended; });
+  runs();
+}
+
+/* THE FIRST WORD SPOKEN ON ANDROID STARTS LATE (docs/task-management/2026-11-21_android-first-word-delay.md):
+ * speecher.warm_voice loads the person's voice with a silent utterance on a touch before the first word. */
+describe('speecher warm_voice', function() {
+  var synth, aussie, natives;
+  beforeEach(function() {
+    aussie = { voiceURI: 'English Australia', name: 'English Australia', lang: 'en-AU' };
+    natives = [{ voiceURI: 'Bulgarian Bulgaria', name: 'Bulgarian Bulgaria', lang: 'bg-BG' }, aussie];
+    synth = { spoken: [], speaking: false, pending: false, getVoices: function() { return natives; } };
+    synth.speak = function(u) { synth.spoken.push(u); };
+    // A fake utterance whose events the test fires: fire(u, 'start') is the engine starting it
+    var Utterance = function(text) { this.text = text; this.volume = 1; this.listeners = {}; };
+    Utterance.prototype.addEventListener = function(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); };
+    stub(speecher, 'scope', { speechSynthesis: synth, SpeechSynthesisUtterance: Utterance });
+    stub(capabilities, 'system', 'Android');
+    stub(speecher, 'appState', null);
+    stub(speecher, 'voiceURI', 'English Australia');
+    stub(speecher, '_warmed_voice', null);
+    stub(speecher, 'alternate_voice', null);
+    stub(speecher, 'alternate_voiceURI', null);
+    stub(speecher, 'find_voice_by_uri', function(uri) { return uri == 'English Australia' ? aussie : (uri == 'tts:x' ? { voiceURI: 'tts:x' } : null); });
+  });
+
+  it('speaks a silent comma in the person\'s device voice on Android', function() {
+    expect(speecher.warm_voice()).toEqual(true);
+    expect(synth.spoken.length).toEqual(1);
+    expect(synth.spoken[0].text).toEqual(',');
+    expect(synth.spoken[0].volume).toEqual(0);
+    expect(synth.spoken[0].voice).toEqual(aussie);
+  });
+
+  function fire(u, type) { (u.listeners[type] || []).forEach(function(fn) { fn({ type: type }); }); }
+
+  it('warms each voice once it has started, and again when the voice changes', function() {
+    speecher.warm_voice();
+    fire(synth.spoken[0], 'start');
+    expect(speecher.warm_voice()).toEqual(false);
+    expect(synth.spoken.length).toEqual(1);
+    var other = { voiceURI: 'English UK', name: 'English UK', lang: 'en-GB' };
+    natives.push(other);
+    speecher.find_voice_by_uri = function() { return other; };
+    expect(speecher.warm_voice()).toEqual(true);
+    expect(synth.spoken.length).toEqual(2);
+    expect(synth.spoken[1].voice).toEqual(other);
+  });
+
+  it('tries again on the next touch when the warm-up was cancelled before it started', function() {
+    // the first touch is a button that speaks nothing: unlock_speech cancels the warm-up on the same tap
+    expect(speecher.warm_voice()).toEqual(true);
+    fire(synth.spoken[0], 'error');
+    expect(speecher._warmed_voice).toEqual(null);
+    expect(speecher.warm_voice()).toEqual(true);
+    expect(synth.spoken.length).toEqual(2);
+  });
+
+  it('warms the alternate voice when buttons speak with it', function() {
+    var kiwi = { voiceURI: 'English New Zealand', name: 'English New Zealand', lang: 'en-NZ' };
+    natives.push(kiwi);
+    speecher.find_voice_by_uri = function(uri) { return uri == 'English New Zealand' ? kiwi : aussie; };
+    speecher.alternate_voiceURI = 'English New Zealand';
+    speecher.alternate_voice = { enabled: true, for_buttons: true };
+    speecher.warm_voice();
+    expect(synth.spoken[0].voice).toEqual(kiwi);
+    speecher.alternate_voice = { enabled: true, for_buttons: false };
+    expect(speecher.button_voice_uri()).toEqual('English Australia');
+    speecher.alternate_voice = { enabled: false, for_buttons: true };
+    expect(speecher.button_voice_uri()).toEqual('English Australia');
+  });
+
+  it('does nothing for the force_default voice, which speak_text names no voice for', function() {
+    speecher.voiceURI = 'force_default';
+    expect(speecher.warm_voice()).toEqual(false);
+    expect(synth.spoken.length).toEqual(0);
+  });
+
+  it('does nothing on iOS, where utterance volume is ignored, or on other systems', function() {
+    capabilities.system = 'iOS';
+    expect(speecher.warm_voice()).toEqual(false);
+    capabilities.system = 'Windows';
+    expect(speecher.warm_voice()).toEqual(false);
+    expect(synth.spoken.length).toEqual(0);
+  });
+
+  it('does nothing for a voice speechSynthesis does not speak, or one the device does not list', function() {
+    speecher.voiceURI = 'tts:x';
+    expect(speecher.warm_voice()).toEqual(false);
+    speecher.voiceURI = 'missing';
+    expect(speecher.warm_voice()).toEqual(false);
+    natives = [];
+    speecher.voiceURI = 'English Australia';
+    expect(speecher.warm_voice()).toEqual(false);
+    expect(synth.spoken.length).toEqual(0);
+  });
+
+  it('does not mark the voice warmed when the engine is busy, so a later touch tries again', function() {
+    synth.speaking = true;
+    expect(speecher.warm_voice()).toEqual(false);
+    synth.speaking = false;
+    expect(speecher.warm_voice()).toEqual(true);
+    expect(synth.spoken.length).toEqual(1);
+  });
+
+  it('runs on a pointerdown anywhere on the page once setup has run', function() {
+    var calls = 0;
+    stub(speecher, 'warm_voice', function() { calls++; });
+    speecher.warm_voice_on_touch();
+    speecher.warm_voice_on_touch();
+    document.body.dispatchEvent(new window.PointerEvent('pointerdown', { bubbles: true }));
+    expect(calls).toEqual(1);
   });
 });

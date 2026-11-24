@@ -60,8 +60,7 @@ id if still open):
 - `lib/purchasing2.rb` — an apparently abandoned Stripe Checkout Session rewrite, never wired in.
 - `app/frontend/app/components/stats/num-rows1.js` through `num-rows4.js` — no template, no
   references anywhere.
-- `app/frontend/app/components/stats/parts-of-speech-flow.js` — superseded by
-  `stats/parts-of-speech-pie`.
+- `app/frontend/app/components/stats/parts-of-speech-flow.js` — a superseded parts-of-speech chart.
 - `app/frontend/app/components/setup/extra-supervisors.js` — reachable only via a dynamic
   `{{component}}` dispatch whose allowlist never includes it; verify the same allowlist
   (`app/frontend/app/controllers/setup.js`) before ruling on any `setup/*` component.
@@ -86,7 +85,33 @@ never set `verified-closed`: only Scot closes findings, and the adversary verifi
 first. If nothing meets the confidence bar, return `"findings": []` with a short `"note"` — an
 empty result is a valid, honest outcome for this domain.
 
-No `memory: project` directive here on purpose: the other five finders declare one, but with no
-Write tool and `audit-readonly-guard.sh` denying writes unconditionally, that policy can never
-actually persist anything (see finding `LL-e14ca0ff04`). Don't re-add it to this agent until
-that defect is resolved system-wide.
+**Coverage block (required).** That object also carries this block, the same shape in every finder:
+`"coverage": { "examined": ["<item id>"], "notReached": [{ "item": "<item id>", "reason": "<short
+reason>" }], "standingLimits": ["<short string>"] }`. `examined` and `notReached` together list
+every item in your checklist, and `notReached` may be an empty list. Item ids are `class-<n>`, the
+numbered class 1 to 10 under "Detection classes" in the `code-hygiene-audit` skill. An item counts
+as examined only if you checked it across the whole scan scope your skill names at the audited SHA,
+whatever your prompt says: a sampled, partly read or prompt-narrowed item goes in `notReached`. An
+item whose evidence is a document outside this repo stays in `notReached` until the orchestrator has
+handed you that document and you have read it. `standingLimits` holds only these three things a repo
+read cannot answer, each string starting with the item id it limits (`<item id>: vendor internals`):
+callers outside the repo, vendor internals, and provider-side key revocation without the provider
+console. An item you ran out of time for or had no access to is `notReached`, never a standing
+limit. `/audit-run` Step 2c decides the coverage stamp from this block.
+
+**Public-text rule.** Findings go to a public register. No finding field may carry a value from a
+live read (an account ID, a resource name, a config value), a secret, customer data, or a
+description of what this run did not reach. A `type:"code"` snippet stays verbatim, because
+committed source is already public. `note` and the `coverage` block are never committed to this
+repo.
+
+**Live reads handed to you.** In a full run the orchestrator may hand you production
+feature-flag values (`/audit-run` Step 1b). They are not static evidence, so they never support a
+finding. Check them against the "Stale feature-flag branch" class, and say in `note` that you used
+them and which branches they show unused in production: Step 2c counts the read only if you confirm
+you used it. The orchestrator holds the note in the private run record, and Scot decides whether to
+file anything from it.
+
+`memory:` is intentionally unset: with no Write tool and `audit-readonly-guard.sh` denying writes
+unconditionally, a memory policy could never persist anything. A fresh run re-verifies against live
+code at the audited SHA.

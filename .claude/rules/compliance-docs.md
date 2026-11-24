@@ -9,14 +9,21 @@ paths:
 - `audit-reports/FINDINGS.json` and `audit-reports/DOCUMENT-REGISTER.json` are the
   single source of truth. Rendered `.md` files and Notion pages are generated from them;
   never hand-edit a rendered artifact.
-- Before every push that touches these paths run `scripts/regenerate-register.sh --check`
-  (it mirrors the `audit-artifacts-integrity` CI job). If a FAIL names an **attested**
+- Before every push that touches these paths run `scripts/regenerate-register.sh --check`.
+  It covers most of the `audit-artifacts-integrity` CI job, not all of it: also run the
+  disclosure guard and the base-pinned naming check listed in `/pr-preflight` P3. If a FAIL names an **attested**
   row, stop: attested bytes are frozen. Supersede with a new dated file through
   `/re-attest-record`; never edit the attested file in place.
 - Only Scot closes a finding, downgrades severity, accepts risk, or attests a document.
   `audit-merge.rb` only ever adds findings or marks them open.
-- Restamping `meta.auditedSha` is a governance act. Only a whole-tree `/audit-run` passes
-  `--sha` bare; any other addition uses `audit-merge.rb --sha <trueCommit> --no-restamp`.
+- Restamping `meta.auditedSha` is a governance act. Only an `/audit-run` (the annual formal run
+  or an ad hoc run) passes `--sha` bare; any other addition uses
+  `audit-merge.rb --sha <trueCommit> --no-restamp`.
+- Audit cadence: one formal full `/audit-run` per year (calendar row `rev-audit-run-annual-full`).
+  There is no quarterly or monthly requirement. `/audit-run` stays available for ad hoc runs, and
+  an ad hoc run needs no sign-off stamp PR (`.claude/skills/audit-run/SKILL.md`, "Cadence").
+- Add a gate, review round, attestation or consent step only when a law, a signed contract or a
+  real incident calls for it, and name which.
 - No student or patient data ever appears in a finding, a snippet, or a legal doc.
   Evidence is code and config only.
 - When you change a claim in one compliance doc, sweep the others:

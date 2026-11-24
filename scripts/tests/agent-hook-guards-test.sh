@@ -192,6 +192,19 @@ write_case ALLOW 'audit-reports/compliance-calendar.json'
 write_case ALLOW 'docs/legal/2026-09-13_example-record.md'
 write_case ALLOW 'audit-reports/regulatory-watch-2026-09-13.md'
 
+# The run-receipt canary every finder fires first; scripts/audit-fanout-gate.rb relies on this deny.
+echo "== finder guard: fan-out canary =="
+run_case "$RO" DENY 'mktemp --dry-run'
+
+echo "== fan-out gate =="
+total=$((total + 1))
+if "$REPO_ROOT/scripts/tests/audit-fanout-gate-test.sh"; then
+  printf '  ok   audit-fanout-gate-test\n'
+else
+  printf '  FAIL audit-fanout-gate-test\n'
+  fails=$((fails + 1))
+fi
+
 echo
 if [ "$fails" -eq 0 ]; then
   echo "agent-hook-guards-test: OK ($total cases)"

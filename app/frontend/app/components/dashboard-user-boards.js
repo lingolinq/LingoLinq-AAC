@@ -18,9 +18,9 @@ export default Component.extend({
      (controllers/board-picker#_resolve_setup_user); null on your own account, so
      Ember drops the param and the picker runs its self flow. Global id, not
      user_name — the picker compares the param against `setup_user.id`. */
-  homeBoardPickerUserId: computed('user.id', 'appState.currentUser.id', function() {
-    var card_user_id = this.get('user.id');
-    if(!card_user_id || card_user_id === this.get('appState.currentUser.id')) { return null; }
+  homeBoardPickerUserId: computed('user.id', 'user.global_id', 'appState.currentUser.id', 'appState.sessionUser.id', function() {
+    var card_user_id = backend_user_id(this.get('user')); // backend id, never 'self' (utils/backend_user_id.js)
+    if(!card_user_id || same_person(this.get('user'), this.get('appState.currentUser'), this.get('appState.sessionUser'))) { return null; } // the 'self'- and real-id-keyed records are one person
     return card_user_id;
   }),
 
@@ -98,10 +98,10 @@ export default Component.extend({
     if (!user || !this.get('isActive') || !c) {
       return;
     }
-    var prevId = c.get('model.id');
+    var prevId = backend_user_id(c.get('model')); // backend ids: the 'self' record and the real-id record are one person
     c.set('model', user);
     c.set('parent_object', null);
-    if (prevId !== user.get('id')) {
+    if (prevId !== backend_user_id(user)) {
       c.set('filterString', '');
       c.set('filterStringDebounced', '');
       c.set('boards_display_limit', null);
@@ -154,3 +154,5 @@ export default Component.extend({
     }
   }
 });
+
+import backend_user_id, { same_person } from '../utils/backend_user_id';

@@ -5,11 +5,33 @@ class UserMailer < ActionMailer::Base
   default from: ENV['DEFAULT_EMAIL_FROM']
   layout 'email'
   
+  # Turns email off for every account on a permanently bounced address, recording why and
+  # when. The 'bounce' reason is what lets password reset through
+  # (Api::UsersController#forgot_password). An account already off is left as it is: a repeat
+  # bounce would only add a version, and an account turned off for another reason (a shared
+  # demo login, DemoDistrict::Seeder.disable_email!) must not become resettable.
+  # Written on a locked fresh row without touching updated_at (User.update_settings_locked):
+  # updated_at is the inactivity sweep's activity clock (Subscription), and a bounce of the
+  # sweep's own warning is not use of the account. Versioned by PaperTrail when the caller sets a
+  # whodunnit (SesEventsWorker does). Raises BounceNotSaved when a save did not land, so
+  # SesEventsWorker leaves the event on the queue; a re-run skips accounts already turned off.
+  class BounceNotSaved < StandardError; end
+
   def self.bounce_email(email)
     hash = User.generate_email_hash(email)
-    users = User.where(:email_hash => hash)
-    users.each do |user|
-      user.update_setting('email_disabled', true)
+    User.where(:email_hash => hash).pluck(:id).each do |user_id|
+      res = User.update_settings_locked(user_id, touch: false) do |fresh|
+        next false if fresh.settings['email_disabled']
+        fresh.settings['email_disabled'] = true
+        fresh.settings['email_disabled_reason'] = 'bounce'
+        fresh.settings['email_disabled_at'] = Time.now.utc.iso8601
+        true
+      end
+      # nil: the account is gone; false: already off. update_settings_locked does not report the
+      # save's result, so a written account is read back to confirm the flag landed.
+      if res && !User.find_by(id: user_id)&.settings&.dig('email_disabled')
+        raise BounceNotSaved, "email_disabled not saved"
+      end
     end
   end
 
@@ -314,6 +336,7 @@ class UserMailer < ActionMailer::Base
     @offboarding = !!c['offboarding']
     # COPPA direct-notice: surface our privacy practices to the parent before they consent.
     @privacy_url = "#{JsonApi::Json.absolute_host}/privacy"
+    @ai_disclosure_url = "#{JsonApi::Json.absolute_host}/ai_consent/disclosures/#{LingoLinq::AiConsentDisclosures::CURRENT_VERSION}"
     @child_name = @user.display_name
     @parent_email = c['parent_email']
     @consent_age = JsonApi::Json.coppa_consent_age(@user)
@@ -433,6 +456,7 @@ class UserMailer < ActionMailer::Base
     esc_tok = CGI.escape(c['parent_consent_token'].to_s)
     @consent_url = "#{JsonApi::Json.absolute_host}/eu_ai_parental_consent/complete?user_id=#{@user.global_id}&token=#{esc_tok}"
     @privacy_url = "#{JsonApi::Json.absolute_host}/privacy"
+    @ai_disclosure_url = "#{JsonApi::Json.absolute_host}/ai_consent/disclosures/#{LingoLinq::AiConsentDisclosures::CURRENT_VERSION}"
     @child_name = @user.display_name
     @parent_email = c['parent_email']
     from = JsonApi::Json.current_domain['settings']['admin_email']

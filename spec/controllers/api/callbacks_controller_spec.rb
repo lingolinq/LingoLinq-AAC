@@ -149,20 +149,16 @@ describe Api::CallbacksController, :type => :controller do
           expect(job_args[:user_metadata]['audio_id']).to eq(bs.global_id)
           expect(job_args[:settings][:inputs][0][:file_input]).to eq("s3://lingolinq-test-uploads/sounds/4/3/0-something.wav")
           job.user_metadata = job_args[:user_metadata].with_indifferent_access
-          job.output_group_details = [
-            OpenStruct.new({
-              output_details: [
-                OpenStruct.new({
-                  duration_in_ms: 111_000,
-                  output_file_paths: ["s3://lingolinq-test-uploads/#{prefix}.mp3"]
-                }),
-                OpenStruct.new({
-                  duration_in_ms: 111_000,
-                  output_file_paths: ["s3://lingolinq-test-uploads/#{prefix}.wav"]
-                })
-              ]
-            })
-          ]
+          job.status = 'COMPLETE'
+          # GetJob echoes the destination the job was submitted with; the output
+          # paths themselves arrive in the COMPLETE event below.
+          destination = job_args[:settings][:output_groups][0][:output_group_settings][:file_group_settings][:destination]
+          expect(destination).to eq("s3://lingolinq-test-uploads/#{File.dirname(prefix)}/")
+          job.settings = OpenStruct.new(output_groups: [
+            OpenStruct.new(output_group_settings: OpenStruct.new(
+              file_group_settings: OpenStruct.new(destination: destination)
+            ))
+          ])
         }.and_return(resp)
 
         expect(config).to receive(:get_job).with({id: 'onetwo'}).and_return(resp)
@@ -180,7 +176,14 @@ describe Api::CallbacksController, :type => :controller do
           'source' => 'aws.mediaconvert',
           'detail' => {
             'jobId' => 'onetwo',
-            'status' => 'COMPLETE'
+            'status' => 'COMPLETE',
+            'outputGroupDetails' => [{
+              'type' => 'FILE_GROUP',
+              'outputDetails' => [
+                {'outputFilePaths' => ["s3://lingolinq-test-uploads/#{prefix}.mp3"], 'durationInMs' => 111_000},
+                {'outputFilePaths' => ["s3://lingolinq-test-uploads/#{prefix}.wav"], 'durationInMs' => 111_000}
+              ]
+            }]
           }
         }.to_json }.to_json
         expect(response).to be_successful
@@ -203,6 +206,19 @@ describe Api::CallbacksController, :type => :controller do
         expect(response).to be_successful
         json = JSON.parse(response.body)
         expect(json).to eq({'handled' => true})
+      end
+
+      it "should answer 503 so SNS redelivers when GetJob has not caught up with the event" do
+        v = OpenStruct.new
+        expect(Aws::SNS::MessageVerifier).to receive(:new).and_return(v)
+        expect(v).to receive(:authentic?).and_return(true)
+        expect(Transcoder).to receive(:handle_event).and_return(:retry)
+        request.headers['x-amz-sns-message-type'] = 'Notification'
+        request.headers['x-amz-sns-topic-arn'] = 'arn:aws:sns:us-west-2:123:lingolinq-mediaconvert-events'
+        post 'callback', body: {a: '1'}.to_json
+        expect(response.status).to eq(503)
+        json = JSON.parse(response.body)
+        expect(json['error']).to eq('job not complete yet')
       end
     end
 
@@ -352,6 +368,25 @@ describe Api::CallbacksController, :type => :controller do
         expect(Transcoder).to receive(:handle_event).and_raise(Aws::MediaConvert::Errors::ServiceError.new(nil, 'boom'))
         expect { post 'callback', body: mediaconvert_event(complete_detail) }.to raise_error(Aws::MediaConvert::Errors::ServiceError)
         expect(io.string).to include('1789855178463-xw2g13')
+      end
+
+      env_wrap({'MEDIACONVERT_ROLE_ARN' => 'arn:aws:iam::123:role/MediaConvert', 'UPLOADS_S3_BUCKET' => 'lingolinq-test-uploads'}) do
+        it "should log why it rejected an event, without keys" do
+          authentic!
+          job = OpenStruct.new(id: '1789855178463-xw2g13', status: 'COMPLETE',
+            user_metadata: complete_detail['userMetadata'],
+            settings: OpenStruct.new(output_groups: [OpenStruct.new(output_group_settings: OpenStruct.new(
+              file_group_settings: OpenStruct.new(destination: 's3://lingolinq-test-uploads/other/dir/')))]))
+          config = OpenStruct.new
+          expect(config).to receive(:get_job).and_return(OpenStruct.new(job: job))
+          expect(Transcoder).to receive(:config).and_return(config)
+          post 'callback', body: mediaconvert_event(complete_detail)
+          expect(response.status).to eq(400)
+          expect(io.string).to match(/Transcoder.handle_event rejected job=1789855178463-xw2g13: no mp3 output/)
+          expect(io.string).to_not include(digest)
+          expect(io.string).to_not match(/\h{32,}/)
+          expect(io.string).to_not include(transcoding_key)
+        end
       end
 
       env_wrap({'SNS_ARNS' => 'bacon,fried'}) do
