@@ -498,10 +498,8 @@ re-read; log: `2026-11-20_sync-proposal-implementation.md`). Labels as before: *
     tests `record.important` (:429), so every row persisted over a week ago is `outdated`, and
     `usable_database_copy` rejects it. On browsers with no file storage this likely re-downloads week-old pictures
     on every sync (*to measure in phase 0*). New item 1.7.
-  - **Pictures survive account deletion (existing erasure gap, not caused by this work).** `flush_user_content`
-    sweeps ButtonSounds and UserVideos by `user_id` but not ButtonImages (`lib/flusher.rb:456-461`); boards reach
-    images only through `BoardButtonImage` rows, which nothing writes (`app/models/board.rb:1717`). Not in the
-    findings register. Phase 2's erasure work depends on the fix; how it is tracked is Scot's call (12.6).
+  - **Account-deletion erasure gap:** already open in the register. Phase 2's erasure work depends on the fix; detail in the
+    private notes.
   - **Device storage facts that shape phase 2** (*Traced*, spot-checked): one picture folder per device shared by
     every user; file names are a deterministic function of the URL plus the content type's extension; nothing counts
     references, and `store_url_now` deletes the file at a url's name before every write (`services/persistence.js:1758`,
@@ -723,6 +721,17 @@ PR (Traci's instruction); review is sized to it: `/review-pr` plus `/adversary-r
   merges.
 - **Server-side off switches** for each new device-format writer (2.1 renditions, 2.2 hash rows, 2.4 Blobs): one
   setting each, on by default, as a rollback tool (not a user-facing flag).
+
+**Building without waiting on Scot (PROPOSED 2026-11-24, for Traci to decide; supersedes the list below if accepted):**
+- 1.4 compression: ships behind an ENV switch, off by default; measured locally; Traci decides when to try it on dev.
+- 2.1 smaller copies: a capped, self-pacing job, off by default; it checks for WebP support at run time and does nothing
+  without it, so no production count or image check is needed first.
+- 2.3: first delete only pictures no other person's board uses, with their derived files; shared pictures stay as today
+  until the hand-over policy is settled.
+- 2.5 button sets direct: the CDN allowed any origin on an `extras/` path (2026-11-24, a missing file); a real file is
+  untested, so it ships with the proxy as fallback and a server off switch.
+- 2.6 caching: only on the new copies, whose keys never change; originals untouched.
+- 0.4 dev's inline pictures: not needed; measurements use the synthetic seed.
 
 **From Scot:**
 - Compression on Cloud Run (1.4), CPU budget, and the proxy route.

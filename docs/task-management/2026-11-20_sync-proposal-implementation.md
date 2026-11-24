@@ -63,12 +63,8 @@ symbols (2026-11-16).
   - On the no-file path `url_cache` is never filled (rows go to `url_uncache`), so synchronous readers (board
     rendering) find those pictures only through `board_device_copy` (researcher, to verify).
 - 2026-11-20: server researcher reported. Checked here:
-  - **Existing erasure gap (CONFIRMED, not caused by this work):** `flush_user_content` deletes a person's
-    ButtonSounds and UserVideos by `user_id` (`lib/flusher.rb:456-461`) but not their ButtonImages. Board flushing
-    reaches ButtonImages only through `BoardButtonImage` rows (`lib/flusher.rb:264`), which nothing writes any more
-    (`app/models/board.rb:1717`, commented out; the comment at `lib/flusher.rb:57-66` says so). Uploaded pictures (and
-    their `.raster.png` siblings) likely survive account deletion. Not in `audit-reports/FINDINGS.json` (searched
-    2026-11-20). Raised with Traci; only Scot changes the register.
+  - **Existing erasure gap:** already open in the register (an earlier "not in the register" was wrong). Detail in
+    the private notes.
   - Researcher facts used in the plan (to re-check in each fact sheet): the 25-id cap is at
     `users_controller.rb:857`; `users#boards` uses the 30-minute permission cache (permissable gem, `expires ||= 1800`)
     while `board_revisions` uses `BoardRevisionsAccess`; `image_urls` are personalised for the CALLER; storage keys
@@ -375,24 +371,7 @@ Three read-only investigations in parallel (subagents); every load-bearing claim
 lines.
 
 ### Erasure (12.3 helper, 2.3)
-- `Uploader.remote_remove` deletes exactly one key and refuses anything not shaped `\w+/.+/\w+-\w+(\.\w+)?$` (one
-  extension after `<gid>-<sha>`), `extras...`, or a transcode exception (CONFIRMED `lib/uploader.rb:614-620`). So
-  `<key>.png.raster.png` and a future `<key>.r<size>.webp` would be refused ("scary delete").
-- `.raster.png` siblings are written for SVG uploads (`uploadable.rb:188-206, 306-326`) and **never deleted**: nothing
-  passes a raster key to `remote_remove` (CONFIRMED, grep). **An existing erasure gap**: deleting an SVG picture leaves
-  its PNG copy in the uploads bucket. Folded into the erasure helper.
-- A picture's file is removed after its row is destroyed only when no other row of the same class has the same `url`
-  (CONFIRMED `uploadable.rb:144-152`); the retry path checks three classes (`uploader.rb:86-111`). Neither counts board
-  copies, which share the original's picture ids (the cloner copies `settings['buttons']` verbatim,
-  `board_cloner.rb:99`; no new ButtonImage rows).
-- Account deletion (`Flusher.flush_user_content`, `lib/flusher.rb:419-483`) deletes the person's ButtonSounds and
-  UserVideos by `user_id`, but ButtonImages only through `flush_board_by_db_id`'s walk of BoardButtonImage rows
-  (`:255-275`), which `map_images` no longer writes (`board.rb:1717` commented out). CONFIRMED. So most pictures
-  survive an account deletion; and the aggressive board flush can destroy pictures that copies still use (the code's
-  own comment, `:256-259`). `transfer_user_content` already moves picture rows to another owner with `update_all`
-  (`:367-369`), a model for the hand-over policy.
-- Specs: uploader (`remote_remove` guard and deletes), button image destroy schedules a removal, flusher board flush;
-  nothing for rasters, nothing for pictures surviving an account deletion.
+Kept out of the public repo (the register keeps it at claim level); in the private notes.
 
 ### One permission rule (12.3, 3.1, 3.2)
 - `users#board_revisions` (`users_controller.rb:767-826`): the rule is line 803 (public and not shallow; own; shallow
@@ -436,61 +415,8 @@ lines.
 6. 3.1: the manifest endpoint, on 3.2's rule.
 
 ## Erasure helper (12.3): proposal (2026-11-23)
+Kept out of the public repo; in the private notes. Adversarially reviewed 2026-11-23; resumes after #1370.
 
-**Diagnosis.** Deleting an SVG picture whose raster LingoLinq made leaves `<full_filename>.raster.png` in the uploads
-bucket forever:
-- `schedule_remote_removal_if_unique` schedules only `remote_remove(self.url)` (`uploadable.rb:144-152`);
-- `remote_remove`'s guard would refuse the raster key anyway (`uploader.rb:619`);
-- the retry's in-use check looks only at the exact key (`uploader.rb:105-111`).
-
-Rasters LingoLinq made are marked `settings['rasterized'] == 'from_filename'` and live at
-`settings['full_filename'] + '.raster.png'` (`uploadable.rb:208-216, 233-236, 318-322`). Rasters marked `'from_url'`
-are other hosts' files (opensymbols) and must never be deleted.
-
-**Candidate A (proposed): the row names its own derived files.**
-- `Uploadable#derived_remote_keys`: the raster key when `rasterized == 'from_filename'`. It reads
-  `settings['full_filename']` directly, never `full_filename`, which saves a destroyed record. Renditions (2.1) add
-  their keys here from the sizes recorded on the row.
-- `schedule_remote_removal_if_unique` also schedules `remote_remove(key)` for each derived key, under the same
-  uniqueness gate as the original.
-- `Uploader.derived_upload_key?(path)`: a narrow, anchored grammar, like the transcode exceptions:
-  `images/(\d/)+<gid>-<128 hex>.<ext>.raster.png`. 2.1 widens it to `.r<digits>.webp`. It joins `remote_remove`'s
-  guard.
-- `remote_path_in_use?`: for a derived key it also asks whether its BASE key is in use, so a late retry never
-  deletes the raster of a picture whose url was reused.
-
-**Candidate B: list by prefix** (`list_remote_keys_with_prefix(full_filename + '.')`, like
-`remote_remove_thumbnail_family`) and delete what matches the grammar. It catches derived files the row does not know
-about. Rejected:
-- it needs S3 ListBucket, which the thumbnail code expects may be denied and works around with guessed keys
-  (`uploader.rb:430-460`);
-- it adds one LIST per deleted picture;
-- the row must know its renditions anyway (2.1's board JSON map).
-
-**Simplest alternative, rejected: widen the guard and leave it at that.** Nothing would schedule the raster's
-removal, so the gap stays.
-
-**Risks.**
-- A wrong grammar could delete a key that is not a sibling. Mitigation: anchored, and the base must be the record's
-  own shape. A spec rejects other prefixes, extra suffixes and external hosts.
-- Two rows sharing a url: the existing uniqueness gate covers both files.
-- `settings['full_filename']` missing on an old row: no derived key, the same as today.
-
-**Unresolved.**
-- Rasters already orphaned by past deletions cannot be found without listing the bucket. A one-off clean-up is
-  Scot's call (infra); noted for the Scot note.
-- Does the in-use check need to cover the raster's own url? No record stores it as its `url`: `raster_url` is
-  computed, never saved (`uploadable.rb:208-216`). Recorded here as checked.
-
-**Tests (red first).**
-- `spec/models/button_image_spec.rb`, destroying a rasterized (`from_filename`) SVG picture schedules removal of the
-  original and the raster.
-  - A `from_url` raster: only the original is scheduled.
-  - Another row sharing the url: nothing is scheduled.
-  - Mutation: drop the derived keys from the scheduler.
-- `spec/lib/uploader_spec.rb`: the guard accepts `<own key>.raster.png` and rejects `x/y.raster.png`,
-  `<own key>.raster.png.extra` and `<own key>.raster.jpg`. The retry drops a derived key whose base is in use.
-  - Mutation: loosen the grammar, and remove the base in-use check.
 - 2.1 prerequisite check (2026-11-23): local ImageMagick 6.9.12 reads and writes WEBP (libwebp 1.3.2), and
   `config/imagemagick/policy.xml` is a denylist that does not name WEBP (CONFIRMED). Production's image installs
   Debian's `imagemagick` (`Dockerfile:28-38`); WebP there is ASSUMED until `convert -list format` is run in the built
