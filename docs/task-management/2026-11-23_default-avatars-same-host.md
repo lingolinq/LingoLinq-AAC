@@ -168,3 +168,47 @@ Not covered:
   on the next sync.
 - Whether each deployed bucket still serves `avatars/`: no longer needed for anything this change maps.
 - Not run on a device or a deployed site; the native apps were not run.
+
+## Codex review of PR #1368 (7eee24c62): one P2, confirmed
+
+Finding: a contact added through an organization's custom domain saves that host in `settings['contacts']`; if the
+domain is later removed, `DefaultAvatar.app_host?` no longer recognises it, the readers return it unchanged, and the
+picture breaks once the domain stops serving the app.
+
+Checked here: CONFIRMED, and it is not only contacts. Every writer that SAVES a default avatar address saves it on
+`JsonApi::Json.absolute_host`, i.e. the request's host:
+- S1 contact added without a picture (`app/models/user.rb:3318`), or with a default one sent by the client (stored as sent).
+- S2 `process_params` (`app/models/user.rb:2850-2860`): a default that is not the person's own (picking avatar-3) is
+  stored as the absolute address; `prior_avatar_urls` copies it (`:2856-2858`).
+- S3 `LogSession.find_reply` (`app/models/log_session.rb:1219-1224`): the reply's `prior_contact` is the prior note's
+  `author_contact` or `sender.generated_avatar_url`, saved into the new note's data (`:1276`).
+- Copies: `author_contact` (`log_session.rb:1771`) and the utterance contacts (`utterance.rb:108,209`) come from
+  `lookup_contact` (`user.rb:3918-3924`), i.e. a saved contact, so they inherit S1's form.
+Readers of saved values (all map through `DefaultAvatar`, CONFIRMED by grep of `image_url` in app/ lib/):
+`generated_avatar_url` (`user.rb:2412`), `prior_avatar_urls` (`:2425`), `json_api/user.rb:67`, `alert.rb:18,21`,
+`log.rb:41`, `utterance.rb:32`. The mailer reads only the contact name (`user_mailer.rb:123`).
+`DefaultAvatar.index` already accepts the relative `/avatars/avatar-N.png` (APP_URL, host nil) and maps it to the
+current host.
+
+Red tests (fail before the fix, 2 of 2, for the right reason: the saved value carries `https://staging.lingolinq.com`):
+"saves a default avatar without a host, and shows it on the current host" and "saves the sender's default avatar in a
+reply without a host" (`spec/models/user_spec.rb`).
+
+### Proposal
+
+A (chosen): save the host-free path `/avatars/avatar-N.png` at S1, S2, S3 via `DefaultAvatar.stored(url)` (a default
+address of any recognised shape becomes the path; anything else is returned unchanged) and `DefaultAvatar.path(n)`.
+Readers are unchanged and already put the current host on it. The person's own default is still saved as 'fallback'.
+B: a marker such as `default-avatar:N`. Rejected: not a usable URL anywhere, so old code (a rollback) and any reader
+missed would show nothing; A degrades to a working relative URL on the web.
+C: save on `ENV['DEFAULT_HOST']`. Rejected: ties saved data to one environment's host; staging and dev share a database
+and DEFAULT_HOST can change.
+
+Risks: a reader that does not map would hand the relative path to a native app (file://) and break there; the grep
+above found none. Rollback to code without this change shows the relative path as-is (works on the web, not in the
+native apps) for rows saved meanwhile. Saved values from before this change are untouched (mapped on read as before).
+Unresolved: none found.
+Mutation that must turn the tests red: drop `DefaultAvatar.stored` at any one of S1, S2, S3.
+Test change: my own new example in this PR, "gives a contact added without a picture an avatar on the app's host",
+asserted the SAVED contact address is absolute; that is the behaviour Codex flagged, so its first assertion changes to
+the host-free path (the JSON assertion beside it already checks the shown address).

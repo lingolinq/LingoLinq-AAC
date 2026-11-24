@@ -3974,6 +3974,45 @@ describe User, :type => :model do
         expect(contact_note.reload.data['author_contact']['image_url']).to eq(bucket_avatar(3)) # stored value untouched
       end
 
+      # Codex review of PR #1368: a default saved with the request's host breaks once that host
+      # (an organization's custom domain) is retired, because the readers only map hosts this
+      # app still serves. Saved defaults carry no host; readers put the current host on them.
+      it "saves a default avatar without a host, and shows it on the current host" do
+        ENV['DEFAULT_HOST'] = 'dev.lingolinq.com' # staging is trusted next to a non-production default (restored by around)
+        JsonApi::Json.set_host('https://staging.lingolinq.com')
+        u = User.create
+        u.process({'offline_actions' => [
+          {'action' => 'add_contact', 'value' => {'contact' => 'bob@example.com', 'name' => 'Bob'}},
+          {'action' => 'add_contact', 'value' => {'contact' => 'ann@example.com', 'name' => 'Ann', 'image_url' => 'https://staging.lingolinq.com/avatars/avatar-2.png'}}
+        ]})
+        contacts = u.reload.settings['contacts']
+        expect(contacts.detect { |c| c['name'] == 'Bob' }['image_url']).to match(%r{\A/avatars/avatar-\d\.png\z})
+        expect(contacts.detect { |c| c['name'] == 'Ann' }['image_url']).to eq('/avatars/avatar-2.png')
+        json = JsonApi::User.build_json(u, permissions: u)
+        expect(json['contacts'].detect { |c| c['name'] == 'Ann' }['image_url']).to eq('https://staging.lingolinq.com/avatars/avatar-2.png')
+
+        other = (u.id + 1) % 10
+        u.process({'avatar_url' => "https://staging.lingolinq.com/avatars/avatar-#{other}.png"})
+        expect(u.reload.settings['avatar_url']).to eq("/avatars/avatar-#{other}.png")
+        expect(u.generated_avatar_url).to eq("https://staging.lingolinq.com/avatars/avatar-#{other}.png")
+        u.process({'avatar_url' => 'http://www.example.com/pic.png'})
+        expect(u.reload.settings['prior_avatar_urls']).to eq(["/avatars/avatar-#{other}.png"])
+      end
+
+      it "saves the sender's default avatar in a reply without a host" do
+        ENV['DEFAULT_HOST'] = 'dev.lingolinq.com' # staging is trusted next to a non-production default (restored by around)
+        JsonApi::Json.set_host('https://staging.lingolinq.com')
+        u = User.create
+        d = Device.create(user: u)
+        note = LogSession.create(user: u, author: u, device: d, log_type: 'note', data: {'note' => {'text' => 'hello'}})
+        reply = LogSession.find_reply(note.global_id, u)
+        expect(reply[:contact]['image_url']).to eq("/avatars/avatar-#{u.id % 10}.png")
+
+        note.data['author_contact'] = {'name' => 'Bob', 'image_url' => 'https://staging.lingolinq.com/avatars/avatar-4.png'}
+        note.save
+        expect(LogSession.find_reply(note.global_id, u)[:contact]['image_url']).to eq('/avatars/avatar-4.png')
+      end
+
       it "gives the Unknown User modifier of a version the avatar on the app's host" do
         User.create
         PaperTrail.request.whodunnit = 'something'
