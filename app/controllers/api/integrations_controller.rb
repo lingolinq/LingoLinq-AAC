@@ -83,6 +83,7 @@ class Api::IntegrationsController < ApplicationController
     overrides['settings'] = (overrides['settings'] || {})
       .merge(coppa_consent_age_injection)
       .merge(compliance_kernel_injection)
+      .merge(enabled_frontend_features_injection)
     render json: overrides.to_json
   end
 
