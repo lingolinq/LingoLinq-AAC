@@ -1886,7 +1886,7 @@ describe User, :type => :model do
       expect(bob['cell_phone']).to eq(false)
       expect(bob['email']).to eq('bob@example.com')
       expect(bob['contact_type']).to eq('email')
-      expect(bob['image_url']).to match(%r{\A#{Regexp.escape(JsonApi::Json.absolute_host)}/avatars/avatar-\d\.png\z}) # the app's own copy (Traci, 2026-11-23)
+      expect(bob['image_url']).to match(%r{\A/avatars/avatar-\d\.png\z}) # the app's own copy, saved without a host (Traci, 2026-11-23)
       u.process({'offline_actions' => [
         {'action' => 'remove_contact', 'value' => hash}
       ]})
@@ -1908,7 +1908,7 @@ describe User, :type => :model do
       expect(gp['cell_phone']).to eq("(555)123-4567,55580192831")
       expect(gp['email']).to eq(false)
       expect(gp['contact_type']).to eq('sms')
-      expect(gp['image_url']).to match(%r{\A#{Regexp.escape(JsonApi::Json.absolute_host)}/avatars/avatar-\d\.png\z}) # the app's own copy (Traci, 2026-11-23)
+      expect(gp['image_url']).to match(%r{\A/avatars/avatar-\d\.png\z}) # the app's own copy, saved without a host (Traci, 2026-11-23)
     end
 
     describe "validated_org_author" do
