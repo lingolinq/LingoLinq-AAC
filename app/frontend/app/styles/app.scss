@@ -9917,6 +9917,14 @@ body.pretty_loader #loading_box {
     font-size: 25px;
     margin-bottom: 5px;
   }
+  /* The full-width upload button cannot share a line with "Record Video", so an inline
+     .file_select_holder splits across two lines and its overlaid file input is sized from
+     the empty first fragment (0px wide). As a block it holds the button whole and the
+     input covers it, so a click opens the file picker instead of submitting the
+     surrounding note form (tests/integration/components/video-recorder-upload-test.js). */
+  .file_select_holder {
+    display: block;
+  }
 }
 /* Applied in: index.hbs, dashboard/authenticated-view.hbs - main_columns class on index_view div */
 .main_columns .col {
