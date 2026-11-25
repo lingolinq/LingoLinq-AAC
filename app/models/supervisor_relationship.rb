@@ -64,8 +64,11 @@ class SupervisorRelationship < ApplicationRecord
   end
 
   def self.expire_stale_requests!
+    expired_count = 0
     expired_pending.find_each do |rel|
       rel.update!(status: 'expired')
+      expired_count += 1
     end
+    expired_count
   end
 end
