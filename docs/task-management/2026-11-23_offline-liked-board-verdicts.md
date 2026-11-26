@@ -108,3 +108,16 @@ Recorded, not fixed: two separate storage faults in a row can still lose a refus
 store's owner is checked before the read, and the database cannot change without a reload today.
 `sync_send_utterance` "a changed sentence...": 1 failure in 3 earlier wide runs, then 0 of 6 here and 0 of 6 on develop
 (prebuilt, alternating). No branch code touches it; the failing run's message was not kept, so the cause is UNKNOWN.
+
+## Browser check (2026-11-25), Chromium through the real app
+Local stack (Rails from this worktree, `ember serve` on 8184), test account `example`, another owner's board liked
+(`lingolinq/vocal-flair-60`; the like's background job run inline with a Rails runner, since the local queue held about
+11,700 other jobs; unliked afterwards). A real sync reached it ('cached', in `answered`, verdict saved). Five stopped
+syncs and (case 2) one refusal were written through the app's own `record_sync_log` in the sync's entry shapes (the
+server was not made to refuse a board). Then a page reload, offline, Modern boards page and Basic's Boards tab:
+| Case | This branch | develop's code (the six changed files swapped back) |
+|---|---|---|
+| seen, then 5 stopped syncs | listed on both pages; the verdict restored from the device after the reload | missing on both pages (the bug) |
+| refused, then 5 stopped syncs | hidden on both pages | not run |
+Local Rails crashed once mid-run (a segmentation fault in ethon/libcurl in a forked puma worker); restarted with
+`WEB_CONCURRENCY=0`. Not related to this branch (no backend change).
