@@ -2970,12 +2970,12 @@ export default Service.extend({
       this.stashes.persist('browse_history', hist);
     }
   },
-  feature_flags: computed('currentUser.feature_flags', function() {
-    var res = this.get('currentUser.feature_flags') || {};
-    (window.enabled_frontend_features || []).forEach(function(feature) {
-      emberSet(res, feature, true);
-    });
-    return res;
+  feature_flags: computed('currentUser.feature_flags', 'domain_settings', function() {
+    var settings = this.get('domain_settings') || {};
+    var windowList = (typeof window !== 'undefined' && window.enabled_frontend_features) || [];
+    return resolve_feature_flags(this.get('currentUser.feature_flags'),
+      windowList,
+      settings.enabled_frontend_features);
   }),
   beta_program_access: computed('currentUser.preferences.beta_program_access', function() {
     return !!this.get('currentUser.preferences.beta_program_access');
@@ -5546,3 +5546,21 @@ export function logout_already_under_way(session) {
 // Placed last so the import does not shift the ESLint baseline rows above. Imports are hoisted.
 import { board_saved_here, warn_board_not_saved } from '../utils/board_device_copy';
 import backend_user_id, { same_person, backend_id_of } from '../utils/backend_user_id';
+
+/* A loaded user's feature_flags come from FeatureFlags.frontend_flags_for and already
+ * follow System Settings. The window list (globals.js, fixed at asset build) and the
+ * domain_settings list (per request) apply only while nobody is signed in. An empty
+ * domain list is a real "all off", not a cue to fall back to the window list. */
+export function resolve_feature_flags(userFlags, windowList, domainList) {
+  if (userFlags) {
+    return userFlags;
+  }
+  var list = Array.isArray(domainList) ? domainList : (windowList || []);
+  var fallback = {};
+  list.forEach(function(feature) {
+    if (feature) {
+      fallback[feature] = true;
+    }
+  });
+  return fallback;
+}
