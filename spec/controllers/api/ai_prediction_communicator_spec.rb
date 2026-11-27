@@ -4,6 +4,11 @@ require 'spec_helper'
 # names the communicator (user_id), and the communicator's own AI block applies on top of the
 # signed-in person's, so a stale client copy of a blocked child cannot reach AI.
 describe 'AI word prediction for the communicator being spoken for', :type => :controller do
+  # The signed-in person's AI data-sharing consent (#1136, on develop) is a separate check with its
+  # own specs. This group tests the communicator's block, so it answers that check as develop's
+  # call-site suites do (spec/support/ai_consent.rb).
+  include_context 'ai data-sharing consent given'
+
   def handed_back_child
     u = User.create
     u.settings['school_authorization_ended'] = {'basis' => 'school_official', 'ended_at' => Time.now.utc.iso8601}
