@@ -167,9 +167,14 @@ var ai_word_predictor = {
 
   // The predict request body. Speaking as someone, it names them (user_id) so the server applies
   // their own AI block as well as the signed-in person's (#1063, words_controller.rb#predict).
+  // Both callers pass their app state. Without one it falls back to the global, and a torn-down
+  // one counts as absent (the live_service test, inline because a new import line would shift this
+  // file's .eslint-todo rows); the server still checks the signed-in person.
   _request_data: function(sentence, locale, count, appStateService) {
     var data = { sentence: sentence, locale: locale, count: count };
-    var communicatorId = aiFeatureGate.predictionCommunicatorId(appStateService || app_state);
+    var globalState = window.LingoLinq && window.LingoLinq.appState;
+    var state = appStateService || ((globalState && !globalState.isDestroyed && !globalState.isDestroying) ? globalState : null);
+    var communicatorId = aiFeatureGate.predictionCommunicatorId(state);
     if(communicatorId) { data.user_id = communicatorId; }
     return data;
   },
