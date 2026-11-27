@@ -1676,14 +1676,20 @@ class User < ApplicationRecord
 
   # True when this account's AI data-sharing consent has to come from a parent or
   # guardian, never from the account itself: any COPPA record at all (pending,
-  # approved, declined or revoked), an EU under-16 registration, or an account a
-  # school created with no age on file showing 13 or over. That last rule is the one
+  # approved, declined or revoked), an EU under-16 registration, an ended school
+  # authorization (#1063), or an account a school created with no age on file
+  # showing 13 or over. That last rule is the one
   # License uses when a seat ends (school authorization and no birth month means
   # treat as under 13): a school-created account that has left its district must not
   # be able to agree for itself.
   def ai_consent_parent_route?
     coppa = self.settings && self.settings['coppa']
     return true if coppa.is_a?(Hash) && coppa.present?
+    # A child the school handed back (#1063), or an attested under-13 released with no school
+    # authorization: the release writes school_authorization_ended and no COPPA record, so it
+    # counts here as the COPPA record did before.
+    ended = self.settings && self.settings['school_authorization_ended']
+    return true if ended.is_a?(Hash) && ended.present?
     school = self.settings && self.settings['school_authorization']
     if school.is_a?(Hash) && school.present?
       reg = self.settings['registration'].is_a?(Hash) ? self.settings['registration'] : {}

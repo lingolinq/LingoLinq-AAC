@@ -479,6 +479,48 @@ describe 'School-authorized hand-back to the family (#1063)', type: :model do
     end
   end
 
+  # #1136 (on develop) lets an account agree to AI data sharing for itself unless its consent has to
+  # come from a parent (User#ai_consent_parent_route?). That check found a school-created child by
+  # its settings['coppa'] record or its school_authorization. The hand-back now writes neither, so
+  # it reads school_authorization_ended as well.
+  describe 'AI data-sharing consent after the release' do
+    def released!(suffix:, keep_school_authorization: true)
+      o = Organization.create(settings: {'total_licenses' => 1, 'jurisdiction' => 'US'})
+      License.create!(organization: o, seat_type: 'student', status: 'active')
+      u = school_authorized_user!(suffix: suffix, ai_on: true)
+      unless keep_school_authorization
+        u.settings.delete('school_authorization')
+        u.save!
+      end
+      o.claim_user(u)
+      b = under13_birth
+      o.remove_user(u.user_name, birth_month: b[:month], birth_year: b[:year])
+      u.reload
+    end
+
+    def self_grant!(u)
+      u.grant_ai_consent!(disclosures_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION,
+                          granted_by: 'account_holder', source: 'in_app', granted_by_user_id: u.global_id)
+    end
+
+    it 'does not let a handed-back child agree for themselves' do
+      u = released!(suffix: 'ai_consent_handback')
+      expect(handed_off?(u)).to eq(true)
+
+      expect(u.ai_consent_parent_route?).to eq(true)
+      expect { self_grant!(u) }.to raise_error(ArgumentError, 'parental_consent_required')
+      expect(u.reload.settings['ai_consent']).to be_blank
+    end
+
+    it 'does not let an attested under-13 released with no school authorization agree for themselves' do
+      u = released!(suffix: 'ai_consent_noauth', keep_school_authorization: false)
+      expect(u.settings['school_authorization_ended']['basis']).to eq('none_on_file')
+
+      expect(u.ai_consent_parent_route?).to eq(true)
+      expect { self_grant!(u) }.to raise_error(ArgumentError, 'parental_consent_required')
+    end
+  end
+
   describe 'which organizations still count as supporting the student' do
     def remove_from(org, u)
       b = under13_birth
