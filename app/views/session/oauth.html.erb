@@ -183,8 +183,9 @@
         }
       }
     };
-    var path = "/api/v1/token_check?access_token=" + auth.access_token;
+    var path = '/api/v1/token_check';
     xhr.open('GET', path, true);
+    xhr.setRequestHeader('Authorization', 'Bearer ' + auth.access_token);
     xhr.send();
   }
 })();
