@@ -12,14 +12,14 @@
 **Audited commit:** `070b5e614071aec8fd917fa4b4067f5412460614`  
 **Audited ref:** `compliance/scot-q3-makeup-run-20eb9dd6 (== origin/develop tip 070b5e61 at run start, 2026-10-31). PARTIAL COVERAGE: 0 of 6 finders complete, 0 of 18 live reads succeeded; details are in the private run record. Internal automated review by AI agents against our own checklists, not a third-party audit; it says what was examined, not that it passed, and open findings are counted separately. Standing limits: callers outside the repo; vendor internals; provider-side key revocation. Scot sign-off: approved 2026-11-06. Excludes assistive-technology testing (tracked separately in the conformance report).`  
 **Run date:** 2026-10-31  
-**Page generated:** 2026-11-07T04:50:47Z
+**Page generated:** 2026-11-24T18:47:58Z
 
 ## Headline - live findings (open + awaiting verification)
 
 | Count | Critical | High | Medium | Low |
 |---|---|---|---|---|
-| **Live** (`open` + `remediated-unverified`) | **2** | **51** | 163 | 153 |
-| `open` only | 2 | 45 | 160 | 152 |
+| **Live** (`open` + `remediated-unverified`) | **2** | **52** | 163 | 153 |
+| `open` only | 2 | 46 | 160 | 152 |
 
 _The headline is the LIVE count: `open` + `remediated-unverified` findings by severity (plan decision 5.9.2: counts, not a synthetic score). The `open`-only row is the `/audit-run` step 6 convention; the difference is findings whose fix has landed but which Scot has not yet verified and closed. Only Scot closes a finding, downgrades severity, or accepts risk._
 
@@ -69,6 +69,7 @@ _The headline is the LIVE count: `open` + `remediated-unverified` findings by se
 | LL-bbf2a5404f |  | high | WCAG | App-shell account menu trigger has no accessible name on classic header routes | `app/frontend/app/templates/application.hbs`:1042 |
 | LL-c0b3d59f58 |  | high | SOC2, HIPAA, FERPA | Compliance finding (details withheld until remediation is verified) | `scripts/gcp/phase1-setup.sh`:1 |
 | LL-c11cc12f66 |  | high | COPPA, FERPA | Compliance finding (details withheld until remediation is verified) | `app/controllers/parental_consents_controller.rb`:17 |
+| LL-c5fe781c55 |  | high | GDPR, FERPA, COPPA, HIPAA | Compliance finding (details withheld until remediation is verified) | `lib/uploader.rb`:1 |
 | LL-c740766308 |  | high | GDPR, COPPA, FERPA | Retention coverage review: telemetry events | `app/models/telemetry_event.rb`:1 |
 | LL-c7bbfa452a |  | high | COPPA, FERPA | School-authorized account creation skips the COPPA block entirely, so settings coppa is never written and the under-13 AI gate that reads it passes for exactly the accounts it was written to protect | `app/models/user.rb`:2423 |
 | LL-cb563da6ef |  | high | WCAG | Authenticated navbar account menu trigger has no accessible name | `app/frontend/app/components/app-navbar-authenticated-inner.hbs`:119 |
