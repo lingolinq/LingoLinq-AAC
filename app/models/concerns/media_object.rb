@@ -96,7 +96,7 @@ module MediaObject
     true
   end
 
-  # Transcoding leaves derivative S3 objects that Uploadable's after_destroy
+  # Transcoding leaves derivative S3 objects that Uploadable's after_destroy_commit
   # (schedule_remote_removal_if_unique) never reaches, because that hook only
   # ever removes self.url: ButtonSound's un-transcribed working copy
   # (settings['secondary_output']['filename']), replaced-but-never-swept
@@ -151,7 +151,7 @@ module MediaObject
         # (app/controllers/concerns/remote_uploader.rb:19). If that
         # confirmation never arrives -- dropped connection, closed tab,
         # client bug -- the object can be genuinely present in S3 with url
-        # still nil forever, and Uploadable's after_destroy (keyed on
+        # still nil forever, and Uploadable's after_destroy_commit (keyed on
         # self.url) never reaches it. Only treat full_filename as a residual
         # when it ISN'T the record's current, already-covered primary object,
         # so this never double-schedules (or interferes with) the normal
@@ -193,7 +193,7 @@ module MediaObject
   # Transcode outputs that no setting records (the record was destroyed while its job ran, or the
   # COMPLETE was dropped) can only be found by listing the record's own stem, and that stem is
   # gone once the record is (LL-c4566fa37f). before_destroy keeps the row in the destroy's own
-  # transaction and ahead of Uploadable's after_destroy enqueue; the savepoint and rescue mean a
+  # transaction and ahead of Uploadable's after_destroy_commit enqueue; the savepoint and rescue mean a
   # failure here never aborts an erasure. Swept by Uploader.remote_remove_transcode_family.
   def record_transcode_family_sweep
     stems = [self.file_path + self.file_prefix]

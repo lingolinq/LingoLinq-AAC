@@ -315,6 +315,27 @@ describe Api::SoundsController, :type => :controller do
       json = JSON.parse(response.body)
       expect(json['sound']['id']).to eq(s.global_id)
     end
+
+    # A file in the uploads bucket is deleted only when no picture, sound or video still uses it. Deleting a sound
+    # that names another person's uploaded picture must leave that picture's file alone.
+    env_wrap('UPLOADS_S3_BUCKET' => 'lingolinq-dev-uploads') do
+      it "should not delete another record's file when a sound with the same address is deleted" do
+        owner = User.create
+        picture = ButtonImage.create(user: owner)
+        url = "https://lingolinq-dev-uploads.s3.amazonaws.com/images/#{picture.id.to_s.split(//).join('/')}/#{picture.global_id}-#{'a' * 128}.png"
+        picture.update_columns(url: url, removable: true)
+        token_user
+        post :create, params: {:sound => {'url' => url, 'content_type' => 'audio/mp3'}}
+        expect(response).to be_successful
+        sound = ButtonSound.find_by_global_id(JSON.parse(response.body)['sound']['id'])
+        expect(sound.url).to eq(url)
+        expect(sound.removable).to eq(true)
+        expect(Uploader).not_to receive(:remote_remove)
+        delete :destroy, params: {id: sound.global_id}
+        expect(response).to be_successful
+        Worker.process_queues
+      end
+    end
   end
   
   describe "import" do
