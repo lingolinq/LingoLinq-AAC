@@ -221,6 +221,22 @@ describe SupervisorRelationship, :type => :model do
       expect(stale.status).to eq('expired')
       expect(fresh.status).to eq('pending')
     end
+
+    it 'returns the number expired and zero when no requests remain' do
+      supervisor = User.create!
+      past_expiry = 1.day.ago
+      2.times do
+        SupervisorRelationship.create!(
+          supervisor_user: supervisor,
+          communicator_user: User.create!,
+          status: 'pending',
+          consent_token_expires_at: past_expiry
+        )
+      end
+
+      expect(SupervisorRelationship.expire_stale_requests!).to eq(2)
+      expect(SupervisorRelationship.expire_stale_requests!).to eq(0)
+    end
   end
 
   describe "associations" do

@@ -1281,8 +1281,18 @@ jobs:
       # --task-timeout 3000s (50 min) keeps one dispatch inside its hourly slot.
       - name: Deploy scheduler Job (create or update)
         if: steps.guard.outputs.enabled == 'true' && steps.guard.outputs.deploy_worker == 'true'
+        env:
+          # Set only in the intended GitHub environment, never at repository scope
+          # (vars can fall back to repository variables). Leave unset to disable.
+          COPPA_SWEEP_MODE: ${{ vars.APP_COPPA_OFFBOARDING_SWEEP_ENABLED }}
         run: |
           set -euo pipefail
+          scheduler_env_vars="RACK_ENV=production,RAILS_ENV=production,REDIS_TLS_VERIFY_HOSTNAME=false,$APP_ENV_VARS"
+          case "$COPPA_SWEEP_MODE" in
+            true|report) scheduler_env_vars+=",COPPA_OFFBOARDING_SWEEP_ENABLED=$COPPA_SWEEP_MODE" ;;
+            '') ;;
+            *) echo "::warning::Invalid APP_COPPA_OFFBOARDING_SWEEP_ENABLED; leaving the COPPA sweep disabled." ;;
+          esac
           gcloud run jobs deploy "$SCHEDULER_JOB" \
             --image "$IMAGE" \
             --region "$GCP_REGION" \
@@ -1299,7 +1309,7 @@ jobs:
             --task-timeout 3000s \
             --cpu 1 \
             --memory 512Mi \
-            --set-env-vars "RACK_ENV=production,RAILS_ENV=production,REDIS_TLS_VERIFY_HOSTNAME=false,$APP_ENV_VARS" \
+            --set-env-vars "$scheduler_env_vars" \
             --set-secrets "$BOOT_SECRETS,$NON_BOOT_SECRETS"
           # Read back what landed on the Job (assert-runtime-secrets.sh covers services and worker
           # pools only): every required secret must be present AND backed by a secretKeyRef.
