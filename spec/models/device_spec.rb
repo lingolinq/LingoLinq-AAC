@@ -1011,4 +1011,126 @@ describe Device, :type => :model do
       end
     end
   end
+
+  describe "check_token once the account uses 2FA" do
+    include ActiveSupport::Testing::TimeHelpers
+
+    # Ten seconds into a 30-second TOTP window, away from hour and day boundaries.
+    around(:each) do |example|
+      travel_to(Time.utc(2026, 11, 3, 15, 20, 10)) { example.run }
+    end
+
+    def code_for(user)
+      ROTP::TOTP.new(user.reload.settings['2fa']['secret'], issuer: 'LingoLinq').now
+    end
+
+    it "signs out a sign-in made before the account turned on 2FA" do
+      u = User.create
+      d = Device.create(user: u, developer_key_id: 0, device_key: 'before-2fa')
+      token = d.tokens[0]
+      expect(Device.check_token(token, nil)[:user]).to eq(u)
+      u.assert_2fa!
+      res = Device.check_token(token, nil)
+      expect(res[:error]).to eq('Invalid token')
+      expect(res[:invalid_token]).to eq(true)
+      expect(res[:user]).to eq(nil)
+    end
+
+    it "refuses and revokes a sign-in made before 2FA when 2FA was switched on without the sign-out sweep" do
+      u = User.create
+      d = Device.create(user: u, developer_key_id: 0, device_key: 'no-sweep')
+      token = d.tokens[0]
+      u.settings['2fa'] = {'secret' => ROTP::Base32.random}
+      u.save!
+      res = Device.check_token(token, nil)
+      expect(res[:error]).to eq('Invalid token')
+      expect(RedisInit.permissions.exists?("revoked_token/#{token}")).to eq(true)
+      expect(d.reload.settings['keys'].map { |k| k['value'] }).to_not include(token)
+    end
+
+    it "signs out a sign-in made before 2FA that once sent a wrong code" do
+      u = User.create
+      d = Device.create(user: u, developer_key_id: 0, device_key: 'wrong-code')
+      token = d.tokens[0]
+      expect(d.confirm_2fa!('000000')).to eq(false)
+      expect(d.reload.settings['2fa']['fails'].length).to eq(1)
+      u.assert_2fa!
+      expect(Device.check_token(token, nil)[:error]).to eq('Invalid token')
+    end
+
+    it "keeps a refused sign-in refused after the same device signs in again and enters a code" do
+      u = User.create
+      d = Device.create(user: u, developer_key_id: 0, device_key: 'same-row', settings: {'browser' => true})
+      old_token = d.tokens[0]
+      u.assert_2fa!
+      expect(Device.check_token(old_token, nil)[:error]).to eq('Invalid token')
+      d.reload.generate_token!
+      new_token = d.tokens[0]
+      expect(new_token).to_not eq(old_token)
+      expect(d.reload.settings['2fa']['pending']).to eq(true)
+      expect(d.confirm_2fa!(code_for(u))).to eq(true)
+      expect(Device.check_token(new_token, nil)[:error]).to eq(nil)
+      expect(Device.check_token(old_token, nil)[:error]).to eq('Invalid token')
+    end
+
+    it "signs out other sign-ins right away when 2FA is turned on, even ones whose check is cached" do
+      u = User.create
+      d = Device.create(user: u, developer_key_id: 0, device_key: 'cached')
+      token = d.tokens[0]
+      expect(Device.check_token(token, nil)[:user]).to eq(u)
+      expect(Device.check_token(token, nil)[:cached]).to eq(true)
+      u.assert_2fa!
+      expect(d.reload.settings['keys']).to eq([])
+      expect(Device.check_token(token, nil)[:error]).to eq('Invalid token')
+    end
+
+    it "signs out a connected integration's sign-in made before 2FA, as a new one would wait for a code" do
+      u = User.create
+      d = Device.create(user: u, developer_key_id: 0, device_key: 'integration', user_integration_id: 1)
+      token = d.tokens[0]
+      expect(Device.check_token(token, nil)[:user]).to eq(u)
+      u.assert_2fa!
+      expect(Device.check_token(token, nil)[:error]).to eq('Invalid token')
+    end
+
+    it "keeps a sign-in that is waiting for its code, so it can enter one" do
+      u = User.create
+      u.assert_2fa!
+      d = Device.create(user: u, developer_key_id: 0, device_key: 'pending-2fa')
+      token = d.tokens[0]
+      res = Device.check_token(token, nil)
+      expect(res[:error]).to eq(nil)
+      expect(res[:user]).to eq(u)
+      expect(res[:user].permission_scopes).to eq(['none'])
+    end
+
+    it "keeps a sign-in that entered a code" do
+      u = User.create
+      u.assert_2fa!
+      d = Device.create(user: u, developer_key_id: 0, device_key: 'confirmed-2fa')
+      token = d.tokens[0]
+      expect(d.reload.confirm_2fa!(code_for(u))).to eq(true)
+      res = Device.check_token(token, nil)
+      expect(res[:error]).to eq(nil)
+      expect(res[:user]).to eq(u)
+    end
+
+    it "keeps a modeling (valet) sign-in, which does not ask for a code" do
+      u = User.create
+      u.assert_2fa!
+      d = Device.create(user: u, developer_key_id: 0, device_key: 'valet-2fa', settings: {'valet' => true})
+      token = d.tokens[0]
+      res = Device.check_token(token, nil)
+      expect(res[:error]).to eq(nil)
+      expect(res[:user]).to eq(u)
+    end
+
+    it "leaves sign-ins alone for an account without 2FA" do
+      u = User.create
+      d = Device.create(user: u, developer_key_id: 0, device_key: 'no-2fa')
+      token = d.tokens[0]
+      expect(Device.check_token(token, nil)[:user]).to eq(u)
+      expect(Device.check_token(token, nil)[:user]).to eq(u)
+    end
+  end
 end

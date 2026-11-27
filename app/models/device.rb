@@ -101,6 +101,23 @@ class Device < ApplicationRecord
     false
   end
 
+  # A sign-in made before its account started requiring 2FA: the account requires a code, but this
+  # device is neither waiting for one (generate_token! sets 'pending') nor has entered one
+  # (confirm_2fa! sets 'last_otp'). A failed attempt leaves only 'fails', which does not count.
+  # Device.check_token signs these out so the next sign-in asks for a code. Modeling (valet)
+  # sign-ins are never asked for one.
+  def predates_2fa?
+    settings = self.settings || {}
+    two_factor = settings['2fa'] || {}
+    return false if settings['valet'] || two_factor['pending'] || two_factor['last_otp']
+    !!(self.user && self.user.state_2fa[:required])
+  end
+
+  # Revokes every token this device holds (revoke_token!), so none of them can be used again.
+  def revoke_all_tokens!
+    (self.settings['keys'] || []).map { |key| key['value'] }.compact.each { |token| revoke_token!(token) }
+  end
+
   def confirm_2fa!(code, manually_approve=false)
     ts = Time.now.to_i if code == :approve && manually_approve
     ts ||= self.user && self.user.valid_2fa?(code)
@@ -118,6 +135,8 @@ class Device < ApplicationRecord
       self.settings['2fa'].delete('cooldown')
       self.settings['2fa'].delete('fails')
       self.save
+      # Confirming a temporary secret can be what turns the account's 2FA on.
+      self.user.refresh_device_sign_ins!(keep: self) if self.user
       return true
     else
       self.settings['2fa'] ||= {}
@@ -376,6 +395,13 @@ class Device < ApplicationRecord
         res[:skip_on_token_check] = true
         res[:can_refresh] = true if needs_refresh && device && !device.disabled?
         res[:invalid_token] = true
+      elsif device.predates_2fa?
+        device.revoke_token!(token)
+        res[:error] = "Invalid token"
+        res[:skip_on_token_check] = true
+        res[:invalid_token] = true
+        device_id = nil
+        user_id = nil
       end
       valet_mode = true if device && device.settings['valet']
       scopes = PermissionScopesNormalize.for_api(device && device.permission_scopes)

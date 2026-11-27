@@ -361,6 +361,7 @@ class UserMailer < ActionMailer::Base
     @offboarding = !!c['offboarding']
     # COPPA direct-notice: surface our privacy practices to the parent before they consent.
     @privacy_url = "#{JsonApi::Json.absolute_host}/privacy"
+    @ai_disclosure_url = "#{JsonApi::Json.absolute_host}/ai_consent/disclosures/#{LingoLinq::AiConsentDisclosures::CURRENT_VERSION}"
     @child_name = @user.display_name
     @parent_email = c['parent_email']
     @consent_age = JsonApi::Json.coppa_consent_age(@user)
@@ -480,6 +481,7 @@ class UserMailer < ActionMailer::Base
     esc_tok = CGI.escape(c['parent_consent_token'].to_s)
     @consent_url = "#{JsonApi::Json.absolute_host}/eu_ai_parental_consent/complete?user_id=#{@user.global_id}&token=#{esc_tok}"
     @privacy_url = "#{JsonApi::Json.absolute_host}/privacy"
+    @ai_disclosure_url = "#{JsonApi::Json.absolute_host}/ai_consent/disclosures/#{LingoLinq::AiConsentDisclosures::CURRENT_VERSION}"
     @child_name = @user.display_name
     @parent_email = c['parent_email']
     from = JsonApi::Json.current_domain['settings']['admin_email']

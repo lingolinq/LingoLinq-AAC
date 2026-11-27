@@ -8740,7 +8740,7 @@ body > .popover.bottom {
 }
 
 /* Colored mode: white backing INSIDE the symbol's own outline. The
-   ll-symbol-white-backing SVG filter (index.html) floods white, clips it to
+   ll-symbol-white-backing SVG filter (utils/symbol_filters.js) floods white, clips it to
    the symbol's own alpha, then draws the symbol on top — so transparent /
    anti-aliased regions don't bleed the button fill, while white never extends
    past the symbol's outline (no halo, no square). Mirrors the board-detail
@@ -9916,6 +9916,14 @@ body.pretty_loader #loading_box {
     width: 100%;
     font-size: 25px;
     margin-bottom: 5px;
+  }
+  /* The full-width upload button cannot share a line with "Record Video", so an inline
+     .file_select_holder splits across two lines and its overlaid file input is sized from
+     the empty first fragment (0px wide). As a block it holds the button whole and the
+     input covers it, so a click opens the file picker instead of submitting the
+     surrounding note form (tests/integration/components/video-recorder-upload-test.js). */
+  .file_select_holder {
+    display: block;
   }
 }
 /* Applied in: index.hbs, dashboard/authenticated-view.hbs - main_columns class on index_view div */
@@ -33299,13 +33307,6 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   font-size: 20px;
   font-weight: 700;
 }
-.la-sync-details-summary-num {
-  font-size: 40px;
-  font-weight: 800;
-  color: $brand-verdigris-ink;
-  font-variant-numeric: tabular-nums;
-  margin-right: 6px;
-}
 .la-sync-details-summary-line {
   margin: 6px 0 0;
   font-size: 16px;
@@ -33320,10 +33321,6 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 }
 .la-sync-details-bar--thin {
   height: 6px;
-}
-/* The summary band's bar: the status line follows it, then the grey details. */
-.la-sync-details-bar--summary {
-  margin-bottom: 14px;
 }
 .la-sync-details-bar-fill {
   display: block;
@@ -33586,7 +33583,11 @@ $la-sync-ready-tint: #e3f4f1;
   font-weight: 600;
   white-space: nowrap;
 }
+/* Pinned to the head's last column on its first row, so a card without a status pill (a sync that has not finished,
+   components/sync-details.js unfinished_card) keeps the chevron at the right, as do the stacked narrow cards. */
 .la-sync-card-chevron {
+  grid-column: -2 / -1;
+  grid-row: 1;
   color: $brand-slate-blue;
   transition: transform 0.2s ease;
 }
@@ -47206,16 +47207,22 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
 /* 94px at full size; scaling down below 1200px and 15% smaller at 1024px and below (requested
    2026-10-12; see "SPEAK AND EXTRAS SCALE DOWN"). */
 .md-card--speak-focused__img,
-.md-card--extras-focused__img { width: 94px; height: 94px; display: block; object-fit: contain; }
+.md-card--extras-focused__img { --md-speak-size: 94px; width: var(--md-speak-size); height: var(--md-speak-size); display: block; object-fit: contain; }
 /* The Extras image is 5% smaller than Speak's at every width (requested 2026-10-12): 89.3px here. */
 .md-card--extras-focused__img { width: 89.3px; height: 89.3px; }
 /* The board the Speak card opens, in place of the speech badge (speakBoardImage, 2026-10-13), in the
    same ROUND SILVER PICTURE FRAME as the Gentle card's (see .md-card__icon-board-img), sized for 94px:
-   slate outline, lifted frame, indented picture. */
+   slate outline, lifted frame, indented picture.
+   THE PICTURE IS AS LARGE AS IT CAN BE WITHOUT THE RING CUTTING IT (2026-11-16, Traci: "grow to fill the space up
+   to its border", then "don't clip the corners"). Any picture: the largest square inside the circle, 70.7% of the
+   white disc (--md-board-fit 0.1465 = (1 - 1/sqrt 2) / 2 per side). The LingoLinq board icon has transparent corners,
+   so it may take 77.7% (measured from its alpha: its farthest opaque pixel is 1.287 x half its box from the centre),
+   --md-board-fit 0.112 on the --brand modifier. --md-speak-size and --md-speak-ring are the card's own size and ring. */
 .md-card--speak-focused__img--board {
   box-sizing: border-box;
-  padding: 12px;
-  border: 5px solid transparent;
+  --md-speak-ring: 5px;
+  padding: calc((var(--md-speak-size, 94px) - 2 * var(--md-speak-ring)) * var(--md-board-fit, 0.1465));
+  border: var(--md-speak-ring) solid transparent;
   border-radius: 50%;
   background:
     linear-gradient(#fff, #fff) padding-box,
@@ -47291,8 +47298,9 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
      is 94px; Extras' is 5% smaller, 89.3px. */
   .md-card--speak-focused__img,
   .md-card--caseload-focused__img {
-    width: clamp(65.8px, calc(9.4vw - 18.8px), 94px);
-    height: clamp(65.8px, calc(9.4vw - 18.8px), 94px);
+    --md-speak-size: clamp(65.8px, calc(9.4vw - 18.8px), 94px);
+    width: var(--md-speak-size);
+    height: var(--md-speak-size);
   }
   .md-card--extras-focused__img {
     width: clamp(62.51px, calc(8.93vw - 17.86px), 89.3px);
@@ -47311,12 +47319,13 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
 @media (max-width: 1024px) {
   .md-card--speak-focused__img,
   .md-card--caseload-focused__img {
-    width: clamp(55.93px, calc(7.99vw - 15.98px), 79.9px);
-    height: clamp(55.93px, calc(7.99vw - 15.98px), 79.9px);
+    --md-speak-size: clamp(55.93px, calc(7.99vw - 15.98px), 79.9px);
+    width: var(--md-speak-size);
+    height: var(--md-speak-size);
   }
-  /* The board picture's silver frame shrinks with it (final review, 2026-10-13): the full-size 12px padding and
-     5px ring left only ~22px of picture in the 56px slot at 900px. */
-  .md-card--speak-focused__img--board { padding: 6px; border-width: 3px; }
+  /* The board picture's silver frame shrinks with it (final review, 2026-10-13): the ring narrows to 3px, and the
+     picture's room follows (its padding is computed from the size and the ring). */
+  .md-card--speak-focused__img--board { --md-speak-ring: 3px; }
   .md-card--extras-focused__img {
     width: clamp(52.64px, calc(7.52vw - 15.04px), 75.2px);
     height: clamp(52.64px, calc(7.52vw - 15.04px), 75.2px);
@@ -48173,13 +48182,16 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
    gradient drawn in the transparent border (border-box) behind the white fill (padding-box), with a thin
    light slate outline. The FRAME IS LIFTED off the page (drop shadows) and the PICTURE IS INDENTED into it (inset
    shadows, drawn inside the ring, over the white disc). The padding keeps the symbol off the ring. */
-/* Sized inside the 46px tile (centred by its grid) so the outline and the lift shadow are not cut off. */
+/* Sized inside the 46px tile (centred by its grid) so the outline and the lift shadow are not cut off.
+   The picture is as large as it can be without the ring cutting it (2026-11-16; see .md-card--speak-focused__img--board
+   for the two fits): the white disc is the tile less 12px (6px of the image's width, 3px of ring each side), and the
+   padding, a share of the tile (percent padding is of the containing tile), leaves the picture that share of it. */
 .md-card__icon-board-img {
   display: block;
   width: calc(100% - 6px);
   height: calc(100% - 6px);
   box-sizing: border-box;
-  padding: 4px;
+  padding: calc((100% - 12px) * var(--md-board-fit, 0.1465));
   object-fit: contain;
   border: 3px solid transparent;
   border-radius: 50%;
@@ -48191,6 +48203,9 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
     0 3px 6px rgba(0, 0, 0, 0.28), 0 1px 2px rgba(0, 0, 0, 0.22), /* lifted */
     inset 0 2px 4px rgba($brand-charcoal-blue, 0.45), inset 0 -1px 1px rgba(255, 255, 255, 0.9); /* indented */
 }
+/* The LingoLinq board icon (authenticated-view.js speakBoardImageIsBrandIcon): transparent corners, so 77.7% of the disc. */
+.md-card__icon-board-img--brand,
+.md-card--speak-focused__img--brand { --md-board-fit: 0.112; }
 /* SVG icon (when using mic SVG instead of img): .md-card__icon--speak .md-card__icon-svg--mic { color: rgba(44, 183, 176, 0.92); } */
 /* Extras variant — soft warm coral tint matching the wave decoration
    on the card's bottom. Was previously the standalone `.md-extrasIcon`
@@ -60429,6 +60444,24 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
   color: var(--md-muted);
   font-size: 18px;
   line-height: 1.5;
+}
+/* "Boards on This Device" status line (components/device-boards-grid.hbs). Its top margin collapses with the boards
+   header's 20px bottom margin, so -8px puts it 12px under the header's divider; 16px keeps it off the tiles. */
+.ub-boards-page__device-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: -8px 0 16px;
+  color: var(--md-muted);
+  font-size: 18px;
+  line-height: 1.5;
+}
+.ub-boards-page__device-note-icon {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin-top: 2px;
+  color: var(--md-teal, $brand-verdigris);
 }
 .board-picker__tabs,
 .ub-boards-page__tabs {
@@ -74751,7 +74784,7 @@ span.md-board-detail-modeling-btn--badge {
   transition: opacity 180ms ease, filter 180ms ease;
 }
 /* Colored mode: white backing INSIDE the symbol's own outline. The
-   ll-symbol-white-backing SVG filter (index.html) floods white, clips it to
+   ll-symbol-white-backing SVG filter (utils/symbol_filters.js) floods white, clips it to
    the symbol's own alpha, then draws the symbol on top — so transparent /
    anti-aliased regions don't bleed the Fitzgerald card color, while white
    never extends past the symbol's outline (no halo, no square). Because the
@@ -80492,6 +80525,15 @@ span.md-board-detail-modeling-btn--badge {
 }
 @media (prefers-reduced-motion: reduce) {
   .md-modal-spinner { animation: none; }
+}
+/* The board Save waiting dialog's message (components/save-waiting.hbs). Its own rule rather than
+   .md-modal-message so it can be read at AAC size (about 30% above the 16px modal default) without
+   overriding the shared modal style. */
+.save-waiting__message {
+  font-size: 21px;
+  color: $brand-charcoal-blue;
+  line-height: 1.5;
+  margin: 0 0 12px;
 }
 /* WARNING CALLOUT -- the whole message on the Save Board completeness dialogs, not a token
    inside it. This is the sentence standing between someone and an empty or half-built board,

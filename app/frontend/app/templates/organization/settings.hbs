@@ -62,6 +62,23 @@
       </span>
     </div>
 
+    {{!-- AI features for the accounts this organization manages (#1136). Off by default.
+          Only a manager can change it (the server ignores it from anyone else), so
+          other editors do not see the switch. --}}
+    {{#if this.model.permissions.manage}}
+      <div class="md-org-settings-field">
+        <label class="md-org-settings-field__label">{{t "AI features for managed accounts" key="org_ai_authorized_label"}}</label>
+        <label class="md-org-settings-toggle">
+          <input type="checkbox" checked={{this.model.ai_authorized}} class="md-org-settings-toggle__input" {{on "change" (set-field this "model.ai_authorized" "checkbox")}} />
+          <span class="md-org-settings-toggle__label">{{t "Allow AI features for the accounts this organization manages" key="org_ai_authorized_toggle"}}</span>
+        </label>
+        <span class="md-org-settings-field__hint">
+          {{t "Turning this on confirms that this organization is authorized to allow AI features for these accounts, including getting any parent or guardian consent that is needed. It covers word prediction, board suggestions and focus words. It is off by default, and each account can still turn AI features off for itself." key="org_ai_authorized_hint"}}
+          <a href="/ai_consent/disclosures/current" target="_blank" rel="noopener">{{t "Read the AI Data-Sharing Disclosure" key="ai_consent_disclosure_link"}}</a>
+        </span>
+      </div>
+    {{/if}}
+
     <div class="md-org-settings-field">
       <label for="board" class="md-org-settings-field__label">{{t "Home Boards" key="home_boards"}}</label>
       <textarea class="md-org-settings-textarea" id="board" placeholder={{this.board_keys_placeholder}} {{on "input" (set-field this "home_board_key_lines")}}>{{this.home_board_key_lines}}</textarea>

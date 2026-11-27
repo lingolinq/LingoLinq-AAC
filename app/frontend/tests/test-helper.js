@@ -12,8 +12,14 @@ import './helpers/leak-check';
 import { set_owner_gone_listener } from 'frontend/utils/live_service';
 import { fetchProbeDelay, timingStrictForRun } from './helpers/fetch-probe';
 import { installFetchTracking } from './helpers/fetch-tracking';
+import { install_symbol_filters } from 'frontend/utils/symbol_filters';
 
 QUnit.config.testTimeout = 15000;
+
+// The SVG symbol filters are part of every real page before a test could look (app/utils/symbol_filters.js; the app's
+// initializer adds them on its first boot). Added here too, so the test page matches and the leak check's body
+// snapshot holds them instead of charging the first test that boots the app.
+install_symbol_filters();
 
 // Records which test queued each Ember Data fetch (so setupTest fails only the test that queued one), and
 // the opt-in fetch probe `?probeDelay=<ms>` (ember test --query "probeDelay=1500"; used by

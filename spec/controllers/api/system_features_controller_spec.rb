@@ -138,4 +138,14 @@ describe Api::SystemFeaturesController, type: :controller do
       expect(SystemFeatureSettings.group_inherited_from('canary')).to eq('code_default')
     end
   end
+
+  describe 'admin sign-in' do
+    LimitedSignInHelpers::KINDS.each do |kind, wording|
+      it "refuses an admin whose sign-in #{wording}" do
+        limited_admin_token(kind)
+        get :index, params: {org_id: 'default'}
+        assert_error 'Not authorized', 403
+      end
+    end
+  end
 end

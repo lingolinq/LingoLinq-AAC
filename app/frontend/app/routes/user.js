@@ -146,15 +146,18 @@ export default Route.extend({
     return within(stored, this.offline_session_wait_ms).then(function(user) {
       if(own_page) { return (named(user) && offline_shell.device_trust(user) === 'trusted') ? user : null; }
       return wait_for_session_user(_this.appState, { promise: _this.appState.get('session_user_promise'), timeout: _this.offline_session_wait_ms }).then(function() {
-        if(!trusted()) { return null; } // offline the server cannot end a shared device's session
-        if(named(user)) {
+        // Offline the server cannot end a shared device's session, so there only a LingoLinq library board opens (public;
+        // utils/board_device_copy.js library_board; Traci, 2026-11-16), through a stand-in, never a stored record.
+        var shared = !trusted();
+        if(shared && user_id !== CATALOG_ACCOUNT) { return null; }
+        if(!shared && named(user)) {
           _this._watch_stand_in();
           return user;
         }
         var memory = boardDetailCache.peek(key);
         var saved = memory ? RSVP.resolve(memory) : within(_this.persistence.find('board', key), _this.offline_session_wait_ms);
         return saved.then(function(board) {
-          if(!board || !board.key || board.key.split('/')[0] !== user_id) { return null; }
+          if(!board || !board.key || board.key.split('/')[0] !== user_id || (shared && !library_board(board))) { return null; }
           _this._watch_stand_in();
           return owner_stand_in(user_id);
         });
@@ -237,5 +240,6 @@ import modal from '../utils/modal';
 import { wait_for_session_user } from '../utils/session_user_wait';
 import offline_shell from '../utils/offline_shell';
 import { board_target, is_board_page, no_connection, no_server_answer, owner_stand_in } from '../utils/board_owner';
-import { leave_unsaved_board, within } from '../utils/board_device_copy';
+import { leave_unsaved_board, library_board, within } from '../utils/board_device_copy';
+import { CATALOG_ACCOUNT } from '../utils/board_prefetch_planner';
 import boardDetailCache from '../utils/board_detail_cache';

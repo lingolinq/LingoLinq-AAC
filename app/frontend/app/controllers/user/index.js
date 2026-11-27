@@ -1207,7 +1207,7 @@ var UserIndexController = Controller.extend({
        expires, or after any local mutation. That is the deliberate trade; do not read this
        branch as "the list is current". */
     if(isMineList && !append && backgroundRefresh && boardsPageListCache.hasFreshSnapshot(backend_user_id(_this.get('model')))) { // snapshot keyed by backend id, not 'self'
-      boardsPageListCache.setMineListBusy(false);
+      boardsPageListCache.setMineListBusy(false); _this.set('offline_view', false); // online with a usable list: back from "Boards on This Device"
       return;
     }
     /* Do not clobber a usable empty list (`[].done`) with {loading:true}. */
@@ -1224,7 +1224,7 @@ var UserIndexController = Controller.extend({
     _this.store.query('board', args).then(function(boards) {
       /* Stale page for a superseded list_id: do not clear Mine busy —
          a newer Mine fetch may own the flag. */
-      if(_this.get('list_id') != list_id) { return; }
+      if(_this.get('list_id') != list_id) { return; } _this.set('offline_view', false); // a server list arrived: back from "Boards on This Device" (reopen below)
 
       var chunk = boards.slice();
       var meta = _this.persistence.meta('board', boards); //_this.store.metadataFor('board');
@@ -1376,7 +1376,7 @@ var UserIndexController = Controller.extend({
     this.set('list_id', list_id);
     var model = this.get('model');
     var persistenceService = this.get('persistence') || this.persistence;
-    if(!persistenceService || typeof persistenceService.get !== 'function' || !persistenceService.get('online')) { return; }
+    if(!persistenceService || typeof persistenceService.get !== 'function') { return; } if(!persistenceService.get('online')) { this.show_device_boards(list_id); return; } this.end_device_view_online(model, this.get('selected')); // offline: the boards on this device; online: leave them unless a list is coming (reopen below)
     var default_key = null;
     if(!_this.get('selected') && model) {
       default_key = model.get('permissions.supervise') ? 'mine' : 'public';
@@ -1906,3 +1906,83 @@ export default UserIndexController;
 // Imported last so the `.eslint-todo` rows above keep their lines.
 import { foldersLayout } from '../../utils/folders_panel_state';
 import backend_user_id, { same_person } from '../../utils/backend_user_id';
+
+/* BOARDS ON THIS DEVICE (2026-11-16, docs/task-management/2026-11-16_offline-boards-page.md). Offline, update_selected
+   used to return before loading anything, so after the 10-minute snapshot expired the boards page said "You don't
+   have any boards yet" though a sync had saved the boards. Now, offline, the boards page swaps its tabs and list for one
+   view (Traci: "Boards on This Device", every board the person can open from the device; components/boards-browser):
+   `offline_view` and its own `offline_boards` (utils/offline_board_list.js), never `my_boards`, so the Mine list and its
+   filters are untouched. Set only:
+   - on the boards page (its own flag, set in routes/user/boards.js activate; not the router's currentRouteName, which
+     still names the previous page while this page's setupController runs), and templates/user/boards.hbs is the only
+     page that passes `offline_view` on (the account page keeps its normal UI);
+   - when the open device database is the signed-in person's, and the page is theirs or one they may model for;
+   - whatever tab or list was on screen.
+   A list belongs to one offline spell (Part 3): read the first time the page is offline, kept while offline (the
+   device's boards cannot change without the network), and read again the next time the page goes offline, since a
+   sync, a like or an unshare may have changed them; the earlier list stays on screen until the new one is ready, and a
+   read that fails keeps it. On a device not marked "Trust this Device" (or before its trust is known) only the boards
+   that open there are listed (utils/offline_board_list.js opens_here). A read that ends after a newer request
+   (list_id) is dropped. The view ends when a server list arrives (generate_or_append_to_list), not on every `online`
+   flip, unless no server list is coming or the list on screen is not this page's person's (end_device_view_online). */
+UserIndexController.reopen({
+  // Whose device database is open (only the signed-in person's counts), and where its boards are read from; tests
+  // set these on their own controller instead of replacing shared singletons.
+  device_db_user: function() { return current_device_db_user(); },
+  device_storage: null,
+  offline_view: false,
+  offline_boards: null,
+  offline_spell: 0,
+  next_offline_spell: observer('persistence.online', function() {
+    if(this.get('persistence.online')) { this.incrementProperty('offline_spell'); }
+  }),
+  // A page whose person's device list is refused must not keep the previous page's list: this controller is shared by
+  // every boards page and the route does not reset it (routes/user/boards.js setupController). Offline, only a refused
+  // person clears it; "no model" and "page not active" do not (an observer can call show_device_boards while another
+  // page shows, and the list is kept for coming back in the same offline spell). Online, end_device_view_online does.
+  leave_device_view: function() {
+    this.setProperties({ offline_view: false, offline_boards: null });
+  },
+  // Back online, the device list stays on screen until a server list arrives (generate_or_append_to_list :1227) only
+  // when one is coming and the list on screen is this page's person's; otherwise nothing would end the view (Codex
+  // review of a44d593ff). A tab with no server request (Prior Home Boards) gets no list; a first device read still
+  // running is dropped by its list_id guard (show_device_boards), leaving "Finding..." over a failed server list.
+  // `tab` is `selected`; none means the default tab (Mine or Public), which always requests a list.
+  end_device_view_online: function(model, tab) {
+    if(!this.get('offline_view')) { return; }
+    var list = this.get('offline_boards');
+    var own_list = !!(list && list.from_device && !list.read_failed && model && list.user_name === model.get('user_name') &&
+      list.db_user === this.device_db_user()); // read from the database that is still the signed-in person's (an SPA sign-in can change it)
+    if(!own_list || (tab && TABS_WITH_SERVER_LIST.indexOf(tab) === -1)) { this.leave_device_view(); }
+  },
+  show_device_boards: function(list_id) {
+    var _this = this;
+    var model = this.get('model');
+    if(!model || model.isDestroyed || !boardsPageListCache.isBoardsPageActive()) { return; }
+    var user_name = model.get('user_name');
+    if(!user_name) { this.leave_device_view(); return; }
+    var me = this.device_db_user();
+    if(!me || (me !== user_name && !model.get('permissions.model'))) { this.leave_device_view(); return; }
+    this.set('offline_view', true);
+    var spell = this.get('offline_spell');
+    var shared = offline_shell.device_trust(this.get('appState.sessionUser')) !== 'trusted';
+    var prior = this.get('offline_boards');
+    var same_person = !!(prior && prior.from_device && prior.user_name === user_name);
+    if(same_person && prior.spell === spell && prior.shared === shared) { return; }
+    if(!same_person) { this.set('offline_boards', { loading: true }); }
+    var persistence_service = this.get('persistence');
+    var sync_log = persistence_service && typeof persistence_service.get === 'function' ? persistence_service.get('sync_log') : null;
+    device_board_list(this.store, model, { storage: this.get('device_storage'), sync_log: sync_log, shared: shared, me: me }).then(function(records) {
+      if(_this.isDestroyed || model.isDestroyed || _this.get('model') !== model || _this.get('list_id') !== list_id) { return; }
+      if(records.read_failed && same_person) { return; }
+      records.user_name = user_name;
+      records.db_user = me; // whose open database it was read from (end_device_view_online)
+      if(!records.read_failed) { records.spell = spell; records.shared = shared; } // a failed read is not kept: the next call reads again
+      _this.set('offline_boards', records);
+    }, function() { /* device_board_list resolves an empty list on a failed read; nothing else rejects */ });
+  }
+});
+import { device_board_list, current_device_db_user } from '../../utils/offline_board_list';
+import offline_shell from '../../utils/offline_shell';
+// The tabs update_selected requests a server list for (its key loop); Prior Home Boards has none.
+var TABS_WITH_SERVER_LIST = ['mine', 'public', 'private', 'root', 'starred', 'tagged', 'shared'];

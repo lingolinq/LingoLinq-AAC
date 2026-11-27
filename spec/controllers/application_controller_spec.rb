@@ -297,6 +297,99 @@ describe ApplicationController, :type => :controller do
         expect(assigns[:api_user]).to eq(u)
       end
     end
+
+    describe "masquerade requires a full sign-in" do
+      after(:each) { AuditEvent.where(user_key: @operator.global_id).delete_all if @operator }
+
+      it "refuses a site-admin masquerade from a modeling (valet) sign-in" do
+        o = Organization.create(:admin => true)
+        @operator = User.create
+        u2 = User.create
+        o.add_manager(@operator.user_name, true)
+        d = Device.create(:user => @operator, :settings => {'valet' => true})
+        request.headers['Authorization'] = "Bearer #{d.tokens[0]}"
+
+        expect {
+          get :index, params: {:check_token => true, :as_user_id => u2.global_id}
+        }.not_to change { AuditEvent.where(user_key: @operator.global_id).count }
+        assert_error("Invalid masquerade attempt", 400)
+        expect(assigns[:true_user]).to eq(nil)
+        expect(assigns[:api_user]).to eq(@operator)
+      end
+
+      it "refuses an org-manager masquerade from a modeling (valet) sign-in" do
+        o = Organization.create()
+        @operator = User.create
+        u2 = User.create
+        o.add_manager(@operator.user_name, true)
+        o.add_user(u2.user_name, false, false)
+        d = Device.create(:user => @operator, :settings => {'valet' => true})
+        request.headers['Authorization'] = "Bearer #{d.tokens[0]}"
+
+        expect {
+          get :index, params: {:check_token => true, :as_user_id => u2.global_id}
+        }.not_to change { AuditEvent.where(user_key: @operator.global_id).count }
+        assert_error("Invalid masquerade attempt", 400)
+        expect(assigns[:true_user]).to eq(nil)
+        expect(assigns[:api_user]).to eq(@operator)
+      end
+
+      it "refuses a site-admin masquerade through X-As-User-Id from a sign-in that has not entered its code" do
+        o = Organization.create(:admin => true)
+        @operator = User.create
+        u2 = User.create
+        o.add_manager(@operator.user_name, true)
+        @operator.reload
+        @operator.assert_2fa!
+        d = Device.create(:user => @operator, :settings => {'2fa' => {'pending' => true}})
+        request.headers['Authorization'] = "Bearer #{d.tokens[0]}"
+        request.headers['X-As-User-Id'] = u2.global_id
+
+        expect {
+          get :index, params: {:check_token => true}
+        }.not_to change { AuditEvent.where(user_key: @operator.global_id).count }
+        assert_error("Invalid masquerade attempt", 400)
+        expect(assigns[:true_user]).to eq(nil)
+        expect(assigns[:api_user]).to eq(@operator)
+      end
+
+      it "refuses a site-admin masquerade from a developer key sign-in" do
+        o = Organization.create(:admin => true)
+        @operator = User.create
+        u2 = User.create
+        o.add_manager(@operator.user_name, true)
+        d = Device.create(:user => @operator, :developer_key_id => 1, :device_key => 'bacon')
+        d.settings['permission_scopes'] = ['full']
+        d.save
+        request.headers['Authorization'] = "Bearer #{d.tokens[0]}"
+
+        expect {
+          get :index, params: {:check_token => true, :as_user_id => u2.global_id}
+        }.not_to change { AuditEvent.where(user_key: @operator.global_id).count }
+        assert_error("Invalid masquerade attempt", 400)
+        expect(assigns[:true_user]).to eq(nil)
+        expect(assigns[:api_user]).to eq(@operator)
+      end
+
+      it "refuses an org-manager masquerade from a developer key sign-in" do
+        o = Organization.create()
+        @operator = User.create
+        u2 = User.create
+        o.add_manager(@operator.user_name, true)
+        o.add_user(u2.user_name, false, false)
+        d = Device.create(:user => @operator, :developer_key_id => 1, :device_key => 'bacon')
+        d.settings['permission_scopes'] = ['full']
+        d.save
+        request.headers['Authorization'] = "Bearer #{d.tokens[0]}"
+
+        expect {
+          get :index, params: {:check_token => true, :as_user_id => u2.global_id}
+        }.not_to change { AuditEvent.where(user_key: @operator.global_id).count }
+        assert_error("Invalid masquerade attempt", 400)
+        expect(assigns[:true_user]).to eq(nil)
+        expect(assigns[:api_user]).to eq(@operator)
+      end
+    end
     
     it "should not allow disabled tokens" do
       u = User.create
@@ -675,6 +768,129 @@ describe ApplicationController, :type => :controller do
       allow(controller).to receive(:params).and_return(ActionController::Parameters.new(user_id: u.global_id))
       allow(controller).to receive(:controller_path).and_return('parental_consents')
       expect(controller.send(:coppa_sentry_subject_user)).to eq(u)
+    end
+  end
+
+  describe "admin_sign_in?" do
+    def sign_in_with(user, device, true_user: nil)
+      controller.instance_variable_set(:@api_user, user)
+      controller.instance_variable_set(:@api_device_id, device && device.global_id)
+      controller.instance_variable_set(:@true_user, true_user)
+    end
+
+    def admin_and_device(device_settings: {}, developer_key_id: 0)
+      user = User.create
+      user.settings['admin'] = true
+      user.save!
+      device = Device.create(user: user, developer_key_id: developer_key_id, device_key: 'admin-check')
+      device.settings.merge!(device_settings)
+      device.save!
+      [user, device]
+    end
+
+    it "accepts an admin on the app's own sign-in when the account does not use 2FA" do
+      user, device = admin_and_device
+      sign_in_with(user, device)
+      expect(controller.send(:admin_sign_in?, user)).to eq(true)
+    end
+
+    it "accepts an admin with 2FA whose sign-in entered a code" do
+      user, device = admin_and_device(device_settings: {'2fa' => {'last_otp' => Time.now.to_i}})
+      user.assert_2fa!
+      sign_in_with(user, device)
+      expect(controller.send(:admin_sign_in?, user)).to eq(true)
+    end
+
+    it "refuses an account that is not an admin" do
+      user, device = admin_and_device
+      user.settings.delete('admin')
+      user.save!
+      sign_in_with(user, device)
+      expect(controller.send(:admin_sign_in?, user)).to eq(false)
+    end
+
+    it "refuses when the request has no device" do
+      user, device = admin_and_device
+      sign_in_with(user, nil)
+      expect(controller.send(:admin_sign_in?, user)).to eq(false)
+    end
+
+    it "refuses a device that belongs to another account" do
+      user, device = admin_and_device
+      other, other_device = admin_and_device
+      sign_in_with(user, other_device)
+      expect(controller.send(:admin_sign_in?, user)).to eq(false)
+    end
+
+    it "refuses a sign-in that has not entered its code" do
+      user, device = admin_and_device(device_settings: {'2fa' => {'pending' => true}})
+      user.assert_2fa!
+      sign_in_with(user, device)
+      expect(controller.send(:admin_sign_in?, user)).to eq(false)
+    end
+
+    it "refuses a sign-in made before the account turned on 2FA" do
+      user, device = admin_and_device
+      user.assert_2fa!
+      sign_in_with(user, device)
+      expect(controller.send(:admin_sign_in?, user)).to eq(false)
+    end
+
+    it "refuses a token issued to another app" do
+      user, device = admin_and_device(developer_key_id: 1)
+      sign_in_with(user, device)
+      expect(controller.send(:admin_sign_in?, user)).to eq(false)
+    end
+
+    it "refuses a token issued to a connected integration" do
+      user, device = admin_and_device
+      device.user_integration_id = 1
+      device.save!
+      sign_in_with(user, device)
+      expect(controller.send(:admin_sign_in?, user)).to eq(false)
+    end
+
+    it "refuses a modeling (valet) device" do
+      user, device = admin_and_device(device_settings: {'valet' => true})
+      sign_in_with(user, device)
+      expect(controller.send(:admin_sign_in?, user)).to eq(false)
+    end
+
+    it "refuses an account signed in for modeling (valet)" do
+      user, device = admin_and_device
+      user.assert_valet_mode!
+      sign_in_with(user, device)
+      expect(controller.send(:admin_sign_in?, user)).to eq(false)
+    end
+
+    it "refuses a disabled device" do
+      user, device = admin_and_device(device_settings: {'disabled' => true})
+      sign_in_with(user, device)
+      expect(controller.send(:admin_sign_in?, user)).to eq(false)
+    end
+
+    it "checks the sign-in of the person acting, not the account being viewed" do
+      operator, operator_device = admin_and_device(device_settings: {'2fa' => {'pending' => true}})
+      operator.assert_2fa!
+      target, target_device = admin_and_device
+      sign_in_with(target, operator_device, true_user: operator)
+      expect(controller.send(:admin_sign_in?, target)).to eq(false)
+    end
+
+    it "accepts an admin acting as another admin through a full sign-in" do
+      operator, operator_device = admin_and_device
+      target, target_device = admin_and_device
+      sign_in_with(target, operator_device, true_user: operator)
+      expect(controller.send(:admin_sign_in?, target)).to eq(true)
+    end
+
+    it "checks the role of the person acting, not only the account being viewed" do
+      operator, operator_device = admin_and_device
+      operator.settings.delete('admin')
+      operator.save!
+      target, target_device = admin_and_device
+      sign_in_with(target, operator_device, true_user: operator)
+      expect(controller.send(:admin_sign_in?, target)).to eq(false)
     end
   end
 end

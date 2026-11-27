@@ -1,7 +1,7 @@
 import { module, test } from 'qunit';
 import EmberObject from '@ember/object';
 import RSVP from 'rsvp';
-import { SYNC_LOG_KEEP, entry_copy, log_owner, record_sync_log, merge_logs, restore_sync_log, last_result, restored_lead_kind } from 'frontend/utils/sync_log_store';
+import { SYNC_LOG_KEEP, entry_copy, log_owner, record_sync_log, merge_logs, restore_sync_log, last_result, restored_lead_kind, partial_result } from 'frontend/utils/sync_log_store';
 
 /* THE SYNC LOG SURVIVES A RESTART (docs/task-management/2026-11-15_persist-sync-log.md, Traci 2026-11-15): the newest 5
  * sync results are kept in the signed-in person's own device database (settings/syncLog), never for someone else's
@@ -44,6 +44,25 @@ module('Unit | Utility | sync log store', function() {
     assert.deepEqual(Object.keys(copy).sort(), ['finished', 'manual', 'roots', 'statuses', 'summary', 'user_id']);
     assert.deepEqual(copy.statuses, [{ id: '1_1', key: 'me/b1', status: 'downloaded' }], 'what Sync Details adds to a row is left out');
     assert.deepEqual(entry_copy({ errored: true, finished: e.finished }).statuses, [], 'an entry without rows gets an empty list');
+  });
+
+  // Part 2 unit T: the content tag survives a restart, so PR #1328's list reads it from a restored entry too.
+  test('a saved entry keeps the content tag on a row', function(assert) {
+    var e = entry(1);
+    e.statuses = [{ id: '1_1', key: 'me/core', status: 'downloaded', error: 'board me/core failed to sync completely', content: true }];
+    assert.deepEqual(entry_copy(e).statuses, [{ id: '1_1', key: 'me/core', status: 'downloaded', error: 'board me/core failed to sync completely', content: true }]);
+  });
+
+  // Part 4 (L4-B): the refused tag survives a restart too.
+  test('a saved entry keeps the refused tag on a row', function(assert) {
+    var e = entry(1);
+    e.statuses = [{ id: '1_8', key: 'other/shared', error: 'board other/shared failed retrieval for syncing', refused: true }];
+    assert.deepEqual(entry_copy(e).statuses, [{ id: '1_8', key: 'other/shared', error: 'board other/shared failed retrieval for syncing', refused: true }]);
+  });
+
+  test('a saved entry keeps its warnings', function(assert) {
+    var copy = entry_copy({ finished: new Date(), statuses: [{ id: '1_2', key: 'me/side', status: 'cached', warning: 'board me/side saved without its picture: x' }] });
+    assert.deepEqual(copy.statuses, [{ id: '1_2', key: 'me/side', status: 'cached', warning: 'board me/side saved without its picture: x' }]);
   });
 
   test('a finished sync is saved, newest 5, in the owner\'s record', function(assert) {
@@ -142,11 +161,51 @@ module('Unit | Utility | sync log store', function() {
     assert.strictEqual(last_result([entry(1, { issues: true })]).entry.summary, 'sync 1', 'a sync with problems did finish');
   });
 
+  // docs/task-management/2026-11-16_sync-details-no-percent.md (Traci, 2026-11-16): with no finished sync, Sync Details
+  // shows what the newest stopped sync saved, under "Saved before the sync stopped".
+  test('the newest stopped sync with rows, for when no sync has finished', function(assert) {
+    var r = partial_result([entry(1, { errored: true, confirmed: true }), entry(2, { canceled: true, confirmed: true })]);
+    assert.strictEqual(r.entry.summary, 'sync 2');
+    assert.false(r.from_earlier);
+    var r2 = partial_result([entry(1, { errored: true, confirmed: true }), entry(2, { errored: true, statuses: [], confirmed: true })]);
+    assert.strictEqual(r2.entry.summary, 'sync 1');
+    assert.true(r2.from_earlier, 'a later stop saved nothing');
+    assert.strictEqual(partial_result([entry(1, { errored: true, confirmed: true }), entry(2)]).entry.summary, 'sync 1', 'a finished sync is never the partial one');
+    assert.strictEqual(partial_result([entry(1)]), null);
+    assert.strictEqual(partial_result([entry(1, { errored: true, storage_failed: true, confirmed: true })]).entry.summary, 'sync 1', 'a stop after a failed write still shows what it wrote (Part 5; its rows are confirmed, so the failed board reads not saved)');
+    assert.strictEqual(partial_result(null), null);
+  });
+
+  // Codex P2 on 7cad69d0f (Part 5): only an entry a stop path wrote (its rows confirmed) is a partial result. An entry
+  // the old code wrote, or a finished sync whose writes failed, carries no marker and is never shown as saved.
+  test('partial_result takes only a stopped entry its stop path marked confirmed', function(assert) {
+    assert.strictEqual(partial_result([entry(1, { errored: true })]), null, 'a stopped entry the old code wrote');
+    assert.strictEqual(partial_result([entry(1, { canceled: true })]), null, 'a cancelled one too');
+    assert.strictEqual(partial_result([entry(1, { errored: true, storage_failed: true })]), null, 'a finished sync whose writes failed (errored, storage_failed, raw rows)');
+    assert.strictEqual(partial_result([entry(1, { errored: true, confirmed: true })]).entry.summary, 'sync 1');
+  });
+
+  test('a saved entry keeps its confirmed marker', function(assert) {
+    assert.true(entry_copy(entry(1, { errored: true, confirmed: true })).confirmed);
+    assert.strictEqual(entry_copy(entry(1)).confirmed, undefined);
+  });
+
+  test('a saved entry keeps whether the device could not save its boards', function(assert) {
+    assert.true(entry_copy(entry(1, { errored: true, storage_failed: true })).storage_failed);
+    assert.strictEqual(entry_copy(entry(1)).storage_failed, undefined);
+  });
+
   test('what the status line says about the last sync after a restart', function(assert) {
     assert.strictEqual(restored_lead_kind([entry(1), entry(2, { canceled: true })]), 'canceled');
     assert.strictEqual(restored_lead_kind([entry(1, { errored: true })]), 'errored');
     assert.strictEqual(restored_lead_kind([entry(1, { issues: true })]), 'issues');
     assert.strictEqual(restored_lead_kind([entry(1)]), null, 'a clean sync keeps the usual line');
     assert.strictEqual(restored_lead_kind([]), null);
+  });
+
+  // The offline list reads `answered` (utils/offline_board_list.js), so a restored log keeps it.
+  test('entry_copy keeps the boards the server answered for', function(assert) {
+    var copy = entry_copy({ user_id: 'me', finished: 1, statuses: [{ id: 'other/liked', key: 'other/liked', status: 're-downloaded' }], answered: ['other/liked'] });
+    assert.deepEqual(copy.answered, ['other/liked']);
   });
 });

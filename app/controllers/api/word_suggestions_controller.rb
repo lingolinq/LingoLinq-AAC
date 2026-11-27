@@ -19,6 +19,9 @@ class Api::WordSuggestionsController < ApplicationController
     if FeatureFlags.eu_under16_blocks_ai_for?(@api_user)
       return render json: { error: 'parental consent required', words: [] }, status: 403
     end
+    if ai_consent_missing?
+      return render json: ai_consent_required_payload.merge(words: []), status: 403
+    end
     # Speaking as someone (#1063): their own AI block applies too.
     communicator = ai_prediction_communicator
     return unless communicator

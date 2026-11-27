@@ -26,7 +26,7 @@ class User < ApplicationRecord
   # Keep in sync with the "Last Updated" date in the Privacy Policy
   # (app/frontend/app/templates/privacy.hbs). Bump when a material change
   # requires users to re-consent.
-  PRIVACY_POLICY_VERSION = '2026-08-30'
+  PRIVACY_POLICY_VERSION = '2026-11-23'
 
   def current_sponsor
     Organization.find_by(id: self.managing_organization_id)
@@ -147,6 +147,28 @@ class User < ApplicationRecord
   
   def supporter_registration?
     !['unspecified', 'communicator'].include?(self.registration_type)
+  end
+
+  # Account types that may be sent to the marketing CRM (HubSpot), #1123. An allowlist,
+  # because the type is a value the client sends: anything not named here, including
+  # a type added later, is not sent. 'communicator' is here so that adult AAC users who
+  # registered themselves get the same emails as adult supporters (Scot, 2026-11-23).
+  MARKETING_TRACKABLE_TYPES = %w[therapist parent teacher other eval manually-added-supervisor communicator].freeze
+
+  # True only for an adult account of an allowlisted type: no child-consent record of
+  # any state, not registered as under 16, and recorded as 18 or over at signup.
+  # Anything missing or unreadable means not sent. Separate from
+  # supporter_registration?, which mail and stats still read with its own meaning.
+  def marketing_trackable?
+    s = self.settings.is_a?(Hash) ? self.settings : {}
+    prefs = s['preferences']
+    type = prefs.is_a?(Hash) ? prefs['registration_type'] : nil
+    return false unless type.is_a?(String) && MARKETING_TRACKABLE_TYPES.include?(type)
+    return false if s['coppa'].present?
+    reg = s['registration']
+    return false unless reg.is_a?(Hash)
+    return false if reg['under_16']
+    reg['adult_at_signup'] == true
   end
 
   # Analytics / third-party tracking preference (GDPR). After +process_params+, stored as boolean via +process_boolean+;
@@ -788,6 +810,7 @@ class User < ApplicationRecord
         'offboarding' => offboarding,
         'parent_email' => process_string(parent),
         'parent_consent_token' => GoSecure.nonce('parent_consent'),
+        'ai_disclosures_version' => LingoLinq::AiConsentDisclosures::CURRENT_VERSION, # the AI notice this request's email carries (#1136)
         'parent_consent_expires_at' => deadline,
         'needs_parent_email' => false
       }
@@ -1449,6 +1472,7 @@ class User < ApplicationRecord
       'pending_parent_consent' => true,
       'parent_email' => process_string(parent),
       'parent_consent_token' => GoSecure.nonce('eu_ai_parent_consent'),
+      'ai_disclosures_version' => LingoLinq::AiConsentDisclosures::CURRENT_VERSION, # the AI notice this request's email carries (#1136)
       'parent_consent_expires_at' => 14.days.from_now.utc.iso8601,
       'requested_features' => features
     }
@@ -1643,7 +1667,91 @@ class User < ApplicationRecord
   # Sources accepted by grant_ai_consent!. Anything else raises ArgumentError so
   # Phase 3 controllers cannot silently widen the surface by passing an arbitrary
   # value pulled from params. New sources must be added here explicitly.
-  AI_CONSENT_SOURCES = %w[email_link in_app admin_backfill].freeze
+  AI_CONSENT_SOURCES = %w[email_link in_app admin_backfill registration].freeze
+
+  # Sources where the account holder acts for their own account (Scot, 2026-11-17:
+  # agreement at registration, and one click for an existing account). Every other
+  # source is someone else acting (a parent's emailed link, an admin backfill).
+  AI_CONSENT_SELF_SOURCES = %w[registration in_app].freeze
+
+  # True when this account's AI data-sharing consent has to come from a parent or
+  # guardian, never from the account itself: any COPPA record at all (pending,
+  # approved, declined or revoked), an EU under-16 registration, or an account a
+  # school created with no age on file showing 13 or over. That last rule is the one
+  # License uses when a seat ends (school authorization and no birth month means
+  # treat as under 13): a school-created account that has left its district must not
+  # be able to agree for itself.
+  def ai_consent_parent_route?
+    coppa = self.settings && self.settings['coppa']
+    return true if coppa.is_a?(Hash) && coppa.present?
+    school = self.settings && self.settings['school_authorization']
+    if school.is_a?(Hash) && school.present?
+      reg = self.settings['registration'].is_a?(Hash) ? self.settings['registration'] : {}
+      compliance = self.settings['compliance'].is_a?(Hash) ? self.settings['compliance'] : {}
+      under_13 = self.class.age_under_threshold?(
+        birth_month: reg['offboarding_birth_month'] || compliance['birth_month'],
+        birth_year: reg['offboarding_birth_year'] || compliance['birth_year'],
+        age: 13
+      )
+      return true unless under_13 == false
+    end
+    eu_under_16?
+  end
+
+  # Registration route: records the consent the account holder gave by agreeing to
+  # the terms at signup. Called only by the public signup controllers, never from
+  # process_params (which also runs on every later update). +shown_version+ is the
+  # disclosure version the signup form says it showed next to the agreement: a form
+  # that showed none, or not the current one, creates the account and records
+  # nothing here. Returns false, and
+  # records nothing, when the terms were not agreed, when the account is on the
+  # parent route, or when a district created or already holds the account. Never
+  # raises into the signup request: a failure is logged and AI simply stays off
+  # until the account agrees in the app.
+  def record_registration_ai_consent!(shown_version:, ip: nil, user_agent: nil)
+    return false unless shown_version.to_s =~ /\A\d+\z/ && shown_version.to_i == LingoLinq::AiConsentDisclosures::CURRENT_VERSION
+    return false unless self.settings && self.settings['terms_agreed'].present?
+    return false if ai_consent_parent_route?
+    return false if self.settings['authored_organization_id'].present?
+    return false if Organization.attached_orgs(self).any? { |o| o['type'] == 'user' }
+    grant_ai_consent!(
+      disclosures_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION,
+      granted_by: 'account_holder',
+      source: 'registration',
+      ip: ip,
+      user_agent: user_agent,
+      granted_by_user_id: self.global_id
+    )
+  rescue ArgumentError, ActiveRecord::ActiveRecordError => e
+    Rails.logger.error("registration AI consent not recorded for #{self.global_id}: #{e.class}")
+    false
+  end
+
+  # Parent route: records the AI consent that comes with a parent's or guardian's
+  # approval through their emailed link. The parent's address stays in the approval
+  # record it already lives in; it is not copied here. Never raises into the
+  # approval page.
+  #
+  # `request` names the approval record the parent just completed ('coppa' or
+  # 'eu_ai_parental_consent'). The consent is recorded only when that request was
+  # stamped with the current disclosure version when it was made, which is what says
+  # its email carried the AI notice. A link sent before the notice existed, or under
+  # an earlier disclosure version, approves the account and records no AI consent.
+  def record_parent_ai_consent!(request:, ip: nil, user_agent: nil)
+    blob = self.settings.is_a?(Hash) ? self.settings[request.to_s] : nil
+    stamped = blob.is_a?(Hash) ? blob['ai_disclosures_version'] : nil
+    return false unless stamped == LingoLinq::AiConsentDisclosures::CURRENT_VERSION
+    grant_ai_consent!(
+      disclosures_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION,
+      granted_by: 'parent',
+      source: 'email_link',
+      ip: ip,
+      user_agent: user_agent
+    )
+  rescue ArgumentError, ActiveRecord::ActiveRecordError => e
+    Rails.logger.error("parent AI consent not recorded for #{self.global_id}: #{e.class}")
+    false
+  end
 
   # Sources accepted by revoke_ai_consent!. Kept separate from grant sources
   # because the valid actors for revocation (parent, admin, automated system)
@@ -1689,9 +1797,19 @@ class User < ApplicationRecord
     # that a later valid grant can't repair), and a string version would make the
     # stale-version check lexicographic. Raises 'invalid_disclosures_version'.
     disclosures_version = ai_consent_normalize_version!(disclosures_version)
-    if granted_by_user_id.present?
-      granted_by_user_id = normalize_ai_consent_granted_by_user_id!(granted_by_user_id)
-      raise ArgumentError, 'self_grant_forbidden' if granted_by_user_id == self.global_id
+    granted_by_user_id = normalize_ai_consent_granted_by_user_id!(granted_by_user_id) if granted_by_user_id.present?
+    if AI_CONSENT_SELF_SOURCES.include?(source) && (granted_by_user_id.blank? || granted_by_user_id == self.global_id)
+      # The account holder acting for their own account: allowed, except where the
+      # consent has to come from a parent or guardian. A missing grantor id counts
+      # as the account itself, so leaving the id out cannot get a parent-route
+      # account past this.
+      raise ArgumentError, 'parental_consent_required' if ai_consent_parent_route?
+    elsif source == 'registration'
+      # Registration is only ever the new account agreeing for itself.
+      raise ArgumentError, 'invalid_granted_by_user_id'
+    elsif granted_by_user_id == self.global_id
+      # Every other source is someone else acting (a parent's link, an admin backfill).
+      raise ArgumentError, 'self_grant_forbidden'
     end
 
     res = false
@@ -2333,12 +2451,12 @@ class User < ApplicationRecord
   
   def generated_avatar_url(override_url=nil)
     id = self.id || 0
-    # In development, use local paths; in production, use S3
+    # In development, use local paths; elsewhere the app's own copy, as a full address
+    # (app/models/concerns/default_avatar.rb)
     if Rails.env.development?
       fallback = "/avatars/avatar-#{id % 10}.png"
     else
-      bucket = ENV['STATIC_S3_BUCKET'] || "lingolinq"
-      fallback = "https://#{bucket}.s3.amazonaws.com/avatars/avatar-#{id % 10}.png"
+      fallback = DefaultAvatar.url(id)
     end
 
     # In development, use local /avatars/ paths for the default image, but still expose a
@@ -2357,7 +2475,7 @@ class User < ApplicationRecord
       fallback
     elsif url && url != 'default'
       # NOTE: somewhere we should enforce that it's coming from a reliable location, or provide a fallback
-      url
+      DefaultAvatar.on_app_host(url) # a stored bucket default avatar is served from the app
     elsif self.settings['email'] && false
       # TODO: gravatar seems to be breaking on iOS-only all of the sudden
       email_md5 = Digest::MD5.hexdigest(self.settings['email'])
@@ -2369,6 +2487,8 @@ class User < ApplicationRecord
   
   def prior_avatar_urls
     res = self.settings && self.settings['prior_avatar_urls']
+    # A new list: default avatars served from the app, and the saved list is no longer appended to
+    res = res.map { |url| DefaultAvatar.on_app_host(url) } if res
     current = generated_avatar_url
     default = generated_avatar_url('default')
     if (res && res.length > 0) || current != default
@@ -2793,13 +2913,17 @@ class User < ApplicationRecord
         'policy_version' => PRIVACY_POLICY_VERSION
       }
     end
-    if params['avatar_url'] && (params['avatar_url'].match(/^http/) || params['avatar_url'] == 'fallback')
+    avatar_param = params['avatar_url']
+    # The person's own default avatar is saved as 'fallback', never as an address tied to one host
+    # or bucket (the client sends avatar_url back on every save).
+    avatar_param = 'fallback' if DefaultAvatar.index(avatar_param) == (self.id || 0) % DefaultAvatar::COUNT
+    if avatar_param && (avatar_param.match(/^http/) || avatar_param == 'fallback')
       if self.settings['avatar_url'] && self.settings['avatar_url'] != 'fallback'
         self.settings['prior_avatar_urls'] ||= []
         self.settings['prior_avatar_urls'] << self.settings['avatar_url']
         self.settings['prior_avatar_urls'].uniq!
       end
-      self.settings['avatar_url'] = params['avatar_url']
+      self.settings['avatar_url'] = DefaultAvatar.stored(avatar_param)
     end
     if params['external_device']
       self.settings['external_device'] = params['external_device']
@@ -2887,6 +3011,7 @@ class User < ApplicationRecord
           'pending_parent_consent' => true,
           'parent_email' => process_string(parent),
           'parent_consent_token' => GoSecure.nonce('parent_consent'),
+          'ai_disclosures_version' => LingoLinq::AiConsentDisclosures::CURRENT_VERSION, # the AI notice this request's email carries (#1136)
           'parent_consent_expires_at' => 14.days.from_now.utc.iso8601
         }
         # COPPA: a child cannot acknowledge the Privacy Policy on its own. Drop
@@ -2918,9 +3043,19 @@ class User < ApplicationRecord
         under_16 = classified_under_16
       end
       eu_under_16 = !!(country && LingoLinq::Jurisdiction.eu?(country) && under_16)
+      # A yes/no "18 or over at signup", worked out from the birth month and year the
+      # signup form sends; the date itself is not kept. True ONLY when a usable date
+      # says 18 or over. No date, or an unusable one, is false: it never falls back
+      # to the self-declared under-16 flag. Read by marketing_trackable? (#1123).
+      adult_at_signup = User.age_under_threshold?(
+        birth_month: birth_month,
+        birth_year: birth_year,
+        age: 18
+      ) == false
       self.settings['registration'] = {
         'under_16' => under_16,
         'eu_under_16' => eu_under_16,
+        'adult_at_signup' => adult_at_signup,
         'registered_at' => Time.now.utc.iso8601
       }
       # Compliance Kernel: persist birth month/year + jurisdiction declaration when
@@ -2995,7 +3130,13 @@ class User < ApplicationRecord
     # secret, so self-service password changes always failed with "incorrect
     # current password". Only an explicitly-absent (nil) value is a no-op.
     unless params['valet_login'].nil?
-      if process_boolean(params['valet_login'])
+      if process_boolean(params['valet_login']) && valet_blocked_for_role?
+        # Valet stays off for these accounts: any stored valet password is cleared and a new one
+        # is ignored. This is not an error, because the client re-sends valet_login (and, after a
+        # failed save, a typed valet_password) on every later save of the record, so refusing
+        # here would make all of them fail.
+        self.set_valet_password(false)
+      elsif process_boolean(params['valet_login'])
         if params['valet_password'].present? && !password_meets_minimum?(params['valet_password'])
           add_processing_error("password too short")
           return false
@@ -3255,12 +3396,8 @@ class User < ApplicationRecord
               hash = GoSecure.nonce('contact_hash')[0, 8]
             end
             contact_type = action['value']['contact'].match(/\@/) ? 'email' : 'sms'
-            image_url = action['value']['image_url']
-            if !image_url
-              bucket = ENV['STATIC_S3_BUCKET'] || "lingolinq"
-              id = hash.hex.to_i
-              image_url = "https://#{bucket}.s3.amazonaws.com/avatars/avatar-#{id % 10}.png"
-            end
+            image_url = DefaultAvatar.stored(action['value']['image_url'])
+            image_url ||= DefaultAvatar.path(hash.hex.to_i)
             action['value']['contact'].strip!
             ref = action['value']['contact'].strip.downcase
             ref = ref.gsub(/[^\d\+\,]/, '') if contact_type == 'sms'
@@ -4568,7 +4705,13 @@ class User < ApplicationRecord
   def admin?
     self.settings['admin'] == true || Organization.admin_manager?(self)
   end
-  
+
+  # Admins (admin?) and organization managers or assistants (Organization.manager?) cannot use
+  # valet (modeling) login: process_params will not turn it on, and valid_password? refuses it.
+  def valet_blocked_for_role?
+    admin? || Organization.manager?(self)
+  end
+
   def self.default_sidebar_boards
     [
       {'name' => "Yes/No", 'key' => 'lingolinq/yesno', 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/yes_2.png', 'home_lock' => false},

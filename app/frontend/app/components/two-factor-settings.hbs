@@ -1,0 +1,56 @@
+{{!-- Shown when the account has 2FA, or on a supporter's own account so they can turn it on.
+     @ownAccount is false while acting as another user (controllers/user/edit.js own_account_2fa). --}}
+{{#if (or @user.state_2fa.required (and @ownAccount @user.supporter_role))}}
+  <div class='form-group' data-test-2fa-section>
+    <label for='2fa' class='col-sm-3 control-label'>{{t "2-Factor Authentication" key="2fa"}}</label>
+    <div class='col-sm-8'>
+      {{#if @status.loading}}
+        <p>{{t "updating..." key="updating_ellipsis"}}</p>
+      {{else if @status.uri}}
+        <p style='max-width: 300px;'>{{t "To complete two-factor authentication setup, scan the code into your authentication app and enter the generated code to confirm:" key="confirm_2fa_code"}}</p>
+        <div style='width: 300px'>
+        <QrCode @text={{@status.uri}} @size={{300}} />
+        </div>
+        <span style='display: inline-block; width: 200px;'>
+          <input value={{@code}} type="number" class="form-control" placeholder="# # # # # #" aria-label={{t "Two-factor authentication code" key="two_factor_code"}} autocomplete="one-time-code" {{on "input" @onCodeInput}} />
+        </span>
+        {{#if @status.error}}
+          <p class='text-danger'>{{t "Invalid code, please check again" key="invalid_code_please_try_again"}}</p>
+        {{/if}}
+        <button type="button" class='btn btn-default' data-test-2fa-action="confirm" {{on "click" (@ctrlAction "update_2fa" "confirm")}}>{{t "Confirm" key="confirm"}}</button>
+      {{else}}
+        {{#if @user.permissions.edit}}
+          {{#if @user.state_2fa.required}}
+            {{#if @user.state_2fa.mandatory}}
+              {{t "Required for This Account" key="required_for_this_account"}}
+            {{else}}
+              {{t "Currently Enabled" key="currently_enabled"}}
+            {{/if}}
+            {{#unless @user.state_2fa.mandatory}}
+              <button type="button" class='btn btn-default' data-test-2fa-action="disable" {{on "click" (@ctrlAction "update_2fa" "disable")}}>{{t "Disable" key="disable_2fa"}}</button>
+            {{/unless}}
+            {{#if @ownAccount}}
+              <button type="button" class='btn btn-default' data-test-2fa-action="reset" {{on "click" (@ctrlAction "update_2fa" "reset")}}>{{t "Reset" key="reset_2fa"}}</button>
+            {{/if}}
+          {{else}}
+            {{t "Ensure you have the latest app versions before enabling!" key="ensure_latest_app_versions"}}
+            <button type="button" class='btn btn-default' data-test-2fa-action="enable" {{on "click" (@ctrlAction "update_2fa" "enable")}}>{{t "Enable Two-Factor Authentication" key="enable_2fa"}}</button>
+          {{/if}}
+        {{/if}}
+        {{#if @status.error}}
+          <p class='text-danger'>{{t "Error updating two-factor authentication" key="error_updating_2fa"}}</p>
+        {{else if @status.success}}
+          <p class='text-success' data-test-2fa-success>{{t "Two-factor authentcation successfully updated!" key="success_2fa"}}</p>
+        {{/if}}
+      {{/if}}
+    </div>
+  </div>
+{{else if @status.success}}
+  {{!-- After a change the account no longer qualifies for the section (2FA turned off on another account). --}}
+  <div class='form-group'>
+    <span class='col-sm-3 control-label'></span>
+    <div class='col-sm-8'>
+      <p class='text-success' data-test-2fa-success>{{t "Two-factor authentcation successfully updated!" key="success_2fa"}}</p>
+    </div>
+  </div>
+{{/if}}

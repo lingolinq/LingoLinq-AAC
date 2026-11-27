@@ -18,6 +18,13 @@ include children and clinical patients; FERPA, HIPAA, GDPR and COPPA apply.
 - **Diagnose before fixing; never guess.** Trace the real code path, verify the root
   cause with evidence, and never break working behaviour. Label facts CONFIRMED
   (`file:line`) or ASSUMED; nothing ASSUMED may carry a fix.
+- **Stay in scope.** Fix only what the task or issue asks. Fixing the verified root cause is in scope, including shared callers and other defects with that same root cause. Do not add unrelated hardening,
+  compliance or privacy changes, refactors or cleanups to the PR, even in files you touch.
+  Log anything else you notice as a follow-up issue draft (title and body) in the PR
+  description. The one exception: a concrete, proven exposure of real people's personal
+  data in code the PR touches, meeting the evidence bar in "Code Review Rules" below.
+  A change should do one self-contained thing (Google's code review guide), so the fix
+  ships without waiting on unrelated work.
 - **Branch first.** Never edit on `develop`, `staging` or `main`. Branch from `develop`
   with a developer handle and a type (fix, feat, chore, docs, perf, refactor, test,
   compliance, security). Scot's branches are always `<type>/scot-<kebab-slug>`, the
@@ -96,7 +103,11 @@ contributor (a fork) also needs a human review from the core team. Dual review (
 pass and an adversarial red-team pass) applies only when the PR touches authentication or
 sessions, consent or account ownership, access to another user's or organization's data,
 billing, AI model routing or the AI client, infra or deploy config, or the
-`data-bearing-paths` gate. At most two review rounds; a third needs Scot's OK. A Critical
+`data-bearing-paths` gate. Up to two review rounds by default. The responsible senior
+developer may run additional rounds when needed, recording the reason in the PR; an agent
+never decides this itself and runs an extra round only when that developer asked.
+Additional reviews do not authorize merging; existing privacy checks, review requirements,
+Critical/High blockers, GitHub checks, and merge approvals still apply. A Critical
 or High finding from any review blocks the PR; this is a blocking gate, not advisory.
 Which passes you can run depends on which tool you are, and the three cases differ; do
 not compress them to "available" or "unavailable".
@@ -138,6 +149,72 @@ PII pre-flight. It is the one review a normal PR needs, but neither dual-review 
 confirm a PR actually got it rather than assuming. A
 `@codex review` comment requests one and posts under your GitHub account, so ask before
 posting. No repository rule requests Copilot code review.
+
+## Code Review Rules
+
+Every reviewer reads this section first: the Codex GitHub connector, a `review-pr` or
+adversary pass, and a human using an AI reviewer. It sorts findings so a PR is blocked
+only by what actually breaks the app or exposes people, and everything else becomes a
+follow-up issue (Scot, 2026-11-13).
+
+Current stage: beta; adults only (18+); testers are former CoughDrop professionals using fake test communicators; no shared devices until about 2027-01-01.
+
+Change that one line when the stage changes (for example when the first district or
+clinic brings real student or patient accounts). Anyone on the team may propose a change, in a PR that
+changes nothing else, and it merges only with approval from a senior dev (Scot, Traci or
+Melissa) who did not write it. An agent may draft that PR but never approves or merges it. Reviewers judge against the copy on the PR's base branch, and a
+dated condition ("until about 2027-01-01") ends on its date. These rules sort PR review
+findings only; they do not change `/audit-run` or the findings register.
+
+Judge what this diff changes. The stage line rates issues that were already there. A
+defect the diff itself introduces is fix-before-merge at every stage when it breaks or
+bypasses an existing safeguard: `lib/pii_scrubber.rb` use, `secure_serialize`,
+`allowed?` or organization scoping, the under-13 or EU consent gates, `AuditEvent` or
+PaperTrail writes, a retention purge, a feature flag on a new user-facing feature, or a
+promise in the public privacy notice.
+
+An issue that was already there in code the PR touches, and that this diff does not make
+worse, never blocks the PR, even if it would be fix-before-merge on its own: list it as a
+follow-up (claim level for a security weakness) so it gets its own fix.
+
+### Fix before merge (the only findings that block)
+
+Only these may be Critical or High (P0 or P1 on the Codex connector):
+
+- The app breaks or misbehaves for current users: a crash, a feature that stops working,
+  a glitch that blocks communication, a sync or offline failure.
+- Data is lost or corrupted, or one account's data shows up in another account.
+- A real security hole that current users are exposed to now: broken access control, an
+  auth bypass, injection, a committed secret.
+- Real exposure of real people's personal data, at any stage. Use this only with concrete
+  evidence: a reachable code path, cited as `path:line`, that carries real people's
+  personal data to someone who should not see it (another account, an outside service, a
+  public page, a log that leaves the platform). "Could leak if someone later adds X" is
+  speculation, not evidence, and goes to follow-up. Past exposure flags here have mostly
+  been false alarms, so show the path or do not use this.
+- A defect this diff introduces that breaks or bypasses one of the safeguards listed under
+  "Judge what this diff changes" above, at any stage.
+
+### Follow-up (never blocks; rate Medium or Low, never P0 or P1)
+
+None of these covers a safeguard this diff breaks or bypasses: that is fix-before-merge
+under "Judge what this diff changes" above, whichever item below it would otherwise fit.
+
+- Compliance and privacy items (FERPA, HIPAA, COPPA, GDPR, retention, consent wording,
+  audit-trail gaps, disclosures) that do not meet the exposure test above.
+- Shared-device and multi-user-device issues while the stage says no shared devices.
+- Under-13 and school-account issues while the stage says adults only.
+- Polish: naming, style, a missing i18n key, extra tests for a low-risk path, refactors.
+
+List follow-ups as one line each. Write a full ready-to-file GitHub issue draft (a title,
+then what is wrong, where (`path:line`), why it can wait at the current stage, and the
+suggested fix) only for one a current tester or customer could hit, or one a law or
+signed contract requires, and at most 3 per review. Never draft an issue for a PLAUSIBLE
+or unverified finding: check it or drop it. Do not file it yourself; the author or Scot
+does. This repo is public:
+for a security follow-up, keep the PR comment and issue draft at the level of the claim
+(what kind of weakness, which area) and send the details to Scot privately. A missing test blocks
+only when the untested path could break the app or lose data.
 
 ## Where things are
 

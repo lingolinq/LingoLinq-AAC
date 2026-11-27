@@ -168,7 +168,7 @@ class Api::UsersController < ApplicationController
       org = Organization.find_by_global_id(params['org_id'])
       return unless allowed?(org, 'edit')
       lookup = org.attached_users('all')
-    elsif !Organization.admin_manager?(@api_user)
+    elsif !(Organization.admin_manager?(@api_user) && Organization.admin_manager?(@true_user || @api_user) && full_sign_in?)
       return api_error 400, {error: 'admins only'}
     end
     if !params['q']
@@ -283,6 +283,13 @@ class Api::UsersController < ApplicationController
       res = Organization.parse_activation_code(user_data['start_code'], user)
       start_progress = res[:progress]
       start_code_org = res[:target] if res.is_a?(Hash) && res[:target].is_a?(Organization)
+    end
+    # AI data-sharing consent (#1136): a self-signup agrees to it with the terms. Only
+    # for a public signup (nobody signed in) with no start code: a start code attaches
+    # the account to a district in a background job, and that district's authorization
+    # is then what covers it.
+    if @api_user.nil? && !(user_data && user_data['start_code'].present?)
+      user.record_registration_ai_consent!(shown_version: user_data && user_data['ai_disclosure_version'], ip: request.remote_ip, user_agent: request.user_agent)
     end
     UserBoardProvisioner.provision_for(user)
     # Org-authored (school-official) creation: emit the immutable authorization audit
@@ -1049,6 +1056,48 @@ class Api::UsersController < ApplicationController
     }
   end
 
+  # Records the AI data-sharing consent (#1136) of an existing account with one click.
+  # Only the signed-in account holder acting on their own account can do this:
+  # - a supervisor, or an admin or manager acting as the account (masquerade), is
+  #   refused below with `account_holder_required`;
+  # - a valet login or a limited-scope token is refused by allowed?(user, 'edit');
+  # - a district-managed account is covered by its district instead
+  #   (`org_authorization_required`);
+  # - an account on the parent route is refused by grant_ai_consent! itself
+  #   (`parental_consent_required`).
+  # Source and version are server constants, never read from the request. The request
+  # only has to say which disclosure version its notice showed: a page left open across
+  # a version change showed the old text, so it is refused (`disclosure_version_stale`)
+  # and records nothing, the same rule signup follows.
+  def ai_consent
+    user = User.find_by_path(params['user_id'])
+    return unless exists?(user, params['user_id'])
+    return unless allowed?(user, 'edit')
+    own_account = @api_user && user.id == @api_user.id && !@true_user
+    return api_error(403, {error: 'account_holder_required'}) unless own_account
+    return api_error(400, {error: 'org_authorization_required'}) if Organization.ai_consent_orgs_for(user).any?
+    shown = params['disclosure_version'].to_s
+    unless shown =~ /\A\d+\z/ && shown.to_i == LingoLinq::AiConsentDisclosures::CURRENT_VERSION
+      return api_error(400, {error: 'disclosure_version_stale', disclosures_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION})
+    end
+    begin
+      user.grant_ai_consent!(
+        disclosures_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION,
+        granted_by: 'account_holder',
+        source: 'in_app',
+        ip: request.remote_ip,
+        user_agent: request.user_agent,
+        granted_by_user_id: user.global_id
+      )
+    rescue ArgumentError => e
+      return api_error 400, {error: e.message}
+    end
+    render json: {
+      ai_consent_granted: user.ai_consent_granted?,
+      disclosures_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION
+    }
+  end
+
   def password_reset
     user = User.find_by_path(params['user_id'])
     if user && reset_token = user.reset_token_for_code(params['code'])
@@ -1282,15 +1331,32 @@ class Api::UsersController < ApplicationController
     user = User.find_by_path(params['user_id'])
     return unless exists?(user, params['user_id'])
     return unless allowed?(user, 'edit')
+    # Only the account holder turns 2FA on, resets it or confirms a new secret, and not while
+    # acting as another user. Anyone with edit can turn it off, unless the account must use 2FA.
+    own_account = user.global_id == @api_user.global_id && !@true_user
+    if %w[enable reset confirm].include?(params['action_2fa']) && !own_account
+      return api_error 400, {error: "only the account holder can turn on 2FA"}
+    end
     if params['action_2fa'] == 'enable' || (params['action_2fa'] == 'reset' && (user.settings['2fa'] || user.settings['tmp_2fa']))
-      user.assert_2fa!(user.global_id == @api_user.global_id)
+      user.assert_2fa!(true)
     elsif params['action_2fa'] == 'disable'
+      # Accounts that must use 2FA (Passwords#state_2fa) keep it on.
+      return api_error 400, {error: "2FA is required for this account"} if user.state_2fa[:mandatory]
       user.settings.delete('2fa')
       user.settings.delete('tmp_2fa')
       user.save
     elsif params['action_2fa'] == 'confirm'
       ts = user.valid_2fa?(params['code_2fa'])
       return api_error 400, {error: "invalid code: #{params['code_2fa']}"} unless ts
+      # The device this code was entered on stays signed in; the account's other sign-ins
+      # made before 2FA are signed out (Passwords#refresh_device_sign_ins!).
+      device = Device.find_by_global_id(@api_device_id) if @api_device_id
+      device = nil unless device && device.user_id == user.id
+      if device
+        device.settings['2fa'] = (device.settings['2fa'] || {}).except('pending').merge('last_otp' => ts)
+        device.save
+      end
+      user.refresh_device_sign_ins!(keep: device)
     else
       return api_error 400, {error: "unregognized action: #{params['action_2fa']}"}
     end

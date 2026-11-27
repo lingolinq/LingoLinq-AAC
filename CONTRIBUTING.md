@@ -230,11 +230,21 @@ adversary, red-team, review) before merge if it touches any of:
 
 ### Gating
 
+Every review first sorts findings into "fix before merge" and "follow-up" per the
+`## Code Review Rules` section of `AGENTS.md`. Only fix-before-merge findings may be
+Critical or High; follow-ups are Medium or Low, listed one line each. A change in the diff
+that breaks or bypasses one of the safeguards `AGENTS.md` lists is fix-before-merge at any
+stage.
+
 - **Critical** or **High** finding from any review: blocks merge. Fix it in the
   PR, or get explicit sign-off to defer with a tracked follow-up issue.
 - **Medium**: surface to the approver for triage.
 - **Low**: log and continue.
-- **Rounds**: at most two review rounds on any PR; a third needs Scot's OK.
+- **Rounds**: up to two review rounds by default. The responsible senior developer may run
+  additional rounds when needed, recording the reason in the PR; an agent never decides this
+  itself and runs an extra round only when that developer asked. Additional reviews
+  do not authorize merging; existing privacy checks, review requirements, Critical/High
+  blockers, GitHub checks, and merge approvals still apply.
 
 ## Commit Messages
 

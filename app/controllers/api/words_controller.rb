@@ -57,6 +57,7 @@ class Api::WordsController < ApplicationController
     return api_error(400, {error: "ai_word_prediction is not enabled for this user"}) if !@api_user || !FeatureFlags.ai_feature_enabled_for?('ai_word_prediction', @api_user)
     return api_error(403, {error: "parental consent required"}) if FeatureFlags.coppa_blocks_ai_for?(@api_user)
     return api_error(403, {error: "parental consent required"}) if FeatureFlags.eu_under16_blocks_ai_for?(@api_user)
+    return unless require_ai_consent!
     # Speaking as someone (#1063): their own AI block applies too.
     communicator = ai_prediction_communicator
     return unless communicator

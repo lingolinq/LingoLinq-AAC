@@ -82,11 +82,23 @@ function global_board_id(id) {
   return !!(id && typeof id === 'string' && id.match(/^\d+_\d+/));
 }
 
+// The revisions of a response from a server that checks view permission (the wrapped shape) carry a mark the sync
+// reads before counting a revision match as the server's answer (services/persistence.js note_answered calls). Not
+// enumerable, so it is never taken for a board.
+export function checked_revisions(revisions) {
+  if(revisions && typeof revisions === 'object') { Object.defineProperty(revisions, 'view_checked', { value: true, enumerable: false, configurable: true }); }
+  return revisions;
+}
+
+export function view_checked(revisions) {
+  return !!(revisions && revisions.view_checked === true);
+}
+
 // Accepts the wrapped include_revoked response or the older flat id => revision
 // map. revoked_ids is null when the response did not carry a revoked list.
 export function parse_revisions_response(res) {
   if(res && typeof res === 'object' && res.revisions && typeof res.revisions === 'object' && Array.isArray(res.revoked_ids)) {
-    return {revisions: res.revisions, revoked_ids: res.revoked_ids.filter(global_board_id)};
+    return {revisions: checked_revisions(res.revisions), revoked_ids: res.revoked_ids.filter(global_board_id)};
   }
   return {revisions: res, revoked_ids: null};
 }
@@ -717,6 +729,8 @@ export function reset_for_tests() {
 
 export default {
   parse_revisions_response: parse_revisions_response,
+  checked_revisions: checked_revisions,
+  view_checked: view_checked,
   fetch_revisions: fetch_revisions,
   skip_board: skip_board,
   note_failure: note_failure,

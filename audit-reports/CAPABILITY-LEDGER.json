@@ -48,7 +48,7 @@
       "antiClaim": "NOT mandatory; do not claim enforced MFA for all users or admins.",
       "currentEvidence": {
         "file": "app/models/concerns/passwords.rb",
-        "line": 111,
+        "line": 137,
         "snippet": "totp = ROTP::TOTP.new(secret, issuer: \"LingoLinq\")"
       },
       "frameworks": [
@@ -147,7 +147,7 @@
       "antiClaim": "The Art. 50(2) obligation is NOT closed: this slice marks board generation ONLY. Other AI-output surfaces (generate_focus_words, AiWordPredictor.predict, eval narration, AiPredictionGenerator) are not yet marked, and durable persistence of the marker (board.settings + relinking copy_for) is follow-up. Also distinct from the Art. 50(1) disclosure modal (see cap art50-1-disclosure-modal).",
       "currentEvidence": {
         "file": "lib/ai_board_generator.rb",
-        "line": 177,
+        "line": 185,
         "snippet": "# EU AI Act Article 50(2): mark the board-generation output. The marking"
       },
       "introducedEvidence": {
@@ -206,7 +206,7 @@
       "antiClaim": "Do NOT claim a later revision than lingolinq-web-00020-per was checked; credential mounts are non-monotonic. Do NOT claim eval narration is operational. Do NOT say these features have never been operational: the path ran 2026-08-03T08:23Z to 2026-08-04T06:31Z on 00013-76w. Do NOT say all features 'ran' in that first window: only word prediction completed a call then. The prior Google Gemini fallback was DISABLED 2026-07-09; there is no runtime Gemini path. When configured, runtime AI egresses to Claude on AWS Bedrock via lib/ai_client.rb, not the direct api.anthropic.com endpoint; enforced in CI by scripts/ai-endpoint-guard.sh. Only pseudonymized data is sent (see cap pii-scrubber-pseudonymization).",
       "currentEvidence": {
         "file": "lib/ai_word_predictor.rb",
-        "line": 336,
+        "line": 340,
         "snippet": "provider: :claude,"
       },
       "introducedEvidence": {
@@ -266,7 +266,7 @@
       "antiClaim": "Do NOT read 'not in ENABLED_FRONTEND_FEATURES' as the production state: that is the code default only. Do NOT claim the modal was shown: the 2026-08-23 probe counted User#article_50_disclosure_shown?, which can also be set by admin_backfill or by posting the acknowledgement endpoint, without the UI rendering. Do NOT bound undisclosed-AI exposure to the 00013-76w window on the premise that credentials were withdrawn: they were remounted on 00015-9l9 at 2026-08-04T07:25:08Z and last verified present on lingolinq-web-00020-per (swept 2026-08-16); later revisions unchecked. During the ~22h 00013-76w window the only logged call was an internal verification call with no end user. The 2026-08-02 enablement-gate OUTCOME is satisfied in the current Setting; whether it was discharged by the explicit sign-off the gate required is unrecoverable (Setting has no version history).",
       "currentEvidence": {
         "file": "app/frontend/app/components/ai-disclosure.js",
-        "line": 8,
+        "line": 17,
         "snippet": "from '../utils/article50_gate'"
       },
       "introducedEvidence": {
@@ -287,7 +287,7 @@
       "antiClaim": "This gate is NOT the same as signup COPPA (settings['coppa']) or second-tier AI data-sharing VPC (settings['ai_consent'] / government-ID). It only covers EU under-16 AI enablement.",
       "currentEvidence": {
         "file": "lib/feature_flags.rb",
-        "line": 327,
+        "line": 351,
         "snippet": "def self.eu_under16_blocks_ai_for?(user)"
       },
       "frameworks": [

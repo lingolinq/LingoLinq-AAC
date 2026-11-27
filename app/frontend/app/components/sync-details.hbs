@@ -11,9 +11,11 @@
     {{!-- Summary band: how much is on this device, the sync's own status line, and the one action. --}}
     <div class="la-sync-details-summary">
       <div class="la-sync-details-summary-main">
-        {{#if this.summary}}
-          <p class="la-sync-details-summary-pct"><span class="la-sync-details-summary-num">{{this.summary_pct}}%</span> {{t "ready offline" key="sync_ready_offline_lower"}}</p>
-          <div class="la-sync-details-bar la-sync-details-bar--summary" role="img" aria-label={{this.summary_line}}><span class="la-sync-details-bar-fill" style={{this.summary_bar_style}}></span></div>
+        {{!-- No percentage (Traci, 2026-11-16): while syncing, the drawer's moving bar; after, the drawer's words. --}}
+        {{#if (persistence-value 'syncing')}}
+          <div class="ll-sync-drawer__bar" aria-hidden="true"><span class="ll-sync-drawer__bar-fill"></span></div>
+        {{else if this.headline}}
+          <p class="la-sync-details-summary-pct">{{this.headline}}</p>
         {{/if}}
         <p class="la-sync-details-lead">
           {{#if (persistence-value 'sync_succeeded')}}
@@ -53,7 +55,9 @@
         </p>
         {{!-- The details under the status line: how many are saved, and whether the cards are from an earlier sync. --}}
         {{#if this.summary}}
-          <p class="la-sync-details-summary-line">{{this.summary_line}}</p>
+          {{#if this.summary_line}}
+            <p class="la-sync-details-summary-line">{{this.summary_line}}</p>
+          {{/if}}
           {{#if this.summary.from_earlier}}
             <p class="la-sync-details-summary-line">{{t "These results are from an earlier sync," key="sync_results_from_earlier"}} {{date_ago this.summary.finished}}.</p>
           {{/if}}
@@ -78,6 +82,7 @@
 
     <div class="la-sync-details-modal-body">
       {{#if this.summary}}
+        {{#if this.show_tabs}}
         <div class="la-sync-tabs" role="tablist" aria-label={{t "Boards" key="boards"}}>
           {{#each this.tabs as |tab|}}
             <button type="button" role="tab" id="la-sync-tab-{{tab.id}}" aria-controls="la-sync-tabpanel" aria-selected={{tab.aria_selected}} class="la-sync-tab {{if tab.selected 'la-sync-tab--selected'}}" {{on "click" tab.pick}}>
@@ -86,21 +91,36 @@
             </button>
           {{/each}}
         </div>
+        {{/if}}
 
-        <div class="la-sync-cards" role="tabpanel" id="la-sync-tabpanel" aria-labelledby="la-sync-tab-{{this.current_tab}}">
+        <div class="la-sync-cards" role={{if this.show_tabs "tabpanel"}} id="la-sync-tabpanel" aria-labelledby={{if this.show_tabs (concat "la-sync-tab-" this.current_tab)}}>
+          {{#if this.picture_warning_line}}
+            <p class="la-sync-folder-group-note" data-test-sync-picture-warning>{{this.picture_warning_line}}</p>
+          {{/if}}
+          {{#if this.stopped}}
+            {{#if this.nothing_saved}}
+              <h4 class="la-sync-folder-group-title">{{t "Nothing was saved before the sync stopped" key="sync_nothing_saved_before_stopped"}}</h4>
+            {{else}}
+              <h4 class="la-sync-folder-group-title">{{t "Saved before the sync stopped" key="sync_saved_before_stopped"}}</h4>
+            {{/if}}
+          {{/if}}
           {{#each this.cards as |card|}}
-            <div class="la-sync-card {{if card.ready 'la-sync-card--ready' 'la-sync-card--attention'}}">
+            <div class="la-sync-card la-sync-card--{{card.tone}}">
               <button type="button" class="la-sync-card-head" aria-expanded={{card.expanded}} {{on "click" card.toggle}}>
                 <span class="la-sync-card-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>
                 <span class="la-sync-card-title">
                   <span class="la-sync-card-name">{{card.name}}</span>
-                  <span class="la-sync-card-role">{{card.role}} · {{card.folders_inside}}</span>
+                  <span class="la-sync-card-role">{{card.role}}{{#if card.folders_inside}} · {{card.folders_inside}}{{/if}}</span>
                 </span>
                 <span class="la-sync-card-progress">
-                  <span class="la-sync-details-bar la-sync-details-bar--thin"><span class="la-sync-details-bar-fill" style={{card.bar_style}}></span></span>
+                  {{#if card.bar_style}}
+                    <span class="la-sync-details-bar la-sync-details-bar--thin"><span class="la-sync-details-bar-fill" style={{card.bar_style}}></span></span>
+                  {{/if}}
                   <span class="la-sync-card-count">{{card.count}}</span>
                 </span>
-                <span class="la-sync-card-pill">{{card.status}}</span>
+                {{#if card.status}}
+                  <span class="la-sync-card-pill">{{card.status}}</span>
+                {{/if}}
                 <svg class="la-sync-card-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
               </button>
               {{#if card.open}}
@@ -146,6 +166,25 @@
                     {{/if}}
                   {{else}}
                     <p class="la-sync-folder-group-note">{{card.no_folders_text}}</p>
+                  {{/if}}
+                  {{#if card.has_picture_warning}}
+                    {{!-- Saved and ready offline, but its picture was not (Traci, 2026-11-18): it shows the placeholder. --}}
+                    <section class="la-sync-folder-group la-sync-folder-group--missing" data-test-sync-card-picture-warning>
+                      <div class="la-sync-folder-group-head">
+                        <span>
+                          <h4 class="la-sync-folder-group-title">{{card.pictures_title}}</h4>
+                          <span class="la-sync-folder-group-note">{{t "These work offline and show a placeholder picture for now. Try again when the connection is better." key="sync_picture_not_saved_note"}}</span>
+                        </span>
+                        {{#unless (persistence-value 'syncing')}}
+                          <button type="button" class="la-sync-details-secondary-btn" {{on "click" (this.ctrlAction "sync")}}>{{t "Try again" key="try_again"}}</button>
+                        {{/unless}}
+                      </div>
+                      <ul class="la-sync-folder-grid">
+                        {{#each card.pictures_missing as |name|}}
+                          <li class="la-sync-folder-tile">{{name}}</li>
+                        {{/each}}
+                      </ul>
+                    </section>
                   {{/if}}
                 </div>
               {{/if}}

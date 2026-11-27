@@ -64,7 +64,7 @@ module JsonApi::User
         json['state_2fa'] = user.state_2fa
         json['external_nonce'] = ExternalNonce.for_user(user)
       end
-      json['contacts'] = user.settings['contacts'] || []
+      json['contacts'] = (user.settings['contacts'] || []).map { |c| DefaultAvatar.contact(c) }
       json['global_integrations'] = UserIntegration.global_integrations
       json['preferences'] = {}
       ::User::PREFERENCE_PARAMS.each do |attr|
@@ -578,6 +578,22 @@ json['preferences']['skin'] = user.settings['preferences']['skin']
     if json['permissions'] && json['permissions']['model']
       json['article_50_disclosure_required'] = EuJurisdiction.disclosure_required?(user)
       json['article_50_disclosure_shown'] = user.article_50_disclosure_shown?
+    end
+    # AI data-sharing consent (#1136): only the account itself is told, so nobody
+    # else is offered a way to agree while looking at this account. `route` says who
+    # can give it: the account ('self'), its district ('organization') or a parent
+    # or guardian ('parent').
+    viewer = args[:permissions]
+    if viewer.respond_to?(:id) && viewer.id.present? && viewer.id == user.id
+      json['ai_consent_required'] = FeatureFlags.ai_consent_blocks_ai_for?(user)
+      json['ai_consent_route'] = if Organization.ai_consent_orgs_for(user).any?
+        'organization'
+      elsif user.ai_consent_parent_route?
+        'parent'
+      else
+        'self'
+      end
+      json['ai_consent_disclosures_version'] = LingoLinq::AiConsentDisclosures::CURRENT_VERSION
     end
     # Prefill Resend modal after reload (edit only; account holder entered this address).
     if user.eu_ai_parental_consent_pending? && json['permissions'] && json['permissions']['edit']
