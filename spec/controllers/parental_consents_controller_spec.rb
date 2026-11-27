@@ -60,14 +60,7 @@ describe ParentalConsentsController, :type => :controller do
       }
       u.save!
       o = Organization.create(settings: {'total_licenses' => 1})
-      t = Time.now.utc
-      u.begin_family_offboarding_consents!(
-        org: o,
-        parent_email: 'off_grant_parent@example.com',
-        birth_month: t.month,
-        birth_year: t.year - 10
-      )
-      u.reload
+      seed_legacy_offboarding_consent!(u, org: o, parent_email: 'off_grant_parent@example.com')
       tok = u.settings['coppa']['parent_consent_token']
       expect(u.settings['coppa']['offboarding']).to eq(true)
       expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:parental_consent_confirmation, u.global_id)
@@ -246,15 +239,7 @@ describe ParentalConsentsController, :type => :controller do
       }
       u.save!
       o = Organization.create(settings: {'total_licenses' => 1})
-      t = Time.now.utc
-      u.begin_family_offboarding_consents!(
-        org: o,
-        parent_email: 'decl_ctrl@example.com',
-        birth_month: t.month,
-        birth_year: t.year - 10
-      )
-      u.reload
-      u
+      seed_legacy_offboarding_consent!(u, org: o, parent_email: 'decl_ctrl@example.com')
     end
 
     def signup_user(name)

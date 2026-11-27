@@ -332,6 +332,20 @@ describe CoppaSentryScrub do
       expect(described_class.child_user?(child)).to eq(true)
     end
 
+    it 'returns true for a child handed back by a school with no parental consent yet' do
+      u = User.new(settings: {'school_authorization_ended' => {'ended_at' => Time.now.utc.iso8601, 'age_basis' => 'attested'}})
+      expect(u.coppa_parental_consent_pending?).to eq(false)
+      expect(described_class.child_user?(u)).to eq(true)
+    end
+
+    it 'returns false for a handed-back child once a parent has consented' do
+      u = User.new(settings: {
+        'school_authorization_ended' => {'ended_at' => Time.now.utc.iso8601, 'age_basis' => 'attested'},
+        'coppa' => {'parent_consent_granted_at' => Time.now.utc.iso8601}
+      })
+      expect(described_class.child_user?(u)).to eq(false)
+    end
+
     it 'returns false for a user object that does not respond to the predicate' do
       stranger = Object.new
       expect(described_class.child_user?(stranger)).to eq(false)

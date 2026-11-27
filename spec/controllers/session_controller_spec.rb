@@ -597,7 +597,7 @@ describe SessionController, :type => :controller do
         'authorized_at' => Time.now.utc.iso8601
       }
       u.save!
-      u.begin_family_offboarding_consents!(org: nil, birth_month: Time.now.utc.month, birth_year: Time.now.utc.year - 10)
+      seed_legacy_offboarding_consent!(u)
       expect(u.reload.coppa_needs_parent_email?).to eq(true)
 
       post :token, params: {:grant_type => 'password', :client_id => 'browser', :client_secret => token, :username => 'coppa_need_email_kid', :password => 'seashell'}

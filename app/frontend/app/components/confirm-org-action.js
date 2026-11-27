@@ -196,10 +196,8 @@ export default Component.extend({
             return;
           }
         }
-        var parentEmail = (this.get('offboarding_parent_email') || '').trim();
         this.get('modal').close({
           confirmed: true,
-          offboarding_parent_email: this.get('offboardingUnder13') ? (parentEmail || null) : null,
           offboarding_birth_month: this.get('birth_month') || null,
           offboarding_birth_year: this.get('birth_year') || null,
           offboarding_under_13: !!this.get('offboardingUnder13'),

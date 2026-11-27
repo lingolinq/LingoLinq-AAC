@@ -13,6 +13,7 @@ export default Route.extend({
     controller.set('model', model);
     controller.setup();
     controller.set('add_sidebar_board_error', null);
+    controller.set('handoffAiRefused', false);
     controller.check_core_words();
     controller.check_voices_available();
     controller.set_auto_sync();
