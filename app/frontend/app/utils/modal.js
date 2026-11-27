@@ -383,7 +383,7 @@ var modal = EmberObject.extend({
     }
   },
   close: function(success, outlet) {
-    outlet = outlet || 'modal';
+    outlet = outlet || 'modal'; if(success === undefined && this.dialog_ate_escape && outlet != 'highlight' && outlet != 'highlight-secondary') { success = false; }
     var service = this._getService();
     // Component-based modals run through the modal service; allow closing even if
     // the legacy route hook is missing so we still resolve promises and clear state.
@@ -719,3 +719,36 @@ window.modal = modal;
 export default modal;
 // Placed last so the baselined lint rows above keep their line numbers (.eslint-todo).
 import { owner_gone } from './live_service';
+
+// Escape dismissal. modal-dialog keyDown (components/modal-dialog.js) marks the key
+// before it closes, and the document listener (utils/raw_events.js) asks
+// claim_document_escape. Returning false with skip_clear_for_escape set means the
+// dialog already dismissed this key: do not close again, and do not fall through
+// to the speak-mode :clear branch. A no-argument close() stays a resolve unless
+// that mark is set. Appended here so the .eslint-todo rows above keep their lines.
+modal.mark_dialog_escape = function() {
+  this.dialog_ate_escape = true;
+  var service = this._getService();
+  if (service) { service.set('dialog_ate_escape', true); }
+};
+modal.claim_document_escape = function() {
+  var service = this._getService();
+  if (this.dialog_ate_escape) {
+    this.dialog_ate_escape = false;
+    if (service) { service.set('dialog_ate_escape', false); }
+    this.skip_clear_for_escape = true;
+    // The service close does not clear _component_based_template. If the
+    // dialog already closed, drop that flag here so is_open() is false and
+    // scanning can restart. If the action has not closed yet, close once
+    // below as a rejection (raw_events.js calls close(false) when this
+    // returns true).
+    if (service && service.get('currentTemplate')) {
+      return true;
+    }
+    this._component_based_template = null;
+    this.last_template = null;
+    return false;
+  }
+  this.skip_clear_for_escape = false;
+  return !!(this.is_open() && this.is_closeable());
+};

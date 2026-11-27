@@ -124,12 +124,15 @@ export default Component.extend({
     },
     batch_recording() {
       const _this = this;
-      modal.open('batch-recording', { user: this.get('appState').get('currentUser'), board: this.get('model') }).then(function() {
+      // save_to_button writes the sound before Escape rejects this promise
+      // (components/batch-recording.js). The open board still has to reload.
+      var reloadBoard = function() {
         _this.get('model').reload().then(function() {
           _this.get('model').load_button_set(true);
           editManager.process_for_displaying();
         });
-      });
+      };
+      modal.open('batch-recording', { user: this.get('appState').get('currentUser'), board: this.get('model') }).then(reloadBoard, reloadBoard);
     }
   }
 });

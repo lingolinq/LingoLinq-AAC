@@ -84,7 +84,9 @@ export default class BoardActionsController extends modal.ModalController {
   batch_recording() {
     var _this = this;
     if(!_this || !_this.model || !_this.model.board || !_this.appState) { return; }
-    modal.open('batch-recording', {user: _this.appState.currentUser, board: _this.model.board}).then(function() {
+    // save_to_button writes the sound before Escape rejects this promise
+    // (components/batch-recording.js). The open board still has to reload.
+    var reloadBoard = function() {
       if(!_this.model) { return; }
       _this.model.reload().then(function() {
         if(_this.model) {
@@ -92,7 +94,8 @@ export default class BoardActionsController extends modal.ModalController {
           editManager.process_for_displaying();
         }
       });
-    });
+    };
+    modal.open('batch-recording', {user: _this.appState.currentUser, board: _this.model.board}).then(reloadBoard, reloadBoard);
   }
 
   @action

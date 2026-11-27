@@ -82,9 +82,9 @@ export default Controller.extend({
     },
     record_sound: function() {
       var _this = this;
-      modal.open('batch-recording', {user: this.get('model'), recordings: null, single: true}).then(function() {
-        _this.load_recordings();
-      });
+      // A sound can be saved inside the dialog before Escape rejects the promise.
+      var reload = function() { _this.load_recordings(); };
+      modal.open('batch-recording', {user: this.get('model'), recordings: null, single: true}).then(reload, reload);
     },
     batch_recording: function() {
       var rec = null;
@@ -92,9 +92,8 @@ export default Controller.extend({
         rec = this.get('recordings');
       }
       var _this = this;
-      modal.open('batch-recording', {user: this.get('model'), recordings: rec}).then(function() {
-        _this.load_recordings();
-      });
+      var reload = function() { _this.load_recordings(); };
+      modal.open('batch-recording', {user: this.get('model'), recordings: rec}).then(reload, reload);
     }
   }
 });

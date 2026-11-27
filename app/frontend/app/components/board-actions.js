@@ -157,7 +157,9 @@ export default Component.extend({
       const _this = this;
       const model = this.get('model');
       if (!model || !model.board || !this.get('appState')) { return; }
-      modalUtil.open('batch-recording', { user: this.appState.get('currentUser'), board: model.board }).then(function() {
+      // save_to_button writes the sound before Escape rejects this promise
+      // (components/batch-recording.js). The open board still has to reload.
+      var reloadBoard = function() {
         if (!_this.get('model')) { return; }
         _this.get('model').reload().then(function() {
           if (_this.get('model')) {
@@ -165,7 +167,8 @@ export default Component.extend({
             editManager.process_for_displaying();
           }
         });
-      });
+      };
+      modalUtil.open('batch-recording', { user: this.appState.get('currentUser'), board: model.board }).then(reloadBoard, reloadBoard);
     },
     // SWITCHED OFF — the board SYMBOL-LAYOUT editor, which lives on the `setup`
     // route under `mode=layout`. The setup pages are NOT deleted (decision
