@@ -419,7 +419,8 @@ The freeze, in order:
 > - **Mutating verbs** (POST/PUT/PATCH/DELETE) are rejected by default.
 > - **Side-effect GETs are also rejected** via an explicit denylist (`SIDE_EFFECT_GET_PATHS`): a
 >   verb-only check would have leaked `upload_success` (images/sounds/videos `record.save`),
->   `/goal_status/` (log write), and `/parental_consent/complete` (COPPA consent + Device writes).
+>   `/goal_status/` (log write). Parental consent confirmation GETs no longer write;
+>   the approval and withdrawal POSTs are ordinary mutating verbs and are rejected.
 >   This list is maintained: a NEW side-effect GET added later is NOT covered until listed.
 > - **Auth allowlist** keeps existing-user sign-in working (token/oauth/refresh/SAML/google-link).
 >   New-account creation (`auth/google/signup`) and password reset are deliberately NOT allowlisted.

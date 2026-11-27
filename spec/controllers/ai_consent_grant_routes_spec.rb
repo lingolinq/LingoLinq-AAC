@@ -268,7 +268,7 @@ describe 'AI data-sharing consent: who can record one (#1136)' do
                              'terms_agree' => true, 'coppa_under_13' => true,
                              'parent_consent_email' => 'guardian_ai@example.com' }, { pending: true })
       expect(u.settings['ai_consent']).to be_blank
-      get :complete, params: { user_id: u.global_id, token: u.settings['coppa']['parent_consent_token'] }
+      post :complete_submit, params: { user_id: u.global_id, token: u.settings['coppa']['parent_consent_token'] }
       c = u.reload.settings['ai_consent']
       expect(u.coppa_parental_consent_active?).to eq(true)
       expect(c['source']).to eq('email_link')
@@ -302,7 +302,7 @@ describe 'AI data-sharing consent: who can record one (#1136)' do
       # A request made before this change has no record of an AI notice.
       u.settings['coppa'].delete('ai_disclosures_version')
       u.save!
-      get :complete, params: { user_id: u.global_id, token: u.settings['coppa']['parent_consent_token'] }
+      post :complete_submit, params: { user_id: u.global_id, token: u.settings['coppa']['parent_consent_token'] }
       u.reload
       expect(u.coppa_parental_consent_active?).to eq(true)
       expect(u.settings['ai_consent']).to be_blank
@@ -316,7 +316,7 @@ describe 'AI data-sharing consent: who can record one (#1136)' do
                              'parent_consent_email' => 'guardian_ai4@example.com' }, { pending: true })
       u.settings['coppa']['ai_disclosures_version'] = current_version - 1
       u.save!
-      get :complete, params: { user_id: u.global_id, token: u.settings['coppa']['parent_consent_token'] }
+      post :complete_submit, params: { user_id: u.global_id, token: u.settings['coppa']['parent_consent_token'] }
       u.reload
       expect(u.coppa_parental_consent_active?).to eq(true)
       expect(u.settings['ai_consent']).to be_blank
@@ -354,7 +354,7 @@ describe 'AI data-sharing consent: who can record one (#1136)' do
     it "records the AI consent with the parent's approval when the request carried the AI notice" do
       u = eu_request('eu_minor1')
       expect(u.settings['eu_ai_parental_consent']['ai_disclosures_version']).to eq(current_version)
-      get :complete, params: { user_id: u.global_id, token: u.settings['eu_ai_parental_consent']['parent_consent_token'] }
+      post :complete_submit, params: { user_id: u.global_id, token: u.settings['eu_ai_parental_consent']['parent_consent_token'] }
       expect(u.reload.settings['ai_consent']['disclosures_version']).to eq(current_version)
     end
 
@@ -362,7 +362,7 @@ describe 'AI data-sharing consent: who can record one (#1136)' do
       u = eu_request('eu_minor2')
       u.settings['eu_ai_parental_consent'].delete('ai_disclosures_version')
       u.save!
-      get :complete, params: { user_id: u.global_id, token: u.settings['eu_ai_parental_consent']['parent_consent_token'] }
+      post :complete_submit, params: { user_id: u.global_id, token: u.settings['eu_ai_parental_consent']['parent_consent_token'] }
       u.reload
       expect(u.eu_ai_parental_consent_active?).to eq(true)
       expect(u.settings['ai_consent']).to be_blank

@@ -1,7 +1,15 @@
 <div class="box">
   <% app_name = (JsonApi::Json.current_domain['settings'] || {})['app_name'] || 'LingoLinq' %>
   <%= render 'shared/consent_status_badge' %>
-  <% if @success && @already_revoked %>
+  <% if @state == :confirm %>
+    <h1><%= t('parental_consent.revoke_confirm_title') %></h1>
+    <p><%= t('parental_consent.revoke_confirm_body') %></p>
+    <%= form_tag parental_consent_revoke_path, method: :post do %>
+      <%= hidden_field_tag :user_id, params[:user_id] %>
+      <%= hidden_field_tag :token, params[:token] %>
+      <button type="submit" class="btn btn-danger"><%= t('parental_consent.revoke_confirm_button') %></button>
+    <% end %>
+  <% elsif @success && @already_revoked %>
     <h1><%= t('parental_consent.revoke_already_title') %></h1>
     <p><%= t('parental_consent.revoke_already_body') %></p>
   <% elsif @success %>

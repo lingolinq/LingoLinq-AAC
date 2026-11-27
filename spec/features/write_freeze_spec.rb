@@ -59,13 +59,27 @@ describe "write-freeze middleware" do
     end
 
     it "returns an HTML maintenance page for a browser side-effect GET navigation" do
-      # parental_consent/complete is a browser navigation (parent clicks an email
-      # link) and is a side-effect GET, so it is rejected with the HTML page.
-      get "/parental_consent/complete", {}, 'HTTP_ACCEPT' => 'text/html'
+      # /goal_status is still a side-effect GET. Parental consent confirmation
+      # GETs are not (#1338).
+      get "/goal_status/1_2/abc", {}, 'HTTP_ACCEPT' => 'text/html'
       expect(response.status).to eq(503)
       expect(response.headers['Retry-After']).to eq(WriteFreeze::RETRY_AFTER_SECONDS.to_s)
       expect(response.headers['Content-Type']).to match(%r{text/html})
       expect(response.body).to match(/Temporarily read-only/)
+    end
+
+    it "lets a parental consent GET through and blocks the approval POST" do
+      get "/parental_consent/complete", {}, 'HTTP_ACCEPT' => 'text/html'
+      expect(response.status).to eq(200)
+      post "/parental_consent/complete", { user_id: '1_2', token: 'not-a-token' }
+      expect(response.status).to eq(503)
+      expect(response.headers['Retry-After']).to eq(WriteFreeze::RETRY_AFTER_SECONDS.to_s)
+      post "/parental_consent/revoke", { user_id: '1_2', token: 'not-a-token' }
+      expect(response.status).to eq(503)
+      post "/eu_ai_parental_consent/complete", { user_id: '1_2', token: 'not-a-token' }
+      expect(response.status).to eq(503)
+      post "/eu_ai_parental_consent/revoke", { user_id: '1_2', token: 'not-a-token' }
+      expect(response.status).to eq(503)
     end
 
     it "rejects a side-effect GET (e.g. upload_success) that would write to the abandoned DB" do

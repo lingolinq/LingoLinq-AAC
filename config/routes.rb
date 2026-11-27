@@ -41,7 +41,11 @@ LingoLinq::Application.routes.draw do
   get '/privacy' => 'boards#privacy'
   get '/privacy_practices' => redirect('/privacy')
   get '/terms' => 'boards#terms'
+  # GET renders a confirmation page and writes nothing. The POST is the approval.
+  # Unnamed POST: the GET already claims parental_consent_complete_path, and the
+  # form posts to that same URL. Old email links keep this path (#1338).
   get '/parental_consent/complete' => 'parental_consents#complete'
+  post '/parental_consent/complete' => 'parental_consents#complete_submit'
   # GET renders a confirmation page and MUTATES NOTHING. It is reached from a
   # link in the parent's inbox, and mail-security link scanners, link previews
   # and browser prefetch all follow those links unprompted -- a GET that declined
@@ -52,8 +56,11 @@ LingoLinq::Application.routes.draw do
   # helper for this same path, and the form posts to that same URL.
   post '/parental_consent/decline' => 'parental_consents#decline_submit'
   get '/parental_consent/revoke' => 'parental_consents#revoke'
+  post '/parental_consent/revoke' => 'parental_consents#revoke_submit'
   get '/eu_ai_parental_consent/complete' => 'eu_ai_parental_consents#complete'
+  post '/eu_ai_parental_consent/complete' => 'eu_ai_parental_consents#complete_submit'
   get '/eu_ai_parental_consent/revoke' => 'eu_ai_parental_consents#revoke'
+  post '/eu_ai_parental_consent/revoke' => 'eu_ai_parental_consents#revoke_submit'
   get '/sms_consent/:token' => 'sms_consents#show', as: 'sms_consent'
   post '/sms_consent/:token' => 'sms_consents#submit'
   get '/ai_consent/disclosures/:version' => 'ai_consent/disclosures#show'

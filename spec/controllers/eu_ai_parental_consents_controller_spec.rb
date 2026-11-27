@@ -19,14 +19,14 @@ describe EuAiParentalConsentsController, type: :controller do
     u.reload
   end
 
-  describe 'GET complete' do
+  describe 'complete' do
     it 'records consent and does not create a device or welcome emails' do
       u = create_pending_eu_user!('ok')
       tok = u.settings['eu_ai_parental_consent']['parent_consent_token']
       expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:eu_ai_parental_consent_confirmation, u.global_id)
       expect(UserMailer).not_to receive(:schedule_delivery).with(:confirm_registration, anything)
       expect(UserMailer).not_to receive(:schedule_delivery).with(:new_user_registration, anything)
-      get :complete, params: { user_id: u.global_id, token: tok }
+      post :complete_submit, params: { user_id: u.global_id, token: tok }
       expect(response).to be_successful
       u.reload
       expect(u.eu_ai_parental_consent_active?).to eq(true)
@@ -40,10 +40,10 @@ describe EuAiParentalConsentsController, type: :controller do
     it 'is idempotent when consent was already granted' do
       u = create_pending_eu_user!('idem')
       tok = u.settings['eu_ai_parental_consent']['parent_consent_token']
-      get :complete, params: { user_id: u.global_id, token: tok }
+      post :complete_submit, params: { user_id: u.global_id, token: tok }
       expect(UserMailer).not_to receive(:schedule_parent_consent_delivery)
       expect {
-        get :complete, params: { user_id: u.global_id, token: tok }
+        post :complete_submit, params: { user_id: u.global_id, token: tok }
       }.to_not change { AuditEvent.where(user_key: u.global_id, event_type: 'eu_ai_parental_consent_grant').count }
       expect(assigns(:already_granted)).to eq(true)
       expect(assigns(:success)).to eq(true)
@@ -57,7 +57,7 @@ describe EuAiParentalConsentsController, type: :controller do
     end
   end
 
-  describe 'GET revoke' do
+  describe 'revoke' do
     def create_granted_eu_user!(suffix)
       u = create_pending_eu_user!(suffix)
       tok = u.settings['eu_ai_parental_consent']['parent_consent_token']
@@ -69,7 +69,7 @@ describe EuAiParentalConsentsController, type: :controller do
       u = create_granted_eu_user!('rev')
       revoke_tok = u.settings['eu_ai_parental_consent']['parent_consent_revoke_token']
       expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:eu_ai_parental_consent_revoked, u.global_id)
-      get :revoke, params: { user_id: u.global_id, token: revoke_tok }
+      post :revoke_submit, params: { user_id: u.global_id, token: revoke_tok }
       expect(response).to be_successful
       u.reload
       expect(u.eu_ai_parental_consent_revoked?).to eq(true)
@@ -79,9 +79,9 @@ describe EuAiParentalConsentsController, type: :controller do
     it 'does not double-log revoke' do
       u = create_granted_eu_user!('rev_idem')
       revoke_tok = u.settings['eu_ai_parental_consent']['parent_consent_revoke_token']
-      get :revoke, params: { user_id: u.global_id, token: revoke_tok }
+      post :revoke_submit, params: { user_id: u.global_id, token: revoke_tok }
       expect {
-        get :revoke, params: { user_id: u.global_id, token: revoke_tok }
+        post :revoke_submit, params: { user_id: u.global_id, token: revoke_tok }
       }.to_not change { AuditEvent.where(user_key: u.global_id, event_type: 'eu_ai_parental_consent_revoke').count }
     end
   end
