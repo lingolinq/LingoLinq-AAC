@@ -92,7 +92,10 @@ Always re-run the whole `db:schema:load` step after a merge or any
   and only `bundle-audit` can fail the job. It is a required check on `main` and `develop`
   (not on `staging`; branch protection read 2026-11-21), so a red `security-scan` blocks a
   merge to either. A new advisory turns every open PR red at once: the fix is one bump PR,
-  after which each blocked branch merges `develop` in. Note that
+  after which each blocked branch merges its own base in once the bump is there. A branch
+  to `develop` merges `develop`. A hotfix branch to `main` must never merge `develop` (that
+  would ship unreleased work); the bump reaches `main` first, by its own hotfix, and the
+  hotfix branch then merges `main`. Note that
   `bundle-audit check --update` fetches the advisory database at run time, so any PR
   can turn red overnight with no code change. `.bundler-audit.yml` ignores the
   Rails 7.2.3.2 advisories that have no 7.2.x fix, until the Rails 8.1 upgrade removes it; any
