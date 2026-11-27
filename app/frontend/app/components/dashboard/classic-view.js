@@ -708,7 +708,7 @@ export default AuthenticatedView.extend({
     if(same_person && prior.spell === spell && prior.shared === shared) { return; }
     var _this = this;
     if(!same_person) { this.set('deviceBoards', { loading: true }); }
-    device_board_list(this.get('store'), user, { storage: this.get('device_storage'), sync_log: p.get('sync_log'), shared: shared, me: me }).then(function(records) {
+    device_board_list(this.get('store'), user, { storage: this.get('device_storage'), sync_log: p.get('sync_log'), verdicts: function() { return p.get('board_verdicts'); }, shared: shared, me: me }).then(function(records) {
       if(_this.isDestroyed || _this.isDestroying || _this.get('appState.currentUser.user_name') !== user_name) { return; }
       if(records.read_failed && same_person) { return; }
       records.user_name = user_name;

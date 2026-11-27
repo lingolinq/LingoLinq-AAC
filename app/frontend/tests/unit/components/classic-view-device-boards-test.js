@@ -152,4 +152,35 @@ module('Unit | Component | classic-view boards on this device', function(hooks) 
     assert.strictEqual(c.reads, 2, 'read again');
     assert.deepEqual(c.get('deviceBoards').map((b) => b.get('key')), ['larry/home']);
   });
+
+  // docs/task-management/2026-11-23_offline-liked-board-verdicts.md: the verdicts kept beyond the 5-entry sync log reach
+  // Basic's list too, so a liked board whose seeing sync has left the log is still listed.
+  test('a liked board seen by a sync that has left the log is listed from the kept verdicts', async function(assert) {
+    var c = setup(this);
+    c.set('appState.sessionUser', EmberObject.create({ preferences: { device: { long_token: true } } }));
+    c.set('appState.currentUser.stats', { starred_board_refs: [{ key: 'therapist/feelings' }] });
+    c.set('persistence.sync_log', []);
+    c.set('persistence.board_verdicts', { larry: { top: 5, t: { 'therapist/feelings': { v: true, n: 5 } } } });
+    c.set('device_storage', { find_all: function() { c.reads++; return RSVP.resolve([home_row(), { data: { id: '4_1', raw: { id: '4_1', key: 'therapist/feelings', name: 'Feelings', user_name: 'therapist' } } }]); } });
+    c.load_device_boards();
+    await tick();
+    assert.deepEqual(c.get('deviceBoards').map((b) => b.get('key')), ['larry/home', 'therapist/feelings']);
+  });
+
+  // Review of the built code (senior pass, H1): the kept verdicts are read when the device read finishes, so a restore
+  // that lands while the read runs (an offline cold start) still reaches the list.
+  test('kept verdicts that arrive while the device read runs still reach the list', async function(assert) {
+    var c = setup(this);
+    var release = null;
+    c.set('appState.sessionUser', EmberObject.create({ preferences: { device: { long_token: true } } }));
+    c.set('appState.currentUser.stats', { starred_board_refs: [{ key: 'therapist/feelings' }] });
+    c.set('persistence.sync_log', []);
+    c.set('device_storage', { find_all: function() { return new RSVP.Promise(function(r) { release = r; }); } });
+    c.load_device_boards();
+    await tick();
+    c.set('persistence.board_verdicts', { larry: { top: 5, t: { 'therapist/feelings': { v: true, n: 5 } } } });
+    release([home_row(), { data: { id: '4_1', raw: { id: '4_1', key: 'therapist/feelings', name: 'Feelings', user_name: 'therapist' } } }]);
+    await tick();
+    assert.deepEqual(c.get('deviceBoards').map((b) => b.get('key')), ['larry/home', 'therapist/feelings']);
+  });
 });

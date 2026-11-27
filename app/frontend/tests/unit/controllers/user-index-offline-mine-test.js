@@ -380,4 +380,28 @@ module('Unit | Controller | user/index offline boards view', function(hooks) {
     assert.false(c.get('offline_view'));
     assert.strictEqual(c.get('offline_boards'), null);
   });
+
+  // docs/task-management/2026-11-23_offline-liked-board-verdicts.md: the boards page reads the verdicts kept beyond the
+  // 5-entry sync log, so a liked board whose seeing sync has left the log is still listed.
+  test('a liked board seen by a sync that has left the log is listed from the kept verdicts', async function(assert) {
+    var c = page(this.owner);
+    c.set('model.stats', { starred_board_refs: [{ key: 'other/y' }] });
+    c.set('persistence.board_verdicts', { larry: { top: 5, t: { 'other/y': { v: true, n: 5 } } } });
+    c.update_selected();
+    await tick();
+    assert.deepEqual(keys(c.get('offline_boards')), ['larry/home', 'other/y']);
+  });
+
+  // Review of the built code (senior pass, H1): the kept verdicts are read when the device read finishes.
+  test('kept verdicts that arrive while the device read runs still reach the boards page', async function(assert) {
+    var release = null;
+    var c = page(this.owner, { find_all: function() { return new RSVP.Promise((r) => { release = r; }); } });
+    c.set('model.stats', { starred_board_refs: [{ key: 'other/y' }] });
+    c.update_selected();
+    await tick();
+    c.set('persistence.board_verdicts', { larry: { top: 5, t: { 'other/y': { v: true, n: 5 } } } });
+    release(rows());
+    await tick();
+    assert.deepEqual(keys(c.get('offline_boards')), ['larry/home', 'other/y']);
+  });
 });
