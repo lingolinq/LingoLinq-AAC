@@ -61,6 +61,9 @@
           {{#if this.summary.from_earlier}}
             <p class="la-sync-details-summary-line">{{t "These results are from an earlier sync," key="sync_results_from_earlier"}} {{date_ago this.summary.finished}}.</p>
           {{/if}}
+          {{#if this.run_summary}}
+            <p class="la-sync-details-summary-line" data-test-sync-run-summary>{{this.run_summary}}</p>
+          {{/if}}
         {{/if}}
       </div>
       <div class="la-sync-details-summary-actions">
@@ -223,6 +226,9 @@
               </h3>
               {{#if sync.manual}}{{t "Manual sync. " key="manual_sync"}}{{/if}}
               {{sync.summary}}
+              {{#each sync.counter_lines as |line|}}
+                <div class="la-sync-details-counter">{{line}}</div>
+              {{/each}}
               {{#if sync.statuses}}
                 <br>
                 {{t "Boards: %{num} downloaded," num=sync.downloaded key="boards_n_downloaded_comma"}}

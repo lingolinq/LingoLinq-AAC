@@ -38,10 +38,11 @@ function defaults(deps) {
 }
 
 // What is saved of an entry: what Sync Details and the drawer read. The rows Sync Details marks up for its table
-// (components/sync-details.js `details`: idx, status flags, sorted_statuses, toggled) are left out.
+// (components/sync-details.js `details`: idx, status flags, sorted_statuses, toggled) are left out. `counters` is plain
+// JSON (utils/sync_counters.js finish), so it is kept as it is.
 export function entry_copy(entry) {
   var copy = {};
-  ['user_id', 'reason', 'manual', 'issues', 'errored', 'canceled', 'storage_failed', 'confirmed', 'answered', 'finished', 'summary', 'roots'].forEach(function(k) {
+  ['user_id', 'reason', 'manual', 'issues', 'errored', 'canceled', 'storage_failed', 'confirmed', 'answered', 'finished', 'summary', 'roots', 'counters'].forEach(function(k) {
     if(entry[k] !== undefined) { copy[k] = entry[k]; }
   });
   copy.statuses = (Array.isArray(entry.statuses) ? entry.statuses : []).filter(function(s) { return s && typeof s === 'object'; }).map(function(s) {

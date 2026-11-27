@@ -206,7 +206,7 @@ function time_promise(inputPromise, msg, ms) {
     });
     setTimeout(function() {
       if(!done) {
-        LingoLinq.track_error("sync promise took too long:" + msg);
+        LingoLinq.track_error("sync promise took too long:" + msg); counters_note_failure(counters_token(window.persistence), 'timeout'); // item 0.1 (utils/sync_counters.js)
         reject({error: 'promise timed out:' + msg});
       }
     }, ms);
@@ -4640,3 +4640,4 @@ import { is_permanent_upload_url } from './permanent_upload';
 import { on_uploads_cdn, is_web_page } from './direct_fetch';
 import { is_stale_item, drop_stale_head } from './url_store_queue';
 import { find_limits, board_transport_options, join_download, late_deps, store_late_board } from './board_download'; import { record_sync_log } from './sync_log_store'; import { note_board_written } from './sync_rollup'; import { request_identity } from './request_identity'; // at the end so no baselined lint row shifts (see .eslint-todo)
+import { token as counters_token, note_failure as counters_note_failure } from './sync_counters'; // item 0.1

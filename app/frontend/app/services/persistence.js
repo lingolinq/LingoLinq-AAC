@@ -38,7 +38,7 @@ function time_promise(inputPromise, msg, ms) {
     });
     setTimeout(function() {
       if(!done) {
-        LingoLinq.track_error("sync promise took too long:" + msg);
+        LingoLinq.track_error("sync promise took too long:" + msg); counters_note_failure(counters_token(window.persistence), 'timeout'); // item 0.1 (utils/sync_counters.js)
         reject({error: 'promise timed out:' + msg});
       }
     }, ms);
@@ -1528,7 +1528,7 @@ var persistence = Service.extend({
     }
 
     var url_id = this.normalize_url(url);
-    var _this = this;
+    var _this = this; var count_token = counters_token(this); var fetched_bytes = null; // item 0.1: what this call fetched, counted once the device write resolves (utils/sync_counters.js)
     return new RSVP.Promise(function(resolve, reject) {
       var lookup = RSVP.reject();
       var parsed_json_payload = null;
@@ -1579,9 +1579,9 @@ var persistence = Service.extend({
         // back to plain xhr in order to get blob response
         lookup = lookup.then(null, function() {
           return new RSVP.Promise(function(xhr_resolve, xhr_reject) {
-            var xhr = new XMLHttpRequest();
-            xhr.addEventListener('load', function(r) {
-              if(xhr.status == 200 && !is_web_page(xhr.getResponseHeader('Content-Type'))) {
+            var xhr = new XMLHttpRequest(); var ticket = null;
+            xhr.addEventListener('load', function(r) { counters_request_ended(ticket, { status: xhr.status });
+              if(xhr.status == 200 && !is_web_page(xhr.getResponseHeader('Content-Type'))) { fetched_bytes = (xhr.response && typeof xhr.response.size === 'number') ? xhr.response.size : null;
                 contentGrabbers.read_file(xhr.response).then(function(s) {
                   xhr_resolve({
                     url: url,
@@ -1597,10 +1597,10 @@ var persistence = Service.extend({
                 xhr_reject({cors: true, error: 'URL lookup failed with ' + xhr.status});
               }
             });
-            xhr.addEventListener('error', function(e) {
+            xhr.addEventListener('error', function(e) { counters_request_ended(ticket, { status: 0 });
               xhr_reject({e:e, cors: true, error: 'URL lookup error'});
             });
-            xhr.addEventListener('abort', function() { xhr_reject({cors: true, error: 'URL lookup aborted'}); }); xhr.addEventListener('timeout', function() { xhr_reject({cors: true, error: 'URL lookup timeout'}); });
+            xhr.addEventListener('abort', function() { counters_request_ended(ticket, { failure: 'other' }); xhr_reject({cors: true, error: 'URL lookup aborted'}); }); xhr.addEventListener('timeout', function() { counters_request_ended(ticket, { failure: 'timeout' }); xhr_reject({cors: true, error: 'URL lookup timeout'}); });
 //            console.log("trying CORS request for " + url);
             // Adding the query parameter because I suspect that if a URL has already
             // been retrieved by the browser, it's not sending CORS headers on the
@@ -1609,7 +1609,7 @@ var persistence = Service.extend({
             // TODO: xhr.open('GET', encodeURI(url) + (url.match(/\?/) ? '&' : '?') + "cr=1");
             xhr.open('GET', url + (url.match(/\?/) ? '&' : '?') + "cr=1");
             xhr.responseType = 'blob'; xhr.timeout = 45000; // the limit the second copy has (utils/persistence.js)
-            xhr.send(null);
+            ticket = counters_request_started(count_token); xhr.send(null);
           });
         });
       }
@@ -1631,7 +1631,7 @@ var persistence = Service.extend({
           });
         }
         return external_proxy.then(null, function() {
-          return _this.ajax('/api/v1/search/proxy?url=' + encodeURIComponent(url), {type: 'GET'}).then(function(data) {
+          return _this.ajax('/api/v1/search/proxy?url=' + encodeURIComponent(url), {type: 'GET'}).then(function(data) { fetched_bytes = (data && typeof data.data === 'string') ? base64_bytes(data.data) : null; // item 0.1: the decoded size of the proxy's base64 answer
             var object = {
               url: url,
               type: type,
@@ -1770,7 +1770,7 @@ var persistence = Service.extend({
           }
         }
       }).then(function(object) {
-        _this.url_cache = _this.url_cache || {};
+        if(fetched_bytes !== null) { counters_media_saved(count_token, type, fetched_bytes); } _this.url_cache = _this.url_cache || {}; // item 0.1: pictures and sounds only, after the device write (utils/sync_counters.js)
         _this.url_uncache = _this.url_uncache || {};
         if(object.local_url) {
           var local_url = capabilities.storage.fix_url(object.local_url, type == 'image');
@@ -2051,7 +2051,7 @@ var persistence = Service.extend({
           sync_id: sync_id, started_at: (new Date()).getTime(), // when this sync started (utils/sync_board_fallback.js copy_from_this_sync)
           progress_for: {
           }
-        });
+        }); begin_counters(sync_id, _this_sync.get('sync_progress.started_at')); // item 0.1 (utils/sync_counters.js)
       }
 
       if(!user_id) {
@@ -2425,7 +2425,7 @@ var persistence = Service.extend({
             manual: force,
             issues: errors.length > 0, errored: storage_failed ? true : undefined, storage_failed: storage_failed ? true : undefined, answered: answered.length ? answered : undefined, // answered: read by the offline list (utils/offline_board_list.js); // the boards' writes failed: it did not finish (Sync Details, utils/sync_log_store.js partial_result)
             finished: new Date(),
-            statuses: statuses, roots: board_roots,
+            statuses: statuses, roots: board_roots, counters: finish_counters(sync_id, { storage_failures: failed_write_count(_this_sync) - writes_before }) || undefined, // item 0.1 (utils/sync_counters.js)
             summary: sync_message
           });
           _this_sync.set('sync_log', record_sync_log(_this_sync, log)); // newest 5, saved for the owner (utils/sync_log_store.js)
@@ -2466,7 +2466,7 @@ var persistence = Service.extend({
           manual: force,
           errored: _this_sync._canceled_sync_id !== sync_id, canceled: _this_sync._canceled_sync_id === sync_id || undefined, storage_failed: writes_failed_since(_this_sync, writes_before) || undefined, // a board write failed: its written rows still show, and the failed board reads not saved (utils/sync_rollup.js confirmed_statuses; utils/sync_log_store.js partial_result) // a cancel that ended through this branch is still a cancel (docs/task-management/2026-11-15_persist-sync-log.md)
           finished: new Date(),
-          statuses: with_errors(statuses, stopped_errors), roots: stopped_roots, confirmed: true, // grouped and with the failures it recorded, as the finished sync's entry (utils/sync_rollup.js); confirmed: its rows went through confirmed_statuses (utils/sync_log_store.js partial_result)
+          counters: finish_counters(sync_id, { storage_failures: failed_write_count(_this_sync) - writes_before }) || undefined, statuses: with_errors(statuses, stopped_errors), roots: stopped_roots, confirmed: true, // grouped and with the failures it recorded, as the finished sync's entry (utils/sync_rollup.js); confirmed: its rows went through confirmed_statuses (utils/sync_log_store.js partial_result)
           summary: _this_sync._canceled_sync_id === sync_id ? i18n.t('sync_canceled_summary', "Sync canceled") : i18n.t('error_syncing_user', "Error syncing %{user_id}: ", {user_id: user_name}) + message
         });
         _this_sync.set('last_sync_event_at', (new Date()).getTime());
@@ -2627,7 +2627,7 @@ var persistence = Service.extend({
         });
         var complete = sync_supervisee.then(null, function(err) {
           console.log(err);
-          console.error("supervisee sync failed"); boardRevocation.note_failure(_this);
+          console.error("supervisee sync failed"); boardRevocation.note_failure(_this); counters_note_failure(counters_token(_this), 'supervisee'); // item 0.1: the sync log counts it (utils/sync_counters.js; item 1.9)
           modal.warning(i18n.t('supervisee_sync_failed', "Couldn't sync boards for supervisee \"" + supervisee.user_name + "\""));
           return RSVP.resolve({});
         });
@@ -2779,7 +2779,7 @@ var persistence = Service.extend({
           } else {
             return (key_for_id ? RSVP.resolve(null) : _this.board_stored_this_sync(id, record, fresh_board_revisions && fresh_board_revisions[id])).then(function(copy) { if(copy) { board_statuses.push({id: id, key: copy.get('key'), status: 'downloaded'}); copy.set('button_set_needs_reload', true); note_answered(_this.get('sync_progress'), copy); return copy; } // a parked board whose late answer this sync stored is not downloaded again (board_stored_this_sync below); a lookup by key reloads as before, and so does a copy the server's revisions list says is old
             board_statuses.push({id: id, key: record.get('key'), status: 're-downloaded'}); record.set('button_set_needs_reload', true);
-            var asked = (new Date()).getTime(); return _this.time_promise(record.reload(), "reload board", BOARD_RELOAD_MS).then(function(rec) { note_answered(_this.get('sync_progress'), rec, asked); return rec; }, function(err) { return keep_stored_board(record, err, board_statuses, id, function(rec) { return _this.device_board_row(rec); }); }); }); // #1212 (utils/sync_board_fallback.js)
+            var asked = (new Date()).getTime(); return _this.time_promise(record.reload(), "reload board", BOARD_RELOAD_MS).then(function(rec) { note_answered(_this.get('sync_progress'), rec, asked); counters_board_fetched(counters_token(_this)); return rec; }, function(err) { return keep_stored_board(record, err, board_statuses, id, function(rec) { return _this.device_board_row(rec); }); }); }); // #1212 (utils/sync_board_fallback.js)
           }
         } else {
           board_statuses.push({id: id, key: record.get('key'), status: 'downloaded'});
@@ -2968,7 +2968,7 @@ var persistence = Service.extend({
                         attributes: board_json
                       }};
                       var board_record = LingoLinq.store.push(json_api);
-                      board_statuses.push({id: board_json.id, key: board_json.key, status: 'downloaded'}); if(boardRevocation.view_checked(fresh_revisions)) { note_answered(_this_sync_boards.get('sync_progress'), board_record); } // fetched from the server this sync
+                      board_statuses.push({id: board_json.id, key: board_json.key, status: 'downloaded'}); if(boardRevocation.view_checked(fresh_revisions)) { note_answered(_this_sync_boards.get('sync_progress'), board_record); } counters_board_fetched(counters_token(_this_sync_boards)); // fetched from the server this sync; counted for item 0.1 (utils/sync_counters.js)
                       lookups[board_json.id] = RSVP.resolve(board_record);
                       lookups[board_json.key] = lookups[board_json.id]
                       _this_sync_boards.store('board', board_json, board_json.key).then(function(str) {
@@ -3880,7 +3880,7 @@ var persistence = Service.extend({
         });
       });
     } else {
-      return RSVP.reject({offline: true, error: "not online", short_circuit: true});
+      counters_note_failure(counters_token(this), 'offline'); return RSVP.reject({offline: true, error: "not online", short_circuit: true}); // item 0.1 (utils/sync_counters.js)
     }
   },
   on_connect: observer('online', function() {
@@ -5125,7 +5125,7 @@ persistence.reopen({
     this.set('sync_progress', null);
     if(this._active_root_sync_id === sync_id && this.sync_status_is_for_signed_in_user(user_id)) { this.set('sync_status', null); }
     var log = [].concat(this.get('sync_log') || []);
-    log.push({ user_id: user_name, manual: force, canceled: true, finished: new Date(), statuses: statuses, roots: roots, confirmed: true, storage_failed: storage_failed || undefined, summary: i18n.t('sync_canceled_summary', "Sync canceled") });
+    log.push({ user_id: user_name, manual: force, canceled: true, finished: new Date(), statuses: statuses, roots: roots, confirmed: true, storage_failed: storage_failed || undefined, summary: i18n.t('sync_canceled_summary', "Sync canceled"), counters: finish_counters(sync_id, { storage_failures: writes_before !== undefined ? failed_write_count(this) - writes_before : 0 }) || undefined }); // item 0.1 (utils/sync_counters.js)
     this.set('sync_log', record_sync_log(this, log)); // utils/sync_log_store.js
     this.set('sync_log_rand', Math.random());
     this.set('last_sync_event_at', (new Date()).getTime());
@@ -5169,3 +5169,4 @@ persistence.reopen({
 import { is_stale_item, drop_stale_head } from '../utils/url_store_queue';
 import { optional_picture, picture_ms_left } from '../utils/optional_picture';
 import { failure_cause, content_failure, settle_content, content_entry, retry_content, is_content_entry, judge_content, content_warning } from '../utils/board_content_retry';
+import { begin as begin_counters, finish as finish_counters, token as counters_token, request_started as counters_request_started, request_ended as counters_request_ended, note_failure as counters_note_failure, media_saved as counters_media_saved, board_fetched as counters_board_fetched, base64_bytes } from '../utils/sync_counters'; // item 0.1

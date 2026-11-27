@@ -1669,7 +1669,7 @@ describe("persistence-sync", function() {
         var log = persistence.get('sync_log');
         expect(log.length).toEqual(1);
         expect(log[0].user_id).toEqual('fred');
-        expect(log[0].issues).toEqual(true);
+        expect(log[0].issues).toEqual(true); expect(typeof (log[0].counters || {}).started).toEqual('number'); // item 0.1: a finished sync's entry carries its counters (utils/sync_counters.js)
         expect(log[0].statuses.length).toEqual(3); // the home board, its folder, and Crisis Vocabulary (#1221; updated 2026-11-08, approved)
         expect(log[0].statuses[0].id).toEqual('145');
         var failed = log[0].statuses.find(function(s) { return s.id == '167'; }) || {}; expect(failed.id).toEqual('167'); // found by id: Crisis Vocabulary also has an entry
@@ -1732,7 +1732,7 @@ describe("persistence-sync", function() {
 
         var log = persistence.get('sync_log');
         expect(log.length).toEqual(1);
-        expect(log[0].errored).toEqual(true);
+        expect(log[0].errored).toEqual(true); expect(typeof (log[0].counters || {}).started).toEqual('number'); // item 0.1: a failed sync's entry carries its counters too
         expect(log[0].user_id).toEqual(1340);
         cancelSyncTailWork();
         persistence.set('sync_progress', null);
@@ -8013,11 +8013,11 @@ describe("persistence-sync", function() {
       var prior = { log: svc.get('sync_log'), canceled: svc._canceled_sync_id, event_at: svc.get('last_sync_event_at') };
       try {
         svc._canceled_sync_id = 'S-part2';
-        svc.set('sync_progress', planted());
+        svc.set('sync_progress', planted()); begin_counters('S-part2', 5); // item 0.1
         expect(svc.end_canceled_sync('S-part2', 'self', 'fred', false)).toEqual(true);
         var log = svc.get('sync_log') || [];
         var last = log[log.length - 1] || {};
-        expect(last.canceled).toEqual(true);
+        expect(last.canceled).toEqual(true); expect((last.counters || {}).started).toEqual(5); // item 0.1: a cancelled sync's entry carries its counters
         expect(svc.get('sync_progress')).toEqual(null);
         var by = rows_by_key(last);
         expect((by['me/core'] || []).length).toEqual(1);
@@ -9050,3 +9050,4 @@ function restoreSyncTestGlobals() {
   if(target) { target.url_cache = {}; target.url_uncache = {}; }
   persistence.force_reload = null;
 }
+import { begin as begin_counters } from '../../utils/sync_counters'; // item 0.1

@@ -289,7 +289,7 @@ import app_state from './app_state';
         }
 
       };
-      var res = $.realAjax(options).then(function(data, message, xhr) {
+      var raw_request = $.realAjax(options); watch_jquery_request(raw_request, window.persistence); var res = raw_request.then(function(data, message, xhr) { // item 0.1: counted against the running sync only (utils/sync_counters.js)
         if(typeof(data) == 'string') {
           data = {text: data};
         }
@@ -678,3 +678,4 @@ extras.get_stashes = function() {
 };
 
 export default window.lingoLinqExtras; import { request_token } from './request_identity'; // at the end so no baselined lint row shifts (.eslint-todo)
+import { watch_jquery_request } from './sync_counters'; // item 0.1

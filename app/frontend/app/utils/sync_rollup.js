@@ -286,6 +286,7 @@ export function summary_for(persistence, opts) {
   var summary = rollup(found.entry.statuses, found.entry.roots);
   summary.from_earlier = found.from_earlier;
   summary.finished = found.entry.finished || null;
+  summary.entry = found.entry; // the log entry the cards come from (utils/sync_summary.js reads its counters)
   if(stopped) { summary.unfinished = true; summary.stopped = true; }
   return summary;
 }
