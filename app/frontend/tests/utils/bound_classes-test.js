@@ -135,5 +135,37 @@ describe('boundClasses', function() {
       }
       expect(found_rule).toEqual(true);
     });
+    // The Basic view (board-alt) paints labels in the brand navy unless this variable says
+    // otherwise (`var(--btn-label-color, $indigo)` in app.scss), so a dark fill has to
+    // publish white here or its label cannot be read.
+    var label_color_for = function(button) {
+      var styles = document.head.querySelectorAll('style[data-for-board]');
+      var style = styles[styles.length - 1];
+      var key = boundClasses.keyify(button);
+      var value = '';
+      for(var idx = 0; idx < style.sheet.cssRules.length; idx++) {
+        var rule = style.sheet.cssRules[idx];
+        if(rule.selectorText == (".button." + key) && rule.style.getPropertyValue('--btn-label-color')) {
+          value = rule.style.getPropertyValue('--btn-label-color').trim();
+        }
+      }
+      return value;
+    };
+    it("should publish a white label color for a dark fill", function() {
+      boundClasses.setup(true);
+      var black = Button.create({background_color: '#000'});
+      expect(black.get('text_color')).toEqual('rgb(255, 255, 255)');
+      expect(label_color_for(black)).toEqual('rgb(255, 255, 255)');
+      var green = Button.create({background_color: 'green'});
+      expect(label_color_for(green)).toEqual('rgb(255, 255, 255)');
+    });
+    it("should not publish a label color for a light fill", function() {
+      boundClasses.setup(true);
+      var white = Button.create({background_color: '#fff'});
+      expect(white.get('text_color')).toEqual('rgb(0, 0, 0)');
+      expect(label_color_for(white)).toEqual('');
+      var pastel = Button.create({background_color: '#aabbcc'});
+      expect(label_color_for(pastel)).toEqual('');
+    });
   });
 });

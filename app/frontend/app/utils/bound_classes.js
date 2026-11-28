@@ -40,6 +40,7 @@ var boundClasses = {};
         var str = '';
         var hoverStr = '';
         var cornerStr = '';
+        var labelStr = '';
         if(button.background_color) {
           var fill = window.tinycolor(button.background_color || '#fff');
           // Always use an outline 20% darker than the background for visibility
@@ -58,6 +59,14 @@ var boundClasses = {};
           var text = window.tinycolor.mostReadable(fill, ['#fff', '#000']);
           button.text_color = text.toRgbString();
           str = str + 'color: ' + button.text_color + ';';
+          // The Basic view (board-alt) paints every label in the brand navy, which wins
+          // over the `color` above (`var(--btn-label-color, $indigo) !important` in
+          // app.scss). Navy cannot be read on a dark fill, so when white is the readable
+          // choice publish it for that rule to pick up. Light fills publish nothing and
+          // keep the navy.
+          if(text.toHexString() === '#ffffff') {
+            labelStr = '--btn-label-color: ' + button.text_color + ';';
+          }
         } else if(button.border_color) {
           var border = window.tinycolor(button.border_color || '#eee');
           str = str + 'border-color: ' + border.toRgbString() + ';';
@@ -68,6 +77,9 @@ var boundClasses = {};
         add_css_rule('.button.' + key + ':hover, .button.' + key + '.touched, .button.' + key + ':focus', hoverStr);
         if(cornerStr) {
           add_css_rule('.button.' + key + ':not(.edit) .action_container.folder', cornerStr);
+        }
+        if(labelStr) {
+          add_css_rule('.button.' + key, labelStr);
         }
         this.classes[key] = [str, hoverStr, button.dark_border_color, button.dark_background_color, button.text_color];
       } else {
