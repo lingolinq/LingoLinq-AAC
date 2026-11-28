@@ -58567,7 +58567,10 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
     border-radius: 12px !important;
     box-shadow: 0 1px 3px rgba($indigo, 0.06);
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
-    color: $indigo !important;
+    /* Navy by default. `--btn-label-color` is set by utils/bound_classes.js#add_rule only
+       for a fill dark enough that white is the readable text color, where navy cannot be
+       read (measured 1.0 to 1.5 to 1 on black, KAN-179). */
+    color: var(--btn-label-color, $indigo) !important;
   }
   /* Interior padding on the <a class="button"> link element, for anything that flows.
      It does NOT inset the img_holder or the button-label-holder: those are absolutely
@@ -58761,7 +58764,8 @@ body.ll-view-basic .new-board-mockup-wrap .md-board-detail-symbol-card--empty {
 
   .board .button .button-label {
     font-weight: 700 !important;
-    color: $indigo !important;
+    // Same variable as `.board .button` above: white on a dark fill, navy otherwise.
+    color: var(--btn-label-color, $indigo) !important;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
   }
 
