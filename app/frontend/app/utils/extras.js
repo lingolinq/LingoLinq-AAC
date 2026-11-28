@@ -218,17 +218,17 @@ import app_state from './app_state';
         options.headers = options.headers || {};
         options.headers['X-INSTALLED-LINGOLINQ'] = (!!capabilities.installed_app).toString();
         
-        // Resolve token: capabilities first, then session, then stashes (avoids race after login)
-        var token = (capabilities && capabilities.access_token && capabilities.access_token !== 'none' && capabilities.access_token !== '') ? capabilities.access_token : null;
-        if(!token && LingoLinq.session && LingoLinq.session.get && LingoLinq.session.get('access_token')) {
-          token = LingoLinq.session.get('access_token');
-        }
-        if(!token) {
-          var auth = extras.get_stashes().get_object('auth_settings', true);
-          if(auth && auth.access_token && auth.access_token !== 'none' && auth.access_token !== '') {
-            token = auth.access_token;
-          }
-        }
+        // Resolve token: capabilities first, then session, then stashes (avoids race after login).
+        // One definition, utils/request_identity.js request_token: utils/board_download.js keys and
+        // checks a board download by the same token, so a download is never shared across sessions
+        // (Codex review of #1322). Same order and same 'none'/'' handling as the code it replaced.
+        var token = request_token(
+          capabilities,
+          LingoLinq.session,
+          extras.get_stashes()
+        );
+        // (capabilities is updated below when the token came from the session or the stash.)
+        // Keeping capabilities in step keeps later requests, and the board-download key, on this token.
         if(token && capabilities && capabilities.access_token !== token) {
           capabilities.access_token = token;
         }
@@ -406,8 +406,14 @@ import app_state from './app_state';
            swallow the real failure. Same defence app-state.js:585 uses on this service. */
         var dead_session = (typeof session.dead_session_response === 'function') && session.dead_session_response(xhr);
         var already_dead = (typeof session.logout_under_way === 'function') && session.logout_under_way();
-        if(dead_session && !already_dead && !extras.get_app_state().get('speak_mode')) {
-          session.force_logout(i18n.t('session_expired', "This session has expired, please log back in"));
+        /* A FAILURE FOR A TOKEN THIS TAB NO LONGER USES says nothing about the session it has now
+           (Scot's review of #1141, item 3): a request sent with the old token can fail after the person
+           has signed back in, and logging out then ended the new session. `token` is what this request
+           carried (set above); services/session.js#_checked_token_is_current is the test check_token's
+           answers already use. No token, or no session yet: unchanged. */
+        var stale_token = (typeof session._checked_token_is_current === 'function') && !session._checked_token_is_current(token);
+        if(dead_session && !already_dead && !stale_token && !extras.get_app_state().get('speak_mode')) {
+          session.force_logout(i18n.t('session_expired', "This session has expired, please log back in"), token);
         }
         if(error) {
           xhr.responseJSON = xhr.responseJSON || {error: 'unknown error ' + result};
@@ -671,4 +677,4 @@ extras.get_stashes = function() {
   return extras._services.stashes || stashes;
 };
 
-export default window.lingoLinqExtras;
+export default window.lingoLinqExtras; import { request_token } from './request_identity'; // at the end so no baselined lint row shifts (.eslint-todo)

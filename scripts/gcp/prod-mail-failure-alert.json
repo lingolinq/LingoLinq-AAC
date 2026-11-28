@@ -1,0 +1,26 @@
+{
+  "displayName": "PROD email sending failed",
+  "documentation": {
+    "content": "The production app logged an email sending failure.\n\nThis policy matches three log lines, in the scheduler Job, the web service and the Resque worker pool:\n\n- `[inactivity sweep] mail stopped for this run`: the inactivity sweep stopped sending its deletion notices this run, on an SES outage, throttling, a setup error (paused sending, credentials, configuration set, unverified identity) or repeated rejections (`app/models/concerns/subscription.rb`). The line names the error class and, for a setup error, says it needs an operator.\n- `SES delivery failed`: SES refused one message as InvalidParameterValue, which `General.deliver_message` (`app/mailers/concerns/general.rb`) logs and swallows. Email addresses in the error text are scrubbed by `PiiScrubbingFormatter`.\n- `[job failed] <Mailer> . deliver_message (<mail type>) <error class>`: a queued mail job (password reset, consent and notification mail) raised, for example SES MessageRejected, throttling or a sending pause (`lib/job_failure_log.rb`, a Resque failure hook). The line carries no address, id or error message. It also fires on mailer code errors (for example a NoMethodError), not only SES problems.\n\nNot covered: an SES error raised inside a non-mailer job (logged as `<Class> . perform_action`), and mail SES accepts and later bounces.\n\nWhat to check, in order:\n\n1. Open the matched log entry from the incident and read the error class.\n2. SES console for us-west-2 (account 239044785114): account status (sending paused or under review), and the reputation dashboard.\n3. For a setup error: the Cloud Run secrets AWS_KEY / AWS_SECRET, SES_REGION / AWS_REGION, and SES_CONFIGURATION_SET (`lingolinq-transactional`).\n\nNo log text is copied into the notification (no label extractors). Notifications are limited to one an hour; an incident closes itself after 7 days without a new match.",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "An email sending failure was logged",
+      "conditionMatchedLog": {
+        "filter": "resource.type=(\"cloud_run_job\" OR \"cloud_run_revision\" OR \"cloud_run_worker_pool\") AND (textPayload:\"[inactivity sweep] mail stopped\" OR textPayload:\"SES delivery failed\" OR (textPayload:\"[job failed] \" AND textPayload:\"Mailer . deliver_message\"))"
+      }
+    }
+  ],
+  "notificationChannels": [
+    "projects/lingolinq-prod/notificationChannels/2035727736516782378"
+  ],
+  "alertStrategy": {
+    "notificationRateLimit": {
+      "period": "3600s"
+    },
+    "autoClose": "604800s"
+  },
+  "enabled": true
+}

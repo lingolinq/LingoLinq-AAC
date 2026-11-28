@@ -101,16 +101,14 @@ class Api::SystemEmailTemplatesController < ApplicationController
     html_custom = nil if html_custom && SystemEmailTemplates.default_field_value?(@entry[:key], @entry, 'html_body', html_custom, org)
     text_custom = attrs[:text_body].presence
     text_custom = nil if text_custom && SystemEmailTemplates.default_field_value?(@entry[:key], @entry, 'text_body', text_custom, org)
-    html_template = html_custom || SystemEmailTemplates.default_body(@entry[:key], 'html') || ''
-    text_template = text_custom || SystemEmailTemplates.default_body(@entry[:key], 'text') || ''
     sample_consent_url = "#{JsonApi::Json.absolute_host}/parental_consent/complete?user_id=#{user.global_id}&token=sample-token"
     sample_revoke_url = "#{JsonApi::Json.absolute_host}/parental_consent/revoke?user_id=#{user.global_id}&token=sample-revoke-token"
     sample_granted_at = Time.now.utc
     sample_revoked_at = Time.now.utc
 
-    preview_binding = preview_binding_for(user, branding, preview_i18n, sample_consent_url, sample_revoke_url, sample_granted_at, sample_revoked_at)
-    html = SystemEmailTemplates.render_string(html_template, preview_binding, validate: !!html_custom)
-    text = SystemEmailTemplates.render_string(text_template, preview_binding, validate: !!text_custom)
+    helper = preview_helper_for(user, branding, preview_i18n, sample_consent_url, sample_revoke_url, sample_granted_at, sample_revoked_at)
+    html = render_preview_body(html_custom, 'html', helper, preview_i18n, branding)
+    text = render_preview_body(text_custom, 'text', helper, preview_i18n, branding)
 
     render json: {
       subject: subject,
@@ -130,7 +128,10 @@ class Api::SystemEmailTemplatesController < ApplicationController
     payload = entry.merge(content).merge(
       org_id: scope_id || 'default',
       branding_variables: branding_variables_payload(branding, scope_id),
-      dynamic_variables: entry[:dynamic_variables] || []
+      dynamic_variables: entry[:dynamic_variables] || [],
+      placeholders: SystemEmailPlaceholders.allowed_for(entry[:key]),
+      required_placeholders: SystemEmailPlaceholders.required_for(entry[:key]),
+      override_errors: stored_body_errors(entry[:key], content)
     )
     if entry[:i18n_blocks].present?
       payload[:i18n_blocks] = SystemEmailI18n.blocks_for(entry[:key], org, entry)
@@ -139,6 +140,20 @@ class Api::SystemEmailTemplatesController < ApplicationController
       payload[:has_i18n_blocks] = false
     end
     payload
+  end
+
+  # A stored body that no longer validates is not used at send (SystemEmailOverride falls back to
+  # the default view), so the editor reports it per format instead of showing it as live.
+  def stored_body_errors(key, content)
+    %w[html text].each_with_object({}) do |format, errors|
+      next if content[:"#{format}_is_default"]
+
+      begin
+        SystemEmailPlaceholders.validate!(content[:"#{format}_body"], key)
+      rescue SystemEmailPlaceholders::InvalidTemplate => e
+        errors[format] = e.message
+      end
+    end
   end
 
   def branding_variables_payload(branding, scope_id)
@@ -161,7 +176,20 @@ class Api::SystemEmailTemplatesController < ApplicationController
     end
   end
 
-  def preview_binding_for(user, branding, preview_i18n, sample_consent_url, sample_revoke_url = nil, sample_granted_at = nil, sample_revoked_at = nil)
+  # Edited text is filled from allowed values only; the shipped default view (read from the
+  # repository by key) is rendered with ERB against the preview helper. Whole links are
+  # sample links built from the sample user.
+  def render_preview_body(custom, format, helper, preview_i18n, branding)
+    if custom
+      links = SystemEmailPreview.sample_links(helper.instance_variable_get(:@user))
+      context = SystemEmailPlaceholders::Context.from_object(@entry[:key], helper, i18n_overrides: preview_i18n, domain_settings: branding, links: links)
+      SystemEmailPlaceholders.render(custom, @entry[:key], format, context, require_links: false)
+    else
+      SystemEmailTemplates.render_default(@entry[:key], format, helper.instance_eval { binding })
+    end
+  end
+
+  def preview_helper_for(user, branding, preview_i18n, sample_consent_url, sample_revoke_url = nil, sample_granted_at = nil, sample_revoked_at = nil)
     entry = @entry
     template_key = "#{entry[:mailer]}/#{entry[:action]}"
     helper = Object.new.extend(MailerHelper)
@@ -178,16 +206,19 @@ class Api::SystemEmailTemplatesController < ApplicationController
       end
     end
     helper.instance_variable_set(:@user, user)
+    # forgot_password reads @users (one login per sample, as UserMailer#forgot_password sets it).
+    helper.instance_variable_set(:@users, [user])
     helper.instance_variable_set(:@consent_url, sample_consent_url)
     helper.instance_variable_set(:@revoke_url, sample_revoke_url)
     helper.instance_variable_set(:@privacy_url, "#{JsonApi::Json.absolute_host}/privacy")
+    helper.instance_variable_set(:@ai_disclosure_url, "#{JsonApi::Json.absolute_host}/ai_consent/disclosures/#{LingoLinq::AiConsentDisclosures::CURRENT_VERSION}")
     helper.instance_variable_set(:@contact_url, "#{JsonApi::Json.absolute_host}/contact")
     helper.instance_variable_set(:@child_name, user.display_name)
     helper.instance_variable_set(:@child_username, user.display_user_name)
     helper.instance_variable_set(:@parent_email, (user.settings['coppa'] || {})['parent_email'] || 'parent@example.com')
     helper.instance_variable_set(:@granted_at, sample_granted_at)
     helper.instance_variable_set(:@revoked_at, sample_revoked_at)
-    helper.instance_eval { binding }
+    helper
   end
 
   def load_template_entry

@@ -44,3 +44,40 @@ export function resolve_board_display_locale(opts) {
   }
   return preferred;
 }
+
+// A board's own language, except that a keyboard board that also has English stays English
+// for a user with no language preference. Undefined when the board has no language at all
+// (obf/stars, integrations), which leaves readers on their own fallback to the UI language.
+export function board_default_locale(model_locale, board_key, user_locale, board_langs) {
+  var has_english = (board_langs || []).some(function(lang) { return String(lang).split(/-|_/)[0] === 'en'; });
+  if((board_key || '').match(/\/keyboard$/) && !user_locale && has_english) { return 'en'; }
+  return model_locale;
+}
+
+// The one rule for every board page, so Basic, Modern and the legacy page cannot disagree on
+// a board's language: with Switch Languages on, the session language applies where the board
+// has it; otherwise the board speaks its own language. The plain label_locale and
+// vocalization_locale stashes count only with Switch Languages on. Home and speak mode write
+// them, and any board that also stores English would otherwise open in English.
+export function session_board_locale(stashes, loc_type, board_default, board_langs) {
+  var override = stashes.get('override_label_locale') || stashes.get('override_vocalization_locale');
+  if(!override) { return board_default; }
+  return resolve_board_display_locale({
+    boardDefault: board_default,
+    boardLangs: board_langs,
+    override: override,
+    preferred: stashes.get(loc_type) || stashes.get('override_' + loc_type) || override
+  });
+}
+
+// The language a copy of this board starts in. The session language stays on the last board
+// viewed, so it counts only through the rule above, and only if the board literally has it:
+// the resolver can answer with a root language (es) for a board that stores a regional one (es_US).
+export function board_language_for_session(stashes, board) {
+  // A preview can still be a plain { loading: true } object.
+  if(!board || !board.get) { return undefined; }
+  var own = board.get('locale');
+  var board_langs = available_board_langs(board, null);
+  var session = session_board_locale(stashes, 'label_locale', own, board_langs);
+  return board_langs.indexOf(session) === -1 ? own : session;
+}

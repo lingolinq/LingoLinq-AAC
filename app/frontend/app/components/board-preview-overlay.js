@@ -312,7 +312,7 @@ export default Component.extend({
         var tryFor = app_state.get('setup_user') || app_state.get('currentUser');
         // `name` so the bar names the tried board even inside one of its folders, and a fresh trail so the
         // trial's folders are recognised by it (controllers/user/board-detail.js#try_origin_board, 2026-10-13).
-        app_state.set('board_detail_try_origin', { key: key, name: board.get ? board.get('name') : board.name, from: 'board_picker', user_id: tryFor && tryFor.get('id'), user_name: tryFor && tryFor.get('user_name') });
+        app_state.set('board_detail_try_origin', { key: key, name: board.get ? board.get('name') : board.name, from: 'board_picker', user_id: backend_user_id(tryFor), user_name: tryFor && tryFor.get('user_name') });
         app_state.set('board_detail_nav_history', []);
       }
 
@@ -385,7 +385,7 @@ export default Component.extend({
     if (!_this.isDestroyed && !_this.isDestroying) { _this.set('copying', false); }
     var setupUser = setupUserSnapshot || app_state.get('setup_user');
     var currentUser = app_state.get('currentUser');
-    var pickingForOther = setupUser && currentUser && setupUser.get('id') != currentUser.get('id');
+    var pickingForOther = setupUser && currentUser && backend_user_id(setupUser) !== backend_user_id(currentUser); // by backend id: a copy refreshes the session user, whose record is keyed 'self' (utils/backend_user_id.js), so `id` read the person themself as someone else
     var key = (homeBoard && homeBoard.get && homeBoard.get('key')) || '';
     routerSvc = routerSvc || (_this.get && !_this.isDestroyed && _this.get('router')) || (app_state.controller && app_state.controller.router);
 
@@ -432,7 +432,7 @@ export default Component.extend({
           user.board-detail that runs. So it is very unlikely to be a wrong-branch
           bug. A 404 was logged in that run; the leading (UNCONFIRMED) hypothesis is
           that board-detail fails to load the just-created copy and something
-          redirects to /boards.
+          redirects to /boards. EXPLAINED 2026-11-12: the copy job's end refreshes the session user to the record keyed 'self', so pickingForOther WAS true; it now compares backend ids (section 20 of docs/task-management/2026-11-10_offline-followup-proposals.md).
        2. A separate run (a different communicator, same self-pick path) never
           reached a terminal state within 180s. Not investigated; may be nothing
           more than a slow dev-stack copy.
@@ -468,19 +468,15 @@ export default Component.extend({
        change, so it lands on the new board rather than on the dying preview.
        Named so it also answers "why did that take so long".
 
-       Two handlers, not one: the home board is set either way, but the images
-       are exactly what did NOT get saved when the preload rejects, so promising
-       offline use on that path is the one claim we know to be false — and the
-       user finds out only when they are offline and the board renders blank. */
+       One handler: preload_board_images always resolves, and it only loads pictures into the
+       browser's memory, so there is nothing here that could tell whether the board is on the
+       device. The message says what is true and a sync is started (utils/home_board.js, #1034). */
     var finish = function() {
-      modal.success(i18n.t('board_now_your_home_board', "This is now your home board, and it's saved for offline use."), true);
+      modal.success(home_board_set_message(), true);
+      sync_after_home_change(persistence);
       go();
     };
-    var finish_without_images = function() {
-      modal.success(i18n.t('board_now_your_home_board_no_offline', "This is now your home board. Some images could not be saved for offline use — reconnect and open the board once to finish saving it."), true);
-      go();
-    };
-    preload_board_images(homeBoard).then(finish, finish_without_images);
+    preload_board_images(homeBoard).then(finish, finish);
   },
 
   // Clear the copying overlay and surface a (localized) error. Leaves the preview
@@ -517,3 +513,6 @@ export default Component.extend({
 
 // Imported last so the .eslint-todo rows above keep their lines.
 import { remember_trial } from '../utils/board_picker_trials';
+import { home_board_set_message, sync_after_home_change } from '../utils/home_board';
+import persistence from '../utils/persistence';
+import backend_user_id from '../utils/backend_user_id';

@@ -1,5 +1,8 @@
+require_relative 'job_failure_log'
+
 module SlowWorker
   @queue = :slow
+  extend JobFailureLog
 
   # Slow-queue jobs execute via SlowWorker.perform -> Worker.perform_at, which
   # bypasses Worker.perform, so the request-scoped Thread.current caches must be
@@ -9,5 +12,6 @@ module SlowWorker
     Worker.perform_at(:slow, *args)
   ensure
     Worker.clear_request_thread_caches
+    Worker.clear_scheduled_stamp(args)
   end
 end

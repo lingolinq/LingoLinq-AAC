@@ -61,8 +61,11 @@ environment does not ship `gcloud`; run from a machine that does.
 ./scripts/gcp/dedupe-utility-boards-dryrun.sh --web lingolinq-web-staging
 ```
 
-The script copies image, Cloud SQL, VPC, secrets, and the runtime SA from
-the chosen web service. It never updates `lingolinq-migrate-*`.
+The script copies image, Cloud SQL, VPC, secrets, the runtime SA, and a plain
+`REDIS_NAMESPACE_SUFFIX` (so the Job uses the workers' namespace) from the chosen
+web service. It never updates `lingolinq-migrate-*`. Prefer `--web
+lingolinq-web-staging` before an APPLY, so the Job runs the image the shared
+worker runs.
 `--max-retries 0`. Logs are the durable record.
 
 ## APPLY (nonprod only, after reviewing a dry-run)

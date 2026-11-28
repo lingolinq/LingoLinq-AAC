@@ -10,6 +10,7 @@ import app_state from '../../utils/app_state';
 import persistence from '../../utils/persistence';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import backend_user_id, { same_person } from '../../utils/backend_user_id';
 
 export default Controller.extend({
   appState: service('app-state'),
@@ -59,9 +60,10 @@ export default Controller.extend({
   title: computed('model.user_name', function() {
     return "Edit " + this.get('model.user_name');
   }),
-  valet_user_name: computed('model.id', function() {
+  // The server parses model@<global id> (User.find_for_login); a 'self' record gives model@self, which never signs in.
+  valet_user_name: computed('model.id', 'model.global_id', function() {
     if(this.get('model.id')) {
-      return "model@" + this.get('model.id').replace(/_/, '.')
+      return "model@" + backend_user_id(this.get('model')).replace(/_/, '.')
     } else {
       return "";
     }
@@ -112,6 +114,14 @@ export default Controller.extend({
       return null;
     }
   }),
+  // True when the page shows the person's own account and they are not acting as another user. While acting as
+  // another user, sessionUser is that user, so the session's as_user_id (sent as X-As-User-Id, utils/extras.js)
+  // decides it. Unknown session user reads as someone else.
+  own_account_2fa: computed('model.id', 'model.global_id', 'appState.sessionUser.id', 'appState.sessionUser.global_id', 'session.as_user_id', function() {
+    if(this.get('session.as_user_id')) { return false; }
+    var me = this.get('appState.sessionUser');
+    return same_person(this.get('model'), me, me);
+  }),
   load_integrations: observer('model.id', function(reload) {
     var _this = this;
     this.get('model').check_integrations(reload);
@@ -126,10 +136,17 @@ export default Controller.extend({
       if(action == 'confirm') {
         opts.code_2fa = _this.get('code_2fa');
       }
-      persistence.ajax('/api/v1/users/' + _this.get('model.id') + '/2fa', {
+      // The account the request is for; the page may show another one by the time the answer arrives.
+      var user = _this.get('model');
+      persistence.ajax('/api/v1/users/' + user.get('id') + '/2fa', {
         type: 'POST',
         data: opts
       }).then(function(res) {
+        // The answer carries the account's 2FA state after the change (users_controller.rb update_2fa).
+        if(res && res.state) {
+          user.set('state_2fa', res.state);
+        }
+        if(_this.get('model') !== user) { return; }
         if(res.uri) {
           _this.set('code_2fa', '');
           _this.set('status_2fa', {uri: res.uri});
@@ -137,6 +154,7 @@ export default Controller.extend({
           _this.set('status_2fa', {success: true});
         }
       }, function(err) {
+        if(_this.get('model') !== user) { return; }
         _this.set('status_2fa', {error: true, uri: uri});
       });
     },
@@ -304,12 +322,12 @@ export default Controller.extend({
         sentence: "You can use this link to message me!",
         timestamp: (new Date()).getTime() / 1000,
         private_only: true,
-        user_id: this.get('model.id')
+        user_id: backend_user_id(this.get('model')) // utterance[user_id] is nested, so the server never rewrites 'self'
       });
       var user = {
         user_name: contact.name,
         avatar_url: contact.image_url,
-        id: this.get('model.id') + 'x' + contact.hash
+        id: backend_user_id(this.get('model')) + 'x' + contact.hash // Utterance#share_with splits this on 'x' and finds the user by global id
       }
       var _this = this;
       u.save().then(function(u) {

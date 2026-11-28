@@ -5,7 +5,7 @@
     class="modern-select__trigger"
     aria-haspopup="listbox"
     aria-expanded={{this.isOpen}}
-    aria-label={{this.ariaLabel}}
+    aria-label={{this.accessibleName}}
     {{on "click" this.onToggle}}
   >
     <span class="modern-select__trigger-text {{unless this.selectedItem 'modern-select__trigger-text--placeholder'}}">{{this.triggerLabel}}</span>

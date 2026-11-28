@@ -52,25 +52,19 @@
 - **Adversary:** confirmed -- gcloud projects get-iam-policy lingolinq-prod returns no auditConfigs key at all. Verified live 2026-08-13.
 - **Remediation:** Set an IAM audit config on the production project enabling DATA_READ (and DATA_WRITE where cheap) for secretmanager.googleapis.com and cloudsql.googleapis.com, at minimum. Without it, secretmanager.versions.access -- the operation that returns a plaintext production secret -- is not logged at all, because Data Access logs are off by default and only Admin Activity logs are always-on. Pair with a log sink to a retention-controlled bucket so the evidence outlives the default Cloud Logging retention, and add the audit config to phase1-setup.sh so it is reproducible rather than a console click.
 
-### Production GCP project grants a non-owner human principal project-wide secretmanager.admin, cloudsql.admin and iam.serviceAccountAdmin, contradicting the documented least-privilege design
+### Compliance finding (details withheld until remediation is verified)
 
-- **ID:** `LL-c0b3d59f58`  |  **ruleKey:** `gcp-human-principal-holds-project-admin-over-secrets-and-prod-db`  |  **confidence:** high
-- **Location:** `scripts/gcp/phase1-setup.sh`:251
-- **Frameworks:** SOC2, HIPAA, FERPA
-- **First seen:** 2026-08-12  |  **Last seen:** 2026-08-12  |  **Disposition:** untriaged
-- **Adversary:** confirmed -- Live project IAM grants the roles cited to a non-owner human principal, directly contradicting the script's own documented least-privilege design (comments at lines 250-258). secretmanager.admin subsumes secretAccessor, so this is an inversion of the documented control, not mere drift.
-- **Remediation:** Reconcile live project IAM against the design the committed script documents (phase1-setup.sh:243-258: run.developer, artifactregistry.writer, logging/monitoring/secretmanager VIEWER, cloudsql.client -- explicitly no secretAccessor and explicitly not cloudsql.admin). Replace standing secretmanager.admin with secretmanager.viewer plus per-secret secretAccessor only where a human genuinely needs a value, and replace cloudsql.admin with cloudsql.client. If broader access is genuinely required, make it break-glass: time-bound IAM conditions or a documented JIT elevation with an approval record, plus the Data Access audit logs from the companion finding so elevated use is observable. Confirm the workforce authorization and BAA/HIPAA paperwork for any human with standing access to PHI-bearing systems.
+- **ID:** `LL-c0b3d59f58`  |  **ruleKey:** `minimized-finding-ll-c0b3d59f58`
+- **Current status:** see `audit-reports/FINDINGS.json`.
+- **Amended 2026-11-05:** this section was replaced with a pointer under the security disclosure policy (Scot Wahlquist). The rest of this report is as generated on 2026-08-12.
 
 ## MEDIUM (12)
 
-### Production Cloud SQL instance accepts unencrypted connections (ssl mode allows unencrypted) and is provisioned with no SSL enforcement flag
+### Compliance finding (details withheld until remediation is verified)
 
-- **ID:** `LL-0d54bcb32c`  |  **ruleKey:** `cloudsql-server-side-ssl-not-required`  |  **confidence:** high
-- **Location:** `scripts/gcp/phase3-data-layer.sh`:252
-- **Frameworks:** SOC2, HIPAA
-- **First seen:** 2026-08-12  |  **Last seen:** 2026-08-12  |  **Disposition:** untriaged
-- **Adversary:** confirmed -- Live sslMode=ALLOW_UNENCRYPTED_AND_ENCRYPTED, requireSsl=False; no SSL flag in the provisioning script. Partial mitigation: instance is private-IP-only with no authorizedNetworks, so exposure requires an in-VPC foothold.
-- **Remediation:** Set the instance SSL mode to encrypted-only (gcloud sql instances patch --ssl-mode=ENCRYPTED_ONLY) and add the equivalent flag to the create call in phase3-data-layer.sh so the posture is reproducible. The app path is unaffected: Cloud Run reaches the instance over the Cloud SQL connector socket, which is encrypted independently of the client sslmode value. What the change closes is every OTHER path -- any client reaching the private IP from inside the VPC (a bastion, a future workload, a hand-run psql) can currently negotiate a plaintext session carrying PHI.
+- **ID:** `LL-0d54bcb32c`  |  **ruleKey:** `minimized-finding-ll-0d54bcb32c`
+- **Current status:** see `audit-reports/FINDINGS.json`.
+- **Amended 2026-11-05:** this section was replaced with a pointer under the security disclosure policy (Scot Wahlquist). The rest of this report is as generated on 2026-08-12.
 
 ### Render blueprint auto-deploys web/worker on every push to staging without requiring CI to pass
 
@@ -81,58 +75,41 @@
 - **Adversary:** confirmed -- render.yaml has no autoDeployTrigger/autoDeploy field (web:6, worker:59 both branch:staging); Render default when absent is commit (deploy every push). The opt-in gate autoDeployTrigger:checksPass exists in the blueprint spec but is unused. Field-name uncertainty resolved: correct field is autoDeployTrigger.
 - **Remediation:** The web and worker services track branch: staging with no auto-deploy gate, so Render deploys the branch tip on every push independently of the GitHub Actions CI result (ci.yml rspec, build-and-test, secret-detection). A red build or a commit failing the blocking secret-detection gate can still ship. Set the blueprint auto-deploy trigger to deploy only after checks pass (Render autoDeployTrigger, or the dashboard 'Auto-Deploy: After CI Checks Pass'), and/or add branch protection with required status checks on staging. Confirm the live Render auto-deploy setting.
 
-### Failed authentication attempts produce no AuditEvent and no security log line, so credential-stuffing and password-guessing are undetectable after the fact
+### Compliance finding (details withheld until remediation is verified)
 
-- **ID:** `LL-1e8abb7d59`  |  **ruleKey:** `failed-authentication-attempts-not-logged`  |  **confidence:** high
-- **Location:** `app/controllers/session_controller.rb`:568
-- **Frameworks:** SOC2, HIPAA, FERPA
-- **First seen:** 2026-08-12  |  **Last seen:** 2026-08-12  |  **Disposition:** untriaged
-- **Adversary:** confirmed -- Lines 566/568/572 emit no logger call and no AuditEvent; repo-wide AuditEvent grep has no session_controller.rb hit at all, so even the success path lacks an AuditEvent (only a log line).
-- **Remediation:** Emit a structured record on every authentication outcome, not just the success path. Successful logins already log one line (session_controller.rb:552) but no AuditEvent; failures log nothing at all. Write an AuditEvent (event_type 'login_failed' / 'login_succeeded') or at minimum a tagged Rails.logger line carrying only non-identifying fields -- global_id when the account resolved, a truncated/hashed source-IP bucket, device_key, and the failure reason -- never the submitted username or password. Cover the sibling credential-checking endpoints too: users_controller#resend_parental_consent:831, #submit_parental_consent_email:876, :1150, and the oauth/SAML paths. Then alert on rate and on distribution across accounts.
+- **ID:** `LL-1e8abb7d59`  |  **ruleKey:** `minimized-finding-ll-1e8abb7d59`
+- **Current status:** see `audit-reports/FINDINGS.json`.
+- **Amended 2026-11-05:** this section was replaced with a pointer under the security disclosure policy (Scot Wahlquist). The rest of this report is as generated on 2026-08-12.
 
-### The blocking secret-detection gate downloads and executes an unpinned, unverified gitleaks binary resolved at runtime from the GitHub releases API
+### Compliance finding (details withheld until remediation is verified)
 
-- **ID:** `LL-33d756b764`  |  **ruleKey:** `unpinned-unverified-gitleaks-binary-in-blocking-gate`  |  **confidence:** high
-- **Location:** `.github/workflows/ci.yml`:266
-- **Frameworks:** SOC2
-- **First seen:** 2026-08-12  |  **Last seen:** 2026-08-12  |  **Disposition:** untriaged
-- **Adversary:** confirmed -- ci.yml:253-270 overwrites the pinned URL with the GitHub releases API result, no checksum verification. Confirmed secret-detection is a required branch-protection context on staging, so this runs inside a blocking gate.
-- **Remediation:** Use the pinned version as the primary path rather than the fallback, and verify integrity before execution: keep GITLEAKS_VERSION as the source of truth, download only that asset, and check the archive against a committed SHA-256 (or verify the release signature) before extracting and running it. If tracking the latest release is a deliberate goal, do it with a scheduled bump PR that updates the pin and the checksum together, so the change is reviewed rather than silently applied on the next CI run. Pair with the top-level permissions block already tracked as LL-5ae3d7ca2c so the executed binary does not inherit a repo-default read-write GITHUB_TOKEN.
+- **ID:** `LL-33d756b764`  |  **ruleKey:** `minimized-finding-ll-33d756b764`
+- **Current status:** see `audit-reports/FINDINGS.json`.
+- **Amended 2026-11-05:** this section was replaced with a pointer under the security disclosure policy (Scot Wahlquist). The rest of this report is as generated on 2026-08-12.
 
-### CI security-scan job (Brakeman SAST, bundle-audit, npm audit, gitleaks) is entirely non-blocking
+### CI security-scan job: the Brakeman and npm audit steps are advisory, and security-scan is not a required check on develop
 
-- **ID:** `LL-52ff2a9a79`  |  **ruleKey:** `ci-security-gates-non-blocking`  |  **confidence:** high
-- **Location:** `.github/workflows/ci.yml`:107
-- **Frameworks:** SOC2
-- **First seen:** 2026-06-14  |  **Last seen:** 2026-06-14  |  **Disposition:** accepted
-- **Remediation:** The whole security-scan job is continue-on-error: true (ci.yml:107), and every tool inside also soft-passes (Brakeman '|| true', npm audit '|| true', gitleaks '--exit-code 1 || true'). SAST, dependency-CVE, and secret-detection can never fail a PR, so a regression or a committed secret merges green. Make at least gitleaks secret-detection and high-severity bundle-audit/Brakeman blocking on PRs to staging/main; pair with branch protection requiring the gate.
+- **ID:** `LL-52ff2a9a79`  |  **ruleKey:** `ci-security-gates-non-blocking`
+- **Current status:** see `audit-reports/FINDINGS.json`.
+- **Amended 2026-11-06:** this section was replaced with a pointer after Scot re-scoped the row on 2026-11-05 (Scot Wahlquist). The rest of this report is as generated on 2026-08-12.
 
-### Brute-force protection on login is per-source-IP only at roughly 400 attempts/minute, with no per-account lockout, backoff, or velocity control
+### Compliance finding (details withheld until remediation is verified)
 
-- **ID:** `LL-69a7f62551`  |  **ruleKey:** `no-per-account-lockout-or-velocity-control`  |  **confidence:** medium
-- **Location:** `config/initializers/throttling.rb`:6
-- **Frameworks:** SOC2, HIPAA, FERPA
-- **First seen:** 2026-08-12  |  **Last seen:** 2026-08-12  |  **Disposition:** untriaged
-- **Adversary:** confirmed -- Single throttle keyed on req.ip only; no lockout/failed_attempts counters anywhere in app/lib/config. Bonus: period_proc is a dead ternary (both branches return 3.seconds), so protected paths get no tighter window than general traffic.
-- **Remediation:** Add an account-keyed control alongside the existing IP-keyed one: a Rack::Attack throttle discriminated on the normalized username for /token, oauth2/token/login and the SAML/consent credential endpoints, plus exponential backoff or a temporary lock after N consecutive failures on one account (a pattern the codebase already uses elsewhere -- see the per-user Redis throttle at users_controller.rb:840-850). Pair it with the failed-auth logging finding so the lock is observable. Separately, verify empirically what Rack::Attack's req.ip resolves to behind the Cloud Run load balancer before tuning any IP-keyed limit.
+- **ID:** `LL-69a7f62551`  |  **ruleKey:** `minimized-finding-ll-69a7f62551`
+- **Current status:** see `audit-reports/FINDINGS.json`.
+- **Amended 2026-11-05:** this section was replaced with a pointer under the security disclosure policy (Scot Wahlquist). The rest of this report is as generated on 2026-08-12.
 
-### No scheduled reconciler detects Cloud Run configuration drift introduced outside the deploy workflow, the exact path that once silently disabled the Bedrock BAA account assertion
+### Compliance finding (details withheld until remediation is verified)
 
-- **ID:** `LL-7181a16033`  |  **ruleKey:** `cloudrun-runtime-config-drift-no-reconciler`  |  **confidence:** high
-- **Location:** `.github/workflows/deploy-cloudrun.yml`:270
-- **Frameworks:** SOC2, HIPAA
-- **First seen:** 2026-08-12  |  **Last seen:** 2026-08-12  |  **Disposition:** untriaged
-- **Adversary:** confirmed -- assert-runtime-secrets.sh is referenced exactly once repo-wide (the deploy workflow itself); none of the repo's four scheduled workflows invoke it. Line 270 is the workflow's own comment admitting the gap.
-- **Remediation:** Run scripts/gcp/assert-runtime-secrets.sh on a schedule (a cron workflow, or Cloud Scheduler invoking a job) against the currently-serving revision, not only as the last step of a deploy. It already takes --required and --required-literal and already reads back the live revision, so the reconciler is mostly a trigger away. Alert on failure to a channel someone watches, and consider adding an org policy or IAM condition that discourages hand-run gcloud run deploy against the production service so the CI path is the only one that materially changes it.
+- **ID:** `LL-7181a16033`  |  **ruleKey:** `minimized-finding-ll-7181a16033`
+- **Current status:** see `audit-reports/FINDINGS.json`.
+- **Amended 2026-11-05:** this section was replaced with a pointer under the security disclosure policy (Scot Wahlquist). The rest of this report is as generated on 2026-08-12.
 
-### The admin_token cookie that gates the Resque admin console is set without HttpOnly, so any XSS can steal an admin console session
+### Compliance finding (details withheld until remediation is verified)
 
-- **ID:** `LL-7296ada5da`  |  **ruleKey:** `admin-console-cookie-not-httponly`  |  **confidence:** high
-- **Location:** `app/controllers/session_controller.rb`:250
-- **Frameworks:** SOC2, HIPAA, FERPA
-- **First seen:** 2026-08-12  |  **Last seen:** 2026-08-12  |  **Disposition:** untriaged
-- **Adversary:** confirmed -- Line 250 sets a bare cookie value with no options hash, unlike session_store.rb's app cookie. force_ssl already adds `secure` in production, so the residual gap is specifically httponly and same_site.
-- **Remediation:** Set the cookie with explicit security attributes, matching what config/initializers/session_store.rb:6-10 already does for the app session cookie: cookies[:admin_token] = { value: admin_token, httponly: true, secure: Rails.env.production?, same_site: :lax, expires: 2.hours.from_now }. Consider also scoping path: '/jobby' so the token is not attached to every request to the app, and shortening the 2-hour Redis TTL for an admin console session.
+- **ID:** `LL-7296ada5da`  |  **ruleKey:** `minimized-finding-ll-7296ada5da`
+- **Current status:** see `audit-reports/FINDINGS.json`.
+- **Amended 2026-11-05:** this section was replaced with a pointer under the security disclosure policy (Scot Wahlquist). The rest of this report is as generated on 2026-08-12.
 
 ### infra-auditor runtime/CLI evidence relies on instruction-only control against secret/PII leakage
 
@@ -158,14 +135,11 @@
 - **First seen:** 2026-08-04  |  **Last seen:** 2026-08-04  |  **Disposition:** untriaged
 - **Remediation:** Cheapest path (template only, no server change): render the already-stashed operator identity beside the existing Stop Masquerading controls. session.original_user_name is set at masquerade start (app/frontend/app/components/masquerade.js:61, app/frontend/app/controllers/organization.js:48), restored at app/frontend/app/services/session.js:510, and already read by the isMasquerading computed at app/frontend/app/controllers/application.js:52,56 with a stash fallback at :62. Option 2, only if the server must be authoritative: serialize the acting operator via lib/json_api. Scope of @true_user (set at app/controllers/application_controller.rb:182,196): the private_logging checks in app/controllers/api/logs_controller.rb, the PaperTrail whodunnit at :185/:199, and the authorization plus audit-attribution actor in app/controllers/concerns/api/schema_explorer.rb:90,103 and app/controllers/concerns/api/system_settings_access.rb:7. It never reaches lib/json_api. PR #714 (staging, 2026-07-30) added persistent Stop Masquerading controls (app/frontend/app/components/app-navbar-authenticated-inner.hbs:64,183,211; app/frontend/app/templates/application.hbs:928,1276,1304), which signal THAT a masquerade is active but not WHOSE record is open.
 
-### Production Cloud SQL instance has deletion protection disabled and is provisioned without it, while automated deploys apply migrations with no pre-migration backup step
+### Compliance finding (details withheld until remediation is verified)
 
-- **ID:** `LL-d3f41e7a67`  |  **ruleKey:** `cloudsql-prod-no-deletion-protection`  |  **confidence:** high
-- **Location:** `scripts/gcp/phase3-data-layer.sh`:255
-- **Frameworks:** SOC2, HIPAA, FERPA
-- **First seen:** 2026-08-12  |  **Last seen:** 2026-08-12  |  **Disposition:** untriaged
-- **Adversary:** confirmed -- Live instance reports deletionProtectionEnabled=False; create-flag list has no --deletion-protection. PITR + 7 retained backups exist, so this is recoverability-degrading rather than data-destroying.
-- **Remediation:** Add --deletion-protection to the gcloud sql instances create call in phase3-data-layer.sh (the flag list at :241-255 ends without it) and enable it on the live instance. Consider also raising retained-backups above the 7-day default given FERPA/HIPAA restoration expectations, and adding an on-demand backup step to deploy-cloudrun.yml immediately before the migration Job -- the pipeline currently runs rake db:migrate against production with no snapshot taken in the same run (deploy-cloudrun.yml:417-457), so PITR is the only recovery path for a bad migration. The cutover runbook already carries this as an unchecked box (scripts/gcp/PHASE5-CUTOVER-RUNBOOK.md:45).
+- **ID:** `LL-d3f41e7a67`  |  **ruleKey:** `minimized-finding-ll-d3f41e7a67`
+- **Current status:** see `audit-reports/FINDINGS.json`.
+- **Amended 2026-11-05:** this section was replaced with a pointer under the security disclosure policy (Scot Wahlquist). The rest of this report is as generated on 2026-08-12.
 
 ## LOW (14)
 
@@ -194,14 +168,11 @@
 - **First seen:** 2026-07-04  |  **Last seen:** 2026-07-04  |  **Disposition:** untriaged
 - **Remediation:** DeveloperKey has no expires_at column, settings-based expiry, or expired? method anywhere in the codebase today; it is a permanent OAuth client registration. Before writing any deletion/expiry logic, decide as a product/security question whether developer keys should expire at all (and on what basis - inactivity, fixed TTL, manual revocation only), since inventing an unreviewed criterion risked destroying live client credentials and was deliberately avoided in PR #514.
 
-### ci.yml declares no top-level permissions block; GITHUB_TOKEN inherits repo-default scope for all jobs (incl. one running downloaded gitleaks)
+### ci.yml declares no top-level permissions block; GITHUB_TOKEN inherits repo-default scope for all jobs
 
-- **ID:** `LL-5ae3d7ca2c`  |  **ruleKey:** `ci-workflow-no-permissions-block`  |  **confidence:** high
-- **Location:** `.github/workflows/ci.yml`:1
-- **Frameworks:** SOC2
-- **First seen:** 2026-07-08  |  **Last seen:** 2026-07-08  |  **Disposition:** untriaged
-- **Adversary:** confirmed -- zero occurrences of permissions: in ci.yml, neither top-level nor per-job across all five jobs; GITHUB_TOKEN inherits repo-default scope on every push/PR.
-- **Remediation:** ci.yml (runs on push and pull_request, including a secret-detection job that curls+executes the gitleaks binary using github.token) has no permissions: block, so the workflow GITHUB_TOKEN takes the repository default, which may be read-write. Add a top-level permissions: contents: read and grant per-job elevations only where needed (mirroring deploy-cloudrun.yml, which already sets contents: read). Set the org/repo default workflow token to read-only.
+- **ID:** `LL-5ae3d7ca2c`  |  **ruleKey:** `ci-workflow-no-permissions-block`
+- **Current status:** see `audit-reports/FINDINGS.json`.
+- **Amended 2026-11-06:** this section was replaced with a pointer under rule 4 (Scot Wahlquist). The rest of this report is as generated on 2026-08-12.
 
 ### Audit system files (.claude/) are not in any finder scan scope (no self-audit)
 
@@ -219,13 +190,11 @@
 - **First seen:** 2026-06-21  |  **Last seen:** 2026-06-21  |  **Disposition:** accepted
 - **Remediation:** Upgrade to eslint 9 (flat config). Entangled with the broader Ember 3.28 toolchain modernization, so not a standalone bump; dev-toolchain only (not shipped to users).
 
-### Audit finder Bash guard is a denylist with residual fetch-and-exec bypass
+### Compliance finding (details withheld until remediation is verified)
 
-- **ID:** `LL-97f9001bb4`  |  **ruleKey:** `audit-guard-denylist-residual-bypass`  |  **confidence:** high
-- **Location:** `.claude/hooks/audit-readonly-guard.sh`:59
-- **Frameworks:** SOC2
-- **First seen:** 2026-06-13  |  **Last seen:** 2026-06-13  |  **Disposition:** wontfix
-- **Remediation:** Primary read-only control is the no-Edit/Write tools allowlist; the Bash denylist is defense-in-depth and now blocks pipe-to-shell/eval. A determined novel obfuscation can still slip through. Phase 3: consider an allowlist-based command filter or a sandboxed finder shell.
+- **ID:** `LL-97f9001bb4`  |  **ruleKey:** `minimized-finding-ll-97f9001bb4`
+- **Current status:** see `audit-reports/FINDINGS.json`.
+- **Amended 2026-11-05:** this section was replaced with a pointer under the security disclosure policy (Scot Wahlquist). The rest of this report is as generated on 2026-08-12.
 
 ### Finder agent-memory (memory: project) may carry process state across audit runs
 
@@ -259,14 +228,11 @@
 - **First seen:** 2026-06-14  |  **Last seen:** 2026-06-14  |  **Disposition:** accepted
 - **Remediation:** sslmode=require encrypts but does NOT validate the server certificate/hostname, so it does not defend against an active MITM. For PHI/FERPA in transit, move to sslmode=verify-full (or verify-ca) with the provider CA bundle once the GCP Cloud SQL cutover lands (Cloud SQL connector over VPC already gives a verified path), reconciling with the migration rather than fixing Render twice. Until cutover, set verify-full against Render's Postgres CA if available, else accept-risk with a dated note.
 
-### Content-Security-Policy is report-only (nothing blocked) and script-src permits unsafe-inline + unsafe-eval
+### Compliance finding (details withheld until remediation is verified)
 
-- **ID:** `LL-c226391436`  |  **ruleKey:** `csp-report-only-unsafe-inline-eval`  |  **confidence:** high
-- **Location:** `config/initializers/content_security_policy.rb`:114
-- **Frameworks:** SOC2
-- **First seen:** 2026-07-08  |  **Last seen:** 2026-07-08  |  **Disposition:** untriaged
-- **Adversary:** confirmed -- content_security_policy_report_only=true is unconditional (no env guard); script_src includes :unsafe_inline (line 42) and :unsafe_eval (line 43); no separate enforced CSP header exists in config/ or app/.
-- **Remediation:** The CSP is emitted as Content-Security-Policy-Report-Only, so no directive is enforced; script-src also includes unsafe_inline and unsafe_eval (lines 41-43). Documented as a deliberate phased rollout (docs/security/csp-rollout-plan.md) pending per-request nonces for the Ember 3.28 bootstrap. Track to completion: after the clean-report window, flip report_only to false and replace unsafe-inline/unsafe-eval with per-request nonces. Until then CSP provides no active control.
+- **ID:** `LL-c226391436`  |  **ruleKey:** `minimized-finding-ll-c226391436`
+- **Current status:** see `audit-reports/FINDINGS.json`.
+- **Amended 2026-11-05:** this section was replaced with a pointer under the security disclosure policy (Scot Wahlquist). The rest of this report is as generated on 2026-08-12.
 
 ### The Notion sync workflows declare no permissions block, so jobs holding a third-party Notion API token inherit the repository-default GITHUB_TOKEN scope
 

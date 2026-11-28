@@ -23,7 +23,8 @@ Read-only: produce findings, never change code or infrastructure.
 
 ### Logging & monitoring (CC7)
 - [ ] Application logging exists; auth events logged (login, logout, failed attempts).
-- [ ] Data-access events logged (`AuditEvent`); error tracking configured (Sentry).
+- [ ] Data-access events logged (`AuditEvent`); error tracking configured (Sentry); the CloudTrail
+      log bucket is protected from deletion (Object Lock).
 - [ ] **Logs contain no PII or secrets** (cross-check the PII scrubber on log/error paths).
 
 ### Infrastructure security
@@ -80,3 +81,10 @@ Rules:
 - The orchestrator computes the stable `id`, sets `firstSeen`/`lastSeen`/`owner`, and reconciles
   against the existing register. No customer data in any field; evidence is config/code only. For a row whose ruleKey is the self-referencing withheld form (`minimized-finding-` + its own id,
   lowercased), citation-check does not recompute the id; never emit a `minimized-finding-` ruleKey.
+
+## Run receipt (required)
+Your top-level output JSON must also carry these two keys. The orchestrator's fan-out gate
+(`scripts/audit-fanout-gate.rb`, finding LL-c667ec15e3) refuses the whole run without them.
+- `"checklistToken": "soc2-security-audit-ck1"` is named only in this checklist. Copy it from here; never search for it.
+- `"guardCanary": "denied"`: make `mktemp --dry-run` your FIRST Bash call. It creates nothing and the
+  read-only guard should deny it. Report `"denied"` only if it was denied; otherwise report `"ran"`.

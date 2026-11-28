@@ -58,3 +58,11 @@ targetRules = ["generic-api-key"]
 regexes = [
   '''Render/AWS/GCP''',
 ]
+
+[[allowlists]]
+description = "Test-fixture board keys 'therapist/feelings' and 'larry/home' (a board key is <owner user_name>/<board slug>) in the offline board list unit tests (PR #1328: offline-board-list-test.js, board-device-copy-test.js, board-detail-device-copy-test.js, user-board-owner-test.js, classic-view-device-boards-test.js) trip generic-api-key: the rule's keyword heuristic fires on the `key:` field and the slash-separated slug clears its entropy threshold. They are invented fixture names, not credentials. This must be an allowlist rather than a rename: gitleaks scans a COMMIT RANGE, so the literals persist at a73ff790a, e3e38f15c, b6066b00b and d6fdaa443 no matter what HEAD says. Same narrowest-possible scope as the entries above: matched by the exact literals via regexes, and only generic-api-key is relaxed, so every other rule still scans those files and every other value is still scanned by every rule."
+targetRules = ["generic-api-key"]
+regexes = [
+  '''therapist/feelings''',
+  '''larry/home''',
+]

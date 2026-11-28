@@ -1,0 +1,22 @@
+<ModalDialog @uncloseable="true">
+  <div class="md-modal-header">
+    <h3 class="md-modal-title">{{t "Saving when uploads finish" key="save_waiting_title"}}</h3>
+  </div>
+  <div class="md-modal-body">
+    <p class="save-waiting__message" role="status" data-test-save-waiting-message>
+      <span class="md-modal-spinner" aria-hidden="true"></span>
+      {{t "Your board will save as soon as your picture or recording finishes uploading." key="save_waiting_message"}}
+    </p>
+    {{#if this.slow}}
+      <p class="save-waiting__message" role="status">
+        {{t "This is taking longer than usual." key="save_waiting_slow"}}
+      </p>
+    {{/if}}
+  </div>
+  <div class="md-modal-footer">
+    <button type="button" class="md-modal-btn md-modal-btn--cancel" data-test-save-waiting-back {{on "click" (this.ctrlAction "back")}}>{{t "Back to editing" key="back_to_editing"}}</button>
+    {{#if this.slow}}
+      <button type="button" class="md-modal-btn md-modal-btn--primary" data-test-save-waiting-without {{on "click" (this.ctrlAction "save_without")}}>{{t "Save without it" key="save_without_it"}}</button>
+    {{/if}}
+  </div>
+</ModalDialog>

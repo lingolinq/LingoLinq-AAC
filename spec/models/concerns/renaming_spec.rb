@@ -43,6 +43,28 @@ describe Renaming, :type => :model do
       expect(res).to eq(false)
       expect(u.collision_error?).to eq(true)
     end
+
+    it "should not rename a user to a reserved route name, in any letter case" do
+      # Sign-up and self-renaming go through generate_user_name, which refuses these
+      # (app/models/concerns/processable.rb:148); the staff rename calls rename_to directly.
+      u = User.create
+      before = u.user_name
+      ['admin', 'offline-shell', 'Offline-Shell', 'API'].each do |name|
+        expect(LingoLinq::RESERVED_ROUTES).to include(name.downcase)
+        expect(u.rename_to(name)).to eq(false)
+        expect(u.invalid_name_error?).to eq(true)
+        expect(u.collision_error?).to eq(false)
+        expect(u.reload.user_name).to eq(before)
+      end
+      expect(OldKey.where(:type => 'user', :key => before).count).to eq(0)
+    end
+
+    it "should still rename a user to an ordinary name" do
+      u = User.create
+      expect(u.rename_to('Wilma_Flint')).to eq(true)
+      expect(u.invalid_name_error?).to eq(false)
+      expect(u.reload.user_name).to eq('wilma_flint')
+    end
     
     describe "renaming boards" do
       it "should fail if trying to change board key's user_name prefix" do
@@ -328,7 +350,7 @@ describe Renaming, :type => :model do
       Worker.process_queues
       expect(b.reload.downstream_board_ids.sort).to eq([])
       expect(b2.reload.downstream_board_ids.sort).to eq([b.global_id])
-      expect(b3.reload.downstream_board_ids.sort).to eq([b.global_id, b2.global_id])
+      expect(b3.reload.downstream_board_ids).to match_array([b.global_id, b2.global_id])
       old_key = b.key
       new_key = "#{u.user_name}/bambam"
       b.rename_to(new_key)

@@ -32,7 +32,7 @@ export default modal.ModalController.extend({
     // is shown, if that's possible
     var _this = this;
     var snap = function() {
-      _this.snap_scroll();
+      if(_this.isDestroyed || _this.isDestroying) { return; } _this.snap_scroll();
     };
     _this.set('snap', snap);
     _this.set('holding', false);

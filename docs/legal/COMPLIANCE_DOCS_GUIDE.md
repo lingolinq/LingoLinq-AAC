@@ -120,7 +120,8 @@ to the job name. A wrong route costs more here than no route at all.
 
 Note that this job **aborts at the first failing step**, so later steps may be
 untested on your branch. After fixing the first failure, re-run the whole job
-locally (`scripts/regenerate-register.sh --check` covers all of it) rather than
+locally (`scripts/regenerate-register.sh --check` plus the two base-pinned guards in
+`/pr-preflight` P3; the wrapper alone skips the disclosure guard) rather than
 assuming the rest was already passing.
 
 ## Publication status

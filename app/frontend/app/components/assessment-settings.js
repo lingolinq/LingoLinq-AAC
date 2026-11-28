@@ -182,7 +182,7 @@ export default Component.extend({
           };
         }
       }
-      if (settings.for_user && settings.for_user.user_id === this.get('appState.sessionUser.id')) {
+      if (settings.for_user && same_person(settings.for_user.user_id, this.get('appState.sessionUser'), this.get('appState.sessionUser'))) { // the real id and 'self' are both the session user
         settings.for_user = Object.assign({}, settings.for_user, { user_id: 'self' });
       }
       settings.prompts_delay = settings.prompts_delay || '';
@@ -240,3 +240,4 @@ export default Component.extend({
 },
 
 });
+import { same_person } from '../utils/backend_user_id';

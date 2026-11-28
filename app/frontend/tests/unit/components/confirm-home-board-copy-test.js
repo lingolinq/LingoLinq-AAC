@@ -156,6 +156,17 @@ module('Unit | Component | confirm-home-board-copy', function(hooks) {
     t.comp.destroy();
   });
 
+  test('the clean-up of a cancelled copy is told who started it', async function(assert) {
+    var made = EmberObject.create({ key: 'example/quick-core-24', created: new Date() });
+    var got = [];
+    var t = cancellable(this.owner, RSVP.reject({ cancelled: true, board: made, new_board_ids: ['1_90'], session_user_id: '1_1' }),
+      { discardCopy: function(ids, root, startedFor) { got.push([ids, root, startedFor]); return RSVP.resolve(); } });
+    t.comp.send('confirm');
+    await wait(10);
+    assert.strictEqual((got[0] || [])[2], '1_1');
+    t.comp.destroy();
+  });
+
   test('a copy that takes unusually long can be closed; the work carries on', async function(assert) {
     var t = cancellable(this.owner, new RSVP.Promise(function() {}));
     t.comp.set('slowAfter', 30);

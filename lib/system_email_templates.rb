@@ -29,7 +29,7 @@ module SystemEmailTemplates
 
       val = attrs[field].to_s.strip.presence
       if val && !default_field_value?(key, entry, field, val, org)
-        SystemEmailTemplateSecurity.validate!(val) if %w[html_body text_body].include?(field)
+        SystemEmailTemplateSecurity.validate!(val, key) if %w[html_body text_body].include?(field)
         data[field] = val
       else
         data.delete(field)
@@ -209,11 +209,14 @@ module SystemEmailTemplates
     raise InvalidOverride, "#{label}: has a malformed placeholder. Write it exactly as %{name}. Allowed: #{allowed_list}"
   end
 
-  def self.render_string(template_string, mailer_binding, validate: true)
-    return '' if template_string.blank?
+  # Renders the shipped default view for an email preview. It takes only the template key
+  # and reads the repository file itself, so admin-edited text never reaches ERB; edited
+  # bodies are filled by SystemEmailPlaceholders.render.
+  def self.render_default(key, format, view_binding)
+    body = default_body(key, format)
+    return '' if body.blank?
 
-    SystemEmailTemplateSecurity.validate!(template_string) if validate
-    ERB.new(template_string).result(mailer_binding)
+    ERB.new(body).result(view_binding)
   end
 
   def self.normalize_attrs(attrs)

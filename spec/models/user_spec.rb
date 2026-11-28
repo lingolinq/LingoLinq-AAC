@@ -819,6 +819,112 @@ describe User, :type => :model do
       expect(Worker.scheduled_for?(:slow, User, :perform_action, {'id' => u.id, 'method' => 'track_boards', 'arguments' => [true, 123]})).to eq(true)
     end
     
+    it "should skip a queued track that is older than the last completed one" do
+      u = User.create
+      u.settings['tracked_boards_at'] = 1_800_000_100
+      u.save
+      expect(UserBoardConnection).not_to receive(:where)
+      expect(u.track_boards(true, 1_800_000_050)).to eq(false)
+      expect(u.reload.settings['tracked_boards_at']).to eq(1_800_000_100)
+    end
+
+    # The job stamps tracked_boards_at as it starts, on the copy the worker loaded. Saving that copy
+    # wrote the whole settings column back over anything saved since it was loaded.
+    it "stamps tracked_boards_at without reverting settings saved after the user was loaded" do
+      u = User.create
+      Worker.flush_queues
+      loaded = User.find(u.id)
+      other = User.find(u.id)
+      other.settings['preferences']['spec_marker'] = 'normal save'
+      other.save
+      quiet = User.find(u.id)
+      quiet.settings['spec_quiet'] = 'touch false'
+      quiet.save(touch: false)
+
+      loaded.track_boards(true, Time.now.to_i)
+
+      stored = User.find(u.id)
+      expect(stored.settings['preferences']['spec_marker']).to eq('normal save')
+      expect(stored.settings['spec_quiet']).to eq('touch false')
+      expect(stored.settings['tracked_boards_at']).to be >= 1.minute.ago.to_i
+    end
+
+    # The final save clears the changed flags. It used to save the copy loaded when the job
+    # started, writing the whole settings column back over anything saved during the run.
+    describe "clearing the changed flags" do
+      def user_with_new_home_board
+        u = User.create
+        b = Board.create(:user => u)
+        u.settings['preferences']['home_board'] = {'id' => b.global_id, 'key' => b.key}
+        u.save
+        Worker.flush_queues
+        expect(u.settings['home_board_changed']).to eq(true)
+        [User.find(u.id), b]
+      end
+
+      # Runs the block once, inside the run's slow step, after the boards were walked.
+      def during_track(&block)
+        ran = false
+        allow(Board).to receive(:process_lumped_triggers).and_wrap_original do |original, *args|
+          unless ran
+            ran = true
+            block.call
+          end
+          original.call(*args)
+        end
+      end
+
+      it "keeps settings saved by another process while the boards were being tracked" do
+        u, b = user_with_new_home_board
+        during_track do
+          other = User.find(u.id)
+          other.settings['preferences']['spec_marker'] = 'normal save'
+          other.save
+          quiet = User.find(u.id)
+          quiet.settings['spec_quiet'] = 'touch false'
+          quiet.save(touch: false)
+        end
+
+        u.track_boards(true)
+
+        stored = User.find(u.id)
+        expect(stored.settings['preferences']['spec_marker']).to eq('normal save')
+        expect(stored.settings['spec_quiet']).to eq('touch false')
+        expect(stored.settings['home_board_changed']).to eq(nil)
+      end
+
+      # The helper skips the save when its block returns false; a block ending in
+      # settings.delete returned the deleted value, so a stored false skipped the whole save.
+      it "clears the flags when sidebar_changed is stored as false" do
+        u, b = user_with_new_home_board
+        User.where(id: u.id).first.tap { |x| x.settings['sidebar_changed'] = false; x.save(touch: false) }
+        u = User.find(u.id)
+        expect(u.settings['home_board_changed']).to eq(true)
+        expect(u.settings['sidebar_changed']).to eq(false)
+
+        u.track_boards(true)
+
+        stored = User.find(u.id)
+        expect(stored.settings['home_board_changed']).to eq(nil)
+        expect(stored.settings.key?('sidebar_changed')).to eq(false)
+      end
+
+      it "keeps a flag set by a home board change made during the run" do
+        u, b = user_with_new_home_board
+        b2 = Board.create(:user => u)
+        during_track do
+          other = User.find(u.id)
+          other.settings['preferences']['home_board'] = {'id' => b2.global_id, 'key' => b2.key}
+          other.save
+          expect(other.settings['home_board_changed']).to eq(true)
+        end
+
+        u.track_boards(true)
+
+        expect(User.find(u.id).settings['home_board_changed']).to eq(true)
+      end
+    end
+
     it "should delete orphan connections" do
       u = User.create
       b = Board.create(:user => u)
@@ -1519,14 +1625,20 @@ describe User, :type => :model do
       expect(u.settings['last_message_read']).to eq(124)
     end
     
+    include ActiveSupport::Testing::TimeHelpers
+
+    # process_params stamps terms_agreed with Time.now.to_i (user.rb process_params), compared with a later
+    # Time.now.to_i; a fixed instant keeps a second boundary from falling between them.
     it "should remember the agreement date/stamp" do
-      u = User.new
-      u.process_params({
-      }, {});
-      expect(u.settings['terms_agreed']).to eq(nil)
+      travel_to(Time.utc(2026, 6, 15, 12, 0, 30)) do
+        u = User.new
+        u.process_params({
+        }, {});
+        expect(u.settings['terms_agreed']).to eq(nil)
       
-      u.process_params({'terms_agree' => true}, {})
-      expect(u.settings['terms_agreed']).to eq(Time.now.to_i)
+        u.process_params({'terms_agree' => true}, {})
+        expect(u.settings['terms_agreed']).to eq(Time.now.to_i)
+      end
     end
     
     it "should sanitize parameters" do
@@ -1774,7 +1886,7 @@ describe User, :type => :model do
       expect(bob['cell_phone']).to eq(false)
       expect(bob['email']).to eq('bob@example.com')
       expect(bob['contact_type']).to eq('email')
-      expect(bob['image_url']).to match(/amazonaws/)
+      expect(bob['image_url']).to match(%r{\A/avatars/avatar-\d\.png\z}) # the app's own copy, saved without a host (Traci, 2026-11-23)
       u.process({'offline_actions' => [
         {'action' => 'remove_contact', 'value' => hash}
       ]})
@@ -1796,7 +1908,7 @@ describe User, :type => :model do
       expect(gp['cell_phone']).to eq("(555)123-4567,55580192831")
       expect(gp['email']).to eq(false)
       expect(gp['contact_type']).to eq('sms')
-      expect(gp['image_url']).to match(/amazonaws/)
+      expect(gp['image_url']).to match(%r{\A/avatars/avatar-\d\.png\z}) # the app's own copy, saved without a host (Traci, 2026-11-23)
     end
 
     describe "validated_org_author" do
@@ -1835,6 +1947,198 @@ describe User, :type => :model do
       u.reload
       u.process({'authored_organization_id' => o.global_id}, {'pending' => true, 'author' => u})
       expect(u.settings['authored_organization_id']).to eq(nil)
+    end
+
+    # PASS 2 OF THE FINAL REVIEW OF #1268 (Traci, 2026-11-11). A trusted browser device lifts the organization's idle
+    # timeout from keys issued before trust (Device#clean_old_keys). Only the person's own explicit answer, on their
+    # own device, may do that. Since 2026-11-13 (Traci) only the person may change long_token at all: a supervisor's or
+    # an operator's save leaves the device's trust as it is.
+    # The app says how many liked boards a sync keeps from its own constant (app/frontend/app/utils/like_limit.js
+    # LIKED_BOARDS_KEPT); it must match the number the server actually lists.
+    it "keeps the app's liked-boards limit equal to LIKED_BOARD_REFS_LIMIT" do
+      js = File.read(Rails.root.join('app/frontend/app/utils/like_limit.js'))
+      expect(js[/export var LIKED_BOARDS_KEPT = (\d+);/, 1].to_i).to eq(User::LIKED_BOARD_REFS_LIMIT)
+    end
+
+    describe "the owner's own trust answer" do
+      def owner_and_device
+        u = User.create
+        d = Device.create(user: u, developer_key_id: 0, device_key: '1.234 Classroom iPad', settings: {'browser' => true})
+        [u, d]
+      end
+
+      it "is recorded when the person answers Trust on their own device, with a fresh choice stamp" do
+        u, d = owner_and_device
+        u.process_params({'preferences' => {'device' => {'long_token' => true, 'long_token_chosen_at' => Time.now.to_i}}}, {'device' => d, 'updater' => u})
+        expect(d.reload.settings['long_token']).to eq(true)
+        expect(d.settings['long_token_owner_choice']).to eq(true)
+        expect(u.settings['preferences']['devices'].values.map { |v| v['long_token_chosen_at'] }.compact).to eq([])
+      end
+
+      it "is cleared when the person answers Shared" do
+        u, d = owner_and_device
+        d.settings['long_token'] = true
+        d.settings['long_token_owner_choice'] = true
+        d.save
+        u.process_params({'preferences' => {'device' => {'long_token' => false, 'long_token_chosen_at' => Time.now.to_i}}}, {'device' => d, 'updater' => u})
+        expect(d.reload.settings['long_token']).to eq(false)
+        expect(d.settings['long_token_owner_choice']).to eq(false)
+      end
+
+      # Only the person may change whether their device is trusted (Traci, 2026-11-13; this example used to expect a
+      # supervisor's save to set long_token "as before", the 2026-11-11 decision it replaces; the operator example's
+      # owner-choice assertion changed with it, from eq(false) to be_nil, since nothing is written). users#update writes a
+      # supervisor's device preferences onto the person's most recent device, and a trusted row gets no organization
+      # timeout on later sign-ins (Device#generate_token!), so the save drops the trust fields from anyone else.
+      it "is not recorded for a supervisor's save, which leaves the device's trust unchanged" do
+        u, d = owner_and_device
+        supervisor = User.create
+        u.process_params({'preferences' => {'device' => {'long_token' => true, 'long_token_chosen_at' => Time.now.to_i}}}, {'device' => d, 'updater' => supervisor})
+        expect(d.reload.settings['long_token']).to eq(nil)
+        expect(d.settings['long_token_owner_choice']).to_not eq(true)
+      end
+
+      it "leaves a trusted device trusted when a supervisor's save says Shared" do
+        u, d = owner_and_device
+        d.settings['long_token'] = true
+        d.settings['long_token_owner_choice'] = true
+        d.save
+        supervisor = User.create
+        u.process_params({'preferences' => {'device' => {'long_token' => false}}}, {'device' => d, 'updater' => supervisor})
+        expect(d.reload.settings['long_token']).to eq(true)
+        expect(d.settings['long_token_owner_choice']).to eq(true)
+      end
+
+      it "does not take a supervisor's asserted flag, which would clear a temporary device" do
+        u, d = owner_and_device
+        d.settings['temporary_device'] = true
+        d.save
+        supervisor = User.create
+        u.process_params({'preferences' => {'device' => {'long_token' => true, 'asserted' => true}}}, {'device' => d, 'updater' => supervisor})
+        expect(d.reload.settings['temporary_device']).to eq(true)
+        expect(u.settings['preferences']['devices'].values.map { |v| v['asserted'] }.compact).to eq([]), 'nor stored with the preferences'
+      end
+
+      it "still saves a supervisor's other device preferences" do
+        u, d = owner_and_device
+        supervisor = User.create
+        u.process_params({'preferences' => {'device' => {'long_token' => true, 'something' => 'kept'}}}, {'device' => d, 'updater' => supervisor})
+        expect(u.settings['preferences']['devices'].values.map { |v| v['something'] }).to include('kept')
+        expect(u.settings['preferences']['devices'].values.map { |v| v['long_token'] }.compact).to eq([])
+      end
+
+      it "is not recorded when someone acts for the person" do
+        u, d = owner_and_device
+        admin = User.create
+        u.process_params({'preferences' => {'device' => {'long_token' => true, 'long_token_chosen_at' => Time.now.to_i}}}, {'device' => d, 'updater' => u, 'operator' => admin})
+        expect(d.reload.settings['long_token_owner_choice']).to be_nil
+        expect(d.settings['long_token']).to eq(nil), 'nor is the trust value written'
+      end
+
+      it "is not recorded on a device that is not the person's" do
+        u, _d = owner_and_device
+        other = User.create
+        theirs = Device.create(user: other, developer_key_id: 0, device_key: '1.234 Other', settings: {'browser' => true})
+        u.process_params({'preferences' => {'device' => {'long_token' => true, 'long_token_chosen_at' => Time.now.to_i}}}, {'device' => theirs, 'updater' => u})
+        expect(theirs.reload.settings['long_token_owner_choice']).to_not eq(true)
+        expect(theirs.settings['long_token']).to eq(nil), 'nor is the trust value written onto it'
+      end
+
+      # A tablet's clock can be wrong by more than 10 minutes (review of #1268, 2026-11-13). The answer counts when its
+      # stamp is newer than the last answer this device recorded (Device settings['long_token_choice_stamp'], never
+      # sent to clients), or, when that stored stamp is more than 10 minutes ahead of server time, within 10 minutes
+      # of server time (a corrected clock). This replaces the example "is not
+      # recorded for a stale or future stamp (a replayed old save, or a fast clock), nor without one"; the spec
+      # change was approved by Traci on 2026-11-13.
+      def answer(u, d, value, stamp)
+        dev = {'long_token' => value}
+        dev['long_token_chosen_at'] = stamp if stamp
+        u.process_params({'preferences' => {'device' => dev}}, {'device' => d, 'updater' => u})
+        d.reload
+      end
+
+      it "is recorded for a clock that is slow or fast by more than 10 minutes, on a device with no earlier answer" do
+        [Time.now.to_i - 11.minutes.to_i, Time.now.to_i + 11.minutes.to_i, Time.now.to_i + 2.days.to_i].each do |stamp|
+          u, d = owner_and_device
+          answer(u, d, true, stamp)
+          expect(d.settings['long_token']).to eq(true)
+          expect(d.settings['long_token_owner_choice']).to eq(true), "stamp #{stamp}"
+        end
+      end
+
+      it "is not recorded for a replayed old save, whose stamp is older than the device's last recorded answer" do
+        u, d = owner_and_device
+        answer(u, d, false, Time.now.to_i)
+        expect(d.settings['long_token_owner_choice']).to eq(false)
+        answer(u, d, true, Time.now.to_i - 20.minutes.to_i)
+        expect(d.settings['long_token']).to eq(true)
+        expect(d.settings['long_token_owner_choice']).to eq(false)
+      end
+
+      it "is recorded after the device's clock was corrected, while a replay of the fast-clock answer still is not" do
+        u, d = owner_and_device
+        fast = Time.now.to_i + 1.day.to_i
+        answer(u, d, true, fast)
+        expect(d.settings['long_token_owner_choice']).to eq(true), 'the fast-clock Trust answer counts'
+        answer(u, d, false, Time.now.to_i)
+        expect(d.settings['long_token']).to eq(false)
+        expect(d.settings['long_token_owner_choice']).to eq(false), 'the corrected clock answers Shared within the window'
+        answer(u, d, true, fast)
+        expect(d.settings['long_token']).to eq(true)
+        expect(d.settings['long_token_owner_choice']).to eq(false), 'a replay of the fast-clock Trust answer is not the person\'s choice'
+      end
+
+      it "is recorded within 10 minutes of server time even when the device stored a later, fast-clock answer" do
+        u, d = owner_and_device
+        answer(u, d, false, Time.now.to_i + 1.day.to_i)
+        answer(u, d, true, Time.now.to_i)
+        expect(d.settings['long_token']).to eq(true)
+        expect(d.settings['long_token_owner_choice']).to eq(true)
+      end
+
+      it "is not recorded for an older save that arrives within 10 minutes after a newer answer (a retry or reorder)" do
+        u, d = owner_and_device
+        answer(u, d, false, Time.now.to_i)
+        answer(u, d, true, Time.now.to_i - 60)
+        expect(d.settings['long_token']).to eq(true) # known limit: a stale own save still changes the value, only not the owner choice
+        expect(d.settings['long_token_owner_choice']).to eq(false)
+      end
+
+      # Known limit, pinned so a change is deliberate: a clock that went slow after an answer was recorded is refused
+      # until it passes that stamp. The organization timeout then stays on that session's keys.
+      it "is not recorded for a clock that went slow after an answer was recorded" do
+        u, d = owner_and_device
+        answer(u, d, false, Time.now.to_i)
+        answer(u, d, true, Time.now.to_i - 30.days.to_i)
+        expect(d.settings['long_token_owner_choice']).to eq(false)
+      end
+
+      it "is not recorded without a stamp" do
+        u, d = owner_and_device
+        answer(u, d, true, nil)
+        expect(d.settings['long_token']).to eq(true)
+        expect(d.settings['long_token_owner_choice']).to eq(false)
+      end
+
+      it "keeps the recorded stamp on the device only, never in the user's preferences or the device JSON" do
+        u, d = owner_and_device
+        answer(u, d, true, Time.now.to_i + 2.days.to_i)
+        expect(d.settings['long_token_choice_stamp']).to be > Time.now.to_i
+        prefs = u.settings['preferences'].to_json
+        expect(prefs).to_not include('long_token_choice_stamp')
+        expect(prefs).to_not include('long_token_chosen_at')
+        expect(JsonApi::Device.as_json(d, current_device: d).to_json).to_not include('long_token_choice_stamp')
+      end
+
+      it "is left as it is by a save that only echoes the unchanged value" do
+        u, d = owner_and_device
+        d.settings['long_token'] = true
+        d.settings['long_token_owner_choice'] = true
+        d.save
+        u.process_params({'preferences' => {'device' => {'long_token' => true}}}, {'device' => d, 'updater' => u})
+        expect(d.reload.settings['long_token_owner_choice']).to eq(true)
+        expect(d.settings['long_token_set']).to eq(true)
+      end
     end
 
     it "should set the device as long_token_set if long_token is set" do
@@ -1958,6 +2262,105 @@ describe User, :type => :model do
       expect(u.settings['valet_password']).to eq(nil)
       u.process({'valet_login' => true}, {'updater' => u})
       expect(u.settings['valet_password']).to_not eq(nil)
+    end
+
+    describe "valet login on admin and manager accounts" do
+      # The save goes through without turning valet on: the client keeps unsaved fields after a
+      # failed save, so refusing would make every later save of the record fail too.
+      def expect_valet_not_enabled(u)
+        expect(u.settings['valet_password']).to eq(nil)
+        expect(u.process({'valet_login' => true, 'valet_password' => 'gemini12', 'preferences' => {'speak_mode_pin' => '1234'}}, {'updater' => u})).to_not eq(false)
+        expect(u.processing_errors).to eq([])
+        u.reload
+        expect(u.settings['valet_password']).to eq(nil)
+        expect(u.settings['preferences']['speak_mode_pin']).to eq('1234')
+        # The same fields sent again on a later save.
+        expect(u.process({'valet_login' => true, 'valet_password' => 'gemini12', 'preferences' => {'speak_mode_pin' => '5678'}}, {'updater' => u})).to_not eq(false)
+        expect(u.processing_errors).to eq([])
+        u.reload
+        expect(u.settings['valet_password']).to eq(nil)
+        expect(u.settings['preferences']['speak_mode_pin']).to eq('5678')
+        # A save that sends valet_login without a new password turns nothing on either.
+        expect(u.process({'valet_login' => true}, {'updater' => u})).to_not eq(false)
+        expect(u.processing_errors).to eq([])
+        u.reload
+        expect(u.settings['valet_password']).to eq(nil)
+      end
+
+      it "should not enable valet login for a site admin" do
+        u = User.create
+        u.settings['admin'] = true
+        u.save
+        expect_valet_not_enabled(u)
+      end
+
+      it "should not enable valet login for a manager of the admin organization" do
+        o = Organization.create(:admin => true)
+        u = User.create
+        o.add_manager(u.user_name, true)
+        u.reload
+        expect_valet_not_enabled(u)
+      end
+
+      it "should not enable valet login for an organization manager" do
+        o = Organization.create
+        u = User.create
+        o.add_manager(u.user_name, true)
+        u.reload
+        expect_valet_not_enabled(u)
+      end
+
+      it "should not enable valet login for an organization assistant" do
+        o = Organization.create
+        u = User.create
+        o.add_manager(u.user_name, false)
+        u.reload
+        expect_valet_not_enabled(u)
+      end
+
+      it "should clear an existing valet password on an ordinary save once the account is a manager" do
+        o = Organization.create
+        u = User.create
+        u.process({'valet_login' => true, 'valet_password' => 'gemini12'}, {'updater' => u})
+        expect(u.settings['valet_password']).to_not eq(nil)
+        o.add_manager(u.user_name, true)
+        u.reload
+        expect(u.process({'valet_login' => true}, {'updater' => u})).to_not eq(false)
+        expect(u.processing_errors).to eq([])
+        u.reload
+        expect(u.settings['valet_password']).to eq(nil)
+      end
+
+      it "should clear an existing valet password when a manager sends a new one" do
+        o = Organization.create
+        u = User.create
+        u.process({'valet_login' => true, 'valet_password' => 'gemini12'}, {'updater' => u})
+        expect(u.settings['valet_password']).to_not eq(nil)
+        o.add_manager(u.user_name, true)
+        u.reload
+        expect(u.process({'valet_login' => true, 'valet_password' => 'taurus34'}, {'updater' => u})).to_not eq(false)
+        expect(u.processing_errors).to eq([])
+        u.reload
+        expect(u.settings['valet_password']).to eq(nil)
+      end
+
+      it "should keep saving once the valet password is cleared, while the client still sends valet_login" do
+        # The client keeps its last valet_login value (lib/json_api/user.rb sends it only when true).
+        o = Organization.create
+        u = User.create
+        u.process({'valet_login' => true, 'valet_password' => 'gemini12'}, {'updater' => u})
+        expect(u.settings['valet_password']).to_not eq(nil)
+        o.add_manager(u.user_name, true)
+        u.reload
+        expect(u.process({'valet_login' => true, 'preferences' => {'speak_mode_pin' => '1234'}}, {'updater' => u})).to_not eq(false)
+        u.reload
+        expect(u.settings['valet_password']).to eq(nil)
+        expect(u.process({'valet_login' => true, 'preferences' => {'speak_mode_pin' => '5678'}}, {'updater' => u})).to_not eq(false)
+        expect(u.processing_errors).to eq([])
+        u.reload
+        expect(u.settings['valet_password']).to eq(nil)
+        expect(u.settings['preferences']['speak_mode_pin']).to eq('5678')
+      end
     end
 
     it "should notify when valet login is enabled"  do
@@ -2433,7 +2836,56 @@ describe User, :type => :model do
       u.process({'preferences' => {'home_board' => {'id' => b.global_id, 'key' => b.key}}})
     end
   end
-  
+
+  # UserMailer.bounce_email sets email_disabled when SES reports a permanent bounce. Changing to
+  # a different address must clear it, or a user who fixes a typo stays without mail forever.
+  # Email turned off for another reason (a shared demo login) stays off.
+  describe "email_disabled on email change" do
+    it "clears email_disabled when the email changes to a different address" do
+      u = User.process_new(:email => 'bob@example.com')
+      UserMailer.bounce_email('bob@example.com')
+      expect(u.reload.settings['email_disabled']).to eq(true)
+      u.process({'email' => 'fred@example.com'})
+      expect(u.reload.settings['email_disabled']).to eq(nil)
+    end
+
+    it "keeps email turned off for another reason, such as a shared demo login, when the email changes" do
+      u = User.process_new(:email => 'kid@demoschooldistrict.org')
+      u.update_setting({'email_disabled' => true, 'email_disabled_reason' => 'demo'})
+      u.reload
+      u.process({'email' => 'someone@example.com'})
+      u.reload
+      expect(u.settings['email_disabled']).to eq(true)
+      expect(u.settings['email_disabled_reason']).to eq('demo')
+    end
+
+    it "clears why and when email was disabled along with the flag" do
+      u = User.process_new(:email => 'bob@example.com')
+      UserMailer.bounce_email('bob@example.com')
+      expect(u.reload.settings['email_disabled_reason']).to eq('bounce')
+      u.process({'email' => 'fred@example.com'})
+      u.reload
+      expect(u.settings['email_disabled_reason']).to eq(nil)
+      expect(u.settings['email_disabled_at']).to eq(nil)
+    end
+
+    it "keeps email_disabled when the address only changes case or whitespace" do
+      u = User.process_new(:email => 'bob@example.com')
+      UserMailer.bounce_email('bob@example.com')
+      u.reload
+      u.process({'email' => 'Bob@Example.com'})
+      expect(u.reload.settings['email_disabled']).to eq(true)
+    end
+
+    it "keeps email_disabled when an update does not touch the email" do
+      u = User.process_new(:email => 'bob@example.com')
+      UserMailer.bounce_email('bob@example.com')
+      u.reload
+      u.process({'name' => 'Bob'})
+      expect(u.reload.settings['email_disabled']).to eq(true)
+    end
+  end
+
   describe "board_set_ids" do
     it "should include the user's home board and all sub-boards" do
       u = User.create
@@ -2449,7 +2901,7 @@ describe User, :type => :model do
 
       u.settings['preferences'] = {'home_board' => {'id' => b.global_id, 'key' => b.key}}
       u.save
-      expect(u.reload.board_set_ids.sort).to eq([b.global_id, b2.global_id])
+      expect(u.reload.board_set_ids).to match_array([b.global_id, b2.global_id])
     end
     
     it "should include supervisee board ids if specified" do
@@ -2471,7 +2923,7 @@ describe User, :type => :model do
       u.save
       u2.settings['preferences'] = {'home_board' => {'id' => b4.global_id, 'key' => b4.key}}
       u2.save
-      expect(u.reload.board_set_ids(:include_supervisees => true).sort).to eq([b.global_id, b2.global_id, b4.global_id])
+      expect(u.reload.board_set_ids(:include_supervisees => true)).to match_array([b.global_id, b2.global_id, b4.global_id])
     end
     
     it "should include starred board ids if specified" do
@@ -2516,7 +2968,7 @@ describe User, :type => :model do
       u.save
       u2.settings['preferences'] = {'home_board' => {'id' => b4.global_id, 'key' => b4.key}}
       u2.save
-      expect(u.reload.board_set_ids(false).sort).to eq([b.global_id, b2.global_id])
+      expect(u.reload.board_set_ids(false)).to match_array([b.global_id, b2.global_id])
     end
     
   end
@@ -3316,12 +3768,13 @@ describe User, :type => :model do
       expect(keys).not_to include(SystemBoardSources.board_key('vocal-flair-60'))
     end
 
-    it "should include vocal-flair-84 and senner-baud in the signup sidebar list" do
+    # The library entry is the starter, Vocal Flair 60 (Traci, 2026-11-11, PR #1268); it was Vocal Flair 84.
+    it "should include the starter (vocal-flair-60) and senner-baud in the signup sidebar list" do
       keys = User.signup_sidebar_boards.map { |b| b['key'] }.compact
-      expect(keys).to include(SystemBoardSources.board_key('vocal-flair-84'))
+      expect(keys).to include(SystemBoardSources.board_key('vocal-flair-60'))
       expect(keys).to include(SystemBoardSources.board_key(SystemBoardSources::SENNER_BAUD_SLUG))
       expect(keys).to include(SystemBoardSources.board_key('inflections'))
-      expect(keys).not_to include(SystemBoardSources.board_key('vocal-flair-60'))
+      expect(keys).not_to include(SystemBoardSources.board_key('vocal-flair-84'))
       expect(keys).not_to include('mbaud12/senner-baud-greetings')
     end
 
@@ -3331,12 +3784,24 @@ describe User, :type => :model do
       keys = User.signup_sidebar_boards(u).map { |b| b['key'] }.compact
       expect(keys).to include(SystemBoardSources.board_key('inflections-es'))
       expect(keys).not_to include(SystemBoardSources.board_key('inflections'))
-      expect(keys).to include(SystemBoardSources.board_key('vocal-flair-84'))
+      # The starter follows the Spanish copy jobs' gate, not the locale alone: the Spanish set is only on an
+      # environment where that flag is on, and a stored sidebar entry for a missing board stays stored.
+      expect(keys).to include(SystemBoardSources.board_key('vocal-flair-60'))
+      expect(keys).not_to include(SystemBoardSources.board_key('vocal-flair-60-es'))
     end
 
-    it "should not auto-add vocal-flair-84 or senner-baud into an older saved sidebar" do
+    it "should put the Spanish starter in the signup sidebar only when the Spanish library sign-up is enabled" do
       u = User.new
-      vf84_key = SystemBoardSources.board_key('vocal-flair-84')
+      u.settings = {'preferences' => {'locale' => 'es'}}
+      allow(FeatureFlags).to receive(:signup_spanish_library_boards_enabled?).with(u).and_return(true)
+      keys = User.signup_sidebar_boards(u).map { |b| b['key'] }.compact
+      expect(keys).to include(SystemBoardSources.board_key('vocal-flair-60-es'))
+      expect(keys).not_to include(SystemBoardSources.board_key('vocal-flair-60'))
+    end
+
+    it "should not auto-add the starter (vocal-flair-60) or senner-baud into an older saved sidebar" do
+      u = User.new
+      vf84_key = SystemBoardSources.board_key('vocal-flair-60')
       senner_key = SystemBoardSources.board_key(SystemBoardSources::SENNER_BAUD_SLUG)
       crisis_key = SystemBoardSources.board_key('crisis-vocabulary')
       saved = User.default_sidebar_boards.reject do |b|
@@ -3375,7 +3840,7 @@ describe User, :type => :model do
       yesno = Board.process_new({name: 'Yes/No', public: true}, {user: source, key: 'yesno'})
       inflections = Board.process_new({name: 'Inflections', public: true}, {user: source, key: 'inflections'})
       crisis = Board.process_new({name: 'Crisis Vocabulary', public: true}, {user: source, key: 'crisis-vocabulary'})
-      vf84 = Board.process_new({name: 'Vocal Flair 84', public: true}, {user: source, key: 'vocal-flair-84'})
+      vf84 = Board.process_new({name: 'Vocal Flair 60', public: true}, {user: source, key: 'vocal-flair-60'})
       senner = Board.process_new({name: SystemBoardSources::SENNER_BAUD_NAME, public: true}, {user: source, key: 'senner-baud'})
       yesno.copy_for(u)
       inflections.copy_for(u)
@@ -3482,6 +3947,223 @@ describe User, :type => :model do
         u.settings = {'email' => 'bob@example.com'}
         u.settings['avatar_url'] = 'http://www.example.com/pic.png'
         expect(u.generated_avatar_url).to eq('http://www.example.com/pic.png');
+      end
+    end
+
+    # Default avatars come from the app's own host (public/avatars/), not the S3 bucket
+    # (docs/task-management/2026-11-23_default-avatars-same-host.md). DEFAULT_HOST is pinned to a
+    # BARE host here: the environment's value varies (a local .env can set "localhost:3000"
+    # before spec_helper's `||=`), and a bare host shows a missing scheme as well as a bucket URL.
+    describe "default avatar on the app's own host" do
+      around(:each) do |example|
+        prior_bucket = ENV['STATIC_S3_BUCKET']
+        prior_host = ENV['DEFAULT_HOST']
+        prior_hosts = JsonApi::Json.class_variable_get(:@@running_hosts) rescue {}
+        ENV['STATIC_S3_BUCKET'] = 'avatar-spec-static'
+        ENV['DEFAULT_HOST'] = 'test.host'
+        JsonApi::Json.class_variable_set(:@@running_hosts, {})
+        example.run
+      ensure
+        ENV['STATIC_S3_BUCKET'] = prior_bucket
+        ENV['DEFAULT_HOST'] = prior_host
+        JsonApi::Json.class_variable_set(:@@running_hosts, prior_hosts || {})
+      end
+
+      def bucket_avatar(n)
+        "https://avatar-spec-static.s3.amazonaws.com/avatars/avatar-#{n}.png"
+      end
+
+      it "builds the fallback on the default host outside a request" do
+        u = User.new
+        u.id = 199
+        u.settings = {}
+        expect(u.generated_avatar_url).to eq('https://test.host/avatars/avatar-9.png')
+        expect(u.generated_avatar_url('fallback')).to eq('https://test.host/avatars/avatar-9.png')
+        expect(u.generated_avatar_url('default')).to eq('https://test.host/avatars/avatar-9.png')
+      end
+
+      it "builds the fallback on the request's host, and never on a host that is not trusted" do
+        prior = ENV['DEFAULT_HOST']
+        ENV['DEFAULT_HOST'] = 'dev.lingolinq.com'
+        u = User.new
+        u.id = 23
+        u.settings = {}
+        JsonApi::Json.set_host('https://staging.lingolinq.com')
+        expect(u.generated_avatar_url).to eq('https://staging.lingolinq.com/avatars/avatar-3.png')
+        JsonApi::Json.set_host('https://attacker.example.com')
+        expect(u.generated_avatar_url).to eq('https://dev.lingolinq.com/avatars/avatar-3.png')
+      ensure
+        ENV['DEFAULT_HOST'] = prior
+      end
+
+      it "serves a saved bucket default avatar from the app's host, and leaves every other url alone" do
+        u = User.new
+        u.id = 5
+        u.settings = {'avatar_url' => bucket_avatar(7)}
+        expect(u.generated_avatar_url).to eq('https://test.host/avatars/avatar-7.png')
+        [
+          'https://lingolinq-usercontent.s3.amazonaws.com/avatars/avatar-7.png/x.png',
+          'https://avatar-spec-static.s3.amazonaws.com/avatars/avatar-10.png',
+          'https://avatar-spec-static.s3.amazonaws.com/uploads/avatar-7.png',
+          'https://example.com/avatars/avatar-7.png',
+          'https://avatar-spec-static.s3.amazonaws.com.example.com/avatars/avatar-7.png',
+          'http://www.example.com/pic.png'
+        ].each do |url|
+          u.settings['avatar_url'] = url
+          expect(u.generated_avatar_url).to eq(url)
+        end
+      end
+
+      it "gives a contact added without a picture an avatar on the app's host, and maps a saved bucket one" do
+        u = User.create
+        u.process({'offline_actions' => [{'action' => 'add_contact', 'value' => {'contact' => 'bob@example.com', 'name' => 'Bob'}}]})
+        contact = u.reload.settings['contacts'].detect { |c| c['name'] == 'Bob' }
+        expect(contact['image_url']).to match(%r{\A/avatars/avatar-\d\.png\z}) # saved without a host (Codex review of #1368)
+
+        contact['image_url'] = bucket_avatar(4)
+        u.save
+        json = JsonApi::User.build_json(u.reload, permissions: u)
+        expect(json['contacts'].detect { |c| c['name'] == 'Bob' }['image_url']).to eq('https://test.host/avatars/avatar-4.png')
+        expect(u.settings['contacts'].detect { |c| c['name'] == 'Bob' }['image_url']).to eq(bucket_avatar(4)) # stored value untouched
+      end
+
+      it "maps a saved default avatar from any bucket, or from another host of this app, to this host" do
+        u = User.new
+        u.id = 5
+        u.settings = {}
+        [
+          'https://lingolinq.s3.amazonaws.com/avatars/avatar-2.png',
+          'https://lingolinq-dev-static.s3.amazonaws.com/avatars/avatar-2.png',
+          'https://app.lingolinq.com/avatars/avatar-2.png',
+          'https://test.host/avatars/avatar-2.png',
+          '/avatars/avatar-2.png'
+        ].each do |url|
+          u.settings['avatar_url'] = url
+          expect(u.generated_avatar_url).to eq('https://test.host/avatars/avatar-2.png')
+        end
+      end
+
+      it "stores a picked default avatar as 'fallback', not an address tied to one host" do
+        u = User.create
+        n = u.id % 10
+        u.process({'avatar_url' => "https://test.host/avatars/avatar-#{n}.png"})
+        expect(u.reload.settings['avatar_url']).to eq('fallback')
+        u.process({'avatar_url' => bucket_avatar(n)})
+        expect(u.reload.settings['avatar_url']).to eq('fallback')
+        u.process({'avatar_url' => 'http://www.example.com/pic.png'})
+        expect(u.reload.settings['avatar_url']).to eq('http://www.example.com/pic.png')
+      end
+
+      it "lists prior avatars on this host, once each, without writing to the saved list" do
+        u = User.new
+        u.id = 6
+        u.settings = {'avatar_url' => 'http://www.example.com/pic.png', 'prior_avatar_urls' => [bucket_avatar(6), 'http://www.example.com/old.png']}
+        expect(u.prior_avatar_urls).to eq(['https://test.host/avatars/avatar-6.png', 'http://www.example.com/old.png'])
+        expect(u.settings['prior_avatar_urls']).to eq([bucket_avatar(6), 'http://www.example.com/old.png'])
+      end
+
+      it "serves a contact's saved bucket avatar from this host in messages and alerts" do
+        u = User.create
+        d = Device.create(user: u)
+        contact_note = LogSession.create(user: u, author: u, device: d, log_type: 'note',
+          data: {'author_contact' => {'name' => 'Bob', 'image_url' => bucket_avatar(3)}, 'note' => {'text' => 'hello', 'prior_contact' => {'name' => 'Ann', 'image_url' => bucket_avatar(1)}}})
+        expect(JsonApi::Alert.build_json(contact_note)['author']['image_url']).to eq('https://test.host/avatars/avatar-3.png')
+        expect(JsonApi::Alert.build_json(contact_note)['prior_author']).to eq({'name' => 'Ann', 'image_url' => 'https://test.host/avatars/avatar-1.png'})
+        expect(JsonApi::Log.build_json(contact_note)['author']['contact']['image_url']).to eq('https://test.host/avatars/avatar-3.png')
+        expect(contact_note.reload.data['author_contact']['image_url']).to eq(bucket_avatar(3)) # stored value untouched
+      end
+
+      # Codex review of PR #1368: a default saved with the request's host breaks once that host
+      # (an organization's custom domain) is retired, because the readers only map hosts this
+      # app still serves. Saved defaults carry no host; readers put the current host on them.
+      it "saves a default avatar without a host, and shows it on the current host" do
+        ENV['DEFAULT_HOST'] = 'dev.lingolinq.com' # staging is trusted next to a non-production default (restored by around)
+        JsonApi::Json.set_host('https://staging.lingolinq.com')
+        u = User.create
+        u.process({'offline_actions' => [
+          {'action' => 'add_contact', 'value' => {'contact' => 'bob@example.com', 'name' => 'Bob'}},
+          {'action' => 'add_contact', 'value' => {'contact' => 'ann@example.com', 'name' => 'Ann', 'image_url' => 'https://staging.lingolinq.com/avatars/avatar-2.png'}}
+        ]})
+        contacts = u.reload.settings['contacts']
+        expect(contacts.detect { |c| c['name'] == 'Bob' }['image_url']).to match(%r{\A/avatars/avatar-\d\.png\z})
+        expect(contacts.detect { |c| c['name'] == 'Ann' }['image_url']).to eq('/avatars/avatar-2.png')
+        json = JsonApi::User.build_json(u, permissions: u)
+        expect(json['contacts'].detect { |c| c['name'] == 'Ann' }['image_url']).to eq('https://staging.lingolinq.com/avatars/avatar-2.png')
+
+        other = (u.id + 1) % 10
+        u.process({'avatar_url' => "https://staging.lingolinq.com/avatars/avatar-#{other}.png"})
+        expect(u.reload.settings['avatar_url']).to eq("/avatars/avatar-#{other}.png")
+        expect(u.generated_avatar_url).to eq("https://staging.lingolinq.com/avatars/avatar-#{other}.png")
+        u.process({'avatar_url' => 'http://www.example.com/pic.png'})
+        expect(u.reload.settings['prior_avatar_urls']).to eq(["/avatars/avatar-#{other}.png"])
+      end
+
+      it "saves the sender's default avatar in a reply without a host" do
+        ENV['DEFAULT_HOST'] = 'dev.lingolinq.com' # staging is trusted next to a non-production default (restored by around)
+        JsonApi::Json.set_host('https://staging.lingolinq.com')
+        u = User.create
+        d = Device.create(user: u)
+        note = LogSession.create(user: u, author: u, device: d, log_type: 'note', data: {'note' => {'text' => 'hello'}})
+        reply = LogSession.find_reply(note.global_id, u)
+        expect(reply[:contact]['image_url']).to eq("/avatars/avatar-#{u.id % 10}.png")
+
+        note.data['author_contact'] = {'name' => 'Bob', 'image_url' => 'https://staging.lingolinq.com/avatars/avatar-4.png'}
+        note.save
+        expect(LogSession.find_reply(note.global_id, u)[:contact]['image_url']).to eq('/avatars/avatar-4.png')
+      end
+
+      it "saves a re-added contact's default avatar without a host, and shows a saved one on whichever host reads it" do
+        ENV['DEFAULT_HOST'] = 'dev.lingolinq.com' # staging is trusted next to a non-production default (restored by around)
+        JsonApi::Json.set_host('https://staging.lingolinq.com')
+        u = User.create
+        add = lambda { |value| u.process({'offline_actions' => [{'action' => 'add_contact', 'value' => value}]}) }
+        add.call({'contact' => 'bob@example.com', 'name' => 'Bob', 'image_url' => 'http://www.example.com/bob.png'})
+        add.call({'contact' => 'bob@example.com', 'name' => 'Bob', 'image_url' => 'https://staging.lingolinq.com/avatars/avatar-6.png'})
+        contacts = u.reload.settings['contacts']
+        expect(contacts.length).to eq(1)
+        expect(contacts[0]['image_url']).to eq('/avatars/avatar-6.png')
+
+        JsonApi::Json.set_host('https://dev.lingolinq.com')
+        json = JsonApi::User.build_json(u, permissions: u)
+        expect(json['contacts'][0]['image_url']).to eq('https://dev.lingolinq.com/avatars/avatar-6.png')
+      end
+
+      it "saves the default avatars in a reply without a host, including the copy the client sends" do
+        ENV['DEFAULT_HOST'] = 'dev.lingolinq.com'
+        JsonApi::Json.set_host('https://staging.lingolinq.com')
+        sender = User.create
+        recipient = sender
+        d = Device.create(user: sender)
+        note = LogSession.message(recipient: recipient, sender: sender, device: d, message: 'hello', notify: 'user_only')
+        session = LogSession.message(recipient: recipient, sender: sender, device: d, message: 'hi back', reply_id: note.global_id, notify: 'user_only')
+        expect(session).to_not eq(false)
+        expect(session.reload.data['note']['prior_contact']['image_url']).to eq("/avatars/avatar-#{sender.id % 10}.png")
+
+        sent = LogSession.process_new({'note' => {'text' => 'again', 'prior_contact' => {'name' => 'Ann', 'image_url' => 'https://staging.lingolinq.com/avatars/avatar-8.png'}}},
+          {user: recipient, author: sender, device: d})
+        expect(sent.reload.data['note']['prior_contact']['image_url']).to eq('/avatars/avatar-8.png')
+        JsonApi::Json.set_host('https://dev.lingolinq.com')
+        expect(JsonApi::Log.build_json(sent)['note']['prior_contact']['image_url']).to eq('https://dev.lingolinq.com/avatars/avatar-8.png')
+        expect(JsonApi::Alert.build_json(sent)['prior_author']['image_url']).to eq('https://dev.lingolinq.com/avatars/avatar-8.png')
+      end
+
+      it "builds an alert whose note carries a prior_contact that is not a contact" do
+        u = User.create
+        d = Device.create(user: u)
+        ['x', ['a', 'b'], 7].each do |bad|
+          note = LogSession.create(user: u, author: u, device: d, log_type: 'note', data: {'note' => {'text' => 'hello', 'prior' => 'earlier', 'prior_contact' => bad}})
+          json = JsonApi::Alert.build_json(note)
+          expect(json['prior']).to eq('earlier')
+          expect(json['prior_author']).to eq(nil)
+        end
+      end
+
+      it "gives the Unknown User modifier of a version the avatar on the app's host" do
+        User.create
+        PaperTrail.request.whodunnit = 'something'
+        User.create
+        json = JsonApi::UserVersion.build_json(PaperTrail::Version.last)
+        expect(json['modifier']['image']).to eq('https://test.host/avatars/avatar-0.png')
       end
     end
 
@@ -4066,8 +4748,28 @@ describe User, :type => :model do
       Worker.process_queues
       expect(u.reload.settings['asdf']).to eq('bacon')
     end
+
+    # The stash and its job are one unit: a transaction that rolls back the stash must not leave
+    # its job queued (the job would fail on the missing stash).
+    it "queues the deferred update only once its transaction commits" do
+      u = User.create
+      User.where(:id => u.id).update_all(:updated_at => 1.hour.from_now)
+      Worker.flush_queues
+      User.transaction do
+        expect(u.update_setting('asdf', 'bacon')).to eq('pending')
+        raise ActiveRecord::Rollback
+      end
+      expect(Worker.scheduled_actions.select{|a| a['args'].to_s.include?('job_stash') }).to eq([])
+
+      User.transaction do
+        expect(u.update_setting('asdf', 'bacon')).to eq('pending')
+        expect(Worker.scheduled_actions.select{|a| a['args'].to_s.include?('job_stash') }).to eq([])
+      end
+      s = JobStash.last
+      expect(Worker.scheduled?(User, :perform_action, {'id' => u.id, 'method' => 'update_setting', 'arguments' => ['job_stash', s.global_id]})).to eq(true)
+    end
   end
-  
+
   describe "external_email_allowed?" do
     it "should return the correct values" do
       u = User.new
@@ -4538,6 +5240,13 @@ describe User, :type => :model do
     end
   
     describe "valid_2fa?" do
+      include ActiveSupport::Testing::TimeHelpers
+      # valid_2fa? accepts a code from the previous 30 s window for up to 15 s (drift_behind) and
+      # returns that window's start, so a window ending between making the code and checking it made
+      # `ts > 30.seconds.ago` fail. Examples that compare against the clock run at a fixed instant in
+      # the middle of a window.
+      let(:mid_window) { Time.at(1_800_000_015) }
+
       it "should return false without 2fa settings" do
         u = User.new
         expect(u.valid_2fa?('asdf')).to eq(false)
@@ -4548,15 +5257,17 @@ describe User, :type => :model do
       end
 
       it "should return true for a valid code" do
-        u = User.create(settings: {'2fa' => {'secret' => 'asdf'}})
-        totp = ROTP::TOTP.new('asdf', issuer: "LingoLinq")  
-        code = totp.at(Time.now)
-        expect(u.settings['2fa']['last_otp']).to eq(nil)
-        ts = u.valid_2fa?(code)
-        expect(ts).to_not eq(false)
-        expect(ts).to be > 30.seconds.ago.to_i
-        expect(ts).to be < 30.seconds.from_now.to_i
-        expect(u.settings['2fa']['last_otp']).to_not eq(nil)
+        travel_to(mid_window) do
+          u = User.create(settings: {'2fa' => {'secret' => 'asdf'}})
+          totp = ROTP::TOTP.new('asdf', issuer: "LingoLinq")
+          code = totp.at(Time.now)
+          expect(u.settings['2fa']['last_otp']).to eq(nil)
+          ts = u.valid_2fa?(code)
+          expect(ts).to_not eq(false)
+          expect(ts).to be > 30.seconds.ago.to_i
+          expect(ts).to be < 30.seconds.from_now.to_i
+          expect(u.settings['2fa']['last_otp']).to_not eq(nil)
+        end
       end
 
       it "should return false for an old code" do
@@ -4576,15 +5287,17 @@ describe User, :type => :model do
       end
 
       it "should return false for a replayed code" do
-        u = User.create(settings: {'2fa' => {'secret' => 'asdf'}})
-        totp = ROTP::TOTP.new('asdf', issuer: "LingoLinq")  
-        code = totp.at(Time.now)
-        ts = u.valid_2fa?(code)
-        expect(ts).to_not eq(false)
-        expect(ts).to be > 30.seconds.ago.to_i
-        expect(ts).to be < 30.seconds.from_now.to_i
-        ts = u.valid_2fa?(code)
-        expect(ts).to eq(false)
+        travel_to(mid_window) do
+          u = User.create(settings: {'2fa' => {'secret' => 'asdf'}})
+          totp = ROTP::TOTP.new('asdf', issuer: "LingoLinq")
+          code = totp.at(Time.now)
+          ts = u.valid_2fa?(code)
+          expect(ts).to_not eq(false)
+          expect(ts).to be > 30.seconds.ago.to_i
+          expect(ts).to be < 30.seconds.from_now.to_i
+          ts = u.valid_2fa?(code)
+          expect(ts).to eq(false)
+        end
       end
     end
   end
@@ -4771,6 +5484,22 @@ describe User, :type => :model do
       u1.settings['preferences']['home_board'] = {'id' => 1, 'a' => 1}
       expect(u1).to receive(:copy_to_home_board).with({'id' => b.global_id, 'copy' => true}, u2.global_id, nil)
       u1.process_home_board({'id' => b.global_id, 'copy' => true}, {'updater' => u2})
+    end
+
+    # users#update copies the home board synchronously inside process_params (no 'async'), and the
+    # copy ends in update_available_boards (relinking.rb copy_for). The other edits in the same
+    # request are still unsaved on the user then and must be saved with it.
+    it "keeps the other edits of the same update when the home board is copied synchronously" do
+      u1 = User.create
+      u2 = User.create
+      b = Board.create(user: u2, public: true)
+      res = u1.process({'name' => 'Spec Renamed', 'preferences' => {'home_board' => {'id' => b.global_id, 'key' => b.key, 'copy' => true}}}, {'updater' => u2})
+      expect(res).to eq(true)
+
+      stored = User.find(u1.id)
+      expect(stored.settings['name']).to eq('Spec Renamed')
+      home = Board.find_by_path(stored.settings['preferences']['home_board']['id'])
+      expect(home.parent_board).to eq(b)
     end
 
     it "should schedule copying if async" do
@@ -5006,6 +5735,130 @@ describe User, :type => :model do
     end
   end
 
+  describe "update_settings_locked" do
+    include ActiveSupport::Testing::TimeHelpers
+
+    def users_sql
+      sql = []
+      record = ->(*, payload) { sql << payload[:sql] if payload[:sql] =~ /\bFROM "users"|\AUPDATE "users"/ }
+      ActiveSupport::Notifications.subscribed(record, 'sql.active_record') { yield }
+      sql
+    end
+
+    it "changes only the keys the block sets, keeping a write made since this copy was loaded" do
+      u = User.create
+      stale = User.find(u.id)
+      other = User.find(u.id)
+      other.settings['preferences']['spec_marker'] = 'normal save'
+      other.save
+      quiet = User.find(u.id)
+      quiet.settings['spec_quiet'] = 'touch false'
+      quiet.save(touch: false)
+
+      stale.update_settings_locked { |fresh| fresh.settings['spec_owned'] = 'mine' }
+
+      stored = User.find(u.id)
+      expect(stored.settings['preferences']['spec_marker']).to eq('normal save')
+      expect(stored.settings['spec_quiet']).to eq('touch false')
+      expect(stored.settings['spec_owned']).to eq('mine')
+      # the caller's copy gets only what the block wrote (it is not reloaded)
+      expect(stale.settings['spec_owned']).to eq('mine')
+      expect(stale.settings['spec_quiet']).to eq(nil)
+    end
+
+    # A synchronous caller can hold unsaved changes on the object (reset_eval's settings wipe
+    # before the home board copy calls update_available_boards); they must survive the helper.
+    it "keeps the caller's unsaved changes and copies back only what it wrote" do
+      u = User.create
+      User.where(id: u.id).update_all(sync_stamp: 6.hours.ago)
+      caller_copy = User.find(u.id)
+      caller_copy.settings['email'] = 'pending@example.com'
+      caller_copy.settings['preferences'] = nil
+      caller_copy.boards_updated_at = 1.day.ago
+
+      caller_copy.update_settings_locked(save_method: :save_with_sync, save_args: ['spec_reason']) do |fresh|
+        fresh.settings['spec_owned'] = 'mine'
+        fresh.boards_updated_at = Time.now
+        fresh.schedule_deletion_at = 2.days.from_now
+      end
+
+      expect(caller_copy.settings['email']).to eq('pending@example.com')
+      expect(caller_copy.settings['preferences']).to eq(nil)
+      expect(caller_copy.settings['spec_owned']).to eq('mine')
+      # a column the caller changed itself stays as the caller set it; the others follow the save
+      expect(caller_copy.boards_updated_at).to be < 1.hour.ago
+      expect(caller_copy.schedule_deletion_at).to be > 1.day.from_now
+      expect(caller_copy.sync_stamp).to be > 5.minutes.ago
+      expect(caller_copy.updated_at).to be_within(0.001).of(User.find(u.id).updated_at)
+      expect(caller_copy.changed).to include('boards_updated_at')
+      expect(caller_copy.changed).not_to include('schedule_deletion_at')
+      expect(User.find(u.id).settings['email']).not_to eq('pending@example.com')
+    end
+
+    # Copying the saved updated_at onto a copy loaded before another save made that stale copy look
+    # current to assert_current_record! (processable.rb) and to board_caching's stale_after.
+    it "leaves a stale copy's updated_at, so it still reads as stale" do
+      u = User.create
+      stale = User.find(u.id)
+      travel(1.minute) do
+        other = User.find(u.id)
+        other.settings['spec_other'] = 'saved since'
+        other.save
+      end
+      travel(2.minutes) do
+        stale.update_settings_locked { |fresh| fresh.settings['spec_owned'] = 'mine' }
+      end
+      expect(stale.settings['spec_owned']).to eq('mine')
+      expect { stale.assert_current_record! }.to raise_error(ActiveRecord::StaleObjectError)
+    end
+
+    it "gives a current copy the saved updated_at" do
+      u = User.create
+      current = User.find(u.id)
+      travel(2.minutes) do
+        current.update_settings_locked { |fresh| fresh.settings['spec_owned'] = 'mine' }
+      end
+      expect(current.updated_at).to be_within(0.001).of(User.find(u.id).updated_at)
+      expect(current.updated_at).to be > u.updated_at + 1.minute
+      expect { current.assert_current_record! }.not_to raise_error
+    end
+
+    it "reads the copy it saves under a row lock" do
+      u = User.create
+      sql = users_sql { User.update_settings_locked(u.id) { |fresh| fresh.settings['spec_owned'] = 1 } }
+      locked = sql.index { |q| q =~ /FOR UPDATE/ }
+      updated = sql.index { |q| q.start_with?('UPDATE "users"') }
+      expect(locked).not_to be_nil
+      expect(updated).not_to be_nil
+      expect(locked).to be < updated
+    end
+
+    it "keeps updated_at with touch: false" do
+      u = User.create
+      User.where(id: u.id).update_all(updated_at: 2.days.ago)
+      before = User.find(u.id).updated_at
+      User.update_settings_locked(u.id, touch: false) { |fresh| fresh.settings['spec_owned'] = 1 }
+      expect(User.find(u.id).updated_at).to eq(before)
+      expect(User.find(u.id).settings['spec_owned']).to eq(1)
+    end
+
+    it "uses the given save method" do
+      u = User.create(sync_stamp: 6.hours.ago)
+      User.update_settings_locked(u.id, save_method: :save_with_sync, save_args: ['spec_reason']) { |fresh| fresh.settings['spec_owned'] = 1 }
+      stored = User.find(u.id)
+      expect(stored.sync_stamp).to be > 5.minutes.ago
+      expect(stored.settings['sync_stamp_reason']).to eq('spec_reason')
+    end
+
+    it "does not save when the block returns false, and returns nil for a missing user" do
+      u = User.create
+      sql = users_sql { expect(User.update_settings_locked(u.id) { |fresh| fresh.settings['spec_owned'] = 1; false }).to eq(false) }
+      expect(sql.none? { |q| q.start_with?('UPDATE "users"') }).to eq(true)
+      expect(User.find(u.id).settings['spec_owned']).to eq(nil)
+      expect(User.update_settings_locked(0) { |fresh| raise "not called" }).to eq(nil)
+    end
+  end
+
   describe "effective data policy preferences" do
     it "should return true when user enables logging and no org policy" do
       u = User.create
@@ -5139,11 +5992,16 @@ describe User, :type => :model do
     end
 
     it 'defaults disclosures_version: to LingoLinq::AiConsentDisclosures::CURRENT_VERSION when the kwarg is omitted (VPC Phase 2)' do
-      expect(LingoLinq::AiConsentDisclosures::CURRENT_VERSION).to eq(1)
+      current = LingoLinq::AiConsentDisclosures::CURRENT_VERSION
       u = User.create
-      u.grant_ai_consent!(disclosures_version: 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
+      u.grant_ai_consent!(disclosures_version: current, granted_by: 'Parent Name <parent@example.com>', source: 'email_link')
       u.reload
       expect(u.ai_consent_granted?).to eq(true)
+      # A grant at an older version no longer satisfies the default.
+      older = User.create
+      older.grant_ai_consent!(disclosures_version: current - 1, granted_by: 'Parent Name <parent@example.com>', source: 'email_link') if current > 1
+      older.reload
+      expect(older.ai_consent_granted?).to eq(false)
     end
 
     it 'the omitted-kwarg default still returns false for a user with no grant (does not silently pass)' do
@@ -5436,8 +6294,16 @@ describe User, :type => :model do
       expect(u.settings && u.settings['ai_consent']).to be_blank
     end
 
-    it 'raises ArgumentError when granted_by_user_id equals self.global_id (no self-grant)' do
+    # Rule changed 2026-11-17 (Scot, #1136): the account holder may grant for their own
+    # adult account in the app. The two examples that asserted `self_grant_forbidden` for
+    # source 'in_app' are rewritten to the rule that replaced it: a self-grant is still
+    # refused where the consent has to come from a parent, and the account itself is
+    # still refused as grantor on the parent's and admin's sources. The full matrix is in
+    # spec/models/user_ai_consent_self_grant_spec.rb.
+    it 'refuses a self-grant for an account whose consent has to come from a parent (no self-grant)' do
       u = User.create
+      u.settings['coppa'] = { 'pending_parent_consent' => true, 'parent_consent_granted_at' => Time.now.utc.iso8601 }
+      u.save!
       expect {
         u.grant_ai_consent!(
           disclosures_version: 1,
@@ -5445,18 +6311,18 @@ describe User, :type => :model do
           source: 'in_app',
           granted_by_user_id: u.global_id
         )
-      }.to raise_error(ArgumentError, 'self_grant_forbidden')
+      }.to raise_error(ArgumentError, 'parental_consent_required')
       u.reload
       expect(u.settings && u.settings['ai_consent']).to be_blank
     end
 
-    it 'raises ArgumentError when granted_by_user_id is the bare numeric self id (no self-grant bypass)' do
+    it 'raises ArgumentError when granted_by_user_id is the bare numeric self id on a parent or admin source (no self-grant bypass)' do
       u = User.create
       expect {
         u.grant_ai_consent!(
           disclosures_version: 1,
           granted_by: 'Self',
-          source: 'in_app',
+          source: 'email_link',
           granted_by_user_id: u.id
         )
       }.to raise_error(ArgumentError, 'self_grant_forbidden')
@@ -6019,6 +6885,65 @@ describe User, :type => :model do
       viewer = User.create
 
       expect(User.find_by(id: u.id).effective_logging_cutoff_for(viewer, nil)).to eq(1)
+    end
+  end
+
+  # The liked list feeds the offline sync (app/frontend/app/utils/offline_sync_seeds.js): a liked board
+  # that is not in it is never saved on the device. Up to 50 liked boards are kept, the first ones liked.
+  describe "starred_board_refs limit" do
+    def like_boards(user, count)
+      owner = User.create
+      boards = count.times.map { Board.create(user: owner, public: true) }
+      user.settings['starred_board_ids'] = boards.map(&:global_id)
+      user.settings['starred_boards'] = boards.length
+      user.save
+      boards
+    end
+
+    it "lists every liked board past the first 25, in the order they were liked" do
+      u = User.create
+      # Liked newest board first, so the liked order is not the order the boards were created in.
+      boards = like_boards(u, 30).reverse
+      u.settings['starred_board_ids'] = boards.map(&:global_id)
+      u.save
+      refs = u.reload.starred_board_refs.reject { |r| r['suggested'] }
+      expect(refs.map { |r| r['id'] }).to eq(boards.map(&:global_id))
+    end
+
+    it "lists at most the first 50 liked boards, and looks up no more than those" do
+      u = User.create
+      boards = like_boards(u, 51)
+      u.reload
+      looked_up = nil
+      allow(Board).to receive(:find_all_by_global_id).and_wrap_original do |original, ids|
+        looked_up = ids
+        original.call(ids)
+      end
+      refs = u.starred_board_refs.reject { |r| r['suggested'] }
+      expect(looked_up.length).to eq(50)
+      expect(refs.length).to eq(50)
+      expect(refs.map { |r| r['id'] }).to eq(boards[0, 50].map(&:global_id))
+    end
+
+    it "skips a liked board that was deleted, and still lists the ones after it" do
+      u = User.create
+      boards = like_boards(u, 30)
+      gone = boards[4]
+      gone.destroy
+      refs = u.reload.starred_board_refs.reject { |r| r['suggested'] }
+      expect(refs.map { |r| r['id'] }).to eq((boards - [gone]).map(&:global_id))
+    end
+
+    it "lists a liked copy-by-reference board past the first 25 under its own id" do
+      u = User.create
+      boards = like_boards(u, 30)
+      clone_id = "#{boards[29].global_id}-#{u.global_id}"
+      u.settings['starred_board_ids'][29] = clone_id
+      u.save
+      refs = u.reload.starred_board_refs.reject { |r| r['suggested'] }
+      expect(refs.length).to eq(30)
+      expect(refs[29]['id']).to eq(clone_id)
+      expect(refs[29]['key']).to eq("#{u.user_name}/my:#{boards[29].key.sub(/\//, ':')}")
     end
   end
 end

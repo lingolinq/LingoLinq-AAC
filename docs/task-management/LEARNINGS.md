@@ -93,9 +93,11 @@ Admission rule for an entry in this file:
 - **`findRecord(..., {reload: true})` never reaches the network.** The adapter is offline-first and
   ignores ED's reload option; the opt-out is `persistence.force_reload`, set and restored around the
   call. Symbol: `force_reload` in `app/frontend/app/models/base.js`.
-- **`sessionUser.id` is the literal `'self'`.** Compare `global_id` on authorship gates, and never put
-  `self` in a `/users/:id` URL; the server treats it as a username lookup and 404s. Cite
-  `app/frontend/app/serializers/application.js`.
+- **`sessionUser.id` can be the literal `'self'`.** Compare people with `utils/backend_user_id.js`
+  (`same_person`, `backend_user_id`), never by `id`, and send the real id wherever an id is NESTED in a body
+  (`log[user_id]`, `events[].user_id`): the server rewrites only top-level `id`/`*_id` params equal to `'self'`
+  (`ApplicationController#replace_helper_params`, after the token check) and drops or 404s the rest. Cite
+  `app/frontend/app/serializers/application.js` (the pin must stay: section 20 of `2026-11-10_offline-followup-proposals.md`).
 - **Three different "users" exist; pick per purpose.** `sessionUser` is the authenticated account;
   `currentUser` is swapped to the communicator in speak mode (`feature_flags` and personal prefs follow
   it); the `user` route model is the board OWNER in the URL. "Whose page is this" comes from

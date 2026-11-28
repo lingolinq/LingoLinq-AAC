@@ -190,8 +190,44 @@ module MediaObject
     end
   end
 
+  # Transcode outputs that no setting records (the record was destroyed while its job ran, or the
+  # COMPLETE was dropped) can only be found by listing the record's own stem, and that stem is
+  # gone once the record is (LL-c4566fa37f). before_destroy keeps the row in the destroy's own
+  # transaction and ahead of Uploadable's after_destroy enqueue; the savepoint and rescue mean a
+  # failure here never aborts an erasure. Swept by Uploader.remote_remove_transcode_family.
+  def record_transcode_family_sweep
+    stems = [self.file_path + self.file_prefix]
+    begin
+      settings = self.settings || {}
+      transcoded = settings['transcoding_attempted'] || settings['transcoding_keys'].present? || settings['prior_transcoding_keys'].present?
+      return true unless transcoded
+      stored = [settings['full_filename'], settings['thumbnail_filename'], settings.dig('secondary_output', 'filename')]
+      stored += Array(settings['prior_full_filenames']) + Array(settings['prior_thumbnail_stems'])
+      # Only stems of this record's own keys: its folder and global_id (the hash may differ after a
+      # key rotation).
+      own = "#{self.file_path}#{self.global_id}-"
+      stems += stored.map { |key| Uploader.transcode_family_stem(key) }.select { |stem| stem.to_s.start_with?(own) }
+    rescue StandardError => e
+      # Unreadable settings: write the recomputed stem anyway, since whether it transcoded is unknown.
+      Rails.logger.error("Transcode family stems unreadable for #{self.class.name} #{self.global_id}: #{e.class}")
+    end
+    RemoteAction.transaction(requires_new: true) do
+      stems.compact.uniq.select { |stem| stem.match?(Uploader::TRANSCODE_FAMILY_STEM) }.each do |stem|
+        ra = RemoteAction.find_or_initialize_by(action: 'transcode_family_sweep', path: stem)
+        ra.extra = "#{self.class.name}::#{self.global_id}"
+        ra.act_at = Time.now
+        ra.save!
+      end
+    end
+    true
+  rescue StandardError => e
+    Rails.logger.error("Transcode family tombstone failed for #{self.class.name} #{self.global_id}: #{e.class}")
+    true
+  end
+
   included do
     after_save :schedule_transcoding
+    before_destroy :record_transcode_family_sweep
     after_destroy_commit :remove_derivative_remote_data
   end
 end

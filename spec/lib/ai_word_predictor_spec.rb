@@ -3,6 +3,10 @@
 require 'spec_helper'
 
 describe AiWordPredictor do
+  # These examples test other things at the AI call sites; the consent check (#1136) has its
+  # own specs. See spec/support/ai_consent.rb.
+  include_context 'ai data-sharing consent given'
+
   # The account assertion must not sit in front of the response cache: a FAILED
   # check re-probes every 60s while holding a process-global mutex, which would
   # stall requests that were about to return instantly from CACHE.
@@ -424,6 +428,46 @@ describe AiWordPredictor do
 
     it "returns empty when words are blank" do
       expect(described_class.predict_from_tokens(words: [])).to eq([])
+    end
+  end
+
+  # The other examples stub call_anthropic; this one runs it, so the Bedrock request and the system
+  # prompt built for it are checked against a fake client (no request leaves the process).
+  describe "the Bedrock request" do
+    it "sends the scrubbed sentence with a system prompt carrying the count, language and context" do
+      client = double('bedrock_client')
+      messages = double('messages')
+      allow(AiClient).to receive(:available?).and_return(true)
+      allow(AiClient).to receive(:build!).and_return(client)
+      allow(client).to receive(:messages).and_return(messages)
+      expect(messages).to receive(:create) do |args|
+        expect(args[:max_tokens]).to eq(60)
+        expect(args[:messages]).to eq([{role: 'user', content: 'I want to'}])
+        expect(args[:system]).to include('predict the 3 most likely next words')
+        expect(args[:system]).to include('Language: es')
+        expect(args[:system]).to include('Time of day: morning')
+        expect(args[:system]).to include('Topic context: lunch')
+        anthropic_response('comer, jugar, ir')
+      end
+
+      words = described_class.predict(sentence: 'I want to', locale: 'es', count: 3,
+                                       context: {time_of_day: 'morning', topic: 'lunch'})
+
+      expect(words).to eq(%w[comer jugar ir])
+    end
+
+    it "leaves the context block out of the prompt when there is no context" do
+      client = double('bedrock_client')
+      messages = double('messages')
+      allow(AiClient).to receive(:available?).and_return(true)
+      allow(AiClient).to receive(:build!).and_return(client)
+      allow(client).to receive(:messages).and_return(messages)
+      expect(messages).to receive(:create) do |args|
+        expect(args[:system]).not_to include('Context:')
+        anthropic_response('play, go, eat, help')
+      end
+
+      expect(described_class.predict(sentence: 'I want to')).to eq(%w[play go eat help])
     end
   end
 end

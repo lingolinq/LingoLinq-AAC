@@ -57,7 +57,16 @@ export default Controller.extend({
         self.send(actionName, boundArg, value);
       };
     };
-    this.loadOrganizations();
+    /* The Organization <ModernSelect>'s `@action` (2026-11-09): a real function, as the component
+       calls `@action(id)` when one is chosen. `{{mut}}` there was never called (a classic component
+       receives it as a value), so choosing only reached `org_id` through the two-way `selection`;
+       this routes it through `setOrgId`, the one place that sets the scope. */
+    this.chooseOrg = function(id) {
+      self.send('setOrgId', id);
+    };
+    // The org list loads from routes/system-settings.js `setupController`, on every visit, for the
+    // user the route has just loaded (2026-11-09; here, at creation, the user was not loaded yet on
+    // a direct visit or a refresh, and the list stayed empty).
   },
 
   /** Site-wide settings (default org, feature groups, app defaults) require settings.admin on the server. */
@@ -67,9 +76,9 @@ export default Controller.extend({
     return !!(settings && settings.admin === true);
   }),
 
-  loadOrganizations: function() {
+  loadOrganizations: function(loadedUser) {
     var _this = this;
-    var user = this.get('app_state.currentUser');
+    var user = loadedUser || this.get('app_state.currentUser');
     var managed = (user && user.get('organizations') || []).filter(function(o) {
       return o.type === 'manager' && o.restricted !== true;
     });
@@ -138,6 +147,18 @@ export default Controller.extend({
       });
     });
     return flat;
+  }),
+
+  /* The groups as <ModernSelect>'s flat content (2026-11-09, requested: the select lists in "our
+     modern select styles"): each group's label as a heading row, then its options. A native
+     <select> draws its open list itself, so its <optgroup>s could not take the app's styles. */
+  scopeSelectContent: computed('scopeOptionGroups.[]', function() {
+    var content = [];
+    (this.get('scopeOptionGroups') || []).forEach(function(group) {
+      content.push({heading: true, name: group.label});
+      (group.options || []).forEach(function(opt) { content.push(opt); });
+    });
+    return content;
   }),
 
   selectedOrgName: computed('org_id', 'flatScopeOptions.[]', function() {

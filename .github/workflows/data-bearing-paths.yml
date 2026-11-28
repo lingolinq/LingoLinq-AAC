@@ -1,10 +1,23 @@
 name: Data-bearing paths
 
-# Merge gate for real user data (brain issue 233). A PR that adds or changes a fixture,
+# Merge gate for real user data (brain issue 233). When a PR adds or changes a fixture,
 # factory, seed, migration, VCR cassette, data rake task, data file or db/language/
-# path, any file under .github/workflows/, or this check's own files fails until a
-# reviewer with write access confirms the data is synthetic and adds the
-# `synthetic-data` label. That records an approval as a commit status on the PR's
+# path, the lines it adds there are scanned for values that look like real personal
+# data: an email on a domain not reserved for examples, a phone number outside
+# 555-0100 to 555-0199, a number shaped like a Social Security number, an image, audio
+# or video file inlined as a base64 data: URI. A clean change passes with no label
+# (Scot, 2026-11-06). The PR fails until a reviewer with write access confirms the data
+# is synthetic and adds the `synthetic-data` label when the scan flags something, when
+# it adds a binary file under such a path, when it touches db/language/ or a VCR
+# cassette (always), when it changes this check's own files (this workflow among them),
+# or when it adds or changes a workflow file that names the data-bearing-status
+# environment, DATA_BEARING_APP_PRIVATE_KEY or DATA_BEARING_APP_CLIENT_ID (Scot,
+# 2026-11-07): once on develop, such a workflow could mint the App token and post these
+# statuses on any PR. The match is on the file's text, so a name it does not spell out (a
+# YAML escape, a line continuation, an expression, a reusable workflow from another
+# repository) is not seen; see the check's header. Other workflow files are not gated: the required check is pinned
+# to the App, so a PR's own workflow token cannot satisfy it. The rules are in
+# scripts/data-bearing-path-check.sh. The label records an approval as a commit status on the PR's
 # current head commit for its base (data-bearing-approval/<base>), naming the change set
 # it covers (its scope), and the label is removed. A later push is a new commit with no
 # approval, so the reviewer adds the label again for it; pushing a new commit is also how
@@ -26,19 +39,27 @@ name: Data-bearing paths
 #      DATA_BEARING_APP_CLIENT_ID. For pull_request_target the environment rules are
 #      checked against the default branch, so this workflow can enter it; a PR's own
 #      pull_request workflow cannot.
-#   3. Before 2026-11-02, when GitHub starts blocking pull_request_target on public
-#      repositories without an event policy: under Settings > Actions > Policies, an
-#      active policy targeting only .github/workflows/data-bearing-paths.yml whose event
-#      rule allows pull_request_target. Without it the check never runs: a new head gets
-#      no status and stays blocked, but a status already on a head stays as it was.
+#   3. Before 2026-12-02 (GitHub's date per the 2026-10-21 editor's note on its 2026-09-17
+#      changelog post on workflow execution protections), when GitHub starts blocking
+#      pull_request_target on public repositories without an event policy: under Settings >
+#      Actions > Policies, an active policy targeting only
+#      .github/workflows/data-bearing-paths.yml whose event rule allows pull_request_target.
+#      Without it the check never runs: a new head gets no status and stays blocked, but a
+#      status already on a head stays as it was.
+#      In place: repo-level Actions policy 7259 (active, read back 2026-10-31) allows
+#      pull_request_target for this workflow and must keep matching this path: renaming or
+#      moving this file drops it out of the policy's target.
 #   Until 1 and 2 exist, every run fails at the token step and posts nothing, which
 #   keeps the required check missing and the PR blocked.
 #
 # Rollout: require the data-bearing-paths/develop, /staging and /main contexts on their
 # branches with the source pinned to the App, then run the canary before relying on it:
-# a code-only PR; a fixture PR approved by the label; the same on a PR whose develop has
-# moved since its last push; a re-run of that labeled run after the label was removed
-# (it must record nothing); a push after approval; a label from a read-only account; a PR adding its own workflow and a same-named job; a fork PR; a
+# a code-only PR; a fixture PR with only example.com and 555-01xx values (it must pass
+# with no label); a fixture PR with a value the scan flags, approved by the label; the
+# same on a PR whose develop has moved since its last push; a re-run of that labeled run
+# after the label was removed (it must record nothing); a push after approval; a label
+# from a read-only account; a PR adding its own workflow and a same-named job (the gate
+# passes it, but its job must not satisfy the required context); a fork PR; a
 # pull_request job that names the environment (it must be refused); and confirming the
 # workflow token can read a collaborator's permission.
 #
@@ -59,8 +80,11 @@ name: Data-bearing paths
 # default branch (develop), for PRs to staging and main too (GitHub, since
 # 2025-12-08), so a PR cannot edit the check that judges it; a change to the check takes
 # effect only after it merges to develop. It is safe here because nothing from the PR is
-# executed: the PR's commits are fetched as data and read with git diff, git diff-tree
-# and git rev-list. Do not add a step that checks out, builds or runs PR code. This
+# executed: the PR's commits are fetched as data and read with git diff, git diff-tree,
+# git rev-list and git cat-file, and the content scan (python3, from develop's copy of
+# the check) reads the PR's blobs as bytes from temp files. Diffs are taken between two
+# blob ids, so no .gitattributes and no diff driver applies. Do not add a step that
+# checks out, builds or runs PR code. This
 # trigger runs for fork PRs with the base repository's token and this job's environment
 # secret: the App key is used only by the token step, and the App token can only post
 # statuses.

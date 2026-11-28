@@ -4,7 +4,7 @@ import EvalSession from 'frontend/utils/eval_session';
 const PEDS_INTAKE = { age_band: '6-12', etiology: 'autism', current_comm: 'single_symbol', suspected_access: 'touch' };
 const PROGRESSIVE_INTAKE = { age_band: '65+', etiology: 'progressive', current_comm: 'phrase', suspected_access: 'gaze' };
 
-module('Unit | Utility | eval_session', function() {
+module('Unit | Utility | eval_session', function(hooks) {
   test('starts in configuring state', function(assert) {
     const session = EvalSession.create();
     assert.strictEqual(session.get('state'), 'configuring');
@@ -112,4 +112,32 @@ module('Unit | Utility | eval_session', function() {
     session.advanceSubtest();
     assert.ok(session.progressFraction() > 0 && session.progressFraction() < 1);
   });
+
+  /* `subtestOrder()` drops the library-comparison subtests when the app's
+     `feature_flags.eval_single_library` is on (app/utils/eval_session.js `_withoutLibrarySubtests`,
+     read through LingoLinq.appState). These tests boot no app, so they used to read whatever
+     app-state an EARLIER test had left behind, destroyed: the expected order above held only while
+     that leftover had the flag off. Each test now gets its own app-state with the flag pinned off
+     (what the assertions above encode); the flag-on order is asserted below. Registered last, but
+     QUnit hooks apply to every test in the module. */
+  standInGlobals(hooks, { appState: () => EmberObject.create({ feature_flags: { eval_single_library: false } }) });
+
+  test('single-library deployments drop the library comparison subtests', function(assert) {
+    this.standIns.appState.set('feature_flags', { eval_single_library: true });
+    const peds = EvalSession.create();
+    peds.beginScreening(PEDS_INTAKE);
+    assert.deepEqual(peds.subtestOrder(), ['stage_probe', 'access_snapshot', 'vocab_probe', 'wrap']);
+  });
+
+  test('single-library deployments drop the three-way library subtest from targeting too', function(assert) {
+    this.standIns.appState.set('feature_flags', { eval_single_library: true });
+    const peds = EvalSession.create();
+    peds.beginScreening(PEDS_INTAKE);
+    peds.promoteToTargeted();
+    assert.deepEqual(peds.subtestOrder(), ['adaptive_grid', 'access_co_trial', 'syntax_probe', 'motor_map', 'wrap']);
+  });
 });
+
+// Kept below the baselined lint rows so they do not shift (see .eslint-todo).
+import EmberObject from '@ember/object';
+import { standInGlobals } from 'frontend/tests/helpers/stand-in-globals';

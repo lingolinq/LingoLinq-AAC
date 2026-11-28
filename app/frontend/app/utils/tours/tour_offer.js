@@ -17,21 +17,15 @@
  * "Take a quick tour" sets, which components/guided-tour.js already consumes.
  */
 import { is_classic } from '../view_style';
+import { mark_tour_progress } from './tour_progress';
 
 var OFFER_KEY = 'tour_offer';
 var BOARD_TOUR_KEY = /^(board_alt_speak|board_detail_speak_)/;
 
-// Fresh copies at every level, so ember-data sees the change and saves it (as guided-tour.js#_markTourCompleted).
+// Saves only the autoshown map (utils/tours/tour_progress.js), so an old copy of the account cannot write
+// its other preferences back.
 export function mark_tour_offered(user) {
-  if (!user || !user.get || user.get('preferences.progress.guided_tours_autoshown.' + OFFER_KEY)) { return; }
-  var prefs = Object.assign({}, user.get('preferences') || {});
-  var progress = Object.assign({}, prefs.progress || {});
-  var shown = Object.assign({}, progress.guided_tours_autoshown || {});
-  shown[OFFER_KEY] = true;
-  progress.guided_tours_autoshown = shown;
-  prefs.progress = progress;
-  user.set('preferences', prefs);
-  if (user.save) { user.save().then(null, function() { /* best-effort */ }); }
+  mark_tour_progress(user, 'guided_tours_autoshown', OFFER_KEY);
 }
 
 // The communicator board tour on `key`: Basic's board-alt flag, or Modern's board-detail speak flags.
@@ -54,14 +48,15 @@ export function maybe_offer_tour(appState) {
   if (user.get('preferences.device.scanning') || user.get('preferences.device.dwell')) { return false; }
   // Speaking as someone else: in Speak Mode `currentUser` is the Speak Mode user, not the person signed in.
   var session = appState.get('sessionUser');
-  if (session && session !== user && (session.get ? session.get('id') : session.id) !== user.get('id')) { return false; }
+  // The two records of the same person ('self' and the real id, utils/backend_user_id.js) are not someone else.
+  if (session && session !== user && !same_person(session, user)) { return false; }
   if (!appState.get('speak_mode') || !appState.get('currentBoardState.key')) { return false; }
   var progress = user.get('preferences.progress') || {};
   if ((progress.guided_tours_autoshown || {})[OFFER_KEY]) { return false; }
   var finished = Object.keys(progress.guided_tours_completed || {}).some(function(k) { return BOARD_TOUR_KEY.test(k); });
   if (finished) { return false; }
   mark_tour_offered(user);
-  appState.set('tour_offer_user', user.get('id'));
+  appState.set('tour_offer_user', backend_user_id(user) || user.get('id')); // compared by backend id (components/tour-offer.js): the record can change after the offer
   appState.set('tour_offer_visible', true);
   return true;
 }
@@ -83,3 +78,4 @@ export function end_speak_mode_tour_state(appState) {
   appState.set('tour_offer_user', null);
   appState.set('board_alt_tour_pending', null);
 }
+import backend_user_id, { same_person } from '../backend_user_id';

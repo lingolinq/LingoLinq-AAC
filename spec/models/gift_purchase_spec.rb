@@ -247,13 +247,19 @@ describe GiftPurchase, :type => :model do
       expect(g.active).to eq(true)
     end
 
+    include ActiveSupport::Testing::TimeHelpers
+
+    # redeem_code! stamps activated_at with Time.now and saves before the expected value reads the
+    # clock again; a fixed instant keeps a second boundary from falling between them.
     it "should handle discount percents" do
-      g = GiftPurchase.create(settings: {'discount' => 0.5})
-      u = User.create
-      g.redeem_code!(g.code, u)
-      expect(g.settings['activations']).to eq([
-        {'receiver_id' => u.global_id, 'activated_at' => Time.now.utc.iso8601}
-      ])
+      travel_to(Time.utc(2026, 6, 15, 12, 0, 30)) do
+        g = GiftPurchase.create(settings: {'discount' => 0.5})
+        u = User.create
+        g.redeem_code!(g.code, u)
+        expect(g.settings['activations']).to eq([
+          {'receiver_id' => u.global_id, 'activated_at' => Time.now.utc.iso8601}
+        ])
+      end
     end
   end
 

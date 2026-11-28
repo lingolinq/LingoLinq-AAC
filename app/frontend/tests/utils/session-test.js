@@ -29,18 +29,18 @@ function tokenCheckPrefix(access_token, as_user_id) {
   return prefix;
 }
 
-function urlStartsWithTokenCheck(url, access_token, as_user_id) {
-  if (!url) {
+function urlStartsWithTokenCheck(url, access_token, as_user_id, opts) {
+  var none = (!access_token || access_token === 'none') ? 'access_token=none&' : ''; // a real token never goes in the query; no token sends exactly 'access_token=none'
+  if (!url || url.indexOf('/api/v1/token_check?' + none + 'rnd=') !== 0) {
     return false;
   }
-  var base = '/api/v1/token_check?access_token=' + access_token;
-  if (url.indexOf(base) !== 0) {
+  if (url.split('access_token=').length !== (none ? 2 : 1)) {
     return false;
   }
-  if (!as_user_id) {
-    return true;
+  if (as_user_id && url.indexOf('&as_user_id=' + as_user_id) < 0) {
+    return false;
   }
-  return url.indexOf('&as_user_id=' + as_user_id) > 0;
+  return tokenCheckHeaderOk(access_token, opts);
 }
 
 describe('session', function() {
@@ -267,7 +267,7 @@ describe('session', function() {
       });
       var queried = false;
       stub(persistenceTarget(), 'ajax', function(url, opts) {
-        if(urlStartsWithTokenCheck(url, '12345')) {
+        if(urlStartsWithTokenCheck(url, '12345', null, opts)) {
           queried = true;
         }
         return RSVP.resolve({authenticated: true});
@@ -294,7 +294,7 @@ describe('session', function() {
       });
       var queried = false;
       stub(persistenceTarget(), 'ajax', function(url, opts) {
-        if(urlStartsWithTokenCheck(url, '12345')) {
+        if(urlStartsWithTokenCheck(url, '12345', null, opts)) {
           queried = true;
         }
         return RSVP.reject({});
@@ -346,7 +346,7 @@ describe('session', function() {
       });
       var queried = false;
       stub(persistenceTarget(), 'ajax', function(url, opts) {
-        if(urlStartsWithTokenCheck(url, '12345')) {
+        if(urlStartsWithTokenCheck(url, '12345', null, opts)) {
           queried = true;
         }
         return RSVP.resolve({authenticated: false});
@@ -381,7 +381,7 @@ describe('session', function() {
       });
       var queried = false;
       stub(persistTarget, 'ajax', function(url, opts) {
-        if(urlStartsWithTokenCheck(url, '12345')) {
+        if(urlStartsWithTokenCheck(url, '12345', null, opts)) {
           later(function() {
             queried = true;
           }, 50);
@@ -420,7 +420,7 @@ describe('session', function() {
       });
       var queried = false;
       stub(persistenceTarget(), 'ajax', function(url, opts) {
-        if(urlStartsWithTokenCheck(url, '12345')) {
+        if(urlStartsWithTokenCheck(url, '12345', null, opts)) {
           queried = true;
         }
         return RSVP.resolve({authenticated: true, meta: {fakeXHR: { browserToken: '11111'}}});
@@ -454,7 +454,7 @@ describe('session', function() {
       });
       var queried = false;
       stub(persistenceTarget(), 'ajax', function(url, opts) {
-        if(urlStartsWithTokenCheck(url, '12345')) {
+        if(urlStartsWithTokenCheck(url, '12345', null, opts)) {
           queried = true;
         }
         return RSVP.reject({fakeXHR: { browserToken: '11111'}});
@@ -596,7 +596,7 @@ describe('session', function() {
       var called = false;
       var opts = {};
       stub(persistenceTarget(), 'ajax', function(url, o) {
-        expect(urlStartsWithTokenCheck(url, 'none')).toEqual(true);
+        expect(urlStartsWithTokenCheck(url, 'none', null, o)).toEqual(true);
         called = true;
         opts = o;
         return RSVP.reject({});
@@ -615,7 +615,7 @@ describe('session', function() {
       var called = false;
       var opts = {};
       stub(persistenceTarget(), 'ajax', function(url, o) {
-        expect(urlStartsWithTokenCheck(url, 'happy_token', 'whatever')).toEqual(true);
+        expect(urlStartsWithTokenCheck(url, 'happy_token', 'whatever', o)).toEqual(true);
         called = true;
         opts = o;
         return RSVP.reject({});
@@ -623,6 +623,35 @@ describe('session', function() {
       session.check_token();
       waitsFor(function() { return called; });
       runs();
+    });
+
+    it('should send the none sentinel when only an in-memory token is left, through the real ajax wrapper', function() {
+      // No stored login, but this tab still holds a token (another tab signed out). The wrapper
+      // (utils/extras.js) still adds that token as Authorization, so the query must say 'none',
+      // which token_check validates and rejects (session_controller.rb token_check).
+      stub(stashesTarget(), 'get_object', function() { return null; });
+      stub(sessionTarget(), 'auth_settings_fallback', function() { return null; });
+      stub(capabilities, 'access_token', 'stale_token');
+      persistenceTarget().set('online', true);
+      // The harness's global beforeEach stubs persistence.ajax offline (helpers/ember_helper.js); call the real one.
+      var real_ajax = persistenceTarget().constructor.prototype.ajax;
+      stub(persistenceTarget(), 'ajax', function() { return real_ajax.apply(persistenceTarget(), arguments); });
+      var sent = null;
+      stub($, 'realAjax', function(o) {
+        if(o.url && o.url.indexOf('/api/v1/token_check') === 0) { sent = o; }
+        return RSVP.reject({});
+      });
+      var settled = false;
+      session.check_token().then(function() { settled = true; }, function() { settled = true; });
+      waitsFor(function() { return sent && settled; });
+      runs(function() {
+        // Precondition, not a requirement: proves the wrapper path ran and added the stale token.
+        // A later fix that stops sending it may replace this line.
+        expect(sent.headers['Authorization']).toEqual('Bearer stale_token');
+        expect(sent.url.indexOf('/api/v1/token_check?access_token=none&rnd=')).toEqual(0);
+        expect(sent.url.split('access_token=').length).toEqual(2);
+        expect(sent.url.indexOf('stale_token')).toEqual(-1);
+      });
     });
 
     it('should do nothing on error if offline', function() {
@@ -678,7 +707,7 @@ describe('session', function() {
       var called = false;
       var opts = {};
       stub(persistenceTarget(), 'ajax', function(url, o) {
-        expect(urlStartsWithTokenCheck(url, 'happy_token')).toEqual(true);
+        expect(urlStartsWithTokenCheck(url, 'happy_token', null, o)).toEqual(true);
         called = true;
         opts = o;
         return RSVP.resolve({authenticated: false});
@@ -697,7 +726,7 @@ describe('session', function() {
       var called = false;
       var opts = {};
       stub(persistenceTarget(), 'ajax', function(url, o) {
-        expect(urlStartsWithTokenCheck(url, 'happy_token')).toEqual(true);
+        expect(urlStartsWithTokenCheck(url, 'happy_token', null, o)).toEqual(true);
         called = true;
         opts = o;
         return RSVP.resolve({authenticated: false, meta: {fakeXHR: {browserToken: 'jorb'}}});
@@ -723,7 +752,7 @@ describe('session', function() {
       var called = false;
       var opts = {};
       stub(persistenceTarget(), 'ajax', function(url, o) {
-        expect(urlStartsWithTokenCheck(url, 'happy_token')).toEqual(true);
+        expect(urlStartsWithTokenCheck(url, 'happy_token', null, o)).toEqual(true);
         called = true;
         opts = o;
         return RSVP.resolve({authenticated: false, meta: {fakeXHR: {browserToken: 'jorb'}}});
@@ -858,7 +887,7 @@ describe('session', function() {
       var called = false;
       var opts = {};
       stub(persistenceTarget(), 'ajax', function(url, o) {
-        expect(urlStartsWithTokenCheck(url, 'happy_token')).toEqual(true);
+        expect(urlStartsWithTokenCheck(url, 'happy_token', null, o)).toEqual(true);
         called = true;
         opts = o;
         return RSVP.resolve({authenticated: false, meta: {fakeXHR: {browserToken: 'jorb'}}});
@@ -950,6 +979,43 @@ describe('session', function() {
       expect(alerts).toEqual(1);
       expect(invalidates).toEqual(1);
     });
+
+    /* ANOTHER TAB SIGNED IN (Scot's review of #1141, item 3). Every tab shares the stored login. When this
+       tab's old session dies with no modal route, invalidate(true) flushed every stash, so it also wiped the
+       login another tab had just made, and that tab was signed out on its next load. The stored login is now
+       kept when it holds a different token from the one that failed (stashes.flush(null, 'auth_'), as the
+       login form already does); this tab's own dead login is still wiped. */
+    function noModalLogout(storedToken, failedToken) {
+      modal.route = null;
+      stub(sessionTarget(), 'alert', function() { });
+      stub(sessionTarget(), 'persist', function() { return RSVP.resolve(); });
+      stub(sessionTarget(), 'reload', function() { });
+      stub(stashesTarget(), 'setup', function() { });
+      stub(stashesTarget(), 'get_object', function(key, extra) {
+        if(key === 'auth_settings' && extra) { return storedToken ? {access_token: storedToken} : null; }
+        return null;
+      });
+      var flushed = [];
+      stub(stashesTarget(), 'flush', function(prefix, ignorePrefix) { flushed.push([prefix, ignorePrefix]); return RSVP.resolve(); });
+      session.set('isAuthenticated', true);
+      session.set('invalid_token', false);
+      session.set('access_token', 'token-one');
+      session.force_logout('session expired', failedToken);
+      return flushed;
+    }
+
+    it('stale-token: keeps the login another tab made when this tab logs out without a dialog', function() {
+      expect(noModalLogout('token-two', 'token-one')).toEqual([[null, 'auth_']]);
+    });
+
+    it('stale-token: still wipes this tab\'s own dead login', function() {
+      expect(noModalLogout('token-one', 'token-one')).toEqual([[undefined, undefined]]);
+    });
+
+    it('stale-token: still wipes the stored login when it is the token that failed', function() {
+      // This tab's own session token is older, but every tab was sending the stored one and it is dead too.
+      expect(noModalLogout('token-two', 'token-two')).toEqual([[undefined, undefined]]);
+    });
   });
 
   /* A NEW SIGN-IN ENDS THE DEAD SESSION'S FLAG. `invalid_token` was reset only by an async
@@ -969,3 +1035,13 @@ describe('session', function() {
 
 // Imported last so the `.eslint-todo` rows above keep their lines.
 import capabilities from '../../utils/capabilities';
+import $ from 'jquery';
+
+function tokenCheckHeaderOk(access_token, opts) {
+  var headers = opts && opts.headers;
+  var header = headers && (headers.Authorization || headers.authorization);
+  if(!access_token || access_token === 'none') {
+    return !header;
+  }
+  return header === ('Bearer ' + access_token);
+}

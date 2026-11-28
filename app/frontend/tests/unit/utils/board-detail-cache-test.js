@@ -1109,3 +1109,29 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
     });
   });
 });
+
+module('Unit | Utility | board_detail_cache peek', function(hooks) {
+  setupTest(hooks);
+
+  hooks.afterEach(function() {
+    boardDetailCache.clear();
+  });
+
+  test('peek keeps an expired copy until it is replaced or removed, more than once', function(assert) {
+    assert.expect(5);
+    var raw = {id: '1_7', key: 'me/board', buttons: []};
+    var real_now = Date.now;
+    boardDetailCache.set(raw);
+    Date.now = function() { return real_now() + (10 * 60 * 1000); };
+    try {
+      assert.strictEqual(boardDetailCache.get('me/board'), null, 'expired for normal reads');
+      assert.strictEqual(boardDetailCache.peek('me/board'), raw);
+      assert.strictEqual(boardDetailCache.get('me/board'), null);
+      assert.strictEqual(boardDetailCache.peek('me/board'), raw, 'a second visit still has it');
+    } finally {
+      Date.now = real_now;
+    }
+    boardDetailCache.invalidate('me/board');
+    assert.strictEqual(boardDetailCache.peek('me/board'), null, 'invalidate removes it');
+  });
+});

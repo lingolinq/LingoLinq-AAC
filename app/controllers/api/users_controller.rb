@@ -168,7 +168,7 @@ class Api::UsersController < ApplicationController
       org = Organization.find_by_global_id(params['org_id'])
       return unless allowed?(org, 'edit')
       lookup = org.attached_users('all')
-    elsif !Organization.admin_manager?(@api_user)
+    elsif !(Organization.admin_manager?(@api_user) && Organization.admin_manager?(@true_user || @api_user) && full_sign_in?)
       return api_error 400, {error: 'admins only'}
     end
     if !params['q']
@@ -283,6 +283,13 @@ class Api::UsersController < ApplicationController
       res = Organization.parse_activation_code(user_data['start_code'], user)
       start_progress = res[:progress]
       start_code_org = res[:target] if res.is_a?(Hash) && res[:target].is_a?(Organization)
+    end
+    # AI data-sharing consent (#1136): a self-signup agrees to it with the terms. Only
+    # for a public signup (nobody signed in) with no start code: a start code attaches
+    # the account to a district in a background job, and that district's authorization
+    # is then what covers it.
+    if @api_user.nil? && !(user_data && user_data['start_code'].present?)
+      user.record_registration_ai_consent!(shown_version: user_data && user_data['ai_disclosure_version'], ip: request.remote_ip, user_agent: request.user_agent)
     end
     UserBoardProvisioner.provision_for(user)
     # Org-authored (school-official) creation: emit the immutable authorization audit
@@ -636,7 +643,7 @@ class Api::UsersController < ApplicationController
     # no stranger, so a manager reviewing a therapist's in-org caseload is
     # unaffected and only the out-of-org rows drop out.
     supervisees = user.supervisees.select{|s| supervisee_listable?(s) }
-    render json: JsonApi::User.paginate(params, supervisees, limited_identity: true, supervisor: user, prefix: "/users/#{user.global_id}/supervisees")
+    render json: JsonApi::User.paginate(params, supervisees, limited_identity: true, supervisor: user, viewer: @api_user, prefix: "/users/#{user.global_id}/supervisees")
   end
   
   def subscribe
@@ -770,18 +777,77 @@ class Api::UsersController < ApplicationController
       roots += Board.find_all_by_path(user.settings['starred_board_ids'] || [])
     end
     all_ids = []
+    disclosed_ids = Set.new
+    support_caller = @api_user.allows?(@api_user, 'admin_support_actions')
     roots.compact.each do |root|
       all_ids << root.global_id
       all_ids += root.downstream_board_ids
+      disclosed_ids |= [root.global_id] + ((support_caller || root.user_id == @api_user.id || root.allows?(@api_user, 'delete')) ? root.downstream_board_ids : [])
     end
     all_ids.uniq!
+    include_revoked = params['include_revoked'] == '1' || params['include_revoked'] == 'true'
+    # Only boards the synced user can still view get a revision (and key). revoked_ids lists only ids
+    # board JSON already sends the caller: the roots, the downstream_board_ids of roots it may delete
+    # (or of any root, for admin support), and boards linked from a tree board the user can view; one
+    # reached only through boards the user cannot view stays hidden. check_ids are ignored.
     res = {}
-    Board.select('id, current_revision, key').find_all_by_global_id(all_ids).each do |brd|
-      res[brd.global_id] = brd.current_revision
-      res[brd.key] = brd.current_revision
+    revoked_ids = []
+    viewable_ids, undisclosed_ids = [], []
+    boards = Board.select('id, key, current_revision, public, user_id, updated_at').find_all_by_global_id(all_ids)
+    ActiveRecord::Associations::Preloader.new(records: boards.reject{|b| b.public }, associations: :user).call
+    boards.each do |brd|
+      shallow = !!brd.instance_variable_get('@sub_id')
+      # Own boards first (the owner always views them, board.rb:84-100). Another user's private
+      # board is decided by its current shares and owner, not allows?, whose cached list lags an
+      # unshare. A shallow clone keeps allows? (its sub-user's list decides) and is never revoked.
+      viewable = (brd.public && !shallow) || (!shallow && brd.user_id == user.id) || (shallow ? brd.allows?(user, 'view') : board_viewable_now?(brd, user))
+      if viewable
+        viewable_ids << brd.global_id
+        res[brd.global_id] = brd.current_revision
+        res[brd.key] = brd.current_revision
+      elsif !shallow
+        (disclosed_ids.include?(brd.global_id) ? revoked_ids : undisclosed_ids) << brd.global_id
+      end
     end
-    render json: res
+    revoked_ids += BoardRevisionsAccess.linked_from(viewable_ids, undisclosed_ids)
+    # Older clients read the flat id => revision map, so the revoked list is
+    # only sent, in a wrapped shape, to clients that ask for it.
+    if include_revoked
+      # Board revocation is a fix with no off switch (owner decision, 2026-10-13):
+      # the revoked list is always sent to clients that ask for it. A client build
+      # that still reads revocation_enabled treats its absence as on. The
+      # environment variable the removed switch read, BOARD_REVOCATION_DISABLED,
+      # is no longer consulted. Kept at seven lines so the line numbers cited
+      # below this point do not move.
+      render json: {revisions: res, revoked_ids: revoked_ids.uniq}
+    else
+      render json: res
+    end
   end
+
+  # allows?(user, 'view') reads the user's cached available_private_board_ids and a 30-minute
+  # permission cache, both rebuilt lazily (minutes to hours after a share change), so a board just
+  # shared reads as hidden and one just unshared as viewable. Another user's private board is
+  # decided instead by BoardRevisionsAccess (app/services/board_revisions_access.rb): owned by or
+  # shared with anyone in the user's supervision chain (board_caching#update_available_boards), or
+  # its owner grants the user model or edit permission (board.rb add_permissions).
+  #
+  # It is read-only. This is a sync GET that every device calls on every sync, so it takes no
+  # row lock and writes no settings version for the user or anyone in their caseload: a stale
+  # shared-board set is rebuilt in memory and left for the regenerate job the link change queued
+  # (user_link.rb touch_connections) to store.
+  #
+  # One instance per request: each user's shared-board set is computed once (a per-board
+  # shared_with? would rebuild it once per board while it is stale), and the owner fallback is
+  # checked once per owner, however many boards of the tree that owner has.
+  #
+  # The fallback runs only for boards that neither the caseload owns nor a share covers. Shallow
+  # clones never reach this method (their sub-user's cached list also decides). board_revisions
+  # and this method keep a fixed line count, so the line numbers cited below do not move.
+  def board_viewable_now?(board, user)
+    (@board_revisions_access ||= BoardRevisionsAccess.new(user)).viewable?(board)
+  end
+  private :board_viewable_now?
 
   def boards
     user = User.find_by_path(params['user_id'])
@@ -840,8 +906,11 @@ class Api::UsersController < ApplicationController
     if !user && params['key'] && params['key'].match(/@/)
       users = User.where(:email_hash => User.generate_email_hash(params['key'].strip))
     end
-    not_disabled_users = users.select{|u| !u.settings['email_disabled'] }
-    reset_users = not_disabled_users.select{|u| u.generate_password_reset }
+    # Email that a bounce turned off still gets the reset the user asked for (owner decision,
+    # 2026-11-09); email turned off for any other reason, such as a shared demo login
+    # (DemoDistrict::Seeder.disable_email!), gets none.
+    resettable_users = users.select{|u| !u.settings['email_disabled'] || u.settings['email_disabled_reason'] == 'bounce' }
+    reset_users = resettable_users.select{|u| u.generate_password_reset }
     # Send the appropriate email when one is warranted, but always return the
     # same response shape regardless of whether an account exists, is disabled,
     # or is throttled. Leaking existence (via a users count, a 400 status, or a
@@ -984,6 +1053,48 @@ class Api::UsersController < ApplicationController
     render json: {
       article_50_disclosure_shown: true,
       disclosures_version: LingoLinq::Article50Disclosures::CURRENT_VERSION
+    }
+  end
+
+  # Records the AI data-sharing consent (#1136) of an existing account with one click.
+  # Only the signed-in account holder acting on their own account can do this:
+  # - a supervisor, or an admin or manager acting as the account (masquerade), is
+  #   refused below with `account_holder_required`;
+  # - a valet login or a limited-scope token is refused by allowed?(user, 'edit');
+  # - a district-managed account is covered by its district instead
+  #   (`org_authorization_required`);
+  # - an account on the parent route is refused by grant_ai_consent! itself
+  #   (`parental_consent_required`).
+  # Source and version are server constants, never read from the request. The request
+  # only has to say which disclosure version its notice showed: a page left open across
+  # a version change showed the old text, so it is refused (`disclosure_version_stale`)
+  # and records nothing, the same rule signup follows.
+  def ai_consent
+    user = User.find_by_path(params['user_id'])
+    return unless exists?(user, params['user_id'])
+    return unless allowed?(user, 'edit')
+    own_account = @api_user && user.id == @api_user.id && !@true_user
+    return api_error(403, {error: 'account_holder_required'}) unless own_account
+    return api_error(400, {error: 'org_authorization_required'}) if Organization.ai_consent_orgs_for(user).any?
+    shown = params['disclosure_version'].to_s
+    unless shown =~ /\A\d+\z/ && shown.to_i == LingoLinq::AiConsentDisclosures::CURRENT_VERSION
+      return api_error(400, {error: 'disclosure_version_stale', disclosures_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION})
+    end
+    begin
+      user.grant_ai_consent!(
+        disclosures_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION,
+        granted_by: 'account_holder',
+        source: 'in_app',
+        ip: request.remote_ip,
+        user_agent: request.user_agent,
+        granted_by_user_id: user.global_id
+      )
+    rescue ArgumentError => e
+      return api_error 400, {error: e.message}
+    end
+    render json: {
+      ai_consent_granted: user.ai_consent_granted?,
+      disclosures_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION
     }
   end
 
@@ -1220,15 +1331,32 @@ class Api::UsersController < ApplicationController
     user = User.find_by_path(params['user_id'])
     return unless exists?(user, params['user_id'])
     return unless allowed?(user, 'edit')
+    # Only the account holder turns 2FA on, resets it or confirms a new secret, and not while
+    # acting as another user. Anyone with edit can turn it off, unless the account must use 2FA.
+    own_account = user.global_id == @api_user.global_id && !@true_user
+    if %w[enable reset confirm].include?(params['action_2fa']) && !own_account
+      return api_error 400, {error: "only the account holder can turn on 2FA"}
+    end
     if params['action_2fa'] == 'enable' || (params['action_2fa'] == 'reset' && (user.settings['2fa'] || user.settings['tmp_2fa']))
-      user.assert_2fa!(user.global_id == @api_user.global_id)
+      user.assert_2fa!(true)
     elsif params['action_2fa'] == 'disable'
+      # Accounts that must use 2FA (Passwords#state_2fa) keep it on.
+      return api_error 400, {error: "2FA is required for this account"} if user.state_2fa[:mandatory]
       user.settings.delete('2fa')
       user.settings.delete('tmp_2fa')
       user.save
     elsif params['action_2fa'] == 'confirm'
       ts = user.valid_2fa?(params['code_2fa'])
       return api_error 400, {error: "invalid code: #{params['code_2fa']}"} unless ts
+      # The device this code was entered on stays signed in; the account's other sign-ins
+      # made before 2FA are signed out (Passwords#refresh_device_sign_ins!).
+      device = Device.find_by_global_id(@api_device_id) if @api_device_id
+      device = nil unless device && device.user_id == user.id
+      if device
+        device.settings['2fa'] = (device.settings['2fa'] || {}).except('pending').merge('last_otp' => ts)
+        device.save
+      end
+      user.refresh_device_sign_ins!(keep: device)
     else
       return api_error 400, {error: "unregognized action: #{params['action_2fa']}"}
     end

@@ -12,6 +12,7 @@ import {
 } from 'frontend/tests/helpers/jasmine';
 import 'frontend/tests/helpers/ember_helper';
 import persistence from '../../utils/persistence';
+import { aiConsentDeferred, clearAiConsentDeferral } from '../../utils/article50_gate';
 
 describe('ai-disclosure', function() {
   var component = null;
@@ -270,6 +271,247 @@ describe('ai-disclosure', function() {
         expect(supporter.get('article_50_disclosure_shown')).toEqual(true);
         expect(communicator.get('article_50_disclosure_shown')).toEqual(false);
       });
+    });
+  });
+
+  /* AI data-sharing consent (#1136). The same modal also asks the account holder to
+     agree. The Article-50-only behaviour is covered by the describes above and must
+     not change; these cover what is added. */
+  describe("AI data-sharing consent", function() {
+    var user, modalService, closeCalls, built;
+
+    function appStateFor(sessionUser) {
+      return {
+        get: function(key) {
+          if(key === 'sessionUser') { return sessionUser; }
+          if(key === 'currentUser') { return sessionUser; }
+          return null;
+        }
+      };
+    }
+
+    function build(owner, overrides, extras) {
+      user = EmberObject.create(Object.assign({
+        id: 'self',
+        global_id: '1_24',
+        feature_flags: {article_50_disclosure: true},
+        article_50_disclosure_required: false,
+        article_50_disclosure_shown: false,
+        ai_consent_required: true,
+        ai_consent_route: 'self'
+      }, overrides || {}));
+      clearAiConsentDeferral(user);
+      closeCalls = 0;
+      modalService = EmberObject.create({ close: function() { closeCalls++; } });
+      built = owner.factoryFor('component:ai-disclosure').create(Object.assign({
+        appState: appStateFor(user),
+        modal: modalService
+      }, extras || {}));
+      return built;
+    }
+
+    afterEach(function() {
+      if(user) { clearAiConsentDeferral(user); }
+      if(built && !built.isDestroyed) { built.destroy(); }
+      built = null;
+    });
+
+    it('asks for consent only (no Article 50 notice) when only consent is outstanding', function() {
+      build(this.owner);
+      expect(built.get('consent_pending')).toEqual(true);
+      expect(built.get('consent_only')).toEqual(true);
+      // No version on this account's record: the link goes to the server's current disclosure.
+      expect(built.get('consentDisclosureUrl')).toEqual('/ai_consent/disclosures/current');
+    });
+
+    it('asks for both, with the Article 50 notice shown, when both are outstanding', function() {
+      build(this.owner, {article_50_disclosure_required: true});
+      expect(built.get('consent_pending')).toEqual(true);
+      expect(built.get('consent_only')).toEqual(false);
+    });
+
+    it('does not ask for consent when only the Article 50 acknowledgement is outstanding', function() {
+      build(this.owner, {ai_consent_required: false, article_50_disclosure_required: true});
+      expect(built.get('consent_pending')).toEqual(false);
+      expect(built.get('consent_only')).toEqual(false);
+    });
+
+    it('does not ask for consent for a district or parent route account', function() {
+      build(this.owner, {ai_consent_route: 'organization'});
+      expect(built.get('consent_pending')).toEqual(false);
+      built.destroy();
+      build(this.owner, {ai_consent_route: 'parent'});
+      expect(built.get('consent_pending')).toEqual(false);
+    });
+
+    it('opened with skipAiConsent in its modal options it is the Article 50 notice alone, even though consent is outstanding', function() {
+      build(this.owner, {article_50_disclosure_required: true}, {
+        modal: EmberObject.create({
+          close: function() {},
+          getSettingsFor: function(template) { return template === 'ai-disclosure' ? {scannable: true, skipAiConsent: true} : {}; }
+        })
+      });
+      expect(built.get('consent_pending')).toEqual(false);
+      expect(built.get('consent_only')).toEqual(false);
+    });
+
+    it('opened WITHOUT skipAiConsent in its modal options it still asks for consent', function() {
+      build(this.owner, {article_50_disclosure_required: true}, {
+        modal: EmberObject.create({
+          close: function() {},
+          getSettingsFor: function() { return {scannable: true}; }
+        })
+      });
+      expect(built.get('consent_pending')).toEqual(true);
+    });
+
+    it('with skipAiConsent, acknowledge records only the Article 50 acknowledgement: no consent POST', function() {
+      build(this.owner, {article_50_disclosure_required: true}, {skipAiConsent: true});
+      var posted = [];
+      stub(persistence, 'ajax', function(url) {
+        posted.push(url);
+        return RSVP.resolve({});
+      });
+      built.send('acknowledge');
+      waitsFor(function() { return closeCalls === 1; });
+      runs(function() {
+        expect(posted).toEqual(['/api/v1/users/1_24/article_50_disclosure_ack']);
+        expect(user.get('ai_consent_required')).toEqual(true);
+      });
+    });
+
+    it('does not fetch the Article 50 notice in consent-only mode', function() {
+      build(this.owner);
+      var ajaxCalled = false;
+      stub(persistence, 'ajax', function() { ajaxCalled = true; return RSVP.resolve('x'); });
+      built.set('loading', true);
+      built.fetchDisclosure();
+      expect(ajaxCalled).toEqual(false);
+      expect(built.get('loading')).toEqual(false);
+    });
+
+    it('agree POSTs the consent to the backend global_id, marks the user and closes once (consent only)', function() {
+      build(this.owner);
+      var posted = [];
+      stub(persistence, 'ajax', function(url, opts) {
+        posted.push([url, opts.type]);
+        return RSVP.resolve({ai_consent_granted: true, disclosures_version: 1});
+      });
+      built.send('agree');
+      waitsFor(function() { return closeCalls === 1; });
+      runs(function() {
+        expect(posted).toEqual([['/api/v1/users/1_24/ai_consent', 'POST']]);
+        expect(user.get('ai_consent_required')).toEqual(false);
+        expect(built.get('consent_error')).toEqual(false);
+        expect(built.get('acknowledging')).toEqual(false);
+      });
+    });
+
+    it('agree tells the server which disclosure version the notice showed', function() {
+      build(this.owner);
+      user.set('ai_consent_disclosures_version', 2);
+      var sent = [];
+      stub(persistence, 'ajax', function(url, opts) {
+        sent.push(opts.data);
+        return RSVP.resolve({ai_consent_granted: true, disclosures_version: 2});
+      });
+      built.send('agree');
+      waitsFor(function() { return closeCalls === 1; });
+      runs(function() {
+        expect(sent).toEqual([{disclosure_version: 2}]);
+      });
+    });
+
+    it('agree records consent THEN the Article 50 acknowledgement when both are needed, then closes once', function() {
+      build(this.owner, {article_50_disclosure_required: true});
+      var posted = [];
+      stub(persistence, 'ajax', function(url) {
+        posted.push(url);
+        return RSVP.resolve({});
+      });
+      built.send('agree');
+      waitsFor(function() { return closeCalls === 1; });
+      runs(function() {
+        expect(posted).toEqual(['/api/v1/users/1_24/ai_consent', '/api/v1/users/1_24/article_50_disclosure_ack']);
+        expect(user.get('ai_consent_required')).toEqual(false);
+        expect(user.get('article_50_disclosure_shown')).toEqual(true);
+        expect(closeCalls).toEqual(1);
+      });
+    });
+
+    it('a failed consent write NEVER closes the modal and records nothing', function() {
+      build(this.owner, {article_50_disclosure_required: true});
+      var posted = [];
+      stub(persistence, 'ajax', function(url) {
+        posted.push(url);
+        return RSVP.reject({error: 'server error'});
+      });
+      built.send('agree');
+      waitsFor(function() { return built.get('consent_error') === true; });
+      runs(function() {
+        expect(closeCalls).toEqual(0);
+        expect(posted).toEqual(['/api/v1/users/1_24/ai_consent']);
+        expect(user.get('ai_consent_required')).toEqual(true);
+        expect(user.get('article_50_disclosure_shown')).toEqual(false);
+        expect(built.get('consent_pending')).toEqual(true);
+        expect(built.get('acknowledging')).toEqual(false);
+      });
+    });
+
+    it('consent recorded but the acknowledgement fails: stays open, Try Again repeats only the acknowledgement', function() {
+      build(this.owner, {article_50_disclosure_required: true});
+      var posted = [];
+      var failAck = true;
+      stub(persistence, 'ajax', function(url) {
+        posted.push(url);
+        if(url.indexOf('article_50_disclosure_ack') > -1 && failAck) { return RSVP.reject({error: 'server error'}); }
+        return RSVP.resolve({});
+      });
+      built.send('agree');
+      waitsFor(function() { return built.get('ack_error') === true; });
+      runs(function() {
+        expect(closeCalls).toEqual(0);
+        expect(user.get('ai_consent_required')).toEqual(false);
+        expect(built.get('consent_pending')).toEqual(false);
+        failAck = false;
+        posted.length = 0;
+        built.send('acknowledge');
+      });
+      waitsFor(function() { return closeCalls === 1; });
+      runs(function() {
+        expect(posted).toEqual(['/api/v1/users/1_24/article_50_disclosure_ack']);
+        expect(user.get('article_50_disclosure_shown')).toEqual(true);
+      });
+    });
+
+    it('agree with only the self sentinel for an id sets consent_error and POSTs nothing', function() {
+      build(this.owner, {global_id: undefined});
+      var ajaxCalled = false;
+      stub(persistence, 'ajax', function() { ajaxCalled = true; return RSVP.resolve({}); });
+      built.send('agree');
+      expect(ajaxCalled).toEqual(false);
+      expect(built.get('consent_error')).toEqual(true);
+      expect(closeCalls).toEqual(0);
+    });
+
+    it('"Not now" closes without recording anything and remembers it for this user', function() {
+      build(this.owner, {article_50_disclosure_required: true});
+      var ajaxCalled = false;
+      stub(persistence, 'ajax', function() { ajaxCalled = true; return RSVP.resolve({}); });
+      built.send('notNow');
+      expect(closeCalls).toEqual(1);
+      expect(ajaxCalled).toEqual(false);
+      expect(user.get('ai_consent_required')).toEqual(true);
+      expect(user.get('article_50_disclosure_shown')).toEqual(false);
+      expect(aiConsentDeferred(user)).toEqual(true);
+    });
+
+    it('"Not now" is ignored while a write is in flight', function() {
+      build(this.owner);
+      built.set('acknowledging', true);
+      built.send('notNow');
+      expect(closeCalls).toEqual(0);
+      expect(aiConsentDeferred(user)).toEqual(false);
     });
   });
 });

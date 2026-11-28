@@ -11,6 +11,8 @@ import $ from 'jquery';
 import i18n from '../../utils/i18n';
 import persistence from '../../utils/persistence';
 import modal from '../../utils/modal';
+import { save_after_media } from '../../utils/save_after_media';
+import { cancel_pending_media } from '../../utils/pending_media';
 import { check_for_share_approval as runShareApprovalCheck } from '../../utils/share_approval';
 import { sync_current_board_state as runBoardStateSync } from '../../utils/board_state_sync';
 import { reload_on_connect as runReloadOnConnect } from '../../utils/reload_on_connect';
@@ -412,6 +414,19 @@ const BoardDetailController = Controller.extend(prefClasses, {
      cancel_edit/save_board because those are two of many exits, and the ones that bit
      here (Back) go through none of them. The template also gates on edit_mode, so this is
      belt-and-braces: it clears the STATE, the gate stops the RENDER. */
+  /* Board Save waits for pictures and sounds still uploading (utils/save_after_media.js). Ending
+     the edit session (Done, Discard, Cancel, browser or Android Back, anything that clears
+     edit_mode) cancels the uploads still running, so none lands on the board afterwards; the
+     counter tells a deferred save that the session it was waiting for is over. A board change
+     counts as a new session too. */
+  _edit_session: 0,
+  _media_on_edit_mode_change: observer('edit_mode', function() {
+    if(!this.get('edit_mode')) { cancel_pending_media(); }
+    this.incrementProperty('_edit_session');
+  }),
+  _media_on_board_change: observer('model.id', function() {
+    this.incrementProperty('_edit_session');
+  }),
   _close_category_panel_on_edit_exit: observer('edit_mode', function() {
     if(!this.get('edit_mode') && this.get('category_order_open')) {
       this.set('category_order_open', false);
@@ -1071,9 +1086,9 @@ const BoardDetailController = Controller.extend(prefClasses, {
   // the message grows we scroll it to the bottom so the user always sees
   // what they just added, with older rows scrolled up out of view. `next`
   // waits for the new chips to render before measuring scrollHeight.
-  _scroll_sentence_to_newest: observer('sentence_parts.[]', function() {
+  _scroll_sentence_to_newest: observer('sentence_parts.[]', function() { var _this = this;
     next(function() {
-      var el = document.querySelector('#speak .md-board-detail-sentence-bar__text--with-symbols');
+      if(_this.isDestroyed || _this.isDestroying) { return; } var el = document.querySelector('#speak .md-board-detail-sentence-bar__text--with-symbols');
       // Only pin to the newest (bottom) when chips have genuinely wrapped to a
       // SECOND row. A single row exactly fills the viewport, and a few px of
       // sub-row overflow (border/rounding) shouldn't scroll — doing so would
@@ -2198,7 +2213,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
       _this._apply_focus_dim_to_ordered_buttons();
       _this._preload_grid_images([buttons]);
       if(!use_ember && cache_token) {
-        boardDetailCache.set_ordered_buttons(cache_token, [buttons], cache_ctx);
+        if(!_this.get('served_from_device')) { boardDetailCache.set_ordered_buttons(cache_token, [buttons], cache_ctx); }
       }
       return;
     }
@@ -2248,7 +2263,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
       // Cache the freshly-built grid so subsequent navigations to this
       // board can skip the rebuild loop entirely.
       if(cache_token) {
-        boardDetailCache.set_ordered_buttons(cache_token, result, cache_ctx);
+        if(!_this.get('served_from_device')) { boardDetailCache.set_ordered_buttons(cache_token, result, cache_ctx); }
       }
     }
 
@@ -3763,7 +3778,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
     'sentence_parts.@each.label',
     'sentence_parts.@each.in_progress',
     'model.locale',
-    function() {
+    function() { if(!this._suggestions_update_due()) { return; }
       // Skip the lookup entirely when in edit mode or word prediction is off
       // (only an explicit `true` enables it; null/undefined = off).
       if(this.get('edit_mode') || this.get('app_state.referenced_user.preferences.word_suggestions') !== true) {
@@ -6125,6 +6140,18 @@ const BoardDetailController = Controller.extend(prefClasses, {
 
   saveButtonChanges: function() {
     var _this = this;
+    // A picture or sound still uploading: wait for it, then come back here (utils/save_after_media.js).
+    // Before the preview clear below, so going back to editing leaves the preview as it was.
+    if(save_after_media({
+      owner: this,
+      identity: function() {
+        return [_this.get('model.id'), _this.get('_edit_session'), _this.get('app_state.currentUser.id')].join('|');
+      },
+      save: function() { _this.saveButtonChanges(); },
+      failed: function() {
+        modal.error(i18n.t('save_waiting_failed', "A picture or recording did not upload, so the board was not saved."));
+      }
+    })) { return; }
     // Clear preview state BEFORE serializing so preview-induced
     // mutations (especially `hidden=true` on untagged buttons at
     // preview level < 10) don't leak into the saved data. The save
@@ -6139,22 +6166,6 @@ const BoardDetailController = Controller.extend(prefClasses, {
     var orderedButtons = this.get('ordered_buttons') || [];
     var board = this.get('model');
     if(!board) { return; }
-
-    // Check for pending images
-    var pendingImage = false;
-    for(var ri = 0; ri < orderedButtons.length && !pendingImage; ri++) {
-      var row = orderedButtons[ri];
-      for(var ci = 0; ci < row.length && !pendingImage; ci++) {
-        var btn = row[ci];
-        if(btn && btn.get && btn.get('image_id') && btn.get('pending_image')) {
-          pendingImage = true;
-        }
-      }
-    }
-    if(pendingImage) {
-      modal.warning(i18n.t('wait_for_images', "Please wait for all images to finish loading before saving."), true);
-      return;
-    }
 
     // Use editManager to convert Button objects to save format
     var state = editManager.process_for_saving();
@@ -7431,7 +7442,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
         app_state.set('board_detail_tour_pending_speak', key);
       }
     },
-    enter_edit_mode: function() {
+    enter_edit_mode: function() { if(this._blocked_on_device_copy()) { return; }
       /* New session, new baseline. `reset_edit_baseline` clears BOTH the snapshot and the
          board token, and the token is what `rebaseline_after_build` keys its
          no-recapture guard on — so clearing it here is what lets the first build of this
@@ -7730,7 +7741,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
     // they land back on the board-detail edit page rather than the
     // read-only view — the privacy POST + model reload can otherwise
     // sometimes drop edit state via re-render.
-    open_board_privacy: function() {
+    open_board_privacy: function() { if(this._blocked_on_device_copy()) { return; }
       var _this = this;
       var was_editing = this.get('edit_mode');
       var restore = function() {
@@ -8337,7 +8348,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
         _this.set('display_prefs_saving', false);
         if(saved && saved.get('id') === _this.get('app_state.currentUser.id')) {
           _this.set('app_state.currentUser', saved);
-        }
+        } else { reload_live_user_if_other_record(saved, _this.get('app_state')); } // the same person under the other record ('self' vs the real id, utils/backend_user_id.js)
         // Close without reverting — the user accepted the changes
         _this.set('display_prefs_open', false);
         _this.set('pending_display_prefs', null);
@@ -8372,7 +8383,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
       prefUser.set('preferences.word_suggestions', !currentlyOn);
       if(prefUser.save) {
         prefUser.set('preferences.device.updated', true);
-        prefUser.save();
+        save_listed_preferences(prefUser, ['word_suggestions']); // only this key (utils/preference_save.js)
       }
     },
     // The inline-sidebar "Predict" Yes/No toggle (2026-10-13). Unlike the edit-sidebar's flip above,
@@ -8380,32 +8391,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
     // and never prompts), and it is gated by the ACTIVE speak-mode PIN (open_speak_mode_exit_pin
     // resolves immediately when no PIN is active). Same preference + dirty-bit + save as above.
     set_word_prediction: function(on) {
-      var prefUser = this.get('app_state.referenced_user') || this.get('app_state.currentUser');
-      if(!prefUser) { return; }
-      if((prefUser.get('preferences.word_suggestions') === true) === !!on) { return; }
-      var apply = function() {
-        prefUser.set('preferences.word_suggestions', !!on);
-        if(prefUser.save) {
-          // CREATE the device container first: set('preferences.device.updated') THROWS on a
-          // record whose preferences carry no `device` key (components/view-switcher.js:186).
-          if(!prefUser.get('preferences.device')) { prefUser.set('preferences.device', {}); }
-          prefUser.set('preferences.device.updated', true);
-          prefUser.save().then(null, function() {
-            // Save failed (offline, or a supervisor without write access to the communicator):
-            // put the control back to the stored value and say so, rather than leaving it showing
-            // a change the server never received.
-            if(prefUser.isDestroyed || prefUser.isDestroying) { return; }
-            prefUser.set('preferences.word_suggestions', !on);
-            modal.error(i18n.t('word_prediction_save_failed', "Couldn't save the Prediction setting. Please try again."));
-          });
-        }
-      };
-      var ready = this.get('app_state').open_speak_mode_exit_pin('none');
-      if(ready && ready.then) {
-        ready.then(function(res) { if(res && res.correct_pin) { apply(); } }, function() { });
-      } else {
-        apply();
-      }
+      set_word_prediction(this.get('app_state'), on);
     },
     toggle_word_prediction_position_dropdown: function() {
       this.toggleProperty('word_prediction_position_dropdown_open');
@@ -8426,7 +8412,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
       }
     },
 
-    make_a_copy: function() {
+    make_a_copy: function() { if(this._blocked_on_device_copy()) { return; }
       this.set('share_dropdown_open', false);
       var _this = this;
       var board = _this.get('model');
@@ -8456,7 +8442,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
       }, function() { });
     },
 
-    set_as_home: function() {
+    set_as_home: function() { if(this._blocked_on_device_copy()) { return; }
       this._close_options_menu();
       var board = this.get('model');
       modal.open('set-as-home', {board: board});
@@ -8501,7 +8487,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
       }, function() {});
     },
 
-    share_board: function() {
+    share_board: function() { if(this._blocked_on_device_copy()) { return; }
       var _this = this;
       _this.set('share_dropdown_open', false);
       this.get('app_state').assert_source().then(function() {
@@ -8754,10 +8740,10 @@ const BoardDetailController = Controller.extend(prefClasses, {
         var board_key = load_board.key;
         if(board_key && board_key.indexOf('/') !== -1) {
           actionLock.run('board-link:' + (_this.get('model.key') || _this.get('model.id') || 'board-detail') + ':' + board_key, function() {
-            _this._push_nav_history();
-            return _this._preferred_board_detail_key(board_key).then(function(preferred_key) {
-              var key_parts = preferred_key.split('/');
-              return _this.get('router').transitionTo('user.board-detail', key_parts[0], key_parts.slice(1).join('/'));
+            return board_saved_here(persistence, boardDetailCache, board_key, _this.get('app_state')).then(function(saved) {
+              if(!saved) { return warn_board_not_saved(); } // offline: answer at once; the board and sentence stay
+              _this._push_nav_history();
+              return _this._preferred_board_detail_key(board_key).then(function(preferred_key) { var key_parts = preferred_key.split('/'); return _this.get('router').transitionTo('user.board-detail', key_parts[0], key_parts.slice(1).join('/')); });
             });
           }, {timeout: 5000});
           return;
@@ -9869,7 +9855,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
     // board-details-page version), so when the user dismisses the
     // translation modal they're back on the speak-mode board, not
     // bounced into a board-details modal first.
-    translate_board: function() {
+    translate_board: function() { if(this._blocked_on_device_copy()) { return; }
       this.set('show_options_menu', false);
       if(this.get('board_translate_in_progress')) {
         modal.flash(i18n.t('translation_in_progress', "Translation is already in progress. Please wait for it to finish."), 'notice');
@@ -9891,7 +9877,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
       var board = this.get('model');
       var _this = this;
       if(!board) { return; }
-      modal.open('switch-languages', { board: board }).then(function(res) {
+      modal.open('switch-languages', { board: board, device_copy: !!this.get('served_from_device'), refresh_device_copy: this.get('device_copy_gate') }).then(function(res) {
         if(res && res.switched) {
           if(board && board.set) {
             board.set('last_cb', null);
@@ -10465,6 +10451,7 @@ const BoardDetailController = Controller.extend(prefClasses, {
 
 // Imported last so the .eslint-todo rows above keep their lines.
 import { maybe_offer_tour } from '../../utils/tours/tour_offer';
+import { board_saved_here, usable_copy, warn_board_not_saved } from '../../utils/board_device_copy';
 
 /* A TRIAL LASTS THROUGH THE TRIED BOARD'S FOLDERS (2026-10-13, see `try_origin_board` above). True on the
    tried board itself, and on any board whose trail (`board_detail_nav_history`, the boards navigated FROM)
@@ -10480,6 +10467,74 @@ BoardDetailController.reopen({
   // starts again there. Returns true when it handled Home. Board lock is checked first, as go_home does.
   // Also while a home board chosen with the trial bar's "Use this board" is still being copied
   // (`home_copy_pending`, components/trial-bar.js#use): Home goes to that board, not the old home board.
+  /* A DEVICE COPY OPENS FOR SPEAKING ONLY (#1213). It can be older than the board on the server, and a
+     save goes back with no conflict check (services/persistence.js#sync_changed), so anything that
+     would write it, or copy it to the server, stops here. Returns true when the action must stop.
+     With a connection, the board is fetched again so the action works on the next try. */
+  // The gate above as a function the trial bar and the languages modal can call (a bound function, not an
+  // action: `ctrlAction` drops return values, and the gate's answer is what the caller needs).
+  device_copy_gate: computed(function() {
+    var _this = this;
+    return function() { return _this._blocked_on_device_copy(); };
+  }),
+  _blocked_on_device_copy: function() {
+    if(!this.get('served_from_device')) { return false; }
+    this._close_options_menu();
+    if(persistence.get('online')) {
+      modal.warning(i18n.t('board_action_updating', "Getting the latest version of this board. Try again in a moment."));
+      this._refresh_device_copy();
+    } else {
+      modal.warning(i18n.t('board_action_needs_connection', "This board needs an Internet connection to do that."));
+    }
+    return true;
+  },
+  // Not router.refresh(): a refresh that resolves the same record skips setupController, so the grid
+  // and _last_raw would stay on the old copy. Same steps as _refresh_on_board_reload_key, plus the store.
+  _refresh_device_copy: function() {
+    var _this = this;
+    var key = this.get('model.key');
+    if(!key || this._refreshing_device_copy) { return; }
+    var route = getOwner(this).lookup('route:user/board-detail');
+    this._refreshing_device_copy = true;
+    var done = function() { _this._refreshing_device_copy = false; };
+    persistence.ajax('/api/v1/boards/' + key, { type: 'GET' }).then(function(data) {
+      done();
+      var merged = boardDetailCache.normalize_board_payload(data);
+      if(_this.isDestroyed || _this.isDestroying || !usable_copy(merged)) { return; }
+      if(_this.get('model.key') !== key || !_this.get('served_from_device')) { return; }
+      boardDetailCache.set(JSON.parse(JSON.stringify(merged)), { force: true, root_only: true });
+      LingoLinq.store.push(LingoLinq.store.normalize('board', JSON.parse(JSON.stringify(merged))));
+      _this.set('served_from_device', false);
+      route.set('_raw_board_data', merged);
+      _this._build_from_raw(merged);
+    }, function(err) {
+      done();
+      if(!_this.isDestroyed && !_this.isDestroying && _this.get('model.key') === key) { route.device_copy_fetch_failed(key, err, _this.get('model.id')); }
+    });
+  },
+  /* One run of `updateSuggestions` per turn. A tap changes several of the keys that observer
+     watches at once (replacing the button list changes five), and each changed key calls it; every
+     call ran the whole lookup again for the same sentence. The first call in a turn queues one run
+     and returns false; the queued run calls the observer again with the flag set, and that call
+     is the one that does the work, reading whatever is current by then. Nothing is skipped: every
+     burst still ends in a run after its last change.
+     Down here, and the observer's own line unchanged in number, so the .eslint-todo rows above
+     keep their lines. */
+  _suggestions_update_due: function() {
+    if(this._suggestions_update_running) { return true; }
+    if(this._suggestions_update_queued) { return false; }
+    this._suggestions_update_queued = true;
+    var _this = this;
+    RSVP.resolve().then(function() {
+      /* Cleared BEFORE the body runs, and the running flag in a finally: if the body throws, the
+         next change must still be able to queue a run. */
+      _this._suggestions_update_queued = false;
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      _this._suggestions_update_running = true;
+      try { _this.updateSuggestions(); } finally { _this._suggestions_update_running = false; }
+    });
+    return false;
+  },
   _trial_home: function() {
     var origin = this.get('try_origin_board') || this.get('app_state.home_copy_pending');
     if(!origin || !origin.key) { return false; }
@@ -10493,3 +10548,9 @@ BoardDetailController.reopen({
 });
 
 export default BoardDetailController;
+
+// Imported last so the .eslint-todo rows above keep their lines.
+import { set_word_prediction } from '../../utils/word_prediction_pref';
+import { save_listed_preferences } from '../../utils/preference_save';
+
+import { reload_live_user_if_other_record } from '../../utils/backend_user_id';

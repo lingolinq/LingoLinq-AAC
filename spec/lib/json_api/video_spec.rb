@@ -33,7 +33,8 @@ describe JsonApi::Video do
       i.instance_variable_set('@remote_upload_possible', true)
       i.save
       expect(i.pending_upload?).to eq(true)
-      json = JsonApi::Video.as_json(i, :wrapper => true)
+      # The upload form goes only to someone who can edit the record (approved spec change, 2026-10-30).
+      json = JsonApi::Video.as_json(i, :wrapper => true, :permissions => u)
       expect(json['meta']).not_to eq(nil)
       expect(json['meta']['remote_upload']).not_to eq(nil)
     end

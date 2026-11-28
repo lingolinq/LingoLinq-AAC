@@ -13,9 +13,18 @@ include children and clinical patients; FERPA, HIPAA, GDPR and COPPA apply.
 
 ## Hard rules
 
+- **Adding process.** Add a gate, review round, attestation or consent step only when a
+  law, a signed contract or a real incident calls for it, and name which.
 - **Diagnose before fixing; never guess.** Trace the real code path, verify the root
   cause with evidence, and never break working behaviour. Label facts CONFIRMED
   (`file:line`) or ASSUMED; nothing ASSUMED may carry a fix.
+- **Stay in scope.** Fix only what the task or issue asks. Fixing the verified root cause is in scope, including shared callers and other defects with that same root cause. Do not add unrelated hardening,
+  compliance or privacy changes, refactors or cleanups to the PR, even in files you touch.
+  Log anything else you notice as a follow-up issue draft (title and body) in the PR
+  description. The one exception: a concrete, proven exposure of real people's personal
+  data in code the PR touches, meeting the evidence bar in "Code Review Rules" below.
+  A change should do one self-contained thing (Google's code review guide), so the fix
+  ships without waiting on unrelated work.
 - **Branch first.** Never edit on `develop`, `staging` or `main`. Branch from `develop`
   with a developer handle and a type (fix, feat, chore, docs, perf, refactor, test,
   compliance, security). Scot's branches are always `<type>/scot-<kebab-slug>`, the
@@ -24,6 +33,9 @@ include children and clinical patients; FERPA, HIPAA, GDPR and COPPA apply.
   `hotfix` from `main` only for urgent production fixes, merged back to `develop`. PRs
   target `develop`; `develop` promotes to `staging` from a freeze branch
   (`release/develop-into-staging-YYYY-MM-DD`), then a release PR goes `staging` to `main`.
+  Work in your own worktree: the isolated launcher (`codex-ll`) for new CLI tasks, a fresh
+  Worktree for Codex desktop tasks, and `git worktree add` only where neither exists. Never
+  `git checkout -b` or switch branches in a checkout another session shares.
 - **i18n and quotes.** No raw user-facing text. Templates use
   `{{t "text" key='key'}}`, JS uses `i18n.t('key', "text")`. User-facing strings take
   double quotes; every other string takes single quotes (the generator depends on it).
@@ -32,6 +44,14 @@ include children and clinical patients; FERPA, HIPAA, GDPR and COPPA apply.
 - **PII never leaves the platform.** Every AI or external-service call goes through
   `lib/pii_scrubber.rb`. Never paste fixtures, seeds, cassettes, migrations, `db/language/` files or logs that
   could hold real student or patient rows into a prompt for a reviewer without a BAA.
+- **No production data in this repo or in any non-production environment** (dev,
+  staging, a local database). Test data is generated or obviously fake: `example.com`
+  addresses, phone numbers from 555-0100 to 555-0199, names like "Test Student". The
+  `data-bearing-paths` check scans the lines a PR adds under data-bearing paths (emails,
+  phone numbers, SSN-shaped numbers, base64 image, audio or video `data:` URIs, binary
+  files) and is the automated check; a clean change passes with no label. It sees shapes, not meaning, so your own look comes first.
+  This rule is about what goes in, not a statement about what is there: Tier 1 handling
+  of dev and staging is unchanged.
 - **Node 22** (`.nvmrc`), **Ruby 3.4.4** (`.ruby-version`). No TypeScript conversion.
 - **Never suppress a deprecation**; fix the root cause. Edit existing SCSS selectors in
   place; never stack overrides. Preserve styling class names.
@@ -73,12 +93,24 @@ include children and clinical patients; FERPA, HIPAA, GDPR and COPPA apply.
 Work through the checklist in `.claude/skills/pr-preflight/SKILL.md` (claim
 verification against HEAD, entry-point enumeration for access changes,
 `scripts/regenerate-register.sh --check` for compliance paths, the status block the PR
-template expects). Tests: `bundle exec rspec` and `cd app/frontend && ember test`.
+template expects). Tests: `bundle exec rspec` and `cd app/frontend && ember test`. Testing
+standards (which kind of test, red-then-falsify, test isolation enforced by the frontend leak
+check, Playwright e2e is not in CI, the CI gates) are in `.claude/rules/testing-frontend.md`.
 
-Two independent reviews then gate the PR: a senior-dev pass and an adversarial red-team
-pass. A Critical or High finding from either blocks the PR; this is a blocking gate, not
-advisory. Which passes you can run depends on which tool you are, and the three cases
-differ; do not compress them to "available" or "unavailable".
+Then review, sized to what the PR touches. A normal PR gets one review: the Codex GitHub
+connector's automatic review counts, or one senior-dev pass; a PR from an outside
+contributor (a fork) also needs a human review from the core team. Dual review (a senior-dev
+pass and an adversarial red-team pass) applies only when the PR touches authentication or
+sessions, consent or account ownership, access to another user's or organization's data,
+billing, AI model routing or the AI client, infra or deploy config, or the
+`data-bearing-paths` gate. Up to two review rounds by default. The responsible senior
+developer may run additional rounds when needed, recording the reason in the PR; an agent
+never decides this itself and runs an extra round only when that developer asked.
+Additional reviews do not authorize merging; existing privacy checks, review requirements,
+Critical/High blockers, GitHub checks, and merge approvals still apply. A Critical
+or High finding from any review blocks the PR; this is a blocking gate, not advisory.
+Which passes you can run depends on which tool you are, and the three cases differ; do
+not compress them to "available" or "unavailable".
 
 **Codex: you can run the senior-dev pass, and you are its strongest documented caller.**
 The live surface is the `review-pr` SKILL, invoked as `$review-pr` or listed via
@@ -101,28 +133,84 @@ the head SHA you actually reviewed, and the verdict.
 
 **Antigravity: the `review-pr` skill IS installed for you**
 (`~/.gemini/antigravity-cli/skills/review-pr/`), so this is not a missing capability. You
-are retired from the review rotation on QUOTA grounds: per
-`ai-company-brain/instructions/ANTIGRAVITY.md` the weekly remote-agent quota was cut to
-roughly one usable thread and the senior-dev pass moved to Codex. Do not run it as a
-matter of course; route it to Codex and name who ran it. (The separate consumer Gemini
-CLI was retired 2026-06-12 and has no skill surface at all; if that is what you are, you
-run neither pass.)
+are not in the review rotation (quota; `ai-company-brain/instructions/ANTIGRAVITY.md`). Do
+not run it as a matter of course; route it to Codex and name who ran it. A consumer Gemini
+CLI has no skill surface and runs neither pass.
 
-**Neither of you can discharge the adversarial pass.** Codex has no such skill at all,
-and while an `adversary-review` file is installed for Antigravity it only instructs
-spawning Claude's `adversary` subagent, which is Claude-only. Name the reviewer who owes
-that pass. A second, CI-side route for the senior-dev
-pass exists, the `Codex Review` workflow (`.github/workflows/codex-review.yml`),
-dispatched by the n8n W1 orchestrator and reporting the `codex-review/deep-pass` commit
-status; per that workflow's own header, status-stamped 2026-09-12, it is dormant (not in
-the required set on `develop`, `staging` or `main`, no run dispatched since 2026-08-04).
-Nothing re-verifies that stamp, so confirm it against branch protection before relying on
-it. A green CI run is not the dual review.
+**Neither of you can discharge the adversarial pass** a dual-review PR needs. Codex has
+no such skill at all, and while an `adversary-review` file is installed for Antigravity it
+only instructs spawning Claude's `adversary` subagent, which is Claude-only. Name the
+reviewer who owes that pass. There is no CI-side route for the senior-dev pass. The
+required `codex-review-tests` CI job runs the frontend-scope, path-classifier (shell and
+real-repo) and data-bearing-path suites; a green CI run is not a review.
 
 The Codex GitHub connector is set to review every PR automatically. That review skips the
-PII pre-flight and is neither pass; confirm a PR actually got it rather than assuming. A
+PII pre-flight. It is the one review a normal PR needs, but neither dual-review pass;
+confirm a PR actually got it rather than assuming. A
 `@codex review` comment requests one and posts under your GitHub account, so ask before
 posting. No repository rule requests Copilot code review.
+
+## Code Review Rules
+
+Every reviewer reads this section first: the Codex GitHub connector, a `review-pr` or
+adversary pass, and a human using an AI reviewer. It sorts findings so a PR is blocked
+only by what actually breaks the app or exposes people, and everything else becomes a
+follow-up issue (Scot, 2026-11-13).
+
+Current stage: beta; adults only (18+); testers are former CoughDrop professionals using fake test communicators; no shared devices until about 2027-01-01.
+
+Change that one line when the stage changes (for example when the first district or
+clinic brings real student or patient accounts). Anyone on the team may propose a change, in a PR that
+changes nothing else, and it merges only with approval from a senior dev (Scot, Traci or
+Melissa) who did not write it. An agent may draft that PR but never approves or merges it. Reviewers judge against the copy on the PR's base branch, and a
+dated condition ("until about 2027-01-01") ends on its date. These rules sort PR review
+findings only; they do not change `/audit-run` or the findings register.
+
+Judge what this diff changes. The stage line rates issues that were already there. A
+defect the diff itself introduces is fix-before-merge at every stage when it breaks or
+bypasses an existing safeguard: `lib/pii_scrubber.rb` use, `secure_serialize`,
+`allowed?` or organization scoping, the under-13 or EU consent gates, `AuditEvent` or
+PaperTrail writes, a retention purge, a feature flag on a new user-facing feature, or a
+promise in the public privacy notice.
+
+### Fix before merge (the only findings that block)
+
+Only these may be Critical or High (P0 or P1 on the Codex connector):
+
+- The app breaks or misbehaves for current users: a crash, a feature that stops working,
+  a glitch that blocks communication, a sync or offline failure.
+- Data is lost or corrupted, or one account's data shows up in another account.
+- A real security hole that current users are exposed to now: broken access control, an
+  auth bypass, injection, a committed secret.
+- Real exposure of real people's personal data, at any stage. Use this only with concrete
+  evidence: a reachable code path, cited as `path:line`, that carries real people's
+  personal data to someone who should not see it (another account, an outside service, a
+  public page, a log that leaves the platform). "Could leak if someone later adds X" is
+  speculation, not evidence, and goes to follow-up. Past exposure flags here have mostly
+  been false alarms, so show the path or do not use this.
+- A defect this diff introduces that breaks or bypasses one of the safeguards listed under
+  "Judge what this diff changes" above, at any stage.
+
+### Follow-up (never blocks; rate Medium or Low, never P0 or P1)
+
+None of these covers a safeguard this diff breaks or bypasses: that is fix-before-merge
+under "Judge what this diff changes" above, whichever item below it would otherwise fit.
+
+- Compliance and privacy items (FERPA, HIPAA, COPPA, GDPR, retention, consent wording,
+  audit-trail gaps, disclosures) that do not meet the exposure test above.
+- Shared-device and multi-user-device issues while the stage says no shared devices.
+- Under-13 and school-account issues while the stage says adults only.
+- Polish: naming, style, a missing i18n key, extra tests for a low-risk path, refactors.
+
+List follow-ups as one line each. Write a full ready-to-file GitHub issue draft (a title,
+then what is wrong, where (`path:line`), why it can wait at the current stage, and the
+suggested fix) only for one a current tester or customer could hit, or one a law or
+signed contract requires, and at most 3 per review. Never draft an issue for a PLAUSIBLE
+or unverified finding: check it or drop it. Do not file it yourself; the author or Scot
+does. This repo is public:
+for a security follow-up, keep the PR comment and issue draft at the level of the claim
+(what kind of weakness, which area) and send the details to Scot privately. A missing test blocks
+only when the untested path could break the app or lose data.
 
 ## Where things are
 
@@ -133,13 +221,17 @@ fixtures, factories, cassettes, seeds, migrations, `db/language/` or `lib/tasks/
 `.claude/rules/data-bearing-paths.md` (the Tier 1 data boundary); before touching the
 deploy workflow, `Dockerfile`, `config/environments/production.rb`,
 `config/initializers/resque.rb` or `scripts/gcp/` read `.claude/rules/deploy.md`;
-before opening or updating a pull request read `.claude/rules/github-pr.md` (the `gh`
-CLI is not installed and the MCP GitHub server's credentials are rejected, so the route
-is the git credential helper's OAuth token, which must never be echoed or written to a
-tracked file).
-For a bug fix or behaviour change in application code, the fact-sheet and red-test
-discipline is `.claude/skills/fix-proposal/SKILL.md`; only a change that cannot alter
-runtime behaviour (docs, agent instructions, comments) skips it.
+before touching `spec/**`, `.rspec`, `config/application.rb`, `.env.op.template` or
+`.github/workflows/ci.yml` read `.claude/rules/testing.md` (specs never reach the network; outside services start unconfigured, and a spec that tests one sets fake
+values itself);
+before opening or updating a pull request read `.claude/rules/github-pr.md` (ask the user
+first; use `gh` when it is installed and logged in, otherwise the git credential helper's
+OAuth token; never print the credential or write it to a tracked file).
+For a bug fix or behaviour change in data handling, auth, sync and offline, or any area on
+the dual-review list above, the fact-sheet and red-test-first discipline in
+`.claude/skills/fix-proposal/SKILL.md` is required. For anything else (UI, styling, copy,
+docs, small isolated fixes, backend logic outside that list) it is optional (a red test is
+still welcome).
 
 Backend architecture and hotspots: `CLAUDE.md`. Frontend: `app/frontend/CLAUDE.md`.
 Infra: `docs/INFRASTRUCTURE.md`. Debugging: `docs/CODE_INVESTIGATION.md`. Durable

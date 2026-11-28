@@ -40,15 +40,13 @@
 #      could go green while CI went red on the very guard protecting the register.
 #      If you add a step to ci.yml's audit-artifacts-integrity job, add it here too.
 #
-# ONE CAVEAT ON --check "writes nothing"
-#   --check regenerates no ARTIFACTS, but it is not a pure read: the attestation
-#   harness it now runs edits docs/legal/AI_GOVERNANCE_MEMO.md in place for a
-#   moment and restores it, because proving the render cannot launder a pin
-#   requires a real attested file. The harness serializes itself under flock,
-#   verifies its own restore, and fails loudly if it cannot put the file back.
-#   Still: do not wire --check into a pre-commit hook or a file watcher that
-#   reacts to that path, and do not assume it is safe on a tree you cannot
-#   afford to have touched for the duration of one ruby invocation.
+# --check writes no artifacts and does not edit docs/legal/ in the live checkout.
+#   The attestation harness still mutates a real attested file to prove the render
+#   cannot launder a pin; that file is in a throwaway git worktree (#777). A
+#   SIGKILL can leave the throwaway dirty, not the caller's tree. The chmod
+#   isolation proof (attestation-hash-guard-isolation-test.sh) is CI-only: running
+#   it from --check would chmod live attested files, which is the exposure this
+#   issue removes.
 #
 # WHAT IT DELIBERATELY DOES NOT DO
 #   It never PUSHES to Notion or Drive. The Notion sync scripts
@@ -60,8 +58,8 @@
 #
 # USAGE
 #   scripts/regenerate-register.sh            # regenerate everything, then verify
-#   scripts/regenerate-register.sh --check    # verify only (mirror CI); writes no ARTIFACTS,
-#                                             but see the note on the attestation harness below
+#   scripts/regenerate-register.sh --check    # verify only (mirror CI); writes no artifacts
+#                                             and does not edit live docs/legal/
 #   scripts/regenerate-register.sh --help
 #
 # EXIT
@@ -132,9 +130,8 @@ verify_all() {
     bash scripts/tests/compliance-notion-page-publish-test.sh || rc=1
   step "verify: document register render + git hashes + bundle completeness" \
     ruby scripts/document-register-render.rb --check || rc=1
-  # Ordered to match ci.yml's audit-artifacts-integrity. This harness edits an attested
-  # file in place and restores it, so it must run on a tree you can afford to have
-  # touched for a moment; it verifies the restore itself and fails if it cannot.
+  # Ordered to match ci.yml's audit-artifacts-integrity. The hash-guard harness
+  # mutates a real attested file inside a throwaway worktree (#777), not here.
   step "verify: attestedContentHash guards (drift + closed exemption set)" \
     bash scripts/tests/attestation-hash-guard-test.sh || rc=1
   step "verify: compliance publication status report" \

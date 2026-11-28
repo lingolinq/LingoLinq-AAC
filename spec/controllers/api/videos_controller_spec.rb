@@ -17,6 +17,33 @@ describe Api::VideosController, type: :controller do
     end
   end
   
+  describe "upload form for a pending video" do
+    before { allow(Uploader).to receive(:client_uploads_configured?).and_return(true) }
+
+    it "is given to the owner" do
+      token_user
+      v = UserVideo.create(:user => @user, :settings => {'content_type' => 'video/mp4', 'pending' => true})
+      get :show, params: {:id => v.global_id}
+      expect(JSON.parse(response.body)['meta']['remote_upload']).to be_present
+    end
+
+    it "is given on the response to creating the video" do
+      token_user
+      post :create, params: {:video => {'content_type' => 'video/mp4'}}
+      expect(response).to be_successful
+      expect(JSON.parse(response.body)['meta']['remote_upload']).to be_present
+    end
+
+    it "is not given to another user" do
+      owner = User.create
+      v = UserVideo.create(:user => owner, :settings => {'content_type' => 'video/mp4', 'pending' => true})
+      token_user
+      get :show, params: {:id => v.global_id}
+      expect(response).to be_successful
+      expect(JSON.parse(response.body)['meta']).to eq(nil)
+    end
+  end
+
   describe "show" do
     it "should require api token" do
       get :show, params: {:id => 'asdf'}
@@ -108,6 +135,75 @@ describe Api::VideosController, type: :controller do
       expect(v.reload.url).not_to eq(nil)
       expect(v.settings['pending']).to eq(false)
       expect(json).to eq({'confirmed' => true, 'url' => v.url})
+    end
+
+    it "should keep the S3 url when the pending data URI is written in upper case" do
+      token_user
+      data = 'DATA:video/webm;base64,' + Base64.strict_encode64('v' * 6000)
+      v = UserVideo.process_new({'url' => data, 'content_type' => 'video/webm'}, {:user => @user, :remote_upload_possible => true})
+      expect(v.settings['pending_url']).to eq(data)
+      config = Uploader.remote_upload_config
+      expect(Uploader).to receive(:remote_upload_exists?).with(config[:upload_url] + v.full_filename).and_return(true)
+      get :upload_success, params: {:video_id => v.global_id, :confirmation => v.confirmation_key}
+      expect(response).to be_successful
+      expect(v.reload.url).to eq(config[:upload_url] + v.full_filename)
+      expect(v.settings['pending_url']).to eq(nil)
+    end
+
+    # A recorded or picked video is created with its data:video URI kept as pending_url while the
+    # client uploads the bytes itself. Once the upload is confirmed, that stale pending_url must
+    # not be copied back over the S3 url by check_for_pending (uploadable.rb:111-116).
+    it "should keep the S3 url for a video created from a data URI" do
+      token_user
+      data = 'data:video/webm;base64,' + Base64.strict_encode64('v' * 6000)
+      v = UserVideo.process_new({'url' => data, 'content_type' => 'video/webm'}, {:user => @user, :remote_upload_possible => true})
+      expect(v.settings['pending_url']).to eq(data)
+      config = Uploader.remote_upload_config
+      expect(Uploader).to receive(:remote_upload_exists?).with(config[:upload_url] + v.full_filename).and_return(true)
+      get :upload_success, params: {:video_id => v.global_id, :confirmation => v.confirmation_key}
+      json = JSON.parse(response.body)
+      expect(response).to be_successful
+      v.reload
+      expect(v.url).to eq(config[:upload_url] + v.full_filename)
+      expect(v.settings['pending_url']).to eq(nil)
+      expect(v.settings['pending']).to eq(false)
+      expect(json['confirmed']).to eq(true)
+      expect(Worker.scheduled?(UserVideo, 'perform_action', {'id' => v.id, 'method' => 'upload_to_remote', 'arguments' => [data]})).to eq(false)
+    end
+  end
+
+  # No upload form can be issued: a create that needs a client upload must not leave a pending
+  # record behind, and reading a pending record must still work, just without the form.
+  describe "without S3 configured" do
+    before(:each) { allow(Uploader).to receive(:client_uploads_configured?).and_return(false) }
+
+    it "should answer 503 and keep no record when the create needs a client upload" do
+      token_user
+      expect {
+        post :create, params: {:video => {'url' => 'https://www.example.com/file.mp4', 'content_type' => 'video/mp4'}}
+      }.to_not change(UserVideo, :count)
+      assert_error('File uploads are not available right now', 503)
+    end
+
+    it "should still create a record that needs no client upload" do
+      token_user
+      allow(Uploader).to receive(:valid_remote_url?).and_return(true)
+      post :create, params: {:video => {'url' => 'https://www.example.com/file.mp4', 'content_type' => 'video/mp4'}}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['video']['pending']).to eq(false)
+      expect(json['meta']).to eq(nil)
+    end
+
+    it "should show a pending record without upload params" do
+      token_user
+      record = UserVideo.create!(user: @user, settings: {'pending' => true, 'content_type' => 'video/mp4'})
+      get :show, params: {:id => record.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['video']['id']).to eq(record.global_id)
+      expect(json['video']['pending']).to eq(true)
+      expect(json['meta']).to eq(nil)
     end
   end
 end

@@ -3,7 +3,7 @@ import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
 import i18n from '../utils/i18n';
 import modal from '../utils/modal';
-import { assignVocalFlair84AsHome } from '../utils/assign-vocal-flair-home';
+import { assignStarterBoardAsHome } from '../utils/assign-vocal-flair-home';
 
 // Final step of the board-picker guided tour, rendered as an almost full-screen
 // modal: a LIVE, interactive board-picker so the user can actually assign, create,
@@ -102,7 +102,7 @@ export default Component.extend({
       modal.close();
     },
     // Mirrors controllers/board-picker#assign_default_home_board: find the public
-    // "Vocal Flair 84" catalog board, set it as this user's home board, sync, and
+    // starter board (Vocal Flair 60), set it as this user's home board, sync, and
     // return to the dashboard (closing the modal on the way).
     assign_default_home_board: function() {
       var _this = this;
@@ -112,7 +112,7 @@ export default Component.extend({
         return;
       }
       this.set('assigning_home_board', true);
-      assignVocalFlair84AsHome(user, {
+      assignStarterBoardAsHome(user, {
         locale: _this.get('appState.label_locale'),
         onSuccess: function() {
           if (_this.get('persistence') && _this.get('persistence').get('online') && _this.get('persistence').get('auto_sync')) {

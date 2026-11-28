@@ -194,8 +194,8 @@ describe Converters::LingoLinq do
       #   h[:reqs] << req
       # end
       # expect(h).to receive(:run).and_return(true)
-      expect(Typhoeus).to receive(:get).with("http://example.com/pic.png", {:followlocation=>true}).and_return(res)
-      expect(Typhoeus).to receive(:get).with("http://example.com/sound.mp3", {:followlocation=>true}).and_return(res)
+      pic = stub_request(:get, 'http://example.com/pic.png').to_return(status: 200, body: 'abc', headers: {'Content-Type' => 'text/plaintext'})
+      sound = stub_request(:get, 'http://example.com/sound.mp3').to_return(status: 200, body: 'abc', headers: {'Content-Type' => 'text/plaintext'})
       u = User.create
       i = ButtonImage.create(:user => u, :url => "http://example.com/pic.png", :settings => {'content_type' => 'text/plaintext'})
       s = ButtonSound.create(:user => u, :url => "http://example.com/sound.mp3", :settings => {'content_type' => 'text/plaintext'})
@@ -216,6 +216,8 @@ describe Converters::LingoLinq do
       expect(b.button_sounds.count).to eq(1)
       file = Tempfile.new("stash")
       Converters::LingoLinq.to_obf(b.reload, file.path)
+      expect(pic).to have_been_requested
+      expect(sound).to have_been_requested
       json = JSON.parse(file.read)
       file.unlink
       expect(json['id']).to eq(b.global_id)
@@ -285,6 +287,37 @@ describe Converters::LingoLinq do
         expect(img).to have_key('ext_lingolinq_protected_source')
       end
       File.unlink(path) if File.exist?(path)
+    end
+
+    it "should not probe raster variants of an image stored at an internal address" do
+      u = User.create
+      bi = ButtonImage.create(user: u, url: 'http://10.0.0.5/pic.svg')
+      bi.settings['protected_source'] = 'pcs'
+      bi.settings['content_type'] = 'image/svg+xml'
+      bi.save!
+      b = Board.new(:user => u, :settings => {'name' => 'Internal Image'})
+      b.settings['buttons'] = [{'id' => '1', 'label' => 'btn', 'image_id' => bi.global_id}]
+      b.settings['grid'] = {'rows' => 1, 'columns' => 1, 'order' => [['1']]}
+      b.save
+      expect(Typhoeus).not_to receive(:head)
+      json = Converters::LingoLinq.to_external(b, {})
+      expect(json['images'][0]['url']).to eq('http://10.0.0.5/pic.svg')
+    end
+
+    it "should still switch to a public raster variant that answers" do
+      u = User.create
+      bi = ButtonImage.create(user: u, url: 'https://images.example.com/pic.svg')
+      bi.settings['protected_source'] = 'pcs'
+      bi.settings['content_type'] = 'image/svg+xml'
+      bi.save!
+      b = Board.new(:user => u, :settings => {'name' => 'Public Image'})
+      b.settings['buttons'] = [{'id' => '1', 'label' => 'btn', 'image_id' => bi.global_id}]
+      b.settings['grid'] = {'rows' => 1, 'columns' => 1, 'order' => [['1']]}
+      b.save
+      stub_request(:head, 'https://images.example.com/pic.svg.raster.png').to_return(status: 200)
+      json = Converters::LingoLinq.to_external(b, {})
+      expect(json['images'][0]['url']).to eq('https://images.example.com/pic.svg.raster.png')
+      expect(json['images'][0]['content_type']).to eq('image/png')
     end
 
     it "should produce OBF that parses as valid JSON" do
@@ -1243,8 +1276,8 @@ describe Converters::LingoLinq do
       #   h[:reqs] << req
       # end
       # expect(h).to receive(:run).and_return(true)
-      expect(Typhoeus).to receive(:get).with("http://example.com/pic.png", {:followlocation=>true}).and_return(res)
-      expect(Typhoeus).to receive(:get).with("http://example.com/sound.mp3", {:followlocation=>true}).and_return(res)
+      pic = stub_request(:get, 'http://example.com/pic.png').to_return(status: 200, body: 'abc', headers: {'Content-Type' => 'text/plaintext'})
+      sound = stub_request(:get, 'http://example.com/sound.mp3').to_return(status: 200, body: 'abc', headers: {'Content-Type' => 'text/plaintext'})
       u = User.create
       i = ButtonImage.create(:user => u, :url => "http://example.com/pic.png", :settings => {'content_type' => 'text/plaintext'})
       s = ButtonSound.create(:user => u, :url => "http://example.com/sound.mp3", :settings => {'content_type' => 'text/plaintext'})
@@ -1266,6 +1299,8 @@ describe Converters::LingoLinq do
 
       path = OBF::Utils.temp_path("stash")
       Converters::LingoLinq.to_obz(b.reload, path, {'user' => u})
+      expect(pic).to have_been_requested
+      expect(sound).to have_been_requested
       
       OBF::Utils.load_zip(path) do |zipper|
         manifest = JSON.parse(zipper.read('manifest.json'))
@@ -1648,6 +1683,62 @@ describe Converters::LingoLinq do
     it "should support known boards"
   end
 
+  # An import on a deployed surface without S3 (the migrate Jobs) used to finish with every picture
+  # embedded in the database instead of uploaded (lingolinq_mobile#3). It must refuse before it
+  # creates anything, since a nested import creates every board before its first picture.
+  # spec_helper fakes S3 as configured when AWS_SECRET is blank, so these set both sides.
+  describe "without S3 configured" do
+    let(:production) { ActiveSupport::StringInquirer.new('production') }
+    let(:content) do
+      {
+        'boards' => [
+          {'id' => 'a', 'name' => 'first', 'buttons' => [{'id' => 1, 'label' => 'cheese', 'image_id' => 'i1', 'load_board' => {'id' => 'b'}}], 'grid' => {'rows' => 1, 'columns' => 1, 'order' => [[1]]}},
+          {'id' => 'b', 'name' => 'second', 'buttons' => [{'id' => 1, 'label' => 'dirt'}], 'grid' => {'rows' => 1, 'columns' => 1, 'order' => [[1]]}}
+        ],
+        'images' => [{'id' => 'i1', 'data' => "data:image/webp;base64,UklGRjIAAABXRUJQVlA4ICYAAACyAgCdASoCAAEALmk0mk0iIiIiIgBoSygABc6zbAAA/v56QAAAAA==", 'content_type' => 'image/webp', 'width' => 2, 'height' => 1}],
+        'sounds' => []
+      }
+    end
+    before { allow(Uploader).to receive(:client_uploads_configured?).and_return(false) }
+
+    it "refuses a nested import in a deployed environment before creating any board or picture" do
+      u = User.create(:user_name => 'alfonso')
+      allow(Rails).to receive(:env).and_return(production)
+      boards = Board.count
+      images = ButtonImage.count
+      expect(Typhoeus).not_to receive(:post)
+      expect { Converters::LingoLinq.from_external_nested(content, {'user' => u}) }.to raise_error(Uploader::RemoteCredentialsMissing)
+      expect(Board.count).to eq(boards)
+      expect(ButtonImage.count).to eq(images)
+    end
+
+    it "refuses a single-board import in a deployed environment before creating it" do
+      u = User.create
+      allow(Rails).to receive(:env).and_return(production)
+      boards = Board.count
+      expect(Typhoeus).not_to receive(:post)
+      expect { Converters::LingoLinq.from_external(content['boards'][1].merge('images' => content['images']), {'user' => u}) }.to raise_error(Uploader::RemoteCredentialsMissing)
+      expect(Board.count).to eq(boards)
+    end
+
+    it "still imports in development and test" do
+      u = User.create(:user_name => 'alfonso')
+      allow(Typhoeus).to receive(:post).and_return(OpenStruct.new(success?: false))
+      Converters::LingoLinq.from_external_nested(content, {'user' => u})
+      expect(Board.count).to eq(2)
+    end
+
+    it "imports in a deployed environment that has S3" do
+      u = User.create(:user_name => 'alfonso')
+      allow(Uploader).to receive(:client_uploads_configured?).and_return(true)
+      allow(Rails).to receive(:env).and_return(production)
+      content['boards'][0]['buttons'][0].delete('image_id')
+      content['images'] = []
+      Converters::LingoLinq.from_external_nested(content, {'user' => u})
+      expect(Board.count).to eq(2)
+    end
+  end
+
   describe "from_external_nested" do
     it "should parse" do
       u = User.create(:user_name => 'alfonso')
@@ -1803,7 +1894,7 @@ describe Converters::LingoLinq do
     it "should use correct raster urls for vector images if available" do
       res = OpenStruct.new(:success? => true, :body => "abc", :headers => {'Content-Type' => 'text/plaintext'})
       h = {reqs: []}
-      expect(Typhoeus).to receive(:head).with("http://example.com/pic.png.raster.png").and_return(res)
+      raster = stub_request(:head, 'http://example.com/pic.png.raster.png').to_return(status: 200)
       u = User.create
       i = ButtonImage.create(:user => u, :url => "http://example.com/pic.png", :settings => {'content_type' => 'text/plaintext', 'rasterized' => 'from_url'})
       s = ButtonSound.create(:user => u, :url => "http://example.com/sound.mp3", :settings => {'content_type' => 'text/plaintext'})
@@ -1824,6 +1915,7 @@ describe Converters::LingoLinq do
       expect(b.button_sounds.count).to eq(1)
       file = Tempfile.new("stash")
       json = Converters::LingoLinq.to_external(b.reload, {'for_pdf' => true})
+      expect(raster).to have_been_requested
       expect(json['id']).to eq(b.global_id)
       expect(json['name']).to eq('My Board')
       expect(json['default_layout']).to eq('landscape')

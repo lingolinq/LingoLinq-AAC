@@ -12,7 +12,7 @@ export default Controller.extend({
   loading: false,
   loadError: false,
   searchQuery: '',
-  categoryFilter: '',
+  categoryFilter: 'all',
 
   init() {
     this._super(...arguments);
@@ -28,7 +28,7 @@ export default Controller.extend({
   filteredTemplates: computed('templates.[]', 'searchQuery', 'categoryFilter', function() {
     var list = this.get('templates') || [];
     var q = (this.get('searchQuery') || '').trim().toLowerCase();
-    var cat = this.get('categoryFilter') || '';
+    var cat = (this.get('categoryFilter') || 'all') === 'all' ? '' : this.get('categoryFilter');
     return list.filter(function(t) {
       if (cat && t.category !== cat) {
         return false;
@@ -43,9 +43,9 @@ export default Controller.extend({
 
   categoryOptions: computed('categories.[]', function() {
     var cats = this.get('categories') || [];
-    var options = [{id: '', label: i18n.t('system_settings_filter_all_categories', "All categories")}];
+    var options = [{id: 'all', name: i18n.t('system_settings_filter_all_categories', "All categories")}];
     cats.forEach(function(c) {
-      options.push({id: c, label: c});
+      options.push({id: c, name: c});
     });
     return options;
   }),
@@ -60,7 +60,7 @@ export default Controller.extend({
     var orgId = this.getOrgId();
     this.set('loading', true);
     this.set('loadError', false);
-    this.persistence.ajax('/api/v1/system_email_templates?org_id=' + encodeURIComponent(orgId), {type: 'GET'}).then(function(res) {
+    this.persistence.ajax('/api/v1/system_email_templates?org_id=' + encodeURIComponent(orgId), {type: 'GET'}).then(function(res) { if (orgId !== _this.getOrgId()) { return; } // a later scope's load supersedes this one (2026-11-09)
       _this.set('loading', false);
       var templates = (res.templates || []).map(function(t) {
         t.slug = (t.key || '').replace(/\//g, '.');
@@ -68,7 +68,7 @@ export default Controller.extend({
       });
       _this.set('templates', templates);
       _this.set('categories', res.categories || []);
-    }, function() {
+    }, function() { if (orgId !== _this.getOrgId()) { return; } // a later scope's load supersedes this one (2026-11-09)
       _this.set('loading', false);
       _this.set('loadError', true);
     });
@@ -76,5 +76,12 @@ export default Controller.extend({
 
   templateSlug: function(key) {
     return (key || '').replace(/\//g, '.');
-  }
+  },
+
+  /* The Category <ModernSelect>'s `@action`: a real function, as the component calls `@action(id)`
+     (`{{mut}}` there is never called on a classic component). */
+  chooseCategory: computed(function() {
+    var _this = this;
+    return function(id) { _this.set('categoryFilter', id); };
+  })
 });

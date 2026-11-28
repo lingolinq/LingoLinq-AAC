@@ -12,11 +12,20 @@ LingoLinq to communicate frequently use assistive technology, switch access, eye
 high-contrast needs and often cannot route around a broken control. This is a read-only finder:
 produce findings, never fix.
 
-**Static analysis only.** Everything here is checkable by reading templates, components, and
-SCSS. Anything requiring a running DOM, a browser, axe-core/Lighthouse, computed contrast against
-rendered ancestors, live focus order, or screen-reader/switch/eye-gaze behavior is OUT OF SCOPE
-and belongs to the human ACR / AT-testing pass (`docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md`
-tracks that gap). Never claim to have verified runtime behavior.
+**This finder is static analysis only.** Everything here is checkable by reading templates,
+components, and SCSS. Anything requiring a running DOM, a browser, axe-core/Lighthouse, computed
+contrast against rendered ancestors, live focus order, or screen-reader/switch/eye-gaze behavior is
+OUT OF SCOPE for this finder. Never run any of it, and never claim to have verified runtime behavior
+yourself. Two things sit outside this finder:
+- **Live scan (the `/audit-run` orchestrator).** In a full run, the orchestrator runs axe and a
+  focus walk on every route, including speak mode, with computed contrast and rendered focus, and hands
+  you the results (`/audit-run` Step 1b). Treat them as input. When a result ties to a source line, emit
+  a normal `type:"code"` finding at that line. Anything else goes in `note`, as the rule and route
+  template with no page text: the orchestrator holds it in the private run record, and Scot decides
+  whether to file it. Say in `note` whether results reached you.
+- **Assistive-technology testing (the team).** The team owns screen reader, switch and eye-gaze testing,
+  and `docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md` tracks it as an open gap. It does not count toward
+  full audit coverage, and neither this finder nor the live scan stands in for it.
 
 ## Scan scope
 - `app/frontend/app/templates/**/*.hbs` and `app/frontend/app/components/**/*.{js,hbs}`: markup,
@@ -34,7 +43,7 @@ tracks that gap). Never claim to have verified runtime behavior.
   utterance template region).
 - **Scanning-mode UI** (`app/frontend/app/utils/scanner.js` consumers) - switch-access users.
 - **Speak-mode launch UI** and the authenticated Home dashboard
-  (`templates/components/dashboard/authenticated-view.hbs`; `index/authenticated.hbs` is dead).
+  (`components/dashboard/authenticated-view.hbs`).
 - Modals sharing the `.la-modal` / `.md-modal` signatures (close buttons, focus, labels).
 
 ### Dual render-path gotcha (check BOTH for every tile-level finding)
@@ -46,7 +55,8 @@ the other. Every tile-level `alt`/`aria`/`role` finding must be checked in both:
 ### Switch-scanning contract inside modals (re-read all three for any WCAG 2.1.1 dialog finding)
 Reachability is decided in three places; a fix in one is meaningless without the others.
 1. `app/frontend/app/utils/modal.js`, `scannable_targets()`: the selector requires a
-   `.modal_targets` **ancestor**; a control with the right class but no wrapper is invisible.
+   `.modal_targets` **ancestor** for every control except `.la-modal-close`, which is matched
+   unscoped; any other control with the right class but no wrapper is invisible.
 2. `app/frontend/app/utils/modal.js`, `open()`: calls `scanner.stop()` for every modal and
    restarts only when `targets.length > 0 && options.scannable`. A template can have
    `.modal_targets` and still not scan if the caller omits `{scannable: true}`, and vice versa.
@@ -73,6 +83,16 @@ is the self-referencing withheld form (`minimized-finding-` + its own id, lowerc
 citation-check does not recompute the id, so it cannot detect a repoint there through an id mismatch;
 it is still Scot's decision.
 
+## US legal dates (for `notes` only; verified 2026-10-30 against the Federal Register)
+Both rules below adopt WCAG 2.1 AA and bind the public entity or recipient, which is how they reach
+a vendor. A date never changes whether a defect is a finding. Both are interim final rules, so
+re-check a date before citing it.
+- **ADA Title II (28 CFR 35.200, FR Doc. 2026-07663):** 2027-04-26 for public entities with a total
+  population of 50,000 or more; 2028-04-26 for smaller entities and special district governments.
+- **HHS Section 504 (45 CFR 84.84, FR Doc. 2026-09266):** 2027-05-11 for recipients with 15 or more
+  employees; 2028-05-10 for fewer. Covers web content and apps recipients provide "directly or
+  through contractual, licensing, or other arrangements".
+
 ## Checklist (organized by POUR; EN 301 549 clauses noted for EU clients)
 
 > **Register gotcha - never write a 4-part dotted EN 301 549 clause in an emitted finding.**
@@ -96,10 +116,10 @@ it is still Scot's decision.
       associated with labels; lists/tables use semantic elements.
 - [ ] **1.4.3 Contrast (Minimum)** (EN 9.1.4): flag USES of the known-failing brand tokens below
       for foreground text/links on light surfaces. Reference tokens BY NAME; do NOT compute
-      ratios against rendered ancestors (that is the human/runtime pass).
+      ratios against rendered ancestors (that is the orchestrator's live scan).
 - [ ] **1.4.11 Non-text Contrast** (EN 9.1.4): flag only statically-obvious cases (e.g. a control
       border that resolves to a known-failing token). Translucent/computed backgrounds are
-      deferred to the runtime pass.
+      deferred to the live scan.
 
 ### Operable
 - [ ] **2.1.1 Keyboard** (EN 9.2.1): `<a href="#">` or `<div>`/`<span>` used as click handlers
@@ -107,11 +127,9 @@ it is still Scot's decision.
 - [ ] **2.4.1 Bypass Blocks** (EN 9.2.4): landmark regions / skip mechanism present.
 - [ ] **2.4.6 Headings and Labels** (EN 9.2.4): headings and labels are descriptive (and i18n'd).
 - [ ] **2.4.7 Focus Visible** (EN 9.2.4): interactive selectors in `app.scss` have a
-      `:focus-visible` (or `:focus`) rule. The 2026-04-11 pass found `.la-btn`,
-      `.md-caseload__action*`, `.la-find-button-result`, `.la-modal-close`, `.la-find-button-cancel`
-      missing one.
+      `:focus-visible` (or `:focus`) rule.
 - [ ] **2.4.3 Focus Order** (EN 9.2.4): static red flags only - `tabindex` > 0 (positive tabindex)
-      and obvious DOM-order traps. Live focus order is the runtime pass, not this.
+      and obvious DOM-order traps. Live focus order is the live scan, not this.
 
 ### Understandable
 - [ ] **3.1.1 Language of Page** (EN 9.3.1): `<html lang>` present and valid.
@@ -147,8 +165,8 @@ product-UI palette). At the 2026-04-11 SHA the AA tokens carried inline contrast
 
 Notes:
 - This is a token-USAGE check, not a contrast computation. Only flag a use you can see statically
-  resolves to a failing token as a text/link foreground. Do not guess ratios; the runtime
-  re-measurement is the human ACR pass.
+  resolves to a failing token as a text/link foreground. Do not guess ratios; computed contrast comes
+  from the orchestrator's live scan.
 - NEVER recommend a banned/deprecated hex in remediation (the brand denylist includes `#1B365D`,
   which an older note wrongly suggested). Always name the AA-safe token.
 - If a project-defined `*-aa` token does not yet exist, recommend defining one in the brand layer
@@ -202,3 +220,10 @@ Rules:
   its `id` rather than duplicating. The `audit-reports/wcag-modernized-2026-04-11*.md` working notes
   are NOT register entries; surface those defects only if they still exist at the audited SHA and
   are not already registered.
+
+## Run receipt (required)
+Your top-level output JSON must also carry these two keys. The orchestrator's fan-out gate
+(`scripts/audit-fanout-gate.rb`, finding LL-c667ec15e3) refuses the whole run without them.
+- `"checklistToken": "accessibility-audit-ck1"` is named only in this checklist. Copy it from here; never search for it.
+- `"guardCanary": "denied"`: make `mktemp --dry-run` your FIRST Bash call. It creates nothing and the
+  read-only guard should deny it. Report `"denied"` only if it was denied; otherwise report `"ran"`.

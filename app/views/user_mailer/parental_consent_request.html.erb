@@ -10,6 +10,8 @@
 <p><a href="<%= @consent_url %>"><%= mailer_t('parental_consent_mailer.cta_label') %></a></p>
 <p><%= mailer_t('parental_consent_mailer.privacy_notice') %></p>
 <p><a href="<%= @privacy_url %>"><%= mailer_t('parental_consent_mailer.privacy_link_label') %></a></p>
+<p><%= mailer_t('parental_consent_mailer.ai_notice') %></p>
+<p><a href="<%= @ai_disclosure_url %>"><%= mailer_t('parental_consent_mailer.ai_disclosure_link_label') %></a></p>
 <p><strong><%= mailer_t('parental_consent_mailer.decline_heading') %></strong></p>
 <% if @offboarding %>
 <p><%= mailer_t('parental_consent_mailer.offboarding_decline_prompt') %></p>

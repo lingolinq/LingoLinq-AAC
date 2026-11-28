@@ -66,6 +66,8 @@ day is logged in `2026-10-09_basic-view-refinements.md`.
 - Data: `rake extras:backfill_remove_compressed_view_preference` (dry run by default, `FRD=1` to
   write; counts only). Run on local development: 54 users checked, 1 cleared, 0 left.
   **Not yet run on staging or production**; that waits for merge and deploy.
+  (Note 2026-10-22: the rake file was never committed on any branch, so there is no task to run at deploy.
+  Stored `compressed_view` values stay and nothing reads them; the code comments were corrected in #1173.)
 - Kept on purpose: `:not(.ll-density-compressed)` qualifiers (always match now; kept for
   specificity) and unset `--dn-*` density hooks (their fallbacks apply).
 

@@ -230,16 +230,18 @@ module DemoDistrict
     end
 
     # Demo accounts are shared logins that never need mail, so their email is turned off
-    # (settings['email_disabled'], which Api::UsersController#forgot_password and
-    # Notifiable#channels_for check) and any outstanding password reset codes are dropped.
-    # Acts only on an @demoschooldistrict.org account (DemoDistrict.demo_email?), never on
-    # another account that happens to hold a demo user name. Returns :disabled, :skipped
-    # (not a demo account, or already off with no reset codes), :pending (the account was
-    # saved elsewhere first, so Processable#update_setting queued the change) or :failed.
+    # (settings['email_disabled'], which Notifiable#channels_for checks) with the reason 'demo',
+    # and any outstanding password reset codes are dropped. Api::UsersController#forgot_password
+    # lets only a 'bounce' reason through, so 'demo' replaces any other reason, including one
+    # UserMailer.bounce_email wrote first. Acts only on an @demoschooldistrict.org account
+    # (DemoDistrict.demo_email?), never on another account that happens to hold a demo user
+    # name. Returns :disabled, :skipped (not a demo account, or already off as a demo account
+    # with no reset codes), :pending (the account was saved elsewhere first, so
+    # Processable#update_setting queued the change) or :failed.
     def self.disable_email!(user)
       return :skipped unless DemoDistrict.demo_email?(user)
-      return :skipped if user.settings['email_disabled'] == true && user.settings['password_resets'].blank?
-      case user.update_setting({ 'email_disabled' => true, 'password_resets' => [] })
+      return :skipped if user.settings['email_disabled'] == true && user.settings['email_disabled_reason'] == 'demo' && user.settings['password_resets'].blank?
+      case user.update_setting({ 'email_disabled' => true, 'email_disabled_reason' => 'demo', 'email_disabled_at' => nil, 'password_resets' => [] })
       when true then :disabled
       when 'pending' then :pending
       else :failed

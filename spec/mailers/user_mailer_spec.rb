@@ -2,7 +2,12 @@ require "spec_helper"
 
 describe UserMailer, :type => :mailer do
   after(:each) do
+    JsonApi::Json.set_host(@mailer_spec_host) if @mailer_spec_host
     JsonApi::Json.load_domain("default")
+  end
+
+  before(:each) do
+    @mailer_spec_host = JsonApi::Json.current_host
   end
 
   describe "schedule_delivery" do
@@ -27,6 +32,57 @@ describe UserMailer, :type => :mailer do
       UserMailer.bounce_email("bob.miller@example.com")
       expect(u2.reload.settings['email_disabled']).to eq(true)
       expect(u3.reload.settings['email_disabled']).to eq(true)
+    end
+
+    it "should record that a bounce disabled the address, and when" do
+      u = User.create(:settings => {'email' => 'bob.miller@example.com'})
+      UserMailer.bounce_email("bob.miller@example.com")
+      u.reload
+      expect(u.settings['email_disabled_reason']).to eq('bounce')
+      expect(Time.iso8601(u.settings['email_disabled_at'])).to be > 1.minute.ago
+    end
+
+    it "should keep the first bounce time and add no version on a repeat bounce" do
+      PaperTrail.request.whodunnit = 'system:spec'
+      u = User.create(:settings => {'email' => 'bob.miller@example.com'})
+      UserMailer.bounce_email("bob.miller@example.com")
+      first_at = u.reload.settings['email_disabled_at']
+      versions = u.versions.count
+      UserMailer.bounce_email("bob.miller@example.com")
+      expect(u.reload.settings['email_disabled_at']).to eq(first_at)
+      expect(u.versions.count).to eq(versions)
+    ensure
+      PaperTrail.request.whodunnit = nil
+    end
+
+    # SesEventsWorker deletes the event only when this returns; a write that did not land must
+    # leave it on the queue for the next run.
+    it "should raise when turning email off could not be saved" do
+      u = User.create(:settings => {'email' => 'bob.miller@example.com'})
+      allow_any_instance_of(User).to receive(:save).and_return(false)
+      expect { UserMailer.bounce_email("bob.miller@example.com") }.to raise_error(UserMailer::BounceNotSaved)
+      expect(User.find(u.id).settings['email_disabled']).to eq(nil)
+    end
+
+    # updated_at is the inactivity sweep's activity clock (Subscription): a bounce of the sweep's
+    # own warning must not count as use and push the account back 12 months.
+    it "should not move the account's activity time" do
+      u = User.create(:settings => {'email' => 'bob.miller@example.com'})
+      User.where(id: u.id).update_all(updated_at: 13.months.ago)
+      before = User.find(u.id).updated_at
+      UserMailer.bounce_email("bob.miller@example.com")
+      stored = User.find(u.id)
+      expect(stored.settings['email_disabled']).to eq(true)
+      expect(stored.updated_at.utc.iso8601(6)).to eq(before.utc.iso8601(6))
+    end
+
+    it "should leave an address disabled for another reason as it is" do
+      u = User.create(:settings => {'email' => 'bob.miller@example.com', 'email_disabled' => true})
+      UserMailer.bounce_email("bob.miller@example.com")
+      u.reload
+      expect(u.settings['email_disabled']).to eq(true)
+      expect(u.settings['email_disabled_reason']).to eq(nil)
+      expect(u.settings['email_disabled_at']).to eq(nil)
     end
   end
 
@@ -208,7 +264,7 @@ describe UserMailer, :type => :mailer do
     it 'applies the email layout when an html_body override is stored' do
       allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
       SystemEmailTemplates.set_template!(nil, 'user_mailer/parental_consent_request', {
-        html_body: '<p>Custom layout test body</p>'
+        html_body: '<p>Custom layout test body</p><p><%= @consent_url %></p><p><%= @privacy_url %> <%= @decline_url %> <%= @ai_disclosure_url %></p>'
       })
       JsonApi::Json.load_domain('test.host')
       u = User.process_new({
@@ -422,6 +478,59 @@ describe UserMailer, :type => :mailer do
       expect(m.subject).to eq(nil)
     end
 
+    # #912: org.settings['email_templates'] is copied onto the domain in
+    # Organization.load_domains (three lines that no other spec reads). A stored
+    # override must survive set_host -> enqueue -> Worker.process_queues ->
+    # SystemEmailTemplates.lookup -> SystemEmailOverride#mail and appear in BOTH
+    # MIME parts. Calling set_domain_id directly would skip the queue restore.
+    it "delivers a stored org email-template override through the worker queue" do
+      o = Organization.create(custom_domain: true)
+      o.settings['hosts'] = ['override-mail.example.test']
+      o.settings['host_settings'] = {}
+      o.settings['email_templates'] = {
+        'user_mailer/log_message' => {
+          'html_body' => '<p>ZXQ-html-override-912-not-in-default</p>',
+          'text_body' => 'ZXQ-text-override-912-not-in-default'
+        }
+      }
+      o.save
+      # Same drain as the cheddar.org app_name examples; with transactional
+      # fixtures the after-commit domain refresh may not run, and the mail job
+      # below still rebuilds an empty Redis domain cache via load_domains.
+      Worker.process_queues
+
+      u = User.create(settings: {email: 'test@example.com'})
+      d = Device.create(:user => u)
+      l = LogSession.create(:user => u, :author => u, :device => d)
+      l.data['note'] = {'text' => 'you are my friend'}
+      l.save
+
+      previous_host = JsonApi::Json.current_host
+      begin
+        JsonApi::Json.set_host('https://override-mail.example.test')
+        ActionMailer::Base.deliveries.clear
+        UserMailer.schedule_delivery(:log_message, u.global_id, l.global_id)
+        Worker.process_queues
+
+        expect(ActionMailer::Base.deliveries.length).to eq(1)
+        mail = ActionMailer::Base.deliveries.last
+        html = message_body(mail, :html)
+        text = message_body(mail, :text)
+        expect(html).to include('ZXQ-html-override-912-not-in-default')
+        expect(text).to include('ZXQ-text-override-912-not-in-default')
+        expect(html).not_to match(/just posted a message/)
+        expect(text).not_to match(/just posted a message/)
+      ensure
+        JsonApi::Json.set_host(previous_host)
+      end
+    end
+
+    # Catches a leaked set_host: load_domain("default") does not reset current_host,
+    # so later examples (lesson_assigned) would build expected URLs from this host.
+    it "does not leave the override-mail host set for later examples" do
+      expect(JsonApi::Json.current_host.to_s).not_to include('override-mail.example.test')
+    end
+
     it "should include a status-check footer if specified" do
       u = User.create(settings: {email: 'test@example.com'})
       d = Device.create(:user => u)
@@ -447,6 +556,9 @@ describe UserMailer, :type => :mailer do
   end
   
   describe "new_user_registration" do
+    # examples below assign these directly; a leaked IPLOCATE_API_KEY sends later specs to the network
+    restore_env_after_each('NEW_REGISTRATION_EMAIL', 'IPLOCATE_API_KEY')
+
     it "should use the ENV recipient address" do
       u = User.create
       ENV['NEW_REGISTRATION_EMAIL'] = 'asdf@example.com'
@@ -994,6 +1106,6 @@ describe UserMailer, :type => :mailer do
     end
   end
   
-  it "should have a default reply-to of noreply@mylingolinq.com"
+  it "should have a default reply-to address"
   it "should have specs for the mailer erb templates"
 end

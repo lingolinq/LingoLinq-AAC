@@ -1,7 +1,15 @@
 # Native Bridge Inventory (Phase 1 artifact)
 
-**Status:** Authoritative inventory for the Cordova -> Capacitor 7 migration. Read-only,
-grep-driven from the codebase at `scot/feat/native-apps`.
+**Status:** Authoritative inventory for the Cordova -> Capacitor 8 migration. Read-only,
+grep-driven from the codebase at `scot/feat/native-apps`. Written for Capacitor 7; the shell
+is moving to Capacitor 8 (started October 2026) so it can target Android API 36 (see
+[capacitor-7-kickoff.md](./capacitor-7-kickoff.md)). The plugin targets named below are
+unchanged by that move.
+**Shell-side bridges not listed as rows:** besides `sqlite_bridge.js` and
+`filesystem_bridge.js` (rows 1 and 2), the shell also loads `www/tts_bridge.js` (routes
+Android speech through `@capacitor-community/text-to-speech`, because the Android System
+WebView has no working Web Speech API) and `www/video_host_fix.js` (adds the missing scheme
+to `window.default_host` so video iframes do not resolve against the local app host).
 **Why this is a gate item:** every place the web app talks to a native shell that is missed
 here becomes a silently broken capability after the migration. This is the exhaustive list
 the strategy doc's section 6 matrix only sampled. All entries cite `file:line`.
@@ -30,7 +38,7 @@ are not yet forked under the LingoLinq org.
 These have no drop-in Capacitor equivalent or carry data-loss / revenue risk. Plan each
 explicitly before committing to the full migration (Phase 2 spike).
 
-| # | Capability | Evidence (file:line) | Cordova today | Capacitor 7 target | Risk note |
+| # | Capability | Evidence (file:line) | Cordova today | Capacitor 8 target | Risk note |
 |---|-----------|----------------------|---------------|--------------------|-----------|
 | 1 | **SQLite offline storage** | `dbman.js:538-541`, `632-678` | `window.sqlitePlugin` (cordova-sqlite-storage) | **MVP wired (2026-08):** Cordova-shaped shim via shell `lingolinq_mobile/www/sqlite_bridge.js` + Ember `capacitor_sqlite_shim.js` over `@capacitor-community/sqlite`. `dbman` still selects `sqlite_plugin`. | Core offline feature. Fresh Capacitor installs start empty (no Cordova DB migration this pass). IndexedDB fallback remains if shim missing — not AAC-ready. |
 | 2 | **File system (app + data dirs)** | `capabilities.js:1262-1267`, `1420-1430`, `1671+`, `1723-1732`; `button.js:1165` | `window.resolveLocalFileSystemURL` + `cordova.file.applicationDirectory` / `dataDirectory` (cordova-plugin-file) | **MVP wired (2026-08):** `window.file_storage` via shell `filesystem_bridge.js` / Ember `capacitor_filesystem_shim.js` (`Directory.Data` + `convertFileSrc`). Bundled `www/` reads use `fetch` on Capacitor (`local_json`). Cordova path unchanged. | Local board/image/sound storage for offline speak. Free-disk check is a sentinel no-op on Capacitor. |

@@ -248,14 +248,17 @@ describe Device, :type => :model do
   
   describe "clean_old_keys" do
     it "should remove old tokens" do
+      # One clock read for fred's stamp: reading 1.second.ago again for the expectation failed when a
+      # second boundary fell between the two reads.
+      fred_last = 1.second.ago.to_i
       d = Device.new
       d.settings = {}
       d.settings['keys'] = [
         {'value' => 'bob', 'last_timestamp' => 30.days.ago.to_i}, 
-        {'value' => 'fred', 'last_timestamp' => 1.second.ago.to_i}
+        {'value' => 'fred', 'last_timestamp' => fred_last}
       ]
       d.clean_old_keys
-      expect(d.settings['keys']).to eq([{'value' => 'fred', 'last_timestamp' => 1.second.ago.to_i}])
+      expect(d.settings['keys']).to eq([{'value' => 'fred', 'last_timestamp' => fred_last}])
     end
     
     it "should remove tokens based on their timeouts" do
@@ -292,6 +295,126 @@ describe Device, :type => :model do
       d.clean_old_keys
       expect(d.settings['keys'].length).to eq(1)
       expect(d.settings['keys'][0]['needs_refresh']).to eq(true)
+    end
+
+    # A Home Screen sign-in is asked "Trust this Device" AFTER the token was issued, so the token carries the
+    # organization's idle timeout. Answering Trust marks the device (User#process_device), not the token.
+    describe "an organization idle timeout on a token issued before the device was trusted" do
+      def browser_device_with_org_timeout
+        o = Organization.create
+        u = User.create
+        o.settings['inactivity_timeout'] = 20
+        o.save
+        d = Device.create(user: u, settings: {'browser' => true})
+        o.add_manager(u.user_name)
+        d.generate_token!(false)
+        expect(d.settings['keys'][0]['timeout']).to eq(20.minutes.to_i)
+        d
+      end
+
+      def idle_for_21_minutes(d)
+        d.settings['keys'][0]['timestamp'] = 21.minutes.ago.to_i
+        d.settings['keys'][0]['last_timestamp'] = 21.minutes.ago.to_i
+        d.settings['keys'][0]['needs_refresh'] = nil
+      end
+
+      it "no longer applies once the person trusts the device" do
+        d = browser_device_with_org_timeout
+        token = d.settings['keys'][0]['value']
+        d.settings['long_token'] = true
+        d.settings['long_token_owner_choice'] = true # the person's own answer (User#process_device)
+        d.settings['long_token_set'] = true
+        idle_for_21_minutes(d)
+        expect(d.valid_token?(token)).to eq(true)
+        expect(d.settings['keys'][0]['needs_refresh']).to eq(nil)
+      end
+
+      it "still applies when the person answers that the device is shared" do
+        d = browser_device_with_org_timeout
+        token = d.settings['keys'][0]['value']
+        d.settings['long_token'] = false
+        d.settings['long_token_set'] = true
+        idle_for_21_minutes(d)
+        expect(d.valid_token?(token)).to eq(false)
+        expect(d.settings['keys'][0]['needs_refresh']).to eq(true)
+      end
+
+      it "does not revive a token that had already timed out before the device was trusted" do
+        d = browser_device_with_org_timeout
+        token = d.settings['keys'][0]['value']
+        idle_for_21_minutes(d)
+        expect(d.valid_token?(token)).to eq(false)
+        expect(d.settings['keys'][0]['needs_refresh']).to eq(true)
+        d.settings['long_token'] = true
+        d.settings['long_token_set'] = true
+        d.settings['long_token_owner_choice'] = true # the person's own answer, so the organization timeout is lifted (approved by Traci 2026-11-13)
+        expect(d.valid_token?(token)).to eq(false)
+      end
+
+      it "is lifted for every token on the trusted device, not only the one that answered" do
+        d = browser_device_with_org_timeout
+        d.generate_token!(false)
+        expect(d.settings['keys'].map { |k| k['timeout'] }).to eq([20.minutes.to_i, 20.minutes.to_i])
+        tokens = d.settings['keys'].map { |k| k['value'] }
+        d.settings['long_token'] = true
+        d.settings['long_token_owner_choice'] = true
+        d.settings['keys'].each { |k| k['timestamp'] = 21.minutes.ago.to_i; k['last_timestamp'] = 21.minutes.ago.to_i }
+        expect(tokens.map { |t| d.valid_token?(t) }).to eq([true, true])
+      end
+
+      it "applies again to that token when the person later answers that the device is shared" do
+        d = browser_device_with_org_timeout
+        token = d.settings['keys'][0]['value']
+        d.settings['long_token'] = true
+        d.settings['long_token_owner_choice'] = true
+        idle_for_21_minutes(d)
+        expect(d.valid_token?(token)).to eq(true)
+        d.settings['long_token'] = false
+        idle_for_21_minutes(d)
+        expect(d.valid_token?(token)).to eq(false)
+      end
+
+      it "still applies on a valet session, also when the device row is marked trusted" do
+        d = browser_device_with_org_timeout
+        token = d.settings['keys'][0]['value']
+        d.settings['long_token'] = true
+        d.settings['long_token_owner_choice'] = true # the person's own answer, so only the valet rule keeps the timeout
+        d.settings['valet'] = true
+        idle_for_21_minutes(d)
+        expect(d.valid_token?(token)).to eq(false)
+      end
+
+      it "still applies to a token that carries one on a device that is not a browser" do
+        d = browser_device_with_org_timeout
+        token = d.settings['keys'][0]['value']
+        d.settings.delete('browser')
+        expect(d.token_type).not_to eq(:browser)
+        d.settings['long_token'] = true
+        d.settings['long_token_owner_choice'] = true # so only the not-a-browser rule keeps the timeout
+        idle_for_21_minutes(d)
+        expect(d.valid_token?(token)).to eq(false)
+      end
+
+      # Pass 2 of the final review (Traci, 2026-11-11): the lift needs the person's own answer, not just the flag.
+      it "still applies when the device was marked trusted by someone else (a supervisor's save, a replay)" do
+        d = browser_device_with_org_timeout
+        token = d.settings['keys'][0]['value']
+        d.settings['long_token'] = true
+        d.settings['long_token_set'] = true
+        d.settings['long_token_owner_choice'] = false
+        idle_for_21_minutes(d)
+        expect(d.valid_token?(token)).to eq(false)
+      end
+
+      it "still ends a trusted browser session after 28 idle days" do
+        d = browser_device_with_org_timeout
+        token = d.settings['keys'][0]['value']
+        d.settings['long_token'] = true
+        d.settings['long_token_owner_choice'] = true # a trusted browser, so only the 28-day cap ends it
+        d.settings['keys'][0]['last_timestamp'] = 29.days.ago.to_i
+        d.settings['keys'][0]['needs_refresh'] = nil
+        expect(d.valid_token?(token)).to eq(false)
+      end
     end
   end
 
@@ -886,6 +1009,128 @@ describe Device, :type => :model do
         expect(d.settings['2fa']['cooldown']).to eq(nil)
         expect(d.settings['2fa']['fails']).to eq(nil)
       end
+    end
+  end
+
+  describe "check_token once the account uses 2FA" do
+    include ActiveSupport::Testing::TimeHelpers
+
+    # Ten seconds into a 30-second TOTP window, away from hour and day boundaries.
+    around(:each) do |example|
+      travel_to(Time.utc(2026, 11, 3, 15, 20, 10)) { example.run }
+    end
+
+    def code_for(user)
+      ROTP::TOTP.new(user.reload.settings['2fa']['secret'], issuer: 'LingoLinq').now
+    end
+
+    it "signs out a sign-in made before the account turned on 2FA" do
+      u = User.create
+      d = Device.create(user: u, developer_key_id: 0, device_key: 'before-2fa')
+      token = d.tokens[0]
+      expect(Device.check_token(token, nil)[:user]).to eq(u)
+      u.assert_2fa!
+      res = Device.check_token(token, nil)
+      expect(res[:error]).to eq('Invalid token')
+      expect(res[:invalid_token]).to eq(true)
+      expect(res[:user]).to eq(nil)
+    end
+
+    it "refuses and revokes a sign-in made before 2FA when 2FA was switched on without the sign-out sweep" do
+      u = User.create
+      d = Device.create(user: u, developer_key_id: 0, device_key: 'no-sweep')
+      token = d.tokens[0]
+      u.settings['2fa'] = {'secret' => ROTP::Base32.random}
+      u.save!
+      res = Device.check_token(token, nil)
+      expect(res[:error]).to eq('Invalid token')
+      expect(RedisInit.permissions.exists?("revoked_token/#{token}")).to eq(true)
+      expect(d.reload.settings['keys'].map { |k| k['value'] }).to_not include(token)
+    end
+
+    it "signs out a sign-in made before 2FA that once sent a wrong code" do
+      u = User.create
+      d = Device.create(user: u, developer_key_id: 0, device_key: 'wrong-code')
+      token = d.tokens[0]
+      expect(d.confirm_2fa!('000000')).to eq(false)
+      expect(d.reload.settings['2fa']['fails'].length).to eq(1)
+      u.assert_2fa!
+      expect(Device.check_token(token, nil)[:error]).to eq('Invalid token')
+    end
+
+    it "keeps a refused sign-in refused after the same device signs in again and enters a code" do
+      u = User.create
+      d = Device.create(user: u, developer_key_id: 0, device_key: 'same-row', settings: {'browser' => true})
+      old_token = d.tokens[0]
+      u.assert_2fa!
+      expect(Device.check_token(old_token, nil)[:error]).to eq('Invalid token')
+      d.reload.generate_token!
+      new_token = d.tokens[0]
+      expect(new_token).to_not eq(old_token)
+      expect(d.reload.settings['2fa']['pending']).to eq(true)
+      expect(d.confirm_2fa!(code_for(u))).to eq(true)
+      expect(Device.check_token(new_token, nil)[:error]).to eq(nil)
+      expect(Device.check_token(old_token, nil)[:error]).to eq('Invalid token')
+    end
+
+    it "signs out other sign-ins right away when 2FA is turned on, even ones whose check is cached" do
+      u = User.create
+      d = Device.create(user: u, developer_key_id: 0, device_key: 'cached')
+      token = d.tokens[0]
+      expect(Device.check_token(token, nil)[:user]).to eq(u)
+      expect(Device.check_token(token, nil)[:cached]).to eq(true)
+      u.assert_2fa!
+      expect(d.reload.settings['keys']).to eq([])
+      expect(Device.check_token(token, nil)[:error]).to eq('Invalid token')
+    end
+
+    it "signs out a connected integration's sign-in made before 2FA, as a new one would wait for a code" do
+      u = User.create
+      d = Device.create(user: u, developer_key_id: 0, device_key: 'integration', user_integration_id: 1)
+      token = d.tokens[0]
+      expect(Device.check_token(token, nil)[:user]).to eq(u)
+      u.assert_2fa!
+      expect(Device.check_token(token, nil)[:error]).to eq('Invalid token')
+    end
+
+    it "keeps a sign-in that is waiting for its code, so it can enter one" do
+      u = User.create
+      u.assert_2fa!
+      d = Device.create(user: u, developer_key_id: 0, device_key: 'pending-2fa')
+      token = d.tokens[0]
+      res = Device.check_token(token, nil)
+      expect(res[:error]).to eq(nil)
+      expect(res[:user]).to eq(u)
+      expect(res[:user].permission_scopes).to eq(['none'])
+    end
+
+    it "keeps a sign-in that entered a code" do
+      u = User.create
+      u.assert_2fa!
+      d = Device.create(user: u, developer_key_id: 0, device_key: 'confirmed-2fa')
+      token = d.tokens[0]
+      expect(d.reload.confirm_2fa!(code_for(u))).to eq(true)
+      res = Device.check_token(token, nil)
+      expect(res[:error]).to eq(nil)
+      expect(res[:user]).to eq(u)
+    end
+
+    it "keeps a modeling (valet) sign-in, which does not ask for a code" do
+      u = User.create
+      u.assert_2fa!
+      d = Device.create(user: u, developer_key_id: 0, device_key: 'valet-2fa', settings: {'valet' => true})
+      token = d.tokens[0]
+      res = Device.check_token(token, nil)
+      expect(res[:error]).to eq(nil)
+      expect(res[:user]).to eq(u)
+    end
+
+    it "leaves sign-ins alone for an account without 2FA" do
+      u = User.create
+      d = Device.create(user: u, developer_key_id: 0, device_key: 'no-2fa')
+      token = d.tokens[0]
+      expect(Device.check_token(token, nil)[:user]).to eq(u)
+      expect(Device.check_token(token, nil)[:user]).to eq(u)
     end
   end
 end

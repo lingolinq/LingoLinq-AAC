@@ -101,6 +101,23 @@ class Device < ApplicationRecord
     false
   end
 
+  # A sign-in made before its account started requiring 2FA: the account requires a code, but this
+  # device is neither waiting for one (generate_token! sets 'pending') nor has entered one
+  # (confirm_2fa! sets 'last_otp'). A failed attempt leaves only 'fails', which does not count.
+  # Device.check_token signs these out so the next sign-in asks for a code. Modeling (valet)
+  # sign-ins are never asked for one.
+  def predates_2fa?
+    settings = self.settings || {}
+    two_factor = settings['2fa'] || {}
+    return false if settings['valet'] || two_factor['pending'] || two_factor['last_otp']
+    !!(self.user && self.user.state_2fa[:required])
+  end
+
+  # Revokes every token this device holds (revoke_token!), so none of them can be used again.
+  def revoke_all_tokens!
+    (self.settings['keys'] || []).map { |key| key['value'] }.compact.each { |token| revoke_token!(token) }
+  end
+
   def confirm_2fa!(code, manually_approve=false)
     ts = Time.now.to_i if code == :approve && manually_approve
     ts ||= self.user && self.user.valid_2fa?(code)
@@ -118,6 +135,8 @@ class Device < ApplicationRecord
       self.settings['2fa'].delete('cooldown')
       self.settings['2fa'].delete('fails')
       self.save
+      # Confirming a temporary secret can be what turns the account's 2FA on.
+      self.user.refresh_device_sign_ins!(keep: self) if self.user
       return true
     else
       self.settings['2fa'] ||= {}
@@ -189,7 +208,7 @@ class Device < ApplicationRecord
 
     self.settings['long_token'] = long_token if long_token != nil
     key = new_access_token
-
+    touch_user_activity
   
     # Keep track of which devices were used most recently/frequently to help
     # display most-relevant ones in the UI under "user devices".
@@ -218,8 +237,23 @@ class Device < ApplicationRecord
   end
   
   def logout!
+    old_keys = self.settings['keys'] || []
     self.settings['keys'] = []
     self.save
+    old_keys.each { |key| RedisInit.permissions.del("user_token/#{key['value']}") }
+  end
+
+  # Ends one session. A row can hold several (SSO logins share one), so the others are left alone.
+  # The marker comes first and check_token reads it first, so a request already in flight cannot
+  # bring the token back by caching it again or saving the row's old keys.
+  def revoke_token!(token)
+    marked = Permissions.setex(RedisInit.permissions, "revoked_token/#{token}", [self.token_timeout, 13.hours.to_i].max, 'true')
+    Rails.logger.warn("revoke_token!: no marker written for device #{self.global_id}") unless marked
+    self.with_lock do
+      self.settings['keys'] = (self.settings['keys'] || []).reject { |key| key['value'] == token }
+      self.save
+    end
+    RedisInit.permissions.del("user_token/#{token}")
   end
   
   def unique_device_key
@@ -275,11 +309,21 @@ class Device < ApplicationRecord
     @expired_keys ||= {}
     @refreshable_keys ||= {}
     new_keys = []
+    # A key issued before the person answered "Trust this Device" carries the organization's idle timeout
+    # (generate_token!). Once the person trusts the device themselves, its own idle limit applies to those keys too,
+    # as it does to every key issued afterwards; a shared or valet device keeps the organization's timeout on these
+    # keys, and so does a device trusted without the person's own counted answer (User#process_params; since
+    # 2026-11-13 a supervisor's or an operator's save cannot change long_token at all). New keys on a row with
+    # long_token set get no organization timeout (generate_token!).
+    # Why: an AAC device is the person's voice, and the standard is working AAC "at all times" (NJC Communication Bill
+    # of Rights; ASHA). Reasoning and sources: PR #1268 and docs/task-management/2026-11-10_offline-followup-proposals.md section 26.
+    trusted_browser = self.token_type == :browser && self.settings['long_token'] == true && self.settings['long_token_owner_choice'] == true && !self.settings['valet']
     keys.each do |k|
       # tokens that haven't been inactive for too long, 
       # AND tokens that were created too long ago (or were
       # scheduled for expiry due to refresh request)
-      inactive_too_long = self.token_type != :integration && k['last_timestamp'] <= Time.now.to_i - (k['timeout'] || self.inactivity_timeout)
+      idle_limit = (trusted_browser ? nil : k['timeout']) || self.inactivity_timeout
+      inactive_too_long = self.token_type != :integration && k['last_timestamp'] <= Time.now.to_i - idle_limit
       needs_refresh = self.token_type == :integration && (Time.now.to_i - (k['timestamp'] || k['last_timestamp']) > (k['timeout'] || self.inactivity_timeout))
       created_too_long_ago = (Time.now.to_i - (k['timestamp'] || k['last_timestamp']) > self.token_timeout) || (k['expire_at'] && k['expire_at'] < Time.now.to_i)
       if created_too_long_ago
@@ -309,6 +353,9 @@ class Device < ApplicationRecord
     scopes = nil
     valet = nil
     valet_mode = false
+    if RedisInit.permissions.exists?("revoked_token/#{token}")
+      return {error: "Invalid token", skip_on_token_check: true, invalid_token: true}
+    end
     cached = RedisInit.permissions.get("user_token/#{token}")
     res = {}
     if cached
@@ -348,6 +395,13 @@ class Device < ApplicationRecord
         res[:skip_on_token_check] = true
         res[:can_refresh] = true if needs_refresh && device && !device.disabled?
         res[:invalid_token] = true
+      elsif device.predates_2fa?
+        device.revoke_token!(token)
+        res[:error] = "Invalid token"
+        res[:skip_on_token_check] = true
+        res[:invalid_token] = true
+        device_id = nil
+        user_id = nil
       end
       valet_mode = true if device && device.settings['valet']
       scopes = PermissionScopesNormalize.for_api(device && device.permission_scopes)
@@ -374,7 +428,12 @@ class Device < ApplicationRecord
         user.permission_scopes = scopes
 
         store = [user_id, device_id, PermissionScopesNormalize.for_api(scopes).join(','), valet_mode].join("::")
-        Permissions.setex(RedisInit.permissions, "user_token/#{token}", 12.hours.to_i, store) if !res[:error]
+        if res[:cached] && !res[:error]
+          # EXPIRE, not SETEX: it keeps an active session going but cannot recreate a deleted entry
+          RedisInit.permissions.expire("user_token/#{token}", 12.hours.to_i)
+        elsif !res[:cached] && !res[:error]
+          Permissions.setex(RedisInit.permissions, "user_token/#{token}", 12.hours.to_i, store)
+        end
         res[:user] = user
         user.assert_valet_mode! if valet_mode
         res[:device_id] = device_id
@@ -399,7 +458,7 @@ class Device < ApplicationRecord
           do_save = true
         end
       end
-      User.where(['id = ? and updated_at < ?', self.user_id, 24.hours.ago]).update_all(updated_at: Time.now)
+      touch_user_activity
     end
     if app_version && self.settings['app_version'] != app_version
       self.settings['app_version'] = app_version
@@ -410,6 +469,14 @@ class Device < ApplicationRecord
     end
     self.save if do_save
     !!(key && !key['needs_refresh'])
+  end
+
+  # Marks the device's user active (updated_at), at most once a day, when a token is issued
+  # (any sign-in: password, SSO, native long token, integration refresh) or used after 15 idle
+  # minutes. updated_at is the inactivity sweep's activity clock: use after the sweep scheduled a
+  # deletion cancels it (User.scheduled_deletion_proceeds?).
+  def touch_user_activity
+    User.where(['id = ? and updated_at < ?', self.user_id, 24.hours.ago]).update_all(updated_at: Time.now)
   end
   
   def tokens

@@ -9,6 +9,15 @@ class ApplicationController < ActionController::Base
   after_action :log_api_call
   before_action :set_sentry_user
   around_action :with_request_caching
+  rescue_from Uploader::RemoteCredentialsMissing, with: :remote_uploads_unavailable
+
+  # Uploader.client_upload_params refuses to sign an upload form the client could not use. 503: a
+  # server configuration fault, not a bad request. Generic message: nothing about the configuration
+  # reaches the client.
+  def remote_uploads_unavailable(error)
+    Rails.logger.error("#{self.class.name}##{action_name}: #{error.message}")
+    api_error 503, {error: "File uploads are not available right now"}
+  end
 
   # Clears request-scoped Thread.current caches after each request to prevent
   # data leaking between requests on the same Puma thread.
@@ -62,6 +71,14 @@ class ApplicationController < ActionController::Base
     }
   end
   helper_method :compliance_kernel_injection
+
+  # Logged-out screens (login and register) have no user payload. This is the
+  # site default from SystemFeatureSettings, so an admin change shows up without
+  # a new asset build. Callers merge it into a fresh settings hash.
+  def enabled_frontend_features_injection
+    { 'enabled_frontend_features' => SystemFeatureSettings.default_enabled_features }
+  end
+  helper_method :enabled_frontend_features_injection
 
   # Best jurisdiction signal available for THIS request, using only signals that
   # already exist (no IP geolocation). This is best-effort BROWSER-LOCALE
@@ -176,6 +193,11 @@ class ApplicationController < ActionController::Base
 
       as_user = params['as_user_id'] || request.headers['X-As-User-Id']
       if @api_user && as_user
+        # Masquerade (both branches below) needs the operator's own full sign-in (full_sign_in?).
+        if !full_sign_in?
+          api_error 400, {error: "Invalid masquerade attempt", user_id: as_user}
+          return false
+        end
         @linked_user = User.find_by_path(as_user)
         admin = Organization.admin
         if admin && admin.manager?(@api_user) && @linked_user
@@ -306,6 +328,33 @@ class ApplicationController < ActionController::Base
 
   def admin_support_actions_allowed?(user=@api_user)
     user && Organization.admin_manager?(user) && !user.valet_mode?
+  end
+
+  # True when the request comes from the account holder's own full sign-in: a token this app
+  # issued (not one issued to a developer key or a connected integration), not a modeling (valet)
+  # sign-in, not disabled or waiting for its second-factor code, and, when the account uses 2FA,
+  # one that entered a code (Device#confirm_2fa! records last_otp). Under masquerade it checks
+  # the person acting (@true_user). It reads the device row itself because Device.check_token
+  # can answer from its token cache.
+  def full_sign_in?
+    actor = @true_user || @api_user
+    return false unless actor && @api_device_id && !actor.valet_mode?
+    device = Device.find_by_global_id(@api_device_id)
+    return false unless device && device.user_id == actor.id
+    return false if device.disabled? || (device.settings || {})['valet']
+    return false if device.user_integration_id || (device.developer_key_id || 0) != 0
+    two_factor = (device.settings || {})['2fa'] || {}
+    return false if two_factor['pending']
+    return false if actor.state_2fa[:required] && !two_factor['last_otp']
+    true
+  end
+
+  # An admin (User#admin?) acting through a full sign-in (full_sign_in?). Under masquerade the
+  # person acting (@true_user) must be an admin too. Admin pages and other admin-only entry points
+  # check this instead of the role alone.
+  def admin_sign_in?(user)
+    actor = @true_user || @api_user
+    !!(user && user.admin? && actor && actor.admin? && full_sign_in?)
   end
   
   def api_error(status_code, hash)
@@ -439,6 +488,26 @@ class ApplicationController < ActionController::Base
     FeatureFlags.feature_enabled_for?('article_50_disclosure', @api_user) &&
       EuJurisdiction.disclosure_required?(@api_user) &&
       !@api_user.article_50_disclosure_shown?
+  end
+
+  # AI data-sharing consent backstop (#1136). Returns true when the request may
+  # go on, or false after rendering 403 `ai_consent_required` itself, the same
+  # early-return convention as require_article_50_disclosure!. Checks @api_user.
+  def require_ai_consent!
+    if ai_consent_missing?
+      api_error(403, ai_consent_required_payload)
+      return false
+    end
+    true
+  end
+
+  # The pure check, for callers that render their own response shape.
+  def ai_consent_missing?
+    FeatureFlags.ai_consent_blocks_ai_for?(@api_user)
+  end
+
+  def ai_consent_required_payload
+    { error: 'ai_consent_required', disclosures_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION }
   end
 
   # Normalized token scopes for Permissable (same rules as +allowed?+).

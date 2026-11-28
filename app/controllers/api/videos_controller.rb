@@ -9,7 +9,8 @@ class Api::VideosController < ApplicationController
     if !video || video.errored?
       api_error(400, {error: "video creation failed", errors: video && video.processing_errors})
     else
-      render json: JsonApi::Video.as_json(video, :wrapper => true, :permissions => @api_user).to_json
+      ensure_upload_form_available!(video)
+      render json: JsonApi::Video.as_json(video, :wrapper => true, :permissions => @api_user, :upload_form => true).to_json
     end
   end
   

@@ -94,6 +94,48 @@ describe AiConsent::DisclosuresController, :type => :controller do
     end
   end
 
+  # Version 2 (#1136): the version consent is recorded against today.
+  describe "GET show for version 2 and the current link" do
+    it "renders version 2 with board suggestions named as covered and none of the version 1 exclusions" do
+      get :show, params: {version: '2'}
+      expect(response).to be_successful
+      body = response.body
+      expect(body).to include('data-disclosure-version="2"')
+      expect(body).to include(LingoLinq::AiConsentDisclosures.content_hash(2))
+      expect(body).to match(/AI board suggestions or focus words/)
+      expect(body).not_to match(/not covered by this consent/i)
+      expect(body).not_to match(/governed separately/i)
+      expect(body).not_to match(/separate from the consent you give when you sign up/i)
+      expect(body).to include('Amazon Web Services, Inc.')
+      expect(body).to include('Claude Haiku 4.5')
+      expect(body).not_to include('Claude Opus 4.7')
+      expect(body).to match(/withdraw/i)
+      expect(body).to include('/privacy')
+      expect(body).not_to match(/translation missing/i)
+    end
+
+    it "asserts none of the banned AI claims and keeps evaluation narration marked inactive" do
+      get :show, params: {version: '2'}
+      text = CGI.unescapeHTML(response.body.gsub(/<[^>]+>/, ' ').gsub(/\s+/, ' '))
+      expect(AiDisclosureClaims.offending_claims(text)).to be_empty
+      expect(AiDisclosureClaims.eval_egress_violations(text)).to be_empty
+      expect(text).to match(/evaluation narration is currently inactive/i)
+    end
+
+    it "serves the current version at the stable link the app uses" do
+      get :show, params: {version: 'current'}
+      expect(response).to be_successful
+      expect(response.body).to include(%(data-disclosure-version="#{LingoLinq::AiConsentDisclosures::CURRENT_VERSION}"))
+    end
+
+    it "still serves version 1 for anyone following an older link" do
+      get :show, params: {version: '1'}
+      expect(response).to be_successful
+      expect(response.body).to include('data-disclosure-version="1"')
+      expect(response.body).to match(/not covered by this consent/i)
+    end
+  end
+
   describe "GET show for art50_vN (EU AI Act Article 50(1) disclosure, VPC Phase 3)" do
     it "renders 200 with the Article 50 root div and the matching content hash" do
       get :show, params: {version: 'art50_v1'}

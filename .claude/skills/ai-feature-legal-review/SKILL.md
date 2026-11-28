@@ -156,8 +156,7 @@ Return:
   so new AI modules, provisioning paths, or deployment seams cannot silently escape the gate.
   The pathspec recurses into subdirs and `.rake` files (a top-level `lib/*.rb` glob would miss
   `lib/tasks/generate_predictions.rake`) and explicitly includes the runtime provisioning sources:
-  `scripts/gcp/**`, `.env.op.template`, the Cloud Run deploy workflow, and the endpoint guard
-  (the Render sync script was deleted with the Render platform in 2026-09). Reviewer-only credential scripts are intentionally outside
+  `scripts/gcp/**`, `.env.op.template`, the Cloud Run deploy workflow, and the endpoint guard. Reviewer-only credential scripts are intentionally outside
   this runtime scan. The pattern covers both the sanctioned Bedrock clients and direct vendor
   endpoints, so widen it whenever a new vendor or naming convention lands. At the current `develop`
   head, the designated runtime surface is:
@@ -168,8 +167,8 @@ Return:
   - `lib/ai_prediction_generator.rb` -- batch prediction generation (callers in
     `lib/tasks/generate_predictions.rake`, which also uploads results to S3).
   - `lib/eval_narrator.rb` (`draft_via_anthropic`, the `comprehensive_eval_ai` SLP-narrative flow;
-    external entry `EvalNarrator.draft_narrative` at `app/controllers/api/eval_sessions_controller.rb:75`,
-    internal dispatch at `lib/eval_narrator.rb:37`)
+    external entry `EvalNarrator.draft_narrative`, called from
+    `app/controllers/api/eval_sessions_controller.rb`, which dispatches to `draft_via_anthropic`)
     -- HIGHEST SENSITIVITY: drafts evaluation narratives from assessment data, which Step 1
     classifies as "Never send externally." Treat any change here as never-send by default.
   The designated runtime provider is **Anthropic Claude on AWS Bedrock** via `AiClient`, using

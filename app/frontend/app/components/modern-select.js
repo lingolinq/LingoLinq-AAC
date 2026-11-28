@@ -307,5 +307,17 @@ export default Component.extend({
         if (trigger && typeof trigger.focus === 'function') { trigger.focus(); }
       }
     }
-  }
+  },
+
+  /* THE TRIGGER'S ACCESSIBLE NAME CARRIES THE VALUE (2026-11-09, red-team review of System Settings:
+     a screen reader heard "Organization, button" and never which organization). `aria-label` on a
+     button replaces its text, so a bare `@ariaLabel` hid the selection the trigger shows; this is
+     "<label>, <current choice or placeholder>". With no `@ariaLabel` the button's own text, the
+     same choice, is its name, as before. Added at the end so the .eslint-todo rows above stay put. */
+  accessibleName: computed('ariaLabel', 'triggerLabel', function() {
+    var label = this.get('ariaLabel');
+    if (!label) { return null; }
+    var value = this.get('triggerLabel');
+    return value ? label + ', ' + value : label;
+  })
 });

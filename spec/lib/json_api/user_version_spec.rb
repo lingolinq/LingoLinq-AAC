@@ -34,7 +34,7 @@ describe JsonApi::UserVersion do
     expect(json['created']).to eq(v.created_at.iso8601)
     expect(json['modifier']).to eq({
       'description' => "LingoLinq Admin",
-      'image' => "https://www.mylingolinq.com/images/logo-new.png"
+      'image' => "https://app.lingolinq.com/images/logo-new.png"
     })
   end
 
@@ -49,7 +49,7 @@ describe JsonApi::UserVersion do
     expect(json['created']).to eq(v.created_at.iso8601)
     expect(json['modifier']).to eq({
       'description' => 'Unknown User',
-      'image' => "https://#{ENV['STATIC_S3_BUCKET'] || "lingolinq"}.s3.amazonaws.com/avatars/avatar-0.png"
+      'image' => "#{JsonApi::Json.absolute_host}/avatars/avatar-0.png" # the app's own copy (Traci, 2026-11-23)
     })
   end
 end

@@ -1220,6 +1220,37 @@ describe SessionController, :type => :controller do
       expect(device.settings['keys'][0]['value']).to eq(@device.tokens[0])
     end
 
+    it "authenticates from the Authorization header when the query has no access_token" do
+      token_user
+      request.headers['Authorization'] = "Bearer #{@device.tokens[0]}"
+      get :token_check, params: { rnd: '1' }
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['authenticated']).to eq(true)
+      expect(json['user_name']).to eq(@user.user_name)
+      expect(json['user_id']).to eq(@user.global_id)
+    end
+
+    it "does not authenticate a header token when the query says access_token=none" do
+      token_user
+      request.headers['Authorization'] = "Bearer #{@device.tokens[0]}"
+      get :token_check, params: { access_token: 'none', rnd: '1' }
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['authenticated']).to eq(false)
+    end
+
+    it "checks the query token, not a different header token, when both are sent" do
+      token_user
+      other_device = Device.create(:user => User.create, :developer_key_id => 0, :device_key => 'other')
+      request.headers['Authorization'] = "Bearer #{other_device.tokens[0]}"
+      get :token_check, params: { access_token: @device.tokens[0], rnd: '1' }
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['authenticated']).to eq(true)
+      expect(json['user_id']).to eq(@user.global_id)
+    end
+
     it "should error correctly (honor skip_on_token_check) on expired or invalid tokens" do
       token_user
       d = @user.devices[0]
@@ -2666,6 +2697,17 @@ describe SessionController, :type => :controller do
   end
 
   describe "token_wait" do
+    # The examples below count Redis reads exactly. A request on a host that is
+    # not known also reads the custom-domain list (json.rb trusted_origin), so
+    # make the request's host the configured one.
+    around(:each) do |example|
+      prior = ENV['DEFAULT_HOST']
+      ENV['DEFAULT_HOST'] = 'test.host'
+      example.run
+    ensure
+      ENV['DEFAULT_HOST'] = prior
+    end
+
     it "should require popout_id" do
       post 'token_wait'
       assert_error('popout_id required')
@@ -2936,6 +2978,12 @@ describe SessionController, :type => :controller do
       json = assert_success_json
       expect(json['token']).not_to eq(nil)
       expect(new_user.reload.google_linked?).to eq(true)
+    end
+
+    it "rejects google_link_complete for a link nonce that was never stored or has expired" do
+      expect(GoogleOAuth).not_to receive(:clear_link)
+      post :google_link_complete, params: { nonce: 'spec-expired-nonce', user_name: 'nobody', password: 'secret123' }
+      assert_error('session_expired', 400)
     end
 
     it "links manual_link accounts by username and password" do
@@ -3288,4 +3336,15 @@ describe SessionController, :type => :controller do
     end
   end
 
+  describe "auth_admin sign-in" do
+    LimitedSignInHelpers::KINDS.each do |kind, wording|
+      it "should not set the admin cookie for an admin whose sign-in #{wording}" do
+        limited_admin_token(kind)
+        post :auth_admin
+        json = assert_success_json
+        expect(json['success']).to eq(false)
+        expect(response.cookies['admin_token']).to eq(nil)
+      end
+    end
+  end
 end

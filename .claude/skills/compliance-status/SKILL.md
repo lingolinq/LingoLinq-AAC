@@ -21,11 +21,12 @@ Confirm the register exists and citations are green (`ruby scripts/citation-chec
 exit 0). If red, note it - posture cannot be asserted on a broken register.
 
 ## Step 2: Dispatch the compliance-officer
-Spawn the `compliance-officer` agent with the Agent tool, passing the audited SHA. Ask it to:
+Spawn the `compliance-officer` agent with the Agent tool and NO `name` (a named spawn can launch a
+teammate, which does not get the definition's hooks; finding LL-c667ec15e3), passing the audited SHA. Ask it to:
 1. Read `audit-reports/compliance-calendar.json` and surface items due within 90 days or overdue.
-   This includes the audit-run cadence (`rev-audit-run-quarterly-full` = full fan-out + adversary
-   verify; `rev-audit-run-monthly-light` = diff-scoped steps 0-5 only). Note which is next due so
-   Scot knows whether the upcoming run is heavy or light. Cadence dates are advisory, not a claim.
+   This includes the audit-run cadence (`rev-audit-run-annual-full` = the one formal full run per
+   year: full fan-out + adversary verify, then Scot's sign-off stamp PR). Ad hoc runs have no calendar
+   row. Cadence dates are advisory, not a claim.
 2. Read the register and flag hygiene issues: findings past severity SLA, recurrences
    (`regression: true`), and stale evidence (citation-check failures).
 3. Report the headline: open Critical and High counts (no synthetic score - decision 5.9.2).

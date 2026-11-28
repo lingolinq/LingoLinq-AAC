@@ -1,17 +1,35 @@
 module ExternalTracker
   # HubSpot consent gate per FERPA/COPPA/GDPR:
-  # 1. Only supporter accounts (non-communicators/students/patients), as defined by supporter_registration? (e.g., therapists, teachers, parents, evals, org-added supervisors) (FERPA/COPPA)
+  # 1. Only adult accounts, as defined by User#marketing_trackable? (#1123): an allowlisted account type (therapist, parent, teacher, other, eval, org-added supervisor, communicator), no child-consent record, not under 16, and 18 or over at signup
   # 2. Respect cookies preference - do not send when user opted out of analytics/tracking (GDPR consent)
   # 3. Org-managed users excluded via external_email_allowed?
+
+  # The value sent in the HubSpot dropdown property lingolinq_account_type, by the app's
+  # registration_type. HubSpot refuses a contact whose dropdown value is not one of the
+  # property's options, so a type missing here sends no account type at all, never a raw
+  # value. 'therapist' is the transition value until signup asks for slp or
+  # other_therapist; the dropdown's slp, other_therapist and district_admin options have no
+  # registration type yet. A communicator is 'personal_account', a neutral value, so the
+  # contact record does not say the person uses AAC (Scot, 2026-11-23).
+  HUBSPOT_ACCOUNT_TYPES = {
+    'communicator' => 'personal_account',
+    'therapist' => 'therapist',
+    'parent' => 'parent',
+    'teacher' => 'teacher',
+    'other' => 'other_supporter',
+    'eval' => 'at_specialist',
+    'manually-added-supervisor' => 'org_added_supervisor'
+  }.freeze
+
   def self.track_new_user(user)
-    return unless user && user.external_email_allowed? && user.supporter_registration?
+    return unless user && user.external_email_allowed? && user.marketing_trackable?
     return if user.cookies_opted_out?
     Worker.schedule(ExternalTracker, :persist_new_user, user.global_id)
   end
 
   def self.persist_new_user(user_id)
     user = User.find_by_path(user_id)
-    return false unless user && user.external_email_allowed? && user.supporter_registration?
+    return false unless user && user.external_email_allowed? && user.marketing_trackable?
     return false if user.cookies_opted_out?
     return false unless ENV['HUBSPOT_ACCESS_TOKEN']
     return false unless user.settings && user.settings['email']
@@ -38,29 +56,7 @@ module ExternalTracker
     country = location && location['country']
 
 
-    acct = "Communicator Account"
-    # "Supervisor Parent Account", "AT Specialist/Lending Library", "Eval"
-    # "Therapist", "Teacher", "AAC Grad Course", "Org Added Supervisor", 
-    # "Org added Communicator", "Supervisor other", "Communicator other"
-    if user.supporter_registration?
-      if user.registration_type == 'eval'
-        acct = 'AT Specialist/Lending Library'
-      elsif user.registration_type == 'parent'
-        acct = 'Supervisor Parent Account'
-      elsif user.registration_type == 'teacher'
-        acct = 'Teacher'
-      elsif user.registration_type == 'manually-added-supervisor'
-        acct = 'Org Added Supervisor'
-      elsif user.registration_type == 'other'
-        acct = 'Supervisor other'
-      else
-        acct = 'Therapist'
-      end
-    elsif user.registration_type == 'other'
-      acct = 'Communicator other'
-    elsif user.registration_type == 'manually-added-org-user'
-      acct = 'Org added Communicator'
-    end
+    acct = HUBSPOT_ACCOUNT_TYPES[user.registration_type]
 
     name = (user.settings['name'] || '').split(/\s/, 2)
     json = {
@@ -69,13 +65,13 @@ module ExternalTracker
         {property: 'firstname', value: name[0]},
         {property: 'lastname', value: name[1]},
         {property: 'city', value: city},
-        {property: 'username', value: user.user_name},
+        {property: 'lingolinq_username', value: user.user_name},
         # {property: 'hs_language', value: 'en'},
         {property: 'state', value: state},
         {property: 'country', value: country},
-        {property: 'account_type', value: acct},
+        (acct ? {property: 'lingolinq_account_type', value: acct} : nil),
         {property: 'hs_legal_basis', value: 'Legitimate interest – prospect/lead'}
-      ]
+      ].compact
     }
     # Marketing attribution captured at signup (see User#process: settings['referrer']
     # is document.referrer, the "source"; settings['ad_referrer'] is the ?ref= URL
@@ -107,10 +103,90 @@ module ExternalTracker
       Rails.logger.error("ExternalTracker: HubSpot POST raised for user #{user.global_id}: #{e.class}: #{e.message}")
       return nil
     end
-    if res.code.to_i >= 300
+    # Only a 2xx answer means HubSpot holds the contact. Status 0 is "no HTTP answer"
+    # (a timeout or a refused connection), so it is a failure, not a send.
+    if (200..299).cover?(res.code.to_i)
+      record_sent_email(user, email)
+    else
       Rails.logger.error("ExternalTracker: HubSpot contact sync failed for user #{user.global_id}: status=#{res.code}")
     end
     res.code
+  end
+
+  # The addresses this app has sent to HubSpot for this account. Kept on the account
+  # so that deletion can remove exactly those contacts (#384) and nothing else.
+  def self.sent_emails(user)
+    list = user && user.settings.is_a?(Hash) && user.settings['hubspot'].is_a?(Hash) ? user.settings['hubspot']['sent_emails'] : nil
+    Array(list).select { |e| e.is_a?(String) && e.present? }.uniq
+  end
+
+  def self.record_sent_email(user, email)
+    return if email.blank? || !user || !user.id
+    # Written to a freshly read, locked row, never to the copy the caller loaded before
+    # the HubSpot call: saving that copy would put back every setting as it was then,
+    # and undo a change (turning AI off, say) made while the call was in flight.
+    User.transaction do
+      current = User.lock.find_by(id: user.id)
+      next if current.nil? || sent_emails(current).include?(email)
+      current.settings ||= {}
+      current.settings['hubspot'] = { 'sent_emails' => sent_emails(current) + [email] }
+      current.save!
+    end
+  rescue => e
+    Rails.logger.error("ExternalTracker: could not record the sent address for user #{user.global_id}: #{e.class}")
+  end
+
+  REMOVE_CONTACT_URL = 'https://api.hubapi.com/crm/v3/objects/contacts/gdpr-delete'
+  REMOVE_CONTACT_ATTEMPTS = 3
+
+  # Permanently deletes the HubSpot contacts for these addresses (#384). HubSpot
+  # reference, read 2026-11-17:
+  # https://developers.hubspot.com/docs/api-reference/legacy/crm/objects/contacts/gdpr/gdpr-delete-contact
+  #
+  # Call this ONLY with addresses from sent_emails. HubSpot stores (blocklists) an
+  # address it does not know, so passing an address that was never sent would hand
+  # HubSpot a new one.
+  #
+  # The addresses are the arguments because the account row is already gone when this
+  # runs. The worker (BoyBand) does not retry a failed job, so this method retries
+  # itself: the addresses that failed are scheduled again, up to
+  # REMOVE_CONTACT_ATTEMPTS in all. It never raises, and it logs a status and a count,
+  # never an address.
+  def self.remove_contact(emails, attempt = 1)
+    return false unless ENV['HUBSPOT_ACCESS_TOKEN']
+    emails = Array(emails).select { |e| e.is_a?(String) && e.present? }.uniq
+    return true if emails.empty?
+    failed = []
+    statuses = []
+    emails.each do |email|
+      begin
+        res = Typhoeus.post(REMOVE_CONTACT_URL, {
+          body: {objectId: email, idProperty: 'email'}.to_json,
+          headers: {
+            'Content-Type' => 'application/json',
+            'Authorization' => "Bearer #{ENV['HUBSPOT_ACCESS_TOKEN']}"
+          },
+          timeout: 10
+        })
+        code = res.code.to_i
+        # 2xx: deleted. 404: HubSpot has no such contact, which is the state we want.
+        next if (code >= 200 && code < 300) || code == 404
+        statuses << code
+      rescue => e
+        # The class only: an exception message can carry the request, address included.
+        statuses << e.class.name
+      end
+      failed << email
+    end
+    return true if failed.empty?
+    attempt = attempt.to_i
+    if attempt < REMOVE_CONTACT_ATTEMPTS
+      Rails.logger.warn("ExternalTracker: HubSpot contact removal failed for #{failed.length} address(es), attempt #{attempt} of #{REMOVE_CONTACT_ATTEMPTS}, will retry: #{statuses.uniq.join(', ')}")
+      Worker.schedule(ExternalTracker, :remove_contact, failed, attempt + 1)
+    else
+      Rails.logger.error("ExternalTracker: HubSpot contact removal gave up for #{failed.length} address(es) after #{REMOVE_CONTACT_ATTEMPTS} attempts: #{statuses.uniq.join(', ')}")
+    end
+    false
   end
 
   # Reduce a referring URL to just its scheme+host (origin) so any PII in the

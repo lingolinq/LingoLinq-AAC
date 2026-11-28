@@ -7,6 +7,7 @@ import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 import LingoLinq from '../app';
 import loadHierarchyForCopyModal from '../utils/copy_hierarchy_loader';
+import { board_language_for_session } from '../utils/board_display_locale';
 
 function copies_linked_boards(action) {
   return action !== 'keep_links' && action !== 'remove_links';
@@ -18,6 +19,7 @@ function copies_linked_boards(action) {
 export default Component.extend({
   modal: service('modal'),
   appState: service('app-state'),
+  stashes: service('stashes'),
   store: service('store'),
   tagName: '',
 
@@ -84,7 +86,7 @@ export default Component.extend({
     this.set('show_board_picker', false);
     this.set('hierarchy', null);
     this.set('hierarchy_loading', false);
-    this.set('default_locale', this.get('appState').get('label_locale') || this.get('model.board.locale'));
+    this.set('default_locale', board_language_for_session(this.get('stashes'), this.get('model.board')));
     this.set('home_board', null);
     this.load_copy_hierarchy();
     const user_name = this.get('model.selected_user_name');

@@ -340,8 +340,9 @@ describe("persistence", function() {
       db_wait(function() {
         var rnd = persistence.temporary_id();
         var record = null;
+        var stored_retrieved = (new Date()).getTime() - (5*60*1000 - 300);
         var obj = {
-          raw: {hat: rnd, retrieved: ((new Date()).getTime() - (5*60*1000 - 300))},
+          raw: {hat: rnd, retrieved: stored_retrieved},
           storageId: 'hat'
         };
         lingoLinqExtras.storage.store('settings', obj, 'hat').then(function() {
@@ -361,6 +362,11 @@ describe("persistence", function() {
             board.set('appState', state);
           }
           expect(record.hat).toEqual(rnd);
+          expect(board.get('retrieved')).toEqual(stored_retrieved);
+          // Re-anchor 300 ms inside the 5-minute window just before the synchronous check: the IndexedDB
+          // store, find and waitsFor poll above can take longer than 300 ms on a busy runner, which made
+          // the stored value stale before it was read.
+          board.set('retrieved', (new Date()).getTime() - (5*60*1000 - 300));
           expect(board.get('fresh')).toEqual(true);
           LingoLinq.sync_testing = true;
           setTimeout(function() {
@@ -770,6 +776,30 @@ describe("persistence", function() {
         });
       });
     });
+    // The sync tries a picture again only when its failure passes (utils/board_content_retry.js), so the proxy's
+    // failure keeps its cause: the request's status, or that the app is offline. Nothing else from the request.
+    [
+      ['a dropped link', {fakeXHR: {status: 0, responseText: 'secret'}, stack: 'x'}, {fakeXHR: {status: 0}}],
+      ['the app being offline', {offline: true, error: 'not online', short_circuit: true}, {offline: true}],
+      ['a picture the server could not get', {fakeXHR: {status: 400, responseJSON: {original_url: 'x'}}}, {fakeXHR: {status: 400}}]
+    ].forEach(function(row) {
+      it("should keep only the cause of a failed API call: " + row[0], function() {
+        db_wait(function() {
+          stubOnPersistence( 'ajax', function(options) {
+            return RSVP.reject(row[1]);
+          });
+          var result = null;
+          persistence.store_url("http://www.example.com/pic.png", 'image').then(function() { dbg(); }, function(res) {
+            result = res;
+          });
+          waitsFor(function() { return result; });
+          runs(function() {
+            var expected = Object.assign({error: 'URL lookup failed during proxy for http://www.example.com/pic.png'}, row[2]);
+            expect(result).toEqual(expected);
+          });
+        });
+      });
+    });
     it("should error on a failed data storage", function() {
       db_wait(function() {
         stubOnPersistence( 'ajax', function(options) {
@@ -1069,7 +1099,10 @@ describe("persistence", function() {
         });
         var res = LingoLinq.store.findRecord('board', '1234');
         expect(res && typeof res.then === 'function').toEqual(true);
-        res.catch(function() { });
+        var settled = false;
+        res.then(function() { settled = true; }, function() { settled = true; });
+        waitsFor(function() { return settled; });
+        runs();
       });
       it("should make an ajax query and find the record", function() {
         queryLog.real_lookup = false;

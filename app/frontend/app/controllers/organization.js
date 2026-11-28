@@ -323,6 +323,46 @@ export default Controller.extend({
       evals: i18n.t('evals', "Evals"),
       extras: i18n.t('symbols', "Symbols")
     };
-    return labels[this.get('activePeopleSection')] || i18n.t('admin', "Admin");
+    return labels[this.get('activePeopleSection')] || i18n.t('org_sections', "Organization Sections"); // no tab current (Reports, Rooms...): name the menu, do not claim Admin (review 2026-11-10)
+  }),
+
+  /* THE ORG TABS IN BOTH VIEWS (2026-11-08, requested: "modern view needs the Admin/Managers/
+     Supervisors/Communicators/Evals/Symbols top menu along with their own side menu"). Modern used
+     to keep the "< Home | <section>" strip; it now gets the six tabs too, because the org rail
+     (components/account-rail.hbs, org mode) carries the way back that strip was for.
+     SAME GATE AS BASIC for who sees them (`showBasicOrgTabs`: org editors), plus, in Modern only,
+     `showSectionPillNav`: where the app shell already drew its own pill nav (a rooms-only
+     supervisor's Rooms page) this section stands down, so two navs never stack. Basic has no app
+     pill nav, so that second gate does not apply there. Placed last so the line-anchored ESLint
+     baseline for this file does not shift. */
+  showOrgTabs: computed('isClassic', 'showBasicOrgTabs', 'showSectionPillNav', function() {
+    if(!this.get('showBasicOrgTabs')) { return false; }
+    return this.get('isClassic') ? true : !!this.get('showSectionPillNav');
+  }),
+  /* WHERE THEY RENDER: in this page for Basic only. Modern mounts the same component in the app
+     shell's nav slot (controllers/application.js `showOrgNav`), so it sits where the home pill nav
+     does in both layouts (requested 2026-11-08). */
+  showInPageOrgTabs: computed('isClassic', 'showOrgTabs', function() {
+    return !!this.get('isClassic') && !!this.get('showOrgTabs');
+  }),
+  /* Modern's "< Home | <section>" strip, now only for someone who is not an org editor (they have
+     no tabs, and their rail is the personal account rail). Never in Basic, as before. */
+  showBackStrip: computed('isClassic', 'showBasicOrgTabs', 'showSectionPillNav', function() {
+    return !this.get('isClassic') && !this.get('showBasicOrgTabs') && !!this.get('showSectionPillNav');
+  }),
+  /* The base class names, swapped by view as components/user-pill-nav.js does: one copy of the
+     markup and its six permission-free links, two skins. `ch-tabs-fit` / {{fit-or-select}} accept
+     either strip class (modifiers/fit-or-select.js). */
+  orgTabsNavClass: computed('isClassic', function() {
+    return this.get('isClassic') ? 'ch-tabs ch-tabs--primary' : 'md-pillnav md-pillnav--dashboard md-pillnav--primary md-pillnav--org-tabs';
+  }),
+  /* `--primary` in Modern, on the strip above and on its dropdown here: in the app shell's nav slot
+     the org tabs ARE the primary nav, so they take its narrow-width behaviour (app.scss, "MODERN
+     PRIMARY NAV ... COLLAPSES AT <=640px"): the same swap point, the same dropdown position. */
+  orgTabsDropdownClass: computed('isClassic', function() {
+    return this.get('isClassic') ? '' : 'md-pillnav-dropdown--primary';
+  }),
+  orgTabClass: computed('isClassic', function() {
+    return this.get('isClassic') ? 'ch-tab' : 'md-pillnav__pill';
   })
 });

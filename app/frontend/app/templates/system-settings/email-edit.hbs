@@ -46,9 +46,15 @@
     {{/each}}
   {{else if (is-equal this.activeFormat "html")}}
     <p class="la-system-settings__hint">{{t "Advanced template code. Leave unchanged unless you need full control over layout." key="system_settings_email_html_hint"}}</p>
+    {{#if this.template.override_errors.html}}
+      <p role="alert">{{t "This saved HTML body can no longer be used, so the default email is sent instead:" key="system_settings_email_html_override_error"}} {{this.template.override_errors.html}}</p>
+    {{/if}}
     <textarea class="form-control la-system-settings__textarea" rows="18" aria-label={{t "HTML email template" key="html_email_template"}} {{on "input" (set-field this "html_body")}}>{{this.html_body}}</textarea>
   {{else if (is-equal this.activeFormat "text")}}
     <p class="la-system-settings__hint">{{t "Advanced plain-text template code." key="system_settings_email_text_hint"}}</p>
+    {{#if this.template.override_errors.text}}
+      <p role="alert">{{t "This saved plain-text body can no longer be used, so the default email is sent instead:" key="system_settings_email_text_override_error"}} {{this.template.override_errors.text}}</p>
+    {{/if}}
     <textarea class="form-control la-system-settings__textarea" rows="18" aria-label={{t "Plain-text email template" key="text_email_template"}} {{on "input" (set-field this "text_body")}}>{{this.text_body}}</textarea>
   {{else}}
     <h3 class="la-system-settings__vars-heading">{{t "Branding variables" key="system_settings_email_branding_vars"}}</h3>
@@ -76,21 +82,23 @@
           <dd>{{var.description}}</dd>
         {{/each}}
       </dl>
-    {{else}}
-      <h3 class="la-system-settings__vars-heading">{{t "Template variables" key="system_settings_email_template_vars"}}</h3>
-      <ul class="la-system-settings__vars">
-        {{#each this.template.variables as |var|}}
-          <li><code>{{var}}</code></li>
-        {{/each}}
-      </ul>
-      <p class="la-system-settings__hint">{{t "Templates use <%= ... %> output tags only (no Ruby code blocks). Use variables like @user, app_name, and support_url in your template body." key="system_settings_email_vars_hint"}}</p>
+    {{/if}}
+    <h3 class="la-system-settings__vars-heading">{{t "Placeholders for the HTML and plain-text bodies" key="system_settings_email_placeholder_list"}}</h3>
+    <ul class="la-system-settings__vars">
+      {{#each this.template.placeholders as |ph|}}
+        <li><code>{{concat "<%= " ph " %>"}}</code></li>
+      {{/each}}
+    </ul>
+    <p class="la-system-settings__hint">{{t "The HTML and plain-text bodies can only fill in the placeholders listed here, each written inside <%= %>. The longer forms are copied from this email's default text: message blocks (mailer_t), dates (long_ordinal_date) and a value with a fallback (.presence ||). A body that uses anything else cannot be saved." key="system_settings_email_placeholder_hint"}}</p>
+    {{#if this.template.required_placeholders.length}}
+      <p class="la-system-settings__hint">{{t "This email does not work without these, so an edited body must keep them:" key="system_settings_email_required_placeholders"}} {{#each this.template.required_placeholders as |ph|}}<code>{{concat "<%= " ph " %>"}}</code> {{/each}}</p>
     {{/if}}
   {{/if}}
 
   <div class="la-system-settings__actions">
-    <button type="button" class="btn btn-primary" disabled={{this.saving}} {{on "click" (this.ctrlAction "saveTemplate")}}>{{t "Save" key="save"}}</button>
-    <button type="button" class="btn btn-default" disabled={{this.previewing}} {{on "click" (this.ctrlAction "previewTemplate")}}>{{t "Preview" key="system_settings_preview"}}</button>
-    <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "resetTemplate")}}>{{t "Reset to default" key="system_settings_reset_default"}}</button>
+    <button type="button" class="md-btn md-btn--primary" disabled={{this.saving}} {{on "click" (this.ctrlAction "saveTemplate")}}>{{t "Save" key="save"}}</button>
+    <button type="button" class="md-btn md-btn--ghost" disabled={{this.previewing}} {{on "click" (this.ctrlAction "previewTemplate")}}>{{t "Preview" key="system_settings_preview"}}</button>
+    <button type="button" class="md-btn md-btn--ghost" {{on "click" (this.ctrlAction "resetTemplate")}}>{{t "Reset to default" key="system_settings_reset_default"}}</button>
   </div>
 
   {{#if this.previewSubject}}

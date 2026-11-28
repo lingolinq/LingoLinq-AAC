@@ -26,7 +26,7 @@ import EmberObject from '@ember/object';
 import utterance from '../utils/utterance';
 import { inject as service } from '@ember/service';
 import rewriteBrokenSymbolUrl from '../utils/symbol-url';
-
+import { isActionVocalization } from '../utils/special_vocalization';
 // Curated vocab boards (Quick Core / Vocal Flair / Sequoia) ship with our
 // own branded tile art under /images/. The board records still carry the
 // old ARASAAC library URL in image_url, so without this the find-a-board
@@ -979,7 +979,7 @@ LingoLinq.Board = BaseModel.extend({
       }
     }).then(function(data) {
       _this.set('starred', data.starred);
-      _this.set('stars', data.stars);
+      _this.set('stars', data.stars); if(star && data.starred) { var said = like_message(data); modal[said.kind](said.text); } // utils/like_limit.js
     }, function() {
       modal.warning(i18n.t('star_failed', "Like action failed"));
     });
@@ -1073,8 +1073,11 @@ LingoLinq.Board = BaseModel.extend({
       // If setting a new default locale, do it here
       var new_loc = this.get('default_locale');
       var old_loc = this.get('locale');
-      var trans = this.get('translations');
+      var trans = this.get('translations') || {};
       var buttons = board.get('buttons') || [];
+      // Same gate as Relinking#update_default_locale!: a button or the name in the new language
+      // counts; with neither, the board keeps its language. Actions (+a, :space) stay as authored.
+      var anything_translated = false;
       buttons.forEach(function(btn) {
         trans[btn.id] = trans[btn.id] || {};
         trans[btn.id][old_loc] = trans[btn.id][old_loc] || {}
@@ -1084,16 +1087,20 @@ LingoLinq.Board = BaseModel.extend({
           trans[btn.id][old_loc].inflections = btn.inflections;  
         }
         if(trans[btn.id][new_loc]) {
+          anything_translated = true;
           btn.label = trans[btn.id][new_loc].label;
-          btn.vocalization = trans[btn.id][new_loc].vocalization;
+          if(!isActionVocalization(btn.vocalization)) { btn.vocalization = trans[btn.id][new_loc].vocalization; }
           btn.inflections = trans[btn.id][new_loc].inflections;
         }
       });
       if(trans['board_name'] && trans['board_name'][new_loc]) {
+        anything_translated = true;
         board.set('name', trans['board_name'][new_loc]);
       }
-      board.set('buttons', buttons);
-      board.set('locale', new_loc);
+      if(anything_translated) {
+        board.set('buttons', buttons);
+        board.set('locale', new_loc);
+      }
     }
     if(this.get('local_only')) {
       board.set('parent_board_id', null);
@@ -2216,3 +2223,6 @@ LingoLinq.Board.skin_image_map = function(image_map, skin, opts) {
 };
 
 export default LingoLinq.Board;
+
+// Imported last so the .eslint-todo rows above keep their lines.
+import { like_message } from '../utils/like_limit';

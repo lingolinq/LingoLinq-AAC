@@ -54,6 +54,9 @@ export default Component.extend({
    *  Null when not hovering, so the readout falls back to the real selection. */
   hoverRows: null,
   hoverCols: null,
+  /** True from a click until the pointer leaves the grid: the picked size stays painted
+   *  instead of the fill chasing the pointer, so the pick reads as made. */
+  holdingPick: false,
 
   init() {
     this._super(...arguments);
@@ -179,10 +182,16 @@ export default Component.extend({
     preview_from_event(ev) {
       var at = this._coords(ev);
       if (!at) { return; }
+      // Pointer sweeps wait for the pointer to leave first; keyboard focus always previews.
+      if (this.get('holdingPick')) {
+        if (ev.type === 'mouseover') { return; }
+        this.set('holdingPick', false);
+      }
       this.set('hoverRows', at.row);
       this.set('hoverCols', at.col);
     },
     clear_preview() {
+      this.set('holdingPick', false);
       this.set('hoverRows', null);
       this.set('hoverCols', null);
     },
@@ -190,15 +199,18 @@ export default Component.extend({
        picker behaves. The caller writes it back through `rows`/`columns`, which
        repaints the marked selection.
 
-       Hover is deliberately NOT cleared here: the pointer is still sitting on the
-       cell that was just clicked, so the preview and the new selection agree, and
-       clearing would make the fill flicker back and forth under a stationary
-       pointer. `mouseleave` clears it. */
+       The fill then holds on that selection until the pointer leaves the grid
+       (`clear_preview`), so moving on over the grid does not make the pick look
+       undone. The hover is cleared so the fill shows what the caller accepted,
+       which is the clicked cell unless the caller clamped it. */
     pick_from_event(ev) {
       var at = this._coords(ev);
       if (!at) { return; }
       var callback = this.get('onChange');
       if (typeof callback === 'function') { callback(at.row, at.col); }
+      this.set('holdingPick', true);
+      this.set('hoverRows', null);
+      this.set('hoverCols', null);
     },
     /** Arrow/Home/End move focus a cell at a time; focus moving fires `focusin`,
      *  which repaints the preview, so keyboard and pointer share one code path.

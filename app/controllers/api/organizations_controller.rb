@@ -34,7 +34,7 @@ class Api::OrganizationsController < ApplicationController
     end
     prefix = "/organizations/#{@org.global_id}/users"
     org_manager = @org.allows?(@api_user, 'manage')
-    render json: JsonApi::User.paginate(params, users, {:limited_identity => true, :supervisor => @api_user, :include_email => true, :organization => @org, :prefix => prefix, :organization_manager => org_manager, :profile_type => 'supervisor'})
+    render json: JsonApi::User.paginate(params, users, {:limited_identity => true, :supervisor => @api_user, :viewer => @api_user, :include_email => true, :organization => @org, :prefix => prefix, :organization_manager => org_manager, :profile_type => 'supervisor'})
   end
 
   def set_status
@@ -343,14 +343,15 @@ class Api::OrganizationsController < ApplicationController
   def admin_reports
     org = Organization.find_by_path(params['organization_id'])
     return unless allowed?(org, 'edit')
-    # Only the reports in the list should be allowed for non-admins
-    if !['logged_2', 'not_logged_2', 'unused_3', 'unused_6', 'summaries'].include?(params['report']) && !(params['report'] || '').match(/^status-/) && !(params['report'] || '').match(/^access-/) &&
-          !(params['report'] || '').match(/^device-/) && !(params['report'] || '').match(/^vocab-/)&& !(params['report'] || '').match(/^grid-/)
+    report_name = params['report'].is_a?(String) ? params['report'] : ''
+    # Only the reports in the list should be allowed for non-admins. \A, not ^:
+    # ^ also matches after a line break, so "home_boards\nstatus-x" got through (#1182).
+    if !['logged_2', 'not_logged_2', 'unused_3', 'unused_6', 'summaries'].include?(report_name) && !report_name.match?(/\A(status|access|device|vocab|grid)-/)
       if !org.admin?
         return unless allowed?(org, 'impossible')
       end
     end
-    if !params['report']
+    if !params['report'].is_a?(String)
       return api_error 400, {:error => "report parameter required"}
     end
     users = nil
@@ -400,7 +401,9 @@ class Api::OrganizationsController < ApplicationController
         links = UserLink.links_for(org).select{|l| l['type'] == 'org_user'}
         stats[org.settings['name']] = links.length
       end
-    elsif params['report'].match(/home_boards/)
+    # Exact names only. An unanchored /home_boards/ match ran this system-wide
+    # census for allowlisted prefixes such as status-home_boards (#1182).
+    elsif params['report'] == 'home_boards' || params['report'] == 'recent_home_boards'
       home_connections = UserBoardConnection.where(:home => true)
       if params['report'].match(/recent/)
         home_connections = home_connections.where(['updated_at > ?', 3.months.ago])
@@ -500,7 +503,8 @@ class Api::OrganizationsController < ApplicationController
           true
         end
       end
-    elsif params['report'].match(/logged_/)
+    # Anchored so not_logged_2 reaches its own branch below instead of this one.
+    elsif params['report'].match(/\Alogged_/)
       # logins that have generated logs in the last 2 weeks
       x = params['report'].split(/_/)[1].to_i
       sessions = LogSession.where(['created_at > ?', x.weeks.ago])
@@ -870,7 +874,45 @@ class Api::OrganizationsController < ApplicationController
     if org_data && !org.allows?(@api_user, 'delete')
       org_data.delete('parent_org')
     end
+    # AI authorization for the accounts this organization manages (#1136). It is its
+    # own audited record, not a plain setting, so it is taken out of the general update
+    # and applied only for someone who may manage the organization (an assistant can
+    # edit but not manage), acting as themselves. The settings page sends the value it
+    # loaded with every save, so it counts only when the save also says the switch was
+    # changed (ai_authorized_changed): a page opened before another manager changed the
+    # switch must not put it back.
+    ai_authorized = nil
+    if org_data && (org_data.key?('ai_authorized') || org_data.key?(:ai_authorized))
+      raw = org_data.delete('ai_authorized')
+      raw = org_data.delete(:ai_authorized) if raw.nil?
+      changed = org_data.delete('ai_authorized_changed')
+      changed = org_data.delete(:ai_authorized_changed) if changed.nil?
+      if [true, 'true', '1', 1].include?(changed) && org.allows?(@api_user, 'manage') && !@true_user
+        ai_authorized = [true, 'true', '1', 1].include?(raw) ? true : ([false, 'false', '0', 0].include?(raw) ? false : nil)
+      end
+    end
+    org_data.delete('ai_authorized_changed') if org_data
+    org_data.delete(:ai_authorized_changed) if org_data
+    # Turning the switch on is an authorization against the current disclosure, so the
+    # page has to say which version it linked to. A page left open across a version
+    # change is refused before anything is saved.
+    shown_version = nil
+    if org_data
+      shown_version = org_data.delete('ai_disclosure_version')
+      alt = org_data.delete(:ai_disclosure_version)
+      shown_version = alt if shown_version.nil?
+    end
+    if ai_authorized == true && !org.ai_authorized?
+      unless shown_version.to_s =~ /\A\d+\z/ && shown_version.to_i == LingoLinq::AiConsentDisclosures::CURRENT_VERSION
+        return api_error(400, {error: 'disclosure_version_stale', disclosures_version: LingoLinq::AiConsentDisclosures::CURRENT_VERSION})
+      end
+    end
     if org.process(org_data, {'updater' => @api_user})
+      if ai_authorized == true
+        org.authorize_ai!(authorized_by: @api_user, ip: request.remote_ip)
+      elsif ai_authorized == false
+        org.revoke_ai_authorization!(revoked_by: @api_user)
+      end
       render json: JsonApi::Organization.as_json(org, :wrapper => true, :permissions => @api_user).to_json
     else
       api_error(400, {error: "organization update failed", errors: (Array(org.processing_errors) + Array(org.errors.full_messages)).uniq})

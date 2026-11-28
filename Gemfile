@@ -12,6 +12,8 @@ group :development, :test do
   gem 'simplecov', :require => false
   gem 'rack-test'
   gem 'rails-controller-testing'
+  # Specs never reach the real network (spec/spec_helper.rb disables it)
+  gem 'webmock', require: false
   gem 'drb'
   gem 'irb'
   # CVE-2026-34060 (GHSA-c4r5-fxqw-vh93); bundler-audit minimum

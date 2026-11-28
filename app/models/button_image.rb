@@ -225,6 +225,7 @@ class ButtonImage < ApplicationRecord
       if data_url.present?
         self.data = data_url
         self.settings['data_uri'] = data_url
+        clear_upload_failure
       end
       process_url(params['url'], non_user_params) if params['url'] && params['url'].match(/^http/)
       # Security: only ever store an image/* content type. Anything else

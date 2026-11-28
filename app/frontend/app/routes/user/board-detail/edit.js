@@ -27,7 +27,7 @@ export default Route.extend({
     var _this = this;
     var boardDetailController = this.controllerFor('user.board-detail');
 
-    if(!model) {
+    if(!model || refuse_device_copy(boardDetailController)) {
       _this.router.transitionTo('user.board-detail', boardDetailController.get('user.user_name') || 'unknown', boardDetailController.get('boardname') || 'unknown');
       return;
     }
@@ -128,3 +128,10 @@ export default Route.extend({
     }
   }
 });
+
+// A direct way in, such as a link or Back, that the board page's Edit button did not stop. An edit to
+// a device copy would sync back over any newer version on the server with no conflict check
+// (services/persistence.js#sync_changed).
+export function refuse_device_copy(boardDetailController) {
+  return boardDetailController.get('served_from_device') ? boardDetailController._blocked_on_device_copy() : false;
+}

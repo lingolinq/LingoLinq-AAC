@@ -332,7 +332,7 @@ module Flusher
   def self.flush_deleted_users
     users = User.where(['schedule_deletion_at < ?', Time.now]).limit(500).select('id, user_name')
     users.each do |user|
-      Worker.schedule(Flusher, :flush_user_completely, user.global_id, user.user_name)
+      Worker.schedule(Flusher, :flush_user_completely, user.global_id, user.user_name) if User.scheduled_deletion_proceeds?(user.id)
     end
     users.count
   end
@@ -484,6 +484,10 @@ module Flusher
   
   def self.flush_user_completely(user_id, user_name)
     user = find_user(user_id, user_name)
+    # an inactivity-sweep deletion cancelled by use of the account since the flush was enqueued
+    return false unless User.scheduled_deletion_proceeds?(user.id)
+    # Read now, while the settings are still in memory; used after the row is gone.
+    hubspot_emails = ExternalTracker.sent_emails(user)
     flush_user_content(user_id, user_name)
     # TODO: remove any public comments by the user
     LogSession.where(:author_id => user.id).each do |note|
@@ -491,6 +495,15 @@ module Flusher
     end
     gid = user.global_id
     flush_record(user, user.id, 'User')
+    # #384: remove the HubSpot contact, only for addresses this app actually sent, and
+    # only now that the account is gone. Scheduled after the destroy so a deletion
+    # that fails part way leaves the contact of a surviving account alone. A failure
+    # to schedule must not undo or block the deletion.
+    begin
+      Worker.schedule(ExternalTracker, :remove_contact, hubspot_emails) if hubspot_emails.any?
+    rescue => e
+      Rails.logger.error("Flusher: could not schedule HubSpot contact removal for #{gid}: #{e.class}")
+    end
     # Accounting-of-disclosure: timestamp the permanent destruction of a user's
     # education/health records at the async finalization step. No human actor is
     # in scope here (scheduled flush), so the actor key is 'system'.

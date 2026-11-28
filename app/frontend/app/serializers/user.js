@@ -1,4 +1,5 @@
 import ApplicationSerializer from './application';
+import { listed_preferences } from '../utils/preference_save';
 
 /**
  * COPPA + EU registration: send coppa_under_13 / parent_consent_email (under-13
@@ -81,6 +82,15 @@ export default ApplicationSerializer.extend({
     if (options && options.localCopy && snapshot.record && typeof snapshot.record.get === 'function') {
       var supervisees = snapshot.record.get('supervisees');
       if (Array.isArray(supervisees)) { json.supervisees = plain_copy(supervisees, []); }
+    }
+    // The keys a save changed, from `save({adapterOptions: {preference_keys}})` (utils/preference_save.js).
+    // Per save: adapterOptions belong to this snapshot only, so the list never reaches a later save.
+    var listed = snapshot.adapterOptions && snapshot.adapterOptions.preference_keys;
+    if (Array.isArray(listed)) {
+      json.preference_keys = listed.slice();
+      // The request carries only those preferences. The offline local copy (`localCopy`) is the record
+      // itself, so it stays whole; the list it keeps is what its replay sends (utils/preference_save.js).
+      if (!(options && options.localCopy)) { json.preferences = listed_preferences(json.preferences, listed); }
     }
     // Response-only flags; never POST them (new records default DS.attr('boolean') to false).
     delete json.coppa_parental_consent_pending;
