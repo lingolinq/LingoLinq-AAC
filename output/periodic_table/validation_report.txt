@@ -1,0 +1,97 @@
+Periodic Table: 21 boards, 168 picture files, 734 buttons
+periodic-table.obz: 223077 bytes, sha256 7aff3f0ab821f144776305483671ce893a62c0320ff95f689ee6d8b602cdd246
+
+PASS  dataset has exactly 118 elements, atomic numbers 1 to 118, no gaps or duplicates
+PASS  118 unique symbols and 118 unique names
+PASS  every element has one of the 10 known categories
+PASS  full table + lanthanides/actinides boards together hold each of the 118 elements exactly once
+PASS  the facts versions of those boards also hold each of the 118 elements exactly once
+PASS  the three large-target block boards together hold each of the 118 elements exactly once
+PASS  the family boards together hold each of the 118 elements exactly once
+PASS  Elements 1-20 board holds elements 1 to 20 exactly once
+PASS  every element on the full table sits at row = period, column = group
+PASS  periodic-table-full: 105 buttons (limit 112), grid 8x18
+PASS  periodic-table-first-20: 25 buttons (limit 112), grid 5x8
+PASS  periodic-table-main-groups: 55 buttons (limit 112), grid 8x8
+PASS  periodic-table-transition-metals: 45 buttons (limit 112), grid 5x10
+PASS  periodic-table-lanthanides-actinides: 35 buttons (limit 112), grid 3x15
+PASS  periodic-table-full-facts: 105 buttons (limit 112), grid 8x18
+PASS  periodic-table-first-20-facts: 25 buttons (limit 112), grid 5x8
+PASS  periodic-table-main-groups-facts: 55 buttons (limit 112), grid 8x8
+PASS  periodic-table-transition-metals-facts: 45 buttons (limit 112), grid 5x10
+PASS  periodic-table-lanthanides-actinides-facts: 35 buttons (limit 112), grid 3x15
+PASS  periodic-table-alkali-metals: 10 buttons (limit 112), grid 3x4
+PASS  periodic-table-alkaline-earth: 10 buttons (limit 112), grid 3x4
+PASS  periodic-table-post-transition: 15 buttons (limit 112), grid 4x4
+PASS  periodic-table-metalloids: 11 buttons (limit 112), grid 3x4
+PASS  periodic-table-nonmetals: 11 buttons (limit 112), grid 3x4
+PASS  periodic-table-halogens: 10 buttons (limit 112), grid 3x4
+PASS  periodic-table-noble-gases: 11 buttons (limit 112), grid 3x4
+PASS  periodic-table-words: 59 buttons (limit 112), grid 8x8
+PASS  periodic-table-talk: 27 buttons (limit 112), grid 7x4
+PASS  periodic-table-compounds: 24 buttons (limit 112), grid 5x5
+PASS  periodic-table: 16 buttons (limit 112), grid 3x7
+PASS  every link button points at a board in the package (111 links)
+PASS  all 21 boards are reachable from the menu board
+PASS  every board has a Table menu button back to the menu board
+PASS  navigation is in the same corners on every board (menu and back bottom-left, words and talk bottom-right)
+PASS  every button has a background color and a border color
+PASS  every button has a label
+PASS  every button has something to do: a vocalization, an action or a link
+PASS  every element button has a non-empty vocalization
+PASS  every image a button uses is listed on its board
+PASS  label contrast is WCAG AAA on every button color (lowest ratio 9.9:1, need 7:1)
+PASS  no picture id is shared between boards (654 ids, 168 files)
+PASS  every tile fill stays at or below 229 per channel, under the app's symbol filter threshold
+PASS  no live text in any picture: every letter is an outline
+PASS  10 categories, each with its own color and its own shape marker
+
+Periodic Table (High Contrast): 21 boards, 168 picture files, 734 buttons
+periodic-table-high-contrast.obz: 222662 bytes, sha256 bb58f4d179d17cc4ae01d0cae365a06bda892cba1a16f0967850f1a2398e1e83
+
+PASS  dataset has exactly 118 elements, atomic numbers 1 to 118, no gaps or duplicates
+PASS  118 unique symbols and 118 unique names
+PASS  every element has one of the 10 known categories
+PASS  full table + lanthanides/actinides boards together hold each of the 118 elements exactly once
+PASS  the facts versions of those boards also hold each of the 118 elements exactly once
+PASS  the three large-target block boards together hold each of the 118 elements exactly once
+PASS  the family boards together hold each of the 118 elements exactly once
+PASS  Elements 1-20 board holds elements 1 to 20 exactly once
+PASS  every element on the full table sits at row = period, column = group
+PASS  periodic-table-hc-full: 105 buttons (limit 112), grid 8x18
+PASS  periodic-table-hc-first-20: 25 buttons (limit 112), grid 5x8
+PASS  periodic-table-hc-main-groups: 55 buttons (limit 112), grid 8x8
+PASS  periodic-table-hc-transition-metals: 45 buttons (limit 112), grid 5x10
+PASS  periodic-table-hc-lanthanides-actinides: 35 buttons (limit 112), grid 3x15
+PASS  periodic-table-hc-full-facts: 105 buttons (limit 112), grid 8x18
+PASS  periodic-table-hc-first-20-facts: 25 buttons (limit 112), grid 5x8
+PASS  periodic-table-hc-main-groups-facts: 55 buttons (limit 112), grid 8x8
+PASS  periodic-table-hc-transition-metals-facts: 45 buttons (limit 112), grid 5x10
+PASS  periodic-table-hc-lanthanides-actinides-facts: 35 buttons (limit 112), grid 3x15
+PASS  periodic-table-hc-alkali-metals: 10 buttons (limit 112), grid 3x4
+PASS  periodic-table-hc-alkaline-earth: 10 buttons (limit 112), grid 3x4
+PASS  periodic-table-hc-post-transition: 15 buttons (limit 112), grid 4x4
+PASS  periodic-table-hc-metalloids: 11 buttons (limit 112), grid 3x4
+PASS  periodic-table-hc-nonmetals: 11 buttons (limit 112), grid 3x4
+PASS  periodic-table-hc-halogens: 10 buttons (limit 112), grid 3x4
+PASS  periodic-table-hc-noble-gases: 11 buttons (limit 112), grid 3x4
+PASS  periodic-table-hc-words: 59 buttons (limit 112), grid 8x8
+PASS  periodic-table-hc-talk: 27 buttons (limit 112), grid 7x4
+PASS  periodic-table-hc-compounds: 24 buttons (limit 112), grid 5x5
+PASS  periodic-table-hc: 16 buttons (limit 112), grid 3x7
+PASS  every link button points at a board in the package (111 links)
+PASS  all 21 boards are reachable from the menu board
+PASS  every board has a Table menu button back to the menu board
+PASS  navigation is in the same corners on every board (menu and back bottom-left, words and talk bottom-right)
+PASS  every button has a background color and a border color
+PASS  every button has a label
+PASS  every button has something to do: a vocalization, an action or a link
+PASS  every element button has a non-empty vocalization
+PASS  every image a button uses is listed on its board
+PASS  label contrast is WCAG AAA on every button color (lowest ratio 13.2:1, need 7:1)
+PASS  no picture id is shared between boards (654 ids, 168 files)
+PASS  every tile fill stays at or below 229 per channel, under the app's symbol filter threshold
+PASS  no live text in any picture: every letter is an outline
+PASS  10 categories, each with its own color and its own shape marker
+
+RESULT: all checks passed

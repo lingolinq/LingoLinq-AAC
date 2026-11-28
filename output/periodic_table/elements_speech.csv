@@ -1,0 +1,119 @@
+atomic_number,symbol,label,category,group,period,says_names_mode,says_facts_mode,tts_review
+1,H,Hydrogen,Nonmetal,1,1,hydrogen,"Hydrogen. Symbol H. Atomic number 1. Nonmetal. Group 1, period 1.",
+2,He,Helium,Noble gas,18,1,helium,"Helium. Symbol H E. Atomic number 2. Noble gas. Group 18, period 1.",
+3,Li,Lithium,Alkali metal,1,2,lithium,"Lithium. Symbol L I. Atomic number 3. Alkali metal. Group 1, period 2.",
+4,Be,Beryllium,Alkaline earth metal,2,2,beryllium,"Beryllium. Symbol B E. Atomic number 4. Alkaline earth metal. Group 2, period 2.",
+5,B,Boron,Metalloid,13,2,boron,"Boron. Symbol B. Atomic number 5. Metalloid. Group 13, period 2.",
+6,C,Carbon,Nonmetal,14,2,carbon,"Carbon. Symbol C. Atomic number 6. Nonmetal. Group 14, period 2.",
+7,N,Nitrogen,Nonmetal,15,2,nitrogen,"Nitrogen. Symbol N. Atomic number 7. Nonmetal. Group 15, period 2.",
+8,O,Oxygen,Nonmetal,16,2,oxygen,"Oxygen. Symbol O. Atomic number 8. Nonmetal. Group 16, period 2.",
+9,F,Fluorine,Halogen,17,2,fluorine,"Fluorine. Symbol F. Atomic number 9. Halogen. Group 17, period 2.",
+10,Ne,Neon,Noble gas,18,2,neon,"Neon. Symbol N E. Atomic number 10. Noble gas. Group 18, period 2.",
+11,Na,Sodium,Alkali metal,1,3,sodium,"Sodium. Symbol N A. Atomic number 11. Alkali metal. Group 1, period 3.",
+12,Mg,Magnesium,Alkaline earth metal,2,3,magnesium,"Magnesium. Symbol M G. Atomic number 12. Alkaline earth metal. Group 2, period 3.",
+13,Al,Aluminum,Post-transition metal,13,3,aluminum,"Aluminum. Symbol A L. Atomic number 13. Post-transition metal. Group 13, period 3.",
+14,Si,Silicon,Metalloid,14,3,silicon,"Silicon. Symbol S I. Atomic number 14. Metalloid. Group 14, period 3.",
+15,P,Phosphorus,Nonmetal,15,3,phosphorus,"Phosphorus. Symbol P. Atomic number 15. Nonmetal. Group 15, period 3.",
+16,S,Sulfur,Nonmetal,16,3,sulfur,"Sulfur. Symbol S. Atomic number 16. Nonmetal. Group 16, period 3.",
+17,Cl,Chlorine,Halogen,17,3,chlorine,"Chlorine. Symbol C L. Atomic number 17. Halogen. Group 17, period 3.",
+18,Ar,Argon,Noble gas,18,3,argon,"Argon. Symbol A R. Atomic number 18. Noble gas. Group 18, period 3.",
+19,K,Potassium,Alkali metal,1,4,potassium,"Potassium. Symbol K. Atomic number 19. Alkali metal. Group 1, period 4.",
+20,Ca,Calcium,Alkaline earth metal,2,4,calcium,"Calcium. Symbol C A. Atomic number 20. Alkaline earth metal. Group 2, period 4.",
+21,Sc,Scandium,Transition metal,3,4,scandium,"Scandium. Symbol S C. Atomic number 21. Transition metal. Group 3, period 4.",
+22,Ti,Titanium,Transition metal,4,4,titanium,"Titanium. Symbol T I. Atomic number 22. Transition metal. Group 4, period 4.",
+23,V,Vanadium,Transition metal,5,4,vanadium,"Vanadium. Symbol V. Atomic number 23. Transition metal. Group 5, period 4.",
+24,Cr,Chromium,Transition metal,6,4,chromium,"Chromium. Symbol C R. Atomic number 24. Transition metal. Group 6, period 4.",
+25,Mn,Manganese,Transition metal,7,4,manganese,"Manganese. Symbol M N. Atomic number 25. Transition metal. Group 7, period 4.",
+26,Fe,Iron,Transition metal,8,4,iron,"Iron. Symbol F E. Atomic number 26. Transition metal. Group 8, period 4.",
+27,Co,Cobalt,Transition metal,9,4,cobalt,"Cobalt. Symbol C O. Atomic number 27. Transition metal. Group 9, period 4.",
+28,Ni,Nickel,Transition metal,10,4,nickel,"Nickel. Symbol N I. Atomic number 28. Transition metal. Group 10, period 4.",
+29,Cu,Copper,Transition metal,11,4,copper,"Copper. Symbol C U. Atomic number 29. Transition metal. Group 11, period 4.",
+30,Zn,Zinc,Transition metal,12,4,zinc,"Zinc. Symbol Z N. Atomic number 30. Transition metal. Group 12, period 4.",
+31,Ga,Gallium,Post-transition metal,13,4,gallium,"Gallium. Symbol G A. Atomic number 31. Post-transition metal. Group 13, period 4.",
+32,Ge,Germanium,Metalloid,14,4,germanium,"Germanium. Symbol G E. Atomic number 32. Metalloid. Group 14, period 4.",
+33,As,Arsenic,Metalloid,15,4,arsenic,"Arsenic. Symbol A S. Atomic number 33. Metalloid. Group 15, period 4.",
+34,Se,Selenium,Nonmetal,16,4,selenium,"Selenium. Symbol S E. Atomic number 34. Nonmetal. Group 16, period 4.",
+35,Br,Bromine,Halogen,17,4,bromine,"Bromine. Symbol B R. Atomic number 35. Halogen. Group 17, period 4.",
+36,Kr,Krypton,Noble gas,18,4,krypton,"Krypton. Symbol K R. Atomic number 36. Noble gas. Group 18, period 4.",
+37,Rb,Rubidium,Alkali metal,1,5,rubidium,"Rubidium. Symbol R B. Atomic number 37. Alkali metal. Group 1, period 5.",
+38,Sr,Strontium,Alkaline earth metal,2,5,strontium,"Strontium. Symbol S R. Atomic number 38. Alkaline earth metal. Group 2, period 5.",
+39,Y,Yttrium,Transition metal,3,5,yttrium,"Yttrium. Symbol Y. Atomic number 39. Transition metal. Group 3, period 5.",yes
+40,Zr,Zirconium,Transition metal,4,5,zirconium,"Zirconium. Symbol Z R. Atomic number 40. Transition metal. Group 4, period 5.",
+41,Nb,Niobium,Transition metal,5,5,niobium,"Niobium. Symbol N B. Atomic number 41. Transition metal. Group 5, period 5.",yes
+42,Mo,Molybdenum,Transition metal,6,5,molybdenum,"Molybdenum. Symbol M O. Atomic number 42. Transition metal. Group 6, period 5.",yes
+43,Tc,Technetium,Transition metal,7,5,technetium,"Technetium. Symbol T C. Atomic number 43. Transition metal. Group 7, period 5.",yes
+44,Ru,Ruthenium,Transition metal,8,5,ruthenium,"Ruthenium. Symbol R U. Atomic number 44. Transition metal. Group 8, period 5.",yes
+45,Rh,Rhodium,Transition metal,9,5,rhodium,"Rhodium. Symbol R H. Atomic number 45. Transition metal. Group 9, period 5.",
+46,Pd,Palladium,Transition metal,10,5,palladium,"Palladium. Symbol P D. Atomic number 46. Transition metal. Group 10, period 5.",
+47,Ag,Silver,Transition metal,11,5,silver,"Silver. Symbol A G. Atomic number 47. Transition metal. Group 11, period 5.",
+48,Cd,Cadmium,Transition metal,12,5,cadmium,"Cadmium. Symbol C D. Atomic number 48. Transition metal. Group 12, period 5.",
+49,In,Indium,Post-transition metal,13,5,indium,"Indium. Symbol I N. Atomic number 49. Post-transition metal. Group 13, period 5.",
+50,Sn,Tin,Post-transition metal,14,5,tin,"Tin. Symbol S N. Atomic number 50. Post-transition metal. Group 14, period 5.",
+51,Sb,Antimony,Metalloid,15,5,antimony,"Antimony. Symbol S B. Atomic number 51. Metalloid. Group 15, period 5.",
+52,Te,Tellurium,Metalloid,16,5,tellurium,"Tellurium. Symbol T E. Atomic number 52. Metalloid. Group 16, period 5.",yes
+53,I,Iodine,Halogen,17,5,iodine,"Iodine. Symbol I. Atomic number 53. Halogen. Group 17, period 5.",
+54,Xe,Xenon,Noble gas,18,5,xenon,"Xenon. Symbol X E. Atomic number 54. Noble gas. Group 18, period 5.",yes
+55,Cs,Cesium,Alkali metal,1,6,cesium,"Cesium. Symbol C S. Atomic number 55. Alkali metal. Group 1, period 6.",yes
+56,Ba,Barium,Alkaline earth metal,2,6,barium,"Barium. Symbol B A. Atomic number 56. Alkaline earth metal. Group 2, period 6.",
+57,La,Lanthanum,Lanthanide,,6,lanthanum,Lanthanum. Symbol L A. Atomic number 57. Lanthanide. Period 6.,
+58,Ce,Cerium,Lanthanide,,6,cerium,Cerium. Symbol C E. Atomic number 58. Lanthanide. Period 6.,
+59,Pr,Praseodymium,Lanthanide,,6,praseodymium,Praseodymium. Symbol P R. Atomic number 59. Lanthanide. Period 6.,yes
+60,Nd,Neodymium,Lanthanide,,6,neodymium,Neodymium. Symbol N D. Atomic number 60. Lanthanide. Period 6.,yes
+61,Pm,Promethium,Lanthanide,,6,promethium,Promethium. Symbol P M. Atomic number 61. Lanthanide. Period 6.,yes
+62,Sm,Samarium,Lanthanide,,6,samarium,Samarium. Symbol S M. Atomic number 62. Lanthanide. Period 6.,
+63,Eu,Europium,Lanthanide,,6,europium,Europium. Symbol E U. Atomic number 63. Lanthanide. Period 6.,yes
+64,Gd,Gadolinium,Lanthanide,,6,gadolinium,Gadolinium. Symbol G D. Atomic number 64. Lanthanide. Period 6.,yes
+65,Tb,Terbium,Lanthanide,,6,terbium,Terbium. Symbol T B. Atomic number 65. Lanthanide. Period 6.,
+66,Dy,Dysprosium,Lanthanide,,6,dysprosium,Dysprosium. Symbol D Y. Atomic number 66. Lanthanide. Period 6.,yes
+67,Ho,Holmium,Lanthanide,,6,holmium,Holmium. Symbol H O. Atomic number 67. Lanthanide. Period 6.,
+68,Er,Erbium,Lanthanide,,6,erbium,Erbium. Symbol E R. Atomic number 68. Lanthanide. Period 6.,
+69,Tm,Thulium,Lanthanide,,6,thulium,Thulium. Symbol T M. Atomic number 69. Lanthanide. Period 6.,
+70,Yb,Ytterbium,Lanthanide,,6,ytterbium,Ytterbium. Symbol Y B. Atomic number 70. Lanthanide. Period 6.,yes
+71,Lu,Lutetium,Lanthanide,,6,lutetium,Lutetium. Symbol L U. Atomic number 71. Lanthanide. Period 6.,yes
+72,Hf,Hafnium,Transition metal,4,6,hafnium,"Hafnium. Symbol H F. Atomic number 72. Transition metal. Group 4, period 6.",yes
+73,Ta,Tantalum,Transition metal,5,6,tantalum,"Tantalum. Symbol T A. Atomic number 73. Transition metal. Group 5, period 6.",
+74,W,Tungsten,Transition metal,6,6,tungsten,"Tungsten. Symbol W. Atomic number 74. Transition metal. Group 6, period 6.",
+75,Re,Rhenium,Transition metal,7,6,rhenium,"Rhenium. Symbol R E. Atomic number 75. Transition metal. Group 7, period 6.",
+76,Os,Osmium,Transition metal,8,6,osmium,"Osmium. Symbol O S. Atomic number 76. Transition metal. Group 8, period 6.",
+77,Ir,Iridium,Transition metal,9,6,iridium,"Iridium. Symbol I R. Atomic number 77. Transition metal. Group 9, period 6.",
+78,Pt,Platinum,Transition metal,10,6,platinum,"Platinum. Symbol P T. Atomic number 78. Transition metal. Group 10, period 6.",
+79,Au,Gold,Transition metal,11,6,gold,"Gold. Symbol A U. Atomic number 79. Transition metal. Group 11, period 6.",
+80,Hg,Mercury,Transition metal,12,6,mercury,"Mercury. Symbol H G. Atomic number 80. Transition metal. Group 12, period 6.",
+81,Tl,Thallium,Post-transition metal,13,6,thallium,"Thallium. Symbol T L. Atomic number 81. Post-transition metal. Group 13, period 6.",yes
+82,Pb,Lead,Post-transition metal,14,6,lead,"Lead. Symbol P B. Atomic number 82. Post-transition metal. Group 14, period 6.",yes
+83,Bi,Bismuth,Post-transition metal,15,6,bismuth,"Bismuth. Symbol B I. Atomic number 83. Post-transition metal. Group 15, period 6.",
+84,Po,Polonium,Metalloid,16,6,polonium,"Polonium. Symbol P O. Atomic number 84. Metalloid. Group 16, period 6.",yes
+85,At,Astatine,Halogen,17,6,astatine,"Astatine. Symbol A T. Atomic number 85. Halogen. Group 17, period 6.",yes
+86,Rn,Radon,Noble gas,18,6,radon,"Radon. Symbol R N. Atomic number 86. Noble gas. Group 18, period 6.",
+87,Fr,Francium,Alkali metal,1,7,francium,"Francium. Symbol F R. Atomic number 87. Alkali metal. Group 1, period 7.",
+88,Ra,Radium,Alkaline earth metal,2,7,radium,"Radium. Symbol R A. Atomic number 88. Alkaline earth metal. Group 2, period 7.",
+89,Ac,Actinium,Actinide,,7,actinium,Actinium. Symbol A C. Atomic number 89. Actinide. Period 7.,
+90,Th,Thorium,Actinide,,7,thorium,Thorium. Symbol T H. Atomic number 90. Actinide. Period 7.,
+91,Pa,Protactinium,Actinide,,7,protactinium,Protactinium. Symbol P A. Atomic number 91. Actinide. Period 7.,yes
+92,U,Uranium,Actinide,,7,uranium,Uranium. Symbol U. Atomic number 92. Actinide. Period 7.,
+93,Np,Neptunium,Actinide,,7,neptunium,Neptunium. Symbol N P. Atomic number 93. Actinide. Period 7.,
+94,Pu,Plutonium,Actinide,,7,plutonium,Plutonium. Symbol P U. Atomic number 94. Actinide. Period 7.,
+95,Am,Americium,Actinide,,7,americium,Americium. Symbol A M. Atomic number 95. Actinide. Period 7.,yes
+96,Cm,Curium,Actinide,,7,curium,Curium. Symbol C M. Atomic number 96. Actinide. Period 7.,
+97,Bk,Berkelium,Actinide,,7,berkelium,Berkelium. Symbol B K. Atomic number 97. Actinide. Period 7.,yes
+98,Cf,Californium,Actinide,,7,californium,Californium. Symbol C F. Atomic number 98. Actinide. Period 7.,
+99,Es,Einsteinium,Actinide,,7,einsteinium,Einsteinium. Symbol E S. Atomic number 99. Actinide. Period 7.,yes
+100,Fm,Fermium,Actinide,,7,fermium,Fermium. Symbol F M. Atomic number 100. Actinide. Period 7.,
+101,Md,Mendelevium,Actinide,,7,mendelevium,Mendelevium. Symbol M D. Atomic number 101. Actinide. Period 7.,yes
+102,No,Nobelium,Actinide,,7,nobelium,Nobelium. Symbol N O. Atomic number 102. Actinide. Period 7.,
+103,Lr,Lawrencium,Actinide,,7,lawrencium,Lawrencium. Symbol L R. Atomic number 103. Actinide. Period 7.,yes
+104,Rf,Rutherfordium,Transition metal,4,7,rutherfordium,"Rutherfordium. Symbol R F. Atomic number 104. Transition metal. Group 4, period 7.",yes
+105,Db,Dubnium,Transition metal,5,7,dubnium,"Dubnium. Symbol D B. Atomic number 105. Transition metal. Group 5, period 7.",
+106,Sg,Seaborgium,Transition metal,6,7,seaborgium,"Seaborgium. Symbol S G. Atomic number 106. Transition metal. Group 6, period 7.",yes
+107,Bh,Bohrium,Transition metal,7,7,bohrium,"Bohrium. Symbol B H. Atomic number 107. Transition metal. Group 7, period 7.",yes
+108,Hs,Hassium,Transition metal,8,7,hassium,"Hassium. Symbol H S. Atomic number 108. Transition metal. Group 8, period 7.",yes
+109,Mt,Meitnerium,Transition metal,9,7,meitnerium,"Meitnerium. Symbol M T. Atomic number 109. Transition metal. Group 9, period 7.",yes
+110,Ds,Darmstadtium,Transition metal,10,7,darmstadtium,"Darmstadtium. Symbol D S. Atomic number 110. Transition metal. Group 10, period 7.",yes
+111,Rg,Roentgenium,Transition metal,11,7,roentgenium,"Roentgenium. Symbol R G. Atomic number 111. Transition metal. Group 11, period 7.",yes
+112,Cn,Copernicium,Transition metal,12,7,copernicium,"Copernicium. Symbol C N. Atomic number 112. Transition metal. Group 12, period 7.",yes
+113,Nh,Nihonium,Post-transition metal,13,7,nihonium,"Nihonium. Symbol N H. Atomic number 113. Post-transition metal. Group 13, period 7.",yes
+114,Fl,Flerovium,Post-transition metal,14,7,flerovium,"Flerovium. Symbol F L. Atomic number 114. Post-transition metal. Group 14, period 7.",yes
+115,Mc,Moscovium,Post-transition metal,15,7,moscovium,"Moscovium. Symbol M C. Atomic number 115. Post-transition metal. Group 15, period 7.",yes
+116,Lv,Livermorium,Post-transition metal,16,7,livermorium,"Livermorium. Symbol L V. Atomic number 116. Post-transition metal. Group 16, period 7.",yes
+117,Ts,Tennessine,Halogen,17,7,tennessine,"Tennessine. Symbol T S. Atomic number 117. Halogen. Group 17, period 7.",yes
+118,Og,Oganesson,Noble gas,18,7,oganesson,"Oganesson. Symbol O G. Atomic number 118. Noble gas. Group 18, period 7.",yes

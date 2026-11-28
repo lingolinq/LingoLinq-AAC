@@ -1,0 +1,672 @@
+[
+ {
+  "set": "regular",
+  "id": "periodic-table",
+  "name": "Periodic Table",
+  "rows": 3,
+  "columns": 7,
+  "buttons": 16,
+  "elements": 0,
+  "links": [
+   "periodic-table-alkali-metals",
+   "periodic-table-alkaline-earth",
+   "periodic-table-compounds",
+   "periodic-table-first-20",
+   "periodic-table-full",
+   "periodic-table-halogens",
+   "periodic-table-lanthanides-actinides",
+   "periodic-table-main-groups",
+   "periodic-table-metalloids",
+   "periodic-table-noble-gases",
+   "periodic-table-nonmetals",
+   "periodic-table-post-transition",
+   "periodic-table-talk",
+   "periodic-table-transition-metals",
+   "periodic-table-words"
+  ]
+ },
+ {
+  "set": "regular",
+  "id": "periodic-table-alkali-metals",
+  "name": "Periodic Table: Alkali metals",
+  "rows": 3,
+  "columns": 4,
+  "buttons": 10,
+  "elements": 6,
+  "links": [
+   "periodic-table",
+   "periodic-table-talk",
+   "periodic-table-words"
+  ]
+ },
+ {
+  "set": "regular",
+  "id": "periodic-table-alkaline-earth",
+  "name": "Periodic Table: Alkaline earth metals",
+  "rows": 3,
+  "columns": 4,
+  "buttons": 10,
+  "elements": 6,
+  "links": [
+   "periodic-table",
+   "periodic-table-talk",
+   "periodic-table-words"
+  ]
+ },
+ {
+  "set": "regular",
+  "id": "periodic-table-compounds",
+  "name": "Periodic Table: Common Compounds",
+  "rows": 5,
+  "columns": 5,
+  "buttons": 24,
+  "elements": 0,
+  "links": [
+   "periodic-table",
+   "periodic-table-talk",
+   "periodic-table-words"
+  ]
+ },
+ {
+  "set": "regular",
+  "id": "periodic-table-first-20",
+  "name": "Periodic Table: Elements 1\u201320",
+  "rows": 5,
+  "columns": 8,
+  "buttons": 25,
+  "elements": 20,
+  "links": [
+   "periodic-table",
+   "periodic-table-first-20-facts",
+   "periodic-table-talk",
+   "periodic-table-words"
+  ]
+ },
+ {
+  "set": "regular",
+  "id": "periodic-table-first-20-facts",
+  "name": "Periodic Table: Elements 1\u201320 (facts)",
+  "rows": 5,
+  "columns": 8,
+  "buttons": 25,
+  "elements": 20,
+  "links": [
+   "periodic-table",
+   "periodic-table-first-20",
+   "periodic-table-talk",
+   "periodic-table-words"
+  ]
+ },
+ {
+  "set": "regular",
+  "id": "periodic-table-full",
+  "name": "Periodic Table: Full Table",
+  "rows": 8,
+  "columns": 18,
+  "buttons": 105,
+  "elements": 88,
+  "links": [
+   "periodic-table",
+   "periodic-table-alkali-metals",
+   "periodic-table-alkaline-earth",
+   "periodic-table-full-facts",
+   "periodic-table-halogens",
+   "periodic-table-lanthanides-actinides",
+   "periodic-table-metalloids",
+   "periodic-table-noble-gases",
+   "periodic-table-nonmetals",
+   "periodic-table-post-transition",
+   "periodic-table-talk",
+   "periodic-table-transition-metals",
+   "periodic-table-words"
+  ]
+ },
+ {
+  "set": "regular",
+  "id": "periodic-table-full-facts",
+  "name": "Periodic Table: Full Table (facts)",
+  "rows": 8,
+  "columns": 18,
+  "buttons": 105,
+  "elements": 88,
+  "links": [
+   "periodic-table",
+   "periodic-table-alkali-metals",
+   "periodic-table-alkaline-earth",
+   "periodic-table-full",
+   "periodic-table-halogens",
+   "periodic-table-lanthanides-actinides",
+   "periodic-table-lanthanides-actinides-facts",
+   "periodic-table-metalloids",
+   "periodic-table-noble-gases",
+   "periodic-table-nonmetals",
+   "periodic-table-post-transition",
+   "periodic-table-talk",
+   "periodic-table-transition-metals",
+   "periodic-table-words"
+  ]
+ },
+ {
+  "set": "regular",
+  "id": "periodic-table-halogens",
+  "name": "Periodic Table: Halogens",
+  "rows": 3,
+  "columns": 4,
+  "buttons": 10,
+  "elements": 6,
+  "links": [
+   "periodic-table",
+   "periodic-table-talk",
+   "periodic-table-words"
+  ]
+ },
+ {
+  "set": "regular",
+  "id": "periodic-table-lanthanides-actinides",
+  "name": "Periodic Table: Lanthanides and Actinides",
+  "rows": 3,
+  "columns": 15,
+  "buttons": 35,
+  "elements": 30,
+  "links": [
+   "periodic-table",
+   "periodic-table-lanthanides-actinides-facts",
+   "periodic-table-talk",
+   "periodic-table-words"
+  ]
+ },
+ {
+  "set": "regular",
+  "id": "periodic-table-lanthanides-actinides-facts",
+  "name": "Periodic Table: Lanthanides and Actinides (facts)",
+  "rows": 3,
+  "columns": 15,
+  "buttons": 35,
+  "elements": 30,
+  "links": [
+   "periodic-table",
+   "periodic-table-lanthanides-actinides",
+   "periodic-table-talk",
+   "periodic-table-words"
+  ]
+ },
+ {
+  "set": "regular",
+  "id": "periodic-table-main-groups",
+  "name": "Periodic Table: Main Groups",
+  "rows": 8,
+  "columns": 8,
+  "buttons": 55,
+  "elements": 50,
+  "links": [
+   "periodic-table",
+   "periodic-table-main-groups-facts",
+   "periodic-table-talk",
+   "periodic-table-words"
+  ]
+ },
+ {
+  "set": "regular",
+  "id": "periodic-table-main-groups-facts",
+  "name": "Periodic Table: Main Groups (facts)",
+  "rows": 8,
+  "columns": 8,
+  "buttons": 55,
+  "elements": 50,
+  "links": [
+   "periodic-table",
+   "periodic-table-main-groups",
+   "periodic-table-talk",
+   "periodic-table-words"
+  ]
+ },
+ {
+  "set": "regular",
+  "id": "periodic-table-metalloids",
+  "name": "Periodic Table: Metalloids",
+  "rows": 3,
+  "columns": 4,
+  "buttons": 11,
+  "elements": 7,
+  "links": [
+   "periodic-table",
+   "periodic-table-talk",
+   "periodic-table-words"
+  ]
+ },
+ {
+  "set": "regular",
+  "id": "periodic-table-noble-gases",
+  "name": "Periodic Table: Noble gases",
+  "rows": 3,
+  "columns": 4,
+  "buttons": 11,
+  "elements": 7,
+  "links": [
+   "periodic-table",
+   "periodic-table-talk",
+   "periodic-table-words"
+  ]
+ },
+ {
+  "set": "regular",
+  "id": "periodic-table-nonmetals",
+  "name": "Periodic Table: Nonmetals",
+  "rows": 3,
+  "columns": 4,
+  "buttons": 11,
+  "elements": 7,
+  "links": [
+   "periodic-table",
+   "periodic-table-talk",
+   "periodic-table-words"
+  ]
+ },
+ {
+  "set": "regular",
+  "id": "periodic-table-post-transition",
+  "name": "Periodic Table: Post-transition metals",
+  "rows": 4,
+  "columns": 4,
+  "buttons": 15,
+  "elements": 11,
+  "links": [
+   "periodic-table",
+   "periodic-table-talk",
+   "periodic-table-words"
+  ]
+ },
+ {
+  "set": "regular",
+  "id": "periodic-table-talk",
+  "name": "Periodic Table: Class Talk",
+  "rows": 7,
+  "columns": 4,
+  "buttons": 27,
+  "elements": 0,
+  "links": [
+   "periodic-table",
+   "periodic-table-words"
+  ]
+ },
+ {
+  "set": "regular",
+  "id": "periodic-table-transition-metals",
+  "name": "Periodic Table: Transition Metals",
+  "rows": 5,
+  "columns": 10,
+  "buttons": 45,
+  "elements": 38,
+  "links": [
+   "periodic-table",
+   "periodic-table-lanthanides-actinides",
+   "periodic-table-talk",
+   "periodic-table-transition-metals-facts",
+   "periodic-table-words"
+  ]
+ },
+ {
+  "set": "regular",
+  "id": "periodic-table-transition-metals-facts",
+  "name": "Periodic Table: Transition Metals (facts)",
+  "rows": 5,
+  "columns": 10,
+  "buttons": 45,
+  "elements": 38,
+  "links": [
+   "periodic-table",
+   "periodic-table-lanthanides-actinides-facts",
+   "periodic-table-talk",
+   "periodic-table-transition-metals",
+   "periodic-table-words"
+  ]
+ },
+ {
+  "set": "regular",
+  "id": "periodic-table-words",
+  "name": "Periodic Table: Science Words",
+  "rows": 8,
+  "columns": 8,
+  "buttons": 59,
+  "elements": 0,
+  "links": [
+   "periodic-table",
+   "periodic-table-talk"
+  ]
+ },
+ {
+  "set": "high-contrast",
+  "id": "periodic-table-hc",
+  "name": "Periodic Table (High Contrast)",
+  "rows": 3,
+  "columns": 7,
+  "buttons": 16,
+  "elements": 0,
+  "links": [
+   "periodic-table-hc-alkali-metals",
+   "periodic-table-hc-alkaline-earth",
+   "periodic-table-hc-compounds",
+   "periodic-table-hc-first-20",
+   "periodic-table-hc-full",
+   "periodic-table-hc-halogens",
+   "periodic-table-hc-lanthanides-actinides",
+   "periodic-table-hc-main-groups",
+   "periodic-table-hc-metalloids",
+   "periodic-table-hc-noble-gases",
+   "periodic-table-hc-nonmetals",
+   "periodic-table-hc-post-transition",
+   "periodic-table-hc-talk",
+   "periodic-table-hc-transition-metals",
+   "periodic-table-hc-words"
+  ]
+ },
+ {
+  "set": "high-contrast",
+  "id": "periodic-table-hc-alkali-metals",
+  "name": "Periodic Table HC: Alkali metals",
+  "rows": 3,
+  "columns": 4,
+  "buttons": 10,
+  "elements": 6,
+  "links": [
+   "periodic-table-hc",
+   "periodic-table-hc-talk",
+   "periodic-table-hc-words"
+  ]
+ },
+ {
+  "set": "high-contrast",
+  "id": "periodic-table-hc-alkaline-earth",
+  "name": "Periodic Table HC: Alkaline earth metals",
+  "rows": 3,
+  "columns": 4,
+  "buttons": 10,
+  "elements": 6,
+  "links": [
+   "periodic-table-hc",
+   "periodic-table-hc-talk",
+   "periodic-table-hc-words"
+  ]
+ },
+ {
+  "set": "high-contrast",
+  "id": "periodic-table-hc-compounds",
+  "name": "Periodic Table HC: Common Compounds",
+  "rows": 5,
+  "columns": 5,
+  "buttons": 24,
+  "elements": 0,
+  "links": [
+   "periodic-table-hc",
+   "periodic-table-hc-talk",
+   "periodic-table-hc-words"
+  ]
+ },
+ {
+  "set": "high-contrast",
+  "id": "periodic-table-hc-first-20",
+  "name": "Periodic Table HC: Elements 1\u201320",
+  "rows": 5,
+  "columns": 8,
+  "buttons": 25,
+  "elements": 20,
+  "links": [
+   "periodic-table-hc",
+   "periodic-table-hc-first-20-facts",
+   "periodic-table-hc-talk",
+   "periodic-table-hc-words"
+  ]
+ },
+ {
+  "set": "high-contrast",
+  "id": "periodic-table-hc-first-20-facts",
+  "name": "Periodic Table HC: Elements 1\u201320 (facts)",
+  "rows": 5,
+  "columns": 8,
+  "buttons": 25,
+  "elements": 20,
+  "links": [
+   "periodic-table-hc",
+   "periodic-table-hc-first-20",
+   "periodic-table-hc-talk",
+   "periodic-table-hc-words"
+  ]
+ },
+ {
+  "set": "high-contrast",
+  "id": "periodic-table-hc-full",
+  "name": "Periodic Table HC: Full Table",
+  "rows": 8,
+  "columns": 18,
+  "buttons": 105,
+  "elements": 88,
+  "links": [
+   "periodic-table-hc",
+   "periodic-table-hc-alkali-metals",
+   "periodic-table-hc-alkaline-earth",
+   "periodic-table-hc-full-facts",
+   "periodic-table-hc-halogens",
+   "periodic-table-hc-lanthanides-actinides",
+   "periodic-table-hc-metalloids",
+   "periodic-table-hc-noble-gases",
+   "periodic-table-hc-nonmetals",
+   "periodic-table-hc-post-transition",
+   "periodic-table-hc-talk",
+   "periodic-table-hc-transition-metals",
+   "periodic-table-hc-words"
+  ]
+ },
+ {
+  "set": "high-contrast",
+  "id": "periodic-table-hc-full-facts",
+  "name": "Periodic Table HC: Full Table (facts)",
+  "rows": 8,
+  "columns": 18,
+  "buttons": 105,
+  "elements": 88,
+  "links": [
+   "periodic-table-hc",
+   "periodic-table-hc-alkali-metals",
+   "periodic-table-hc-alkaline-earth",
+   "periodic-table-hc-full",
+   "periodic-table-hc-halogens",
+   "periodic-table-hc-lanthanides-actinides",
+   "periodic-table-hc-lanthanides-actinides-facts",
+   "periodic-table-hc-metalloids",
+   "periodic-table-hc-noble-gases",
+   "periodic-table-hc-nonmetals",
+   "periodic-table-hc-post-transition",
+   "periodic-table-hc-talk",
+   "periodic-table-hc-transition-metals",
+   "periodic-table-hc-words"
+  ]
+ },
+ {
+  "set": "high-contrast",
+  "id": "periodic-table-hc-halogens",
+  "name": "Periodic Table HC: Halogens",
+  "rows": 3,
+  "columns": 4,
+  "buttons": 10,
+  "elements": 6,
+  "links": [
+   "periodic-table-hc",
+   "periodic-table-hc-talk",
+   "periodic-table-hc-words"
+  ]
+ },
+ {
+  "set": "high-contrast",
+  "id": "periodic-table-hc-lanthanides-actinides",
+  "name": "Periodic Table HC: Lanthanides and Actinides",
+  "rows": 3,
+  "columns": 15,
+  "buttons": 35,
+  "elements": 30,
+  "links": [
+   "periodic-table-hc",
+   "periodic-table-hc-lanthanides-actinides-facts",
+   "periodic-table-hc-talk",
+   "periodic-table-hc-words"
+  ]
+ },
+ {
+  "set": "high-contrast",
+  "id": "periodic-table-hc-lanthanides-actinides-facts",
+  "name": "Periodic Table HC: Lanthanides and Actinides (facts)",
+  "rows": 3,
+  "columns": 15,
+  "buttons": 35,
+  "elements": 30,
+  "links": [
+   "periodic-table-hc",
+   "periodic-table-hc-lanthanides-actinides",
+   "periodic-table-hc-talk",
+   "periodic-table-hc-words"
+  ]
+ },
+ {
+  "set": "high-contrast",
+  "id": "periodic-table-hc-main-groups",
+  "name": "Periodic Table HC: Main Groups",
+  "rows": 8,
+  "columns": 8,
+  "buttons": 55,
+  "elements": 50,
+  "links": [
+   "periodic-table-hc",
+   "periodic-table-hc-main-groups-facts",
+   "periodic-table-hc-talk",
+   "periodic-table-hc-words"
+  ]
+ },
+ {
+  "set": "high-contrast",
+  "id": "periodic-table-hc-main-groups-facts",
+  "name": "Periodic Table HC: Main Groups (facts)",
+  "rows": 8,
+  "columns": 8,
+  "buttons": 55,
+  "elements": 50,
+  "links": [
+   "periodic-table-hc",
+   "periodic-table-hc-main-groups",
+   "periodic-table-hc-talk",
+   "periodic-table-hc-words"
+  ]
+ },
+ {
+  "set": "high-contrast",
+  "id": "periodic-table-hc-metalloids",
+  "name": "Periodic Table HC: Metalloids",
+  "rows": 3,
+  "columns": 4,
+  "buttons": 11,
+  "elements": 7,
+  "links": [
+   "periodic-table-hc",
+   "periodic-table-hc-talk",
+   "periodic-table-hc-words"
+  ]
+ },
+ {
+  "set": "high-contrast",
+  "id": "periodic-table-hc-noble-gases",
+  "name": "Periodic Table HC: Noble gases",
+  "rows": 3,
+  "columns": 4,
+  "buttons": 11,
+  "elements": 7,
+  "links": [
+   "periodic-table-hc",
+   "periodic-table-hc-talk",
+   "periodic-table-hc-words"
+  ]
+ },
+ {
+  "set": "high-contrast",
+  "id": "periodic-table-hc-nonmetals",
+  "name": "Periodic Table HC: Nonmetals",
+  "rows": 3,
+  "columns": 4,
+  "buttons": 11,
+  "elements": 7,
+  "links": [
+   "periodic-table-hc",
+   "periodic-table-hc-talk",
+   "periodic-table-hc-words"
+  ]
+ },
+ {
+  "set": "high-contrast",
+  "id": "periodic-table-hc-post-transition",
+  "name": "Periodic Table HC: Post-transition metals",
+  "rows": 4,
+  "columns": 4,
+  "buttons": 15,
+  "elements": 11,
+  "links": [
+   "periodic-table-hc",
+   "periodic-table-hc-talk",
+   "periodic-table-hc-words"
+  ]
+ },
+ {
+  "set": "high-contrast",
+  "id": "periodic-table-hc-talk",
+  "name": "Periodic Table HC: Class Talk",
+  "rows": 7,
+  "columns": 4,
+  "buttons": 27,
+  "elements": 0,
+  "links": [
+   "periodic-table-hc",
+   "periodic-table-hc-words"
+  ]
+ },
+ {
+  "set": "high-contrast",
+  "id": "periodic-table-hc-transition-metals",
+  "name": "Periodic Table HC: Transition Metals",
+  "rows": 5,
+  "columns": 10,
+  "buttons": 45,
+  "elements": 38,
+  "links": [
+   "periodic-table-hc",
+   "periodic-table-hc-lanthanides-actinides",
+   "periodic-table-hc-talk",
+   "periodic-table-hc-transition-metals-facts",
+   "periodic-table-hc-words"
+  ]
+ },
+ {
+  "set": "high-contrast",
+  "id": "periodic-table-hc-transition-metals-facts",
+  "name": "Periodic Table HC: Transition Metals (facts)",
+  "rows": 5,
+  "columns": 10,
+  "buttons": 45,
+  "elements": 38,
+  "links": [
+   "periodic-table-hc",
+   "periodic-table-hc-lanthanides-actinides-facts",
+   "periodic-table-hc-talk",
+   "periodic-table-hc-transition-metals",
+   "periodic-table-hc-words"
+  ]
+ },
+ {
+  "set": "high-contrast",
+  "id": "periodic-table-hc-words",
+  "name": "Periodic Table HC: Science Words",
+  "rows": 8,
+  "columns": 8,
+  "buttons": 59,
+  "elements": 0,
+  "links": [
+   "periodic-table-hc",
+   "periodic-table-hc-talk"
+  ]
+ }
+]
